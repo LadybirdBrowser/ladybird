@@ -426,9 +426,11 @@ pub(crate) fn paint_image_content<O: Observer>(
             ForceDarkRole::Background,
         ),
         ImageContent::Vector {
-            has_active_view_box, ..
+            content_identity,
+            has_active_view_box,
         } => recorder.paint_vector_image(
             source,
+            *content_identity,
             *has_active_view_box,
             dest_rect,
             accumulated_scale,
@@ -669,7 +671,7 @@ fn paint_image_layer<O: Observer>(
         if dest_rect.height == 0 {
             dest_rect.height = 1;
         }
-        if let crate::painting::image_content::ImageContent::Vector { .. } = &facts.content {
+        if let crate::painting::image_content::ImageContent::Vector { content_identity, .. } = &facts.content {
             if clip_rect.is_empty() {
                 return;
             }
@@ -684,6 +686,8 @@ fn paint_image_layer<O: Observer>(
                     CssPixels::from_integer(i64::from(dest_rect.width)),
                     CssPixels::from_integer(i64::from(dest_rect.height)),
                     1.0,
+                    *content_identity,
+                    recorder.vector_image_color_scheme(vector_image_source.owner()),
                 ),
             );
             let tile_size = IntSize {

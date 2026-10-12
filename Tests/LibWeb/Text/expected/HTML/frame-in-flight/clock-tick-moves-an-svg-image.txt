@@ -1,2 +1,2 @@
-moving a box that draws an SVG image: ticking, presented by commit
+moving a box that draws an SVG image: ticking, presented by clock
 resizing an SVG image: parked, presented by commit

@@ -78,6 +78,10 @@ pub(crate) struct RecordingInputs {
     pub inactive_selection_background_dark: Color,
     pub palette_is_dark: bool,
     pub document_has_supported_color_schemes: bool,
+    // Whether the document's supported color schemes name `light` or `dark`.
+    pub document_supports_light_or_dark: bool,
+    // The color scheme an SVG image renders in where neither the box that draws it nor its document opts into one.
+    pub image_fallback_color_scheme: u8,
     // The paintable the assistive technology's browse-mode focus is on, which paints the AT focus ring.
     pub accessibility_focus_target: Option<NodeSlotId>,
     pub inspector_highlight: Option<InspectorHighlight>,

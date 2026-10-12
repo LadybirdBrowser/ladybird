@@ -60,6 +60,8 @@ pub struct RecordingOutput {
     pub wheel_event_listener_state_generation: u64,
     pub is_identical_to_published_recording: bool,
     pub(crate) capture_log: Option<trace::CaptureLog>,
+    /// The SVG images whose display lists, which the host rendered, the recording draws, and the ids of those lists.
+    pub(crate) vector_image_display_lists: Vec<(vector_images::VectorImageRenderRequest, u64)>,
 }
 
 pub(crate) struct RecordingResult {
@@ -174,9 +176,31 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.resources.note_video_sink(resource_id, sink_handle)
     }
 
+    /// The color scheme an SVG image the box `owner` draws renders in: the box's own where it or its document opts into
+    /// `light` or `dark`, and otherwise the preferred one.
+    pub(crate) fn vector_image_color_scheme(&self, owner: crate::layout::node_data::NodeSlotId) -> u8 {
+        let names_light_or_dark = |schemes: &[crate::css::retained_fly_string::RetainedUtf16FlyString]| {
+            schemes.iter().any(|scheme| {
+                let scheme = scheme.to_utf16();
+                scheme.iter().copied().eq("light".encode_utf16()) || scheme.iter().copied().eq("dark".encode_utf16())
+            })
+        };
+        // INTEROP: Like Firefox, images use the preferred scheme when neither the element nor its document opts into a
+        //          supported scheme. Controls still default to light.
+        self.source
+            .node_style_if_live(owner)
+            .and_then(|style| {
+                let ui = style.inherited_ui();
+                (self.inputs.document_supports_light_or_dark || names_light_or_dark(ui.color_schemes.as_slice()))
+                    .then_some(ui.color_scheme)
+            })
+            .unwrap_or(self.inputs.image_fallback_color_scheme)
+    }
+
     pub(crate) fn paint_vector_image(
         &mut self,
         source: vector_images::VectorImageSource,
+        content_identity: u64,
         has_active_view_box: bool,
         dest_rect: libgfx_rust::FloatRect,
         accumulated_scale: libgfx_rust::FloatSize,
@@ -191,6 +215,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 geometry.css_width,
                 geometry.css_height,
                 geometry.raster_scale,
+                content_identity,
+                self.vector_image_color_scheme(source.owner()),
             ));
         if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
             let dest_device_rect = libgfx_rust::enclosing_int_rect(dest_rect);

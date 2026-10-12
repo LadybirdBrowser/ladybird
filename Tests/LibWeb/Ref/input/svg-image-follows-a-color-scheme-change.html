@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-image-follows-a-color-scheme-change-ref.html">
+<style>
+    img { display: block; width: 100px; height: 100px; color-scheme: light; }
+</style>
+<img id="icon" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><style>rect { fill: red; } @media (prefers-color-scheme: dark) { rect { fill: green; } }</style><rect width='100' height='100'/></svg>">
+<script>
+    // An SVG image that renders in the color scheme of its box renders anew when that color scheme changes.
+    icon.decode().then(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                icon.style.colorScheme = "dark";
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (window.internals)
+                            internals.signalTestIsDone("PASS");
+                        else
+                            document.documentElement.classList.remove("reftest-wait");
+                    });
+                });
+            });
+        });
+    });
+</script>
+</html>
