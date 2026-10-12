@@ -17,7 +17,7 @@ use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::transforms_effects_parser::{parse_transform, parse_transform_function};
 use crate::css::parser::value_parser::{
     FfiParseStatus, ParseContext, is_valid_custom_ident, parse_custom_ident_value, parse_string_value,
-    parse_syntax_numeric_value, parse_url_value, unresolved_value_from_string, value_list,
+    parse_syntax_numeric_value, parse_url_value, unresolved_value, unresolved_value_from_component_values, value_list,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier};
@@ -415,15 +415,33 @@ pub(crate) fn parse_with_syntax(context: &ParseContext, source: &[u16], syntax: 
         crate::css::css_tokenizer::TokenizerInput::Utf16(source),
     ))
     .ok()?;
+    parse_with_syntax_component_values(context, &values, syntax, Some(source))
+}
+
+/// Parses component values against a syntax. Original source text is only used
+/// when constructing an unresolved value for the universal syntax; when absent,
+/// the component values are serialized instead.
+pub(crate) fn parse_with_syntax_component_values(
+    context: &ParseContext,
+    values: &[ComponentValue],
+    syntax: &SyntaxNode,
+    original_source: Option<&[u16]>,
+) -> Option<StyleValueData> {
     if matches!(syntax, SyntaxNode::Universal) {
-        if !declaration_value_is_valid(&values) {
+        if !declaration_value_is_valid(values) {
             return None;
         }
+
         let mut presence = SubstitutionFunctionsPresence::default();
-        collect_arbitrary_substitution_function_presence(&values, &mut presence).ok()?;
-        return Some(unresolved_value_from_string(source, &[], presence));
+        collect_arbitrary_substitution_function_presence(values, &mut presence).ok()?;
+
+        return Some(match original_source {
+            Some(source) => unresolved_value(source, &[], values.to_vec(), presence),
+            None => unresolved_value_from_component_values(values.to_vec(), presence),
+        });
     }
-    let mut tokens = TokenStream::new(&values);
+
+    let mut tokens = TokenStream::new(values);
     let parsed = parse_node(context, syntax, &mut tokens)?;
     tokens.discard_whitespace();
     (!tokens.has_next_token()).then_some(parsed)
@@ -599,6 +617,41 @@ mod tests {
         assert!(parse_with_syntax(&context, &utf16("1, 2, calc(1 + 2)"), &syntax).is_some());
         assert!(parse_with_syntax(&context, &utf16("red"), &syntax).is_none());
         assert!(parse_with_syntax(&context, &utf16("1,"), &syntax).is_none());
+    }
+
+    #[test]
+    fn universal_syntax_uses_provided_source_text() {
+        let random_function_index = RandomFunctionIndex::default();
+        let context = context(&random_function_index);
+        let source = utf16("1.00px");
+        let values = consume_a_list_of_component_values(
+            crate::css::css_tokenizer::tokenize_for_parser_without_source(b"1.00px").into_vec(),
+        )
+        .unwrap();
+        let Some(StyleValueData::Unresolved { source_text, .. }) =
+            parse_with_syntax_component_values(&context, &values, &SyntaxNode::Universal, Some(&source))
+        else {
+            panic!("expected an unresolved value");
+        };
+        assert_eq!(source_text.units(), source);
+    }
+
+    #[test]
+    fn universal_syntax_serializes_component_values_without_original_source() {
+        let random_function_index = RandomFunctionIndex::default();
+        let context = context(&random_function_index);
+        let mut values = consume_a_list_of_component_values(tokenize_for_parser(b"a b".as_slice())).unwrap();
+        values.remove(1);
+        let Some(StyleValueData::Unresolved {
+            source_text,
+            components,
+            ..
+        }) = parse_with_syntax_component_values(&context, &values, &SyntaxNode::Universal, None)
+        else {
+            panic!("expected an unresolved value");
+        };
+        assert_eq!(source_text.units(), utf16("a/**/b"));
+        assert_eq!(components.as_slice(), values.as_slice());
     }
 
     #[test]
