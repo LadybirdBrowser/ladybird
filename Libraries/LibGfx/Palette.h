@@ -40,8 +40,6 @@ public:
     ByteString path(PathRole) const;
     SystemTheme const& theme() const { return *m_theme_buffer.data<SystemTheme>(); }
 
-    void replace_internal_buffer(Core::AnonymousBuffer);
-
 private:
     explicit PaletteImpl(Core::AnonymousBuffer);
 
