@@ -5525,6 +5525,17 @@ pub(crate) fn unresolved_value(
     }
 }
 
+pub(crate) fn unresolved_value_from_component_values(
+    values: Vec<ComponentValue>,
+    presence: SubstitutionFunctionsPresence,
+) -> StyleValueData {
+    let source = crate::css::serialize::serialize_component_values_to_utf16(
+        &values,
+        crate::css::parser::component_value::ComponentSerializationMode::Retokenize,
+    );
+    unresolved_value(&source, &[], values, presence)
+}
+
 pub(crate) fn parse_css_value_with_source(
     context: &ParseContext,
     property_id: u16,
