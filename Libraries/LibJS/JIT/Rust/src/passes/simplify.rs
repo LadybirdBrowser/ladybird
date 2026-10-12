@@ -6,7 +6,8 @@
 
 //! Constant folding and strength reduction.
 //!
-//! - Conversions and int32 operations of constants become constants.
+//! - Conversions and int32 operations of constants become constants, and
+//!   conversions of conversions the values they started from.
 //! - Int32 operations that leave their left-hand side as it is, like
 //!   `x | 0`, become that value.
 //! - Branches on constants become jumps; truthiness branches on boxed
@@ -24,6 +25,7 @@ use crate::ir::BlockId;
 use crate::ir::BranchCondition;
 use crate::ir::Comparison;
 use crate::ir::Graph;
+use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
@@ -198,6 +200,11 @@ pub fn run(graph: &mut Graph) {
                 .iter()
                 .map(|input| replacements.resolve(*input))
                 .collect::<InlineVec<NodeId, 4>>();
+            // NB: A number check of a boxed int32 value converts the value.
+            let converted = (graph.node(node).op == Op::CheckNumber)
+                .then(|| graph.node(graph.unrefined(inputs[0])))
+                .filter(|unrefined| unrefined.op == Op::BoxInt32)
+                .map(|unrefined| unrefined.inputs[0]);
             let constant_bits = |graph: &Graph, input: usize| graph.constant_value(inputs[input]);
             let boxed = |op: Op, input: NodeId| {
                 let unrefined = graph.node(graph.unrefined(input));
@@ -276,6 +283,14 @@ pub fn run(graph: &mut Graph) {
                 },
                 _ => None,
             };
+            let folded = folded.or_else(|| {
+                let integer = converted?;
+                let pc = graph.node(node).pc;
+                let conversion = graph.add_node(Node::new(Op::Int32ToFloat64, vec![integer], Some(Repr::Float64), pc));
+                graph.blocks[block.index()].body.insert(index - 1, conversion);
+                index += 1;
+                Some(conversion)
+            });
             if let Some(constant) = folded {
                 replacements.replace(node, constant);
                 removed.insert(node.index());
