@@ -286,6 +286,73 @@ fn swapping_loop_phis_go_through_a_temp_slot() {
 }
 
 #[test]
+fn loop_phis_share_spill_slots_with_their_inputs() {
+    // Values carried around a loop with calls in it need stack slots. Each
+    // phi shares its slot with the value flowing into it over the back edge,
+    // so that nothing moves between slots where both are in theirs.
+    let program = assemble(|label| {
+        vec![
+            Instruction::Enter,
+            Instruction::Mov { dst: l(0), src: c(0) },
+            Instruction::Mov { dst: l(1), src: c(1) },
+            Instruction::Mov { dst: r(6), src: c(0) },
+            Instruction::JumpIf {
+                condition: a(0),
+                true_target: label(5),
+                false_target: label(9),
+            },
+            Instruction::Increment {
+                arith_feedback: 0,
+                dst: l(0),
+            },
+            Instruction::Increment {
+                arith_feedback: 0,
+                dst: l(1),
+            },
+            Instruction::Increment {
+                arith_feedback: 0,
+                dst: r(6),
+            },
+            Instruction::Jump { target: label(4) },
+            Instruction::Add {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: l(0),
+                rhs: l(1),
+            },
+            Instruction::Add {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: r(5),
+                rhs: r(6),
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let graph = build(&program);
+    let allocation = allocate_and_verify(&graph);
+    let header = graph.blocks.iter().position(|block| block.is_loop_header).unwrap();
+    let back_edge = graph.blocks[header]
+        .predecessors
+        .iter()
+        .position(|predecessor| predecessor.index() > header)
+        .unwrap();
+    let mut shared = 0;
+    for phi in &graph.blocks[header].phis {
+        let input = graph.node(*phi).inputs[back_edge];
+        let (phi_slot, input_slot) = (
+            allocation.nodes[phi.index()].spill_slot,
+            allocation.nodes[input.index()].spill_slot,
+        );
+        if let (Some(phi_slot), Some(input_slot)) = (phi_slot, input_slot) {
+            assert_eq!(phi_slot, input_slot, "{}", dump_allocation(&graph, &allocation));
+            shared += 1;
+        }
+    }
+    assert_eq!(shared, 2, "{}", dump_allocation(&graph, &allocation));
+}
+
+#[test]
 fn exits_find_constants_registers_and_spilled_values() {
     let program = assemble(|_| {
         vec![
