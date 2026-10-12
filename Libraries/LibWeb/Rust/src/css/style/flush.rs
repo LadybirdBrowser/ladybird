@@ -1275,14 +1275,19 @@ impl StyleEngine {
             && !rule_declarations_edited
             && !environment_changed
             && transaction.markers.is_empty();
-        let mut changed_cascade_input_nodes: Vec<_> = transaction
-            .inputs
-            .iter()
-            .filter_map(|input| match input.key {
-                InputKey::ElementDeclaration(node, _) | InputKey::LocalFeature(node, _) => Some(node),
-                _ => None,
-            })
-            .collect();
+        // NB: Only cascade reuse reads this, and it reaches no selector, so no local feature moved.
+        let mut changed_cascade_input_nodes: Vec<_> = if reuse_unchanged_cascades {
+            transaction
+                .inputs
+                .iter()
+                .filter_map(|input| match input.key {
+                    InputKey::ElementDeclaration(node, _) => Some(node),
+                    _ => None,
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         changed_cascade_input_nodes.sort_unstable();
         changed_cascade_input_nodes.dedup();
         let changed_cascade_input_node_bytes =
