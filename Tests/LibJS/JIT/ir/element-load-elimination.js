@@ -16,6 +16,21 @@ jit.compile(digits);
 // CHECK-NEXT: CheckInt32 ([[ELEMENT]])
 // CHECK-NOT: LoadElementAt
 
+// An index that is a load the analysis already replaced by an earlier load of the same property is that index.
+
+function viaProperty(a, o) {
+    return (a[o.i] & 0x3fff) + (a[o.i] >> 14);
+}
+jit.prepare(viaProperty);
+for (let k = 0; k < 10; ++k) viaProperty([1 << 20, 2, 3], { i: k % 3 });
+jit.compile(viaProperty);
+
+// CHECK-FUNCTION: viaProperty
+// CHECK-PASS: graph building
+// CHECK-COUNT-2: LoadElementAt Packed
+// CHECK-PASS: check elimination
+// CHECK-COUNT-1: LoadElementAt Packed
+
 function swap(a, b, i) {
     const before = a[i];
     b[i] = 0;
