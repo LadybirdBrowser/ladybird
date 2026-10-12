@@ -59,7 +59,7 @@ pub type EntryTrampoline = unsafe extern "C" fn(*const Vm, *mut ExecutionContext
 pub enum CompileState {
     /// Not compiled, or the code was discarded.
     None = 0,
-    /// A compile job for the executable is running on the compile thread.
+    /// A compile job for the executable is running on a compile thread.
     Queued = 1,
     Installed = crate::layout::executable::JIT_COMPILE_STATE_INSTALLED,
     /// The code was discarded while JIT code was still running frames of it. It stays attached (but is not entered)

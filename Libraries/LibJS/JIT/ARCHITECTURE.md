@@ -12,8 +12,8 @@ snapshots, installs code, enters it and translates its state back into interpret
 
 LibJS has two tiers: the bytecode interpreter, whose instructions keep per-site caches and
 feedback, and this optimizing JIT. An executable that uses up its tier-up budget (calls and loop
-iterations) is snapshotted and compiled on the compile thread. The interpreter keeps running it
-meanwhile; the main thread installs the code when the job finishes. Loops that run long enough
+iterations) is snapshotted and compiled on one of the compile threads. The interpreter keeps running
+it meanwhile; the main thread installs the code when the job finishes. Loops that run long enough
 enter compiled code at their back edges (on-stack replacement).
 
 There is no baseline tier. The interpreter's caches are the baseline: the JIT translates what they
@@ -414,6 +414,7 @@ LIBJS_JIT=threshold=100,help ./Build/release/bin/js script.js
 | `threshold=N`           | 400     | How many invocations make a function hot, after its warm-up. Loop iterations count as a fraction of an invocation. |
 | `warmup=N`              | 8       | How many invocations a function runs before the interpreter collects feedback for it.                              |
 | `sync`                  | off     | Compile on the main thread when a function gets hot, at the same points in every run, instead of on a compile thread. |
+| `compile-threads=N`     | 0       | How many threads compile hot functions; 0 starts one per processor core but one, up to 8.                         |
 | `inline-budget=N`       | 250     | How many bytecode instructions the inlined callees of one compile may have together.                               |
 | `inline-max-size=N`     | 30      | How many bytecode instructions one inlined callee may have.                                                        |
 | `inline-depth=N`        | 5       | How deeply inlined calls may nest; 0 turns inlining off.                                                           |
