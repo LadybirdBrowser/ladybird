@@ -2305,6 +2305,11 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
         // Fire an event named progress at the media element.
         dispatch_event(create_event_for_element(*this, HTML::EventNames::progress));
 
+        // AD-HOC: Don't reset network state to idle if a new load started. The remote fetch data is installed in
+        //         a task after the load starts, so a null check suffices.
+        if (!m_remote_fetch_data)
+            return;
+
         // Set the networkState to NETWORK_IDLE and fire an event named suspend at the media element.
         m_network_state = NetworkState::Idle;
         dispatch_event(create_event_for_element(*this, HTML::EventNames::suspend));
