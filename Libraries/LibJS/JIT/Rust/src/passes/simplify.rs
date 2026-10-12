@@ -102,6 +102,10 @@ fn fold_int32_compare(comparison: Comparison, lhs: i32, rhs: i32) -> bool {
         Comparison::GreaterThanEquals => lhs >= rhs,
         Comparison::StrictlyEquals | Comparison::LooselyEquals => lhs == rhs,
         Comparison::StrictlyInequals | Comparison::LooselyInequals => lhs != rhs,
+        Comparison::Below => lhs.cast_unsigned() < rhs.cast_unsigned(),
+        Comparison::BelowOrEqual => lhs.cast_unsigned() <= rhs.cast_unsigned(),
+        Comparison::Above => lhs.cast_unsigned() > rhs.cast_unsigned(),
+        Comparison::AboveOrEqual => lhs.cast_unsigned() >= rhs.cast_unsigned(),
     }
 }
 

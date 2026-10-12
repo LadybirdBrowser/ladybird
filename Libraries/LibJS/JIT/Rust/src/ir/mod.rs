@@ -327,9 +327,28 @@ pub enum Comparison {
     StrictlyInequals,
     LooselyEquals,
     LooselyInequals,
+    /// The unsigned comparisons of the bits of int32 values, which only
+    /// `Op::Int32Compare` and `BranchCondition::Int32` make (see
+    /// `Comparison::unsigned()`).
+    Below,
+    BelowOrEqual,
+    Above,
+    AboveOrEqual,
 }
 
 impl Comparison {
+    /// The comparison of the bits of two int32 values, read as unsigned
+    /// integers, that compares them like this one compares the integers.
+    pub fn unsigned(self) -> Self {
+        match self {
+            Comparison::LessThan => Comparison::Below,
+            Comparison::LessThanEquals => Comparison::BelowOrEqual,
+            Comparison::GreaterThan => Comparison::Above,
+            Comparison::GreaterThanEquals => Comparison::AboveOrEqual,
+            _ => self,
+        }
+    }
+
     /// For the equalities and inequalities: whether they test for equality.
     pub fn equality(self) -> Option<bool> {
         match self {

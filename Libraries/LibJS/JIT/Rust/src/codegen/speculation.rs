@@ -30,6 +30,10 @@ pub(super) fn int32_condition(comparison: Comparison) -> Condition {
         Comparison::GreaterThanEquals => Condition::GreaterThanOrEqual,
         Comparison::StrictlyEquals | Comparison::LooselyEquals => Condition::Equal,
         Comparison::StrictlyInequals | Comparison::LooselyInequals => Condition::NotEqual,
+        Comparison::Below => Condition::Below,
+        Comparison::BelowOrEqual => Condition::BelowOrEqual,
+        Comparison::Above => Condition::Above,
+        Comparison::AboveOrEqual => Condition::AboveOrEqual,
     }
 }
 

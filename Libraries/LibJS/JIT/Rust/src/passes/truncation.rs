@@ -22,8 +22,15 @@
 //! Frame states need the exact value, so values they hold do not wrap.
 //! The pass runs before simplification removes the `x | 0` that ToInt32 of
 //! an int32 builds.
+//!
+//! Comparisons of uint32 values (`(a >>> 0) < (b >>> 0)`, whose results
+//! may also be doubles) only read the bits of the shifted values as well:
+//! they first become unsigned comparisons of those bits, which leaves the
+//! shifts unused.
 
+use super::edit::Constants;
 use crate::bitset::BitSet;
+use crate::code::Repr;
 use crate::ir::BinaryOp;
 use crate::ir::ElementsKind;
 use crate::ir::FrameStateId;
@@ -67,7 +74,98 @@ fn reads_low_bits(graph: &Graph, user: NodeId, index: usize, wrapping: &BitSet) 
     }
 }
 
+/// An operand of a comparison of uint32 values.
+enum Uint32Operand {
+    /// The `Repr::Int32` value whose bits are the uint32 value.
+    Bits(NodeId),
+    Constant(u32),
+}
+
+/// What `value`, an operand of an int32 comparison (or a float64 one, if
+/// `float64`), is as a uint32 value, if it is one.
+fn uint32_operand(graph: &Graph, value: NodeId, float64: bool) -> Option<Uint32Operand> {
+    let node = graph.node(graph.unrefined(value));
+    let shifted_by_zero = |node: &crate::ir::Node| {
+        graph
+            .constant_value(node.inputs[1])
+            .is_some_and(|amount| amount & 31 == 0)
+            .then_some(Uint32Operand::Bits(node.inputs[0]))
+    };
+    match (&node.op, float64) {
+        (Op::Constant(bits), false) => {
+            let integer = (*bits as u32).cast_signed();
+            (integer >= 0).then_some(Uint32Operand::Constant(integer.cast_unsigned()))
+        }
+        (Op::Constant(bits), true) => {
+            let number = f64::from_bits(*bits);
+            (number.fract() == 0.0 && (0.0..4294967296.0).contains(&number))
+                .then_some(Uint32Operand::Constant(number as u32))
+        }
+        (
+            Op::Int32Binary {
+                op: BinaryOp::UnsignedRightShift,
+            }
+            | Op::Int32WrappingBinary {
+                op: BinaryOp::UnsignedRightShift,
+            },
+            false,
+        ) => shifted_by_zero(node),
+        // NB: Simplification has not removed the boxing of operands yet.
+        (Op::CheckNumber | Op::UnboxDouble, true) => {
+            let boxed = graph.node(graph.unrefined(node.inputs[0]));
+            (boxed.op == Op::BoxFloat64)
+                .then(|| uint32_operand(graph, boxed.inputs[0], true))
+                .flatten()
+        }
+        (Op::Int32ToFloat64, true) => uint32_operand(graph, node.inputs[0], false),
+        (Op::Uint32ToFloat64, true) => {
+            let bits = graph.node(node.inputs[0]);
+            let shifted = (bits.op == Op::Uint32ShiftRight)
+                .then(|| shifted_by_zero(bits))
+                .flatten();
+            shifted.or(Some(Uint32Operand::Bits(node.inputs[0])))
+        }
+        _ => None,
+    }
+}
+
+/// Makes comparisons of uint32 values unsigned int32 comparisons of their
+/// bits.
+fn compare_uint32_bits(graph: &mut Graph) {
+    let mut constants = Constants::new(graph);
+    for block in 0..graph.blocks.len() {
+        for index in 0..graph.blocks[block].body.len() {
+            let node = graph.blocks[block].body[index];
+            let (comparison, float64) = match graph.node(node).op {
+                Op::Int32Compare { comparison } => (comparison, false),
+                Op::Float64Compare { comparison } => (comparison, true),
+                _ => continue,
+            };
+            let inputs = &graph.node(node).inputs;
+            let (Some(lhs), Some(rhs)) = (
+                uint32_operand(graph, inputs[0], float64),
+                uint32_operand(graph, inputs[1], float64),
+            ) else {
+                continue;
+            };
+            if matches!((&lhs, &rhs), (Uint32Operand::Constant(_), Uint32Operand::Constant(_))) {
+                continue;
+            }
+            let inputs = [lhs, rhs].map(|operand| match operand {
+                Uint32Operand::Bits(value) => value,
+                Uint32Operand::Constant(integer) => constants.get_typed(graph, u64::from(integer), Repr::Int32),
+            });
+            let data = &mut graph.nodes[node.index()];
+            data.op = Op::Int32Compare {
+                comparison: comparison.unsigned(),
+            };
+            data.inputs = inputs.to_vec();
+        }
+    }
+}
+
 pub fn run(graph: &mut Graph) {
+    compare_uint32_bits(graph);
     let count = graph.nodes.len();
     let mut wrapping = BitSet::new(count);
     let mut users: Vec<Vec<(NodeId, usize)>> = vec![Vec::new(); count];
