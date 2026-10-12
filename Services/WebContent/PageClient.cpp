@@ -557,7 +557,20 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
         m_pending_device_pixel_ratio_for_testing.clear();
 
     page().local_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
+    if (invalidate == Web::InvalidateDisplayList::PaintCommandsAndHitTestList)
+        device_pixels_per_css_pixel_did_change();
     hurry_outstanding_rendering_opportunity();
+}
+
+// The viewports of the nested navigables the page hosts keep their sizes in CSS pixels as the page's device pixels per
+// CSS pixel change, as their containers keep theirs, and take new sizes in device pixels, which their documents paint
+// at and their compositor contexts present at. The local roots take theirs from the UI process or the pages around them.
+void PageClient::device_pixels_per_css_pixel_did_change()
+{
+    for (auto const& navigable : page().hosted_navigables()) {
+        if (!navigable->is_local_root())
+            navigable->set_viewport_size(navigable->viewport_rect().size(), Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
+    }
 }
 
 void PageClient::set_hosted_root_viewport(Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize const& size, Web::DevicePixelRect const& viewport_intersection, double device_pixel_ratio)
@@ -574,6 +587,8 @@ void PageClient::set_hosted_root_viewport(Web::HTML::CrossProcessId navigable_id
 
     navigable->set_viewport_size(page().device_to_css_size(size), invalidate);
     navigable->set_viewport_intersection(page().device_to_css_rect(viewport_intersection));
+    if (invalidate == Web::InvalidateDisplayList::PaintCommandsAndHitTestList)
+        device_pixels_per_css_pixel_did_change();
     hurry_outstanding_rendering_opportunity();
 }
 
@@ -612,12 +627,15 @@ bool PageClient::hosted_documents_are_hidden() const
 
 void PageClient::set_zoom_level(double zoom_level)
 {
+    auto zoom_level_changed = m_zoom_level != zoom_level;
     m_zoom_level = zoom_level;
     if (m_pending_browser_zoom == zoom_level)
         m_pending_browser_zoom.clear();
     // A local root another page's document embeds is sized by that page again at the new zoom level.
     if (page().has_local_traversable())
         page().local_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
+    if (zoom_level_changed)
+        device_pixels_per_css_pixel_did_change();
 }
 
 void PageClient::request_frame()

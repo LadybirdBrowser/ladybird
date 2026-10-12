@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-content-after-browser-zoom-ref.html">
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 220px; height: 110px; border: 0; margin: 20px; }
+</style>
+<iframe src="../data/iframe-raster-content.html"></iframe>
+<script>
+    // Zooming the page as its iframe loaded presents the iframe's content at the new zoom level, sharp and unclipped.
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        internals.setBrowserZoom(2);
+        await frame();
+        await frame();
+        internals.signalTestIsDone("PASS");
+    };
+</script>
