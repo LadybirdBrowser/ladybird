@@ -1,0 +1,4 @@
+lane after the tick: ticking
+last frame presented by: clock
+descendant shows the tick's color: true
+descendant's ::before shows the tick's color: true

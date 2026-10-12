@@ -479,6 +479,37 @@ impl super::StyleEngine {
         overlay: &AnimatedOverlay,
         bounds: super::style_invalidation::SampleBounds,
     ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
+        self.compose_overlay_over_record_of(
+            node,
+            crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+            record,
+            overlay,
+            bounds,
+        )
+    }
+
+    /// Composes `overlay`, the values a pseudo-element of the kind `pseudo_kind` of the element `node` names inherits of
+    /// the element's animations, or of those the element inherits from an ancestor's, over `record`, the
+    /// pseudo-element's, as [`Self::compose_overlay_over_record`] does for an element.
+    pub(crate) fn compose_overlay_over_pseudo_element_record(
+        &mut self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+        record: u64,
+        overlay: &AnimatedOverlay,
+        bounds: super::style_invalidation::SampleBounds,
+    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
+        self.compose_overlay_over_record_of(node, pseudo_kind, record, overlay, bounds)
+    }
+
+    fn compose_overlay_over_record_of(
+        &mut self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+        record: u64,
+        overlay: &AnimatedOverlay,
+        bounds: super::style_invalidation::SampleBounds,
+    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
         let table = self
             .computed_group_sets
             .style_record_view(record)
@@ -501,7 +532,7 @@ impl super::StyleEngine {
             engine
                 .build_animation_overlay_payloads(
                     node,
-                    crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+                    pseudo_kind,
                     record,
                     table,
                     Some(overlay),

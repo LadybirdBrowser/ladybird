@@ -227,14 +227,8 @@ impl StyleEngine {
     ) -> bool {
         use super::publication::pseudo_kind::{AFTER, BEFORE, MARKER};
         let inherits = |record: u64| {
-            let Some(table) = self
-                .computed_group_sets
-                .style_record_view(record)
-                .and_then(|view| unsafe { view.longhand_table.as_ref() })
-            else {
-                return true;
-            };
-            properties.iter().any(|&property| table.is_inherited(property))
+            self.properties_inherited_by_record(record, properties)
+                .is_none_or(|inherited| !inherited.is_empty())
         };
         let held = [BEFORE, AFTER, MARKER]
             .into_iter()
@@ -246,6 +240,30 @@ impl StyleEngine {
             .map(|row| row.new_style_record)
             .filter(|&record| record != 0);
         held.chain(moved).any(inherits)
+    }
+
+    /// Those of `properties` that a box with the style record `record` takes from its parent rather than declares, or
+    /// none where the engine holds no such record.
+    pub(crate) fn properties_inherited_by_record(&self, record: u64, properties: &[u16]) -> Option<SmallVec<[u16; 8]>> {
+        // SAFETY: A record's longhand table lives as long as the record, which the engine holds while it views it.
+        let table = self
+            .computed_group_sets
+            .style_record_view(record)
+            .and_then(|view| unsafe { view.longhand_table.as_ref() })?;
+        Some(
+            properties
+                .iter()
+                .copied()
+                .filter(|&property| table.is_inherited(property))
+                .collect(),
+        )
+    }
+
+    /// Whether the style record `record` composes the values of the animations of the element or pseudo-element that
+    /// holds it over its base record.
+    pub(crate) fn record_composes_animations(&self, record: u64) -> bool {
+        super::computed::FinalStyleRecordID::from_raw(record)
+            .is_some_and(super::computed::FinalStyleRecordID::is_animation_overlay)
     }
 
     /// The element the hover targets, as [`Self::set_hover`] last placed it.
