@@ -6,28 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <LibCore/ConfigFile.h>
 #include <LibGfx/SystemTheme.h>
 
 namespace Gfx {
-
-static auto& theme_buffer()
-{
-    static NeverDestroyed<Core::AnonymousBuffer> buffer;
-    return *buffer;
-}
-
-Core::AnonymousBuffer& current_system_theme_buffer()
-{
-    VERIFY(theme_buffer().is_valid());
-    return theme_buffer();
-}
-
-void set_system_theme(Core::AnonymousBuffer buffer)
-{
-    theme_buffer() = move(buffer);
-}
 
 ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file)
 {
