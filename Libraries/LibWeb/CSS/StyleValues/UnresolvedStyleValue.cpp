@@ -64,18 +64,6 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
     return create_internal(move(token_source), substitution_presence, move(original_source_text), source_text_mode, true, move(parsed_value));
 }
 
-Utf16String UnresolvedStyleValue::serialize_components(u8 mode) const
-{
-    auto text = StyleValueFFI::rust_unresolved_style_value_serialize_components(rust_style_value_data(), mode);
-    VERIFY(text);
-    return Utf16String::adopt_raw(text);
-}
-
-Utf16String UnresolvedStyleValue::token_source() const
-{
-    return serialize_components(2);
-}
-
 bool UnresolvedStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
