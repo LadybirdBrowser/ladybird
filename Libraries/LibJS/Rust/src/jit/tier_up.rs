@@ -329,7 +329,7 @@ fn finish_compile(
     }
 }
 
-/// Compiles `executable`, whose frames run `function`: right away if `sync`, otherwise on the compile thread, whose
+/// Compiles `executable`, whose frames run `function`: right away if `sync`, otherwise on a compile thread, whose
 /// code a later tier-up check installs.
 fn compile(
     vm: &Vm,

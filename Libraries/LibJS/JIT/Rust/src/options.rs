@@ -29,6 +29,10 @@ pub struct Options {
     /// Compile synchronously when an executable tiers up.
     pub sync: bool,
 
+    /// How many threads compile asynchronously, or 0 for one per processor core but one (see
+    /// `compile_thread_count()`).
+    pub compile_threads: u32,
+
     /// List the options and the values in effect on stderr.
     pub help: bool,
 
@@ -96,6 +100,7 @@ impl Default for Options {
             threshold: 400,
             warmup: 8,
             sync: false,
+            compile_threads: 0,
             help: false,
             dump_ir: false,
             dump_passes: false,
@@ -179,6 +184,14 @@ const DEFINITIONS: &[Definition] = &[
         name: "sync",
         setting: Setting::Switch(|options| &mut options.sync),
         description: "Compile on the main thread when a function gets hot, at the same points in every run.",
+    },
+    Definition {
+        name: "compile-threads",
+        setting: Setting::Number {
+            field: |options| &mut options.compile_threads,
+            bare: None,
+        },
+        description: "How many threads compile hot functions; 0 starts one per processor core but one.",
     },
     Definition {
         name: "inline-budget",
@@ -345,6 +358,9 @@ impl Definition {
     }
 }
 
+/// The most threads "compile-threads=0" starts.
+const MAX_AUTOMATIC_COMPILE_THREADS: usize = 8;
+
 impl Options {
     /// The options LIBJS_JIT holds, or the defaults if it is not set. A value with an option that is not one of
     /// these, or not written as one, is rejected: the process exits with a message that says why. With "help", the
@@ -403,6 +419,16 @@ impl Options {
         help
     }
 
+    /// How many threads compile asynchronously: `compile_threads`, or with 0, one per processor core but the one the
+    /// running code needs, up to `MAX_AUTOMATIC_COMPILE_THREADS`.
+    pub fn compile_thread_count(&self) -> usize {
+        if self.compile_threads != 0 {
+            return self.compile_threads as usize;
+        }
+        let cores = std::thread::available_parallelism().map_or(1, core::num::NonZeroUsize::get);
+        cores.saturating_sub(1).clamp(1, MAX_AUTOMATIC_COMPILE_THREADS)
+    }
+
     /// Whether the interpreter collects feedback and counts down tier-up budgets. Only the JIT and the feedback dump
     /// need either.
     pub fn collects_feedback(&self) -> bool {
@@ -433,7 +459,7 @@ mod tests {
     #[test]
     fn every_option_parses() {
         let options = Options::parse(
-            "threshold=1,warmup=2,sync,inline-budget=3,inline-max-size=4,inline-depth=0,dump-ir,dump-passes,dump-asm,\
+            "threshold=1,warmup=2,sync,compile-threads=9,inline-budget=3,inline-max-size=4,inline-depth=0,dump-ir,dump-passes,dump-asm,\
              dump-feedback,verify-ir,log-exits,perf-map,coverage=/tmp/coverage,seed=18446744073709551615,\
              stress-exits=6,stress-osr,stress-registers,random-thresholds,stress-install,stress-invalidate=7,help",
         )
@@ -443,6 +469,7 @@ mod tests {
             threshold: 1,
             warmup: 2,
             sync: true,
+            compile_threads: 9,
             help: true,
             dump_ir: true,
             dump_passes: true,
@@ -525,7 +552,7 @@ mod tests {
             assert!(help.contains(&definition.syntax()), "{}", definition.name);
         }
         assert!(help.ends_with(
-            "In effect: LIBJS_JIT=on,threshold=50,warmup=8,inline-budget=250,inline-max-size=30,inline-depth=5,\
+            "In effect: LIBJS_JIT=on,threshold=50,warmup=8,compile-threads=0,inline-budget=250,inline-max-size=30,inline-depth=5,\
              seed=1,stress-exits=0,stress-invalidate=0\n"
         ));
     }

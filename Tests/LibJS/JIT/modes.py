@@ -59,7 +59,7 @@ MODES = [
     Mode(
         "async",
         "on,warmup=1,threshold=4,stress-install,seed={seed}",
-        "Compile on the compile thread, installing the code after a random number of tier-up checks.",
+        "Compile on the compile threads, installing the code after a random number of tier-up checks.",
     ),
     Mode("default", "on", "The JIT with its default options, as the browser runs it."),
 ]

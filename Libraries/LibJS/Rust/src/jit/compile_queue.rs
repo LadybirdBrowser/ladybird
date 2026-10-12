@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The compile thread. Only snapshots go to it and only compile results come back: the compiler never sees the heap.
+//! The compile threads. Only snapshots go to them and only compile results come back: the compiler never sees the heap.
 
 use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::{Arc, Mutex};
 
 use libjs_jit::CompileFailure;
 use libjs_jit::code::CompiledCode;
@@ -14,35 +15,54 @@ use libjs_jit::snapshot::Snapshot;
 
 pub type CompileResult = Result<CompiledCode, CompileFailure>;
 
-/// A thread that compiles the snapshots it is sent, one at a time, in order. Dropping the queue lets the thread end
-/// once it is done with the job it compiles; the results of abandoned jobs are dropped.
+/// Threads that compile the snapshots they are sent, each taking the oldest job no other thread took yet. Jobs finish
+/// in any order. Dropping the queue lets the threads end once they are done with the jobs they compile; the results of
+/// abandoned jobs are dropped.
 pub struct CompileQueue {
     jobs: Sender<(u64, Box<Snapshot>)>,
     results: Receiver<(u64, CompileResult)>,
 }
 
 impl CompileQueue {
-    pub fn start() -> Self {
+    pub fn start(thread_count: usize) -> Self {
         let (jobs, job_receiver) = channel::<(u64, Box<Snapshot>)>();
+        let job_receiver = Arc::new(Mutex::new(job_receiver));
         let (result_sender, results) = channel();
-        std::thread::Builder::new()
-            .name("LibJS JIT".to_string())
-            .spawn(move || {
-                while let Ok((id, snapshot)) = job_receiver.recv() {
-                    let result = libjs_jit::compile(&snapshot);
-                    if result_sender.send((id, result)).is_err() {
-                        return;
+        for index in 0..thread_count.max(1) {
+            let job_receiver = Arc::clone(&job_receiver);
+            let result_sender = result_sender.clone();
+            let spawned = std::thread::Builder::new()
+                .name("LibJS JIT".to_string())
+                .spawn(move || {
+                    loop {
+                        // NB: The lock is held only while waiting for a job, so the other threads compile meanwhile.
+                        let job = job_receiver
+                            .lock()
+                            .expect("no compile thread panics while waiting")
+                            .recv();
+                        let Ok((id, snapshot)) = job else {
+                            return;
+                        };
+                        let result = libjs_jit::compile(&snapshot);
+                        if result_sender.send((id, result)).is_err() {
+                            return;
+                        }
                     }
-                }
-            })
-            .expect("starting the JIT compile thread");
+                });
+            // NB: The queue needs one thread. If the process cannot start more, it compiles on those it started.
+            if index == 0 {
+                spawned.expect("starting a JIT compile thread");
+            } else if spawned.is_err() {
+                break;
+            }
+        }
         Self { jobs, results }
     }
 
     pub fn submit(&self, id: u64, snapshot: Box<Snapshot>) {
         self.jobs
             .send((id, snapshot))
-            .expect("the compile thread runs while the queue lives");
+            .expect("the compile threads run while the queue lives");
     }
 
     /// The results of the jobs that finished since the last call, waiting for one to finish if none has. The queue must
@@ -51,7 +71,7 @@ impl CompileQueue {
         let mut finished = vec![
             self.results
                 .recv()
-                .expect("the compile thread runs while the queue lives"),
+                .expect("the compile threads run while the queue lives"),
         ];
         finished.extend(self.results.try_iter());
         finished

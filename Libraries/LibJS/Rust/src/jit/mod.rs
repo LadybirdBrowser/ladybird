@@ -6,7 +6,7 @@
 
 //! The runtime side of the optimizing JIT: its options, the interpreter tiers executables move through as they get
 //! warm, the tier-up policy, and the glue between the runtime and the `libjs_jit` compiler: snapshots of executables
-//! for compile jobs, the compile thread, installing the code, and entering and leaving it.
+//! for compile jobs, the compile threads, installing the code, and entering and leaving it.
 
 pub mod allocation;
 pub mod calls;
@@ -117,7 +117,7 @@ impl InterpreterTier {
     pub const ALL: [InterpreterTier; 4] = [Self::Plain, Self::WarmingUp, Self::Unprofiled, Self::Profiling];
 }
 
-/// A compile job running on the compile thread. The VM keeps the executable and every cell its snapshot refers to
+/// A compile job running on a compile thread. The VM keeps the executable and every cell its snapshot refers to
 /// alive until the job's code is installed or the job is abandoned.
 pub struct CompileJob {
     pub executable: Gc<Executable>,
@@ -182,9 +182,9 @@ pub struct JitState {
     pub(crate) function_environment_free_lists: allocation::FunctionEnvironmentFreeLists,
     /// The memory the VM's JIT code lives in.
     code_allocator: Rc<RefCell<CodeAllocator>>,
-    /// The compile thread, started by the first asynchronous compile job.
+    /// The compile threads, started by the first asynchronous compile job.
     compile_queue: OnceCell<CompileQueue>,
-    /// The compile jobs that run on the compile thread, by id.
+    /// The compile jobs that run on the compile threads, by id.
     jobs: RefCell<HashMap<u64, CompileJob>>,
     next_job_id: Cell<u64>,
     /// The addresses of the runtime functions JIT code calls, looked up the first time a compile job needs them.
@@ -370,10 +370,11 @@ impl JitState {
     }
 
     pub(crate) fn compile_queue(&self) -> &CompileQueue {
-        self.compile_queue.get_or_init(CompileQueue::start)
+        self.compile_queue
+            .get_or_init(|| CompileQueue::start(self.options.compile_thread_count()))
     }
 
-    /// The compile thread, if a compile job started it.
+    /// The compile threads, if a compile job started them.
     pub(crate) fn started_compile_queue(&self) -> Option<&CompileQueue> {
         self.compile_queue.get()
     }
