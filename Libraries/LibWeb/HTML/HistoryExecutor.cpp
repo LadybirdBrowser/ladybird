@@ -69,7 +69,6 @@ void HistoryExecutor::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_page);
     for (auto& operation : m_history_operations) {
         visitor.visit(operation.value.pending_document);
-        visitor.visit(operation.value.on_apply_complete);
         visitor.visit(operation.value.on_complete);
         for (auto& population : operation.value.pending_populations)
             visitor.visit(population.value);
@@ -117,7 +116,7 @@ void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id,
         return;
 
     // AD-HOC: A canceled or stale operation can leave a claimed navigable whose continuation was never applied.
-    for (auto navigable_id : operation->claimed_navigables_awaiting_continuation) {
+    for (auto navigable_id : operation->changing_navigable_continuations.keys()) {
         if (auto navigable = local_navigable_with_id(navigable_id))
             navigable->clear_ongoing_history_traversal();
     }
@@ -131,8 +130,6 @@ void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id,
             operation->local_target_entry->set_step(*target_entry_step);
         }
     }
-    if (operation->on_apply_complete)
-        operation->on_apply_complete->function()(result);
     if (operation->on_complete)
         operation->on_complete->function()(result);
 }
@@ -864,9 +861,9 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
             if (operation) {
                 if (result.disposition == ChangingNavigableHistoryStepJobDisposition::Ready) {
                     VERIFY(result.continuation);
-                    operation->changing_navigable_continuations.set(navigable_id, *result.continuation);
+                    operation->changing_navigable_continuations.set(navigable_id, result.continuation);
                 } else {
-                    operation->claimed_navigables_awaiting_continuation.remove(navigable_id);
+                    operation->changing_navigable_continuations.remove(navigable_id);
                 }
             }
             // AD-HOC: A job can claim its navigable before becoming stale, or finish after its operation was
@@ -883,13 +880,13 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
             on_complete->function()(result.disposition, unload_displayed_document);
         }));
     if (did_claim_navigable)
-        operation.claimed_navigables_awaiting_continuation.set(navigable_id);
+        operation.changing_navigable_continuations.set(navigable_id, nullptr);
 }
 
 void HistoryExecutor::prepare_ui_changing_navigable_for_unload(CrossProcessId operation_id, CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete)
 {
     auto* operation = find_history_operation(operation_id);
-    if (!operation || !operation->changing_navigable_continuations.contains(navigable_id)) {
+    if (!operation || !operation->changing_navigable_continuations.get(navigable_id).value_or(nullptr)) {
         on_complete->function()();
         return;
     }
@@ -907,16 +904,16 @@ void HistoryExecutor::apply_ui_changing_navigable_continuation(CrossProcessId op
         on_complete->function()({}, {});
         return;
     }
-    auto continuation = operation->changing_navigable_continuations.take(navigable_id);
-    if (!continuation.has_value()) {
+    auto continuation = operation->changing_navigable_continuations.get(navigable_id).value_or(nullptr);
+    if (!continuation) {
         on_complete->function()({}, {});
         return;
     }
-    operation->claimed_navigables_awaiting_continuation.remove(navigable_id);
+    operation->changing_navigable_continuations.remove(navigable_id);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
     if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
-        entries_for_navigation_api = navigable->session_history_entries_for_navigation_api_from_ui_process(move(entry_descriptors_for_navigation_api), *continuation.value()->target_entry);
+        entries_for_navigation_api = navigable->session_history_entries_for_navigation_api_from_ui_process(move(entry_descriptors_for_navigation_api), *continuation->target_entry);
 
     // AD-HOC: The spec has the continuation activate the target entry that the job's task retained. But a sync
     //         navigation that jumped the queue while the job was paused can have replaced that entry (replaceState()
@@ -933,7 +930,7 @@ void HistoryExecutor::apply_ui_changing_navigable_continuation(CrossProcessId op
     //         NavigationApi::InitializeForNewWindow builds the list around it.
     // NB: The UI process has looked the target entry up again by then: It doesn't apply a traversal's continuation at
     //     all if the slot itself is gone, and it has appended a navigation's new entry again.
-    auto& target_entry = continuation.value()->target_entry;
+    auto& target_entry = continuation->target_entry;
     auto is_target_entry = [&](auto const& entry) { return entry.ptr() == target_entry.ptr(); };
     if (entries_for_navigation_api.find_if(is_target_entry) == entries_for_navigation_api.end()) {
         auto replacement = entries_for_navigation_api.find_if([&](auto const& entry) {
