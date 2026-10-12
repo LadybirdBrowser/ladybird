@@ -188,6 +188,13 @@ pub(super) enum Location {
     ElementCount { count: ElementCount, object: NodeId },
     /// The cached storage offset of a typed array.
     TypedArrayDataOffset { object: NodeId },
+    /// The element at `index` of the elements of `kind` at `storage`: an
+    /// object, or the data address of a typed array.
+    Element {
+        storage: NodeId,
+        index: NodeId,
+        kind: ElementsKind,
+    },
 }
 
 /// The element counts of objects, which the op loading each names.
@@ -221,6 +228,7 @@ impl Location {
             Location::GlobalBinding { .. } => Locations::GLOBAL_BINDINGS,
             Location::Binding { .. } => Locations::BINDINGS.union(Locations::GLOBAL_BINDINGS),
             Location::ElementCount { .. } | Location::TypedArrayDataOffset { .. } => Locations::ELEMENT_COUNTS,
+            Location::Element { .. } => Locations::ELEMENTS_AND_COUNTS,
         }
     }
 
@@ -230,7 +238,9 @@ impl Location {
             Location::Named { object, .. }
             | Location::ElementCount { object, .. }
             | Location::TypedArrayDataOffset { object } => Some(object),
-            Location::GlobalBinding { .. } | Location::Binding { .. } => None,
+            // NB: Typed arrays may share their buffers, so every write of
+            //     elements may change the elements of any storage.
+            Location::GlobalBinding { .. } | Location::Binding { .. } | Location::Element { .. } => None,
         }
     }
 }
