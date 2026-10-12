@@ -13,6 +13,7 @@
 //! tests check the graph's invariants (see `verify`) after building and after
 //! every pass.
 
+mod bounds_check_elimination;
 mod branch_fusion;
 mod check_elimination;
 mod dce;
@@ -74,6 +75,10 @@ const PASSES: &[Pass] = &[
     Pass {
         name: "loop invariant code motion",
         run: licm::run,
+    },
+    Pass {
+        name: "bounds check elimination",
+        run: bounds_check_elimination::run,
     },
     Pass {
         name: "exit unboxing",

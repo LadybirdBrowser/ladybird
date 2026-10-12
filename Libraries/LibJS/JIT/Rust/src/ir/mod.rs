@@ -2122,6 +2122,15 @@ impl Graph {
         }
     }
 
+    /// The value of `id`, if it is a `Repr::Int32` constant.
+    pub fn int32_constant(&self, id: NodeId) -> Option<i32> {
+        let node = self.node(self.unrefined(id));
+        match (&node.op, node.repr) {
+            (Op::Constant(bits), Some(Repr::Int32)) => Some((*bits as u32).cast_signed()),
+            _ => None,
+        }
+    }
+
     /// The value `id` refines, through any number of refinements (see
     /// `Op::refined_input()`), or `id` itself.
     pub fn unrefined(&self, mut id: NodeId) -> NodeId {
