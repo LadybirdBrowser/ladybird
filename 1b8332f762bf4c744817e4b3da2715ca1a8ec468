@@ -1,0 +1,8 @@
+Ladybird tokenizes a style sheet only as far as its parser has read: A
+ParserTokenFeed adds 256 tokens at a time, whenever the parser reads
+past the last token it has, and the parser drops the tokens before each
+top-level rule. Blink’s CSSParserTokenStream likewise tokenizes only as
+far as its parser looks ahead (EnsureLookAhead()), as does the cssparser
+Tokenizer that Gecko parses style sheets with. WebKit’s CSSTokenizer
+tokenizes a whole sheet up front instead, into its m_tokens vector — but
+WebKit then builds the sheet from those tokens one rule at a time.
