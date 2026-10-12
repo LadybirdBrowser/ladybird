@@ -109,6 +109,8 @@ fn run_callee_frame_from_jit(vm: &Vm, site: &JitCallSite, callee_frame: NonNull<
             EntryStatus::ExitInterpreter => return finish_call_from_jit(vm, site.frame, site.pc, site.return_pc),
             EntryStatus::Resume => {}
         }
+    } else {
+        super::tier_up::charge_call_from_compiled_code(vm, &executable);
     }
     vm.run_running_frame_in_interpreter();
     finish_call_from_jit(vm, site.frame, site.pc, site.return_pc)
@@ -859,6 +861,10 @@ pub unsafe extern "C" fn libjs_jit_finish_direct_call(
         frame_of(callee_frame).runs_jit_code.set(false);
     }
     if status != EntryStatus::ExitInterpreter as u64 {
+        let callee_frame = vm.running_execution_context().expect("the callee frame is running");
+        if frame_of(callee_frame).program_counter.get() == 0 {
+            super::tier_up::charge_call_from_compiled_code(vm, &super::executable_of(frame_of(callee_frame)));
+        }
         vm.run_running_frame_in_interpreter();
     }
     finish_call_from_jit(vm, frame, pc, pc + call.length()).0
