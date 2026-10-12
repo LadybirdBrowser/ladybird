@@ -948,6 +948,9 @@ fn compare_instruction(comparison: Comparison, dst: Operand, lhs: Operand, rhs: 
         Comparison::StrictlyInequals => pick!(StrictlyInequals, StrictlyInequalsRhsInt32),
         Comparison::LooselyEquals => pick!(LooselyEquals, LooselyEqualsRhsInt32),
         Comparison::LooselyInequals => pick!(LooselyInequals, LooselyInequalsRhsInt32),
+        Comparison::Below | Comparison::BelowOrEqual | Comparison::Above | Comparison::AboveOrEqual => {
+            unreachable!("JavaScript has no unsigned comparisons")
+        }
     }
 }
 
@@ -1045,6 +1048,9 @@ fn compare_jump_instruction(
             JumpLooselyInequalsRhsInt32,
             JumpLooselyInequalsLoopRhsInt32
         ),
+        Comparison::Below | Comparison::BelowOrEqual | Comparison::Above | Comparison::AboveOrEqual => {
+            unreachable!("JavaScript has no unsigned comparisons")
+        }
     }
 }
 

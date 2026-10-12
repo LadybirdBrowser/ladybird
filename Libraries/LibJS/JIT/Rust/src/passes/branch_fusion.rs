@@ -33,6 +33,10 @@ fn mirrored(comparison: Comparison) -> Comparison {
         Comparison::LessThanEquals => Comparison::GreaterThanEquals,
         Comparison::GreaterThan => Comparison::LessThan,
         Comparison::GreaterThanEquals => Comparison::LessThanEquals,
+        Comparison::Below => Comparison::Above,
+        Comparison::BelowOrEqual => Comparison::AboveOrEqual,
+        Comparison::Above => Comparison::Below,
+        Comparison::AboveOrEqual => Comparison::BelowOrEqual,
         Comparison::StrictlyEquals
         | Comparison::StrictlyInequals
         | Comparison::LooselyEquals

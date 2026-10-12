@@ -224,5 +224,8 @@ pub(in crate::codegen) fn double_condition(comparison: Comparison) -> DoubleCond
         Comparison::GreaterThanEquals => DoubleCondition::GreaterThanOrEqual,
         Comparison::StrictlyEquals | Comparison::LooselyEquals => DoubleCondition::Equal,
         Comparison::StrictlyInequals | Comparison::LooselyInequals => DoubleCondition::NotEqualOrUnordered,
+        Comparison::Below | Comparison::BelowOrEqual | Comparison::Above | Comparison::AboveOrEqual => {
+            unreachable!("doubles compare signed")
+        }
     }
 }
