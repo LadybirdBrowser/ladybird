@@ -1,2 +1,4 @@
 lane after the tick: parked
 last frame presented by: commit
+descendant shows the tick's color: false
+descendant's ::before shows the tick's color: false

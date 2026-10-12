@@ -1,2 +1,5 @@
 lane after the tick: parked
 last frame presented by: commit
+element shows the tick's color: false
+::before shows the tick's color: false
+::after shows its own color: null
