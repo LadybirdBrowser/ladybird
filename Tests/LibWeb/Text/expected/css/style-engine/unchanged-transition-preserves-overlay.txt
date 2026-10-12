@@ -1,0 +1,24 @@
+initial width: 60px
+initial animated color: rgb(128, 0, 128)
+unrelated change 0 keeps transition: true
+unrelated change 0 width: 60px
+unrelated change 0 inherited color: rgb(128, 0, 128)
+unrelated change 1 keeps transition: true
+unrelated change 1 width: 60px
+unrelated change 1 inherited color: rgb(128, 0, 128)
+unrelated change 2 keeps transition: true
+unrelated change 2 width: 60px
+unrelated change 2 inherited color: rgb(128, 0, 128)
+unrelated change 3 keeps transition: true
+unrelated change 3 width: 60px
+unrelated change 3 inherited color: rgb(128, 0, 128)
+pseudo opacity: 0.75
+unrelated change keeps pseudo transition: true
+unchanged pseudo opacity: 0.75
+retarget replaces transition: true
+retarget starts from current width: 60px
+retarget preserves animation: rgb(128, 0, 128)
+cancellation removes host transition: true
+cancelled width: 210px
+cancellation preserves animation: rgb(128, 0, 128)
+cancellation preserves pseudo transition: true
