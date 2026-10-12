@@ -242,13 +242,7 @@ static bool is_process_completion_key(ULONG_PTR key)
 struct ThreadData {
     AK_ALLOC_WITH_KMALLOC;
 
-    static ThreadData* the()
-    {
-        thread_local OwnPtr<ThreadData> thread_data = make<ThreadData>();
-        if (thread_data)
-            return &*thread_data;
-        return nullptr;
-    }
+    static ThreadData* the();
 
     ThreadData()
         : master_timer(make<EventLoopMasterTimer>())
@@ -307,6 +301,29 @@ struct ThreadData {
     // The wake completion packet is posted to the thread's event loop to wake it.
     NonnullOwnPtr<EventLoopWake> wake_data;
 };
+
+static thread_local ThreadData* s_thread_data;
+static thread_local bool s_thread_data_was_destroyed;
+
+struct ThreadDataOwner {
+    ~ThreadDataOwner()
+    {
+        ThreadEventQueue::destroy_current();
+        s_thread_data_was_destroyed = true;
+        delete exchange(s_thread_data, nullptr);
+    }
+};
+
+static thread_local ThreadDataOwner s_thread_data_owner;
+
+ThreadData* ThreadData::the()
+{
+    if (!s_thread_data && !s_thread_data_was_destroyed) {
+        (void)s_thread_data_owner;
+        s_thread_data = new ThreadData;
+    }
+    return s_thread_data;
+}
 
 static MutexProtected<HashMap<pid_t, NonnullOwnPtr<EventLoopProcess>>> s_processes;
 
@@ -716,7 +733,8 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
 {
     auto* thread_data = ThreadData::the();
-    VERIFY(thread_data);
+    if (!thread_data)
+        return;
 
     if (auto notifier_data = thread_data->pipe_notifiers.take(&notifier); notifier_data.has_value())
         unregister_pipe_notifier(*thread_data, notifier_data.release_value());

@@ -73,6 +73,7 @@ struct ThreadData {
 
     ~ThreadData()
     {
+        Core::ThreadEventQueue::destroy_current();
         RWLockLocker<RWLock::Mode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id.value());
     }
