@@ -1,5 +1,5 @@
 render clock after a frame scrolled down: ticking
-render clock after a frame scrolled to where the animation ends: parked
+render clock after a frame scrolled to where the animation ends: ticking
 last frame presented by: clock
-the presented height follows the scroll: true
+the presented height is the animation's end: true
 the page holds at the top: true

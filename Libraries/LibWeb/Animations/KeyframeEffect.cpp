@@ -1203,11 +1203,6 @@ bool KeyframeEffect::may_run_on_the_compositor() const
     });
 }
 
-bool KeyframeEffect::css_animation_iteration_events_are_heard() const
-{
-    return css_animation_events_are_heard(true);
-}
-
 // Whether a listener on `target`, the nodes its events bubble to or its window hears an event `hears` names.
 template<typename Hears>
 static bool event_is_heard_at(DOM::Element& target, Hears const& hears)
@@ -1244,31 +1239,6 @@ bool KeyframeEffect::css_animation_events_are_heard(bool only_iteration_events) 
             || event_target.has_event_listener(HTML::EventNames::animationstart)
             || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration)
             || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart);
-    });
-}
-
-bool KeyframeEffect::phase_events_are_heard() const
-{
-    auto animation = associated_animation();
-    auto target = this->target();
-    // A script animation's finish reaches script through its promise as well as its event.
-    if (!animation || !target || !(animation->is_css_animation() || animation->is_css_transition()))
-        return true;
-    if (animation->is_css_transition()) {
-        return event_is_heard_at(*target, [](DOM::EventTarget const& event_target) {
-            return event_target.has_event_listener(HTML::EventNames::transitionrun)
-                || event_target.has_event_listener(HTML::EventNames::transitionstart)
-                || event_target.has_event_listener(HTML::EventNames::transitionend)
-                || event_target.has_event_listener(HTML::EventNames::transitioncancel)
-                || event_target.has_event_listener(HTML::EventNames::webkitTransitionEnd);
-        });
-    }
-    return event_is_heard_at(*target, [](DOM::EventTarget const& event_target) {
-        return event_target.has_event_listener(HTML::EventNames::animationstart)
-            || event_target.has_event_listener(HTML::EventNames::animationend)
-            || event_target.has_event_listener(HTML::EventNames::animationcancel)
-            || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart)
-            || event_target.has_event_listener(HTML::EventNames::webkitAnimationEnd);
     });
 }
 

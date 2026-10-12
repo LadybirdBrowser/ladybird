@@ -19,7 +19,7 @@
 <div id="spacer"></div>
 <script>
     // While a task runs, the render clock samples a scroll-driven animation where the compositor has scrolled the page
-    // to, up to where the animation has an event a listener hears.
+    // to, past where the animation has an event a listener hears, which the main thread sends.
     asyncTest(async done => {
         header.addEventListener("animationend", () => {});
         let maxScroll;
@@ -38,11 +38,10 @@
                 presented: internals.presentedBorderBox(header),
             };
         });
-        const expectedHeight = 50 - (40 * 1000) / maxScroll;
         println(`render clock after a frame scrolled down: ${result.laneScrolled}`);
         println(`render clock after a frame scrolled to where the animation ends: ${result.laneAtTheEnd}`);
         println(`last frame presented by: ${result.presentedBy}`);
-        println(`the presented height follows the scroll: ${result.presented !== null && Math.abs(result.presented.height - expectedHeight) < 0.02}`);
+        println(`the presented height is the animation's end: ${result.presented !== null && Math.abs(result.presented.height - 10) < 0.02}`);
         println(`the page holds at the top: ${window.scrollY === 0 && header.getBoundingClientRect().height === 50}`);
         done();
     });

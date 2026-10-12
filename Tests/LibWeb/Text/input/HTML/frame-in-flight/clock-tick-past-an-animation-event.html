@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes grow {
+        from { height: 0px; }
+        to { height: 100px; }
+    }
+    #box { width: 10px; height: 0px; background: green; animation: grow 1s linear 3; }
+</style>
+<div id="box"></div>
+<script>
+    // A tick of the render clock past an event of the animations that a listener hears, here the start of the next
+    // iteration, presents the animation as it runs on: the main thread sends the event as it gets to it.
+    asyncTest(async done => {
+        let iterations = 0;
+        box.addEventListener("animationiteration", () => ++iterations);
+        box.addEventListener("animationend", () => {});
+        const result = await whileLaneAnimates(() => box.getAnimations()[0], (frameTime, animation, startTime) => {
+            internals.injectClockTick(frameTime + 1500);
+            const expectedHeight = ((frameTime + 1500 - startTime) % 1000) / 10;
+            const presented = internals.presentedBorderBox(box);
+            return {
+                lane: internals.clockLaneState(document),
+                presentedHeightIsTheTicks: presented !== null && Math.abs(presented.height - expectedHeight) < 0.02,
+                presentedBy: internals.lastFramePresentedBy(document),
+                iterationsInTheTask: iterations,
+            };
+        });
+        println(`lane after a tick past the event: ${result.lane}`);
+        println(`the presented height is the animation's at the tick: ${result.presentedHeightIsTheTicks}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`iteration events sent in the task: ${result.iterationsInTheTask}`);
+        done();
+    });
+</script>
