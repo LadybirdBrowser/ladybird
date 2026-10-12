@@ -62,7 +62,9 @@ bool HitTestDisplayList::is_current() const
 
 HitTestDisplayList::Item HitTestDisplayList::item(Layout::BegunRead const& read, size_t index) const
 {
-    return { index, Layout::RustFFI::layout_hit_test_item_facts(m_arena->host(), &read, index) };
+    Layout::RustFFI::FfiHitTestItemExport facts;
+    Layout::RustFFI::layout_hit_test_item_facts(m_arena->host(), &read, index, &facts);
+    return { index, facts };
 }
 
 Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Compositing::ContextRef context, CSSPixelPoint point, HitTestQuery const& query) const
@@ -149,7 +151,9 @@ Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::topmost_item_from(
 Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::find_topmost_item(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
 {
     QueryContext context { &query, m_arena->document() };
-    return topmost_item_from(Layout::RustFFI::layout_hit_test_find_topmost_item(m_arena->host(), &read, context.callbacks(), point));
+    Layout::RustFFI::FfiTopmostItem item;
+    Layout::RustFFI::layout_hit_test_find_topmost_item(m_arena->host(), &read, context.callbacks(), point, &item);
+    return topmost_item_from(item);
 }
 
 Vector<size_t> HitTestDisplayList::hit_item_indices_topmost_first(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
@@ -308,7 +312,9 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(Layout::
         return {};
     CaretPositionQueryContext context { node, offset };
     auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
-    return caret_position_from(Layout::RustFFI::layout_hit_test_caret_at_line_edge(m_arena->host(), &read, context.query, offset, affinity == TextAffinity::Downstream, to_underlying(type)));
+    Layout::RustFFI::FfiCaretAt caret_at;
+    Layout::RustFFI::layout_hit_test_caret_at_line_edge(m_arena->host(), &read, context.query, offset, affinity == TextAffinity::Downstream, to_underlying(type), &caret_at);
+    return caret_position_from(caret_at);
 }
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineDirection direction, CSSPixels inline_coordinate, DOM::Node const& scope) const
@@ -317,7 +323,9 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(Layo
         return {};
     CaretPositionQueryContext position_context { node, offset };
     QueryContext context { nullptr, m_arena->document() };
-    return caret_position_from(Layout::RustFFI::layout_hit_test_caret_on_adjacent_line(m_arena->host(), &read, context.callbacks(), position_context.query, offset, affinity == TextAffinity::Downstream, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value(), ffi_identity_of(&scope)));
+    Layout::RustFFI::FfiCaretAt caret_at;
+    Layout::RustFFI::layout_hit_test_caret_on_adjacent_line(m_arena->host(), &read, context.callbacks(), position_context.query, offset, affinity == TextAffinity::Downstream, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value(), ffi_identity_of(&scope), &caret_at);
+    return caret_position_from(caret_at);
 }
 
 Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity) const
@@ -334,7 +342,9 @@ Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(Layout::Begu
 Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
 {
     QueryContext context { &query, m_arena->document() };
-    return caret_position_from(Layout::RustFFI::layout_hit_test_caret_position_from_point(m_arena->host(), &read, context.callbacks(), point, to_underlying(mode), ffi_identity_of(constraint_scope.ptr())));
+    Layout::RustFFI::FfiCaretAt caret_at;
+    Layout::RustFFI::layout_hit_test_caret_position_from_point(m_arena->host(), &read, context.callbacks(), point, to_underlying(mode), ffi_identity_of(constraint_scope.ptr()), &caret_at);
+    return caret_position_from(caret_at);
 }
 
 Optional<HitTestResult> HitTestDisplayList::hit_test(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const

@@ -74,11 +74,6 @@ fn expose_css_pixel_types_as_web_types(config: &mut cbindgen::Config) {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
     config.includes.push("LibWebCommon/PixelUnits.h".to_string());
-    config.after_includes = Some(
-        "#if defined(__clang__)\n#pragma clang diagnostic push\n#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"\n#endif"
-            .to_string(),
-    );
-    config.trailer = Some("#if defined(__clang__)\n#pragma clang diagnostic pop\n#endif".to_string());
 }
 
 // The types the C++ side defines itself, which the generated header refers to by their C++ names.

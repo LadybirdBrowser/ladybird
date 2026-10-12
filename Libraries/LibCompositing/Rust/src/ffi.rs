@@ -337,8 +337,9 @@ pub unsafe extern "C" fn visual_context_tree_inverse_transform_point(
     tree: *const c_void,
     spatial: SpatialNodeIndex,
     screen_point: libgfx_rust::FloatPoint,
-) -> libgfx_rust::FloatPoint {
-    unsafe { tree_from_handle(tree) }.inverse_transform_point(spatial, screen_point)
+    out: &mut libgfx_rust::FloatPoint,
+) {
+    *out = unsafe { tree_from_handle(tree) }.inverse_transform_point(spatial, screen_point);
 }
 
 fn include_visual_viewport_transform_from(include: bool) -> crate::visual_context::IncludeVisualViewportTransform {
@@ -360,16 +361,17 @@ pub unsafe extern "C" fn visual_context_tree_transform_rect_to_viewport(
     scroll_offsets: *const libgfx_rust::FloatPoint,
     scroll_offsets_len: usize,
     include_visual_viewport_transform: bool,
-) -> libgfx_rust::FloatRect {
+    out: &mut libgfx_rust::FloatRect,
+) {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
     let scroll_offsets = unsafe { ffi_slice(scroll_offsets, scroll_offsets_len) };
-    tree.transform_rect_to_viewport(
+    *out = tree.transform_rect_to_viewport(
         spatial,
         rect,
         scroll_offsets,
         include_visual_viewport_transform_from(include_visual_viewport_transform),
-    )
+    );
 }
 
 /// # Safety
@@ -381,11 +383,12 @@ pub unsafe extern "C" fn visual_context_tree_cumulative_scroll_chain_offset(
     spatial: SpatialNodeIndex,
     scroll_offsets: *const libgfx_rust::FloatPoint,
     scroll_offsets_len: usize,
-) -> libgfx_rust::FloatPoint {
+    out: &mut libgfx_rust::FloatPoint,
+) {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
     let scroll_offsets = unsafe { ffi_slice(scroll_offsets, scroll_offsets_len) };
-    tree.cumulative_scroll_chain_offset(spatial, scroll_offsets)
+    *out = tree.cumulative_scroll_chain_offset(spatial, scroll_offsets);
 }
 
 /// # Safety
@@ -440,17 +443,18 @@ pub unsafe extern "C" fn visual_context_tree_resolve_sticky_offsets(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_visual_viewport_transform(
     tree: *const c_void,
-) -> crate::host::FfiVisualViewportTransform {
+    out: &mut crate::host::FfiVisualViewportTransform,
+) {
     let tree = unsafe { tree_from_handle(tree) };
     let crate::visual_context::SpatialData::Transform(transform) =
         &tree.spatial_nodes[crate::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX.0 as usize].data
     else {
         unreachable!("the visual viewport node is a transform");
     };
-    crate::host::FfiVisualViewportTransform {
+    *out = crate::host::FfiVisualViewportTransform {
         matrix: transform.matrix,
         origin: transform.origin,
-    }
+    };
 }
 
 /// # Safety

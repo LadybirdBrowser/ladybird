@@ -5628,13 +5628,17 @@ pub unsafe extern "C" fn render_state_set_node_needs_compositor_animation_frame(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_row_scroll_offset(host: &DocumentHost, slot: NodeSlotId) -> FfiCssPixelPoint {
+pub unsafe extern "C" fn render_state_row_scroll_offset(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+    out: &mut FfiCssPixelPoint,
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
             arena.row_scroll_offset(slot).into()
         })
-    }
+    };
 }
 
 #[unsafe(no_mangle)]

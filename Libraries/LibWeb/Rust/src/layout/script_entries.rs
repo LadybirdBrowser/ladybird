@@ -73,13 +73,14 @@ pub unsafe extern "C" fn layout_script_bounding_client_rect(
     host: &DocumentHost,
     layout_node: NodeSlotId,
     rect_to_viewport_transform: FfiRectToViewportTransform,
-) -> FfiCssPixelRect {
-    read_rows(host, |arena| {
+    out: &mut FfiCssPixelRect,
+) {
+    *out = read_rows(host, |arena| {
         let rect_to_viewport_transform =
             unsafe { crate::painting::ffi::rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
         crate::painting::client_rects::bounding_client_rect(arena, layout_node, rect_to_viewport_transform.as_ref())
             .into()
-    })
+    });
 }
 
 /// # Safety
@@ -122,8 +123,9 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
         *mut c_void,
         FfiCssPixelRect,
     ) -> FfiCssPixelRect,
-) -> FfiCssPixelRect {
-    read_rows(host, |arena| {
+    out: &mut FfiCssPixelRect,
+) {
+    *out = read_rows(host, |arena| {
         let rect_to_viewport_transform =
             unsafe { crate::painting::ffi::rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
         crate::painting::intersection_observer::intersection_rect(
@@ -139,7 +141,7 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
             },
         )
         .into()
-    })
+    });
 }
 
 /// # Safety
@@ -227,8 +229,9 @@ pub unsafe extern "C" fn layout_script_text_caret_rect_in_dom_range(
     host: &DocumentHost,
     primary: NodeSlotId,
     offset: usize,
-) -> FfiOptionalCssPixelRect {
-    read_rows(host, |arena| {
+    out: &mut FfiOptionalCssPixelRect,
+) {
+    *out = read_rows(host, |arena| {
         let paintable_rows = arena;
         let fragments = arena.text_fragments(primary);
         let node_slots = fragments.as_slice();
@@ -242,7 +245,7 @@ pub unsafe extern "C" fn layout_script_text_caret_rect_in_dom_range(
                 rect: FfiCssPixelRect::default(),
             },
         }
-    })
+    });
 }
 
 /// # Safety
@@ -255,7 +258,8 @@ pub unsafe extern "C" fn layout_script_text_caret_rect_for_position(
     primary: NodeSlotId,
     offset: usize,
     affinity_is_downstream: bool,
-) -> FfiCaretRectResult {
+    out: &mut FfiCaretRectResult,
+) {
     let mut result = FfiCaretRectResult {
         found: false,
         rect: FfiCssPixelRect::default(),
@@ -263,7 +267,7 @@ pub unsafe extern "C" fn layout_script_text_caret_rect_for_position(
         owner_paintable: NodeSlotId::INVALID,
         nearest_self_painting_inline: NodeSlotId::INVALID,
     };
-    read_rows(host, |arena| {
+    *out = read_rows(host, |arena| {
         let paintable_rows = arena;
         let fragments = arena.text_fragments(primary);
         let node_slots = fragments.as_slice();
@@ -280,7 +284,7 @@ pub unsafe extern "C" fn layout_script_text_caret_rect_for_position(
             crate::painting::fragment_ownership::nearest_self_painting_inline_box(paintable_rows, answer.node)
                 .unwrap_or(NodeSlotId::INVALID);
         result
-    })
+    });
 }
 
 /// # Safety
@@ -292,7 +296,8 @@ pub unsafe extern "C" fn layout_script_atomic_inline_caret_rect_for_position(
     host: &DocumentHost,
     primary: NodeSlotId,
     after: bool,
-) -> FfiCaretRectResult {
+    out: &mut FfiCaretRectResult,
+) {
     let mut result = FfiCaretRectResult {
         found: false,
         rect: FfiCssPixelRect::default(),
@@ -300,7 +305,7 @@ pub unsafe extern "C" fn layout_script_atomic_inline_caret_rect_for_position(
         owner_paintable: NodeSlotId::INVALID,
         nearest_self_painting_inline: NodeSlotId::INVALID,
     };
-    read_rows(host, |arena| {
+    *out = read_rows(host, |arena| {
         let paintable_rows = arena;
         let Some(answer) = crate::painting::caret::caret_rect_for_atomic_inline(paintable_rows, primary, after) else {
             return result;
@@ -313,7 +318,7 @@ pub unsafe extern "C" fn layout_script_atomic_inline_caret_rect_for_position(
             crate::painting::fragment_ownership::nearest_self_painting_inline_box(paintable_rows, answer.node)
                 .unwrap_or(NodeSlotId::INVALID);
         result
-    })
+    });
 }
 
 /// # Safety
@@ -326,13 +331,14 @@ pub unsafe extern "C" fn layout_script_paintable_empty_line_caret_rect(
     block: NodeSlotId,
     primary: NodeSlotId,
     offset: usize,
-) -> FfiEmptyLineCaretRect {
+    out: &mut FfiEmptyLineCaretRect,
+) {
     let mut result = FfiEmptyLineCaretRect {
         has_value: false,
         rect: FfiCssPixelRect::default(),
         style_source: NodeSlotId::INVALID,
     };
-    read_rows(host, |arena| {
+    *out = read_rows(host, |arena| {
         let paintable_rows = arena;
         if !paintable_rows.paintable_row_is_populated(block) {
             return result;
@@ -355,7 +361,7 @@ pub unsafe extern "C" fn layout_script_paintable_empty_line_caret_rect(
             }
         }
         result
-    })
+    });
 }
 
 /// # Safety
@@ -365,10 +371,11 @@ pub unsafe extern "C" fn layout_script_paintable_empty_line_caret_rect(
 pub unsafe extern "C" fn layout_script_paintable_absolute_rect(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelRect {
-    read_rows(host, |arena| {
+    out: &mut FfiCssPixelRect,
+) {
+    *out = read_rows(host, |arena| {
         crate::painting::paintable_geometry::absolute_rect_or_default(arena, slot).into()
-    })
+    });
 }
 
 /// # Safety
@@ -378,14 +385,15 @@ pub unsafe extern "C" fn layout_script_paintable_absolute_rect(
 pub unsafe extern "C" fn layout_script_paintable_absolute_padding_box_rect(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelRect {
-    read_rows(host, |arena| {
+    out: &mut FfiCssPixelRect,
+) {
+    *out = read_rows(host, |arena| {
         let paintable_rows = arena;
         if !paintable_rows.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
         crate::painting::paintable_geometry::absolute_padding_box_rect(paintable_rows, slot).into()
-    })
+    });
 }
 
 /// # Safety
@@ -395,14 +403,15 @@ pub unsafe extern "C" fn layout_script_paintable_absolute_padding_box_rect(
 pub unsafe extern "C" fn layout_script_paintable_absolute_border_box_rect(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelRect {
-    read_rows(host, |arena| {
+    out: &mut FfiCssPixelRect,
+) {
+    *out = read_rows(host, |arena| {
         let paintable_rows = arena;
         if !paintable_rows.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
         crate::painting::paintable_geometry::absolute_border_box_rect(paintable_rows, slot).into()
-    })
+    });
 }
 
 /// # Safety
@@ -414,8 +423,9 @@ pub unsafe extern "C" fn layout_script_paintable_absolute_border_box_rect(
 pub unsafe extern "C" fn layout_script_paintable_box_model(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiBoxModelMetrics {
-    read_rows(host, |arena| {
+    out: &mut FfiBoxModelMetrics,
+) {
+    *out = read_rows(host, |arena| {
         if !arena.paintable_row_is_populated(slot) {
             return FfiBoxModelMetrics::default();
         }
@@ -425,7 +435,7 @@ pub unsafe extern "C" fn layout_script_paintable_box_model(
             border: crate::painting::paintable_geometry::committed_border(arena, slot),
             inset: crate::painting::paintable_geometry::committed_inset(arena, slot),
         }
-    })
+    });
 }
 
 /// # Safety
@@ -435,14 +445,15 @@ pub unsafe extern "C" fn layout_script_paintable_box_model(
 pub unsafe extern "C" fn layout_script_paintable_content_size(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelSize {
-    read_rows(host, |arena| {
+    out: &mut FfiCssPixelSize,
+) {
+    *out = read_rows(host, |arena| {
         let paintable_rows = arena;
         if !paintable_rows.paintable_row_is_populated(slot) {
             return FfiCssPixelSize::default();
         }
         crate::painting::paintable_geometry::committed_content_size(paintable_rows, slot)
-    })
+    });
 }
 
 /// Answers `read` of the layout arena of `host`'s document, spending the script call's forced read.

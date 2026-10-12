@@ -62,7 +62,8 @@ pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
     has_device_scroll_offset: bool,
     device_scroll_offset: f32,
     device_pixels_per_css_pixel: f64,
-) -> FfiOptionalScrollbarData {
+    out: &mut FfiOptionalScrollbarData,
+) {
     // SAFETY: Guaranteed by the caller.
     let data = unsafe {
         read_measured_rows(host, super::node_read(), |rows| {
@@ -78,9 +79,10 @@ pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
         })
     };
     let Some(data) = data else {
-        return FfiOptionalScrollbarData::default();
+        *out = FfiOptionalScrollbarData::default();
+        return;
     };
-    FfiOptionalScrollbarData {
+    *out = FfiOptionalScrollbarData {
         has_value: true,
         value: FfiScrollbarData {
             gutter_rect: data.gutter_rect.into(),
@@ -88,7 +90,7 @@ pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
             track_rect: data.track_rect.into(),
             thumb_travel_to_scroll_ratio: data.thumb_travel_to_scroll_ratio.to_double(),
         },
-    }
+    };
 }
 
 /// # Safety
@@ -98,14 +100,15 @@ pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
 pub unsafe extern "C" fn layout_row_paintable_minimum_scroll_offset(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelPoint {
+    out: &mut FfiCssPixelPoint,
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_measured_rows(host, super::node_read(), |rows| {
             crate::painting::chrome_geometry::minimum_scroll_offset(rows, slot)
         })
     }
-    .into()
+    .into();
 }
 
 /// # Safety
@@ -115,14 +118,15 @@ pub unsafe extern "C" fn layout_row_paintable_minimum_scroll_offset(
 pub unsafe extern "C" fn layout_row_paintable_maximum_scroll_offset(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelPoint {
+    out: &mut FfiCssPixelPoint,
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_measured_rows(host, super::node_read(), |rows| {
             crate::painting::chrome_geometry::maximum_scroll_offset(rows, slot)
         })
     }
-    .into()
+    .into();
 }
 
 /// # Safety
@@ -176,14 +180,15 @@ pub unsafe extern "C" fn layout_row_scroll_snapport_rect(
     host: &crate::render_state::DocumentHost,
     snap_container: NodeSlotId,
     scrollport: FfiCssPixelRect,
-) -> FfiCssPixelRect {
+    out: &mut FfiCssPixelRect,
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_measured_rows(host, super::node_read(), |rows| {
             crate::painting::scroll_snap::scroll_snapport_rect(rows, snap_container, scrollport.into())
         })
     }
-    .into()
+    .into();
 }
 
 /// # Safety
@@ -1174,8 +1179,9 @@ pub unsafe extern "C" fn layout_hit_test_item_facts(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     index: usize,
-) -> crate::painting::host::FfiHitTestItemExport {
-    with_hit_test_list_items_only(host, read, None, |list, arena| {
+    out: &mut crate::painting::host::FfiHitTestItemExport,
+) {
+    *out = with_hit_test_list_items_only(host, read, None, |list, arena| {
         let item = &list.items[index];
         assert!(
             arena.paintable_row_is_populated(item.paintable),
@@ -1194,7 +1200,7 @@ pub unsafe extern "C" fn layout_hit_test_item_facts(
             context: item.context,
         })
     })
-    .expect("no hit-test list")
+    .expect("no hit-test list");
 }
 
 /// # Safety
@@ -1222,14 +1228,15 @@ pub unsafe extern "C" fn layout_hit_test_find_topmost_item(
     read: &crate::render_state::BegunRead,
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
     point: FfiCssPixelPoint,
-) -> crate::painting::host::FfiTopmostItem {
-    with_hit_test_list_spatial_indexes_and_visual_context_tree(
+    out: &mut crate::painting::host::FfiTopmostItem,
+) {
+    *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(
         host,
         read,
         false,
         Default::default(),
         |list, tree, arena| ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into())),
-    )
+    );
 }
 
 /// # Safety
@@ -1271,11 +1278,12 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
     point: FfiCssPixelPoint,
     mode: u8,
     constraint_scope: crate::painting::host::FfiNodeIdentity,
-) -> FfiCaretAt {
+    out: &mut FfiCaretAt,
+) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     let mode = crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode);
-    with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, true, None, |list, tree, arena| {
+    *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, true, None, |list, tree, arena| {
         list.caret_position_from_point(
             &main_thread,
             arena,
@@ -1286,7 +1294,7 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
             constraint_scope,
         )
     })
-    .unwrap_or_else(FfiCaretAt::none)
+    .unwrap_or_else(FfiCaretAt::none);
 }
 
 /// The caret position at the start (`edge` 1) or end (`edge` 2) of the painted line holding the position `query`
@@ -1303,12 +1311,13 @@ pub unsafe extern "C" fn layout_hit_test_caret_at_line_edge(
     offset: usize,
     affinity_is_downstream: bool,
     edge: u8,
-) -> FfiCaretAt {
+    out: &mut FfiCaretAt,
+) {
     let edge = crate::painting::hit_test::caret::CaretPositionType::from_u8(edge);
-    with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
+    *out = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
         list.caret_at_line_edge(arena, &query, offset, affinity_is_downstream, edge)
     })
-    .unwrap_or_else(FfiCaretAt::none)
+    .unwrap_or_else(FfiCaretAt::none);
 }
 
 /// The caret position on the line visually after (`direction` 1) or before (`direction` 0) the line holding the
@@ -1329,7 +1338,8 @@ pub unsafe extern "C" fn layout_hit_test_caret_on_adjacent_line(
     direction: u8,
     inline_coordinate: i32,
     scope: crate::painting::host::FfiNodeIdentity,
-) -> FfiCaretAt {
+    out: &mut FfiCaretAt,
+) {
     let direction = if direction == 1 {
         crate::painting::hit_test::caret::CaretLineDirection::Next
     } else {
@@ -1337,7 +1347,7 @@ pub unsafe extern "C" fn layout_hit_test_caret_on_adjacent_line(
     };
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
-    with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
+    *out = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
         list.caret_on_adjacent_line(
             &main_thread,
             arena,
@@ -1350,7 +1360,7 @@ pub unsafe extern "C" fn layout_hit_test_caret_on_adjacent_line(
             scope,
         )
     })
-    .unwrap_or_else(FfiCaretAt::none)
+    .unwrap_or_else(FfiCaretAt::none);
 }
 
 /// The block-axis middle of the painted line holding the position `query` describes, if a line holds it.
