@@ -92,6 +92,8 @@ macro_rules! utf16 {
     }};
 }
 
+#[cfg(not(test))]
+pub mod api;
 pub mod ast;
 pub mod ast_dump;
 #[cfg(not(test))]
