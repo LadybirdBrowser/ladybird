@@ -244,7 +244,14 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
             auto plan_animation = [&](Animations::Animation const& animation, Animations::ScrollTimeline const* scroll_timeline, Animations::KeyframeEffect const& effect, DOM::Element const& target) {
                 // A tick moves the document's timeline, at the rate it runs, and the scroll timelines, to where the
                 // compositor has scrolled. What the compositor runs already runs there while its play is pending.
-                if ((animation.pending() && !runs_on_compositor(effect)) || !(animation.playback_rate() > 0))
+                // Anything else holds still while its play is pending, until the host makes it ready, as it does in
+                // the boxes of the host's frame: the ticks sample nothing of its element.
+                if (animation.pending() && !runs_on_compositor(effect)) {
+                    if (!effect.pseudo_element_type().has_value())
+                        held_elements.append(target.style_node_id().value());
+                    return true;
+                }
+                if (!(animation.playback_rate() > 0))
                     return false;
                 // A scroll timeline with nothing to scroll holds still, and so do its animations.
                 if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
