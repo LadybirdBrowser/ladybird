@@ -30,6 +30,7 @@ Vector<BufferedRangesScan> IndexedContainerNavigator::buffered_time_ranges_by_tr
         auto entry_count = entries.size();
 
         BufferedRangesScan scan;
+        scan.track_identifier = track_index.track_identifier;
         for (size_t i = 0; i < byte_ranges.size(); i++) {
             auto const& byte_range = byte_ranges[i];
 

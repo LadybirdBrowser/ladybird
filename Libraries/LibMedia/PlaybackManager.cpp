@@ -296,12 +296,12 @@ void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineSt
     update_pipeline_state();
 }
 
-Optional<AK::Duration> PlaybackManager::verified_end_time_for_source(Demuxer const& demuxer)
+Optional<AK::Duration> PlaybackManager::verified_end_time_for_source(Demuxer const& demuxer) const
 {
-    auto const& scan_state = demuxer.scan_state();
+    auto scan_state = scan_state_for_enabled_tracks(demuxer);
     if (!scan_state.reached_end_of_stream)
         return {};
-    auto ranges = scan_state.buffered_ranges();
+    auto const& ranges = scan_state.time_ranges;
     if (ranges.is_empty())
         return {};
     return ranges.highest_end_time();
@@ -757,12 +757,27 @@ AvailableData PlaybackManager::available_data()
 
 BufferedRanges PlaybackManager::buffered_time_ranges() const
 {
-    Vector<DemuxerScanState> active_sources;
+    Vector<CombinedScanState, 2> active_sources;
     for (auto const& demuxer : m_demuxers) {
         if (source_has_enabled_track(demuxer))
-            active_sources.append(demuxer->scan_state());
+            active_sources.append(scan_state_for_enabled_tracks(demuxer));
     }
     return DemuxerScanState::buffered_ranges_of_sources(active_sources);
+}
+
+CombinedScanState PlaybackManager::scan_state_for_enabled_tracks(Demuxer const& demuxer) const
+{
+    return demuxer.scan_state().combined_scan_state([&](u64 identifier) {
+        for (auto const& data : m_audio_track_datas) {
+            if (data.demuxer.ptr() == &demuxer && data.track.identifier() == identifier)
+                return data.enabled;
+        }
+        for (auto const& data : m_video_track_datas) {
+            if (data.demuxer.ptr() == &demuxer && data.track.identifier() == identifier)
+                return data.video_sink != nullptr;
+        }
+        return false;
+    });
 }
 
 bool PlaybackManager::source_has_enabled_track(Demuxer const& demuxer) const

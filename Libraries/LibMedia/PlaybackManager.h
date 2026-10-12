@@ -20,6 +20,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/DemuxerScanState.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaClock.h>
@@ -186,7 +187,8 @@ private:
     void on_video_sink_state_changed(Track const&, PipelineStatus);
     void update_duration_from_scan_states();
     bool source_has_enabled_track(Demuxer const&) const;
-    static Optional<AK::Duration> verified_end_time_for_source(Demuxer const&);
+    Optional<AK::Duration> verified_end_time_for_source(Demuxer const&) const;
+    CombinedScanState scan_state_for_enabled_tracks(Demuxer const&) const;
     void update_pipeline_state();
     void reset_pipeline_state();
     PipelineStatus combined_pipeline_status() const;

@@ -437,11 +437,8 @@ void FFmpegDemuxer::start_buffered_scan_thread(AVFormatContext& context)
                 continue;
             auto* stream = context.streams[i];
             auto entry_count = avformat_index_get_entries_count(stream);
-            if (entry_count <= 0)
-                continue;
-
             Vector<IndexEntry> entries;
-            MUST(entries.try_ensure_capacity(entry_count));
+            MUST(entries.try_ensure_capacity(max(entry_count, 0)));
             for (int j = 0; j < entry_count; j++) {
                 auto const* entry = avformat_index_get_entry(stream, j);
                 entries.unchecked_append({
@@ -459,7 +456,7 @@ void FFmpegDemuxer::start_buffered_scan_thread(AVFormatContext& context)
                 }
             }
             if (!is_monotonic)
-                continue;
+                entries.clear();
 
             track_indices.empend(m_stream_info[i].track.identifier(), move(entries));
         }

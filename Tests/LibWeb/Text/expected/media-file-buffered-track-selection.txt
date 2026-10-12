@@ -1,0 +1,6 @@
+Video limits start: true
+Audio-only starts earlier: true
+Reselecting video restores start: true
+Video-only retains start: true
+No active tracks: true
+Re-enabling audio restores its range: true

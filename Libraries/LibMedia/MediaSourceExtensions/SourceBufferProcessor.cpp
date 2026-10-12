@@ -132,6 +132,7 @@ void SourceBufferProcessor::publish()
 {
     m_published_state = {
         .track_buffered_ranges = track_buffered_ranges(),
+        .buffered_ranges_policy = SourceBufferDemuxer::buffered_ranges_policy(),
         .timestamp_offset = m_timestamp_offset,
         .append_state = m_append_state,
         .mode = m_mode,
@@ -943,7 +944,7 @@ AK::Duration SourceBufferProcessor::highest_end_time() const
     return highest_end_time;
 }
 
-Vector<Media::TimeRanges> SourceBufferProcessor::track_buffered_ranges() const
+Vector<Media::TrackBufferedRanges> SourceBufferProcessor::track_buffered_ranges() const
 {
     if (!m_demuxer)
         return {};
@@ -958,6 +959,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Media::MediaSourceExtensions::PublishedState const& state)
 {
     TRY(encoder.encode(state.track_buffered_ranges));
+    TRY(encoder.encode(state.buffered_ranges_policy));
     TRY(encoder.encode(state.timestamp_offset));
     TRY(encoder.encode(state.append_state));
     TRY(encoder.encode(state.mode));
@@ -976,7 +978,10 @@ ErrorOr<Media::MediaSourceExtensions::PublishedState> decode(Decoder& decoder)
 {
     using namespace Media::MediaSourceExtensions;
     PublishedState state;
-    state.track_buffered_ranges = TRY(decoder.decode<Vector<Media::TimeRanges>>());
+    state.track_buffered_ranges = TRY(decoder.decode<Vector<Media::TrackBufferedRanges>>());
+    state.buffered_ranges_policy = TRY(decoder.decode<Media::BufferedRangesPolicy>());
+    if (state.buffered_ranges_policy > Media::BufferedRangesPolicy::AllTracks)
+        return Error::from_string_literal("IPC: Invalid buffered ranges policy");
     state.timestamp_offset = TRY(decoder.decode<AK::Duration>());
     state.append_state = TRY(decoder.decode<AppendState>());
     if (state.append_state > AppendState::ParsingMediaSegment)
