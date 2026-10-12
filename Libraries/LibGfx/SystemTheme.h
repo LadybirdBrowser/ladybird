@@ -125,8 +125,7 @@ namespace Gfx {
     C(ActiveWindowShadow)       \
     C(TaskbarShadow)            \
     C(MenuShadow)               \
-    C(TooltipShadow)            \
-    C(ColorScheme)
+    C(TooltipShadow)
 
 enum class ColorRole {
     NoRole,

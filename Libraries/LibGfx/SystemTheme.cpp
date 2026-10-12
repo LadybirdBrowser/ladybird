@@ -38,27 +38,8 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file)
 
     auto* data = buffer.data<SystemTheme>();
 
-    auto get_color = [&](auto& name) -> Optional<Color> {
-        auto color_string = file.read_entry("Colors", name);
-        auto color = Color::from_string(color_string);
-        if (!color.has_value()) {
-            auto maybe_color_config = Core::ConfigFile::open(data->path[(int)PathRole::ColorScheme]);
-            if (maybe_color_config.is_error())
-                maybe_color_config = Core::ConfigFile::open("/res/color-schemes/Default.ini");
-            auto color_config = maybe_color_config.release_value();
-            if (name == "ColorSchemeBackground"sv)
-                color = Gfx::Color::from_string(color_config->read_entry("Primary", "Background"));
-            else if (name == "ColorSchemeForeground"sv)
-                color = Gfx::Color::from_string(color_config->read_entry("Primary", "Foreground"));
-            else if (strncmp(name, "Bright", 6) == 0)
-                color = Gfx::Color::from_string(color_config->read_entry("Bright", name + 6));
-            else
-                color = Gfx::Color::from_string(color_config->read_entry("Normal", name));
-
-            if (!color.has_value())
-                return Color(Color::Black);
-        }
-        return color.value();
+    auto get_color = [&](auto& name) {
+        return Color::from_string(file.read_entry("Colors", name)).value_or(Color::Black);
     };
 
     auto get_flag = [&](auto& name) {
@@ -91,15 +72,10 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file)
     ENCODE_PATH(TaskbarShadow, true);
     ENCODE_PATH(MenuShadow, true);
     ENCODE_PATH(TooltipShadow, true);
-    ENCODE_PATH(ColorScheme, true);
 
 #undef __ENUMERATE_COLOR_ROLE
-#define __ENUMERATE_COLOR_ROLE(role)                                    \
-    {                                                                   \
-        Optional<Color> result = get_color(#role);                      \
-        if (result.has_value())                                         \
-            data->color[(int)ColorRole::role] = result.value().value(); \
-    }
+#define __ENUMERATE_COLOR_ROLE(role) \
+    data->color[(int)ColorRole::role] = get_color(#role).value();
     ENUMERATE_COLOR_ROLES(__ENUMERATE_COLOR_ROLE)
 #undef __ENUMERATE_COLOR_ROLE
 

@@ -160,7 +160,6 @@ public:
     ByteString menu_shadow_path() const { return path(PathRole::MenuShadow); }
     ByteString taskbar_shadow_path() const { return path(PathRole::TaskbarShadow); }
     ByteString tooltip_shadow_path() const { return path(PathRole::TooltipShadow); }
-    ByteString color_scheme_path() const { return path(PathRole::ColorScheme); }
 
     Color color(ColorRole role) const { return m_impl->color(role); }
     bool flag(FlagRole role) const { return m_impl->flag(role); }
