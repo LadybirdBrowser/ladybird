@@ -22,6 +22,6 @@ jit.compile(weighNodes);
 // CHECK-NEXT: [[INTEGER:v[0-9]+]]:int32 = CheckInt32 ([[WEIGHT]])
 // CHECK: loop:
 // CHECK: ToBoolean
-// CHECK: Int32Add ({{v[0-9]+}}, [[INTEGER]])
+// CHECK: Int32WrappingAdd ({{v[0-9]+}}, [[INTEGER]])
 
 console.log(weighNodes(list, { weight: 3 }));

@@ -176,6 +176,22 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
     }
 
+    pub(super) fn emit_int32_wrapping_binary(&mut self, node: NodeId, op: BinaryOp) {
+        let (lhs, output) = (self.input(node, 0), self.output(node));
+        match (op, self.input_value(node, 1)) {
+            (BinaryOp::Add, InputValue::Register(rhs)) => self.masm.add32(output, lhs, rhs),
+            (BinaryOp::Add, InputValue::Constant(bits)) => self.masm.add32_imm(output, lhs, bits as i32),
+            (BinaryOp::Sub, InputValue::Register(rhs)) => self.masm.sub32(output, lhs, rhs),
+            (BinaryOp::Sub, InputValue::Constant(bits)) => self.masm.sub32_imm(output, lhs, bits as i32),
+            (BinaryOp::UnsignedRightShift, InputValue::Register(rhs)) => self.masm.shr32(output, lhs, rhs),
+            // NB: Shifts use the low five bits of the amount.
+            (BinaryOp::UnsignedRightShift, InputValue::Constant(bits)) => {
+                self.masm.shr32_imm(output, lhs, (bits & 31) as u8);
+            }
+            _ => unreachable!("only additions, subtractions and unsigned right shifts wrap"),
+        }
+    }
+
     /// The remainder of int32 values, which exits for a zero divisor and a
     /// zero remainder of a negative dividend (-0). Needs a temp.
     ///

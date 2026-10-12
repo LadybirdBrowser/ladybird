@@ -300,7 +300,8 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 | Pass | Contract |
 |---|---|
 | Trivial phi removal | Phis whose inputs are all one value (or the phi itself) become that value. |
-| Simplification | Constant folding and strength reduction; branches on constants become jumps; unboxing a box is the boxed value. |
+| Truncation | Int32 additions, subtractions and unsigned right shifts whose users only read the low 32 bits of their results (bitwise operations, shifts, wrapping arithmetic, integer typed array stores) and no frame state holds become `Int32WrappingBinary`, which never exits. |
+| Simplification | Constant folding and strength reduction; branches on constants become jumps; unboxing a box is the boxed value; int32 operations that leave their left-hand side as it is, like `x \| 0`, become it. |
 | Representation selection | Phis of int32, bool or float64 values become unboxed phis, and int32 inputs of float64 phis are converted. Tagged inputs of an int32 phi that the code checks on every pass are checked where they enter, exiting to the start of the phi's block. |
 | Simplification | Again, for what unboxing made foldable. |
 | Check elimination | A forward dataflow of facts removes checks that passed already and reuses loads whose value is known; may turn shape checks into `AssumeValid` plus a stable shape dependency. |

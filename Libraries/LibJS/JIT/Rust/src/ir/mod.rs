@@ -531,6 +531,13 @@ pub enum Op {
     Int32Binary {
         op: BinaryOp,
     },
+    /// The low 32 bits of `input 0 op input 1` of two `Repr::Int32` inputs,
+    /// as a `Repr::Int32`, for Add, Sub and UnsignedRightShift. Never exits:
+    /// the truncation pass makes the int32 operations whose users only read
+    /// the low 32 bits of their results these.
+    Int32WrappingBinary {
+        op: BinaryOp,
+    },
     /// `input 0 comparison input 1` of two `Repr::Int32` inputs, as a
     /// `Repr::Bool`. Equalities and inequalities are strict and loose alike.
     Int32Compare {
@@ -1186,6 +1193,7 @@ impl Op {
             Op::BoxInt32
             | Op::BoxBool
             | Op::Int32Binary { .. }
+            | Op::Int32WrappingBinary { .. }
             | Op::Int32Compare { .. }
             | Op::TaggedEquals { .. }
             | Op::CellAddress => P::PURE,
@@ -1473,6 +1481,7 @@ impl Op {
             Op::BoxInt32 => "BoxInt32",
             Op::BoxBool => "BoxBool",
             Op::Int32Binary { .. } => "Int32Binary",
+            Op::Int32WrappingBinary { .. } => "Int32WrappingBinary",
             Op::Int32Compare { .. } => "Int32Compare",
             Op::TaggedEquals { .. } => "TaggedEquals",
             Op::CheckElements { .. } => "CheckElements",

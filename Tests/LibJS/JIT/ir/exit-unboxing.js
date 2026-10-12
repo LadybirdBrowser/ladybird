@@ -4,7 +4,7 @@
 
 function sumElements(array, n) {
     let sum = 0;
-    for (let i = 0; i < n; i = (i + 1) | 0) sum = (sum + array[i]) | 0;
+    for (let i = 0; i < n; ++i) sum += array[i];
     return sum;
 }
 jit.prepare(sumElements);

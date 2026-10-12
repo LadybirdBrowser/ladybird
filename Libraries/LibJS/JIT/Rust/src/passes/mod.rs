@@ -26,6 +26,7 @@ mod gvn;
 mod licm;
 mod representation;
 mod simplify;
+mod truncation;
 pub mod verify;
 
 #[cfg(test)]
@@ -45,6 +46,10 @@ const PASSES: &[Pass] = &[
     Pass {
         name: "trivial phi removal",
         run: edit::remove_trivial_phis,
+    },
+    Pass {
+        name: "truncation",
+        run: truncation::run,
     },
     Pass {
         name: "simplification",

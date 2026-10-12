@@ -530,7 +530,9 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::StoreEnvironmentBinding { .. } => Some(vec![Repr::Pointer, Repr::Tagged]),
         Op::AllocateFunction { .. } | Op::ProbeGlobalCache { .. } => Some(vec![Repr::Pointer, Repr::Pointer]),
         Op::ProbeGlobalStore { .. } => Some(vec![Repr::Tagged, Repr::Pointer, Repr::Pointer]),
-        Op::Int32Binary { .. } | Op::Int32Compare { .. } => Some(vec![Repr::Int32, Repr::Int32]),
+        Op::Int32Binary { .. } | Op::Int32WrappingBinary { .. } | Op::Int32Compare { .. } => {
+            Some(vec![Repr::Int32, Repr::Int32])
+        }
         _ => Some(tagged(node.inputs.len())),
     }
 }
