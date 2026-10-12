@@ -224,21 +224,21 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 for (auto& animation : associated_timeline->associated_animations()) {
                     if (!runs_for_clock_plan(animation, scroll_timeline != nullptr))
                         continue;
-                    if (associated_timeline.ptr() != timeline.ptr() && !scroll_timeline)
-                        return false;
                     auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
                     auto target = effect ? effect->target() : nullptr;
-                    bool const animates_element = target && &target->document() == &document && target->is_connected();
-                    if (animates_element && plan_animation(animation, scroll_timeline, *effect, *target))
+                    if (!target || &target->document() != &document || !target->is_connected())
                         continue;
-                    if (!scroll_timeline)
-                        return false;
-                    if (animates_element && !effect->pseudo_element_type().has_value())
+                    // A tick moves the document's timeline and the scroll timelines alone.
+                    bool const on_a_ticked_timeline = associated_timeline.ptr() == timeline.ptr() || scroll_timeline;
+                    if (on_a_ticked_timeline && plan_animation(animation, scroll_timeline, *effect, *target))
+                        continue;
+                    // The boxes of an element with an animation a tick cannot sample show what the host's frame shows
+                    // of it, while the ticks sample the others on.
+                    if (!effect->pseudo_element_type().has_value())
                         held_elements.append(target->style_node_id().value());
                 }
             }
-            if (any_of(held_elements, [&](auto element) { return elements.contains_slow(element); }))
-                return false;
+            elements.remove_all_matching([&](auto element) { return held_elements.contains_slow(element); });
             return !elements.is_empty();
         };
         bool const animates = plan();
