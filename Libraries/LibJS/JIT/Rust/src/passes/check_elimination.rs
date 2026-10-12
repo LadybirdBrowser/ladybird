@@ -10,9 +10,9 @@
 //! every node, what is known about values (see `Facts`): what kinds of value
 //! they may be, which shapes and elements kinds objects may have, which
 //! prototype chains are valid, which values passed which value checks, and
-//! what named properties, bindings and element counts hold. Loop headers
-//! start optimistically with what holds on entry and are revisited until
-//! what the back edges bring agrees with it.
+//! what named properties, bindings, element counts and elements hold. Loop
+//! headers start optimistically with what holds on entry and are revisited
+//! until what the back edges bring agrees with it.
 //!
 //! Branches on the kind of a value tell their targets what it is, and
 //! become jumps where what is known decides them.

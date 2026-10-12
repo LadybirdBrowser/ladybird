@@ -188,8 +188,9 @@ pub(super) enum Location {
     ElementCount { count: ElementCount, object: NodeId },
     /// The cached storage offset of a typed array.
     TypedArrayDataOffset { object: NodeId },
-    /// The element at `index` of the elements of `kind` at `storage`: an
-    /// object, or the data address of a typed array.
+    /// The element at `index` of the elements of `kind` of `storage`: the
+    /// object whose elements they are (a typed array for its data address
+    /// where the address is known to be its), or else the data address.
     Element {
         storage: NodeId,
         index: NodeId,
