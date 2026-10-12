@@ -1,6 +1,6 @@
-new element, color: inserted rgb(25, 25, 25), sibling rgb(50, 50, 50), font-size 20px
-new element, letter-spacing: inserted 25px, sibling 50px, font-size 20px
-appended element, color: inserted rgb(25, 25, 25), sibling rgb(50, 50, 50), font-size 20px
-appended element, letter-spacing: inserted 25px, sibling 50px, font-size 20px
-moveBefore() element, color: inserted rgb(25, 25, 25), sibling rgb(50, 50, 50), font-size 20px
-moveBefore() element, letter-spacing: inserted 25px, sibling 50px, font-size 20px
+new element, color: inserted rgb(50, 50, 50), sibling rgb(50, 50, 50), font-size 20px
+new element, letter-spacing: inserted 50px, sibling 50px, font-size 20px
+appended element, color: inserted rgb(50, 50, 50), sibling rgb(50, 50, 50), font-size 20px
+appended element, letter-spacing: inserted 50px, sibling 50px, font-size 20px
+moveBefore() element, color: inserted rgb(50, 50, 50), sibling rgb(50, 50, 50), font-size 20px
+moveBefore() element, letter-spacing: inserted 50px, sibling 50px, font-size 20px
