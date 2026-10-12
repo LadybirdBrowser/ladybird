@@ -74,3 +74,21 @@ jit.compile(lookup);
 // CHECK-PASS: bounds check elimination
 // CHECK: CheckBounds ({{v[0-9]+}}, #i32:256)
 // CHECK: Int32WrappingAdd ({{v[0-9]+}}, #i32:1)
+
+// A branch on an index being in bounds bounds it where it holds, like the array iterator's index, which it then
+// increments.
+
+function total(a) {
+    let s = 0;
+    for (const x of a) s = (s + x) | 0;
+    return s;
+}
+jit.prepare(total);
+for (let k = 0; k < 10; ++k) total([1, 2, 3, , 5]);
+jit.compile(total);
+
+// CHECK-FUNCTION: total
+// CHECK-PASS: bounds check elimination
+// CHECK: RefineIndexInBounds
+// CHECK: [[NEXT:v[0-9]+]]:int32 = Int32WrappingAdd ({{v[0-9]+}}, #i32:1)
+// CHECK-NEXT: StoreArrayIteratorIndex ({{v[0-9]+}}, [[NEXT]])
