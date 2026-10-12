@@ -26,7 +26,7 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/SystemTheme.h>
+#include <LibGfx/Palette.h>
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Date.h>
@@ -513,7 +513,6 @@ void ConnectionFromClient::update_system_theme(Web::PageId page_id, Core::Anonym
     if (!page.has_value())
         return;
 
-    Gfx::set_system_theme(theme_buffer);
     auto impl = Gfx::PaletteImpl::create_with_anonymous_buffer(theme_buffer);
     page->set_palette_impl(*impl);
 }
