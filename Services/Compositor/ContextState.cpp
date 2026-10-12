@@ -1371,9 +1371,7 @@ bool ContextState::wheel_step_can_stretch_elastically(Web::WheelDeltaPrecision w
     // Only a touchpad gesture says when the fingers lift, which is when a stretch has to spring back.
     if (wheel_delta_precision != Web::WheelDeltaPrecision::Precise)
         return false;
-    if (scroll_gesture_phase != Web::ScrollGesturePhase::Ongoing && scroll_gesture_phase != Web::ScrollGesturePhase::Momentum)
-        return false;
-    return visual_viewport_scale_for_compositing().value_or(1.0f) == 1.0f;
+    return scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing || scroll_gesture_phase == Web::ScrollGesturePhase::Momentum;
 }
 
 ContextState::ActiveElasticOverscroll* ContextState::elastic_overscroll_of(Web::AsyncScrollNodeStableID stable_node_id)
@@ -1424,7 +1422,12 @@ bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
 
     auto* active = elastic_overscroll_of(node.stable_node_id);
     if (!active) {
-        m_elastic_overscrolls.append({ node.stable_node_id, Compositing::ElasticOverscroll { node.scrollport_rect.size().to_type<float>() } });
+        // A zoomed page shows only the part of the viewport's scrollport that its visual viewport is on, and that part
+        // is what bounds how far the viewport stretches.
+        auto scrollport_size = node.scrollport_rect.size().to_type<float>();
+        if (node.is_viewport)
+            scrollport_size.scale_by(1.0f / visual_viewport_magnification());
+        m_elastic_overscrolls.append({ node.stable_node_id, Compositing::ElasticOverscroll { scrollport_size } });
         active = &m_elastic_overscrolls.last();
     }
     active->overscroll.pull_by(overscroll_delta);
