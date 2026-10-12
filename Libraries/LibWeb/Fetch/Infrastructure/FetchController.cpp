@@ -118,6 +118,8 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
             : serialized_value_or_error.value();
     };
     m_serialized_abort_reason = structured_serialize(error.value(), fallback_error_value);
+
+    stop_request();
 }
 
 // https://fetch.spec.whatwg.org/#fetch-controller-terminate
@@ -125,6 +127,8 @@ void FetchController::terminate()
 {
     // To terminate a fetch controller controller, set controller’s state to "terminated".
     m_state = State::Terminated;
+
+    stop_request();
 }
 
 void FetchController::stop_fetch()
@@ -159,9 +163,15 @@ void FetchController::stop_fetch()
     }
 }
 
+// Stops the network request of a fetch that is no longer ongoing. HTTP-network fetch reads a response's body in steps
+// that "abort when fetchParams is canceled" (step 18.1) — and once aborted, "the user agent should close connection
+// unless it would be bad for performance to do so" (step 18.2.4). So a canceled fetch's request has to stop as well as
+// a stopped one's: otherwise it streams on until the server ends the response, and its callbacks root the fetch's realm
+// for all that time.
+// https://fetch.spec.whatwg.org/#concept-http-network-fetch
 void FetchController::stop_request()
 {
-    VERIFY(m_state == State::Stopped);
+    VERIFY(m_state != State::Ongoing);
     if (m_pending_request) {
         m_pending_request->stop();
         m_pending_request = nullptr;
