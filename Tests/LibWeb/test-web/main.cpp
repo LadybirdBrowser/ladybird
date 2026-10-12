@@ -361,8 +361,8 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
         auto base_path = TRY(prepare_output_path(test));
         bool has_std_logs = FileSystem::exists(ByteString::formatted("{}.logs.html", base_path));
 
-        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasLogs\": {}",
-            test.safe_relative_path,
+        js.appendff("    {{ \"name\": {}, \"result\": \"{}\", \"mode\": \"{}\", \"hasLogs\": {}",
+            JsonValue(test.safe_relative_path.view()).serialized(),
             test_result_to_string(result.result),
             test_mode_to_string(test.mode),
             has_std_logs ? "true" : "false");
