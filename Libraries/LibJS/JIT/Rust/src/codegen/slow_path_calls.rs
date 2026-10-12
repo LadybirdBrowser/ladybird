@@ -51,6 +51,7 @@ pub(super) fn slow_path_saved_registers_of<M: PortableMacroAssembler>(allocation
     }
     let mut saved = saved.iter().collect::<Vec<_>>();
     if let Some(output) = output
+        && slow_path_saved_registers::<M>().contains(output)
         && allocation.inputs.contains(&Location::Register(output.0))
     {
         saved.push(output);
