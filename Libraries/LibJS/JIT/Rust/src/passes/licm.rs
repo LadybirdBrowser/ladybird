@@ -165,6 +165,10 @@ pub fn run(graph: &mut Graph) {
     }
     let mut dominators = Dominators::compute(graph);
     if add_preheaders(graph, &dominators) {
+        // NB: The phis of headers that merged their entries in a preheader
+        //     only take the value the preheader brings where the loop leaves
+        //     it as it is, which is then invariant in the loop.
+        edit::remove_trivial_phis(graph);
         dominators = Dominators::compute(graph);
     }
     let loops = find_loops(graph, &dominators);
