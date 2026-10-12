@@ -203,6 +203,10 @@ struct EventLoopSocket final : CompletionPacket {
     OwnHandle wait_packet;
     OwnHandle wait_event;
     Vector<Notifier*, 2> notifiers;
+
+    // The network events that WSAEnumNetworkEvents() has reported since the socket was last polled.
+    long reported_events { 0 };
+    bool is_queued_for_poll { false };
 };
 
 struct EventLoopPipeNotifier final : CompletionPacket {
@@ -271,6 +275,10 @@ struct ThreadData {
     HashMap<int, NonnullOwnPtr<EventLoopSocket>> sockets;
     HashMap<Notifier*, EventLoopSocket*> socket_notifiers;
     HashMap<Notifier*, NonnullOwnPtr<EventLoopPipeNotifier>> pipe_notifiers;
+
+    // Sockets to poll on the next pump: those whose event was signalled, those whose notifiers changed, and those that
+    // were ready when last polled, which are polled again once the activations posted for them have been handled.
+    Vector<EventLoopSocket*, 8> sockets_to_poll;
 
     // Pipe notifiers whose activation has been posted. Each reads its pipe again only on the next pump, once its
     // activation has been handled, so that it activates again only if there is still something to read, as a poll()
@@ -366,6 +374,65 @@ static int notifier_type_to_network_event(NotificationType type)
     return events;
 }
 
+static void queue_socket_poll(ThreadData& thread_data, EventLoopSocket& socket)
+{
+    if (socket.is_queued_for_poll)
+        return;
+    socket.is_queued_for_poll = true;
+    thread_data.sockets_to_poll.append(&socket);
+}
+
+static void poll_sockets(ThreadData& thread_data, ThreadEventQueue& event_queue)
+{
+    auto& sockets = thread_data.sockets_to_poll;
+    if (sockets.is_empty())
+        return;
+
+    Vector<WSAPOLLFD, 8> poll_fds;
+    for (auto* socket : sockets) {
+        short events = 0;
+        for (auto* notifier : socket->notifiers) {
+            if (has_flag(notifier->type(), NotificationType::Read))
+                events |= POLLRDNORM;
+            if (has_flag(notifier->type(), NotificationType::Write))
+                events |= POLLWRNORM;
+        }
+        poll_fds.append({ .fd = static_cast<SOCKET>(socket->fd), .events = events, .revents = 0 });
+    }
+    if (WSAPoll(poll_fds.data(), poll_fds.size(), 0) == SOCKET_ERROR) {
+        for (auto& poll_fd : poll_fds)
+            poll_fd.revents = POLLERR;
+    }
+
+    Vector<EventLoopSocket*, 8> still_ready;
+    for (size_t i = 0; i < sockets.size(); ++i) {
+        auto& socket = *sockets[i];
+        auto revents = poll_fds[i].revents;
+
+        long ready_events = exchange(socket.reported_events, 0);
+        if (revents & POLLRDNORM)
+            ready_events |= FD_READ;
+        if (revents & (POLLHUP | POLLERR | POLLNVAL))
+            ready_events |= FD_READ | FD_CLOSE;
+        if (revents & (POLLWRNORM | POLLHUP | POLLERR | POLLNVAL))
+            ready_events |= FD_WRITE;
+
+        bool activated = false;
+        for (auto* notifier : socket.notifiers) {
+            if (ready_events & notifier_type_to_network_event(notifier->type())) {
+                event_queue.post_event(notifier, Core::Event::Type::NotifierActivation);
+                activated = true;
+            }
+        }
+
+        if (activated && revents)
+            still_ready.append(&socket);
+        else
+            socket.is_queued_for_poll = false;
+    }
+    sockets = move(still_ready);
+}
+
 static bool handle_is_overlapped(HANDLE handle)
 {
     constexpr ULONG file_mode_information = 16;
@@ -422,7 +489,8 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
     OVERLAPPED_ENTRY entries[entry_count];
     ULONG entries_removed = 0;
 
-    bool has_pending_events = event_queue.has_pending_events();
+    // A socket that was ready when last polled is polled again without waiting, as poll() would report it ready again.
+    bool has_pending_events = event_queue.has_pending_events() || !thread_data->sockets_to_poll.is_empty();
     DWORD timeout = 0;
     if (!has_pending_events && pump_mode == PumpMode::WaitForEvents)
         timeout = INFINITE;
@@ -464,16 +532,14 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
             if (packet->type == CompletionType::Socket) {
                 auto* socket = static_cast<EventLoopSocket*>(packet);
                 // If querying which events occurred fails, dispatch to all notifier types.
-                long network_events = ~0;
                 WSANETWORKEVENTS occurred {};
                 if (WSAEnumNetworkEvents(socket->fd, socket->wait_event.handle, &occurred) == 0)
-                    network_events = occurred.lNetworkEvents;
-                for (auto* notifier : socket->notifiers) {
-                    if (network_events & notifier_type_to_network_event(notifier->type()))
-                        event_queue.post_event(notifier, Core::Event::Type::NotifierActivation);
-                }
+                    socket->reported_events |= occurred.lNetworkEvents;
+                else
+                    socket->reported_events = ~0;
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(socket->wait_packet.handle, thread_data->iocp.handle, socket->wait_event.handle, socket, NULL, 0, 0, NULL);
                 VERIFY(NT_SUCCESS(status));
+                queue_socket_poll(*thread_data, *socket);
                 continue;
             }
             if (packet->type == CompletionType::PipeNotifier) {
@@ -518,6 +584,8 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
         }
     }
 
+    poll_sockets(*thread_data, event_queue);
+
     return event_queue.process();
 }
 
@@ -557,6 +625,7 @@ static void register_socket_notifier(ThreadData& thread_data, Notifier& notifier
     socket.notifiers.append(&notifier);
     thread_data.socket_notifiers.set(&notifier, &socket);
     select_socket_events(socket);
+    queue_socket_poll(thread_data, socket);
 }
 
 static void unregister_socket_notifier(ThreadData& thread_data, Notifier& notifier, EventLoopSocket& socket)
@@ -567,6 +636,8 @@ static void unregister_socket_notifier(ThreadData& thread_data, Notifier& notifi
         return;
     }
 
+    if (socket.is_queued_for_poll)
+        thread_data.sockets_to_poll.remove_first_matching([&](auto* entry) { return entry == &socket; });
     // The socket may already have been closed, so this can fail.
     (void)WSAEventSelect(socket.fd, nullptr, 0);
     // We are removing the signalled packets since the caller no longer expects them
