@@ -818,3 +818,136 @@ fn control_flow_cleanup_preserves_duplicate_edges_and_phi_input_order() {
     assert_eq!(graph.blocks[1].predecessors, [BlockId(0), BlockId(0)]);
     assert_eq!(graph.node(phi).inputs, values[..2]);
 }
+
+/// An addition whose operand a bounds check keeps below a count, where the
+/// count is a loop counter that an on-stack replacement entry brings, relies
+/// on the counter being below the loop's bound where it enters: it stops
+/// checking for overflow only together with the check of the counter there.
+#[test]
+fn overflow_checks_removed_by_bounds_checks_check_the_counters_of_their_counts() {
+    use crate::code::ExitKind;
+    use crate::code::ResumeMode;
+    use crate::ir::BinaryOp;
+    use crate::ir::Comparison;
+    use crate::ir::FrameState;
+    // b0 and the on-stack replacement entry b1 start the counter in b2, the
+    // loop's preheader. The loop b3 (with the back edge from b4) adds one to
+    // an index that a bounds check against the counter checks (not to the
+    // value the check refines), and to the counter until it is 100.
+    for failed_before in [false, true] {
+        let mut graph = Graph::default();
+        for predecessors in [
+            vec![],
+            vec![],
+            vec![BlockId(0), BlockId(1)],
+            vec![BlockId(2), BlockId(4)],
+            vec![BlockId(3)],
+            vec![BlockId(3)],
+        ] {
+            graph.add_block(Block {
+                predecessors,
+                ..Block::default()
+            });
+        }
+        graph.blocks[3].is_loop_header = true;
+        graph.osr_entries.push((7, BlockId(1)));
+        let state = graph.add_frame_state(FrameState {
+            executable: 0,
+            pc: 7,
+            mode: ResumeMode::ResumeAt,
+            values: Vec::new(),
+            in_frame: Vec::new(),
+            parent: None,
+            passed_argument_count: None,
+        });
+        if failed_before {
+            graph.exit_sites.push((0, 7, ExitKind::OutOfBounds));
+        }
+        let int32 = |graph: &mut Graph, value: i32| {
+            node(graph, Op::Constant(u64::from(value as u32)), vec![], Some(Repr::Int32))
+        };
+        let checked = |graph: &mut Graph, op: Op, inputs: Vec<NodeId>| {
+            let id = node(graph, op, inputs, Some(Repr::Int32));
+            graph.nodes[id.index()].frame_state = Some(state);
+            id
+        };
+        let jump = |graph: &mut Graph, block: usize, target: u32| {
+            let jump = node(
+                graph,
+                Op::Jump {
+                    target: BlockId(target),
+                },
+                vec![],
+                None,
+            );
+            graph.blocks[block].control = Some(jump);
+        };
+
+        let zero = int32(&mut graph, 0);
+        jump(&mut graph, 0, 2);
+
+        let slot = node(&mut graph, Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged));
+        let counter = checked(&mut graph, Op::CheckInt32, vec![slot]);
+        graph.blocks[1].body.extend([slot, counter]);
+        jump(&mut graph, 1, 2);
+
+        let start = node(&mut graph, Op::Phi, vec![zero, counter], Some(Repr::Int32));
+        graph.blocks[2].phis.push(start);
+        let index_slot = node(&mut graph, Op::LoadSlot { slot: 1 }, vec![], Some(Repr::Tagged));
+        let index = checked(&mut graph, Op::CheckInt32, vec![index_slot]);
+        graph.blocks[2].body.extend([index_slot, index]);
+        jump(&mut graph, 2, 3);
+
+        let one = int32(&mut graph, 1);
+        let bound = int32(&mut graph, 100);
+        let phi = node(&mut graph, Op::Phi, vec![start], Some(Repr::Int32));
+        graph.blocks[3].phis.push(phi);
+        let check = checked(&mut graph, Op::CheckBounds, vec![index, phi]);
+        let sum = checked(&mut graph, Op::Int32Binary { op: BinaryOp::Add }, vec![index, one]);
+        let next = node(
+            &mut graph,
+            Op::Int32WrappingBinary { op: BinaryOp::Add },
+            vec![phi, one],
+            Some(Repr::Int32),
+        );
+        graph.nodes[phi.index()].inputs.push(next);
+        let compare = node(
+            &mut graph,
+            Op::Int32Compare {
+                comparison: Comparison::LessThan,
+            },
+            vec![next, bound],
+            Some(Repr::Bool),
+        );
+        let branch = node(
+            &mut graph,
+            Op::Branch {
+                condition: BranchCondition::Bool,
+                if_true: BlockId(4),
+                if_false: BlockId(5),
+            },
+            vec![compare],
+            None,
+        );
+        graph.blocks[3].body.extend([check, sum, next, compare]);
+        graph.blocks[3].control = Some(branch);
+        jump(&mut graph, 4, 3);
+
+        let boxed = node(&mut graph, Op::BoxInt32, vec![sum], Some(Repr::Tagged));
+        let ret = node(&mut graph, Op::Return, vec![boxed], None);
+        graph.blocks[5].body.push(boxed);
+        graph.blocks[5].control = Some(ret);
+
+        verify(&graph).unwrap();
+        super::bounds_check_elimination::run(&mut graph);
+        verify(&graph).unwrap();
+
+        let guarded = graph.blocks[1].body.iter().any(|node| {
+            let node = graph.node(*node);
+            node.op == Op::CheckBounds && node.inputs[0] == counter && graph.int32_constant(node.inputs[1]) == Some(100)
+        });
+        let wrapping = matches!(graph.node(sum).op, Op::Int32WrappingBinary { .. });
+        assert_eq!(guarded, !failed_before);
+        assert_eq!(wrapping, !failed_before);
+    }
+}
