@@ -21,6 +21,7 @@
 #include <AK/kmalloc.h>
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/TimeoutSet.h>
 #include <LibCore/Timer.h>
@@ -74,6 +75,7 @@ enum class CompletionType : u8 {
     Wake,
     Timer,
     Notifer,
+    PipeNotifier,
     Process,
     Signal,
 };
@@ -207,6 +209,15 @@ struct EventLoopNotifier final : CompletionPacket {
     OwnHandle wait_event;
 };
 
+struct EventLoopPipeNotifier final : CompletionPacket {
+    Notifier* notifier;
+    OwnHandle wait_packet;
+    OwnHandle wait_event;
+    HANDLE pipe_handle { nullptr };
+    OVERLAPPED pipe_read {};
+    bool pipe_read_is_pending { false };
+};
+
 struct EventLoopProcess final : CompletionPacket {
     ~EventLoopProcess() = default;
 
@@ -262,6 +273,12 @@ struct ThreadData {
 
     // These are only used to register and unregister. The event loop doesn't access these.
     HashMap<Notifier*, NonnullOwnPtr<EventLoopNotifier>> notifiers;
+    HashMap<Notifier*, NonnullOwnPtr<EventLoopPipeNotifier>> pipe_notifiers;
+
+    // Pipe notifiers whose activation has been posted. Each reads its pipe again only on the next pump, once its
+    // activation has been handled, so that it activates again only if there is still something to read, as a poll()
+    // would report.
+    Vector<EventLoopPipeNotifier*, 8> pipe_notifiers_to_rearm;
 
     // Owns the timer allocations; ids stay valid until unregister_timer even after a one-shot timer fires.
     HashMap<intptr_t, NonnullOwnPtr<EventLoopTimer>> timers;
@@ -332,10 +349,54 @@ int EventLoopImplementationWindows::exec()
 
 static constexpr bool debug_event_loop = false;
 
+static bool handle_is_overlapped(HANDLE handle)
+{
+    constexpr ULONG file_mode_information = 16;
+    constexpr ULONG synchronous_io_alert = 0x10;
+    constexpr ULONG synchronous_io_nonalert = 0x20;
+
+    IO_STATUS_BLOCK io_status {};
+    ULONG mode = 0;
+    NTSTATUS status = g_system.NtQueryInformationFile(handle, &io_status, &mode, sizeof(mode), file_mode_information);
+    VERIFY(NT_SUCCESS(status));
+    return !(mode & (synchronous_io_alert | synchronous_io_nonalert));
+}
+
+static void read_pipe_until_readable(EventLoopPipeNotifier& notifier_data)
+{
+    static u8 s_zero_byte_buffer;
+    notifier_data.pipe_read = {};
+    notifier_data.pipe_read.hEvent = notifier_data.wait_event.handle;
+    notifier_data.pipe_read_is_pending = false;
+    if (ReadFile(notifier_data.pipe_handle, &s_zero_byte_buffer, 0, nullptr, &notifier_data.pipe_read))
+        return;
+    if (GetLastError() == ERROR_IO_PENDING) {
+        notifier_data.pipe_read_is_pending = true;
+        return;
+    }
+    // A read that fails at once, as one does at the end of the pipe, does not set the event, but the reader must still
+    // be activated to see it.
+    SetEvent(notifier_data.wait_event.handle);
+}
+
+static void cancel_pipe_read(EventLoopPipeNotifier& notifier_data)
+{
+    if (!notifier_data.pipe_read_is_pending || HasOverlappedIoCompleted(&notifier_data.pipe_read))
+        return;
+    CancelIoEx(notifier_data.pipe_handle, &notifier_data.pipe_read);
+    // The read must have stopped writing to pipe_read before it can be freed.
+    while (!HasOverlappedIoCompleted(&notifier_data.pipe_read))
+        WaitForSingleObject(notifier_data.wait_event.handle, INFINITE);
+}
+
 size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
 {
     auto& event_queue = ThreadEventQueue::current();
     auto* thread_data = ThreadData::the();
+
+    for (auto* notifier_data : thread_data->pipe_notifiers_to_rearm)
+        read_pipe_until_readable(*notifier_data);
+    thread_data->pipe_notifiers_to_rearm.clear();
 
     // NOTE: The number of entries to dequeue is to be optimized. Ideally we always dequeue all outstanding packets,
     // but we don't want to increase the cost of each pump unnecessarily. If more than one entry is never dequeued
@@ -388,6 +449,14 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
                 event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
                 VERIFY(NT_SUCCESS(status));
+                continue;
+            }
+            if (packet->type == CompletionType::PipeNotifier) {
+                auto* notifier_data = static_cast<EventLoopPipeNotifier*>(packet);
+                event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
+                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
+                VERIFY(NT_SUCCESS(status));
+                thread_data->pipe_notifiers_to_rearm.append(notifier_data);
                 continue;
             }
             if (packet->type == CompletionType::Process) {
@@ -457,13 +526,49 @@ static int notifier_type_to_network_event(NotificationType type)
     return events;
 }
 
+static void register_pipe_notifier(ThreadData& thread_data, Notifier& notifier)
+{
+    auto* handle = to_handle(notifier.fd());
+    VERIFY(!has_flag(notifier.type(), NotificationType::Write));
+    // A zero-byte read of a pipe that is not overlapped would block until there is data. Pipes from pipe2() are
+    // overlapped unless they are read by another process.
+    VERIFY(handle_is_overlapped(handle));
+
+    auto notifier_data = make<EventLoopPipeNotifier>();
+    notifier_data->type = CompletionType::PipeNotifier;
+    notifier_data->notifier = &notifier;
+    notifier_data->wait_event.handle = CreateEvent(NULL, FALSE, FALSE, NULL);
+    VERIFY(notifier_data->wait_event.handle);
+    notifier_data->pipe_handle = handle;
+    NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&notifier_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
+    VERIFY(NT_SUCCESS(status));
+    status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data.iocp.handle, notifier_data->wait_event.handle, notifier_data.ptr(), NULL, 0, 0, NULL);
+    VERIFY(NT_SUCCESS(status));
+    read_pipe_until_readable(*notifier_data);
+    thread_data.pipe_notifiers.set(&notifier, move(notifier_data));
+}
+
+static void unregister_pipe_notifier(ThreadData& thread_data, NonnullOwnPtr<EventLoopPipeNotifier> notifier_data)
+{
+    // We are removing the signalled packets since the caller no longer expects them
+    NTSTATUS status = g_system.NtCancelWaitCompletionPacket(notifier_data->wait_packet.handle, TRUE);
+    VERIFY(NT_SUCCESS(status));
+    thread_data.pipe_notifiers_to_rearm.remove_first_matching([&](auto* entry) { return entry == notifier_data.ptr(); });
+    cancel_pipe_read(*notifier_data);
+}
+
 void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 {
     auto* thread_data = ThreadData::the();
     auto& notifiers = thread_data->notifiers;
 
-    if (notifiers.contains(&notifier))
+    if (notifiers.contains(&notifier) || thread_data->pipe_notifiers.contains(&notifier))
         return;
+
+    if (!System::is_socket(notifier.fd()) && GetFileType(to_handle(notifier.fd())) == FILE_TYPE_PIPE) {
+        register_pipe_notifier(*thread_data, notifier);
+        return;
+    }
 
     HANDLE event = CreateEvent(NULL, FALSE, FALSE, NULL);
     VERIFY(event);
@@ -486,8 +591,12 @@ void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
     auto* thread_data = ThreadData::the();
     VERIFY(thread_data);
 
-    auto& notifiers = thread_data->notifiers;
-    auto maybe_notifier_data = notifiers.take(&notifier);
+    if (auto notifier_data = thread_data->pipe_notifiers.take(&notifier); notifier_data.has_value()) {
+        unregister_pipe_notifier(*thread_data, notifier_data.release_value());
+        return;
+    }
+
+    auto maybe_notifier_data = thread_data->notifiers.take(&notifier);
     if (!maybe_notifier_data.has_value())
         return;
     auto notifier_data = move(maybe_notifier_data.value());

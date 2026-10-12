@@ -63,7 +63,7 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     // FIXME: Pick a more reasonable log path that is more observable
     auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"sv).string();
 
-    auto stdin_fds = TRY(Core::System::pipe2(O_CLOEXEC));
+    auto stdin_fds = TRY(Core::System::pipe2(O_CLOEXEC, Core::System::PipeReadEnd::ReadExternally));
     auto stdout_fds = TRY(Core::System::pipe2(O_CLOEXEC));
     auto stderr_file = TRY(Core::File::open(ByteString::formatted("{}.stderr", log_path), Core::File::OpenMode::Write));
 

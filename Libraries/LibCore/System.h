@@ -147,7 +147,14 @@ CORE_API ErrorOr<void> map_shared_memory_fixed(void* address, size_t size, int f
 
 CORE_API ErrorOr<void> close(int fd);
 CORE_API ErrorOr<int> dup(int source_fd);
-CORE_API ErrorOr<Array<int, 2>> pipe2(int flags);
+// Whether a pipe's read end is read by this process's own code, or by another process's, such as a child that is given
+// it as its standard input. On Windows, a Notifier can only watch a read end that is read internally, and only one that
+// is read externally can be read by code that does not use overlapped I/O.
+enum class PipeReadEnd : u8 {
+    ReadInternally,
+    ReadExternally,
+};
+CORE_API ErrorOr<Array<int, 2>> pipe2(int flags, PipeReadEnd = PipeReadEnd::ReadInternally);
 CORE_API ErrorOr<void> set_close_on_exec(int fd, bool enabled);
 CORE_API bool is_socket(int fd);
 

@@ -47,6 +47,15 @@ NTAPI NTSTATUS NtCreateWaitCompletionPacket(
     _In_ ACCESS_MASK DesiredAccess,
     _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes);
 
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntqueryinformationfile
+NTAPI NTSTATUS NtQueryInformationFile(
+    _In_ HANDLE FileHandle,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _Out_ PVOID FileInformation,
+    _In_ ULONG Length,
+    // winternl.h's FILE_INFORMATION_CLASS lacks most of the classes, so the class is taken as its value.
+    _In_ ULONG FileInformationClass);
+
 // https://learn.microsoft.com/en-us/windows/win32/seccng/processprng
 BOOL WINAPI ProcessPrng(PBYTE pbData, SIZE_T cbData);
 }
@@ -54,12 +63,14 @@ BOOL WINAPI ProcessPrng(PBYTE pbData, SIZE_T cbData);
 using PFN_NtCreateWaitCompletionPacket = decltype(&NtCreateWaitCompletionPacket);
 using PFN_NtCancelWaitCompletionPacket = decltype(&NtCancelWaitCompletionPacket);
 using PFN_NtAssociateWaitCompletionPacket = decltype(&NtAssociateWaitCompletionPacket);
+using PFN_NtQueryInformationFile = decltype(&NtQueryInformationFile);
 using PFN_ProcessPrng = decltype(&ProcessPrng);
 
 inline struct SystemApi {
     PFN_NtAssociateWaitCompletionPacket NtAssociateWaitCompletionPacket = NULL;
     PFN_NtCancelWaitCompletionPacket NtCancelWaitCompletionPacket = NULL;
     PFN_NtCreateWaitCompletionPacket NtCreateWaitCompletionPacket = NULL;
+    PFN_NtQueryInformationFile NtQueryInformationFile = NULL;
     PFN_ProcessPrng ProcessPrng = NULL;
 
     SystemApi()
@@ -72,10 +83,12 @@ inline struct SystemApi {
             NtAssociateWaitCompletionPacket = (PFN_NtAssociateWaitCompletionPacket)GetProcAddress(hNtdll, "NtAssociateWaitCompletionPacket");
             NtCancelWaitCompletionPacket = (PFN_NtCancelWaitCompletionPacket)GetProcAddress(hNtdll, "NtCancelWaitCompletionPacket");
             NtCreateWaitCompletionPacket = (PFN_NtCreateWaitCompletionPacket)GetProcAddress(hNtdll, "NtCreateWaitCompletionPacket");
+            NtQueryInformationFile = (PFN_NtQueryInformationFile)GetProcAddress(hNtdll, "NtQueryInformationFile");
             ProcessPrng = (PFN_ProcessPrng)GetProcAddress(hBcryptprimitives, "ProcessPrng");)
         VERIFY(NtAssociateWaitCompletionPacket);
         VERIFY(NtCancelWaitCompletionPacket);
         VERIFY(NtCreateWaitCompletionPacket);
+        VERIFY(NtQueryInformationFile);
         VERIFY(ProcessPrng);
     }
 } g_system;
