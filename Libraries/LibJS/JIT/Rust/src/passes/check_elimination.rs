@@ -395,7 +395,8 @@ fn visit_node(
         | Op::LoadElementsLength
         | Op::LoadElementsCapacity
         | Op::LoadTypedArrayLength
-        | Op::LoadTypedArrayDataOffset => {
+        | Op::LoadTypedArrayDataOffset
+        | Op::LoadElementAt { .. } => {
             let location = loaded_location(graph, decisions, node_id).expect("loads load a location");
             remove = reuse_contents(facts, location, node_id, decisions);
         }
@@ -529,24 +530,55 @@ fn loaded_location(graph: &Graph, decisions: &Decisions, load: NodeId) -> Option
             environment: input(0),
             index,
         },
+        Op::LoadElementAt { kind } => Location::Element {
+            storage: storage_object(graph, decisions, input(0)),
+            index: index_value(graph, input(1)),
+            kind,
+        },
         ref op => {
             let count = ElementCount::loaded_by(op);
             if count.is_none() && !matches!(op, Op::LoadTypedArrayDataOffset) {
                 return None;
             }
-            // NB: Before value numbering, an object may have several
-            //     addresses.
-            let address = graph.node(input(0));
-            let object = match address.op {
-                Op::CellAddress => decisions.value(graph, address.inputs[0]),
-                _ => input(0),
-            };
+            let object = storage_object(graph, decisions, input(0));
             match count {
                 Some(count) => Location::ElementCount { count, object },
                 None => Location::TypedArrayDataOffset { object },
             }
         }
     })
+}
+
+/// The value that the index `index` of an element access is: refinements of
+/// a value (like the bounds checks of each access) and int32 checks of a
+/// value are the same index.
+fn index_value(graph: &Graph, index: NodeId) -> NodeId {
+    let mut index = graph.unrefined(index);
+    while graph.node(index).op == Op::CheckInt32 {
+        index = graph.unrefined(graph.node(index).inputs[0]);
+    }
+    index
+}
+
+/// The object whose address or whose typed array data address is
+/// `address`, or `address` itself if it is none's.
+fn storage_object(graph: &Graph, decisions: &Decisions, address: NodeId) -> NodeId {
+    // NB: Before value numbering, an object may have several addresses,
+    //     and every access of a typed array computes its data address.
+    //     Writes of element counts, which change the storage offset, forget
+    //     the elements of every storage.
+    let node = graph.node(address);
+    match node.op {
+        Op::CellAddress => decisions.value(graph, node.inputs[0]),
+        Op::TypedArrayDataAddress => {
+            let offset = graph.node(graph.unrefined(decisions.value(graph, node.inputs[0])));
+            match offset.op {
+                Op::LoadTypedArrayDataOffset => storage_object(graph, decisions, offset.inputs[0]),
+                _ => address,
+            }
+        }
+        _ => address,
+    }
 }
 
 /// `object` is a new object, which is what it is by its definition.
