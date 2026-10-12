@@ -6,8 +6,9 @@
 
 //! Dead code elimination: removes nodes whose values nobody uses, as long
 //! as running them has no effect beyond producing their value. Frame states
-//! count as uses, since exits need their values. Branches both of whose
-//! edges lead to the same place, doing nothing, become jumps.
+//! count as uses, since exits need their values. Int32 arithmetic only
+//! exits to produce a value that is no int32, so it goes too. Branches both
+//! of whose edges lead to the same place, doing nothing, become jumps.
 
 use super::edit;
 use crate::bitset::BitSet;
@@ -16,7 +17,7 @@ use crate::ir::Op;
 
 /// Whether a node can be dropped when its value is unused.
 fn is_removable(op: &Op) -> bool {
-    if *op == Op::Phi {
+    if matches!(op, Op::Phi | Op::Int32Binary { .. }) {
         return true;
     }
     let properties = op.properties();

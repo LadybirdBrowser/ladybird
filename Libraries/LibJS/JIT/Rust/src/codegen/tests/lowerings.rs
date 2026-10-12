@@ -801,10 +801,12 @@ fn updates() {
                 result, expected,
                 "postfix {delta:+} of {value:#x} with feedback {feedback:#x}"
             );
-            let old_value = if matches!(expected, MARKER | EXITED) {
-                expected
-            } else {
-                value
+            // NB: Where nothing reads the new value, int32 arithmetic does not
+            //     exit for overflowing it.
+            let old_value = match expected {
+                MARKER => expected,
+                EXITED if value::as_int32(value).is_none() => expected,
+                _ => value,
             };
             let result = run(&postfix(r(6)));
             assert_eq!(result, old_value, "old value of postfix {delta:+} of {value:#x}");
