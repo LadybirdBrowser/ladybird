@@ -382,8 +382,24 @@ fn is_same_token_kind(left: &ParserTokenKind, right: &ParserTokenKind) -> bool {
     std::mem::discriminant(left) == std::mem::discriminant(right)
 }
 
-fn consume_component_values(
-    tokens: &mut [ParserToken],
+/// The tokens that component values are consumed from, which a source may produce only as they're asked for.
+pub(crate) trait ParserTokens {
+    fn token(&mut self, index: usize) -> Option<&ParserToken>;
+    fn token_mut(&mut self, index: usize) -> Option<&mut ParserToken>;
+}
+
+impl ParserTokens for [ParserToken] {
+    fn token(&mut self, index: usize) -> Option<&ParserToken> {
+        self.get(index)
+    }
+
+    fn token_mut(&mut self, index: usize) -> Option<&mut ParserToken> {
+        self.get_mut(index)
+    }
+}
+
+fn consume_component_values<T: ParserTokens + ?Sized>(
+    tokens: &mut T,
     position: &mut usize,
     ending: Option<&ParserTokenKind>,
     depth: usize,
@@ -394,7 +410,7 @@ fn consume_component_values(
     }
 
     let mut values = Vec::with_capacity(4);
-    while let Some(token) = tokens.get(*position) {
+    while let Some(token) = tokens.token(*position) {
         if ending.is_some_and(|ending| is_same_token_kind(&token.kind, ending)) {
             break;
         }
@@ -404,8 +420,8 @@ fn consume_component_values(
     Ok(values)
 }
 
-pub(crate) fn consume_a_component_value(
-    tokens: &mut [ParserToken],
+pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
+    tokens: &mut T,
     position: &mut usize,
     depth: usize,
     take_tokens: bool,
@@ -414,7 +430,7 @@ pub(crate) fn consume_a_component_value(
         return Err(());
     }
     let token = if take_tokens {
-        let token = tokens.get_mut(*position).ok_or(())?;
+        let token = tokens.token_mut(*position).ok_or(())?;
         std::mem::replace(
             token,
             ParserToken {
@@ -425,7 +441,7 @@ pub(crate) fn consume_a_component_value(
             },
         )
     } else {
-        tokens.get(*position).ok_or(())?.clone()
+        tokens.token(*position).ok_or(())?.clone()
     };
     *position += 1;
     let opening_source_length = token.source.len();
@@ -444,10 +460,9 @@ pub(crate) fn consume_a_component_value(
             )?;
             let last_child_source = function_values.last().map(|value| &value.original_source_text);
             let mut closing_source = None;
-            if let Some(closing) = tokens.get(*position)
+            if let Some(closing) = tokens.token(*position)
                 && matches!(closing.kind, ParserTokenKind::CloseParen)
             {
-                let closing = &tokens[*position];
                 *position += 1;
                 closing_source = Some(&closing.source);
                 closing_source_length = closing.source.len();
@@ -480,10 +495,9 @@ pub(crate) fn consume_a_component_value(
             let block_values = consume_component_values(tokens, position, Some(&ending), depth + 1, take_tokens)?;
             let last_child_source = block_values.last().map(|value| &value.original_source_text);
             let mut closing_source = None;
-            if let Some(closing) = tokens.get(*position)
+            if let Some(closing) = tokens.token(*position)
                 && is_same_token_kind(&closing.kind, &ending)
             {
-                let closing = &tokens[*position];
                 *position += 1;
                 closing_source = Some(&closing.source);
                 closing_source_length = closing.source.len();
@@ -541,7 +555,7 @@ impl ComponentValueTokens for &[ParserToken] {
 pub(crate) fn consume_a_list_of_component_values(tokens: impl ComponentValueTokens) -> Result<Vec<ComponentValue>, ()> {
     let mut tokens = tokens.into_owned_tokens();
     let mut position = 0;
-    consume_component_values(&mut tokens, &mut position, None, 0, true)
+    consume_component_values(tokens.as_mut_slice(), &mut position, None, 0, true)
 }
 
 pub(crate) fn consume_a_small_list_of_component_values(
@@ -550,7 +564,12 @@ pub(crate) fn consume_a_small_list_of_component_values(
     let mut values = SmallVec::new();
     let mut position = 0;
     while position < tokens.len() {
-        values.push(consume_a_component_value(&mut tokens, &mut position, 0, true)?);
+        values.push(consume_a_component_value(
+            tokens.as_mut_slice(),
+            &mut position,
+            0,
+            true,
+        )?);
     }
     Ok(values)
 }

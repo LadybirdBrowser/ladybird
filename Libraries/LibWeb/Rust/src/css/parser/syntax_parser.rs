@@ -9,7 +9,8 @@ use crate::css::counter_style::{CounterStyleData, FfiCounterStyle};
 use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
 use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::{
-    CssNumberType, ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
+    CssNumberType, ParserString, ParserToken, ParserTokenFeed, ParserTokenKind, SourcePosition, TokenizerInput,
+    tokenize_for_parser,
 };
 use crate::css::declaration_block::{DeclarationBlock, DeclarationBlockData, DeclaredProperty};
 use crate::css::descriptor_block::{DescriptorBlockData, DescriptorData, FfiDescriptorBlock};
@@ -24,7 +25,7 @@ use crate::css::layer_names::LayerNames;
 use crate::css::media_list::{MediaList, MediaListData};
 use crate::css::namespace_rule::NamespaceRuleData;
 use crate::css::parser::component_value::{
-    ComponentKind, ComponentSerializationMode, ComponentValue, consume_a_component_value,
+    ComponentKind, ComponentSerializationMode, ComponentValue, ParserTokens, consume_a_component_value,
     consume_a_list_of_component_values, trim_whitespace,
 };
 use crate::css::parser::descriptor_parser::parse_descriptor;
@@ -1103,10 +1104,60 @@ where
 }
 
 struct Parser {
-    tokens: Vec<ParserToken>,
+    tokens: TokenWindow,
     position: usize,
     rule_context: Vec<RuleContext>,
     rule_names: Vec<Option<ParserString>>,
+}
+
+// How many tokens a feed adds to a token window at once.
+const TOKEN_WINDOW_CHUNK_SIZE: usize = 256;
+
+// The tokens a parser reads: all of its source's tokens, or a window of them that a feed extends as the parser reads
+// past its end.
+struct TokenWindow {
+    tokens: Vec<ParserToken>,
+    feed: Option<ParserTokenFeed>,
+    // The diagnostics for the tokens the feed has added so far.
+    diagnostics: Vec<FfiSyntaxDiagnostic>,
+}
+
+impl TokenWindow {
+    fn fill_through(&mut self, index: usize) {
+        while index >= self.tokens.len()
+            && let Some(feed) = &mut self.feed
+        {
+            let first = self.tokens.len();
+            if !feed.fill(&mut self.tokens, TOKEN_WINDOW_CHUNK_SIZE) {
+                self.feed = None;
+                return;
+            }
+            self.diagnostics.extend(token_diagnostics(&self.tokens[first..]));
+        }
+    }
+
+    // Drops the tokens before position, which the parser never reads again, and returns where position then is. Only
+    // a window that a feed extends drops any, and only a chunk's worth or more at once — so moving its unread tokens to
+    // the front never costs more than their tokenization did.
+    fn discard_before(&mut self, position: usize) -> usize {
+        if self.feed.is_none() || position < TOKEN_WINDOW_CHUNK_SIZE {
+            return position;
+        }
+        self.tokens.drain(..position);
+        0
+    }
+}
+
+impl ParserTokens for TokenWindow {
+    fn token(&mut self, index: usize) -> Option<&ParserToken> {
+        self.fill_through(index);
+        self.tokens.get(index)
+    }
+
+    fn token_mut(&mut self, index: usize) -> Option<&mut ParserToken> {
+        self.fill_through(index);
+        self.tokens.get_mut(index)
+    }
 }
 
 fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
@@ -1337,11 +1388,22 @@ impl Parser {
     fn new(tokens: Vec<ParserToken>, rule_context: Vec<RuleContext>) -> Self {
         let rule_names = rule_context.iter().copied().map(context_rule_name).collect();
         Self {
-            tokens,
+            tokens: TokenWindow {
+                tokens,
+                feed: None,
+                diagnostics: Vec::new(),
+            },
             position: 0,
             rule_context,
             rule_names,
         }
+    }
+
+    // A parser that tokenizes its source only as far as it reads, for a style sheet's contents.
+    fn streaming<'a>(source: impl Into<TokenizerInput<'a>>) -> Self {
+        let mut parser = Self::new(Vec::new(), Vec::new());
+        parser.tokens.feed = Some(ParserTokenFeed::new(source.into()));
+        parser
     }
 
     fn from_source<'a>(
@@ -1353,12 +1415,12 @@ impl Parser {
         (Self::new(tokens, rule_context), diagnostics)
     }
 
-    fn next_kind(&self) -> Option<&ParserTokenKind> {
-        self.tokens.get(self.position).map(|token| &token.kind)
+    fn next_kind(&mut self) -> Option<&ParserTokenKind> {
+        self.tokens.token(self.position).map(|token| &token.kind)
     }
 
-    fn peek_kind(&self, offset: usize) -> Option<&ParserTokenKind> {
-        self.tokens.get(self.position + offset).map(|token| &token.kind)
+    fn peek_kind(&mut self, offset: usize) -> Option<&ParserTokenKind> {
+        self.tokens.token(self.position + offset).map(|token| &token.kind)
     }
 
     fn discard_whitespace(&mut self) {
@@ -1375,9 +1437,11 @@ impl Parser {
         consume_a_component_value(&mut self.tokens, &mut self.position, 0, false)
     }
 
-    fn declaration_can_take_tokens(&self) -> bool {
+    fn declaration_can_take_tokens(&mut self) -> bool {
         let mut nesting_depth = 0usize;
-        for token in &self.tokens[self.position..] {
+        let mut index = self.position;
+        while let Some(token) = self.tokens.token(index) {
+            index += 1;
             match token.kind {
                 ParserTokenKind::Function(_) | ParserTokenKind::OpenSquare | ParserTokenKind::OpenParen => {
                     nesting_depth += 1;
@@ -1427,6 +1491,7 @@ impl Parser {
     // caller can process each rule and drop its component values before the next one is consumed, rather than holding
     // the component values of the whole sheet at once.
     fn consume_next_stylesheet_rule(&mut self) -> Option<Rule> {
+        self.position = self.tokens.discard_before(self.position);
         loop {
             match self.next_kind() {
                 Some(ParserTokenKind::Whitespace | ParserTokenKind::Cdo | ParserTokenKind::Cdc) => self.position += 1,
@@ -1621,7 +1686,7 @@ impl Parser {
 
     // https://drafts.csswg.org/css-syntax-3/#consume-declaration
     fn consume_declaration(&mut self, nested: Nested) -> Option<Declaration> {
-        let token = self.tokens.get(self.position)?.clone();
+        let token = self.tokens.token(self.position)?.clone();
         let ParserTokenKind::Ident(name) = token.kind else {
             self.consume_bad_declaration(nested);
             return None;
@@ -1826,7 +1891,7 @@ impl Parser {
 
 #[cfg(test)]
 pub(crate) fn parse_stylesheet<'a>(source: impl Into<TokenizerInput<'a>>) -> Vec<Rule> {
-    let mut parser = Parser::from_source(source, Vec::new()).0;
+    let mut parser = Parser::streaming(source);
     std::iter::from_fn(|| parser.consume_next_stylesheet_rule()).collect()
 }
 
@@ -1850,7 +1915,7 @@ pub(crate) fn parse_rule<'a>(
     nested: bool,
 ) -> Option<Rule> {
     let (parser, _) = Parser::from_source(source, rule_context);
-    parse_rule_from_tokens(parser.tokens, parser.rule_context, nested)
+    parse_rule_from_tokens(parser.tokens.tokens, parser.rule_context, nested)
 }
 
 #[cfg(test)]
@@ -3516,12 +3581,13 @@ pub(crate) unsafe fn parse_shared_stylesheet(
 ) -> Arc<ParsedStyleSheet> {
     unsafe {
         parse_with_cache(source, parse_context, || {
-            let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
+            let mut parser = Parser::streaming(source);
             let mut parse = SyntaxParseBuilder::new(parse_context, false);
-            parse.diagnostics = diagnostics;
             while let Some(rule) = parser.consume_next_stylesheet_rule() {
                 parse.append_root(&rule);
             }
+            // As in every other parse, the tokens' own diagnostics come ahead of the rules'.
+            parse.diagnostics.splice(0..0, parser.tokens.diagnostics);
             parse.finish()
         })
     }
@@ -3591,7 +3657,7 @@ pub(crate) unsafe fn parse_shared_rule(
         parse.declarations_kind = NestedDeclarationsKind::Function;
     }
     parse.diagnostics = diagnostics;
-    let rule = parse_rule_from_tokens(parser.tokens, parser.rule_context, nested);
+    let rule = parse_rule_from_tokens(parser.tokens.tokens, parser.rule_context, nested);
     if let Some(rule) = rule {
         parse.append_root(&rule);
     }
@@ -3783,12 +3849,12 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *const ParsedStyleShe
 #[cfg(test)]
 mod tests {
     use super::{
-        Declaration, FfiSyntaxDiagnosticCode, FontFeatureValuesRuleKind, PagePseudoClass, ParsedRuleChild,
-        ParsedRuleKind, ParsedRulePrelude, ParsedStyleSheet, Parser, ParserTokenKind, Rule, RuleContext,
-        RuleOrDeclarations, SyntaxNode, SyntaxParseBuilder, at_rule_is_supported, at_rule_kind, collect_descriptors,
-        consume_a_list_of_component_values, has_ignored_vendor_prefix, parse_block_contents, parse_font_feature_values,
-        parse_keyframe_selectors, parse_page_selector_list, parse_rule, parse_rule_prelude, parse_stylesheet,
-        rule_kind, token_diagnostics, tokenize_for_parser,
+        Declaration, FfiSyntaxDiagnostic, FfiSyntaxDiagnosticCode, FontFeatureValuesRuleKind, PagePseudoClass,
+        ParsedRuleChild, ParsedRuleKind, ParsedRulePrelude, ParsedStyleSheet, Parser, ParserTokenKind, Rule,
+        RuleContext, RuleOrDeclarations, SyntaxNode, SyntaxParseBuilder, TOKEN_WINDOW_CHUNK_SIZE, at_rule_is_supported,
+        at_rule_kind, collect_descriptors, consume_a_list_of_component_values, has_ignored_vendor_prefix,
+        parse_block_contents, parse_font_feature_values, parse_keyframe_selectors, parse_page_selector_list,
+        parse_rule, parse_rule_prelude, parse_stylesheet, rule_kind, token_diagnostics, tokenize_for_parser,
     };
     use crate::css::parser::value_parser::ParseContext;
 
@@ -4180,7 +4246,7 @@ mod tests {
 
     #[test]
     fn hands_out_each_stylesheet_rule_before_consuming_the_next() {
-        let (mut parser, _) = Parser::from_source(b"a { color: red } @media screen { b { width: 1px } }", Vec::new());
+        let mut parser = Parser::streaming(b"a { color: red } @media screen { b { width: 1px } }");
         let Some(Rule::Qualified(_)) = parser.consume_next_stylesheet_rule() else {
             panic!("expected style rule");
         };
@@ -4190,6 +4256,70 @@ mod tests {
         };
         assert_eq!(media.name.as_ref(), utf16("media"));
         assert!(parser.consume_next_stylesheet_rule().is_none());
+    }
+
+    fn stylesheet_spanning_many_token_chunks() -> String {
+        let mut source = String::new();
+        for index in 0..400 {
+            source.push_str(&format!(
+                ".rule-{index} {{ color: red; margin: {index}px 2px; background: url(a{index}.png) }}\n"
+            ));
+            if index % 97 == 0 {
+                source.push_str("a { content: \"unterminated\n; background: url(bad url) }\n");
+            }
+        }
+        // A rule far longer than a chunk of tokens, so the window is extended in the middle of it.
+        source.push_str("@media screen { .long { ");
+        for index in 0..300 {
+            source.push_str(&format!("--custom-{index}: calc({index}px + 1em) foo(bar, [baz]); "));
+        }
+        source.push_str("} }\n.last { color: blue }");
+        source
+    }
+
+    #[test]
+    fn a_streamed_stylesheet_parses_like_one_tokenized_up_front() {
+        let source = stylesheet_spanning_many_token_chunks();
+        let (mut tokenized, diagnostics) = Parser::from_source(source.as_bytes(), Vec::new());
+        let expected = std::iter::from_fn(|| tokenized.consume_next_stylesheet_rule()).collect::<Vec<_>>();
+        let mut streamed = Parser::streaming(source.as_bytes());
+        let rules = std::iter::from_fn(|| streamed.consume_next_stylesheet_rule()).collect::<Vec<_>>();
+        assert_eq!(rules.len(), 407);
+        assert_eq!(rules, expected);
+
+        let ranges = |diagnostics: &[FfiSyntaxDiagnostic]| {
+            diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code,
+                        diagnostic.start_line,
+                        diagnostic.start_column,
+                        diagnostic.end_line,
+                        diagnostic.end_column,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(diagnostics.len(), 10);
+        assert_eq!(ranges(&streamed.tokens.diagnostics), ranges(&diagnostics));
+    }
+
+    #[test]
+    fn a_streamed_stylesheet_holds_only_a_window_of_its_tokens() {
+        let source = ".rule { color: red }\n".repeat(2000);
+        let mut parser = Parser::streaming(source.as_bytes());
+        let mut rule_count = 0;
+        let mut largest_window = 0;
+        while parser.consume_next_stylesheet_rule().is_some() {
+            rule_count += 1;
+            largest_window = largest_window.max(parser.tokens.tokens.len());
+        }
+        assert_eq!(rule_count, 2000);
+        assert!(
+            largest_window < 4 * TOKEN_WINDOW_CHUNK_SIZE,
+            "the window grew to {largest_window} tokens"
+        );
     }
 
     #[test]

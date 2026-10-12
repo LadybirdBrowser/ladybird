@@ -483,6 +483,22 @@ pub(crate) enum SourceStorage {
     Utf16(Box<[u16]>),
 }
 
+impl SourceStorage {
+    fn from_input(input: TokenizerInput<'_>) -> Self {
+        match input {
+            TokenizerInput::Ascii(units) => Self::Ascii(units.into()),
+            TokenizerInput::Utf16(units) => Self::Utf16(units.into()),
+        }
+    }
+
+    fn as_input(&self) -> TokenizerInput<'_> {
+        match self {
+            Self::Ascii(units) => TokenizerInput::Ascii(units),
+            Self::Utf16(units) => TokenizerInput::Utf16(units),
+        }
+    }
+}
+
 pub(crate) enum ParserSourceIter<'a> {
     Empty,
     Owned(std::slice::Iter<'a, u16>),
@@ -598,7 +614,10 @@ impl PartialEq for ParserSource {
 impl Eq for ParserSource {}
 
 pub(crate) fn tokenize_for_parser<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<ParserToken> {
-    tokenize_for_parser_internal(input, true)
+    let input = input.into();
+    let mut tokens = Vec::with_capacity(input.len() / 3);
+    ParserTokenFeed::new(input).fill(&mut tokens, usize::MAX);
+    tokens
 }
 
 pub(crate) fn tokenize_for_parser_without_source<'a>(input: impl Into<TokenizerInput<'a>>) -> SmallParserTokenList {
@@ -665,88 +684,115 @@ fn tokenize_for_parser_without_source_internal<'a>(input: impl Into<TokenizerInp
     tokens
 }
 
-fn tokenize_for_parser_internal<'a>(
-    input: impl Into<TokenizerInput<'a>>,
-    retain_original_source: bool,
-) -> Vec<ParserToken> {
-    let input = input.into();
-    let estimated_token_count = input.len() / 3;
-    let mut tokens = Vec::with_capacity(estimated_token_count);
-    let mut string_storage = Vec::with_capacity(input.len() / 2);
-    let mut source_storage = None;
-    tokenize(input, |token, filtered_input| {
-        if matches!(token.token_type, TokenType::EndOfFile) {
-            return;
-        }
-        // Copy the filtered source only when tokens will keep slices into it.
-        let source_storage = retain_original_source.then(|| {
-            source_storage.get_or_insert_with(|| {
-                Arc::new(match filtered_input {
-                    TokenizerInput::Ascii(units) => SourceStorage::Ascii(units.into()),
-                    TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
-                })
-            })
-        });
-        let mut string = |value: &[u16]| {
-            let start = string_storage.len();
-            string_storage.extend_from_slice(value);
-            ParserString::Pending(start..string_storage.len())
-        };
-        let kind = match &token.token_type {
-            TokenType::Ident { value } => ParserTokenKind::Ident(string(value)),
-            TokenType::Function { name } => ParserTokenKind::Function(string(name)),
-            TokenType::AtKeyword { name } => ParserTokenKind::AtKeyword(string(name)),
-            TokenType::Hash { hash_type, value } => ParserTokenKind::Hash {
-                value: string(value),
-                is_id: *hash_type == CssHashType::Id,
-            },
-            TokenType::String { value } => ParserTokenKind::String(string(value)),
-            TokenType::BadString => ParserTokenKind::BadString,
-            TokenType::Url { value } => ParserTokenKind::Url(string(value)),
-            TokenType::BadUrl => ParserTokenKind::BadUrl,
-            TokenType::Delim { value } => ParserTokenKind::Delim(*value),
-            TokenType::Number { number } => ParserTokenKind::Number {
-                value: number.value,
-                number_type: number.number_type,
-            },
-            TokenType::Percentage { number } => ParserTokenKind::Percentage {
-                value: number.value,
-                number_type: number.number_type,
-            },
-            TokenType::Dimension { number, unit } => ParserTokenKind::Dimension {
-                value: number.value,
-                number_type: number.number_type,
-                unit: string(unit),
-            },
-            TokenType::Whitespace => ParserTokenKind::Whitespace,
-            TokenType::Cdo => ParserTokenKind::Cdo,
-            TokenType::Cdc => ParserTokenKind::Cdc,
-            TokenType::Colon => ParserTokenKind::Colon,
-            TokenType::Semicolon => ParserTokenKind::Semicolon,
-            TokenType::Comma => ParserTokenKind::Comma,
-            TokenType::OpenSquare => ParserTokenKind::OpenSquare,
-            TokenType::CloseSquare => ParserTokenKind::CloseSquare,
-            TokenType::OpenParen => ParserTokenKind::OpenParen,
-            TokenType::CloseParen => ParserTokenKind::CloseParen,
-            TokenType::OpenCurly => ParserTokenKind::OpenCurly,
-            TokenType::CloseCurly => ParserTokenKind::CloseCurly,
-            TokenType::EndOfFile => unreachable!(),
-        };
-        tokens.push(ParserToken {
-            kind,
-            source: match source_storage {
-                Some(storage) => ParserSource::shared(storage.clone(), token.original_source_range.clone()),
-                None => ParserSource::Empty,
-            },
-            start_position: token.range.start,
-            end_position: token.range.end,
-        });
-    });
+// Converts a token, appending its string value to string_storage — which finish_shared_strings() then hands to the
+// tokens converted with it.
+fn parser_token(
+    token: &Token,
+    source_storage: Option<&Arc<SourceStorage>>,
+    string_storage: &mut Vec<u16>,
+) -> ParserToken {
+    let mut string = |value: &[u16]| {
+        let start = string_storage.len();
+        string_storage.extend_from_slice(value);
+        ParserString::Pending(start..string_storage.len())
+    };
+    let kind = match &token.token_type {
+        TokenType::Ident { value } => ParserTokenKind::Ident(string(value)),
+        TokenType::Function { name } => ParserTokenKind::Function(string(name)),
+        TokenType::AtKeyword { name } => ParserTokenKind::AtKeyword(string(name)),
+        TokenType::Hash { hash_type, value } => ParserTokenKind::Hash {
+            value: string(value),
+            is_id: *hash_type == CssHashType::Id,
+        },
+        TokenType::String { value } => ParserTokenKind::String(string(value)),
+        TokenType::BadString => ParserTokenKind::BadString,
+        TokenType::Url { value } => ParserTokenKind::Url(string(value)),
+        TokenType::BadUrl => ParserTokenKind::BadUrl,
+        TokenType::Delim { value } => ParserTokenKind::Delim(*value),
+        TokenType::Number { number } => ParserTokenKind::Number {
+            value: number.value,
+            number_type: number.number_type,
+        },
+        TokenType::Percentage { number } => ParserTokenKind::Percentage {
+            value: number.value,
+            number_type: number.number_type,
+        },
+        TokenType::Dimension { number, unit } => ParserTokenKind::Dimension {
+            value: number.value,
+            number_type: number.number_type,
+            unit: string(unit),
+        },
+        TokenType::Whitespace => ParserTokenKind::Whitespace,
+        TokenType::Cdo => ParserTokenKind::Cdo,
+        TokenType::Cdc => ParserTokenKind::Cdc,
+        TokenType::Colon => ParserTokenKind::Colon,
+        TokenType::Semicolon => ParserTokenKind::Semicolon,
+        TokenType::Comma => ParserTokenKind::Comma,
+        TokenType::OpenSquare => ParserTokenKind::OpenSquare,
+        TokenType::CloseSquare => ParserTokenKind::CloseSquare,
+        TokenType::OpenParen => ParserTokenKind::OpenParen,
+        TokenType::CloseParen => ParserTokenKind::CloseParen,
+        TokenType::OpenCurly => ParserTokenKind::OpenCurly,
+        TokenType::CloseCurly => ParserTokenKind::CloseCurly,
+        TokenType::EndOfFile => unreachable!(),
+    };
+    ParserToken {
+        kind,
+        source: match source_storage {
+            Some(storage) => ParserSource::shared(storage.clone(), token.original_source_range.clone()),
+            None => ParserSource::Empty,
+        },
+        start_position: token.range.start,
+        end_position: token.range.end,
+    }
+}
+
+fn finish_shared_strings(tokens: &mut [ParserToken], string_storage: Vec<u16>) {
     let string_storage: Arc<[u16]> = string_storage.into();
-    for token in &mut tokens {
+    for token in tokens {
         token.kind.finish_shared_strings(string_storage.clone(), 0);
     }
-    tokens
+}
+
+/// Tokenizes a source for the parser a chunk of tokens at a time, as the parser asks for them — so the tokens of a
+/// whole style sheet never have to exist at once.
+pub(crate) struct ParserTokenFeed {
+    source: Arc<SourceStorage>,
+    // None once the tokenizer has reached the end of the source.
+    cursor: Option<TokenizerCursor>,
+}
+
+impl ParserTokenFeed {
+    pub(crate) fn new(input: TokenizerInput<'_>) -> Self {
+        let source = Arc::new(SourceStorage::from_input(filter_code_points(input).as_input()));
+        let cursor = Tokenizer::new(source.as_input()).cursor();
+        Self {
+            source,
+            cursor: Some(cursor),
+        }
+    }
+
+    /// Appends up to `count` more tokens to `tokens`, and returns false if the source had none left.
+    pub(crate) fn fill(&mut self, tokens: &mut Vec<ParserToken>, count: usize) -> bool {
+        let Some(cursor) = self.cursor else {
+            return false;
+        };
+        let first = tokens.len();
+        let mut string_storage = Vec::new();
+        let mut tokenizer = Tokenizer::resume(self.source.as_input(), cursor);
+        self.cursor = loop {
+            if tokens.len() - first == count {
+                break Some(tokenizer.cursor());
+            }
+            let token = tokenizer.next_token();
+            if matches!(token.token_type, TokenType::EndOfFile) {
+                break None;
+            }
+            tokens.push(parser_token(&token, Some(&self.source), &mut string_storage));
+        };
+        finish_shared_strings(&mut tokens[first..], string_storage);
+        tokens.len() > first
+    }
 }
 
 pub(crate) fn tokenize_owned<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<OwnedToken> {
@@ -888,6 +934,16 @@ struct Tokenizer<'a> {
     prev_position: SourcePosition,
 }
 
+// The state a tokenizer resumes from, at the start of its next token.
+#[derive(Clone, Copy)]
+struct TokenizerCursor {
+    index: usize,
+    prev_index: usize,
+    current_code_point: u32,
+    position: SourcePosition,
+    prev_position: SourcePosition,
+}
+
 impl<'a> Tokenizer<'a> {
     fn new(input: TokenizerInput<'a>) -> Self {
         // Checked once here, not per code point: that made debug builds quadratic in the input length.
@@ -904,14 +960,40 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    fn resume(input: TokenizerInput<'a>, cursor: TokenizerCursor) -> Self {
+        Self {
+            input,
+            index: cursor.index,
+            prev_index: cursor.prev_index,
+            current_code_point: cursor.current_code_point,
+            position: cursor.position,
+            prev_position: cursor.prev_position,
+        }
+    }
+
+    fn cursor(&self) -> TokenizerCursor {
+        TokenizerCursor {
+            index: self.index,
+            prev_index: self.prev_index,
+            current_code_point: self.current_code_point,
+            position: self.position,
+            prev_position: self.prev_position,
+        }
+    }
+
+    fn next_token(&mut self) -> Token {
+        let token_start = self.position;
+        let mut token = self.consume_a_token();
+        token.range = token_start..self.position;
+        token
+    }
+
     fn tokenize<F>(mut self, mut callback: F)
     where
         F: FnMut(&Token, TokenizerInput<'a>),
     {
         loop {
-            let token_start = self.position;
-            let mut token = self.consume_a_token();
-            token.range = token_start..self.position;
+            let token = self.next_token();
             let is_eof = matches!(token.token_type, TokenType::EndOfFile);
             callback(&token, self.input);
 
