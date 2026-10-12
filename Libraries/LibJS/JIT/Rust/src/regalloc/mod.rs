@@ -13,6 +13,9 @@
 //! Spilling is simple: a value that ever needs a stack slot gets one slot for
 //! its whole life, and code generation stores it there right after its
 //! definition. Values live across a call always get one.
+//! Phis share their slots with the values flowing into them where their
+//! lives do not overlap (see `coalescing`), so that values carried around
+//! loops in stack slots need no copying.
 //!
 //! A merge or loop header starts with the register state of its first
 //! predecessor in linear order (its "state predecessor"; for a loop header,
@@ -35,6 +38,7 @@
 //! ones, so float64 values live across them get stack slots, like values
 //! live across a call.
 
+mod coalescing;
 mod liveness;
 mod moves;
 mod verify;
@@ -467,16 +471,22 @@ struct Allocator<'a> {
     end_contents: Vec<Option<Vec<Option<NodeId>>>>,
     /// The position of the node being allocated.
     position: u32,
+    /// The spill slot class of each value (see `coalescing`), and the
+    /// slot of each class that has one.
+    slot_classes: Vec<u32>,
+    class_slots: Vec<Option<u32>>,
 }
 
 impl<'a> Allocator<'a> {
     fn new(graph: &'a Graph, registers: &'a RegisterSet) -> Self {
         assert!(registers.allocatable_gprs.0 >> FPR_BASE == 0);
         assert!(!registers.allocatable_gprs.contains(registers.scratch_gpr));
+        let liveness = ValueLiveness::compute(graph);
+        let slot_classes = coalescing::spill_slot_classes(graph, &liveness);
         Self {
             graph,
             registers,
-            liveness: ValueLiveness::compute(graph),
+            liveness,
             allocation: Allocation {
                 nodes: vec![NodeAllocation::default(); graph.nodes.len()],
                 block_end_moves: vec![Vec::new(); graph.blocks.len()],
@@ -487,6 +497,8 @@ impl<'a> Allocator<'a> {
             value_registers: vec![None; graph.nodes.len()],
             end_contents: vec![None; graph.blocks.len()],
             position: 0,
+            slot_classes,
+            class_slots: vec![None; graph.nodes.len()],
         }
     }
 
@@ -583,7 +595,15 @@ impl<'a> Allocator<'a> {
         if let Some(slot) = self.allocation.nodes[value.index()].spill_slot {
             return slot;
         }
-        let slot = self.new_spill_slot();
+        let class = self.slot_classes[value.index()] as usize;
+        let slot = match self.class_slots[class] {
+            Some(slot) => slot,
+            None => {
+                let slot = self.new_spill_slot();
+                self.class_slots[class] = Some(slot);
+                slot
+            }
+        };
         self.allocation.nodes[value.index()].spill_slot = Some(slot);
         slot
     }

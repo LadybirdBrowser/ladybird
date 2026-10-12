@@ -19,6 +19,7 @@ use std::cell::OnceCell;
 
 pub(super) struct ValueLiveness {
     pub live_in: Vec<BitSet>,
+    pub live_out: Vec<BitSet>,
     /// For each node, the values whose last use (on this path) it is.
     pub dies_at: Vec<Vec<NodeId>>,
     /// Values nobody uses.
@@ -248,6 +249,7 @@ impl ValueLiveness {
 
         Self {
             live_in,
+            live_out,
             dies_at,
             dead_outputs,
             needs_spill,
