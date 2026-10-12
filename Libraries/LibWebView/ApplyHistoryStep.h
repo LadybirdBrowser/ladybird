@@ -19,6 +19,7 @@
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/NavigationSourceSnapshot.h>
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -57,6 +58,7 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
         Web::HTML::TraversalYieldsTo traversal_yields_to { Web::HTML::TraversalYieldsTo::Nothing };
         // The admitted navigation a same-document traversal canceled.
         Optional<Utf16String> canceled_navigation_id {};
+        Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params {};
     };
     Function<bool(ChangingNavigableHistoryStepJob&)> select_changing_navigable_history_step_job_endpoint;
     Function<void(ChangingNavigableHistoryStepJob, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete)> run_changing_navigable_history_step_job;
@@ -97,9 +99,6 @@ struct TraversableApplyHistoryStepState {
 // One run of the apply-the-history-step algorithm, coordinated from the UI process. The algorithm's traversal-wide
 // variables live on this object; the per-navigable jobs run through caller-supplied functions in the processes
 // hosting the documents, and their completion callbacks resume the algorithm at the phase that dispatched them.
-//
-// NB: The specification's sourceSnapshotParams argument never appears here: it lives in the initiating process
-//     together with initiatorToCheck's document, and the jobs that need either run in that process.
 class WEBVIEW_API ApplyHistoryStep
     : public Weakable<ApplyHistoryStep> {
     AK_MAKE_NONCOPYABLE(ApplyHistoryStep);
@@ -119,7 +118,7 @@ public:
         i32 step,
         bool check_for_cancelation,
         Optional<Web::HTML::CrossProcessId> initiator_to_check,
-        Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot,
+        Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params,
         Web::HTML::UserNavigationInvolvement user_involvement,
         Optional<Web::Bindings::NavigationType> navigation_type,
         Function<void(Web::HTML::HistoryStepResult)> on_complete);
@@ -163,7 +162,7 @@ private:
     // NB: The HTML Standard spells this algorithm argument "checkForCancelation".
     bool const m_check_for_cancelation;
     Optional<Web::HTML::CrossProcessId> const m_initiator_to_check;
-    Optional<Web::InitiatorSourceSnapshot> const m_initiator_source_snapshot;
+    Optional<Web::HTML::NavigationSourceSnapshot> const m_source_snapshot_params;
     Web::HTML::UserNavigationInvolvement const m_user_involvement;
     Optional<Web::Bindings::NavigationType> const m_navigation_type;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;

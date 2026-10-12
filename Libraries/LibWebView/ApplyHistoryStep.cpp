@@ -21,7 +21,7 @@ ApplyHistoryStep::ApplyHistoryStep(
     i32 step,
     bool check_for_cancelation,
     Optional<Web::HTML::CrossProcessId> initiator_to_check,
-    Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot,
+    Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params,
     Web::HTML::UserNavigationInvolvement user_involvement,
     Optional<Web::Bindings::NavigationType> navigation_type,
     Function<void(Web::HTML::HistoryStepResult)> on_complete)
@@ -35,7 +35,7 @@ ApplyHistoryStep::ApplyHistoryStep(
     , m_step(step)
     , m_check_for_cancelation(check_for_cancelation)
     , m_initiator_to_check(initiator_to_check)
-    , m_initiator_source_snapshot(initiator_source_snapshot)
+    , m_source_snapshot_params(move(source_snapshot_params))
     , m_user_involvement(user_involvement)
     , m_navigation_type(navigation_type)
     , m_on_complete(move(on_complete))
@@ -68,7 +68,7 @@ void ApplyHistoryStep::apply_the_history_step()
     if (m_initiator_to_check.has_value()) {
         // 1. Assert: sourceSnapshotParams is not null.
         // NB: A traversal with an initiator must also include its sandboxing state. Reject an incomplete request.
-        if (!m_initiator_source_snapshot.has_value()) {
+        if (!m_source_snapshot_params.has_value()) {
             return_result(Web::HTML::HistoryStepResult::InitiatorDisallowed);
             return;
         }
@@ -78,7 +78,10 @@ void ApplyHistoryStep::apply_the_history_step()
         //    return "initiator-disallowed".
         auto const* initiator = find_navigable(*m_initiator_to_check);
         // NB: sourceSnapshotParams's sandboxing flags are its source document's, which the UI process holds too.
-        auto source_snapshot_params = *m_initiator_source_snapshot;
+        Web::InitiatorSourceSnapshot source_snapshot_params {
+            .sandboxing_flags = m_source_snapshot_params->sandboxing_flags,
+            .has_transient_activation = m_source_snapshot_params->has_transient_activation,
+        };
         if (initiator)
             source_snapshot_params.sandboxing_flags |= initiator->active_document().active_sandboxing_flag_set();
         for (auto navigable_id : m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step)) {
@@ -207,6 +210,7 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             .navigation_type = m_navigation_type,
             .traversal_yields_to = changing_navigable.traversal_yields_to,
             .canceled_navigation_id = changing_navigable.canceled_navigation_id,
+            .source_snapshot_params = m_source_snapshot_params,
         };
         if (!m_jobs.select_changing_navigable_history_step_job_endpoint(job)) {
             changing_navigable_job_completed(navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);

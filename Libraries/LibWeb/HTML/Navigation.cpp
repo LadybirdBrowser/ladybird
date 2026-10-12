@@ -751,11 +751,10 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         NavigationAPITraverseHistoryOperationParameters {
             .navigable_id = navigable->id(),
             .key = key,
-            .initiator_source_snapshot = Web::InitiatorSourceSnapshot { .sandboxing_flags = source_snapshot_params->sandboxing_flags, .has_transient_activation = source_snapshot_params->has_transient_activation },
+            .source_snapshot_params = create_navigation_source_snapshot(*source_snapshot_params),
             .user_involvement = UserNavigationInvolvement::None,
         },
         {
-            .source_snapshot_params = source_snapshot_params,
             .on_complete = on_complete,
         });
 

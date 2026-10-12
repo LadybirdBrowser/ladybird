@@ -68,7 +68,6 @@ void HistoryExecutor::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_page);
     for (auto& operation : m_history_operations) {
-        visitor.visit(operation.value.source_snapshot_params);
         visitor.visit(operation.value.pending_document);
         visitor.visit(operation.value.on_apply_complete);
         visitor.visit(operation.value.on_complete);
@@ -165,14 +164,8 @@ void HistoryExecutor::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Docu
         TraverseByDeltaHistoryOperationParameters {
             .delta = delta,
             .initiator_to_check = initiator_to_check ? Optional<CrossProcessId> { initiator_to_check->id() } : OptionalNone {},
-            .initiator_source_snapshot = source_snapshot_params
-                ? Optional<Web::InitiatorSourceSnapshot> { { .sandboxing_flags = source_snapshot_params->sandboxing_flags, .has_transient_activation = source_snapshot_params->has_transient_activation } }
-                : OptionalNone {},
+            .source_snapshot_params = source_snapshot_params ? Optional<NavigationSourceSnapshot> { create_navigation_source_snapshot(*source_snapshot_params) } : OptionalNone {},
             .user_involvement = user_involvement,
-        },
-        {
-            .source_snapshot_params = source_snapshot_params,
-            .serialized_source_snapshot_params = source_snapshot_params ? Optional<NavigationSourceSnapshot> { create_navigation_source_snapshot(*source_snapshot_params) } : Optional<NavigationSourceSnapshot> {},
         });
 }
 
@@ -250,7 +243,7 @@ static void queue_apply_history_step_task(GC::Ref<LocalNavigable> navigable, GC:
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, task_document, steps);
 }
 
-bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob job, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete> on_complete)
+bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob job, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto navigable = local_navigable_with_id(job.navigable_id);
     if (!navigable) {
@@ -265,6 +258,10 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
         on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
         return false;
     }
+
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params;
+    if (job.source_snapshot_params.has_value())
+        source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*navigable->active_window()), *job.source_snapshot_params);
 
     // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
     // NB: The UI coordinator already ran that step against canonical history and sent the selected entry with this
@@ -567,7 +564,7 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
             auto request = NavigationPopulationRequest {
                 .navigable_id = navigable->id(),
                 .history_entry = create_pending_session_history_entry_descriptor(create_session_history_entry_descriptor(*target_entry)),
-                .source_snapshot_params = job.source_snapshot.has_value() ? job.source_snapshot.release_value() : create_navigation_source_snapshot(*potentially_target_specific_source_snapshot_params),
+                .source_snapshot_params = create_navigation_source_snapshot(*potentially_target_specific_source_snapshot_params),
                 .target_snapshot_params = target_snapshot_params,
                 .csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
                 .history_handling = Bindings::NavigationHistoryBehavior::Replace,
@@ -804,10 +801,9 @@ bool HistoryExecutor::resume_history_navigation_population(CrossProcessId operat
     return true;
 }
 
-void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, TraversalYieldsTo traversal_yields_to, Optional<Utf16String> canceled_navigation_id, Optional<Utf16String> finalized_navigation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
+void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, TraversalYieldsTo traversal_yields_to, Optional<Utf16String> canceled_navigation_id, Optional<Utf16String> finalized_navigation_id, Optional<NavigationSourceSnapshot> source_snapshot_params, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
 {
     auto& operation = ensure_history_operation(operation_id);
-    auto source_snapshot_params = operation.source_snapshot_params;
     auto pending_document = operation.pending_document;
     // The update for a navigable's creation targets an entry the navigable retains, not the one the request gave.
     RefPtr<SessionHistoryEntry> local_target_entry;
@@ -859,10 +855,10 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
             .traversal_yields_to = traversal_yields_to,
             .canceled_navigation_id = move(canceled_navigation_id),
             .finalized_navigation_id = move(finalized_navigation_id),
-            .source_snapshot = operation.serialized_source_snapshot_params,
+            .source_snapshot_params = move(source_snapshot_params),
             .population = move(population),
         },
-        source_snapshot_params, pending_document,
+        pending_document,
         GC::create_function(heap(), [this, operation_id, navigable_id, on_complete](LocalChangingNavigableHistoryStepJobResult result) {
             auto* operation = find_history_operation(operation_id);
             if (operation) {

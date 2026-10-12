@@ -1526,7 +1526,8 @@ void CanonicalTraversable::dispatch_changing_navigable_history_step_job(HistoryO
         pending_job.value()->job.navigation_type,
         pending_job.value()->job.traversal_yields_to,
         pending_job.value()->job.canceled_navigation_id,
-        finalized_navigation_id);
+        finalized_navigation_id,
+        pending_job.value()->job.source_snapshot_params);
 }
 
 void CanonicalTraversable::dispatch_changing_navigable_history_step_continuation(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id)
@@ -2269,14 +2270,14 @@ void CanonicalTraversable::enqueue_browser_history_traversal(Web::TraverseToStep
     m_history_traversal_queue.append_session_history_traversal_steps(move(steps));
 }
 
-void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot)
+void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params)
 {
     VERIFY(!operation.algorithm);
     auto operation_id = operation.operation_id;
     operation.algorithm = make<ApplyHistoryStep>(
         m_session_history, *this, m_history_traversal_queue, m_apply_history_step_traversable_state, create_apply_history_step_jobs(operation),
         operation_id, operation.sequence_number,
-        step, check_for_cancelation, initiator_to_check, initiator_source_snapshot, user_involvement, navigation_type,
+        step, check_for_cancelation, initiator_to_check, move(source_snapshot_params), user_involvement, navigation_type,
         [this, &operation](Web::HTML::HistoryStepResult result) {
             if (operation.finished)
                 return;
@@ -2311,10 +2312,10 @@ void CanonicalTraversable::apply_the_reload_history_step(HistoryOperation& opera
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-traverse-history-step
-void CanonicalTraversable::apply_the_traverse_history_step(HistoryOperation& operation, i32 step, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement)
+void CanonicalTraversable::apply_the_traverse_history_step(HistoryOperation& operation, i32 step, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement)
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
-    apply_history_step(operation, step, true, initiator_to_check, user_involvement, Web::Bindings::NavigationType::Traverse, move(initiator_source_snapshot));
+    apply_history_step(operation, step, true, initiator_to_check, user_involvement, Web::Bindings::NavigationType::Traverse, move(source_snapshot_params));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#resume-applying-the-traverse-history-step
@@ -2367,7 +2368,7 @@ void CanonicalTraversable::traverse_the_history_by_a_delta_at_queue_position(His
 
     // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
     //    initiatorToCheck, and userInvolvement.
-    apply_the_traverse_history_step(operation, all_steps[static_cast<size_t>(target_step_index)], request.initiator_source_snapshot, request.initiator_to_check, request.user_involvement);
+    apply_the_traverse_history_step(operation, all_steps[static_cast<size_t>(target_step_index)], request.source_snapshot_params, request.initiator_to_check, request.user_involvement);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#performing-a-navigation-api-traversal
@@ -2405,7 +2406,7 @@ void CanonicalTraversable::perform_a_navigation_api_traversal_at_queue_position(
 
     // 12.4. Let result be the result of applying the traverse history step targetSHE's step to traversable, given
     //       sourceSnapshotParams, navigable, and "none".
-    apply_the_traverse_history_step(operation, (*target_entry)->step, request.initiator_source_snapshot, request.navigable_id, Web::HTML::UserNavigationInvolvement::None);
+    apply_the_traverse_history_step(operation, (*target_entry)->step, request.source_snapshot_params, request.navigable_id, Web::HTML::UserNavigationInvolvement::None);
 
     // Steps 12.5-12.6 are handled in Navigation's relevant realm when the operation completes.
 }

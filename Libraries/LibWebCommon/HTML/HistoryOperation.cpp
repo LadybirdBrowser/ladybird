@@ -57,7 +57,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::TraverseByDeltaHistoryOperation
 {
     TRY(encoder.encode(parameters.delta));
     TRY(encoder.encode(parameters.initiator_to_check));
-    TRY(encoder.encode(parameters.initiator_source_snapshot));
+    TRY(encoder.encode(parameters.source_snapshot_params));
     TRY(encoder.encode(parameters.user_involvement));
     return {};
 }
@@ -68,25 +68,8 @@ ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> IPC::decode(Decoder& dec
     return Web::TraverseByDeltaHistoryOperationParameters {
         .delta = TRY(decoder.decode<i32>()),
         .initiator_to_check = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
-        .initiator_source_snapshot = TRY(decoder.decode<Optional<Web::InitiatorSourceSnapshot>>()),
+        .source_snapshot_params = TRY(decoder.decode<Optional<Web::HTML::NavigationSourceSnapshot>>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
-    };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::InitiatorSourceSnapshot const& snapshot)
-{
-    TRY(encoder.encode(snapshot.sandboxing_flags));
-    TRY(encoder.encode(snapshot.has_transient_activation));
-    return {};
-}
-
-template<>
-ErrorOr<Web::InitiatorSourceSnapshot> IPC::decode(Decoder& decoder)
-{
-    return Web::InitiatorSourceSnapshot {
-        .sandboxing_flags = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
-        .has_transient_activation = TRY(decoder.decode<bool>()),
     };
 }
 
@@ -112,7 +95,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigationAPITraverseHistoryOpe
 {
     TRY(encoder.encode(parameters.navigable_id));
     TRY(encoder.encode(parameters.key));
-    TRY(encoder.encode(parameters.initiator_source_snapshot));
+    TRY(encoder.encode(parameters.source_snapshot_params));
     TRY(encoder.encode(parameters.user_involvement));
     return {};
 }
@@ -123,7 +106,7 @@ ErrorOr<Web::NavigationAPITraverseHistoryOperationParameters> IPC::decode(Decode
     return Web::NavigationAPITraverseHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .key = TRY(decoder.decode<Utf16String>()),
-        .initiator_source_snapshot = TRY(decoder.decode<Optional<Web::InitiatorSourceSnapshot>>()),
+        .source_snapshot_params = TRY(decoder.decode<Web::HTML::NavigationSourceSnapshot>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
