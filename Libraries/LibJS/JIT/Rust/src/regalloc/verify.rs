@@ -134,11 +134,13 @@ impl Verifier<'_> {
             };
             let mut state = exit.clone();
             for (phi, input) in phi_inputs_from(self.graph, *predecessor, block) {
-                let location = self.allocation.node(phi).output.expect("phis have a location");
-                if Self::read(&state, location) == Some(self.content_of_value(input)) {
-                    state.insert(location, Content::Value(phi));
-                } else {
-                    state.remove(&location);
+                let output = self.allocation.node(phi).output.expect("phis have a location");
+                for location in std::iter::once(output).chain(self.filled_slot(phi)) {
+                    if Self::read(&state, location) == Some(self.content_of_value(input)) {
+                        state.insert(location, Content::Value(phi));
+                    } else {
+                        state.remove(&location);
+                    }
                 }
             }
             result = Some(match result {
@@ -158,18 +160,34 @@ impl Verifier<'_> {
                 continue;
             };
             for (phi, input) in phi_inputs_from(self.graph, predecessor, block) {
-                let location = self.allocation.node(phi).output.expect("phis have a location");
-                let found = Self::read(exit, location);
-                if found != Some(self.content_of_value(input)) {
-                    self.error(format!(
-                        "phi v{} in b{}: input from b{} should be {:?} in {location:?}, found {found:?}",
-                        phi.0,
-                        block.0,
-                        predecessor.0,
-                        self.content_of_value(input)
-                    ));
+                let output = self.allocation.node(phi).output.expect("phis have a location");
+                for location in std::iter::once(output).chain(self.filled_slot(phi)) {
+                    let found = Self::read(exit, location);
+                    if found != Some(self.content_of_value(input)) {
+                        self.error(format!(
+                            "phi v{} in b{}: input from b{} should be {:?} in {location:?}, found {found:?}",
+                            phi.0,
+                            block.0,
+                            predecessor.0,
+                            self.content_of_value(input)
+                        ));
+                    }
                 }
             }
+        }
+    }
+
+    /// The spill slot of a phi in a register that its inputs fill, rather
+    /// than a store at the start of its block.
+    fn filled_slot(&self, phi: NodeId) -> Option<Location> {
+        let allocation = self.allocation.node(phi);
+        match (allocation.output, allocation.spill_slot) {
+            (Some(Location::Register(_)), Some(slot))
+                if super::phi_spill_store(self.graph, self.allocation, phi).is_none() =>
+            {
+                Some(Location::Stack(slot))
+            }
+            _ => None,
         }
     }
 
@@ -248,10 +266,10 @@ impl Verifier<'_> {
 
     fn simulate_block(&mut self, block: BlockId, mut state: State) -> State {
         let block_data = self.graph.block(block);
-        // Phis in registers are stored to their spill slots first.
+        // Phis in registers are stored to their spill slots first, unless
+        // their inputs filled them already (see `filled_slot()`).
         for phi in &block_data.phis {
-            let allocation = self.allocation.node(*phi);
-            if let (Some(Location::Register(_)), Some(slot)) = (allocation.output, allocation.spill_slot) {
+            if let Some(slot) = super::phi_spill_store(self.graph, self.allocation, *phi) {
                 state.insert(Location::Stack(slot), Content::Value(*phi));
             }
         }

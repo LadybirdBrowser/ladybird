@@ -999,6 +999,23 @@ impl<'a> Allocator<'a> {
     }
 }
 
+/// The spill slot to store `phi`, which is in a register, to at the start
+/// of its block, if it has one that its inputs did not fill already. Inputs
+/// sharing the phi's slot (see `coalescing`) are in it from their own
+/// definition on.
+pub fn phi_spill_store(graph: &Graph, allocation: &Allocation, phi: NodeId) -> Option<u32> {
+    let node = allocation.node(phi);
+    let (Some(Location::Register(_)), Some(slot)) = (node.output, node.spill_slot) else {
+        return None;
+    };
+    let filled = graph
+        .node(phi)
+        .inputs
+        .iter()
+        .all(|input| allocation.node(*input).spill_slot == Some(slot));
+    (!filled).then_some(slot)
+}
+
 /// Prints the allocation of `graph` as text: every node with the moves
 /// before it, the locations of its inputs and output, and its spill slot.
 pub fn dump_allocation(graph: &Graph, allocation: &Allocation) -> String {
