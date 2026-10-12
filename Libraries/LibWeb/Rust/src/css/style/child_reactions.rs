@@ -27,7 +27,8 @@ use crate::css::host_shared::SharedPayload;
 use smallvec::SmallVec;
 
 /// Every inherited style group, for a change that reaches all of them.
-const ALL_INHERITED_STYLE_GROUPS: u8 = (1 << 7) - 1;
+const INHERITED_STYLE_GROUP_COUNT: usize = 7;
+const ALL_INHERITED_STYLE_GROUPS: u8 = (1 << INHERITED_STYLE_GROUP_COUNT) - 1;
 
 /// What an element's installed record generates, as its children read it.
 struct InstalledRecordState {
@@ -232,20 +233,13 @@ impl StyleEngine {
         ) else {
             return u32::MAX;
         };
-        let mut groups = 0;
-        for group in 7..old.payloads.len() {
-            for (before, after) in [(old.base_payloads, new.base_payloads), (old.payloads, new.payloads)] {
-                let (Some(&before), Some(&after)) = (before.get(group), after.get(group)) else {
-                    return u32::MAX;
-                };
-                if before != after
-                    && !crate::css::computed_values::style_group_payloads_equal(group, before.as_ptr(), after.as_ptr())
-                {
-                    groups |= 1 << group;
-                    break;
-                }
-            }
-        }
+        let Some(groups) = crate::css::computed_values::changed_style_groups(
+            [old.base_payloads, old.payloads],
+            [new.base_payloads, new.payloads],
+            INHERITED_STYLE_GROUP_COUNT..old.payloads.len(),
+        ) else {
+            return u32::MAX;
+        };
         // SAFETY: Live records retain their immutable base tables throughout this borrow.
         let (Some(old_table), Some(new_table)) = (unsafe { old.longhand_table.as_ref() }, unsafe {
             new.longhand_table.as_ref()

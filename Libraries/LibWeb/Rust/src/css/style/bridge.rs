@@ -2335,6 +2335,36 @@ unsafe fn publish_sampled_animation_overlay(
     })
 }
 
+/// The style groups from `first_group` up to `end_group` whose payloads differ between two records, through their
+/// base payloads or their composed ones, or every group when either view is missing or holds fewer groups.
+///
+/// # Safety
+/// Both views must be views of live records.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_changed_style_groups(
+    old: &FfiStyleRecordView,
+    new: &FfiStyleRecordView,
+    first_group: usize,
+    end_group: usize,
+) -> u32 {
+    let payloads = |view: &FfiStyleRecordView| {
+        if !view.present || view.payloads.is_null() || view.base_payloads.is_null() {
+            return None;
+        }
+        // SAFETY: Guaranteed by the caller: a live record's view holds `payload_count` payloads of each kind.
+        Some(unsafe {
+            [
+                SharedPayload::from_pointer_slice(std::slice::from_raw_parts(view.base_payloads, view.payload_count)),
+                SharedPayload::from_pointer_slice(std::slice::from_raw_parts(view.payloads, view.payload_count)),
+            ]
+        })
+    };
+    let (Some(old), Some(new)) = (payloads(old), payloads(new)) else {
+        return u32::MAX;
+    };
+    crate::css::computed_values::changed_style_groups(old, new, first_group..end_group).unwrap_or(u32::MAX)
+}
+
 /// Returns a synchronous borrowed view of a base or live animation-overlay record.
 ///
 /// # Safety
