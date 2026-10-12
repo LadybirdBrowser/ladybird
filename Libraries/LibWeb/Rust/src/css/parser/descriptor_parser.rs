@@ -430,7 +430,12 @@ fn parse_value_type(
             if !declaration_value_is_valid(values) {
                 return None;
             }
-            Some(unresolved_value(source, &[], SubstitutionFunctionsPresence::default()))
+            Some(unresolved_value(
+                source,
+                &[],
+                values.to_vec(),
+                SubstitutionFunctionsPresence::default(),
+            ))
         }
         DescriptorValueType::PageSize => parse_page_size(context, values),
     }
@@ -485,7 +490,7 @@ pub(crate) fn parse_descriptor(
         if !metadata.allow_arbitrary_substitution_functions {
             return None;
         }
-        unresolved_value(source, &[], presence)
+        unresolved_value(source, &[], values.to_vec(), presence)
     } else {
         parse_with_metadata(&descriptor_context, &metadata, values, source)?
     };

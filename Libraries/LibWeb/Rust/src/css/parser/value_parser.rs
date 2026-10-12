@@ -49,9 +49,9 @@ use crate::css::property_metadata::{
 };
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
-    RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
-    RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
-    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, shared_style_value,
+    RetainedByteList, RetainedComponentValueList, RetainedCounterDefinition, RetainedCounterDefinitionList,
+    RetainedNumericRangeList, RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList,
+    RetainedString, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, shared_style_value,
 };
 use crate::css::value_codes::*;
 use std::ffi::c_void;
@@ -5484,7 +5484,7 @@ fn trim_ascii_whitespace(code_units: &[u16]) -> &[u16] {
     &code_units[start..end]
 }
 
-pub(crate) fn unresolved_value(
+pub(crate) fn unresolved_value_from_string(
     unresolved_source: &[u16],
     comparison_source: &[u16],
     presence: SubstitutionFunctionsPresence,
@@ -5495,7 +5495,18 @@ pub(crate) fn unresolved_value(
     } else {
         comparison_source
     };
-    let components = crate::css::style_value::RetainedComponentValueList::from_source(component_source);
+    let values = consume_a_list_of_component_values(tokenize_for_parser(component_source)).unwrap_or_default();
+    unresolved_value(source_text, comparison_source, values, presence)
+}
+
+pub(crate) fn unresolved_value(
+    unresolved_source: &[u16],
+    comparison_source: &[u16],
+    values: Vec<ComponentValue>,
+    presence: SubstitutionFunctionsPresence,
+) -> StyleValueData {
+    let source_text = trim_ascii_whitespace(unresolved_source);
+    let components = RetainedComponentValueList::from_values(values);
     if presence.attr {
         crate::css::parser::arbitrary_substitution::note_attr_names_read_by(components.as_slice());
     }
@@ -5561,7 +5572,12 @@ fn parse_css_value_after_substitution_scan(
         if !declaration_values.is_empty() && !declaration_value_is_valid(declaration_values) {
             return ParseOutcome::Invalid;
         }
-        let mut unresolved = unresolved_value(unresolved_source, comparison_source, substitution_presence);
+        let mut unresolved = unresolved_value(
+            unresolved_source,
+            comparison_source,
+            values.to_vec(),
+            substitution_presence,
+        );
         if let StyleValueData::Unresolved {
             source_text,
             contains_attr_tainted_values,
@@ -7500,13 +7516,7 @@ mod tests {
         };
         assert_eq!(retained_utf16(source_text), utf16("10\\70 x"));
         assert_eq!(retained_utf16(value_comparison_text), comparison);
-        assert_eq!(
-            crate::css::serialize::serialize_component_values_to_utf16(
-                components.as_slice(),
-                crate::css::parser::component_value::ComponentSerializationMode::Normalized,
-            ),
-            comparison
-        );
+        assert_eq!(components.as_slice(), values.as_slice());
 
         let source = utf16("a/* comment */");
         let comparison = utf16("a");
@@ -7519,13 +7529,7 @@ mod tests {
         let StyleValueData::Unresolved { components, .. } = &*value else {
             panic!("custom property should produce an unresolved value");
         };
-        assert_eq!(
-            crate::css::serialize::serialize_component_values_to_utf16(
-                components.as_slice(),
-                crate::css::parser::component_value::ComponentSerializationMode::Normalized,
-            ),
-            comparison
-        );
+        assert_eq!(components.as_slice(), values.as_slice());
         assert!(matches!(
             parse(property_id::CUSTOM, "inherit"),
             ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Keyword { keyword: keyword::INHERIT })

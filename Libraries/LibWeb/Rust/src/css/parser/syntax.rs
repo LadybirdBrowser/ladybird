@@ -17,7 +17,7 @@ use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::transforms_effects_parser::{parse_transform, parse_transform_function};
 use crate::css::parser::value_parser::{
     FfiParseStatus, ParseContext, is_valid_custom_ident, parse_custom_ident_value, parse_string_value,
-    parse_syntax_numeric_value, parse_url_value, unresolved_value, value_list,
+    parse_syntax_numeric_value, parse_url_value, unresolved_value_from_string, value_list,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier};
@@ -421,7 +421,7 @@ pub(crate) fn parse_with_syntax(context: &ParseContext, source: &[u16], syntax: 
         }
         let mut presence = SubstitutionFunctionsPresence::default();
         collect_arbitrary_substitution_function_presence(&values, &mut presence).ok()?;
-        return Some(unresolved_value(source, &[], presence));
+        return Some(unresolved_value_from_string(source, &[], presence));
     }
     let mut tokens = TokenStream::new(&values);
     let parsed = parse_node(context, syntax, &mut tokens)?;
