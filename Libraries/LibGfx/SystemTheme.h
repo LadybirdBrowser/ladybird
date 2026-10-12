@@ -14,7 +14,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ConfigFile.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/TextAlignment.h>
 
 namespace Gfx {
 
@@ -117,9 +116,6 @@ namespace Gfx {
     C(WindowText)                  \
     C(Yellow)
 
-#define ENUMERATE_ALIGNMENT_ROLES(C) \
-    C(TitleAlignment)
-
 #define ENUMERATE_FLAG_ROLES(C) \
     C(IsDark)
 
@@ -157,33 +153,6 @@ inline StringView to_string(ColorRole role)
         return #role##sv;
         ENUMERATE_COLOR_ROLES(__ENUMERATE_COLOR_ROLE)
 #undef __ENUMERATE_COLOR_ROLE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-enum class AlignmentRole {
-    NoRole,
-
-#undef __ENUMERATE_ALIGNMENT_ROLE
-#define __ENUMERATE_ALIGNMENT_ROLE(role) role,
-    ENUMERATE_ALIGNMENT_ROLES(__ENUMERATE_ALIGNMENT_ROLE)
-#undef __ENUMERATE_ALIGNMENT_ROLE
-
-        __Count,
-};
-
-inline StringView to_string(AlignmentRole role)
-{
-    switch (role) {
-    case AlignmentRole::NoRole:
-        return "NoRole"sv;
-#undef __ENUMERATE_ALIGNMENT_ROLE
-#define __ENUMERATE_ALIGNMENT_ROLE(role) \
-    case AlignmentRole::role:            \
-        return #role##sv;
-        ENUMERATE_ALIGNMENT_ROLES(__ENUMERATE_ALIGNMENT_ROLE)
-#undef __ENUMERATE_ALIGNMENT_ROLE
     default:
         VERIFY_NOT_REACHED();
     }
@@ -245,7 +214,6 @@ inline StringView to_string(PathRole role)
 
 struct SystemTheme {
     BGRA8888 color[(int)ColorRole::__Count];
-    Gfx::TextAlignment alignment[(int)AlignmentRole::__Count];
     bool flag[(int)FlagRole::__Count];
     char path[(int)PathRole::__Count][256]; // TODO: PATH_MAX?
 };
