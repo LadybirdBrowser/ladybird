@@ -92,3 +92,17 @@ jit.compile(total);
 // CHECK: RefineIndexInBounds
 // CHECK: [[NEXT:v[0-9]+]]:int32 = Int32WrappingAdd ({{v[0-9]+}}, #i32:1)
 // CHECK-NEXT: StoreArrayIteratorIndex ({{v[0-9]+}}, [[NEXT]])
+
+// An unsigned right shift of any int32 by at least one is a non-negative int32, like the bytes of hashes.
+
+function mix(h, x) {
+    return (h >>> 24) * 3 + (x & 0xff);
+}
+jit.prepare(mix);
+for (let k = 0; k < 10; ++k) mix(k * 0x1234567, k);
+jit.compile(mix);
+
+// CHECK-FUNCTION: mix
+// CHECK-PASS: bounds check elimination
+// CHECK: Int32WrappingMul ({{v[0-9]+}}, #i32:3)
+// CHECK: Int32WrappingAdd

@@ -181,11 +181,15 @@ impl Ranges<'_> {
                         Range::new(lhs.min >> shift, lhs.max >> shift)
                     }
                     BinaryOp::Mul => self.of(lhs)?.product(self.of(rhs)?),
+                    // NB: Shifting any int32 right as an unsigned number by
+                    //     at least one leaves a non-negative int32.
                     BinaryOp::UnsignedRightShift => {
-                        let (lhs, shift) = (self.of(lhs)?, self.constant(rhs)? & 31);
-                        (lhs.min >= 0)
-                            .then(|| Range::new(lhs.min >> shift, lhs.max >> shift))
-                            .flatten()
+                        let shift = self.constant(rhs)? & 31;
+                        match self.of(lhs) {
+                            Some(lhs) if lhs.min >= 0 => Range::new(lhs.min >> shift, lhs.max >> shift),
+                            _ if shift > 0 => Range::new(0, i64::from(u32::MAX) >> shift),
+                            _ => None,
+                        }
                     }
                     BinaryOp::BitwiseAnd => {
                         let mask = self.constant(rhs).filter(|mask| *mask >= 0)?;
