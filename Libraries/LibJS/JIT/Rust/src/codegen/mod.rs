@@ -1102,8 +1102,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let block_data = self.graph.block(block);
         // Phis in registers that need their spill slots get them here.
         for phi in &block_data.phis {
-            let allocation = self.allocation.node(*phi);
-            if let (Some(Location::Register(register)), Some(slot)) = (allocation.output, allocation.spill_slot) {
+            if let (Some(Location::Register(register)), Some(slot)) = (
+                self.allocation.node(*phi).output,
+                crate::regalloc::phi_spill_store(self.graph, self.allocation, *phi),
+            ) {
                 self.emit_move(&Move {
                     from: Location::Register(register),
                     to: Location::Stack(slot),

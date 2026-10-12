@@ -293,13 +293,25 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
     let program = assemble(|label| {
         vec![
             Instruction::Enter,
-            Instruction::Mov { dst: l(0), src: c(0) },
-            Instruction::Mov { dst: l(1), src: c(1) },
-            Instruction::Mov { dst: r(6), src: c(0) },
+            Instruction::Mov { dst: l(0), src: a(0) },
+            Instruction::Increment {
+                arith_feedback: 0,
+                dst: l(0),
+            },
+            Instruction::Mov { dst: l(1), src: l(0) },
+            Instruction::Increment {
+                arith_feedback: 0,
+                dst: l(1),
+            },
+            Instruction::Mov { dst: r(6), src: l(1) },
+            Instruction::Increment {
+                arith_feedback: 0,
+                dst: r(6),
+            },
             Instruction::JumpIf {
                 condition: a(0),
-                true_target: label(5),
-                false_target: label(9),
+                true_target: label(8),
+                false_target: label(12),
             },
             Instruction::Increment {
                 arith_feedback: 0,
@@ -313,7 +325,7 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
                 arith_feedback: 0,
                 dst: r(6),
             },
-            Instruction::Jump { target: label(4) },
+            Instruction::Jump { target: label(7) },
             Instruction::Add {
                 arith_feedback: 0,
                 dst: r(5),
@@ -337,7 +349,7 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
         .iter()
         .position(|predecessor| predecessor.index() > header)
         .unwrap();
-    let mut shared = 0;
+    let (mut shared, mut filled) = (0, 0);
     for phi in &graph.blocks[header].phis {
         let input = graph.node(*phi).inputs[back_edge];
         let (phi_slot, input_slot) = (
@@ -348,8 +360,19 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
             assert_eq!(phi_slot, input_slot, "{}", dump_allocation(&graph, &allocation));
             shared += 1;
         }
+        // NB: Where all inputs fill the slot, the phi needs no store to it.
+        if graph
+            .node(*phi)
+            .inputs
+            .iter()
+            .all(|input| allocation.nodes[input.index()].spill_slot == phi_slot)
+        {
+            assert_eq!(phi_spill_store(&graph, &allocation, *phi), None);
+            filled += 1;
+        }
     }
     assert_eq!(shared, 2, "{}", dump_allocation(&graph, &allocation));
+    assert!(filled > 0, "{}", dump_allocation(&graph, &allocation));
 }
 
 #[test]
