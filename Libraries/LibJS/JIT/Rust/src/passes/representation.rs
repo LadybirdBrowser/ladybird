@@ -19,7 +19,6 @@
 //! get one boxing of it at the start of its block. Exits take it unboxed.
 //! The boxings feeding it are left for dead code elimination.
 
-use super::dominators::Dominators;
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
@@ -137,55 +136,27 @@ fn spread_over_phis(graph: &Graph, phis: &BitSet, marked: &mut BitSet) {
 }
 
 /// The phis of `phis` whose values the code checks with `Unboxed::check_op`
-/// whenever they are made: in their block or a block it always jumps on to,
-/// or, for loop headers, in a block every iteration of the loop runs.
+/// somewhere, and the phis connected to them, through which the same values
+/// flow. Their tagged inputs are worth checking where they enter (see
+/// `checkable_inputs()`): the values already have to pass the check, so
+/// checking them once where they enter, rather than wherever they are used
+/// (like loop invariant values carried around loops entered at their header
+/// and at an on-stack replacement entry), at worst exits before the check
+/// would, once.
 fn checked_phis(graph: &Graph, unboxed: &Unboxed, phis: &BitSet) -> BitSet {
     let mut checked = BitSet::new(graph.nodes.len());
     let Some(check) = &unboxed.check_op else {
         return checked;
     };
-    let mut block_of = HashMap::default();
-    let mut checks = Vec::new();
-    for (index, block) in graph.blocks.iter().enumerate() {
-        let block_id = BlockId::from_index(index);
-        for phi in &block.phis {
-            block_of.insert(*phi, block_id);
-        }
+    for block in &graph.blocks {
         for node in &block.body {
             let data = graph.node(*node);
             if data.op == *check && is_candidate(phis, data.inputs[0]) {
-                checks.push((data.inputs[0], block_id));
+                checked.insert(data.inputs[0].index());
             }
         }
     }
-    let jumps_on_to = |mut block: BlockId, to: BlockId| {
-        for _ in 0..graph.blocks.len() {
-            if block == to {
-                return true;
-            }
-            let Op::Jump { target } = graph.control(block).op else {
-                return false;
-            };
-            block = target;
-        }
-        false
-    };
-    let mut dominators = None;
-    for (phi, check_block) in checks {
-        let phi_block = block_of[&phi];
-        if jumps_on_to(phi_block, check_block) {
-            checked.insert(phi.index());
-            continue;
-        }
-        let dominators = dominators.get_or_insert_with(|| Dominators::compute(graph));
-        let back_edge_sources = dominators.back_edge_sources(graph, phi_block);
-        if !back_edge_sources.is_empty()
-            && dominators.dominates(phi_block, check_block)
-            && dominators.runs_every_iteration(check_block, &back_edge_sources)
-        {
-            checked.insert(phi.index());
-        }
-    }
+    spread_over_phis(graph, phis, &mut checked);
     checked
 }
 
