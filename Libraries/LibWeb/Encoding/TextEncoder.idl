@@ -5,7 +5,7 @@ dictionary TextEncoderEncodeIntoResult {
 };
 
 // https://encoding.spec.whatwg.org/#textencoder
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface TextEncoder {
     constructor();
 
