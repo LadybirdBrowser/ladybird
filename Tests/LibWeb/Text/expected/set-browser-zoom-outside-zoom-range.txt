@@ -1,0 +1,3 @@
+Zoom 10: devicePixelRatio=5
+Zoom 0.01: devicePixelRatio=0.3
+Zoom 1: devicePixelRatio=1

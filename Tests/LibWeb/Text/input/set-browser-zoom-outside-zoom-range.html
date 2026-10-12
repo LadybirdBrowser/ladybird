@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        internals.setBrowserZoom(10);
+        println(`Zoom 10: devicePixelRatio=${devicePixelRatio}`);
+        internals.setBrowserZoom(0.01);
+        println(`Zoom 0.01: devicePixelRatio=${devicePixelRatio}`);
+        internals.setBrowserZoom(1);
+        println(`Zoom 1: devicePixelRatio=${devicePixelRatio}`);
+    });
+</script>

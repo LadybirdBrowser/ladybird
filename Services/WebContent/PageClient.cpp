@@ -60,6 +60,7 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/WebView/Debugger.h>
+#include <LibWebCommon/WebView/ZoomLevel.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/DevToolsIndexedDB.h>
@@ -552,6 +553,8 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
 
     m_viewport_size = size;
     m_device_pixel_ratio = device_pixel_ratio;
+    if (m_pending_device_pixel_ratio_for_testing == device_pixel_ratio)
+        m_pending_device_pixel_ratio_for_testing.clear();
 
     page().local_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
     hurry_outstanding_rendering_opportunity();
@@ -610,6 +613,8 @@ bool PageClient::hosted_documents_are_hidden() const
 void PageClient::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;
+    if (m_pending_browser_zoom == zoom_level)
+        m_pending_browser_zoom.clear();
     // A local root another page's document embeds is sized by that page again at the new zoom level.
     if (page().has_local_traversable())
         page().local_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
@@ -1101,18 +1106,29 @@ void PageClient::page_did_receive_reference_test_metadata(JsonValue metadata)
 
 void PageClient::page_did_set_browser_zoom(double factor)
 {
-    auto traversable = page().local_traversable();
-    traversable->set_pending_set_browser_zoom_request(true);
+    // NB: The zoom level arrives from the UI process with every page it shows the tab in, and with any viewport it sent
+    //     before: wait for the one it sends back at this factor, as the UI process clamps it.
+    m_pending_browser_zoom = WebView::clamp_zoom_level(factor);
     client().async_did_set_browser_zoom(m_id, factor);
     auto& event_loop = Web::HTML::main_thread_event_loop();
-    event_loop.spin_until(GC::create_function(GC::Heap::the(), [this, traversable]() {
-        return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
+    event_loop.spin_until(GC::create_function(GC::Heap::the(), [this]() {
+        return !m_pending_browser_zoom.has_value() || !is_connection_open();
     }));
 }
 
 void PageClient::page_did_set_device_pixel_ratio_for_testing(double ratio)
 {
     set_viewport(m_viewport_size, ratio);
+    // NB: The UI process hands its device pixel ratio to each page it shows the tab in, and to this page with a viewport
+    //     it sent before the ratio changed here. A page that shows the tab has the UI process take the ratio, and waits
+    //     for the viewport it sends back.
+    if (!page().local_traversable()->is_top_level_traversable())
+        return;
+    m_pending_device_pixel_ratio_for_testing = ratio;
+    client().async_did_set_device_pixel_ratio_for_testing(m_id, ratio);
+    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [this]() {
+        return !m_pending_device_pixel_ratio_for_testing.has_value() || !is_connection_open();
+    }));
 }
 
 void PageClient::page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)

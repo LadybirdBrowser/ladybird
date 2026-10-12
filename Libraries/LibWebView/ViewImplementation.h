@@ -65,6 +65,7 @@
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
+#include <LibWebCommon/WebView/ZoomLevel.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -179,6 +180,7 @@ public:
     void zoom_in();
     void zoom_out();
     void set_zoom(double zoom_level);
+    void set_device_pixel_ratio_for_testing(WebContentPage&, double device_pixel_ratio);
     void reset_zoom();
     double zoom_level() const { return m_zoom_level; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
@@ -559,8 +561,6 @@ protected:
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
     void release_backing_store(i32 bitmap_id);
 
-    static constexpr auto ZOOM_MIN_LEVEL = 0.3;
-    static constexpr auto ZOOM_MAX_LEVEL = 5.0;
     static constexpr auto ZOOM_STEP = 0.1;
 
     explicit ViewImplementation(IsPrivate = IsPrivate::No);

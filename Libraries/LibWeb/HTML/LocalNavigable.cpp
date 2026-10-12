@@ -4958,7 +4958,6 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
             Compositing::WindowResizingInProgress::Yes);
-        m_pending_set_browser_zoom_request = false;
     }
 
     if (auto document = active_document()) {

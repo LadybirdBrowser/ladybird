@@ -370,9 +370,6 @@ public:
     // The context, for the page to retire when the navigable stops hosting the tab's document.
     OwnPtr<Compositor::CompositorContextHandle> take_compositor_context();
 
-    void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
-    bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
-
     void set_should_show_line_box_borders(bool);
     void set_force_dark_enabled(bool);
     void set_force_dark_thresholds(i32 foreground, i32 background);
@@ -625,7 +622,6 @@ private:
 
     OwnPtr<RecordingInFlight> m_recording_in_flight;
 
-    bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
     bool m_force_dark_enabled { false };
     i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
