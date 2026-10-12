@@ -1,0 +1,2 @@
+beside a text input: lane parked, box shows the last tick's height: false, last frame presented by commit
+beside an element animating visibility: lane hovering, box shows the last tick's height: false, last frame presented by commit

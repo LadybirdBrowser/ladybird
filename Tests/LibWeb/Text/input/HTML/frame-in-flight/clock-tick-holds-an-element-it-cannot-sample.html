@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<input id="field" value="text" style="color: rgb(0, 0, 0)">
+<div id="blinker" style="width: 10px; height: 10px; background: blue"></div>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // The ticks leave the boxes of an element whose animations they cannot sample as they showed last, and tick the
+    // animations of the others on: here a text input, whose box takes no sample of a tick, and an element animating
+    // visibility, which only the host samples.
+    async function laneBeside(animateOther) {
+        return whileLaneAnimates(() => {
+            const other = animateOther();
+            const animation = box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+            animation.other = other;
+            return animation;
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 1000);
+            internals.injectClockTick(frameTime + 2000);
+            const expectedHeight = (frameTime + 2000 - animation.startTime) / 100;
+            const presented = internals.presentedBorderBox(box);
+            const result = {
+                lane: internals.clockLaneState(document),
+                presentedHeightIsTheTicks: presented !== null && Math.abs(presented.height - expectedHeight) < 0.02,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+            animation.cancel();
+            animation.other.cancel();
+            return result;
+        });
+    }
+
+    asyncTest(async done => {
+        const options = { duration: 10000, easing: "linear" };
+        for (const [name, animateOther] of [
+            ["a text input", () => field.animate([{ color: "rgb(0, 0, 0)" }, { color: "rgb(0, 0, 200)" }], options)],
+            ["an element animating visibility", () => blinker.animate([{ visibility: "visible" }, { visibility: "hidden" }], options)],
+        ]) {
+            const result = await laneBeside(animateOther);
+            println(`beside ${name}: lane ${result.lane}, box shows the last tick's height: ${result.presentedHeightIsTheTicks}, last frame presented by ${result.presentedBy}`);
+        }
+        done();
+    });
+</script>
