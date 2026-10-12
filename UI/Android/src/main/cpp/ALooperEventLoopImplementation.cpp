@@ -22,6 +22,11 @@ EventLoopThreadData& EventLoopThreadData::the()
     return s_thread_data;
 }
 
+EventLoopThreadData::~EventLoopThreadData()
+{
+    Core::ThreadEventQueue::destroy_current();
+}
+
 static ALooperEventLoopImplementation& current_impl()
 {
     return as<ALooperEventLoopImplementation>(Core::EventLoop::current().impl());

@@ -78,6 +78,15 @@ ThreadEventQueue& ThreadEventQueue::current()
     return *ptr;
 }
 
+void ThreadEventQueue::destroy_current()
+{
+    // An event's receiver may post another event as it is freed, which makes the thread a new queue.
+    while (auto* queue = current_or_null()) {
+        pthread_setspecific(s_current_thread_event_queue_key, nullptr);
+        delete queue;
+    }
+}
+
 ThreadEventQueue::ThreadEventQueue()
     : m_private(make<Private>())
 {

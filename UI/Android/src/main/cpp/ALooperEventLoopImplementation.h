@@ -54,6 +54,8 @@ struct TimerData {
 struct EventLoopThreadData {
     static EventLoopThreadData& the();
 
+    ~EventLoopThreadData();
+
     HashMap<long, TimerData> timers;
     HashTable<Core::Notifier*> notifiers;
     Core::ThreadEventQueue* thread_queue = nullptr;

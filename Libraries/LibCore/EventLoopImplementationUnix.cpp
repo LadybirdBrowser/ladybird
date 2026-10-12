@@ -200,6 +200,7 @@ struct ThreadData {
 
 static void destroy_thread_data(void* value)
 {
+    ThreadEventQueue::destroy_current();
     s_this_thread_data = nullptr;
     delete static_cast<ThreadData*>(value);
 }
