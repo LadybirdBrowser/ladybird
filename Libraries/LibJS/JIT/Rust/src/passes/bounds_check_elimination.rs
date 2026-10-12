@@ -545,6 +545,26 @@ pub fn run(graph: &mut Graph) {
             }
         }
     }
+    // NB: Only bounds checks against constant counts can go away, and only
+    //     operations whose operands may have ranges (see `Ranges::compute()`)
+    //     can stop checking for overflow. The others need no analysis.
+    let may_have_range = |value: NodeId| {
+        let value = graph.unrefined(value);
+        graph.int32_constant(value).is_some()
+            || bounded.contains_key(&value)
+            || match graph.node(value).op {
+                Op::Phi
+                | Op::Int32Binary { .. }
+                | Op::Int32WrappingBinary { .. }
+                | Op::LoadElementsCapacity
+                | Op::Uint32Min => true,
+                // NB: The counters that on-stack replacement entries check.
+                Op::CheckInt32 => !graph.osr_entries.is_empty(),
+                _ => false,
+            }
+    };
+    checks.retain(|check| graph.int32_constant(graph.node(*check).inputs[1]).is_some());
+    arithmetic.retain(|(node, ..)| graph.node(*node).inputs.iter().all(|input| may_have_range(*input)));
     if checks.is_empty() && shifts.is_empty() && arithmetic.is_empty() {
         return;
     }
