@@ -4462,13 +4462,25 @@ static void scroll_an_element_into_view(Layout::BegunRead const& read, Element& 
 
     // 2. For each ancestor element or viewport that establishes a scrolling box scrolling box, in order of innermost
     //    to outermost scrolling box, run these substeps:
-    auto* ancestor = target.parent();
+    // INTEROP: Scrolling the boxes outside a box that is fixed to the viewport cannot move it, so other engines do not
+    //          scroll them to bring the box into view. A fixed box that compensates for the scroll of its default
+    //          anchor moves with that scroll, so it is not fixed to the viewport.
+    auto is_fixed_to_the_viewport = [&](Node const& node) {
+        auto const* layout_node = as_if<Layout::NodeWithStyle>(node.layout_node(read));
+        if (!layout_node || !layout_node->is_fixed_position() || layout_node->compensates_for_default_anchor_scroll())
+            return false;
+        auto const* containing_block = layout_node->containing_block();
+        return containing_block && containing_block->is_viewport();
+    };
     Vector<Node&> scrolling_boxes;
-    while (ancestor) {
-        auto const* ancestor_layout_node = ancestor->layout_node(read);
-        if (ancestor_layout_node && Painting::has_committed_box(*ancestor_layout_node) && Painting::has_scrollable_overflow(*ancestor_layout_node))
-            scrolling_boxes.append(*ancestor);
-        ancestor = ancestor->parent();
+    if (!is_fixed_to_the_viewport(target)) {
+        for (auto* ancestor = target.parent(); ancestor; ancestor = ancestor->parent()) {
+            auto const* ancestor_layout_node = ancestor->layout_node(read);
+            if (ancestor_layout_node && Painting::has_committed_box(*ancestor_layout_node) && Painting::has_scrollable_overflow(*ancestor_layout_node))
+                scrolling_boxes.append(*ancestor);
+            if (is_fixed_to_the_viewport(*ancestor))
+                break;
+        }
     }
 
     auto target_bounding_border_box = target.get_bounding_client_rect();
