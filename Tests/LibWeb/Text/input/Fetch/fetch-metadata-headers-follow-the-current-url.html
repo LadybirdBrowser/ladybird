@@ -2,9 +2,9 @@
 <script src="../include.js"></script>
 <script>
     // Fetch Metadata headers go only to a potentially trustworthy URL, and after a redirect it's the request's current
-    // URL that has to be one. 0.0.0.0 reaches the test server without being potentially trustworthy, as localhost is.
-    // The requests come from a popup on 0.0.0.0, since this page on localhost is a secure context, which mixed content
-    // checks would stop from requesting 0.0.0.0 at all.
+    // URL that has to be one. An IPv4-mapped loopback address reaches the test server without being potentially
+    // trustworthy, as localhost is. The requests come from a popup on that address, since this page on localhost is a
+    // secure context, which mixed content checks would stop from requesting it at all.
     asyncTest(async done => {
         const server = httpTestServer();
 
@@ -28,8 +28,8 @@
         }
 
         const starts = [
-            await redirectStart("trustworthy-to-not", "localhost", "0.0.0.0"),
-            await redirectStart("not-to-trustworthy", "0.0.0.0", "localhost"),
+            await redirectStart("trustworthy-to-not", "localhost", "[::ffff:127.0.0.1]"),
+            await redirectStart("not-to-trustworthy", "[::ffff:127.0.0.1]", "localhost"),
         ];
         // The responses are cross-origin and opaque, and may well be blocked; only the requests matter here.
         const popupURL = await server.createEcho("GET", "/fetch-metadata-popup", {
@@ -64,6 +64,6 @@
             done();
         }, { once: true });
 
-        const popup = window.open(onHost(popupURL, "0.0.0.0"));
+        const popup = window.open(onHost(popupURL, "[::ffff:127.0.0.1]"));
     });
 </script>
