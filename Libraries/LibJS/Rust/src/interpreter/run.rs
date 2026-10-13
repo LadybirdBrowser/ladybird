@@ -77,8 +77,9 @@ impl Vm {
             self.register_executable_with_debugger(executable);
         }
 
-        // SAFETY: The caller passes a live context and a live executable.
-        let (context_ref, executable_ref) = unsafe { (context.as_ref(), executable.as_non_null().as_ref()) };
+        // SAFETY: The caller passes a live context.
+        let context_ref = unsafe { context.as_ref() };
+        let executable_ref: &Executable = &executable;
 
         let run_executable_depth = self.run_executable_depth().get();
         let is_outermost_bytecode_execution = run_executable_depth == 0;
@@ -87,10 +88,7 @@ impl Vm {
         // NOTE: This is how we "push" a new execution context onto the VM's
         //       execution context stack.
         let previous_running_execution_context = self.head.running_execution_context.replace(context.as_ptr());
-        // SAFETY: An Executable starts with its head.
-        context_ref
-            .executable
-            .set(Some(unsafe { Gc::from_non_null(executable.as_non_null().cast()) }));
+        context_ref.executable.set(Some(Executable::head(executable)));
 
         assert!(
             executable_ref.head.registers_and_locals_and_constants_count.get()
@@ -608,8 +606,7 @@ impl Vm {
             // SAFETY: The running context is live until it is deallocated below.
             let context = unsafe { context_pointer.as_ref() };
             let executable = context.executable.get().expect("a running frame has an executable");
-            // SAFETY: Executables start with their head.
-            let executable = unsafe { executable.as_non_null().cast::<Executable>().as_ref() };
+            let executable = Executable::from_head(executable);
             if let Some(handler) = executable.exception_handlers_for_offset(program_counter) {
                 context.register(register::EXCEPTION).set(exception);
                 context.program_counter.set(handler.handler_offset);

@@ -1405,8 +1405,7 @@ impl Vm {
             .executable
             .get()
             .expect("the running execution context runs an executable");
-        // SAFETY: An Executable starts with its head.
-        unsafe { Gc::from_non_null(executable.as_non_null().cast()) }
+        Executable::from_head(executable)
     }
 
     pub fn host_ensure_can_add_private_element(&self) -> HostEnsureCanAddPrivateElement {

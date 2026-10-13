@@ -1848,8 +1848,6 @@ pub fn r#in(vm: &Vm, lhs: Value, rhs: Value) -> ThrowCompletionOr<Value> {
 /// Whether a function is the native function the realm installs as %Function.prototype%[@@hasInstance]. Only
 /// NativeFunction gives a function a builtin, so the builtin alone identifies it.
 fn is_ordinary_has_instance_builtin(function: Gc<FunctionObject>) -> bool {
-    // SAFETY: A Gc points to a live cell, and every function object starts with its FunctionObject.
-    let function = unsafe { function.as_non_null().as_ref() };
     function.has_builtin.get() && Builtin::from_u8(function.builtin.get()) == Some(Builtin::OrdinaryHasInstance)
 }
 
