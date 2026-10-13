@@ -2224,7 +2224,7 @@ void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 s
         [this, &operation](Web::HTML::HistoryStepResult result) {
             if (operation.finished)
                 return;
-            finish_history_operation(operation.operation_id, result, operation.algorithm->committed_step());
+            finish_history_operation(operation.operation_id, result);
         });
     operation.algorithm->apply_the_history_step();
 }
@@ -2661,7 +2661,7 @@ void CanonicalTraversable::did_not_apply_reload(Web::HTML::CrossProcessId naviga
 }
 
 // The operation's apply the history step returned result.
-void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step)
+void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result)
 {
     auto operation = take_history_operation(operation_id);
     if (!operation)
@@ -2672,7 +2672,7 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
         operation->requesting_page->async_history_step_applied(operation_id, result);
     if (auto const* reload = operation->parameters.get_pointer<Web::ReloadHistoryOperationParameters>(); reload && result != Web::HTML::HistoryStepResult::Applied)
         did_not_apply_reload(reload->navigable_id);
-    report_history_operation_completion(*operation, committed_step);
+    report_history_operation_completion(*operation);
     settle_history_operation(operation.release_nonnull());
 }
 
@@ -2683,7 +2683,7 @@ void CanonicalTraversable::end_history_operation(Web::HTML::CrossProcessId opera
     if (!operation)
         return;
 
-    report_history_operation_completion(*operation, {});
+    report_history_operation_completion(*operation);
     settle_history_operation(operation.release_nonnull());
 }
 
@@ -2714,8 +2714,9 @@ OwnPtr<CanonicalTraversable::HistoryOperation> CanonicalTraversable::take_histor
     return operation.release_value();
 }
 
-void CanonicalTraversable::report_history_operation_completion(HistoryOperation& operation, Optional<i32> committed_step)
+void CanonicalTraversable::report_history_operation_completion(HistoryOperation& operation)
 {
+    auto committed_step = operation.algorithm ? operation.algorithm->committed_step() : Optional<i32> {};
     if (committed_step.has_value()) {
         if (auto view = this->view(); view.has_value())
             view->did_commit_history_step();
