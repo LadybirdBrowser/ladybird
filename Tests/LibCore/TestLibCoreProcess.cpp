@@ -80,6 +80,23 @@ TEST_CASE(spawned_process_only_inherits_the_standard_streams_and_the_given_descr
     for (auto fd : { unrelated[0], unrelated[1], given[0], given[1], given_child_fd })
         MUST(Core::System::close(fd));
 }
+
+TEST_CASE(spawned_process_gets_a_close_on_exec_descriptor_duplicated_onto_itself)
+{
+    auto given = MUST(Core::System::pipe2(O_CLOEXEC));
+
+    auto script = ByteString::formatted("if {{ true >&{}; }} 2>/dev/null; then echo open; else echo closed; fi", given[1]);
+    auto output = run_and_read_output({
+        .executable = "/bin/sh"sv,
+        .arguments = { "-c"sv, script },
+        .file_actions = { Core::FileAction::DupFd { .write_fd = given[1], .fd = given[1] } },
+    });
+
+    EXPECT_EQ(output, "open\n"sv);
+
+    for (auto fd : { given[0], given[1] })
+        MUST(Core::System::close(fd));
+}
 #endif
 
 TEST_CASE(duplicated_descriptor_is_close_on_exec)
