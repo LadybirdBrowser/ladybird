@@ -148,18 +148,12 @@ impl Environment {
 
     /// The environment as a `T`, if it was allocated as one.
     pub fn downcast_ref<T: GcCell + Extends<Environment>>(&self) -> Option<&T> {
-        self.class()
-            .is_subclass_of(T::CLASS)
-            // SAFETY: The environment was allocated as a T or a subclass of it, which starts with a T.
-            .then(|| unsafe { &*core::ptr::from_ref(self).cast::<T>() })
+        crate::gc::class::downcast_ref(self)
     }
 
-    /// The environment as a DeclarativeEnvironment, if its declarative flag is set.
+    /// The environment as a DeclarativeEnvironment, if it is one.
     pub fn as_declarative_environment(&self) -> Option<&DeclarativeEnvironment> {
-        self.is_declarative_environment()
-            // SAFETY: Only DeclarativeEnvironment and the classes extending it are declarative, and they start with
-            // a DeclarativeEnvironment.
-            .then(|| unsafe { &*core::ptr::from_ref(self).cast::<DeclarativeEnvironment>() })
+        self.downcast_ref()
     }
 
     pub fn has_this_binding(&self) -> bool {

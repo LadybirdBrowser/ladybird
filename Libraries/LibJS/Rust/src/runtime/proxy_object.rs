@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -121,9 +121,7 @@ impl Deref for ProxyObject {
 
 /// The proxy an internal method of a proxy was called on.
 fn as_proxy_object(object: &Object) -> &ProxyObject {
-    assert!(object.is_proxy_object());
-    // SAFETY: The object is a ProxyObject, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<ProxyObject>() }
+    cast_ref(object)
 }
 
 impl Object {

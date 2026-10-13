@@ -10,7 +10,7 @@ use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
 use crate::contrib::test262::dollar_262_object::Dollar262Object;
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -58,8 +58,7 @@ impl Test262GlobalObject {
             .initialize;
         base_initialize(object, vm, realm);
 
-        // SAFETY: Only Test262GlobalObject has these methods.
-        let this = unsafe { &*core::ptr::from_ref(object).cast::<Test262GlobalObject>() };
+        let this: &Test262GlobalObject = cast_ref(object);
         let dollar_262 = Dollar262Object::create(vm, realm);
         this.dollar_262.set(Some(dollar_262));
 

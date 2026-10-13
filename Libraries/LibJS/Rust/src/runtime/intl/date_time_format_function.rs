@@ -9,7 +9,7 @@ use core::ops::Deref;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -91,9 +91,7 @@ impl DateTimeFormatFunction {
     }
 
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
-        assert!(function.is::<DateTimeFormatFunction>());
-        // SAFETY: The function is a DateTimeFormatFunction, which starts with its NativeFunction.
-        let function = unsafe { &*core::ptr::from_ref(function).cast::<DateTimeFormatFunction>() };
+        let function: &DateTimeFormatFunction = cast_ref(function);
         let realm = vm.current_realm().expect("a built-in function runs in a realm");
 
         let date_value = vm.argument(0);

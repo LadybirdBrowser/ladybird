@@ -12,7 +12,7 @@ use ak::{Utf16FlyString, Utf16String};
 use libjs_abi::Builtin;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Class, GcCell, define_cell};
+use crate::gc::class::{Class, GcCell, cast_ref, define_cell};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -89,9 +89,7 @@ fn as_native_javascript_backed_function(function: &NativeFunction) -> Gc<NativeJ
 
 /// The native function an internal method of a native function was called on.
 fn as_native_function(object: &Object) -> &NativeFunction {
-    assert!(object.is::<NativeFunction>());
-    // SAFETY: The object is a NativeFunction, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<NativeFunction>() }
+    cast_ref(object)
 }
 
 impl NativeFunction {
@@ -538,8 +536,7 @@ impl CapturingNativeFunction {
     }
 
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
-        // SAFETY: Only CapturingNativeFunction has these methods.
-        let function = unsafe { &*core::ptr::from_ref(function).cast::<CapturingNativeFunction>() };
+        let function: &CapturingNativeFunction = cast_ref(function);
         // NB: The behaviour is borrowed for the whole call. That is sound: the function is the [[Function]] of the
         //     running execution context, which keeps it and its behaviour alive, and the behaviour is never replaced.
         function
@@ -785,9 +782,7 @@ impl RawNativeFunction {
     }
 
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
-        assert!(function.is::<RawNativeFunction>());
-        // SAFETY: The function is a RawNativeFunction, which starts with its NativeFunction.
-        let function = unsafe { &*core::ptr::from_ref(function).cast::<RawNativeFunction>() };
+        let function: &RawNativeFunction = cast_ref(function);
         call_raw_native_function(function.native_function(vm), vm)
     }
 

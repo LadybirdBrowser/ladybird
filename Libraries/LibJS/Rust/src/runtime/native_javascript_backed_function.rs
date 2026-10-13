@@ -10,7 +10,7 @@ use core::ops::Deref;
 use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -74,9 +74,7 @@ impl Deref for NativeJavaScriptBackedFunction {
 
 /// The function an internal method of a NativeJavaScriptBackedFunction was called on.
 fn as_native_javascript_backed_function(object: &Object) -> &NativeJavaScriptBackedFunction {
-    assert!(object.is::<NativeJavaScriptBackedFunction>());
-    // SAFETY: The object is a NativeJavaScriptBackedFunction, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<NativeJavaScriptBackedFunction>() }
+    cast_ref(object)
 }
 
 impl NativeJavaScriptBackedFunction {

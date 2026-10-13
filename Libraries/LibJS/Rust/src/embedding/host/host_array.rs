@@ -31,7 +31,7 @@ use crate::embedding::host::class_table::{
 };
 use crate::embedding::host::registry::runtime_class_and_allocator_of_host_class;
 use crate::embedding::object::{lookup_phase_from_abi, set_cache_metadata_from_abi};
-use crate::gc::class::{Class, define_cell};
+use crate::gc::class::{Class, cast_ref, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -94,9 +94,7 @@ pub fn derive_host_array_class(table: &'static JSHostClass, parent: &'static Cla
 
 /// The host array an internal method of a host array class was called on.
 pub(crate) fn as_host_array(object: &Object) -> &HostArray {
-    debug_assert!(object.is::<HostArray>());
-    // SAFETY: The object is a HostArray, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<HostArray>() }
+    cast_ref(object)
 }
 
 fn hooks_of(object: &Object) -> &'static JSHostArrayHooks {

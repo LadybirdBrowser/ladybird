@@ -10,7 +10,7 @@ use core::ops::Deref;
 use ak::Utf16String;
 use libjs_abi::Builtin;
 
-use crate::gc::class::{Class, define_cell};
+use crate::gc::class::{Class, define_cell, downcast_ref};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -236,8 +236,6 @@ impl FunctionObject {
 
     /// The function as a NativeFunction, if it is one.
     pub fn as_native_function(&self) -> Option<&NativeFunction> {
-        // SAFETY: A NativeFunction starts with its FunctionObject.
-        self.is::<NativeFunction>()
-            .then(|| unsafe { &*core::ptr::from_ref(self).cast::<NativeFunction>() })
+        downcast_ref(self)
     }
 }

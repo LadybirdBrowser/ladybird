@@ -12,7 +12,7 @@ use libjs_runtime_macros::Trace;
 use crate::contrib::test262::agent_object::AgentObject;
 use crate::contrib::test262::global_object::Test262GlobalObject;
 use crate::contrib::test262::is_htmldda::IsHTMLDDA;
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -60,8 +60,7 @@ impl Dollar262Object {
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
-        // SAFETY: Only Dollar262Object has these methods.
-        let this = unsafe { &*core::ptr::from_ref(object).cast::<Dollar262Object>() };
+        let this: &Dollar262Object = cast_ref(object);
 
         let agent = AgentObject::create(vm, realm);
         this.agent.set(Some(agent));

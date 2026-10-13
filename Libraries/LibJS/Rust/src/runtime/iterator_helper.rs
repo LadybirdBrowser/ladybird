@@ -9,7 +9,7 @@ use core::ops::Deref;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::class::{Finalize, GcCell, cast_ref, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
@@ -179,9 +179,7 @@ impl IteratorHelper {
     }
 
     fn execute(generator: &GeneratorObject, vm: &Vm, completion: Completion) -> ThrowCompletionOr<IterationResult> {
-        assert!(generator.is::<IteratorHelper>());
-        // SAFETY: Only iterator helpers execute through this, and an IteratorHelper starts with its GeneratorObject.
-        let iterator = unsafe { &*core::ptr::from_ref(generator).cast::<IteratorHelper>() };
+        let iterator: &IteratorHelper = cast_ref(generator);
         let result = iterator.execute_closure(vm, completion);
         vm.pop_execution_context();
         result

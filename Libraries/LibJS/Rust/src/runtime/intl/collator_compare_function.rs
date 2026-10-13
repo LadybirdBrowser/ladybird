@@ -9,7 +9,7 @@ use core::ops::Deref;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -88,9 +88,7 @@ impl CollatorCompareFunction {
 
     // 10.3.3.1 Collator Compare Functions, https://tc39.es/ecma402/#sec-collator-compare-functions
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
-        assert!(function.is::<CollatorCompareFunction>());
-        // SAFETY: The function is a CollatorCompareFunction, which starts with its NativeFunction.
-        let function = unsafe { &*core::ptr::from_ref(function).cast::<CollatorCompareFunction>() };
+        let function: &CollatorCompareFunction = cast_ref(function);
 
         // 1. Let collator be F.[[Collator]].
         // 2. Assert: Type(collator) is Object and collator has an [[InitializedCollator]] internal slot.

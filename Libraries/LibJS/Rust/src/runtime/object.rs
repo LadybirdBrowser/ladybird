@@ -4432,6 +4432,6 @@ fn create_data_property_for_set(
 impl Object {
     /// Whether the object was allocated as a `T`.
     pub fn is<T: GcCell + Extends<Object>>(&self) -> bool {
-        self.class().is_subclass_of(T::CLASS)
+        self.class().is_class_of::<T>()
     }
 }

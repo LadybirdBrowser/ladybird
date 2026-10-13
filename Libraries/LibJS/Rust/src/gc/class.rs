@@ -218,6 +218,13 @@ impl Class {
         self.parent.is_some_and(|parent| parent.id == self.id)
     }
 
+    /// Whether the class is that of the cell type `T` or a subclass of it. Classes derived at run time have the id of
+    /// the class they extend, and every cell type has an id of its own, so a class with the id of `T` is the class of
+    /// `T` or one derived from it at run time. That covers the long chains of host classes without walking them.
+    pub fn is_class_of<T: GcCell>(&self) -> bool {
+        self.id == T::CLASS.id || self.is_subclass_of(T::CLASS)
+    }
+
     pub fn is_subclass_of(&self, ancestor: &Class) -> bool {
         let mut class = Some(self);
         while let Some(current) = class {
@@ -262,10 +269,31 @@ pub unsafe trait Extends<Base> {}
 // SAFETY: Every type starts with itself.
 unsafe impl<T: GcCell> Extends<T> for T {}
 
+// SAFETY: Every cell starts with its header.
+unsafe impl<T: GcCell> Extends<CellHeader> for T {}
+
 /// The class a cell was allocated with, which may be a subclass of its static type.
 pub fn class_of<T>(cell: crate::layout::cell::Gc<T>) -> &'static Class {
     // SAFETY: Every cell starts with its class.
     unsafe { cell.as_ptr().cast::<&'static Class>().read() }
+}
+
+/// The cell as a `Derived`, if it was allocated as one or as a subclass of it.
+///
+/// NB: A cell carries the class it is constructed with from the start, and is only ever constructed as part of a
+///     value of that class, so its class tells what the memory around it is.
+pub fn downcast_ref<Base: GcCell, Derived: GcCell + Extends<Base>>(cell: &Base) -> Option<&Derived> {
+    // SAFETY: Every cell starts with its class.
+    let class = unsafe { core::ptr::from_ref(cell).cast::<&'static Class>().read() };
+    class
+        .is_class_of::<Derived>()
+        // SAFETY: The cell is a Derived or a subclass of it, which starts with a Derived.
+        .then(|| unsafe { &*core::ptr::from_ref(cell).cast::<Derived>() })
+}
+
+/// The cell as a `Derived`, which it has to have been allocated as, or as a subclass of.
+pub fn cast_ref<Base: GcCell, Derived: GcCell + Extends<Base>>(cell: &Base) -> &Derived {
+    downcast_ref(cell).unwrap_or_else(|| panic!("cell is not a {}", Derived::CLASS.name))
 }
 
 impl<T: ?Sized> core::fmt::Debug for crate::layout::cell::Gc<T> {
@@ -307,7 +335,7 @@ impl<T> crate::layout::cell::Gc<T> {
 
     pub fn downcast<Derived: GcCell + Extends<T>>(self) -> Option<crate::layout::cell::Gc<Derived>> {
         class_of(self)
-            .is_subclass_of(Derived::CLASS)
+            .is_class_of::<Derived>()
             // SAFETY: The cell was allocated as a Derived or a subclass of it.
             .then(|| unsafe { crate::layout::cell::Gc::from_non_null(self.as_non_null().cast()) })
     }

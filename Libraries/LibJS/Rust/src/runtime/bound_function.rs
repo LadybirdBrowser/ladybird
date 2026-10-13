@@ -10,7 +10,7 @@ use core::ops::Deref;
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
@@ -52,9 +52,7 @@ impl Deref for BoundFunction {
 
 /// The bound function an internal method of a bound function was called on.
 fn as_bound_function(object: &Object) -> &BoundFunction {
-    assert!(object.is_bound_function());
-    // SAFETY: The object is a BoundFunction, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<BoundFunction>() }
+    cast_ref(object)
 }
 
 impl Object {

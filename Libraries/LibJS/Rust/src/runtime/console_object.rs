@@ -10,7 +10,7 @@ use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
 use crate::console::Console;
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -68,8 +68,7 @@ impl ConsoleObject {
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
-        // SAFETY: Only ConsoleObject has these methods.
-        let this = unsafe { &*core::ptr::from_ref(object).cast::<ConsoleObject>() };
+        let this: &ConsoleObject = cast_ref(object);
         let names = &vm.names;
         this.console.set(Some(Console::create(vm, realm)));
         let attr = PropertyAttributes::new(Attribute::WRITABLE | Attribute::ENUMERABLE | Attribute::CONFIGURABLE);
