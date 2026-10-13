@@ -10,7 +10,7 @@ dictionary TextDecodeOptions {
 };
 
 // https://encoding.spec.whatwg.org/#textdecoder
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface TextDecoder {
     constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
 

@@ -974,6 +974,7 @@ name = "libweb_bindings_rust"
 version = "0.1.0"
 dependencies = [
  "ak",
+ "encoding_rs",
  "ladybird_allocator",
  "libjs_rust",
  "libweb_rust",

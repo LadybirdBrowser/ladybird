@@ -353,7 +353,6 @@ set(SOURCES
     Editing/StyledMarkupSerializer.cpp
     Editing/VisiblePosition.cpp
     Editing/ReplaceSelection.cpp
-    Encoding/TextDecoder.cpp
     Encoding/TextDecoderCommon.cpp
     Encoding/TextDecoderStream.cpp
     Encoding/TextEncoderCommon.cpp
