@@ -139,7 +139,7 @@ public:
     AsyncScrollResult smooth_scroll_to(Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue);
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
-    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame(); }
+    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame() || m_presenter.ui_overlay_fades_need_frame(); }
 
     bool has_active_scroll_fling() const { return m_scroll_fling_controller.is_active(); }
     struct ScrollFlingStep {

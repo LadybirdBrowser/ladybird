@@ -40,9 +40,27 @@ ErrorOr<Compositing::PausedDebuggerOverlayState> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::PictureInPictureControlsState const& state)
+{
+    TRY(encoder.encode(state.shown));
+    TRY(encoder.encode(state.hovered_control));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::PictureInPictureControlsState> decode(Decoder& decoder)
+{
+    return Compositing::PictureInPictureControlsState {
+        .shown = TRY(decoder.decode<bool>()),
+        .hovered_control = TRY(decode_overlay_action<Compositing::PictureInPictureControl>(decoder, Compositing::picture_in_picture_control_from_underlying)),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::UIOverlays const& overlays)
 {
     TRY(encoder.encode(overlays.paused_debugger));
+    TRY(encoder.encode(overlays.picture_in_picture_controls));
     return {};
 }
 
@@ -51,6 +69,7 @@ ErrorOr<Compositing::UIOverlays> decode(Decoder& decoder)
 {
     return Compositing::UIOverlays {
         .paused_debugger = TRY(decoder.decode<Optional<Compositing::PausedDebuggerOverlayState>>()),
+        .picture_in_picture_controls = TRY(decoder.decode<Optional<Compositing::PictureInPictureControlsState>>()),
     };
 }
 

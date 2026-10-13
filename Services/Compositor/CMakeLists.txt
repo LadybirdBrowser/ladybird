@@ -18,6 +18,7 @@ set(SOURCES
     KeyboardScrollController.cpp
     OpenGLContext.cpp
     PausedDebuggerOverlay.cpp
+    PictureInPictureControls.cpp
     RasterizeDisplayList.cpp
     RenderClockConnection.cpp
     ScrollFlingController.cpp
