@@ -32,6 +32,7 @@ use super::runtime_info::RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS;
 use crate::bytecode::executable::{Executable, PropertyLookupCacheEntryData, PropertyLookupCacheTier};
 use crate::bytecode::feedback::{CallFeedback, CallFeedbackForwarding, call_feedback_flags};
 use crate::bytecode::instruction::instruction_length_from_bytes;
+use crate::gc::class::Extends;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
@@ -335,14 +336,13 @@ fn word_of<T>(cell: Gc<T>, offset: usize) -> u64 {
 }
 
 impl SnapshotBuilder<'_> {
-    fn cell<T>(&mut self, cell: Gc<T>) -> CellId {
-        // SAFETY: Every cell starts with a cell header.
-        let header = unsafe { Gc::<CellHeader>::from_non_null(cell.as_non_null().cast()) };
+    fn cell<T: Extends<CellHeader>>(&mut self, cell: Gc<T>) -> CellId {
+        let header = cell.upcast::<CellHeader>();
         self.cells.push(header);
         CellId(cell.as_ptr() as u64)
     }
 
-    fn optional_cell<T>(&mut self, cell: Option<Gc<T>>) -> Option<CellId> {
+    fn optional_cell<T: Extends<CellHeader>>(&mut self, cell: Option<Gc<T>>) -> Option<CellId> {
         cell.map(|cell| self.cell(cell))
     }
 
@@ -1152,8 +1152,7 @@ pub fn capture_snapshot(
         let Some(sample) = sample else {
             continue;
         };
-        // SAFETY: Every cell starts with a cell header.
-        let sample_cell = unsafe { Gc::<CellHeader>::from_non_null(sample.as_non_null().cast()) };
+        let sample_cell = sample.upcast::<CellHeader>();
         let inline_executable = builder.inline_executable_index(Some(sample_cell), &root);
         if let Some(Some(template)) = executables[0].closure_templates.get_mut(template_index) {
             template.inline_executable = inline_executable;

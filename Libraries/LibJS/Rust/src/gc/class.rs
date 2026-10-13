@@ -275,6 +275,9 @@ unsafe impl<T: GcCell> Extends<T> for T {}
 // SAFETY: Every cell starts with its header.
 unsafe impl<T: GcCell> Extends<CellHeader> for T {}
 
+// SAFETY: A header starts with itself.
+unsafe impl Extends<CellHeader> for CellHeader {}
+
 /// The class a cell was allocated with, which may be a subclass of its static type.
 pub fn class_of<T>(cell: crate::layout::cell::Gc<T>) -> &'static Class {
     // SAFETY: Every cell starts with its class.

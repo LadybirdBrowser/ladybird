@@ -17,7 +17,6 @@ use core::ptr::NonNull;
 
 use crate::build_configuration::HEAP_REGION_OFFSET_MASK;
 use crate::gc::capi;
-use crate::gc::class::{GcCell, class_of};
 use crate::gc::heap::cell_is_dead;
 use crate::gc::primitive_storage::{OwnedPrimitiveStorage, ZeroFillNewBytes};
 use crate::layout::cell::{CellHeader, Gc};
@@ -212,13 +211,7 @@ impl CallFeedback {
 
 /// Whether two cells are closures of one ECMAScript function.
 pub fn are_closures_of_one_function(first: Gc<CellHeader>, second: Gc<CellHeader>) -> bool {
-    let function_of = |cell: Gc<CellHeader>| {
-        if !class_of(cell).is_subclass_of(Object::CLASS) {
-            return None;
-        }
-        // SAFETY: The cell is an object.
-        as_ecmascript_function_object(unsafe { Gc::<Object>::from_non_null(cell.as_non_null().cast()) })
-    };
+    let function_of = |cell: Gc<CellHeader>| as_ecmascript_function_object(cell.downcast::<Object>()?);
     match (function_of(first), function_of(second)) {
         (Some(first), Some(second)) => first.shared_data() == second.shared_data(),
         _ => false,

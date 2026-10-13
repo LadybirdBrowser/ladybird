@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::class::{Extends, Finalize, GcCell, define_cell};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::buffer::InterpreterBuffer;
@@ -115,10 +115,9 @@ impl EnvironmentShapeCache {
     /// # Safety
     ///
     /// `slot` must be part of the cell `owner`, or of memory that `owner` owns and only frees when it is destroyed.
-    pub unsafe fn new<Owner>(owner: Gc<Owner>, slot: &Cell<Option<Gc<EnvironmentShape>>>) -> Self {
+    pub unsafe fn new<Owner: Extends<CellHeader>>(owner: Gc<Owner>, slot: &Cell<Option<Gc<EnvironmentShape>>>) -> Self {
         Self {
-            // SAFETY: Every cell starts with its header.
-            owner: unsafe { Gc::from_non_null(owner.as_non_null().cast()) },
+            owner: owner.upcast(),
             slot: NonNull::from(slot),
         }
     }

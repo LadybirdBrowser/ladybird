@@ -1052,8 +1052,7 @@ pub(crate) fn record_callback(
         vm,
         frame,
         pc,
-        // SAFETY: Every cell starts with a cell header.
-        unsafe { Gc::<CellHeader>::from_non_null(builtin.as_non_null().cast()) },
+        builtin.upcast::<CellHeader>(),
         callback.as_cell(),
         CallFeedbackForwarding::Callback,
         0,

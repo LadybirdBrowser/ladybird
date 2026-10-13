@@ -21,7 +21,7 @@ use libjs_jit::snapshot::{
 
 use super::offset;
 use crate::bytecode::executable::Executable;
-use crate::gc::class::{GcCell, class_of};
+use crate::gc::class::{Extends, GcCell, class_of};
 use crate::interpreter::slow_paths::bindings::create_lexical_environment;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -177,9 +177,8 @@ pub fn allocation_infos(vm: &Vm, realm: Gc<Realm>) -> AllocationInfos {
     }
 }
 
-fn header_of<T>(cell: Gc<T>) -> Gc<CellHeader> {
-    // SAFETY: Every cell starts with a cell header.
-    unsafe { Gc::from_non_null(cell.as_non_null().cast()) }
+fn header_of<T: Extends<CellHeader>>(cell: Gc<T>) -> Gc<CellHeader> {
+    cell.upcast()
 }
 
 /// The bytes of a new rope string, with null halves.

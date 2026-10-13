@@ -211,8 +211,7 @@ pub fn record_forwarded_call_from_native(
     };
     // SAFETY: A frame's caller outlives it.
     let caller = unsafe { &*caller };
-    // SAFETY: Every cell starts with a cell header.
-    let function = unsafe { Gc::<CellHeader>::from_non_null(function.as_non_null().cast()) };
+    let function = function.upcast::<CellHeader>();
     record_forwarded_call(
         vm,
         caller,
