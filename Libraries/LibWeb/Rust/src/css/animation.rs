@@ -7641,7 +7641,7 @@ mod tests {
             };
             let value = unsafe { Arc::from_raw(style_value_from_easing(&descriptor)) };
             assert_eq!(
-                crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap(),
+                crate::css::serialize::serialize_style_value_to_utf16(&value),
                 expected.encode_utf16().collect::<Vec<_>>()
             );
         }
@@ -7989,7 +7989,7 @@ mod tests {
         assert!(result.handled);
         (result.value.is_some()).then(|| {
             let value = result.value.unwrap().into_arc();
-            String::from_utf16(&crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap()).unwrap()
+            String::from_utf16(&crate::css::serialize::serialize_style_value_to_utf16(&value)).unwrap()
         })
     }
 
@@ -8156,7 +8156,7 @@ mod tests {
         let result = interpolate_value(None, property, &from, &to, 0.5);
         assert!(result.handled);
         let value = result.value.unwrap().into_arc();
-        let text = crate::css::serialize::serialize_resolved_style_value_to_utf16(&value).unwrap();
+        let text = crate::css::serialize::serialize_resolved_style_value_to_utf16(&value);
         assert_eq!(String::from_utf16(&text).unwrap(), "bevel");
     }
 

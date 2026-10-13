@@ -86,7 +86,7 @@ mod grid_tests {
                 if child.optional_data().is_some() {
                     children.push((
                         child.clone(),
-                        crate::css::serialize::serialize_style_value_to_utf16(child.data()).unwrap(),
+                        crate::css::serialize::serialize_style_value_to_utf16(child.data()),
                     ));
                 }
                 Some(child.clone())
@@ -104,7 +104,7 @@ mod grid_tests {
             drop(parsed);
             for (child, expected) in children {
                 assert_eq!(
-                    crate::css::serialize::serialize_style_value_to_utf16(child.data()).unwrap(),
+                    crate::css::serialize::serialize_style_value_to_utf16(child.data()),
                     expected
                 );
             }
@@ -155,7 +155,7 @@ mod grid_tests {
             ),
         ] {
             let value = parse(property, source);
-            let original = crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap();
+            let original = crate::css::serialize::serialize_style_value_to_utf16(&value);
             let same = absolutize_for_test(&value);
             assert!(Arc::ptr_eq(&value, &same));
             let mut retained = Vec::new();
@@ -169,13 +169,10 @@ mod grid_tests {
             drop(value);
             drop(same);
             assert!(!retained.is_empty());
-            assert_eq!(
-                crate::css::serialize::serialize_style_value_to_utf16(&mapped).unwrap(),
-                original
-            );
+            assert_eq!(crate::css::serialize::serialize_style_value_to_utf16(&mapped), original);
             drop(mapped);
             for child in retained {
-                assert!(crate::css::serialize::serialize_style_value_to_utf16(child.data()).is_some());
+                crate::css::serialize::serialize_style_value_to_utf16(child.data());
             }
         }
     }
@@ -204,7 +201,7 @@ mod grid_tests {
             (&resolved, "[雪] repeat(2, minmax(20px, 1fr)) [雨]"),
         ] {
             assert_eq!(
-                crate::css::serialize::serialize_style_value_to_utf16(value).unwrap(),
+                crate::css::serialize::serialize_style_value_to_utf16(value),
                 expected.encode_utf16().collect::<Vec<_>>()
             );
         }

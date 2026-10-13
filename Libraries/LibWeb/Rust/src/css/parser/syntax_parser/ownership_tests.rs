@@ -34,7 +34,7 @@ fn first_rule_block(sheet: &ParsedStyleSheet) -> &crate::css::declaration_block:
 }
 
 fn first_value(block: &crate::css::declaration_block::DeclarationBlock) -> Vec<u16> {
-    serialize_style_value_to_utf16(&block.data().properties[0].value).unwrap()
+    serialize_style_value_to_utf16(&block.data().properties[0].value)
 }
 
 fn utf16(value: &str) -> Vec<u16> {
@@ -176,11 +176,11 @@ fn counter_style_mutation_preserves_names_and_descriptor_snapshots() {
         let changed = snapshot(&rule);
         assert_eq!(changed.name().units(), utf16("upper-roman"));
         assert_eq!(
-            serialize_style_value_to_utf16(&changed.descriptors().descriptors[0].value).unwrap(),
+            serialize_style_value_to_utf16(&changed.descriptors().descriptors[0].value),
             utf16("\"B\"")
         );
         assert_eq!(
-            serialize_style_value_to_utf16(&shared.descriptors().descriptors[0].value).unwrap(),
+            serialize_style_value_to_utf16(&shared.descriptors().descriptors[0].value),
             utf16("\"A\"")
         );
         assert!(rust_descriptor_block_remove(
@@ -333,7 +333,7 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
         children.insert(1, exposed.clone());
         assert_eq!(identity(&declarations_at(children, 1)), identity(&exposed_declarations));
         assert_eq!(
-            serialize_style_value_to_utf16(&snapshot.properties[0].value).unwrap(),
+            serialize_style_value_to_utf16(&snapshot.properties[0].value),
             utf16("31px")
         );
         rust_keyframes_set_name(&frames, view(&utf16("新しい名前")));
@@ -425,7 +425,7 @@ fn value_graphs_are_shared_and_destroyed_without_worker_callbacks() {
                 for _ in 0..100 {
                     let copy = value.clone();
                     assert!(unsafe { rust_style_value_equals(Arc::as_ptr(&value), Arc::as_ptr(&copy)) });
-                    assert!(!serialize_style_value_to_utf16(&copy).unwrap().is_empty());
+                    assert!(!serialize_style_value_to_utf16(&copy).is_empty());
                 }
             }
             assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
@@ -550,10 +550,7 @@ fn import_preludes_outlive_the_worker_and_shared_sheet() {
     assert_eq!(css_query_evaluate_supports(named.supports.as_deref()), 1);
     assert_eq!(css_query_evaluate_supports(anonymous.supports.as_deref()), 0);
     assert_eq!(css_query_evaluate_supports(Some(&*supports)), 1);
-    assert_eq!(
-        serialize_style_value_to_utf16(&named.url).unwrap(),
-        utf16("url(\"a.css\")")
-    );
+    assert_eq!(serialize_style_value_to_utf16(&named.url), utf16("url(\"a.css\")"));
 }
 
 unsafe extern "C" fn collect_text(context: *mut std::ffi::c_void, text: *const u16, length: usize) {
@@ -610,7 +607,7 @@ fn function_signatures_own_parameters_after_the_sheet_is_dropped() {
     let parameter = &signature.parameters[1];
     assert_eq!(parameter.name.units(), utf16("--名"));
     assert_eq!(
-        serialize_style_value_to_utf16(parameter.default_value.as_ref().unwrap()).unwrap(),
+        serialize_style_value_to_utf16(parameter.default_value.as_ref().unwrap()),
         utf16("\"雪\"")
     );
     assert_eq!(empty.name.units(), utf16("--空"));
@@ -632,7 +629,7 @@ fn property_rules_own_syntax_and_initial_values_after_the_sheet_is_dropped() {
     assert_eq!(*typed.syntax, SyntaxNode::Type(SyntaxType::Length));
     assert!(!typed.inherits);
     assert_eq!(
-        serialize_style_value_to_utf16(typed.initial_value.as_ref().unwrap()).unwrap(),
+        serialize_style_value_to_utf16(typed.initial_value.as_ref().unwrap()),
         utf16("8px")
     );
     assert_eq!(universal.name.units(), utf16("--自由"));
@@ -772,12 +769,9 @@ fn retained_values_do_not_keep_the_sheet_in_the_cache() {
     let second = parse(&source, &context);
     assert!(second.declarations.is_empty());
     assert!(!Arc::ptr_eq(&retained, &first_rule_block(&second).properties[0].value));
-    assert_eq!(serialize_style_value_to_utf16(&retained).unwrap(), utf16("13.25px"));
+    assert_eq!(serialize_style_value_to_utf16(&retained), utf16("13.25px"));
     drop(retained);
-    assert_eq!(
-        serialize_style_value_to_utf16(&second_reference).unwrap(),
-        utf16("13.25px")
-    );
+    assert_eq!(serialize_style_value_to_utf16(&second_reference), utf16("13.25px"));
 }
 
 #[test]
@@ -791,7 +785,7 @@ fn published_sheet_owns_non_ascii_declarations() {
         utf16("--é😀")
     );
     assert_eq!(
-        serialize_style_value_to_utf16(&first_rule_block(&sheet).properties[0].value).unwrap(),
+        serialize_style_value_to_utf16(&first_rule_block(&sheet).properties[0].value),
         utf16("13px")
     );
 }
@@ -812,7 +806,7 @@ fn independent_workers_read_the_same_immutable_graph() {
                 &first_rule_block(&sheet).properties[0].value,
                 &expected_value
             ));
-            assert_eq!(serialize_style_value_to_utf16(&expected_value).unwrap(), utf16("13px"));
+            assert_eq!(serialize_style_value_to_utf16(&expected_value), utf16("13px"));
             assert_eq!(sheet.rules.len(), 4);
             unsafe {
                 assert_eq!(
@@ -985,20 +979,14 @@ fn parsed_anchor_and_font_values_retain_their_children() {
     let side = anchor_side.clone();
     let second_fallback = fallback_value.clone();
     drop((block, data));
-    assert_eq!(serialize_style_value_to_utf16(fallback.data()).unwrap(), utf16("1px"));
-    assert_eq!(serialize_style_value_to_utf16(side.data()).unwrap(), utf16("left"));
-    assert_eq!(
-        serialize_style_value_to_utf16(second_fallback.data()).unwrap(),
-        utf16("2px")
-    );
+    assert_eq!(serialize_style_value_to_utf16(fallback.data()), utf16("1px"));
+    assert_eq!(serialize_style_value_to_utf16(side.data()), utf16("left"));
+    assert_eq!(serialize_style_value_to_utf16(second_fallback.data()), utf16("2px"));
 
     let sheet = parse_shared_on_worker("@font-face { font-family: Graph; src: local('Font Name'); }");
     let descriptors = sheet.rules[0].descriptor_block.clone().unwrap();
     let value = &*descriptors.descriptors[1].value;
-    assert_eq!(
-        serialize_style_value_to_utf16(value).unwrap(),
-        utf16("local(\"Font Name\")")
-    );
+    assert_eq!(serialize_style_value_to_utf16(value), utf16("local(\"Font Name\")"));
     let StyleValueData::ValueList { values, .. } = value else {
         panic!()
     };
@@ -1007,10 +995,7 @@ fn parsed_anchor_and_font_values_retain_their_children() {
     };
     let name = local_name.clone();
     drop((sheet, descriptors));
-    assert_eq!(
-        serialize_style_value_to_utf16(name.data()).unwrap(),
-        utf16("\"Font Name\"")
-    );
+    assert_eq!(serialize_style_value_to_utf16(name.data()), utf16("\"Font Name\""));
 }
 
 #[test]
@@ -1040,10 +1025,7 @@ fn calculation_nodes_retain_native_function_values() {
     };
     let sharing = sharing.clone();
     drop(node);
-    assert_eq!(
-        serialize_style_value_to_utf16(sharing.data()).unwrap(),
-        utf16("fixed 0.25")
-    );
+    assert_eq!(serialize_style_value_to_utf16(sharing.data()), utf16("fixed 0.25"));
     let node = CalcNode::NonMathFunction {
         value: RetainedStyleValueData::from_owned(StyleValueData::TreeCountingFunction {
             function: 0,
@@ -1056,10 +1038,7 @@ fn calculation_nodes_retain_native_function_values() {
     };
     let value = value.clone();
     drop(node);
-    assert_eq!(
-        serialize_style_value_to_utf16(value.data()).unwrap(),
-        utf16("sibling-count()")
-    );
+    assert_eq!(serialize_style_value_to_utf16(value.data()), utf16("sibling-count()"));
 }
 
 #[test]
@@ -1111,11 +1090,11 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     ));
     drop((first, second, third, original));
     assert_eq!(
-        serialize_style_value_to_utf16(&independent.data().properties[0].value).unwrap(),
+        serialize_style_value_to_utf16(&independent.data().properties[0].value),
         utf16("13px")
     );
     assert_eq!(
-        serialize_style_value_to_utf16(&independent.data().custom_properties[0].declaration.value).unwrap(),
+        serialize_style_value_to_utf16(&independent.data().custom_properties[0].declaration.value),
         utf16("green")
     );
 
@@ -1233,7 +1212,7 @@ fn function_descriptor_blocks_retain_worker_parsed_values() {
         &parsed_values.descriptors[1].value
     ));
     assert_eq!(
-        serialize_style_value_to_utf16(&descriptors.data().descriptors[1].value).unwrap(),
+        serialize_style_value_to_utf16(&descriptors.data().descriptors[1].value),
         utf16("var(--色)")
     );
 }
@@ -1276,8 +1255,5 @@ fn descriptor_mutation_forks_worker_parsed_data() {
         &data.descriptors[0].value
     ));
     assert_eq!(font.descriptors.len(), 2);
-    assert_eq!(
-        serialize_style_value_to_utf16(&font.descriptors[0].value).unwrap(),
-        utf16("色")
-    );
+    assert_eq!(serialize_style_value_to_utf16(&font.descriptors[0].value), utf16("色"));
 }

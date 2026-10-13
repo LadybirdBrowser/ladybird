@@ -76,8 +76,8 @@ Utf16String RustDescriptorBlock::item(size_t index) const
 
 Utf16String RustDescriptorBlock::serialized() const
 {
-    size_t result = 0;
-    VERIFY(rust_descriptor_block_serialize(m_block, &result));
+    size_t result = rust_descriptor_block_serialize(m_block);
+    VERIFY(result);
     return Utf16String::adopt_raw(result);
 }
 

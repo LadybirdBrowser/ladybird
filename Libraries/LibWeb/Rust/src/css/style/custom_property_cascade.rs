@@ -1762,45 +1762,39 @@ fn substitute_against_stores(
     let mut parse_context = registry_ref.parse_context(&mut random_function_index);
     parse_context.in_quirks_mode = inputs.document.in_quirks_mode;
     let media_environment = inputs.media.environment();
-    let resolution_environment = prepare_var_resolution_environment(
+    let mut resolution_environment = prepare_var_resolution_environment(
         attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice()),
         functions.map_or(&[][..], |functions| functions.definitions.as_slice()),
         functions.map_or(0, |functions| functions.caller_scope),
         functions.map_or(&[][..], |functions| functions.visibilities.as_slice()),
     );
     let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
-    // A function definition whose declarations do not tokenize resolves nothing.
-    let resolution = match resolution_environment {
-        Some(mut resolution_environment) => {
-            // SAFETY: The stores are null or live while a record names their environments.
-            let (store, inheritance_store) = unsafe {
-                (
-                    store.cast::<CustomPropertyStore>().as_ref(),
-                    inheritance_store.cast::<CustomPropertyStore>().as_ref(),
-                )
-            };
-            let resolution_inputs = VarResolutionInputs {
-                store,
-                inheritance_store,
-                registry: Some(registry_ref),
-                parse_context: Some(&parse_context),
-                media_environment: Some(&media_environment),
-                attribute_names_are_ascii_case_insensitive: attributes
-                    .is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
-                style_query_inputs: inputs.style_query,
-            };
-            crate::css::custom_properties::resolve_vars(
-                &resolution_inputs,
-                property,
-                root_custom_property_name,
-                written.data(),
-                &mut resolution_environment,
-                style_query_references.as_deref_mut(),
-                None,
-            )
-        }
-        None => NativeVarResolution::NotHandled,
+    // SAFETY: The stores are null or live while a record names their environments.
+    let (store, inheritance_store) = unsafe {
+        (
+            store.cast::<CustomPropertyStore>().as_ref(),
+            inheritance_store.cast::<CustomPropertyStore>().as_ref(),
+        )
     };
+    let resolution_inputs = VarResolutionInputs {
+        store,
+        inheritance_store,
+        registry: Some(registry_ref),
+        parse_context: Some(&parse_context),
+        media_environment: Some(&media_environment),
+        attribute_names_are_ascii_case_insensitive: attributes
+            .is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
+        style_query_inputs: inputs.style_query,
+    };
+    let resolution = crate::css::custom_properties::resolve_vars(
+        &resolution_inputs,
+        property,
+        root_custom_property_name,
+        written.data(),
+        &mut resolution_environment,
+        style_query_references.as_deref_mut(),
+        None,
+    );
     // The substituted source parses as the C++ cascade parses it: without callbacks first,
     // then with the parse context's.
     let invalid = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);

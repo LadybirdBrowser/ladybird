@@ -205,15 +205,11 @@ pub extern "C" fn rust_descriptor_block_item(block: &FfiDescriptorBlock, index: 
 
 // https://drafts.csswg.org/cssom/#serialize-a-css-declaration-block
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_descriptor_block_serialize(block: &FfiDescriptorBlock, result: &mut usize) -> bool {
-    let Some(sink) = serialize_descriptors(&block.data()) else {
-        return false;
-    };
-    *result = sink_into_raw(sink);
-    true
+pub extern "C" fn rust_descriptor_block_serialize(block: &FfiDescriptorBlock) -> usize {
+    sink_into_raw(serialize_descriptors(&block.data()))
 }
 
-fn serialize_descriptors(data: &DescriptorBlockData) -> Option<TextSink> {
+fn serialize_descriptors(data: &DescriptorBlockData) -> TextSink {
     let mut sink = TextSink::new();
     for (index, descriptor) in data.descriptors.iter().enumerate() {
         if index != 0 {
@@ -224,15 +220,13 @@ fn serialize_descriptors(data: &DescriptorBlockData) -> Option<TextSink> {
         serialize_an_identifier(&mut sink, &StringUnits::Utf16(descriptor.name.units()));
         sink.push_ascii(": ");
         let mut value = TextSink::new();
-        if !serialize_style_value(&mut value, &descriptor.value, SerializationMode::Normal) {
-            return None;
-        }
+        serialize_style_value(&mut value, &descriptor.value, SerializationMode::Normal);
         if !value.is_ascii_whitespace() {
             sink.push_sink(&value);
         }
         sink.push_ascii(";");
     }
-    Some(sink)
+    sink
 }
 
 #[unsafe(no_mangle)]
@@ -349,7 +343,7 @@ mod tests {
         let value = unsafe { rust_descriptor_block_get(block, descriptor.id, descriptor.name) };
         assert_eq!(value, descriptor.value);
         assert_eq!(
-            serialize_descriptors(&block.data()).unwrap().into_utf16(),
+            serialize_descriptors(&block.data()).into_utf16(),
             "font-family: 文字; src: url(\"font.woff\");"
                 .encode_utf16()
                 .collect::<Vec<_>>()
