@@ -175,9 +175,9 @@ pub(crate) struct StyleRecordView<'a> {
     pub payloads: &'a [SharedPayload],
     pub base_payloads: &'a [SharedPayload],
     /// Always the base record's table: animation overlays store no table entries.
-    pub longhand_table: HostShared<ComputedLonghandTable>,
+    pub longhand_table: Option<&'a ComputedLonghandTable>,
     pub longhand_values: &'a [SharedPayload],
-    pub animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>,
+    pub animated_overlay: Option<&'a crate::css::animated_overlay::AnimatedOverlay>,
     pub pseudo_element_styles: u64,
     pub counter_style_environment_identity: u64,
     pub animation_overlay_identity: u64,
@@ -186,11 +186,9 @@ pub(crate) struct StyleRecordView<'a> {
 
 impl StyleRecordView<'_> {
     pub(crate) fn longhand_table_for_partial_drive(&self) -> ComputedLonghandTable {
-        let source = unsafe {
-            self.longhand_table
-                .as_ref()
-                .expect("a retained style record must carry a longhand table")
-        };
+        let source = self
+            .longhand_table
+            .expect("a retained style record must carry a longhand table");
         ComputedLonghandTable::copied_for_partial_drive(source)
     }
 }
@@ -3058,7 +3056,7 @@ impl ComputedGroupSets {
     /// Read dependencies from a retained record even if its original node has been restyled.
     pub(crate) fn record_current_color_dependencies(&self, record: FinalStyleRecordID) -> Option<(u32, [u64; 6])> {
         let view = self.style_record_view(record.raw())?;
-        let table = unsafe { view.longhand_table.as_ref()? };
+        let table = view.longhand_table?;
         Some((
             Self::specified_value_dependency_mask(table, retained_value_depends_on_current_color),
             Self::specified_value_dependency_properties(table, retained_value_depends_on_current_color)?,
@@ -3273,7 +3271,7 @@ impl ComputedGroupSets {
             || self
                 .assigned_style_record(node)
                 .and_then(|record| self.style_record_view(record.raw()))
-                .is_some_and(|view| !view.animated_overlay.is_null())
+                .is_some_and(|view| view.animated_overlay.is_some())
     }
 
     pub(super) fn node_inherited_group_swap_eligible(&self, node: StyleNodeID) -> bool {
@@ -3786,7 +3784,7 @@ impl ComputedGroupSets {
                     style_record,
                     self.sets[record.groups].payloads.as_ref(),
                     0_u64,
-                    HostShared::null(),
+                    None,
                     None,
                 )
             } else {
@@ -3796,7 +3794,7 @@ impl ComputedGroupSets {
                     overlay.base_style_record,
                     overlay.payloads.as_ref(),
                     overlay.source_identity,
-                    HostShared::new(std::ptr::from_ref(overlay.animated_overlay.as_ref())),
+                    Some(overlay.animated_overlay.as_ref()),
                     Some(overlay.dependency_flags),
                 )
             };
@@ -3812,7 +3810,9 @@ impl ComputedGroupSets {
         let retained_longhand_table = record
             .longhand_table
             .and_then(|identity| self.computed_longhand_tables.get_index(identity.0 as usize));
-        let longhand_table = retained_longhand_table.map_or(HostShared::null(), |table| table.table);
+        // SAFETY: A retained table holds a reference to its table for as long as the table set
+        //         holds the entry, which the view borrows.
+        let longhand_table = retained_longhand_table.and_then(|table| unsafe { table.table.as_ref() });
         let longhand_values = retained_longhand_table.map_or(&[][..], RetainedLonghandTable::value_view);
         Some(StyleRecordView {
             payloads,
@@ -4119,7 +4119,7 @@ mod tests {
         assert!(publication.transferred.table);
         let view = sets.style_record_view(publication.style_record_identity.raw()).unwrap();
         assert_eq!(view.payloads, payloads.as_slice());
-        assert_eq!(view.longhand_table, table);
+        assert_eq!(HostShared::from_option(view.longhand_table), table);
         // Interning took the caller's reference instead of retaining a second one, so each
         // component still has exactly one owner: the catalog.
         for (index, &payload) in payloads.iter().enumerate() {
@@ -4190,7 +4190,7 @@ mod tests {
         assert!(!republished.transferred.table);
         let view = sets.style_record_view(republished.style_record_identity.raw()).unwrap();
         assert_eq!(view.payloads, payloads.as_slice());
-        assert_eq!(view.longhand_table, table);
+        assert_eq!(HostShared::from_option(view.longhand_table), table);
         assert_eq!(longhand_table_owners(table.as_ptr()), 1);
         // The catalog kept the components it already held, so the caller releases its own.
         for (index, &payload) in equal_payloads.iter().enumerate() {

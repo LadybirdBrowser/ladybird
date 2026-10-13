@@ -86,6 +86,11 @@ impl<T> HostShared<T> {
         Self(pointer)
     }
 
+    /// The address of `value`, or null.
+    pub(crate) fn from_option(value: Option<&T>) -> Self {
+        Self(value.map_or(std::ptr::null(), std::ptr::from_ref))
+    }
+
     pub(crate) const fn as_ptr(self) -> *const T {
         self.0
     }

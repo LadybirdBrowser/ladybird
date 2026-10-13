@@ -997,8 +997,7 @@ impl RetainedState {
     ) -> Option<&crate::css::computed_longhand_table::ComputedLonghandTable> {
         let style_record = computed::FinalStyleRecordID::from_raw(raw_style_record)?;
         let view = self.computed_group_sets.style_record_view(style_record.raw())?;
-        // SAFETY: The record is live, and shares its table for as long as it is.
-        unsafe { view.longhand_table.as_ref() }
+        view.longhand_table
     }
 
     pub(super) fn published_style_record_view(

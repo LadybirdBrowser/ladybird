@@ -227,7 +227,7 @@ impl RetainedState {
             views[index]
                 .1
                 .as_ref()
-                .and_then(|view| unsafe { view.longhand_table.as_ref() })
+                .and_then(|view| view.longhand_table)
                 .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size)
         };
         let default_size = CssPixels::from_integer(13).raw_value();
@@ -396,15 +396,14 @@ impl RetainedState {
             debug_assert!(false, "the record being driven again has a view");
             return Ok(PartialDrive::DriverInputMoved);
         };
-        if !view.animated_overlay.is_null() {
+        if view.animated_overlay.is_some() {
             self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
         // A record holding no table has no slots to copy the unselected properties from, and one
         // under display:none may have kept values its moved ancestors no longer pass on: the caller
         // drives either in full.
-        let Some(old_table) =
-            (unsafe { view.longhand_table.as_ref() }).filter(|_| view.dependency_flags & IN_DISPLAY_NONE_SUBTREE == 0)
+        let Some(old_table) = (view.longhand_table).filter(|_| view.dependency_flags & IN_DISPLAY_NONE_SUBTREE == 0)
         else {
             return Ok(PartialDrive::DriverInputMoved);
         };
@@ -420,9 +419,11 @@ impl RetainedState {
                     return Err(Unanswered::Refused);
                 };
                 // A child inherits what the parent's animations sampled over its record.
-                Some(parent_snapshot_for_style_record(self, record.raw(), unsafe {
-                    view.animated_overlay.as_ref()
-                }))
+                Some(parent_snapshot_for_style_record(
+                    self,
+                    record.raw(),
+                    view.animated_overlay,
+                ))
             }
         };
         let font = unsafe {
@@ -606,9 +607,9 @@ impl RetainedState {
         while let Some(current) = ancestor
             && let Some(record) = self.computed_group_sets.assigned_style_record(current)
             && let Some(view) = self.computed_group_sets.style_record_view(record.raw())
-            && let Some(table) = unsafe { view.longhand_table.as_ref() }
+            && let Some(table) = view.longhand_table
         {
-            let display = effective_display(table, unsafe { view.animated_overlay.as_ref() });
+            let display = effective_display(table, view.animated_overlay);
             if !display.is_contents() {
                 parent_display = Some(display);
                 break;
@@ -734,12 +735,12 @@ impl RetainedState {
         });
         let old_table = match &old_view {
             Some(view) => {
-                if !view.animated_overlay.is_null() {
+                if view.animated_overlay.is_some() {
                     self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return Err(Unanswered::Refused);
                 }
                 // A record holding no table is driven from a fresh one, like a first record.
-                unsafe { view.longhand_table.as_ref() }
+                view.longhand_table
             }
             None => None,
         };
@@ -791,14 +792,14 @@ impl RetainedState {
             };
         let snapshot = match &parent_view {
             Some(parent_view) => {
-                let Some(parent_table) = (unsafe { parent_view.longhand_table.as_ref() }) else {
+                let Some(parent_table) = parent_view.longhand_table else {
                     debug_assert!(false, "an assigned parent record has a longhand table");
                     self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
                 Some(crate::css::style_compute::ParentSnapshot::new(
                     parent_table,
-                    unsafe { parent_view.animated_overlay.as_ref() },
+                    parent_view.animated_overlay,
                     parent_font_metrics_depend_on_viewport_metrics,
                 ))
             }
@@ -811,10 +812,10 @@ impl RetainedState {
                 .retained_highlight_inheritance_parent_style_record(target.node(), target.pseudo_kind())
                 .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
                 .and_then(|view| {
-                    let table = unsafe { view.longhand_table.as_ref() }?;
+                    let table = view.longhand_table?;
                     Some(crate::css::style_compute::ParentSnapshot::new(
                         table,
-                        unsafe { view.animated_overlay.as_ref() },
+                        view.animated_overlay,
                         view.dependency_flags & (1 << 1) != 0,
                     ))
                 });

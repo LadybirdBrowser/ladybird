@@ -245,11 +245,10 @@ impl StyleEngine {
     /// Those of `properties` that a box with the style record `record` takes from its parent rather than declares, or
     /// none where the engine holds no such record.
     pub(crate) fn properties_inherited_by_record(&self, record: u64, properties: &[u16]) -> Option<SmallVec<[u16; 8]>> {
-        // SAFETY: A record's longhand table lives as long as the record, which the engine holds while it views it.
         let table = self
             .computed_group_sets
             .style_record_view(record)
-            .and_then(|view| unsafe { view.longhand_table.as_ref() })?;
+            .and_then(|view| view.longhand_table)?;
         Some(
             properties
                 .iter()
@@ -782,8 +781,7 @@ impl StyleEngine {
                 else {
                     continue;
                 };
-                // SAFETY: A live record's table lives as long as the record.
-                let Some(table) = (unsafe { view.longhand_table.as_ref() }) else {
+                let Some(table) = view.longhand_table else {
                     continue;
                 };
                 let inherits: SmallVec<[u16; 2]> = inherited

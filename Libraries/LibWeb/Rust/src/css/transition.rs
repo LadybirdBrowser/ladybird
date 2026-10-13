@@ -370,8 +370,7 @@ pub(crate) fn records_compute_differently(
 ) -> bool {
     let value = |record| {
         let view = engine.style_record_view(record)?;
-        // SAFETY: A live record's table lives as long as the record.
-        let table = unsafe { view.longhand_table.as_ref() }?;
+        let table = view.longhand_table?;
         Some(table.get(property_id)?.pointer())
     };
     match (value(first), value(second)) {
@@ -461,10 +460,9 @@ impl TransitionDecision {
         reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         existing: &[FfiExistingTransition],
     ) -> Vec<FfiTransitionAction> {
-        // SAFETY: A live record's table lives as long as the record.
         let Some(after_table) = engine
             .style_record_view(self.after)
-            .and_then(|after| unsafe { after.longhand_table.as_ref() })
+            .and_then(|after| after.longhand_table)
         else {
             debug_assert!(false, "the records of a transition step carry longhand tables");
             return Vec::new();
@@ -507,15 +505,12 @@ impl TransitionDecision {
             debug_assert!(false, "the records a transition step decides over remain live");
             return Vec::new();
         };
-        // SAFETY: A live record's table and overlay live as long as the record.
-        let (Some(before_table), before_overlay, Some(after_table), record_after_overlay) = (unsafe {
-            (
-                before.longhand_table.as_ref(),
-                before.animated_overlay.as_ref(),
-                after.longhand_table.as_ref(),
-                after.animated_overlay.as_ref(),
-            )
-        }) else {
+        let (Some(before_table), before_overlay, Some(after_table), record_after_overlay) = (
+            before.longhand_table,
+            before.animated_overlay,
+            after.longhand_table,
+            after.animated_overlay,
+        ) else {
             debug_assert!(false, "the records of a transition step carry longhand tables");
             return Vec::new();
         };
@@ -787,12 +782,11 @@ impl RowTransitions {
         let after = row.new_style_record;
         let before_view = engine.style_record_view(before).ok_or("a record that is gone")?;
         let after_view = engine.style_record_view(after).ok_or("a record that is gone")?;
-        // SAFETY: A live record's table lives as long as the record.
-        let after_table = unsafe { after_view.longhand_table.as_ref() }.ok_or("a record without a table")?;
+        let after_table = after_view.longhand_table.ok_or("a record without a table")?;
         if before_view.dependency_flags & crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE != 0 {
             return Err("a style under display: none");
         }
-        if !after_view.animated_overlay.is_null() {
+        if after_view.animated_overlay.is_some() {
             return Err("an animated record");
         }
         // A declaration whose delay and duration are each the single value 0s starts nothing, so it matters only to an

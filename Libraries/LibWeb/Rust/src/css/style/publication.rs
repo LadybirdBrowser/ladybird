@@ -742,8 +742,7 @@ impl RetainedState {
             //     needs their unadjusted values rebuilt before the host composes it again.
             || (composes_animations
                 && self.computed_group_sets.style_record_view(old_style_record.raw()).is_some_and(|view| {
-                    // SAFETY: The installed record keeps its overlay live.
-                    unsafe { view.animated_overlay.as_ref() }.is_some_and(|overlay| {
+                    view.animated_overlay.is_some_and(|overlay| {
                         overlay.entries().iter().any(|entry| {
                             entry.post_compute_adjustment
                                 || !property_computes_in_remaining_phase(entry.property)
@@ -2089,7 +2088,7 @@ impl RetainedState {
     pub(super) fn record_declares_animations(&self, record: u64) -> bool {
         self.computed_group_sets
             .style_record_view(record)
-            .and_then(|view| unsafe { view.longhand_table.as_ref() })
+            .and_then(|view| view.longhand_table)
             .is_some_and(crate::css::style_compute::table_declares_css_animations)
     }
 
@@ -2158,7 +2157,7 @@ impl RetainedState {
     pub(super) fn record_holds_an_animation_overlay(&self, record: computed::FinalStyleRecordID) -> bool {
         self.computed_group_sets
             .style_record_view(record.raw())
-            .is_none_or(|view| !view.animated_overlay.is_null())
+            .is_none_or(|view| view.animated_overlay.is_some())
     }
 
     /// Whether a record's transition declarations name a longhand a change of which starts a
@@ -2166,7 +2165,7 @@ impl RetainedState {
     pub(super) fn record_declares_transitions(&self, record: computed::FinalStyleRecordID) -> bool {
         self.computed_group_sets
             .style_record_view(record.raw())
-            .and_then(|view| unsafe { view.longhand_table.as_ref() })
+            .and_then(|view| view.longhand_table)
             .is_some_and(crate::css::style_compute::has_active_transition_properties)
     }
 
@@ -2763,7 +2762,7 @@ impl RetainedState {
         state: CascadeStateID,
     ) -> Option<ColdRecordParent> {
         let view = self.computed_group_sets.style_record_view(parent_record.raw())?;
-        if !view.animated_overlay.is_null() {
+        if view.animated_overlay.is_some() {
             return None;
         }
         let dependency_flags = view.dependency_flags;
@@ -2791,7 +2790,7 @@ impl RetainedState {
         while let Some(current) = ancestor {
             let record = self.computed_group_sets.assigned_style_record(current)?;
             let view = self.computed_group_sets.style_record_view(record.raw())?;
-            let table = unsafe { view.longhand_table.as_ref() }?;
+            let table = view.longhand_table?;
             let display = crate::css::style_compute::effective_display(table, None);
             // C++ styles the children of a display:none element on demand, past the engine's
             // view of the parent, so no first record is computed under one.

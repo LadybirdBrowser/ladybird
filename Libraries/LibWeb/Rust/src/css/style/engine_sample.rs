@@ -20,7 +20,7 @@ use crate::css::computed_value_types::{
 };
 use crate::css::computed_values::InheritedBoxValues;
 use crate::css::css_pixels::CssPixels;
-use crate::css::host_shared::SharedPayload;
+use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::property_metadata::property_id as prop;
 use crate::css::style_compute::{
     FfiAnimationLengthContexts, FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiHostAnimationSample,
@@ -389,8 +389,7 @@ impl super::StyleEngine {
         }
 
         let view = self.computed_group_sets.style_record_view(record).ok_or(NeedsHost)?;
-        // SAFETY: The record holds its table and overlay, and the host's install pins the record.
-        let mut overlay = unsafe { view.animated_overlay.as_ref() }.cloned().unwrap_or_default();
+        let mut overlay = view.animated_overlay.cloned().unwrap_or_default();
         for &property in ended_properties
             .iter()
             .filter(|property| !composed_properties.contains(property))
@@ -510,11 +509,12 @@ impl super::StyleEngine {
         overlay: &AnimatedOverlay,
         bounds: super::style_invalidation::SampleBounds,
     ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
-        let table = self
-            .computed_group_sets
-            .style_record_view(record)
-            .ok_or(NeedsHost)?
-            .longhand_table;
+        let table = HostShared::from_option(
+            self.computed_group_sets
+                .style_record_view(record)
+                .ok_or(NeedsHost)?
+                .longhand_table,
+        );
         // What the host adjusts after it samples, and an animated color scheme, are the host's to compose.
         let facts = self.computed_group_sets.adjustment_facts(node);
         if overlay.entries().iter().any(|entry| {
@@ -597,11 +597,12 @@ impl super::StyleEngine {
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         timeline_samples: super::animations::AnimationTimelineSamples<'_>,
     ) -> Result<crate::css::style_compute::FfiHostAnimationSampleResult, NeedsHost> {
-        let table = self
-            .computed_group_sets
-            .style_record_view(record)
-            .ok_or(NeedsHost)?
-            .longhand_table;
+        let table = HostShared::from_option(
+            self.computed_group_sets
+                .style_record_view(record)
+                .ok_or(NeedsHost)?
+                .longhand_table,
+        );
         // A keyframe substitutes against the custom properties of the element and of its parent, as the host's
         // sample does, from the stores the engine holds for their environments throughout the sample.
         let inheritance_parent = self.tree.inheritance_parent(node);

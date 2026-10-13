@@ -117,7 +117,7 @@ impl LayoutStyle {
             .expect("layout styles have every computed group");
         let mut style = Self {
             payloads,
-            longhand_table: view.longhand_table,
+            longhand_table: HostShared::from_option(view.longhand_table),
             changed: false,
         };
         for (index, payload) in style.payloads.iter().copied().enumerate() {
