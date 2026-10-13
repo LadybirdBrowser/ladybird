@@ -9,57 +9,7 @@
 
 /// AK's csprng(): fills `buffer` from the best CSPRNG of the platform.
 fn csprng(buffer: &mut [u8]) {
-    #[cfg(any(
-        target_vendor = "apple",
-        target_os = "freebsd",
-        target_os = "openbsd",
-        target_os = "netbsd"
-    ))]
-    {
-        // SAFETY: The buffer is valid for writes of its whole length.
-        unsafe { libc::arc4random_buf(buffer.as_mut_ptr().cast(), buffer.len()) };
-    }
-
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    {
-        let mut remaining = buffer;
-        while !remaining.is_empty() {
-            // SAFETY: The buffer is valid for writes of its whole length.
-            let result = unsafe { libc::getrandom(remaining.as_mut_ptr().cast(), remaining.len(), 0) };
-            // EINTR can be handled safely by just trying again. Others are fatal
-            if result == -1 {
-                let error = std::io::Error::last_os_error();
-                assert!(error.raw_os_error() == Some(libc::EINTR), "getrandom failed: {error}");
-                continue;
-            }
-            remaining = &mut remaining[result as usize..];
-        }
-    }
-
-    #[cfg(windows)]
-    {
-        // SAFETY: The buffer is valid for writes of its whole length. ProcessPrng is documented to always succeed.
-        unsafe { ProcessPrng(buffer.as_mut_ptr(), buffer.len()) };
-    }
-
-    #[cfg(not(any(
-        target_vendor = "apple",
-        target_os = "freebsd",
-        target_os = "openbsd",
-        target_os = "netbsd",
-        target_os = "linux",
-        target_os = "android",
-        windows
-    )))]
-    compile_error!("This build target doesn't have a CSPRNG interface specified in random.rs.");
-}
-
-// Not every Windows SDK has an import library for bcryptprimitives.dll, so rustc generates one, as the standard library
-// does for its own use of ProcessPrng.
-#[cfg(windows)]
-#[link(name = "bcryptprimitives", kind = "raw-dylib")]
-unsafe extern "system" {
-    fn ProcessPrng(data: *mut u8, length: usize) -> i32;
+    getrandom::fill(buffer).expect("the platform CSPRNG fills buffers");
 }
 
 /// AK::get_random<u64>().
