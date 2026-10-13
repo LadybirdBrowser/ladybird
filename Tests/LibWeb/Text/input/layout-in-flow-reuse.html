@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    .scenario { display: flow-root; width: 200px; }
+    li { position: relative; height: 20px; list-style: none; }
+    .toggle { position: absolute; left: 0; top: 0; width: 10px; height: 10px; }
+    p { margin: 4px 0; }
+    .float { float: left; width: 20px; height: 20px; }
+    .escaping { position: absolute; right: 0; top: 0; width: 5px; height: 5px; }
+</style>
+<div class="scenario" id="list"><ul id="ul"><li id="li1"><div class="toggle"></div>one</li><li id="li2"><div class="toggle"></div>two</li><li id="li3"><div class="toggle"></div>three</li><li id="li4"><div class="toggle"></div>four</li></ul></div>
+<div class="scenario" id="text"><p id="p1">alpha</p><p id="p2">beta</p><p id="p3">gamma</p><p id="p4">delta</p></div>
+<div class="scenario" id="margins"><div id="m1">first</div><div id="m2">second</div><div id="m3">third</div></div>
+<div class="scenario" id="abspos-scenario" style="position: relative"><div id="e1">first</div><div id="e2">second<div class="escaping" id="escaping"></div></div><div id="e3">third</div></div>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "removing the first list item moves the rest",
+                mutate: () => {
+                    li1.remove();
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#list.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>.toggle/block REUSE SUBTREE
+                            BlockContainer<DIV>.toggle/block REUSE SUBTREE
+                            BlockContainer<DIV>.toggle/block REUSE SUBTREE
+                          BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
+                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(li4.getBoundingClientRect().top, 50, "last item top");
+                    equal(li4.querySelector(".toggle").getBoundingClientRect().top, 50, "last item toggle top");
+                },
+            },
+            {
+                name: "editing one paragraph moves the following ones",
+                mutate: () => {
+                    p3.style.width = "20px";
+                    p3.firstChild.data = "gamma gamma gamma";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#list.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#text.scenario/block RUN (cache=miss)
+                          BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
+                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(p4.getBoundingClientRect().top - text.getBoundingClientRect().top, 66, "last paragraph top");
+                },
+            },
+            {
+                name: "a changed margin before a box makes it lay out again",
+                mutate: () => {
+                    m1.style.marginBottom = "7px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#list.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#margins.scenario/block RUN (cache=miss)
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
+                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(m3.getBoundingClientRect().top - margins.getBoundingClientRect().top, 27, "last box top");
+                },
+            },
+            {
+                name: "a float before boxes makes them lay out again",
+                mutate: () => {
+                    const float = document.createElement("div");
+                    float.className = "float";
+                    margins.insertBefore(float, m1);
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#list.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#margins.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>.float/block RUN (cache=miss)
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
+                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                `,
+            },
+            {
+                name: "a box with an abspos descendant positioned by an ancestor is laid out again",
+                mutate: () => {
+                    e1.style.height = "30px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#list.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#abspos-scenario.scenario/block RUN (cache=miss)
+                          BlockContainer<DIV>#escaping.escaping/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    equal(escaping.getBoundingClientRect().top - document.getElementById("abspos-scenario").getBoundingClientRect().top, 0, "escaping abspos top");
+                },
+            },
+        ],
+    });
+</script>
