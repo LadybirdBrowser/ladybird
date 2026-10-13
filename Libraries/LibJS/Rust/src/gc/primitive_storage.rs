@@ -42,8 +42,8 @@ impl ZeroFillNewBytes {
 /// reserves the cage on the first call, which the VM makes when it is created.
 pub fn cage_base() -> usize {
     static CAGE_BASE: OnceLock<usize> = OnceLock::new();
-    // SAFETY: The function has no preconditions; it reserves the cage once and then returns its address.
-    *CAGE_BASE.get_or_init(|| unsafe { capi::gc_primitive_storage_cage_base() })
+    // NB: The function reserves the cage once and then returns its address.
+    *CAGE_BASE.get_or_init(|| capi::gc_primitive_storage_cage_base())
 }
 
 fn address_in_cage(offset: usize) -> *mut u8 {
@@ -257,23 +257,19 @@ impl ForeignPrimitiveStorage {
     }
 
     pub fn is_valid(self) -> bool {
-        // SAFETY: Any handle may be queried.
-        unsafe { capi::gc_primitive_storage_is_valid(self.handle) }
+        capi::gc_primitive_storage_is_valid(self.handle)
     }
 
     pub fn offset(self) -> usize {
-        // SAFETY: Any handle may be queried.
-        unsafe { capi::gc_primitive_storage_offset(self.handle) }
+        capi::gc_primitive_storage_offset(self.handle)
     }
 
     pub fn size(self) -> usize {
-        // SAFETY: Any handle may be queried.
-        unsafe { capi::gc_primitive_storage_size(self.handle) }
+        capi::gc_primitive_storage_size(self.handle)
     }
 
     pub fn capacity(self) -> usize {
-        // SAFETY: Any handle may be queried.
-        unsafe { capi::gc_primitive_storage_capacity(self.handle) }
+        capi::gc_primitive_storage_capacity(self.handle)
     }
 
     /// The first byte, or null if the handle names no storage.

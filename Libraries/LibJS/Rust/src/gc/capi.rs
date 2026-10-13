@@ -81,8 +81,8 @@ pub type GCGatherRootsCallback = unsafe extern "C" fn(context: *mut c_void, root
 
 unsafe extern "C" {
     pub fn gc_get_layout(layout: *mut GCLayout);
-    pub fn gc_heap_region_base() -> usize;
-    pub fn gc_primitive_storage_cage_base() -> usize;
+    pub safe fn gc_heap_region_base() -> usize;
+    pub safe fn gc_primitive_storage_cage_base() -> usize;
 
     pub fn gc_heap_create(
         gather_roots: GCGatherRootsCallback,
@@ -173,11 +173,12 @@ unsafe extern "C" {
         out_layout: *mut GCPrimitiveStorageLayout,
     ) -> bool;
     pub fn gc_primitive_storage_free(handle: GCPrimitiveStorageHandle);
-    pub fn gc_primitive_storage_is_valid(handle: GCPrimitiveStorageHandle) -> bool;
-    pub fn gc_primitive_storage_offset(handle: GCPrimitiveStorageHandle) -> usize;
-    pub fn gc_primitive_storage_size(handle: GCPrimitiveStorageHandle) -> usize;
-    pub fn gc_primitive_storage_capacity(handle: GCPrimitiveStorageHandle) -> usize;
-    pub fn gc_primitive_storage_committed_size(handle: GCPrimitiveStorageHandle) -> usize;
+    // NB: LibGC checks the handles it is queried with, so any handle may be queried.
+    pub safe fn gc_primitive_storage_is_valid(handle: GCPrimitiveStorageHandle) -> bool;
+    pub safe fn gc_primitive_storage_offset(handle: GCPrimitiveStorageHandle) -> usize;
+    pub safe fn gc_primitive_storage_size(handle: GCPrimitiveStorageHandle) -> usize;
+    pub safe fn gc_primitive_storage_capacity(handle: GCPrimitiveStorageHandle) -> usize;
+    pub safe fn gc_primitive_storage_committed_size(handle: GCPrimitiveStorageHandle) -> usize;
     pub fn gc_primitive_storage_data(handle: GCPrimitiveStorageHandle) -> *mut u8;
 
     pub fn gc_shared_memory_create(size: usize, out_fd: *mut c_int) -> bool;
