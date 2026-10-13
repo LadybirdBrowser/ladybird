@@ -2725,9 +2725,8 @@ OwnPtr<CanonicalTraversable::HistoryOperation> CanonicalTraversable::take_histor
 void CanonicalTraversable::report_history_operation_completion(HistoryOperation& operation, Optional<i32> committed_step)
 {
     if (committed_step.has_value()) {
-        if (auto view = this->view(); view.has_value()) {
-            view->set_url(m_session_history.current_entry().url);
-        }
+        if (auto view = this->view(); view.has_value())
+            view->did_commit_history_step();
     }
 
     // The step of the entry the requesting page's operation targets: the committed step, but for a created child's
