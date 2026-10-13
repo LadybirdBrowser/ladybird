@@ -32,10 +32,12 @@ from Generators.libweb_bindings.rust_types import rust_parameter_type
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.wrappers import wrapper_name
 from Utils.utils import title_case_to_snake_case
+from Utils.webidl_parser import Constructor
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
+from Utils.webidl_parser import OperationParameter
 
 RUST_KEYWORDS = {
     "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn", "for",
@@ -134,8 +136,6 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
     if len(interface.constructors) > 1:
         fail("it has more than one constructor")
     for constructor in interface.constructors:
-        if constructor.parameters:
-            fail("its constructor has parameters")
         if constructor.extended_attributes:
             fail(
                 "the Rust bindings do not handle the extended attributes "
@@ -170,14 +170,8 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
             fail(f"its attribute {attribute.name} is not readonly")
         check_type_is_supported(attribute.type, context, f"{interface.name}.{attribute.name}")
 
-    for name, operations in operation_overload_sets(interface).items():
-        if len(operations) > 1:
-            fail(f"its operation {name} is overloaded")
-        operation = operations[0]
-        what = f"{interface.name}.{name}()"
-        check_type_is_supported(operation.return_type, context, what)
-        check_dictionaries_are_local(operation.return_type, what)
-        for parameter in operation.parameters:
+    def check_parameters(what: str, parameters: List[OperationParameter]) -> None:
+        for parameter in parameters:
             if parameter.variadic:
                 fail(f"{what} has a variadic parameter")
             parameter_what = f"the parameter {parameter.name} of {what}"
@@ -187,10 +181,22 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
             check_type_is_supported(parameter.type, context, parameter_what)
             check_dictionaries_are_local(parameter.type, parameter_what)
             rust_conversion_to_idl_value(
-                parameter.type, parameter.extended_attributes, "value", context, parameter_what
+                parameter.type, parameter.extended_attributes, "value", parameter.name, context, parameter_what
             )
             if parameter.optional and parameter.default_value is not None:
                 rust_default_value(parameter, context, parameter_what)
+
+    for constructor in interface.constructors:
+        check_parameters(constructor_description(interface), constructor.parameters)
+
+    for name, operations in operation_overload_sets(interface).items():
+        if len(operations) > 1:
+            fail(f"its operation {name} is overloaded")
+        operation = operations[0]
+        what = f"{interface.name}.{name}()"
+        check_type_is_supported(operation.return_type, context, what)
+        check_dictionaries_are_local(operation.return_type, what)
+        check_parameters(what, operation.parameters)
 
     for dictionary in module.dictionaries:
         if dictionary.parent_name:
@@ -394,18 +400,47 @@ JSObject* web_bindings_ensure_web_prototype(void* realm, u16 interface_name)
 # Rust side
 
 
-def write_parameter_conversions(out: TextIO, interface: Interface, operation_name: str, parameters, context) -> None:
+def constructor_description(interface: Interface) -> str:
+    return f"the constructor of {interface.name}"
+
+
+def write_argument_count_check(out: TextIO, function_name: str, required_argument_count: int) -> None:
+    """Throws the errors of the C++ bindings for a call with too few arguments, which name the operation, or the
+    interface for a constructor."""
+    if required_argument_count == 1:
+        out.write(
+            f"""        if vm.argument_count() < 1 {{
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::BadArgCountOne, &[&"{function_name}"]);
+        }}
+"""
+        )
+    elif required_argument_count > 1:
+        out.write(
+            f"""        if vm.argument_count() < {required_argument_count} {{
+            return vm.throw_completion(
+                ErrorKind::TypeError,
+                ErrorType::BadArgCountMany,
+                &[&"{function_name}", &{required_argument_count}],
+            );
+        }}
+"""
+        )
+
+
+def write_parameter_conversions(
+    out: TextIO, what: str, parameters: List[OperationParameter], context: GenerationContext
+) -> None:
     for index, parameter in enumerate(parameters):
-        what = f"the parameter {parameter.name} of {interface.name}.{operation_name}()"
+        parameter_what = f"the parameter {parameter.name} of {what}"
         name = rust_local_name(parameter.name)
         conversion = rust_conversion_to_idl_value(
-            parameter.type, parameter.extended_attributes, f"argument{index}", context, what
+            parameter.type, parameter.extended_attributes, f"argument{index}", parameter.name, context, parameter_what
         )
         out.write(f"        let argument{index} = vm.argument({index});\n")
         if parameter.optional and parameter.default_value is not None:
             out.write(
                 f"""        let {name} = if argument{index}.is_undefined() {{
-            {rust_default_value(parameter, context, what)}
+            {rust_default_value(parameter, context, parameter_what)}
         }} else {{
             {conversion}?
         }};
@@ -426,9 +461,17 @@ def write_parameter_conversions(out: TextIO, interface: Interface, operation_nam
 
 def implementation_method_signatures(context: GenerationContext, interface: Interface) -> List[str]:
     """The methods the implementation of the interface defines, which the bindings call."""
+
+    def parameter_list(what: str, parameters: List[OperationParameter]) -> str:
+        return "".join(
+            f", {rust_identifier(parameter.name)}: {rust_parameter_type(parameter, context, what)}"
+            for parameter in parameters
+        )
+
     signatures = []
-    if interface.constructors:
-        signatures.append("fn construct(cx: &mut CallContext) -> WebIdlResult<Self>")
+    for constructor in interface.constructors:
+        parameters = parameter_list(constructor_description(interface), constructor.parameters)
+        signatures.append(f"fn construct(cx: &mut CallContext{parameters}) -> WebIdlResult<Self>")
     for attribute in interface.regular_attributes:
         what = f"{interface.name}.{attribute.name}"
         signatures.append(
@@ -438,10 +481,7 @@ def implementation_method_signatures(context: GenerationContext, interface: Inte
     for name, operations in operation_overload_sets(interface).items():
         operation = operations[0]
         what = f"{interface.name}.{name}()"
-        parameters = "".join(
-            f", {rust_identifier(parameter.name)}: {rust_parameter_type(parameter, context, what)}"
-            for parameter in operation.parameters
-        )
+        parameters = parameter_list(what, operation.parameters)
         signatures.append(
             f"fn {rust_identifier(name)}(&self, cx: &mut CallContext{parameters}) -> "
             f"WebIdlResult<{rust_type(operation.return_type, context, what)}>"
@@ -475,7 +515,7 @@ def write_rust_interface(
     }};
 
     use crate::bindings::conversions::{{
-        BufferSourceRules, ToJs, UsvString, to_dom_string, to_typed_array, to_usv_string,
+        BufferSourceRules, ToJs, UsvString, to_dom_string, to_float, to_typed_array, to_usv_string,
     }};
     use crate::bindings::interface::{{
         construct_arguments, create_dictionary_object, create_wrapper, define_attribute,
@@ -543,28 +583,10 @@ def write_rust_interface(
         let (implementation, mut cx) = this_implementation(vm)?;
 """
         )
-        required_argument_count = operation_length(operation)
-        if required_argument_count == 1:
-            out.write(
-                f"""        if vm.argument_count() < 1 {{
-            return vm.throw_completion(ErrorKind::TypeError, ErrorType::BadArgCountOne, &[&"{name}"]);
-        }}
-"""
-            )
-        elif required_argument_count > 1:
-            out.write(
-                f"""        if vm.argument_count() < {required_argument_count} {{
-            return vm.throw_completion(
-                ErrorKind::TypeError,
-                ErrorType::BadArgCountMany,
-                &[&"{name}", &{required_argument_count}],
-            );
-        }}
-"""
-            )
+        write_argument_count_check(out, name, operation_length(operation))
         if operation.parameters:
             out.write("        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());\n")
-            write_parameter_conversions(out, interface, name, operation.parameters, context)
+            write_parameter_conversions(out, f"{interface.name}.{name}()", operation.parameters, context)
             out.write("        drop(type_error_realm_scope);\n")
         arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
         out.write(
@@ -622,11 +644,12 @@ def write_rust_interface(
 """
     )
 
+    for constructor in interface.constructors:
+        write_rust_constructor(out, context, interface, constructor)
     if interface.constructors:
         out.write(
             f"""
-    /// The steps of {interface.constructor_class}::construct() of LibWeb's C++ bindings, which internally create a
-    /// new object implementing the interface, https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
+    /// {interface.constructor_class}::construct() of LibWeb's C++ bindings.
     ///
     /// # Safety
     ///
@@ -639,19 +662,39 @@ def write_rust_interface(
     ) -> RawNativeFunctionResult {{
         // SAFETY: The caller passes the VM and the new target.
         let (vm, new_target) = unsafe {{ construct_arguments(vm, new_target) }};
-        let construct = || -> ThrowCompletionOr<Value> {{
-            let realm = vm.current_realm().expect("a construction runs in a realm");
-            let prototype = prototype_from_new_target(vm, new_target, INTERFACE_NAME)?;
-            let mut cx = CallContext::new(vm, realm);
-            let implementation = Implementation::construct(&mut cx).map_err(|exception| exception.throw(vm))?;
-            let implementation = CELL_CLASS.allocate(vm, implementation);
-            Ok(Value::from_object(create_wrapper(vm, realm, wrapper_class(), prototype, implementation)))
-        }};
-        RawNativeFunctionResult::from_completion(construct())
+        RawNativeFunctionResult::from_completion(construct(vm, new_target))
     }}
 """
         )
     out.write("}\n")
+
+
+def write_rust_constructor(
+    out: TextIO, context: GenerationContext, interface: Interface, constructor: Constructor
+) -> None:
+    """The steps of a constructor in the order of the C++ bindings: the prototype of the new object is read from the
+    new target before the arguments are counted and converted, and the conversions throw in the current realm."""
+    out.write(
+        """
+    /// The constructor steps of the interface, which internally create a new object implementing the interface,
+    /// https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
+    fn construct(vm: &Vm, new_target: Gc<Object>) -> ThrowCompletionOr<Value> {
+        let realm = vm.current_realm().expect("a construction runs in a realm");
+        let prototype = prototype_from_new_target(vm, new_target, INTERFACE_NAME)?;
+"""
+    )
+    write_argument_count_check(out, interface.name, parameter_list_length(constructor.parameters))
+    write_parameter_conversions(out, constructor_description(interface), constructor.parameters, context)
+    arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in constructor.parameters)
+    out.write(
+        f"""        let mut cx = CallContext::new(vm, realm);
+        let implementation =
+            Implementation::construct(&mut cx{arguments}).map_err(|exception| exception.throw(vm))?;
+        let implementation = CELL_CLASS.allocate(vm, implementation);
+        Ok(Value::from_object(create_wrapper(vm, realm, wrapper_class(), prototype, implementation)))
+    }}
+"""
+    )
 
 
 def constructor_length(interface: Interface) -> int:
