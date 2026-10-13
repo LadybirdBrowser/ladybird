@@ -32,6 +32,7 @@ define_class_ids! {
     Accessor,
     Shape,
     PrototypeChainValidity,
+    Fuse,
     DescriptorArray,
     ValueStorage,
     PrivateEnvironment,
