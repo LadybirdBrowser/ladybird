@@ -91,7 +91,8 @@ class DefinitionUsage:
                 continue
             members = rust_members(interface)
             for attribute in members.attributes:
-                self._name_for_rust(attribute.attribute.type, from_js=False, to_js=True)
+                has_setter = attribute.setter_method is not None
+                self._name_for_rust(attribute.attribute.type, from_js=has_setter, to_js=True)
             for operation_set in members.operation_sets:
                 for overload in operation_set.overloads:
                     self._name_for_rust(overload.operation.return_type, from_js=False, to_js=True)

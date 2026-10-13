@@ -57,9 +57,9 @@ class UnsupportedByRustBindings(Exception):
     pass
 
 
-def rust_integer_literal(literal: Optional[str], idl_type_name: str) -> Optional[str]:
-    """The Rust literal of the value of an integer token of the IDL, or None if the token is not one or its value is
-    not one of the integer type."""
+def idl_integer_value(literal: Optional[str], idl_type_name: str) -> Optional[int]:
+    """The value of an integer token of the IDL, or None if the token is not one or its value is not one of the
+    integer type."""
     if literal is None or not INTEGER_LITERAL.fullmatch(literal):
         return None
     digits = literal.removeprefix("-")
@@ -78,7 +78,13 @@ def rust_integer_literal(literal: Optional[str], idl_type_name: str) -> Optional
         lowest, highest = -(2 ** (bits - 1)), 2 ** (bits - 1) - 1
     if not lowest <= integer <= highest:
         return None
-    return f"{integer}_{rust_integer_type}"
+    return integer
+
+
+def rust_integer_literal(literal: Optional[str], idl_type_name: str) -> Optional[str]:
+    """The Rust literal of the value of an integer token of the IDL, if it is a value of the integer type."""
+    integer = idl_integer_value(literal, idl_type_name)
+    return None if integer is None else f"{integer}_{INTEGER_TYPES[idl_type_name]}"
 
 
 def is_implemented_in_rust(interface: Optional[Interface]) -> bool:
