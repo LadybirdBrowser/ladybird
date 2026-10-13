@@ -394,14 +394,15 @@ pub(crate) fn absolutize_length(value: f64, unit: usize, context: &FfiLengthReso
 /// Absolutizes a length during style computation.
 ///
 /// # Safety
-/// `context` must be a valid pointer.
+/// `context.resolved_viewport_relative_length` must be null or point to a live flag, which the
+/// absolutization may set.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_absolutize_length(
     value: f64,
     unit: u8,
-    context: *const FfiLengthResolutionContext,
+    context: &FfiLengthResolutionContext,
 ) -> FfiAbsolutizedLength {
-    absolutize_length(value, unit as usize, unsafe { &*context })
+    absolutize_length(value, unit as usize, context)
 }
 
 /// Result of computing a property that resolves to a number.
@@ -2256,9 +2257,6 @@ fn value_contains_percentage(value: &StyleValueData) -> bool {
 /// inheritance-dependency decision; the property-agnostic parts
 /// (depends-on-current-color and computational independence) stay with the
 /// value's own operations.
-///
-/// # Safety
-/// `value` must point at a valid StyleValueData.
 pub(crate) fn value_depends_on_inherited_info_for_property(value: &StyleValueData, property_id: u16) -> bool {
     use crate::css::property_metadata::property_id as prop;
     match property_id {
@@ -7117,16 +7115,11 @@ fn finalize_animated_box_type(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_finalize_animated_box_type(
     box_type: FfiBoxTypeTransformationInput,
-    longhand_table: *const ComputedLonghandTable,
-    animated_overlay: *mut AnimatedOverlay,
-    input_line_height_metrics: *const FfiInputLineHeightMetrics,
+    longhand_table: &ComputedLonghandTable,
+    animated_overlay: &mut AnimatedOverlay,
+    input_line_height_metrics: Option<&FfiInputLineHeightMetrics>,
 ) {
-    finalize_animated_box_type(
-        box_type,
-        unsafe { &*longhand_table },
-        unsafe { &mut *animated_overlay },
-        unsafe { input_line_height_metrics.as_ref() },
-    );
+    finalize_animated_box_type(box_type, longhand_table, animated_overlay, input_line_height_metrics);
 }
 
 /// Computes the font-weight property from its absolutized value.

@@ -1406,16 +1406,13 @@ pub unsafe extern "C" fn rust_computed_longhand_table_release(table: *mut Comput
 
 /// Creates a frozen copy of `table` with every inherited longhand value taken
 /// from `inherited_source`.
-///
-/// # Safety
-/// Both pointers must name live, frozen tables.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_create_with_inherited_values(
-    table: *const ComputedLonghandTable,
-    inherited_source: *const ComputedLonghandTable,
+pub extern "C" fn rust_computed_longhand_table_create_with_inherited_values(
+    table: &ComputedLonghandTable,
+    inherited_source: &ComputedLonghandTable,
 ) -> *mut ComputedLonghandTable {
-    unsafe { &*table }
-        .with_inherited_values_from(unsafe { &*inherited_source })
+    table
+        .with_inherited_values_from(inherited_source)
         .into_raw_shared()
         .cast_mut()
 }
@@ -1430,7 +1427,7 @@ pub unsafe extern "C" fn rust_computed_longhand_table_create_with_inherited_valu
 /// point at live `StyleValueData`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_computed_longhand_table_set(
-    table: *mut ComputedLonghandTable,
+    table: &mut ComputedLonghandTable,
     property_id: u16,
     data: *const c_void,
     source_slot: i64,
@@ -1438,21 +1435,17 @@ pub unsafe extern "C" fn rust_computed_longhand_table_set(
     let value = unsafe {
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
     };
-    unsafe { &mut *table }.set(property_id, value, source_slot);
+    table.set(property_id, value, source_slot);
 }
 
 /// Replaces the table's contents with `source`'s, for the C++ builder that
 /// starts from an existing style's property array.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table and `source` a
-/// valid table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_copy_from(
-    table: *mut ComputedLonghandTable,
-    source: *const ComputedLonghandTable,
+pub extern "C" fn rust_computed_longhand_table_copy_from(
+    table: &mut ComputedLonghandTable,
+    source: &ComputedLonghandTable,
 ) {
-    unsafe { &mut *table }.copy_from(unsafe { &*source });
+    table.copy_from(source);
 }
 
 /// Replaces the table's values with a complete borrowed value span, retaining
@@ -1465,12 +1458,12 @@ pub unsafe extern "C" fn rust_computed_longhand_table_copy_from(
 /// live `StyleValueData`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_computed_longhand_table_copy_from_values(
-    table: *mut ComputedLonghandTable,
+    table: &mut ComputedLonghandTable,
     values: *const *const c_void,
     count: usize,
 ) {
     let values = unsafe { std::slice::from_raw_parts(values, count) };
-    unsafe { &mut *table }.copy_from_values(values);
+    table.copy_from_values(values);
 }
 
 /// Returns the table's value span: one borrowed data pointer per longhand,
@@ -1489,48 +1482,32 @@ pub unsafe extern "C" fn rust_computed_longhand_table_values(
 }
 
 /// Whether two frozen tables have equal values and publication metadata.
-///
-/// # Safety
-/// Both pointers must name live, frozen tables.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_tables_equal_for_publication(
-    first: *const ComputedLonghandTable,
-    second: *const ComputedLonghandTable,
+pub extern "C" fn rust_computed_longhand_tables_equal_for_publication(
+    first: &ComputedLonghandTable,
+    second: &ComputedLonghandTable,
 ) -> bool {
-    unsafe { &*first }.publication_equals(unsafe { &*second })
+    first.publication_equals(second)
 }
 
 /// Makes the table immutable; every later store aborts. Only a frozen table
 /// may be shared through `rust_computed_longhand_table_retain`.
-///
-/// # Safety
-/// `table` must be a valid, uniquely owned table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_freeze(table: *mut ComputedLonghandTable) {
-    unsafe { &mut *table }.freeze();
+pub extern "C" fn rust_computed_longhand_table_freeze(table: &mut ComputedLonghandTable) {
+    table.freeze();
 }
 
 /// The importance bitmap, in the C++ `FixedBitmap` byte layout. The pointer
 /// stays valid while the caller's table reference is live.
-///
-/// # Safety
-/// `table` must be a valid table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_importance_bits(
-    table: *const ComputedLonghandTable,
-) -> *const u8 {
-    unsafe { &*table }.important_bits.as_ptr()
+pub extern "C" fn rust_computed_longhand_table_importance_bits(table: &ComputedLonghandTable) -> *const u8 {
+    table.important_bits.as_ptr()
 }
 
 /// The inheritance bitmap, in the C++ `FixedBitmap` byte layout.
-///
-/// # Safety
-/// `table` must be a valid table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_inheritance_bits(
-    table: *const ComputedLonghandTable,
-) -> *const u8 {
-    unsafe { &*table }.inherited_bits.as_ptr()
+pub extern "C" fn rust_computed_longhand_table_inheritance_bits(table: &ComputedLonghandTable) -> *const u8 {
+    table.inherited_bits.as_ptr()
 }
 
 /// Replaces the whole importance and inheritance bitmaps, for the builder
@@ -1557,12 +1534,9 @@ pub unsafe extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
 /// Resets the state a fresh drive must not inherit from the style its table
 /// was seeded from: the evaluated bits and the recorded inheritance-dependent
 /// specified values.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_clear_seeded_state(table: *mut ComputedLonghandTable) {
-    unsafe { &mut *table }.clear_seeded_state();
+pub extern "C" fn rust_computed_longhand_table_clear_seeded_state(table: &mut ComputedLonghandTable) {
+    table.clear_seeded_state();
 }
 
 /// Records (or replaces) a longhand's inheritance-dependent specified value,
@@ -1573,26 +1547,22 @@ pub unsafe extern "C" fn rust_computed_longhand_table_clear_seeded_state(table: 
 /// point at live style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_computed_longhand_table_add_inheritance_dependent_value(
-    table: *mut ComputedLonghandTable,
+    table: &mut ComputedLonghandTable,
     property_id: u16,
     value: *const c_void,
 ) {
     let value = unsafe {
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
     };
-    unsafe { &mut *table }.add_inheritance_dependent_value(property_id, value);
+    table.add_inheritance_dependent_value(property_id, value);
 }
 
 /// Returns the non-longhand computation state stored alongside the table.
-///
-/// # Safety
-/// `table` must be a valid, uniquely owned table when the returned view is
-/// mutated. The view remains valid for the lifetime of the table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_metadata(
-    table: *mut ComputedLonghandTable,
+pub extern "C" fn rust_computed_longhand_table_metadata(
+    table: &mut ComputedLonghandTable,
 ) -> *mut FfiComputedStyleMetadata {
-    &raw mut unsafe { &mut *table }.metadata
+    &raw mut table.metadata
 }
 
 /// The recorded inheritance-dependent specified values as a borrowed span.
@@ -1612,32 +1582,26 @@ pub unsafe extern "C" fn rust_computed_longhand_table_inheritance_dependent_valu
 }
 
 /// The non-inherited groups whose inheritance-dependent source values changed.
-///
-/// # Safety
-/// Both pointers must name live computed longhand tables.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_non_inherited_inheritance_changes(
-    old: *const ComputedLonghandTable,
-    new: *const ComputedLonghandTable,
+pub extern "C" fn rust_computed_longhand_table_non_inherited_inheritance_changes(
+    old: &ComputedLonghandTable,
+    new: &ComputedLonghandTable,
 ) -> u32 {
-    unsafe { &*old }.non_inherited_inheritance_changes(unsafe { &*new })
+    old.non_inherited_inheritance_changes(new)
 }
 
 /// The effective value for one longhand: the animated overlay under the
 /// overlay read rule (important base values override animated but not
 /// transitioned properties), then an unevaluated longhand's recorded
 /// currentcolor-dependent specified value, then the stored table slot.
-///
-/// # Safety
-/// `table` must be a valid table and `overlay` null or a valid overlay.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_effective_value(
-    table: *const ComputedLonghandTable,
-    overlay: *const AnimatedOverlay,
+pub extern "C" fn rust_computed_longhand_table_effective_value(
+    table: &ComputedLonghandTable,
+    overlay: Option<&AnimatedOverlay>,
     property_id: u16,
     with_animations: bool,
 ) -> FfiEffectiveLonghandValue {
-    unsafe { &*table }.effective_value(unsafe { overlay.as_ref() }, property_id, with_animations)
+    table.effective_value(overlay, property_id, with_animations)
 }
 
 #[cfg(test)]

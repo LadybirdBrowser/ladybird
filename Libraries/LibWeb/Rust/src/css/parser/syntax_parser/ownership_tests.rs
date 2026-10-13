@@ -549,15 +549,9 @@ fn import_preludes_outlive_the_worker_and_shared_sheet() {
     assert!(unlayered.layer.is_none());
     assert!(unlayered.supports.is_none());
     unsafe {
-        assert_eq!(
-            css_query_evaluate_supports(Arc::as_ptr(named.supports.as_ref().unwrap())),
-            1
-        );
-        assert_eq!(
-            css_query_evaluate_supports(Arc::as_ptr(anonymous.supports.as_ref().unwrap())),
-            0
-        );
-        assert_eq!(css_query_evaluate_supports(Arc::as_ptr(&supports)), 1);
+        assert_eq!(css_query_evaluate_supports(named.supports.as_deref()), 1);
+        assert_eq!(css_query_evaluate_supports(anonymous.supports.as_deref()), 0);
+        assert_eq!(css_query_evaluate_supports(Some(&*supports)), 1);
     }
     assert_eq!(
         serialize_style_value_to_utf16(&named.url).unwrap(),
@@ -829,7 +823,7 @@ fn independent_workers_read_the_same_immutable_graph() {
                     1
                 );
                 assert_eq!(
-                    css_query_evaluate_supports(Arc::as_ptr(sheet.rules[1].supports_condition.as_ref().unwrap())),
+                    css_query_evaluate_supports(sheet.rules[1].supports_condition.as_deref()),
                     1
                 );
             }

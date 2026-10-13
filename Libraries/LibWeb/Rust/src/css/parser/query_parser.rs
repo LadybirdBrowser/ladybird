@@ -2882,8 +2882,8 @@ pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
 /// # Safety
 /// `handle` must point to a live supports-expression handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_evaluate_supports(handle: *const FfiQueryHandle) -> u8 {
-    unsafe { handle.as_ref() }
+pub unsafe extern "C" fn css_query_evaluate_supports(handle: Option<&FfiQueryHandle>) -> u8 {
+    handle
         .and_then(FfiQueryHandle::evaluate_supports)
         .map_or(3, |result| result as u8)
 }
@@ -3299,7 +3299,7 @@ mod tests {
             },
         };
 
-        assert_eq!(unsafe { css_query_evaluate_supports(std::ptr::null()) }, 3);
-        assert_eq!(unsafe { css_query_evaluate_supports(&raw const handle) }, 3);
+        assert_eq!(unsafe { css_query_evaluate_supports(None) }, 3);
+        assert_eq!(unsafe { css_query_evaluate_supports(Some(&handle)) }, 3);
     }
 }

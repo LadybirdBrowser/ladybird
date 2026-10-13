@@ -841,14 +841,7 @@ fn transform_number(data: &StyleValueData) -> f64 {
 fn value_contains_percentage(data: &StyleValueData) -> bool {
     match data {
         StyleValueData::Percentage { .. } => true,
-        StyleValueData::Calculated { .. } => {
-            // SAFETY: The calculated style value outlives the query.
-            unsafe {
-                let root = crate::css::calc::calc_root_from_calculated(std::ptr::from_ref(data).cast());
-                assert!(!root.is_null());
-                crate::css::calc::rust_calc_node_contains_percentage(root)
-            }
-        }
+        StyleValueData::Calculated { rust_calculation, .. } => rust_calculation.node().contains_percentage(),
         _ => false,
     }
 }

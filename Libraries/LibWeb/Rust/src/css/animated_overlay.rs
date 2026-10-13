@@ -184,38 +184,26 @@ pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
     }))
 }
 
-/// # Safety
-/// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_is_empty(overlay: *const AnimatedOverlay) -> bool {
-    unsafe { &*overlay }.is_empty()
+pub extern "C" fn rust_animated_overlay_is_empty(overlay: &AnimatedOverlay) -> bool {
+    overlay.is_empty()
 }
 
 /// Returns a new overlay holding retained copies of `overlay`'s entries.
-///
-/// # Safety
-/// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_clone(overlay: *const AnimatedOverlay) -> *mut AnimatedOverlay {
-    Box::into_raw(Box::new(unsafe { &*overlay }.clone()))
+pub extern "C" fn rust_animated_overlay_clone(overlay: &AnimatedOverlay) -> *mut AnimatedOverlay {
+    Box::into_raw(Box::new(overlay.clone()))
 }
 
 /// Returns a new overlay holding retained copies of `overlay`'s inherited entries.
-///
-/// # Safety
-/// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_clone_inherited(
-    overlay: *const AnimatedOverlay,
-) -> *mut AnimatedOverlay {
-    Box::into_raw(Box::new(unsafe { &*overlay }.clone_inherited()))
+pub extern "C" fn rust_animated_overlay_clone_inherited(overlay: &AnimatedOverlay) -> *mut AnimatedOverlay {
+    Box::into_raw(Box::new(overlay.clone_inherited()))
 }
 
-/// # Safety
-/// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_contains(overlay: *const AnimatedOverlay, property: u16) -> bool {
-    unsafe { &*overlay }.get(property).is_some()
+pub extern "C" fn rust_animated_overlay_contains(overlay: &AnimatedOverlay, property: u16) -> bool {
+    overlay.get(property).is_some()
 }
 
 /// # Safety
@@ -252,26 +240,23 @@ pub unsafe extern "C" fn rust_animated_overlay_set(
 /// the overlay or a subsequent mutation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_overlay_entries(
-    overlay: *const AnimatedOverlay,
+    overlay: &AnimatedOverlay,
     count: *mut usize,
 ) -> *const FfiAnimatedOverlayEntry {
-    let entries = &unsafe { &*overlay }.entries;
+    let entries = &overlay.entries;
     unsafe { *count = entries.len() };
     entries.as_ptr()
 }
 
 /// The overlay's effective value for a longhand under the overlay read rule,
 /// or null when the overlay holds no entry or the important base value wins.
-///
-/// # Safety
-/// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_effective_value(
-    overlay: *const AnimatedOverlay,
+pub extern "C" fn rust_animated_overlay_effective_value(
+    overlay: &AnimatedOverlay,
     property: u16,
     base_value_is_important: bool,
 ) -> *const c_void {
-    unsafe { &*overlay }
+    overlay
         .get(property)
         .filter(|entry| overlay_wins(entry, base_value_is_important))
         .map_or(std::ptr::null(), FfiAnimatedOverlayEntry::value_pointer)
