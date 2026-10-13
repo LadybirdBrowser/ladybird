@@ -529,25 +529,28 @@ pub struct FfiSnapAreaGeometry {
 
 /// Where a recording's resources go once it is published. The fields are private: the callbacks
 /// are reached only through the methods below, which take the main thread token.
+///
+/// NB: The callbacks are typed as safe functions because the table only comes from the host through an export
+///     whose safety contract keeps them callable, and the private fields let nothing else call them.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiRecordingPublishCallbacks {
     context: *mut c_void,
-    add_font: unsafe extern "C" fn(*mut c_void, *const c_void),
-    add_image_frame: unsafe extern "C" fn(*mut c_void, *const c_void),
-    resolve_vector_image_display_list: unsafe extern "C" fn(*mut c_void, *const FfiVectorImageRenderRequest) -> u64,
-    add_video_sink: unsafe extern "C" fn(*mut c_void, u64, u64),
+    add_font: extern "C" fn(*mut c_void, *const c_void),
+    add_image_frame: extern "C" fn(*mut c_void, *const c_void),
+    resolve_vector_image_display_list: extern "C" fn(*mut c_void, *const FfiVectorImageRenderRequest) -> u64,
+    add_video_sink: extern "C" fn(*mut c_void, u64, u64),
 }
 
 impl FfiRecordingPublishCallbacks {
     pub(crate) fn add_font(&self, _: &MainThread, font: &libgfx_rust::font::FontHandle) {
-        // SAFETY: The C++ host registers the live font synchronously.
-        unsafe { (self.add_font)(self.context, font.as_raw()) };
+        // The C++ host registers the live font synchronously.
+        (self.add_font)(self.context, font.as_raw());
     }
 
     pub(crate) fn add_image_frame(&self, _: &MainThread, frame: &libgfx_rust::image_frame::ImageFrameHandle) {
-        // SAFETY: The C++ host copies the live frame synchronously.
-        unsafe { (self.add_image_frame)(self.context, frame.as_raw()) };
+        // The C++ host copies the live frame synchronously.
+        (self.add_image_frame)(self.context, frame.as_raw());
     }
 
     pub(crate) fn resolve_vector_image_display_list(
@@ -555,13 +558,13 @@ impl FfiRecordingPublishCallbacks {
         _: &MainThread,
         request: &FfiVectorImageRenderRequest,
     ) -> u64 {
-        // SAFETY: The C++ host records the image's display list synchronously and reads the
+        // The C++ host records the image's display list synchronously and reads the
         // request only for the duration of the call.
-        unsafe { (self.resolve_vector_image_display_list)(self.context, request) }
+        (self.resolve_vector_image_display_list)(self.context, request)
     }
 
     pub(crate) fn add_video_sink(&self, _: &MainThread, resource_id: u64, sink_handle: u64) {
-        // SAFETY: The C++ host registers the sink synchronously.
-        unsafe { (self.add_video_sink)(self.context, resource_id, sink_handle) };
+        // The C++ host registers the sink synchronously.
+        (self.add_video_sink)(self.context, resource_id, sink_handle);
     }
 }

@@ -33,36 +33,39 @@ crate::stage::main_thread_ffi_entries!();
 
 /// What a display list dump asks the document. The fields are private: the callbacks are reached
 /// only through the methods below, which take the main thread token.
+///
+/// NB: The callbacks are typed as safe functions because the table only comes from the host through an export
+///     whose safety contract keeps them callable, and the private fields let nothing else call them.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiPaintingDumpCallbacks {
     context: *mut c_void,
     /// Describes the row in the slot, as its layout node describes itself.
-    debug_description: unsafe extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
+    debug_description: extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
     /// Answers the storage handle of a nested display list.
-    nested_display_list: unsafe extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
-    append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
+    nested_display_list: extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
+    append_text: extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
 
 impl FfiPaintingDumpCallbacks {
     fn debug_description(&self, _: &MainThread, slot: NodeSlotId) -> String {
         let mut description = Vec::new();
-        // SAFETY: The C++ host fills the description sink synchronously through the exported push
+        // The C++ host fills the description sink synchronously through the exported push
         // function.
-        unsafe { (self.debug_description)(self.context, slot, (&raw mut description).cast()) };
+        (self.debug_description)(self.context, slot, (&raw mut description).cast());
         String::from_utf8_lossy(&description).into_owned()
     }
 
     fn nested_display_list(&self, _: &MainThread, display_list_id: DisplayListResourceId) -> *const c_void {
-        // SAFETY: Nested ids come from records the host produced, so they resolve in its storage.
-        let display_list = unsafe { (self.nested_display_list)(self.context, display_list_id.0) };
+        // Nested ids come from records the host produced, so they resolve in its storage.
+        let display_list = (self.nested_display_list)(self.context, display_list_id.0);
         assert!(!display_list.is_null());
         display_list
     }
 
     fn append_text(&self, _: &MainThread, text: &str) {
-        // SAFETY: The C++ sink copies the completed dump synchronously.
-        unsafe { (self.append_text)(self.context, text.as_ptr(), text.len()) };
+        // The C++ sink copies the completed dump synchronously.
+        (self.append_text)(self.context, text.as_ptr(), text.len());
     }
 }
 
@@ -130,7 +133,6 @@ pub unsafe extern "C" fn painting_dump(
     let main_thread = unsafe { main_thread(host) };
     let visual_context_tree = unsafe { libcompositing_rust::ffi::tree_from_handle(visual_context_tree) };
     let (_, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
-    // SAFETY: Guaranteed by the caller.
     let owners = {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
             let mut owners = VisualContextNodeOwners::collect(arena, viewport);

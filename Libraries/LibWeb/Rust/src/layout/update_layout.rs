@@ -59,42 +59,46 @@ fn read_arena<A, R>(host: &DocumentHost, read: &BegunRead, args: A, answer: fn(&
 /// `context`, the owning document, first and answers synchronously; any of them may run the
 /// layout update of another document, so the loop holds no arena borrow across a call. The
 /// methods below, which take the main thread token, are the only way to call them.
+///
+/// NB: The callbacks are typed as safe functions because the table only comes from the host's
+///     `document_host_set_layout_update_host_callbacks`, whose contract keeps them callable with
+///     `context` until they are cleared, and the private fields let nothing else call them.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiLayoutUpdateHostCallbacks {
     context: *mut c_void,
-    connected_element_count: unsafe extern "C" fn(*mut c_void, &BegunRead) -> u32,
-    update_style: unsafe extern "C" fn(*mut c_void, &BegunRead),
-    process_pending_list_item_renumbers: unsafe extern "C" fn(*mut c_void, &BegunRead),
-    process_pending_top_layer_layout_changes: unsafe extern "C" fn(*mut c_void, &BegunRead),
-    document_facts: unsafe extern "C" fn(*mut c_void, &BegunRead) -> FfiLayoutUpdateDocumentFacts,
+    connected_element_count: extern "C" fn(*mut c_void, &BegunRead) -> u32,
+    update_style: extern "C" fn(*mut c_void, &BegunRead),
+    process_pending_list_item_renumbers: extern "C" fn(*mut c_void, &BegunRead),
+    process_pending_top_layer_layout_changes: extern "C" fn(*mut c_void, &BegunRead),
+    document_facts: extern "C" fn(*mut c_void, &BegunRead) -> FfiLayoutUpdateDocumentFacts,
     /// True when a size container waits for its queries to be evaluated after the next full layout. Only an update
     /// that may take the partial relayout path asks.
-    container_query_evaluation_is_pending: unsafe extern "C" fn(*mut c_void, &BegunRead) -> bool,
-    needs_style_update_after_layout: unsafe extern "C" fn(*mut c_void, &BegunRead) -> bool,
-    prepare_for_rendering: unsafe extern "C" fn(*mut c_void, &BegunRead),
+    container_query_evaluation_is_pending: extern "C" fn(*mut c_void, &BegunRead) -> bool,
+    needs_style_update_after_layout: extern "C" fn(*mut c_void, &BegunRead) -> bool,
+    prepare_for_rendering: extern "C" fn(*mut c_void, &BegunRead),
     /// Readies the document for a layout tree build, and answers the document's style, interned as a
     /// record, where the flag says the build may build the viewport, and 0 otherwise.
-    prepare_layout_tree_build: unsafe extern "C" fn(*mut c_void, &BegunRead, bool) -> u64,
+    prepare_layout_tree_build: extern "C" fn(*mut c_void, &BegunRead, bool) -> u64,
     /// Retires the tree a build replaced once the host has been paid for the build: the viewport
     /// before the build, then the one it placed.
-    finish_layout_tree_build: unsafe extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, NodeSlotId),
+    finish_layout_tree_build: extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, NodeSlotId),
     /// True when stale list-item counters marked more of the tree for a rebuild, given the DOM nodes whose subtrees the
     /// build rebuilt.
     reconcile_stale_list_item_counters_after_tree_build:
-        unsafe extern "C" fn(*mut c_void, *const FfiNodeIdentity, usize) -> bool,
+        extern "C" fn(*mut c_void, *const FfiNodeIdentity, usize) -> bool,
     /// Refreshes what derives from committed layout; the flag says whether the tree changed.
-    after_layout_commit: unsafe extern "C" fn(*mut c_void, &BegunRead, bool),
-    note_full_layout_performed: unsafe extern "C" fn(*mut c_void),
-    evaluate_pending_container_queries: unsafe extern "C" fn(*mut c_void, &BegunRead),
-    record_stabilization_bound_failure: unsafe extern "C" fn(*mut c_void),
+    after_layout_commit: extern "C" fn(*mut c_void, &BegunRead, bool),
+    note_full_layout_performed: extern "C" fn(*mut c_void),
+    evaluate_pending_container_queries: extern "C" fn(*mut c_void, &BegunRead),
+    record_stabilization_bound_failure: extern "C" fn(*mut c_void),
     /// Attaches the image resources a box's style asks for. The flag says the box replaces its
     /// element's contents with a single image, whose provider it owns.
-    attach_style_resources: unsafe extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, bool, FfiStyleImageFacts),
+    attach_style_resources: extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, bool, FfiStyleImageFacts),
     /// Gives a generated image box the provider of the image it shows, which the box owns, and
     /// attaches the box's style resources. The image is the `<image>` at the given index of the
     /// pseudo-element's `content`, or the given marker's `list-style-image`.
-    attach_generated_image: unsafe extern "C" fn(
+    attach_generated_image: extern "C" fn(
         *mut c_void,
         &BegunRead,
         NodeSlotId,
@@ -147,41 +151,40 @@ pub struct FfiLayoutTreeBuildStats {
 }
 
 impl FfiLayoutUpdateHostCallbacks {
-    // SAFETY (for every call below): The C++ host answers synchronously from its live document.
     fn connected_element_count(&self, _: &MainThread, read: &BegunRead) -> u32 {
-        unsafe { (self.connected_element_count)(self.context, read) }
+        (self.connected_element_count)(self.context, read)
     }
 
     fn update_style(&self, _: &MainThread, read: &BegunRead) {
-        unsafe { (self.update_style)(self.context, read) }
+        (self.update_style)(self.context, read);
     }
 
     fn process_pending_list_item_renumbers(&self, _: &MainThread, read: &BegunRead) {
-        unsafe { (self.process_pending_list_item_renumbers)(self.context, read) }
+        (self.process_pending_list_item_renumbers)(self.context, read);
     }
 
     fn process_pending_top_layer_layout_changes(&self, _: &MainThread, read: &BegunRead) {
-        unsafe { (self.process_pending_top_layer_layout_changes)(self.context, read) }
+        (self.process_pending_top_layer_layout_changes)(self.context, read);
     }
 
     fn document_facts(&self, _: &MainThread, read: &BegunRead) -> FfiLayoutUpdateDocumentFacts {
-        unsafe { (self.document_facts)(self.context, read) }
+        (self.document_facts)(self.context, read)
     }
 
     fn container_query_evaluation_is_pending(&self, _: &MainThread, read: &BegunRead) -> bool {
-        unsafe { (self.container_query_evaluation_is_pending)(self.context, read) }
+        (self.container_query_evaluation_is_pending)(self.context, read)
     }
 
     fn needs_style_update_after_layout(&self, _: &MainThread, read: &BegunRead) -> bool {
-        unsafe { (self.needs_style_update_after_layout)(self.context, read) }
+        (self.needs_style_update_after_layout)(self.context, read)
     }
 
     fn prepare_for_rendering(&self, _: &MainThread, read: &BegunRead) {
-        unsafe { (self.prepare_for_rendering)(self.context, read) }
+        (self.prepare_for_rendering)(self.context, read);
     }
 
     fn prepare_layout_tree_build(&self, _: &MainThread, read: &BegunRead, may_create_viewport: bool) -> Option<u64> {
-        let record = unsafe { (self.prepare_layout_tree_build)(self.context, read, may_create_viewport) };
+        let record = (self.prepare_layout_tree_build)(self.context, read, may_create_viewport);
         (record != 0).then_some(record)
     }
 
@@ -192,7 +195,7 @@ impl FfiLayoutUpdateHostCallbacks {
         replaced_viewport: NodeSlotId,
         viewport: NodeSlotId,
     ) {
-        unsafe { (self.finish_layout_tree_build)(self.context, read, replaced_viewport, viewport) }
+        (self.finish_layout_tree_build)(self.context, read, replaced_viewport, viewport);
     }
 
     fn reconcile_stale_list_item_counters_after_tree_build(
@@ -200,29 +203,27 @@ impl FfiLayoutUpdateHostCallbacks {
         _: &MainThread,
         rebuilt_roots: &[FfiNodeIdentity],
     ) -> bool {
-        unsafe {
-            (self.reconcile_stale_list_item_counters_after_tree_build)(
-                self.context,
-                rebuilt_roots.as_ptr(),
-                rebuilt_roots.len(),
-            )
-        }
+        (self.reconcile_stale_list_item_counters_after_tree_build)(
+            self.context,
+            rebuilt_roots.as_ptr(),
+            rebuilt_roots.len(),
+        )
     }
 
     fn after_layout_commit(&self, _: &MainThread, read: &BegunRead, layout_tree_changed: bool) {
-        unsafe { (self.after_layout_commit)(self.context, read, layout_tree_changed) }
+        (self.after_layout_commit)(self.context, read, layout_tree_changed);
     }
 
     fn note_full_layout_performed(&self, _: &MainThread) {
-        unsafe { (self.note_full_layout_performed)(self.context) }
+        (self.note_full_layout_performed)(self.context);
     }
 
     fn evaluate_pending_container_queries(&self, _: &MainThread, read: &BegunRead) {
-        unsafe { (self.evaluate_pending_container_queries)(self.context, read) }
+        (self.evaluate_pending_container_queries)(self.context, read);
     }
 
     fn record_stabilization_bound_failure(&self, _: &MainThread) {
-        unsafe { (self.record_stabilization_bound_failure)(self.context) }
+        (self.record_stabilization_bound_failure)(self.context);
     }
 
     /// Hands the boxes the tree builds of the update stamped the image resources they are owed,
@@ -245,14 +246,12 @@ impl FfiLayoutUpdateHostCallbacks {
             match owed {
                 OwedImageResources::StyleResources {
                     owns_content_replacement_image,
-                } => unsafe {
-                    (self.attach_style_resources)(self.context, read, row, owns_content_replacement_image, images);
-                },
+                } => (self.attach_style_resources)(self.context, read, row, owns_content_replacement_image, images),
                 OwedImageResources::GeneratedImage {
                     generator,
                     pseudo_element,
                     image,
-                } => unsafe {
+                } => {
                     (self.attach_generated_image)(
                         self.context,
                         read,
@@ -262,7 +261,7 @@ impl FfiLayoutUpdateHostCallbacks {
                         image,
                         images,
                     );
-                },
+                }
             }
         }
     }

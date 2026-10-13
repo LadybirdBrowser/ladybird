@@ -914,6 +914,9 @@ pub(crate) struct FlexLayoutData {
 /// receives the registered `context`, the owning document, as its first argument. The fields are
 /// private: the callbacks are reached only through the methods below, which take the main thread
 /// token.
+///
+/// NB: The callbacks are typed as safe functions because the table only comes from the host through an export
+///     whose safety contract keeps them callable, and the private fields let nothing else call them.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiLayoutHostCallbacks {
@@ -921,13 +924,13 @@ pub struct FfiLayoutHostCallbacks {
     /// The commit messages a finished commit leaves for the document, in the order it produced
     /// them.
     deliver_commit_messages:
-        unsafe extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const commit::FfiCommitMessage, usize),
+        extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const commit::FfiCommitMessage, usize),
     /// What a container-relative length on the element with the given identity resolves against.
-    container_length_bases: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
+    container_length_bases: extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
     /// The scroll containers a finished layout tree build gave a style, each with whether it is a
     /// scroll snap container.
     take_built_scroll_containers:
-        unsafe extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const FfiBuiltScrollContainer, usize),
+        extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const FfiBuiltScrollContainer, usize),
 }
 
 /// A scroll container a layout tree build gave a style, with whether it was a scroll snap
@@ -962,8 +965,8 @@ impl FfiLayoutHostCallbacks {
         if messages.is_empty() {
             return;
         }
-        // SAFETY: The document registered the host with the arena and outlives this call.
-        unsafe { (self.deliver_commit_messages)(self.context, read, messages.as_ptr(), messages.len()) };
+        // The document registered the host with the arena and outlives this call.
+        (self.deliver_commit_messages)(self.context, read, messages.as_ptr(), messages.len());
     }
 
     /// Hands the document the scroll containers a build gave a style, in `read`.
@@ -980,8 +983,8 @@ impl FfiLayoutHostCallbacks {
         if built.is_empty() {
             return;
         }
-        // SAFETY: The document registered the host with the arena and outlives this call.
-        unsafe { (self.take_built_scroll_containers)(self.context, read, built.as_ptr(), built.len()) };
+        // The document registered the host with the arena and outlives this call.
+        (self.take_built_scroll_containers)(self.context, read, built.as_ptr(), built.len());
     }
 
     /// The one question a layout pass may ask the document while it runs.
