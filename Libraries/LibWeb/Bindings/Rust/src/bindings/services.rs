@@ -25,4 +25,12 @@ unsafe extern "C" {
 
     /// Makes `wrapper` the wrapper that the world of its realm, which is not a main world, holds for the cell.
     pub(crate) fn web_bindings_set_rust_wrapper(realm: *mut c_void, cell: *mut c_void, wrapper: *mut c_void);
+
+    /// A promise rejected with the reason, in the realm of the this value of an operation that ran in the current
+    /// realm: the realm of the object, or the current realm for a value that is not an object.
+    pub(crate) fn web_bindings_rejected_promise(
+        current_realm: *mut c_void,
+        this_value: u64,
+        reason: u64,
+    ) -> *mut c_void;
 }

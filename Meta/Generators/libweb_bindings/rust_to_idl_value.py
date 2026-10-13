@@ -14,6 +14,7 @@ from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
 from Generators.libweb_bindings.rust_types import DECIMAL_LITERAL
 from Generators.libweb_bindings.rust_types import FLOATING_POINT_TYPES
+from Generators.libweb_bindings.rust_types import INTEGER_TYPES
 from Generators.libweb_bindings.rust_types import TYPED_ARRAY_NAMES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import is_named_union
@@ -21,6 +22,7 @@ from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import resolved_dictionary
 from Generators.libweb_bindings.rust_types import runtime_union_type
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
+from Generators.libweb_bindings.rust_types import rust_integer_literal
 from Generators.libweb_bindings.rust_types import rust_interface
 from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_type
@@ -75,8 +77,12 @@ def rust_to_idl_value(
         return f"to_usv_string(vm, {value})"
     if name == "boolean":
         return f"to_boolean({value})"
+    if name in INTEGER_TYPES:
+        return f"to_{name.replace(' ', '_')}(vm, {value})"
     if name == "float":
         return f'to_float(vm, {value}, "{identifier}")'
+    if name == "unrestricted float":
+        return f"to_unrestricted_float(vm, {value})"
     if name == "unrestricted double":
         return f"to_unrestricted_double(vm, {value})"
     if name in TYPED_ARRAY_NAMES:
@@ -131,6 +137,10 @@ def rust_default_value(
         return default_value
     if name in FLOATING_POINT_TYPES and default_value is not None and DECIMAL_LITERAL.fullmatch(default_value):
         return f"{default_value}_{FLOATING_POINT_TYPES[name]}"
+    if name in INTEGER_TYPES:
+        integer_literal = rust_integer_literal(default_value, name)
+        if integer_literal is not None:
+            return integer_literal
     dictionary = resolved_dictionary(member.type, context)
     if dictionary is not None and default_value == "{}":
         # NB: The C++ bindings do not run the conversion for a missing argument either, so the members of the default

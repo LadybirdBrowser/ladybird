@@ -12,9 +12,9 @@ from typing import TextIO
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
+from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
-from Generators.libweb_bindings.rust_types import rust_interface
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_types import rust_union_path
 from Generators.libweb_bindings.rust_types import rust_union_variant
@@ -49,10 +49,9 @@ def rust_to_js_value(
         }}"""
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "sequence":
         element_type = idl_type.parameters[0]
-        # NB: The conversion of an object of an interface can create its wrapper, and the elements after it must
-        #     live through that.
-        holds_cells = rust_interface(element_type.without_nullable(), context) is not None
-        function = "rooted_sequence_to_js" if holds_cells else "sequence_to_js"
+        # NB: The conversion of an element can allocate, as that of an object of an interface does for its wrapper,
+        #     and the elements after it must live through that.
+        function = "rooted_sequence_to_js" if holds_cells(element_type, context) else "sequence_to_js"
         return f"{function}({call_context}, {expression}, |value| {inner(element_type)})"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
         return f"record_to_js({call_context}, {expression}, |value| {inner(idl_type.parameters[1])})"
