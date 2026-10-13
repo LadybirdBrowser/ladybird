@@ -913,7 +913,10 @@ impl RetainedState {
             .iter()
             .zip(new_record.payloads)
             .enumerate()
-            .all(|(index, (&old, &new))| old == new || style_group_payloads_equal(index, old.as_ptr(), new.as_ptr()));
+            // SAFETY: Published style-group payloads stay live while their records do.
+            .all(|(index, (&old, &new))| {
+                old == new || unsafe { style_group_payloads_equal(index, old.as_ptr(), new.as_ptr()) }
+            });
         let can_skip = all_groups_equal
             && std::ptr::eq(old_table, new_table)
             && font_lists_equal
