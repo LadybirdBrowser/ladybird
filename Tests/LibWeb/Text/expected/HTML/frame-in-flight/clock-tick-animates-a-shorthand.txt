@@ -1,0 +1,4 @@
+the box's color moved: true
+the box grew: true
+the box's color after its end: rgb(0, 0, 0)
+the box's height after its end is the one before: true

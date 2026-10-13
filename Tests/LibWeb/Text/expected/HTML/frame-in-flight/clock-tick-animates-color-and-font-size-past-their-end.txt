@@ -1,0 +1,7 @@
+the card's color moved: true
+the card's box did not move: true
+the growing box's color moved: true
+the growing box grew: true
+the growing box's color after its end: rgb(0, 0, 0)
+the growing box's height after its end is the one before: true
+last frame presented by: clock

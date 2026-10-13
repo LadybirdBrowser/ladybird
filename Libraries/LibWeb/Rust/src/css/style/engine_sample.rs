@@ -325,6 +325,24 @@ const POST_COMPUTE_ADJUSTED_LONGHANDS: [u16; 6] = [
 
 /// Whether an animated value of `property` moves an adjustment the host makes after it samples, for an element with the
 /// adjustment `facts`: the line height only of an element that keeps one of its own.
+/// Pushes the longhands `property`, a property a keyframe declares, stands for that `keeps` keeps onto `properties`
+/// once each: the property itself where it is a longhand, or what it expands to where it is a shorthand.
+fn push_longhands(property: u16, keeps: &impl Fn(u16) -> bool, properties: &mut smallvec::SmallVec<[u16; 2]>) {
+    use crate::css::property_metadata::{
+        FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, longhands_for_shorthand, property_is_shorthand,
+    };
+    if property_is_shorthand(property) {
+        for &longhand in longhands_for_shorthand(property) {
+            push_longhands(longhand, keeps, properties);
+        }
+    } else if (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
+        && keeps(property)
+        && !properties.contains(&property)
+    {
+        properties.push(property);
+    }
+}
+
 fn post_compute_adjusts(property: u16, facts: u32) -> bool {
     use element_adjustment_fact::{CHECK_INPUT_LINE_HEIGHT, FORCE_LINE_HEIGHT_NORMAL};
     match property {
@@ -426,10 +444,7 @@ impl super::StyleEngine {
                 .iter()
                 .flat_map(|keyframe| effect.declarations_of(keyframe))
             {
-                let property = declaration.property_id;
-                if keeps(property) && !properties.contains(&property) {
-                    properties.push(property);
-                }
+                push_longhands(declaration.property_id, &keeps, &mut properties);
             }
         }
         properties
