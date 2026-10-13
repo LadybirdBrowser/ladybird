@@ -431,11 +431,8 @@ void ViewImplementation::reload()
     }
 
     traversable().reload([this](Web::HTML::HistoryStepResult result, Optional<i32>) {
-        if (result != Web::HTML::HistoryStepResult::Applied && !traversable().has_uncommitted_navigation()) {
-            set_loading_state(false);
-            if (m_webdriver_navigation_observation.has_value())
-                complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
-        }
+        if (result != Web::HTML::HistoryStepResult::Applied)
+            did_not_apply_reload();
         dump_session_history("reload-complete"sv);
     });
     update_navigation_action_state();
@@ -512,6 +509,16 @@ void ViewImplementation::will_apply_history_traversal_step(Web::HTML::CrossProce
 void ViewImplementation::did_apply_top_level_history_traversal_step(Web::HTML::CrossProcessId operation_id)
 {
     complete_webdriver_history_traversal(operation_id);
+}
+
+// A reload of the tab's document that did not apply leaves the tab loading only if something else is.
+void ViewImplementation::did_not_apply_reload()
+{
+    if (traversable().tracked_load_navigation_id().has_value())
+        return;
+    set_loading_state(false);
+    if (m_webdriver_navigation_observation.has_value())
+        complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
 }
 
 void ViewImplementation::did_commit_history_step()
@@ -3157,11 +3164,8 @@ void ViewImplementation::request_history_operation(Badge<WebContentPage>, WebCon
         },
         [](auto const&) { return false; });
     auto on_history_step_applied = [this, reloads_top_level](Web::HTML::HistoryStepResult result, Optional<i32>) {
-        if (reloads_top_level && result != Web::HTML::HistoryStepResult::Applied && !traversable().tracked_load_navigation_id().has_value()) {
-            set_loading_state(false);
-            if (m_webdriver_navigation_observation.has_value())
-                complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
-        }
+        if (reloads_top_level && result != Web::HTML::HistoryStepResult::Applied)
+            did_not_apply_reload();
         dump_session_history("requested-history-operation-complete"sv);
     };
 

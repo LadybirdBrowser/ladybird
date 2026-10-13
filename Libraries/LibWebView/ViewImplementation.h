@@ -583,6 +583,7 @@ protected:
     void complete_webdriver_navigation(u64 navigation_id);
     void complete_webdriver_history_traversal(Web::HTML::CrossProcessId operation_id);
     void update_navigation_action_state();
+    void did_not_apply_reload();
     void notify_session_history_changed();
     enum class SessionHistoryDumpMode {
         IfDebuggingEnabled,
