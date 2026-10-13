@@ -1,0 +1,9 @@
+Ladybird keeps a document’s fetch records reachable while their fetches
+run, so that aborting the document as it unloads reaches every fetch
+still in flight. In Blink, the FetchManager traces each in-flight
+fetch’s Loader in its loaders_ set, and FetchManager::ContextDestroyed()
+disposes of each one, canceling its request. WebKit’s FetchResponse and
+XMLHttpRequest are ActiveDOMObjects, whose stop() the document calls as
+it stops, and XMLHttpRequest::stop() aborts the request. And Gecko’s
+XMLHttpRequestMainThread::DisconnectFromOwner() aborts the request as
+soon as its window goes away.
