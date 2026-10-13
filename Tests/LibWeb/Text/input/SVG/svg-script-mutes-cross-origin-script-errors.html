@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        removeTestErrorHandler();
+
+        const server = httpTestServer();
+        const script = {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: "throw new TypeError('script detail');",
+        };
+        const sameOrigin = new URL(await server.createEcho("GET", "/same-origin-svg-script.js", script));
+        const crossOrigin = new URL(await server.createEcho("GET", "/cross-origin-svg-script.js", script));
+        crossOrigin.hostname = uniqueLocalhostHostname("svg-script-errors");
+
+        function runScript(url) {
+            return new Promise(resolve => {
+                addEventListener("error", resolve, { once: true });
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                const element = document.createElementNS("http://www.w3.org/2000/svg", "script");
+                element.setAttribute("href", url.href);
+                svg.appendChild(element);
+                document.body.appendChild(svg);
+            });
+        }
+
+        function printError(label, event) {
+            println(
+                `${label}: message "${event.message}", filename "${event.filename === "" ? "" : "(set)"}", line ${event.lineno}, column ${event.colno}, error ${event.error}`
+            );
+        }
+
+        printError("Same-origin", await runScript(sameOrigin));
+        printError("Cross-origin", await runScript(crossOrigin));
+    });
+</script>
