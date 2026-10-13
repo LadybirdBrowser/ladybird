@@ -25,6 +25,10 @@ pub use crate::runtime::array_buffer::{
     ArrayBuffer, DataBlock, Order as ArrayBufferOrder, Shared as ArrayBufferShared,
 };
 pub use crate::runtime::completion::{Throw, ThrowCompletionOr};
+pub use crate::runtime::data_view::{
+    DataView, DataViewWithBufferWitness, get_view_byte_length, is_view_out_of_bounds,
+    make_data_view_with_buffer_witness_record,
+};
 pub use crate::runtime::error::ErrorKind;
 pub use crate::runtime::error_types::ErrorType;
 pub use crate::runtime::intrinsics::Intrinsics;
