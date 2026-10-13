@@ -1738,11 +1738,10 @@ fn replace_env_function(
             if !matches!(token.kind, OwnedTokenKind::Number) {
                 return None;
             }
-            let source = token.source.to_vec();
-            let index = source.iter().try_fold(0i32, |value, &unit| {
-                let digit = unit.checked_sub(u16::from(b'0'))?;
-                (digit <= 9).then_some(value.checked_mul(10)?.checked_add(i32::from(digit))?)
-            })?;
+            let index = String::from_utf16_lossy(&token.source.to_vec())
+                .parse::<i32>()
+                .ok()
+                .filter(|index| *index >= 0)?;
             indices.push(index);
         }
         Some(indices)
