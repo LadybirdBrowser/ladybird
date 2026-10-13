@@ -20,6 +20,7 @@ use libjs_rust::api::{
 
 use crate::bindings::CallContext;
 use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap};
+use crate::bindings::services::web_bindings_object_implements_interface;
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
 pub(crate) struct UsvString(Utf16String);
@@ -717,6 +718,59 @@ impl ToJs for Gc<TypedArrayBase> {
 impl<T: Interface> ToJs for Ref<T> {
     fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_object(wrap(cx, self)))
+    }
+}
+
+/// An object of an interface that LibWeb implements in C++, as its wrapper. Only the C++ code knows the object
+/// behind the wrapper, so an implementation hands the wrapper to a service of LibWeb to have something done with it.
+#[derive(Clone, Copy, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct CppInterface(Gc<Object>);
+
+impl CppInterface {
+    /// The object whose wrapper a service of LibWeb returned.
+    ///
+    /// # Safety
+    ///
+    /// `wrapper` must be a wrapper of an object of the interface that the IDL names where the value is used.
+    pub(crate) unsafe fn from_wrapper(wrapper: Gc<Object>) -> Self {
+        Self(wrapper)
+    }
+
+    pub(crate) fn wrapper(self) -> Gc<Object> {
+        self.0
+    }
+}
+
+/// Whether the object is a wrapper of an object that implements the interface, which LibWeb implements in C++ and
+/// knows by the value of its Web::Bindings::InterfaceName.
+pub(crate) fn implements_cpp_interface(object: Gc<Object>, interface_name: u16) -> bool {
+    // SAFETY: The object is live.
+    object.is_platform_object()
+        && unsafe { web_bindings_object_implements_interface(object.as_ptr().cast(), interface_name) }
+}
+
+/// An object of an interface that LibWeb implements in C++ converted from a JS value,
+/// https://webidl.spec.whatwg.org/#js-interface
+pub(crate) fn to_cpp_interface(
+    vm: &Vm,
+    value: Value,
+    interface_name: u16,
+    name: &str,
+) -> ThrowCompletionOr<CppInterface> {
+    // 1. If V implements I, then return the IDL interface type value that represents a reference to that platform
+    //    object.
+    if value.is_object() && implements_cpp_interface(value.as_object(), interface_name) {
+        return Ok(CppInterface(value.as_object()));
+    }
+    // 2. Throw a TypeError.
+    vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&name])
+}
+
+/// https://webidl.spec.whatwg.org/#js-interface
+impl ToJs for CppInterface {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_object(self.0))
     }
 }
 

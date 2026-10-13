@@ -127,6 +127,30 @@ def rust_module_path(idl_path: Path) -> str:
     return f"crate::{title_case_to_snake_case(namespace)}::{title_case_to_snake_case(idl_path.stem)}"
 
 
+def cpp_interface(idl_type: IDLType, context: GenerationContext) -> Optional[Interface]:
+    """The interface that the type names, if LibWeb implements it in C++."""
+    if isinstance(idl_type, (IDLParameterizedType, IDLUnionType)):
+        return None
+    interface = context.interfaces.get(idl_type.name)
+    if interface is None or is_implemented_in_rust(interface):
+        return None
+    if interface.is_namespace or interface.is_callback_interface:
+        return None
+    return interface
+
+
+def cpp_interface_name_constant(interface: Interface) -> str:
+    """The constant of the generated Rust bindings that is the Web::Bindings::InterfaceName of an interface that
+    LibWeb implements in C++."""
+    return f"super::cpp_interface_names::{title_case_to_snake_case(interface.name).upper()}"
+
+
+def is_union_of_cpp_interfaces(idl_type: IDLType, context: GenerationContext) -> bool:
+    return isinstance(idl_type, IDLUnionType) and all(
+        cpp_interface(member_type, context) is not None for member_type in idl_type.flattened_member_types()
+    )
+
+
 def inheriting_interfaces(interface: Interface, context: GenerationContext) -> List[Interface]:
     """The interfaces that inherit from the interface, through any number of interfaces between them."""
     inheriting = []
@@ -154,14 +178,28 @@ def rust_dictionary_path(dictionary: Dictionary, context: GenerationContext) -> 
     raise RuntimeError(f"No module defines the dictionary {dictionary.name}")
 
 
-def union_typedef_name(idl_type: IDLUnionType, context: GenerationContext, what: str) -> str:
-    """The name of the typedef that names the union. The generator resolves typedefs before it converts types, and the
-    Rust type of a union needs a name, so the typedef is found again by its type."""
-    names = sorted(
+def union_typedef_names(idl_type: IDLUnionType, context: GenerationContext) -> List[str]:
+    return sorted(
         name
         for name, typedef in context.typedefs.items()
         if typedef.type.without_nullable() == idl_type.without_nullable()
     )
+
+
+def is_unnamed_union_of_cpp_interfaces(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the IDL values of the union are objects of interfaces that LibWeb implements in C++ and nothing says
+    which. Their Rust type is that of such an object, which is all an implementation can do with one: hand it on."""
+    return (
+        isinstance(idl_type, IDLUnionType)
+        and is_union_of_cpp_interfaces(idl_type, context)
+        and not union_typedef_names(idl_type, context)
+    )
+
+
+def union_typedef_name(idl_type: IDLUnionType, context: GenerationContext, what: str) -> str:
+    """The name of the typedef that names the union. The generator resolves typedefs before it converts types, and the
+    Rust type of a union needs a name, so the typedef is found again by its type."""
+    names = union_typedef_names(idl_type, context)
     if not names:
         raise UnsupportedByRustBindings(f"{what} has the union type {idl_type}, which no typedef names")
     if len(names) > 1:
@@ -194,6 +232,7 @@ def is_named_union(idl_type: IDLType, context: GenerationContext) -> bool:
         isinstance(idl_type, IDLUnionType)
         and runtime_union_type(idl_type, context) is None
         and member_other_than_undefined(idl_type) is None
+        and not is_unnamed_union_of_cpp_interfaces(idl_type, context)
     )
 
 
@@ -270,6 +309,8 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
                 "not convert yet"
             )
         return f"Ref<{rust_interface_path(interface)}>"
+    if cpp_interface(idl_type, context) is not None or is_unnamed_union_of_cpp_interfaces(idl_type, context):
+        return "CppInterface"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return rust_dictionary_path(dictionary, context)
