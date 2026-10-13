@@ -10,6 +10,11 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/StorageJar.h>
 
+static NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> initial_history_entry()
+{
+    return MUST(WebView::CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_initial_session_history_entry_descriptor({}, {}, {})));
+}
+
 TEST_CASE(storage_round_trips_on_fresh_database)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
@@ -87,8 +92,8 @@ TEST_CASE(storage_usage_counts_utf8_bytes_not_code_units)
 
 TEST_CASE(legacy_cloning_a_canonical_traversable_creates_an_independent_copy)
 {
-    WebView::CanonicalTraversable source;
-    WebView::CanonicalTraversable clone;
+    WebView::CanonicalTraversable source { {}, initial_history_entry() };
+    WebView::CanonicalTraversable clone { {}, initial_history_entry() };
 
     source.session_storage().set_item(WebView::StorageEndpointType::SessionStorage, "https://a.example"_string, "key"_utf16, "source"_utf16);
     source.session_storage().set_item(WebView::StorageEndpointType::SessionStorage, "https://b.example"_string, "other"_utf16, "preserved"_utf16);

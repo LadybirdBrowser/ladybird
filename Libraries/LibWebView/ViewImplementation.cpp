@@ -3061,11 +3061,9 @@ void ViewImplementation::reconstruct_current_session_history_entry_with_history_
     if (!current_entry)
         return;
 
-    auto current_step = traversable().session_history().current_step();
-    VERIFY(current_step.has_value());
     set_url(current_entry->url);
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::HistoryTraversal);
-    traversable().reconstruct_the_history_to_step(*current_step);
+    traversable().reconstruct_the_history_to_step(traversable().session_history().current_step());
     dump_session_history(reason);
 }
 

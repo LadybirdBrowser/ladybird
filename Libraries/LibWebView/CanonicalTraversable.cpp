@@ -29,8 +29,9 @@ static Vector<NonnullOwnPtr<CanonicalTraversable>>& user_agent_top_level_travers
     return *set;
 }
 
-CanonicalTraversable::CanonicalTraversable(Web::HTML::CrossProcessId id)
+CanonicalTraversable::CanonicalTraversable(Web::HTML::CrossProcessId id, NonnullRefPtr<CanonicalSessionHistoryEntry> initial_history_entry)
     : CanonicalNavigable(id)
+    , m_session_history(move(initial_history_entry))
     , m_session_storage(StorageJar::create())
 {
 }
@@ -443,9 +444,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalTraversable::obtain_page_to_host
     if (host && display_page && display_page->is_open() && host == &display_page->client())
         return display_page.release_nonnull();
 
-    auto current_step = m_session_history.current_step();
-    VERIFY(current_step.has_value());
-    auto const* current_entry = m_session_history.get_the_target_history_entry(*this, *current_step);
+    auto const* current_entry = m_session_history.get_the_target_history_entry(*this, m_session_history.current_step());
     VERIFY(current_entry);
     auto current_entry_descriptor = current_entry->descriptor();
 
@@ -575,11 +574,8 @@ void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& naviga
     navigable.did_lose_active_document();
     if (auto state = navigable.replicated_state(); state.has_value())
         reporting_page->async_update_remote_navigable(navigable.id(), *state);
-    auto current_step = m_session_history.current_step();
-    if (!current_step.has_value())
-        return;
     // NB: The canonical session history can still lack the nested history of a newly created navigable.
-    auto const* current_entry = m_session_history.get_the_target_history_entry(navigable, *current_step);
+    auto const* current_entry = m_session_history.get_the_target_history_entry(navigable, m_session_history.current_step());
     if (!current_entry)
         return;
     reporting_page->async_begin_hosting_navigable(navigable.id(), current_entry->descriptor(), system_visibility_state());
@@ -754,7 +750,9 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
     history_entry->document_state->origin = document->origin();
 
     // 5. Let traversable be a new traversable navigable.
-    auto traversable = make<CanonicalTraversable>(id);
+    // NB: Its session history entries start out as steps 7-9 leave them.
+    history_entry->step = 0;
+    auto traversable = make<CanonicalTraversable>(id, history_entry);
 
     // 6. Initialize the navigable traversable given documentState.
     traversable->set_current_session_history_entry(history_entry);
@@ -772,10 +770,8 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.
     // 8. Set initialHistoryEntry's step to 0.
-    history_entry->step = 0;
-
     // 9. Append initialHistoryEntry to traversable's session history entries.
-    traversable->m_session_history.initialize_with_initial_history_entry(move(history_entry));
+    // NB: Done as traversable was created.
 
     // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
     if (opener.has_value())
@@ -936,12 +932,11 @@ void CanonicalTraversable::reset_session_history_for_testing(
     Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
     abandon_history_operations();
-    m_session_history.clear();
     auto entry = MUST(CanonicalSessionHistoryEntry::create_from_descriptor(active_entry));
     entry->document_state->document = active_document();
     set_current_session_history_entry(entry);
     set_active_session_history_entry(entry);
-    m_session_history.initialize_with_initial_history_entry(move(entry));
+    m_session_history = TraversableSessionHistory(move(entry));
     session_history_changed();
 }
 
@@ -1116,10 +1111,7 @@ void CanonicalTraversable::traverse_the_history_by_delta(int delta, CheckForCanc
             // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
             // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
             //    initiatorToCheck, and userInvolvement.
-            auto current_step = m_session_history.current_step();
-            if (!current_step.has_value())
-                return {};
-            return used_step_at_delta(m_session_history, *current_step, delta);
+            return used_step_at_delta(m_session_history, m_session_history.current_step(), delta);
         },
             check_for_cancelation, move(on_ready), move(promise));
     });
@@ -1226,7 +1218,7 @@ void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryStepA
     clear_active_document_load();
 
     // The step a traversal the crash interrupted was applying is applied again, otherwise the current step is.
-    auto target_step = m_session_history.current_step().value();
+    auto target_step = m_session_history.current_step();
     if (auto* traversal = ongoing_browser_history_traversal())
         target_step = traversal->browser_traversal().target_step;
     abandon_history_operations();
@@ -2186,9 +2178,8 @@ void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId o
     //         navigation's start arrives after this request, and is canceled before it fetches anything.
     if (auto const* parameters = request.get_pointer<Web::NavigableCreationHistoryOperationParameters>()) {
         auto navigable = find(parameters->navigable_id);
-        auto current_step = m_session_history.current_step();
-        if (navigable.has_value() && current_step.has_value() && !navigable->ongoing_navigation_id().has_value()
-            && m_session_history.get_the_target_history_entry(*navigable, *current_step)) {
+        if (navigable.has_value() && !navigable->ongoing_navigation_id().has_value()
+            && m_session_history.get_the_target_history_entry(*navigable, m_session_history.current_step())) {
             navigable->set_ongoing_navigation_to_traversal(operation_id);
         }
     }
@@ -2278,7 +2269,7 @@ void CanonicalTraversable::apply_the_push_or_replace_history_step(HistoryOperati
 void CanonicalTraversable::apply_the_reload_history_step(HistoryOperation& operation, Web::HTML::UserNavigationInvolvement user_involvement)
 {
     // 1. Let step be traversable's current session history step.
-    auto step = m_session_history.current_step().value();
+    auto step = m_session_history.current_step();
 
     // 2. Return the result of applying the history step step to traversable given true, null, null, userInvolvement, and "reload".
     apply_history_step(operation, step, true, {}, user_involvement, Web::Bindings::NavigationType::Reload);
@@ -2302,7 +2293,7 @@ void CanonicalTraversable::resume_applying_the_traverse_history_step(HistoryOper
 void CanonicalTraversable::update_for_navigable_creation_or_destruction(HistoryOperation& operation)
 {
     // 1. Let step be traversable's current session history step.
-    auto step = m_session_history.current_step().value();
+    auto step = m_session_history.current_step();
 
     // 2. Return the result of applying the history step step to traversable given false, null, null, "none", and null.
     apply_history_step(operation, step, false, {}, Web::HTML::UserNavigationInvolvement::None, {});
@@ -2318,7 +2309,7 @@ void CanonicalTraversable::traverse_the_history_by_a_delta_at_queue_position(His
     auto all_steps = m_session_history.used_steps();
 
     // 2. Let currentStepIndex be the index of traversable's current session history step within allSteps.
-    auto current_step_index = all_steps.find_first_index(m_session_history.current_step().value());
+    auto current_step_index = all_steps.find_first_index(m_session_history.current_step());
     VERIFY(current_step_index.has_value());
 
     // 3. Let targetStepIndex be currentStepIndex plus delta.
@@ -2431,7 +2422,7 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
         return;
     }
 
-    auto current_step = m_session_history.current_step().value();
+    auto current_step = m_session_history.current_step();
 
     // 5. If entryToReplace is null:
     if (!request.entry_to_replace.has_value()) {
@@ -2476,7 +2467,7 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
         [&](Web::ReloadHistoryOperationParameters const& parameters) {
             // NB: A navigable that is gone has no entry to reload. Applying the reload history step then changes nothing.
             if (auto navigable = find(parameters.navigable_id); navigable.has_value()) {
-                if (auto* target_entry = m_session_history.get_the_target_history_entry(*navigable, m_session_history.current_step().value())) {
+                if (auto* target_entry = m_session_history.get_the_target_history_entry(*navigable, m_session_history.current_step())) {
                     target_entry->document_state->reload_pending = true;
                     session_history_changed();
                 }
@@ -2509,7 +2500,7 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
 
             // A navigable created by a document repopulated for its entry already has the nested history that entry
             // kept. Updating for its creation populates the entry the history holds for it at the current step.
-            if (m_session_history.get_the_target_history_entry(*child_navigable, m_session_history.current_step().value())) {
+            if (m_session_history.get_the_target_history_entry(*child_navigable, m_session_history.current_step())) {
                 update_for_navigable_creation_or_destruction(operation);
                 return;
             }
@@ -2684,7 +2675,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         }
 
         // 4. Set targetStep to traversable's current session history step.
-        target_step = m_session_history.current_step().value();
+        target_step = m_session_history.current_step();
     }
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.

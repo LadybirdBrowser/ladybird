@@ -46,7 +46,7 @@ enum class WebContentProcessLost : bool {
 class WEBVIEW_API CanonicalTraversable final
     : public CanonicalNavigable {
 public:
-    explicit CanonicalTraversable(Web::HTML::CrossProcessId id = {});
+    CanonicalTraversable(Web::HTML::CrossProcessId id, NonnullRefPtr<CanonicalSessionHistoryEntry> initial_history_entry);
     virtual ~CanonicalTraversable() override;
 
     virtual bool is_top_level_traversable() const override { return true; }

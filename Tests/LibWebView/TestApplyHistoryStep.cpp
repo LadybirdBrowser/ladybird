@@ -15,6 +15,11 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/WebContentClient.h>
 
+static NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> initial_history_entry()
+{
+    return MUST(WebView::CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_initial_session_history_entry_descriptor({}, {}, {})));
+}
+
 static Web::HTML::CrossProcessId root_id() { return { 1, 1 }; }
 static Web::HTML::CrossProcessId child_id() { return { 1, 2 }; }
 static Web::HTML::CrossProcessId first_operation_id() { return { 2, 1 }; }
@@ -261,8 +266,8 @@ struct TestTraversable {
         });
     }
 
-    WebView::TraversableSessionHistory history;
-    WebView::CanonicalTraversable traversable;
+    WebView::TraversableSessionHistory history { initial_history_entry() };
+    WebView::CanonicalTraversable traversable { {}, initial_history_entry() };
     WebView::SessionHistoryTraversalQueue queue;
     WebView::TraversableApplyHistoryStepState state;
     FakeJobRunner runner;

@@ -38,21 +38,19 @@ public:
         bool changes_top_level_entry { false };
     };
 
-    TraversableSessionHistory() = default;
+    explicit TraversableSessionHistory(NonnullRefPtr<CanonicalSessionHistoryEntry> initial_history_entry);
     TraversableSessionHistory(TraversableSessionHistory&&) = default;
     TraversableSessionHistory& operator=(TraversableSessionHistory&&) = default;
 
     bool is_empty() const { return m_entries.is_empty(); }
     size_t size() const { return m_entries.size(); }
     size_t used_step_count() const { return used_steps().size(); }
-    Optional<i32> current_step() const { return m_current_session_history_step; }
+    i32 current_step() const { return m_current_session_history_step; }
     // The index in the used steps of the used step the current step resolves to.
     Optional<size_t> current_used_step_index() const;
     Optional<size_t> current_top_level_entry_index() const;
 
-    void clear();
     bool initialize_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
-    void initialize_with_initial_history_entry(NonnullRefPtr<CanonicalSessionHistoryEntry> initial_history_entry);
     [[nodiscard]] ErrorOr<void> restore_from_ui_snapshot(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id);
     Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, CanonicalDocumentState& parent_document_state, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry);
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
@@ -104,7 +102,7 @@ private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     // NB: A step that removing a navigable or replacing an entry made unused stays until applying the history step
     //     resolves it to the used step at or before it, as getting the used step does.
-    Optional<i32> m_current_session_history_step;
+    i32 m_current_session_history_step { 0 };
 };
 
 struct SessionHistorySnapshot {
