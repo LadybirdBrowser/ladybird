@@ -208,21 +208,18 @@ fn write_marks(host: &DocumentHost, write: LayoutTreeUpdateMarkWrite) -> bool {
 /// Whether the node `style_node` names holds a layout tree update mark of its own.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_marks(host, style_node, LayoutTreeUpdateMarks::needs)
 }
 
 /// Which narrower rebuilds the marks the node `style_node` names has collected still permit.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_layout_tree_update_reuse_reasons(host: &DocumentHost, style_node: u32) -> u8 {
-    // SAFETY: Guaranteed by the caller.
     read_marks(host, style_node, LayoutTreeUpdateMarks::reuse_reasons)
 }
 
 /// Whether a flat-tree descendant of the node `style_node` names holds a layout tree update mark.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_child_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_marks(host, style_node, LayoutTreeUpdateMarks::child_needs)
 }
 
@@ -238,7 +235,6 @@ pub extern "C" fn render_state_merge_layout_tree_update_mark(
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
     write_marks(host, LayoutTreeUpdateMarkWrite::Merge(style_node, value, reuse_reason))
 }
 
@@ -253,7 +249,6 @@ pub extern "C" fn render_state_set_child_needs_layout_tree_update(
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
     write_marks(host, LayoutTreeUpdateMarkWrite::SetChildNeeds(style_node, value))
 }
 
@@ -264,7 +259,6 @@ pub extern "C" fn render_state_clear_layout_tree_update_marks(host: &DocumentHos
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return;
     };
-    // SAFETY: Guaranteed by the caller.
     write_marks(host, LayoutTreeUpdateMarkWrite::Clear(style_node));
 }
 
@@ -429,7 +423,6 @@ pub extern "C" fn render_state_apply_layout_tree_update_mark(
 ) {
     use super::layout_changes::{LayoutChange, queue};
     let node = StyleNodeID::from_raw(style_node);
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::ApplyLayoutTreeUpdateMark { node, mark });
 }
 
@@ -692,7 +685,6 @@ fn queue_marks(host: &DocumentHost, target: MarkedBox, marks: FfiBoxMarks) {
     if marks.is_empty() {
         return;
     }
-    // SAFETY: Guaranteed by the caller.
     super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks });
 }
 
@@ -700,7 +692,6 @@ fn queue_marks(host: &DocumentHost, target: MarkedBox, marks: FfiBoxMarks) {
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_mark_node_box(host: &DocumentHost, style_node: u32, marks: FfiBoxMarks) {
     let target = MarkedBox::Node(StyleNodeID::from_raw(style_node));
-    // SAFETY: Guaranteed by the caller.
     queue_marks(host, target, marks);
 }
 
@@ -719,7 +710,6 @@ pub extern "C" fn render_state_mark_pseudo_element_box(
         generator,
         generated_for,
     };
-    // SAFETY: Guaranteed by the caller.
     queue_marks(host, target, marks);
 }
 
@@ -727,7 +717,6 @@ pub extern "C" fn render_state_mark_pseudo_element_box(
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_mark_row_box(host: &DocumentHost, row: NodeSlotId, marks: FfiBoxMarks) {
     let target = MarkedBox::Row(row);
-    // SAFETY: Guaranteed by the caller.
     queue_marks(host, target, marks);
 }
 

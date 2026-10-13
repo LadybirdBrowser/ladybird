@@ -33,7 +33,6 @@ const SCRIPT_ENTRY: ScriptEntry = ScriptEntry { _private: () };
 /// Answers `read` from the rows of `host`'s document as of every write the host made, spending the script call's
 /// forced read. Every entry here is called with a live document host, on its document's thread.
 fn read_rows<R>(host: &DocumentHost, read: impl FnOnce(&PaintSource<'_>) -> R) -> R {
-    // SAFETY: The host is live.
     host.read_rows(ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY), false, read)
 }
 
@@ -386,9 +385,6 @@ pub extern "C" fn layout_script_paintable_absolute_border_box_rect(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_script_paintable_box_model(
     host: &DocumentHost,
@@ -425,7 +421,6 @@ pub extern "C" fn layout_script_paintable_content_size(
 
 /// Answers `read` of the layout arena of `host`'s document, spending the script call's forced read.
 fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&mut crate::layout::LayoutNodeArena) -> R) -> R {
-    // SAFETY: Every entry here is called with a live document host, on its document's thread.
     host.ask(ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY), |state| {
         read(state.arena_mut())
     })

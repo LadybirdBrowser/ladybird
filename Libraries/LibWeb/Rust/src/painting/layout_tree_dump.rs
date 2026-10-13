@@ -74,14 +74,12 @@ impl FfiLayoutTreeDumpCallbacks {
         identifier_sink: &mut Vec<u8>,
     ) {
         // The C++ host fills both sinks synchronously through the exported push function.
-        {
-            (self.describe_dom_node)(
-                self.document,
-                node,
-                (&raw mut *tag_name_sink).cast(),
-                (&raw mut *identifier_sink).cast(),
-            );
-        }
+        (self.describe_dom_node)(
+            self.document,
+            node,
+            (&raw mut *tag_name_sink).cast(),
+            (&raw mut *identifier_sink).cast(),
+        );
     }
 
     fn navigable_container_content_document(
@@ -111,15 +109,13 @@ impl FfiLayoutTreeDumpCallbacks {
         // The C++ host re-enters the dump for the nested document's own arena and appends
         // into the output sink synchronously through the exported push function; no reference to
         // the output vector is alive across the call.
-        {
-            (self.dump_nested_layout_tree)(
-                self.context,
-                layout_root,
-                indent,
-                interactive,
-                (&raw mut *output).cast(),
-            );
-        }
+        (self.dump_nested_layout_tree)(
+            self.context,
+            layout_root,
+            indent,
+            interactive,
+            (&raw mut *output).cast(),
+        );
     }
 
     fn append_text(&self, _: &MainThread, bytes: &[u8]) {

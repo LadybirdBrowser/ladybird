@@ -84,7 +84,6 @@ impl CommitNotifications {
         for reset in self.row_resets {
             reset.tell(main_thread);
         }
-        // SAFETY: Guaranteed by the caller.
         host.deliver_commit_messages(main_thread, read, &self.messages);
     }
 }

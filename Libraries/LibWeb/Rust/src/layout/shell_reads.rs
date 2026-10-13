@@ -54,7 +54,6 @@ fn identities(host: &DocumentHost, wait: impl RenderWait) -> RowIdentities {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_flags(host: &DocumentHost, id: NodeSlotId) -> u32 {
-    // SAFETY: Guaranteed by the caller.
     rows(host, node_read()).flags(id)
 }
 
@@ -62,22 +61,18 @@ pub extern "C" fn layout_row_flags(host: &DocumentHost, id: NodeSlotId) -> u32 {
 /// reads as unset.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_identity_flags(host: &DocumentHost, id: NodeSlotId) -> u32 {
-    // SAFETY: Guaranteed by the caller.
     identities(host, node_read()).identity_flags(id)
 }
 
 /// The layout node of the row `id` links to, made if nothing has asked for it yet, or null.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_link_shell(host: &DocumentHost, id: NodeSlotId, link: FfiNodeLink) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
     let linked = rows(host, node_read()).link(id, link);
-    // SAFETY: As above.
     shell_of(host, node_read(), (!linked.is_invalid()).then_some(linked))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_generated_for(host: &DocumentHost, id: NodeSlotId) -> u8 {
-    // SAFETY: Guaranteed by the caller.
     identities(host, node_read()).generated_for(id)
 }
 
@@ -87,14 +82,12 @@ pub extern "C" fn layout_row_has_compositor_animation_frame(
     id: NodeSlotId,
     kind: CompositorAnimationFrameKind,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     rows(host, node_read()).has_compositor_animation_frame(id, kind)
 }
 
 /// The style node of the row, or 0 for a row that is gone or carries none.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_style_node(host: &DocumentHost, id: NodeSlotId) -> u32 {
-    // SAFETY: Guaranteed by the caller.
     identities(host, node_read())
         .style_node(id)
         .map_or(0, crate::css::style::tree::StyleNodeID::raw)
@@ -102,7 +95,6 @@ pub extern "C" fn layout_row_style_node(host: &DocumentHost, id: NodeSlotId) -> 
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_style_record(host: &DocumentHost, id: NodeSlotId) -> u64 {
-    // SAFETY: Guaranteed by the caller.
     styles(host, id, node_read()).style_record(id)
 }
 
@@ -110,25 +102,21 @@ pub extern "C" fn layout_row_style_record(host: &DocumentHost, id: NodeSlotId) -
 /// writes, and a job tells the layout node of.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_style_is_derived(host: &DocumentHost, id: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
     styles(host, id, node_read()).style_is_derived(id)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_style_payloads(host: &DocumentHost, id: NodeSlotId) -> *const c_void {
-    // SAFETY: Guaranteed by the caller.
     styles(host, id, node_read()).style_payloads(id).as_ptr().cast()
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_is_atomic_inline(host: &DocumentHost, id: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
     rows(host, node_read()).is_atomic_inline(id)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_is_fragmented_inline(host: &DocumentHost, id: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
     rows(host, node_read()).is_fragmented_inline(id)
 }
 
@@ -142,7 +130,6 @@ fn shell_of(host: &DocumentHost, wait: impl RenderWait, id: Option<NodeSlotId>) 
     let Some(id) = id else {
         return std::ptr::null_mut();
     };
-    // SAFETY: Guaranteed by the caller.
     bound_shell(host, wait, |_| Some(id))
 }
 
@@ -154,14 +141,13 @@ fn bound_shell(
     bound: impl FnOnce(&RowIdentities) -> Option<NodeSlotId>,
 ) -> *mut c_void {
     let facts = {
-        // SAFETY: Guaranteed by the caller.
         let identities = identities(host, wait);
         bound(&identities).and_then(|id| identities.shell_facts(id))
     };
     let Some(facts) = facts else {
         return std::ptr::null_mut();
     };
-    // SAFETY: As above. The factory reads the rows again, through the shared host.
+    // The factory reads the rows again, through the shared host.
     host.host_tables().shell_of(facts)
 }
 
@@ -172,7 +158,6 @@ pub extern "C" fn layout_row_bound_shell(host: &DocumentHost, read: &BegunRead, 
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return std::ptr::null_mut();
     };
-    // SAFETY: Guaranteed by the caller.
     bound_shell(host, read, |identities| identities.bound_row(style_node))
 }
 
@@ -189,7 +174,6 @@ pub extern "C" fn layout_row_bound_committed_content_size(
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
     let Some(row) = identities(host, read).bound_row(style_node) else {
         return false;
     };
@@ -214,18 +198,14 @@ pub extern "C" fn layout_row_bound_pseudo_element_shell(
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return std::ptr::null_mut();
     };
-    // SAFETY: Guaranteed by the caller.
-    {
-        bound_shell(host, read, |identities| {
-            identities.bound_pseudo_element_row(style_node, generated_for)
-        })
-    }
+    bound_shell(host, read, |identities| {
+        identities.bound_pseudo_element_row(style_node, generated_for)
+    })
 }
 
 /// The layout node of the viewport row the document is bound to, made if nothing has asked for it yet, or null.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_bound_viewport_shell(host: &DocumentHost, read: &BegunRead) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
     bound_shell(host, read, RowIdentities::bound_viewport_row)
 }
 
@@ -239,7 +219,6 @@ pub extern "C" fn layout_row_read_of_held_node(host: &DocumentHost) -> *const Be
 /// viewport row the document is bound to.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_is_bound_to(host: &DocumentHost, id: NodeSlotId, style_node: u32) -> bool {
-    // SAFETY: Guaranteed by the caller.
     let identities = identities(host, node_read());
     let bound = match StyleNodeID::from_raw(style_node) {
         Some(style_node) => identities.bound_row(style_node),
@@ -251,9 +230,7 @@ pub extern "C" fn layout_row_is_bound_to(host: &DocumentHost, id: NodeSlotId, st
 /// The layout node of the box whose content box the row is laid out against, or null.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_containing_block_shell_if_live(host: &DocumentHost, id: NodeSlotId) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
     let containing_block = read_rows(host, |rows| rows.node_containing_block_if_live(id));
-    // SAFETY: As above.
     shell_of(host, node_read(), containing_block)
 }
 
@@ -262,7 +239,6 @@ pub extern "C" fn layout_row_establishes_an_absolute_positioning_containing_bloc
     host: &DocumentHost,
     id: NodeSlotId,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_rows(host, |rows| {
         crate::painting::style_queries::establishes_positioning_containing_blocks(rows, id).0
     })
@@ -273,7 +249,6 @@ pub extern "C" fn layout_row_establishes_a_fixed_positioning_containing_block(
     host: &DocumentHost,
     id: NodeSlotId,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_rows(host, |rows| {
         crate::painting::style_queries::establishes_positioning_containing_blocks(rows, id).1
     })
@@ -284,7 +259,6 @@ pub extern "C" fn layout_row_any_ancestor_establishes_a_fixed_position_containin
     host: &DocumentHost,
     id: NodeSlotId,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_rows(host, |rows| {
         crate::painting::style_queries::any_ancestor_establishes_a_fixed_position_containing_block(rows, id)
     })
@@ -297,15 +271,12 @@ pub extern "C" fn layout_row_paintable_layout_node_shell(
     read: &BegunRead,
     slot: NodeSlotId,
 ) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
     let populated = rows(host, read).paintable.paintable_row_is_populated(slot);
-    // SAFETY: As above.
     shell_of(host, read, populated.then_some(slot))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_paintable_is_positioned(host: &DocumentHost, slot: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_rows(host, |rows| {
         rows.paintable_row_is_populated(slot) && crate::painting::style_queries::is_positioned(rows, slot)
     })
@@ -313,7 +284,6 @@ pub extern "C" fn layout_row_paintable_is_positioned(host: &DocumentHost, slot: 
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_paintable_has_child_paintables(host: &DocumentHost, slot: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_rows(host, |rows| {
         crate::painting::paint_order::first_paint_child(rows, slot).is_some()
     })
@@ -321,7 +291,6 @@ pub extern "C" fn layout_row_paintable_has_child_paintables(host: &DocumentHost,
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_paintable_is_chrome_mirrored(host: &DocumentHost, slot: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_rows(host, |rows| {
         crate::painting::chrome_geometry::is_chrome_mirrored(rows, slot)
     })
@@ -329,7 +298,6 @@ pub extern "C" fn layout_row_paintable_is_chrome_mirrored(host: &DocumentHost, s
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_has_css_transform(host: &DocumentHost, id: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_rows(host, |rows| {
         rows.node_style_if_live(id)
             .is_some_and(|style| crate::painting::style_queries::has_css_transform(rows, id, style))

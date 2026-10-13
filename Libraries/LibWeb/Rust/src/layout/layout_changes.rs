@@ -445,16 +445,13 @@ pub extern "C" fn render_state_set_needs_layout_update(
     node: NodeSlotId,
     propagate_through_ancestors: bool,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    {
-        queue(
-            host,
-            LayoutChange::SetNeedsLayoutUpdate {
-                node,
-                propagate_through_ancestors,
-            },
-        );
-    }
+    queue(
+        host,
+        LayoutChange::SetNeedsLayoutUpdate {
+            node,
+            propagate_through_ancestors,
+        },
+    );
 }
 
 /// Detaches what is left of the boxes of the `count` nodes `style_nodes` names as they leave the document (see
@@ -480,7 +477,6 @@ pub unsafe extern "C" fn render_state_detach_remaining_rows_for_removal(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_needs_full_layout_tree_update(host: &DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::SetNeedsFullLayoutTreeUpdate);
 }
 
@@ -489,13 +485,11 @@ pub extern "C" fn render_state_reset_cached_intrinsic_sizes_of_self_and_ancestor
     host: &DocumentHost,
     node: NodeSlotId,
 ) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::ResetCachedIntrinsicSizesOfSelfAndAncestors { node });
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_record_partial_relayout_escape(host: &DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::RecordPartialRelayoutEscape);
 }
 
@@ -523,7 +517,6 @@ pub unsafe extern "C" fn render_state_style_node_changed(
         new,
         generated_for,
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
     if let Some(new) = new {
         host.write_marks(super::tree_update_marks::LayoutTreeUpdateMarkWrite::Clear(new));
@@ -553,7 +546,6 @@ pub unsafe extern "C" fn render_state_set_anchor_name_elements(
         anchor_name,
         elements: elements.iter().copied().filter_map(StyleNodeID::from_raw).collect(),
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
@@ -563,7 +555,6 @@ pub extern "C" fn render_state_set_element_scroll_offset(host: &DocumentHost, el
         return;
     };
     let offset = offset.into();
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::SetElementScrollOffset { element, offset });
 }
 
@@ -582,7 +573,6 @@ pub extern "C" fn render_state_set_pseudo_element_scroll_offset(
         generated_for,
         offset: offset.into(),
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
@@ -591,7 +581,6 @@ pub extern "C" fn render_state_set_identity_in_focused_text_control(host: &Docum
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::SetIdentityInFocusedTextControl { node, value });
 }
 
@@ -623,7 +612,6 @@ pub unsafe extern "C" fn render_state_set_svg_attribute_facts(
         facts: Box::new(facts),
         points: points.into(),
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
@@ -646,19 +634,16 @@ pub extern "C" fn render_state_set_svg_style_references(
         element,
         references: [mask, clip_path, fill, stroke],
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_document_is_decoded_svg(host: &DocumentHost, is_decoded_svg: bool) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::SetDocumentIsDecodedSvg(is_decoded_svg));
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_node_flag(host: &DocumentHost, node: NodeSlotId, flag: NodeFlag, value: bool) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::SetNodeFlag { node, flag, value });
 }
 
@@ -672,19 +657,16 @@ pub extern "C" fn render_state_set_owned_image_natural_size(
         node,
         natural_size: natural_size.into(),
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_invalidate_searchable_text(host: &DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::InvalidateSearchableText);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_restamp_table_spans(host: &DocumentHost, node: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::RestampTableSpans { node });
 }
 

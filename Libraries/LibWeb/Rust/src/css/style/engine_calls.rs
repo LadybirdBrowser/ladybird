@@ -658,16 +658,13 @@ pub extern "C" fn style_engine_park_element_random_base_values(host: &DocumentHo
         return std::ptr::null();
     }
     let slot = ParkedBaseValues::default();
-    // SAFETY: Guaranteed by the caller.
-    {
-        queue(
-            host,
-            EngineWrite::ParkRandomBaseValues {
-                node,
-                slot: Arc::clone(&slot),
-            },
-        );
-    }
+    queue(
+        host,
+        EngineWrite::ParkRandomBaseValues {
+            node,
+            slot: Arc::clone(&slot),
+        },
+    );
     Arc::into_raw(slot).cast()
 }
 
@@ -710,7 +707,6 @@ pub extern "C" fn style_engine_answer_record_demand(
     node: u32,
     demand: FfiRecordDemand,
 ) -> FfiRecordDemandAnswer {
-    // SAFETY: Guaranteed by the caller.
     ask_record_demand(host, read, node, RecordDemand::Element(demand))
 }
 
@@ -723,7 +719,6 @@ pub extern "C" fn style_engine_answer_pseudo_element_record_demand(
     demand: FfiPseudoElementRecordDemand,
     pseudo_element: FfiDemandedPseudoElement,
 ) -> FfiRecordDemandAnswer {
-    // SAFETY: Guaranteed by the caller.
     ask_record_demand(host, read, node, RecordDemand::PseudoElement(demand, pseudo_element))
 }
 

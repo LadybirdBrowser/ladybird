@@ -1350,7 +1350,6 @@ mod tests {
                 prepare,
             )
         });
-        // SAFETY: The test host lives until the end of the test.
         let next = host
             .host()
             .published_rules()

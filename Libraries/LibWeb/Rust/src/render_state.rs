@@ -1002,7 +1002,6 @@ mod tests {
     fn a_write_is_answered_with_what_it_owes_the_host() {
         use crate::layout::layout_changes::{LayoutWrite, write};
         let test_host = TestHost::new();
-        // SAFETY: The host lives as long as the test host.
         let host = test_host.host();
         // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
         let arena = unsafe { &mut *host.arena_for_test() };
@@ -1027,7 +1026,6 @@ mod tests {
             document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
         };
         let test_host = TestHost::new();
-        // SAFETY: The host lives as long as the test host.
         let host = test_host.host();
         // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
         let arena = unsafe { &mut *host.arena_for_test() };
@@ -1047,18 +1045,14 @@ mod tests {
             });
         };
 
-        // SAFETY: The host is live, on this thread.
         document_host_note_paint_preparation_is_current(host);
         measure();
-        // SAFETY: As above.
         assert!(!document_host_paint_preparation_is_current(host));
         assert!(arena.scrollable_overflow.scrollability_changed.get());
 
         // A read that measures nothing leaves the preparation as it is.
-        // SAFETY: As above.
         document_host_note_paint_preparation_is_current(host);
         measure();
-        // SAFETY: As above.
         assert!(document_host_paint_preparation_is_current(host));
 
         arena
@@ -1074,11 +1068,8 @@ mod tests {
         };
         let test_host = TestHost::new();
         let host = test_host.host();
-        // SAFETY: The host is live, on this thread.
-        {
-            document_host_note_paint_preparation_is_current(host);
-            render_state_mark_node_box(host, 1, FfiBoxMarks::default());
-        }
+        document_host_note_paint_preparation_is_current(host);
+        render_state_mark_node_box(host, 1, FfiBoxMarks::default());
         assert!(document_host_paint_preparation_is_current(host));
     }
 

@@ -30,7 +30,6 @@ pub extern "C" fn layout_row_paintable_physical_resize_axes(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,
 ) -> FfiPhysicalResizeAxes {
-    // SAFETY: Guaranteed by the caller.
     let axes = read_measured_rows(host, super::node_read(), |rows| {
         crate::painting::chrome_geometry::physical_resize_axes(rows, slot)
     });
@@ -52,7 +51,6 @@ pub extern "C" fn layout_row_paintable_compute_scrollbar_data(
     device_pixels_per_css_pixel: f64,
     out: &mut FfiOptionalScrollbarData,
 ) {
-    // SAFETY: Guaranteed by the caller.
     let data = read_measured_rows(host, super::node_read(), |rows| {
         crate::painting::chrome_geometry::ChromeGeometry { arena: rows, metrics }.compute_scrollbar_data(
             slot,
@@ -85,7 +83,6 @@ pub extern "C" fn layout_row_paintable_minimum_scroll_offset(
     slot: NodeSlotId,
     out: &mut FfiCssPixelPoint,
 ) {
-    // SAFETY: Guaranteed by the caller.
     *out = {
         read_measured_rows(host, super::node_read(), |rows| {
             crate::painting::chrome_geometry::minimum_scroll_offset(rows, slot)
@@ -100,7 +97,6 @@ pub extern "C" fn layout_row_paintable_maximum_scroll_offset(
     slot: NodeSlotId,
     out: &mut FfiCssPixelPoint,
 ) {
-    // SAFETY: Guaranteed by the caller.
     *out = {
         read_measured_rows(host, super::node_read(), |rows| {
             crate::painting::chrome_geometry::maximum_scroll_offset(rows, slot)
@@ -114,7 +110,6 @@ pub extern "C" fn layout_row_paintable_wheel_scrollable_axes(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,
 ) -> FfiPhysicalResizeAxes {
-    // SAFETY: Guaranteed by the caller.
     let axes = read_measured_rows(host, super::node_read(), |rows| {
         crate::painting::chrome_geometry::wheel_scrollable_axes(rows, slot)
     });
@@ -133,7 +128,6 @@ pub unsafe extern "C" fn layout_row_snap_container_geometry(
     snap_container: NodeSlotId,
     out_geometry: *mut crate::painting::host::FfiSnapContainerGeometry,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     let geometry = read_measured_rows(host, super::node_read(), |rows| {
         crate::painting::scroll_snap::snap_container_geometry(rows, snap_container)
     });
@@ -152,7 +146,6 @@ pub extern "C" fn layout_row_scroll_snapport_rect(
     scrollport: FfiCssPixelRect,
     out: &mut FfiCssPixelRect,
 ) {
-    // SAFETY: Guaranteed by the caller.
     *out = {
         read_measured_rows(host, super::node_read(), |rows| {
             crate::painting::scroll_snap::scroll_snapport_rect(rows, snap_container, scrollport.into())
@@ -166,7 +159,6 @@ pub extern "C" fn layout_row_scroll_snap_axes(
     host: &crate::render_state::DocumentHost,
     snap_container: NodeSlotId,
 ) -> crate::painting::host::FfiSnapAxes {
-    // SAFETY: Guaranteed by the caller.
     read_measured_rows(host, super::node_read(), |rows| {
         crate::painting::scroll_snap::snap_axes_of_scroll_container(rows, snap_container)
     })
@@ -183,7 +175,6 @@ pub extern "C" fn render_state_scroll_target_for_text_position(
     scroll_block_axis: bool,
     offset_out: &mut FfiCssPixelPoint,
 ) -> NodeSlotId {
-    // SAFETY: Guaranteed by the caller.
     let target = {
         read_arena(
             host,
@@ -215,23 +206,20 @@ pub extern "C" fn render_state_scrolling_box_for_scroll_step(
     viewport: NodeSlotId,
     delta: FfiCssPixelPoint,
 ) -> NodeSlotId {
-    // SAFETY: Guaranteed by the caller.
-    {
-        read_arena(
-            host,
-            super::node_read(),
-            (target, viewport, delta),
-            |arena, (target, viewport, delta)| {
-                arena.measure_scrollable_overflow();
-                crate::painting::scroll_chain::scrolling_box_for_scroll_step(
-                    &arena.paintable_rows(),
-                    target,
-                    viewport,
-                    delta.into(),
-                )
-            },
-        )
-    }
+    read_arena(
+        host,
+        super::node_read(),
+        (target, viewport, delta),
+        |arena, (target, viewport, delta)| {
+            arena.measure_scrollable_overflow();
+            crate::painting::scroll_chain::scrolling_box_for_scroll_step(
+                &arena.paintable_rows(),
+                target,
+                viewport,
+                delta.into(),
+            )
+        },
+    )
 }
 
 /// # Safety
@@ -246,7 +234,6 @@ pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containin
     context: *mut c_void,
     push_scrollable_box: unsafe extern "C" fn(*mut c_void, NodeSlotId, f64, f64),
 ) {
-    // SAFETY: Guaranteed by the caller.
     let boxes = {
         read_arena(
             host,
@@ -279,7 +266,6 @@ pub extern "C" fn render_state_box_ending_scroll_chain(
     delta_x: f64,
     delta_y: f64,
 ) -> NodeSlotId {
-    // SAFETY: Guaranteed by the caller.
     read_arena(
         host,
         node_read(),
@@ -295,16 +281,13 @@ pub extern "C" fn render_state_first_wheel_scrollable_box_in_containing_block_ch
     host: &crate::render_state::DocumentHost,
     start: NodeSlotId,
 ) -> NodeSlotId {
-    // SAFETY: Guaranteed by the caller.
-    {
-        read_arena(host, node_read(), start, |arena, start| {
-            arena.measure_scrollable_overflow();
-            crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
-                &arena.paintable_rows(),
-                start,
-            )
-        })
-    }
+    read_arena(host, node_read(), start, |arena, start| {
+        arena.measure_scrollable_overflow();
+        crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
+            &arena.paintable_rows(),
+            start,
+        )
+    })
 }
 
 /// Prepares the document of `host` for rendering, and stores the scroll offsets the new overflow moved out of range.
@@ -335,7 +318,6 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
         let main_thread = unsafe { main_thread(host) };
         if let Some(geometry_host) = host.host_tables().geometry_host.get() {
             for (slot, offset) in prepared.clamped_scroll_offsets {
-                // SAFETY: The pass clamped the offsets of live rows, and the host holds no borrow of the arena.
                 geometry_host.set_scroll_offset(&main_thread, read, slot, offset.into());
             }
         }
@@ -387,7 +369,6 @@ pub unsafe extern "C" fn compositor_animation_effect_publish_pending(
     // SAFETY: Guaranteed by the caller.
     let animations = unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }
         .publish_pending(reuse_retained_timing_anchors);
-    // SAFETY: As above.
     host.publish_compositor_animations(animations);
 }
 
@@ -512,7 +493,6 @@ pub unsafe extern "C" fn render_state_for_each_snap_area(
     context: *mut c_void,
     push_snap_area: unsafe extern "C" fn(*mut c_void, *const crate::painting::host::FfiSnapAreaGeometry),
 ) {
-    // SAFETY: Guaranteed by the caller.
     let areas = {
         read_arena(host, super::node_read(), snap_container, |arena, snap_container| {
             let mut areas = Vec::new();
@@ -575,7 +555,6 @@ pub unsafe extern "C" fn render_state_take_recording_trace(
     let Some(pending) = host.recording().take_pending_recording_trace() else {
         return false;
     };
-    // SAFETY: As above.
     let recording = read_arena(host, read, (), |arena, ()| {
         arena.paint_state().borrow().last_recording.clone()
     });
@@ -614,7 +593,6 @@ pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, NodeSlotId, FfiCssPixelRect),
 ) {
-    // SAFETY: Guaranteed by the caller.
     let rects = {
         read_arena(host, super::node_read(), root, |arena, root| {
             let paintable_rows = arena.paintable_rows();
@@ -690,7 +668,6 @@ pub unsafe extern "C" fn render_state_record_display_list(
     let frame_inputs = frame_inputs(host, viewport, &inputs, &recorder);
     // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
     let inputs = unsafe { inputs.recording_inputs() };
-    // SAFETY: Guaranteed by the caller.
     let Some(frame) = read_arena(
         host,
         read,
@@ -974,7 +951,6 @@ fn with_hit_test_list<R>(
         &crate::painting::paint_read::PaintSource<'_>,
     ) -> R,
 ) -> R {
-    // SAFETY: The host is live.
     let rows = host.fresh_measured_rows(read);
     let absolute_rects = std::cell::RefCell::default();
     let source = crate::painting::paint_read::PaintSource::over_rows(&rows.paintable, &absolute_rects);
@@ -1085,7 +1061,6 @@ pub extern "C" fn layout_paintable_event_dispatch_target(
     read: &crate::render_state::BegunRead,
     slot: NodeSlotId,
 ) -> crate::painting::host::FfiNodeIdentity {
-    // SAFETY: Guaranteed by the caller.
     read_measured_rows(host, read, |rows| {
         crate::painting::hit_test::resolve::event_dispatch_target_of_paintable(rows, slot)
     })

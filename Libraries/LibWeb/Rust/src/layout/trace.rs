@@ -202,7 +202,6 @@ pub(crate) fn name_layout_trace_owners(main_thread: &MainThread, read: &crate::r
     let Some(describe) = host.host_tables().layout_trace_describe_node.get() else {
         return;
     };
-    // SAFETY: The host is live for the token's entry.
     let owners = super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.unnamed_owners(arena));
     if owners.is_empty() {
         return;
@@ -218,7 +217,6 @@ pub(crate) fn name_layout_trace_owners(main_thread: &MainThread, read: &crate::r
             )
         })
         .collect();
-    // SAFETY: As above.
     super::layout_changes::queue(host, super::layout_changes::LayoutChange::NameLayoutTraceOwners(names));
 }
 
@@ -249,7 +247,6 @@ impl LayoutNodeArena {
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_begin_layout_trace(host: &DocumentHost, describe_node: DescribeNode) {
     host.host_tables().layout_trace_describe_node.set(Some(describe_node));
-    // SAFETY: As above.
     super::layout_changes::queue(host, super::layout_changes::LayoutChange::BeginLayoutTrace);
 }
 
@@ -264,7 +261,6 @@ pub unsafe extern "C" fn render_state_take_layout_trace(
     context: *mut c_void,
     append_text: AppendText,
 ) {
-    // SAFETY: Guaranteed by the caller.
     let text = super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.take());
     unsafe { append_text(context, text.as_ptr(), text.len()) };
 }
