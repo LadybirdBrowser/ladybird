@@ -153,11 +153,7 @@ fn property_values_are_transitionable(
         0.5,
     );
     assert!(result.handled);
-    if !result.value.is_null() {
-        unsafe { crate::css::style_value::release_style_value(result.value) };
-        return true;
-    }
-    false
+    result.value.is_some()
 }
 
 fn values_equal(first: *const StyleValueData, second: *const StyleValueData) -> bool {
