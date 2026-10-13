@@ -2159,7 +2159,7 @@ void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId o
         }
     }
 
-    if (auto const* parameters = request.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>(); parameters && requesting_page)
+    if (auto const* parameters = request.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>())
         did_attempt_to_populate_the_history_entry_document(*requesting_page, *parameters);
 
     Optional<Web::HTML::CrossProcessId> synchronous_navigation_target;
@@ -2183,7 +2183,7 @@ void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId o
 
     // A page that aborts an intercepted traverse before its resumption runs revokes the resumption.
     Optional<SessionHistoryTraversalQueue::RevocableOperation> revocable_operation;
-    if (request.has<Web::ResumeTraverseHistoryOperationParameters>() && requesting_page)
+    if (request.has<Web::ResumeTraverseHistoryOperationParameters>())
         revocable_operation = SessionHistoryTraversalQueue::RevocableOperation { requesting_page->id(), operation_id };
 
     auto steps = [this, operation_id, request = move(request), requesting_page = move(requesting_page), sequence_number, target_entry](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
@@ -2309,8 +2309,7 @@ void CanonicalTraversable::perform_a_navigation_api_traversal_at_queue_position(
     //    reject the finished promise for apiMethodTracker with an "InvalidStateError" DOMException.
     // 2. Abort these steps.
     auto reject_and_abort = [&] {
-        if (operation.requesting_page)
-            operation.requesting_page->async_reject_navigation_api_traversal(operation.operation_id);
+        operation.requesting_page->async_reject_navigation_api_traversal(operation.operation_id);
         end_history_operation(operation.operation_id);
     };
 
