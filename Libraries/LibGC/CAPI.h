@@ -85,6 +85,11 @@ typedef struct GCLayout {
     // For code that allocates cells from local free lists itself, see gc_heap_allocator_local_free_list().
     uint32_t free_cell_next_offset;
     uint32_t free_cell_link_mask;
+    // Where the cursor, the end and the cell size of the cells an allocator bumps through are, relative to the head
+    // of its local free list (see gc_heap_allocator_local_free_list()).
+    uint32_t local_cursor_offset;
+    uint32_t local_end_offset;
+    uint32_t local_cell_size_offset;
     uint32_t heap_allocated_bytes_since_last_gc_offset;
     uint32_t heap_gc_bytes_threshold_offset;
     uint32_t heap_total_allocated_bytes_offset;
@@ -134,23 +139,28 @@ GC_API GCCell* gc_heap_allocate_cell(GCHeap*, GCAllocator*, bool* must_mark);
 // states nothing may observe, and callers can hold on to anything across the growth. Live storage counts once a
 // collection finds it, through the live cell bytes that set the next threshold.
 GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*, bool* must_mark);
-// Each allocator takes the free cells of one block at a time into a local free list of the heap, so that allocating is
-// usually popping that list, and code that allocates cells itself (like the Rust heap) pops it inline:
+// Each allocator takes the free cells of one block at a time into the heap, as a local free list of the cells that were
+// freed and a range of cells that were never allocated, so that allocating is usually popping that list or bumping
+// the cursor of that range, and code that allocates cells itself (like the Rust heap) does either inline:
 // - The list is a list of dead cells of one block, linked through the word at free_cell_next_offset. Cells are in the
 //   heap region, where anything may have been corrupted, so only the bits of a link under free_cell_link_mask count:
 //   the next cell is at those bits within the block of the cell holding the link, that is, the cell's address with
 //   the bits under free_cell_link_mask replaced by the link's. The list is empty when the bits of its head under
-//   free_cell_link_mask are all zero (a null head, or the start of a block, where the last link leads). Its cells
-//   never need marking.
+//   free_cell_link_mask are all zero (a null head, or the start of a block, where the last link leads).
+// - Once the list is empty, cells come from the range: the cursor, the end and the cell size are pointer-sized words
+//   at local_cursor_offset, local_end_offset and local_cell_size_offset from the head of the list. While the cursor is
+//   below the end, the cell at the cursor is free, and taking it advances the cursor by the cell size. These words are
+//   outside the heap region.
+// - Cells from the list or the range never need marking.
 // - Before taking a cell of N bytes (the cell size of the allocator), such code checks that the heap's
 //   allocated_bytes_since_last_gc + N stays within its gc_bytes_threshold, and allocates through the heap otherwise
 //   (which may collect garbage). After taking it, it adds N to allocated_bytes_since_last_gc and total_allocated_bytes;
 //   storage cells (see gc_heap_allocate_storage_cell()) skip the check and add N to total_allocated_bytes only. These
 //   are size_t fields of the heap, at the offsets gc_get_layout() reports.
 // - It then writes every byte of the cell, as after gc_heap_allocate_cell(), with a clear mark.
-// Returns where the head of the allocator's list in the heap is, which stays valid as long as the heap. The list is
-// always empty while the heap collects on every allocation. Returns null if cells must always be allocated through the
-// heap, as in builds that poison free cells for AddressSanitizer.
+// Returns where the head of the allocator's list in the heap is, which stays valid as long as the heap. The list and
+// the range are always empty while the heap collects on every allocation. Returns null if cells must always be
+// allocated through the heap, as in builds that poison free cells for AddressSanitizer.
 GC_API GCCell** gc_heap_allocator_local_free_list(GCHeap*, GCAllocator*);
 // The context that the heap of the cell was created with, as code that only has a cell finds the rest of its runtime.
 GC_API void* gc_cell_heap_context(GCCell const*);

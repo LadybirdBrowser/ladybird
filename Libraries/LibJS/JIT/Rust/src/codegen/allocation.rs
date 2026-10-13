@@ -5,9 +5,10 @@
  */
 
 //! Allocation in JIT code, per the allocation contract (see
-//! `ObjectAllocationInfo`): a cell from the size class's local free list,
-//! entirely inline, and a call of the runtime out of line when the list is
-//! empty or the heap wants to collect garbage.
+//! `ObjectAllocationInfo`): a cell from the size class's local free list or
+//! its never-allocated cells, entirely inline, and a call of the runtime out
+//! of line when there is no local free cell or the heap wants to collect
+//! garbage.
 
 use super::Codegen;
 use super::call::ConstantField;
@@ -359,23 +360,27 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .add64_to_memory_imm(&Address::new(heap, total), byte_count(total_bytes));
     }
 
-    /// Pops a cell off the local free list of `allocator` into `cell`, or
-    /// branches to `slow` if it is empty. Clobbers `temp` and the scratch
-    /// register.
+    /// Takes a local free cell of `allocator` into `cell`, or branches to
+    /// `slow` if there is none. Clobbers `temp` and the scratch register.
     pub(super) fn emit_pop_free_list(&mut self, allocator: u64, cell: Gpr, temp: Gpr, slow: Label) {
         let scratch = self.pinned.scratch;
         self.masm.move_imm64(scratch, allocator);
         self.emit_pop_free_list_of(scratch, cell, temp, slow);
     }
 
-    /// Pops a cell off the local free list of the allocator in `allocator`
-    /// into `cell`, or branches to `slow` if it is empty. Clobbers `temp`.
+    /// Takes a local free cell of the allocator in `allocator` into `cell`:
+    /// the head of its local free list, or else its next never-allocated
+    /// cell, or branches to `slow` if there is neither. Clobbers `temp`.
     pub(super) fn emit_pop_free_list_of(&mut self, allocator: Gpr, cell: Gpr, temp: Gpr, slow: Label) {
         let info = &self.runtime.object_allocation;
         let head = Address::new(allocator, info.local_free_list_offset as i32);
         let (next, link_mask) = (info.freelist_next_offset as i32, u64::from(info.freelist_link_mask));
+        let cursor = Address::new(allocator, info.local_cursor_offset as i32);
+        let end = Address::new(allocator, info.local_end_offset as i32);
+        let cell_size = Address::new(allocator, info.local_cell_size_offset as i32);
+        let (bump, done) = (self.masm.new_label(), self.masm.new_label());
         self.masm.load64(cell, &head);
-        self.masm.branch_test64(Condition::Zero, cell, link_mask, slow);
+        self.masm.branch_test64(Condition::Zero, cell, link_mask, bump);
         // NB: The next cell is the cell's address with the link's bits under
         //     the mask, so it is in the cell's block whatever the link is.
         self.masm.load64(temp, &Address::new(cell, next));
@@ -383,6 +388,30 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.and64_imm(temp, temp, link_mask);
         self.masm.xor64(temp, temp, cell);
         self.masm.store64(&head, temp);
+        self.masm.jump(done);
+        self.masm.bind(bump);
+        self.masm.load64(cell, &cursor);
+        self.masm.branch64_memory(Condition::BelowOrEqual, &end, cell, slow);
+        self.masm.load64(temp, &cell_size);
+        self.masm.add64(temp, temp, cell);
+        self.masm.store64(&cursor, temp);
+        self.masm.bind(done);
+    }
+
+    /// Branches to `slow` unless the allocator in `allocator` has a local
+    /// free cell. Clobbers `temp`.
+    fn emit_branch_if_no_local_free_cell(&mut self, allocator: Gpr, temp: Gpr, slow: Label) {
+        let info = &self.runtime.object_allocation;
+        let head = Address::new(allocator, info.local_free_list_offset as i32);
+        let cursor = Address::new(allocator, info.local_cursor_offset as i32);
+        let end = Address::new(allocator, info.local_end_offset as i32);
+        let has_cell = self.masm.new_label();
+        self.masm.load64(temp, &head);
+        self.masm
+            .branch_test64(Condition::NonZero, temp, u64::from(info.freelist_link_mask), has_cell);
+        self.masm.load64(temp, &cursor);
+        self.masm.branch64_memory(Condition::BelowOrEqual, &end, temp, slow);
+        self.masm.bind(has_cell);
     }
 
     /// The array of `count` packed elements, all undefined (see
@@ -431,13 +460,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         // Only the array cell counts towards the next collection.
         self.emit_check_heap_threshold(info.cell_size, array, temp, entry);
-        // NB: Both free lists must have a cell before either gives one.
+        // NB: Both allocators must have a free cell before either gives one.
         let storage_size_class = storage_size_class.filter(|_| count != 0);
         if let Some(size_class) = storage_size_class {
             self.masm.move_imm64(scratch, size_class.allocator);
-            self.masm.load64(temp, &at(scratch, objects.local_free_list_offset));
-            self.masm
-                .branch_test64(Condition::Zero, temp, u64::from(objects.freelist_link_mask), entry);
+            self.emit_branch_if_no_local_free_cell(scratch, temp, entry);
         }
         self.emit_pop_free_list(info.allocator, array, temp, entry);
         if let Some(size_class) = storage_size_class {

@@ -49,6 +49,11 @@ pub struct InlineAllocationInfo {
     pub total_allocated_bytes: NonNull<usize>,
     pub free_cell_next_offset: usize,
     pub free_cell_link_mask: usize,
+    /// Where an allocator keeps the cursor, the end and the cell size of the never-allocated cells it bumps through
+    /// once its local free list is empty, relative to the head of the list.
+    pub local_cursor_offset: usize,
+    pub local_end_offset: usize,
+    pub local_cell_size_offset: usize,
 }
 
 /// An allocator of a heap, with the address of its local free list in the heap, which is null if every cell has to be
@@ -163,6 +168,9 @@ impl Heap {
                 total_allocated_bytes: counter(layout.heap_total_allocated_bytes_offset),
                 free_cell_next_offset: layout.free_cell_next_offset as usize,
                 free_cell_link_mask: layout.free_cell_link_mask as usize,
+                local_cursor_offset: layout.local_cursor_offset as usize,
+                local_end_offset: layout.local_end_offset as usize,
+                local_cell_size_offset: layout.local_cell_size_offset as usize,
             },
         }
     }
@@ -332,8 +340,9 @@ impl Heap {
         }
     }
 
-    /// Pops the allocator's local free list, unless LibGC has to collect garbage first or the list is empty, with the
-    /// bookkeeping gc_heap_allocator_local_free_list() describes. Cells from the list never need marking.
+    /// Takes a cell from the allocator's local free list, or else from its never-allocated cells, unless LibGC has to
+    /// collect garbage first or there is no local free cell, with the bookkeeping gc_heap_allocator_local_free_list()
+    /// describes. These cells never need marking.
     ///
     /// # Safety
     ///
@@ -348,13 +357,22 @@ impl Heap {
         let local_free_list = allocator.local_free_list()?;
         let info = &self.inline_allocation_info;
         let link_mask = info.free_cell_link_mask;
-        // SAFETY: The list and the counters are fields of the live heap, and every cell on the list is a free cell that
-        //         keeps the link to the next one at free_cell_next_offset.
+        // SAFETY: The list, the cursor, the end and the counters are fields of the live heap, and every cell on the list
+        //         is a free cell that keeps the link to the next one at free_cell_next_offset.
         unsafe {
-            let cell = local_free_list.read();
-            if cell.addr() & link_mask == 0 {
-                return None;
-            }
+            let cursor = local_free_list.byte_add(info.local_cursor_offset).cast::<*mut c_void>();
+            let head = local_free_list.read();
+            let from_list = head.addr() & link_mask != 0;
+            let cell = if from_list {
+                head
+            } else {
+                let cursor_cell = cursor.read();
+                let end = local_free_list.byte_add(info.local_end_offset).cast::<usize>().read();
+                if cursor_cell.addr() >= end {
+                    return None;
+                }
+                cursor_cell
+            };
             let cell = NonNull::new_unchecked(cell);
             if let AllocationKind::Cell = kind {
                 let allocated_bytes = info.allocated_bytes_since_last_gc.read() + cell_size;
@@ -365,13 +383,17 @@ impl Heap {
             }
             info.total_allocated_bytes
                 .write(info.total_allocated_bytes.read() + cell_size);
-            // NB: Only the bits of the link under the mask count, so that the next cell is in the block of this one
-            //     whatever the link was overwritten with.
-            let link = cell.byte_add(info.free_cell_next_offset).cast::<usize>().read();
-            local_free_list.write(
-                cell.as_ptr()
-                    .map_addr(|address| (address & !link_mask) | (link & link_mask)),
-            );
+            if from_list {
+                // NB: Only the bits of the link under the mask count, so that the next cell is in the block of this one
+                //     whatever the link was overwritten with.
+                let link = cell.byte_add(info.free_cell_next_offset).cast::<usize>().read();
+                local_free_list.write(
+                    cell.as_ptr()
+                        .map_addr(|address| (address & !link_mask) | (link & link_mask)),
+                );
+            } else {
+                cursor.write(cell.as_ptr().byte_add(cell_size));
+            }
             Some(cell)
         }
     }

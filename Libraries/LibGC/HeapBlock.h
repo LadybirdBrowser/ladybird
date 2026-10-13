@@ -55,12 +55,24 @@ public:
     // found unmarked.
     void deallocate(Cell*);
 
-    // Takes every free cell of the block as a list linked through
-    // freelist_next_offset, leaving the block full. The cells are dead.
-    Cell* take_free_cells();
+    // The free cells of a block: the cells that were freed, as a list linked
+    // through freelist_next_offset, and the cells that were never allocated,
+    // which are the cells from lazy_start up to lazy_end.
+    struct FreeCells {
+        RawPtr<Cell> free_list;
+        FlatPtr lazy_start { 0 };
+        FlatPtr lazy_end { 0 };
+    };
 
-    // Gives back a list of free cells taken from this block.
-    void give_back_free_cells(Cell*);
+    // Takes every free cell of the block, leaving the block full. The cells
+    // that were never allocated are taken as they are, without writing them.
+    FreeCells take_free_cells();
+
+    // Gives back the free cells of a list taken from this block, and the
+    // cells from lazy_cursor up to the end of the block, which must be the
+    // part of the never-allocated cells taken from this block that is still
+    // unallocated.
+    void give_back_free_cells(Cell* free_list, FlatPtr lazy_cursor);
 
     // The offset of the link to the next cell in a free cell.
     static constexpr size_t freelist_next_offset();
