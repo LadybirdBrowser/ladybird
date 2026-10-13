@@ -7,10 +7,13 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibCompositing/WebGL/WebGLCommandList.h>
+#include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibIPC/Limits.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 
 // The C ABI of RemoteWebGLTransport, for the WebGL command recorder in Libraries/LibWeb/Bindings/Rust/src/web_gl,
@@ -21,8 +24,34 @@
 
 namespace Web::WebGL {
 
+// NB: `ReadPixelsResult` of proxy/transport.rs is three `i32`s in this order.
 static_assert(sizeof(ReadPixelsResult) == 3 * sizeof(i32));
+static_assert(offsetof(ReadPixelsResult, length) == 0);
+static_assert(offsetof(ReadPixelsResult, columns) == sizeof(i32));
+static_assert(offsetof(ReadPixelsResult, rows) == 2 * sizeof(i32));
 static_assert(sizeof(Compositing::CanvasId) == sizeof(u64));
+
+// What the recorder and the replayer of the command stream have to agree on besides the command structs. The
+// recorder has constants of its own for these, and compares them with this before it records (fingerprint.rs).
+struct ConstantsRestatedInRust {
+    size_t record_alignment { 0 };
+    size_t header_size { 0 };
+    size_t header_payload_size_offset { 0 };
+    size_t shared_data_region_offset { 0 };
+    size_t shared_data_region_capacity { 0 };
+};
+
+// NB: The recorder writes the header of a command and that of a synchronous call the same way.
+static_assert(sizeof(Compositing::WebGL::WebGLSyncCallHeader) == sizeof(Compositing::WebGL::WebGLCommandHeader));
+static_assert(offsetof(Compositing::WebGL::WebGLSyncCallHeader, payload_size) == offsetof(Compositing::WebGL::WebGLCommandHeader, payload_size));
+static_assert(offsetof(Compositing::WebGL::WebGLSyncCallHeader, type) == 0 && offsetof(Compositing::WebGL::WebGLCommandHeader, type) == 0);
+static_assert(sizeof(Compositing::WebGL::WebGLSyncCallType) == sizeof(u16) && sizeof(Compositing::WebGL::WebGLCommandType) == sizeof(u16));
+static_assert(sizeof(Compositing::WebGL::WebGLCommandHeader::payload_size) == sizeof(u32));
+
+// NB: `DataSpan` of proxy/wire.rs is two `u32`s in this order.
+static_assert(sizeof(Compositing::WebGL::WebGLDataSpan) == 2 * sizeof(u32));
+static_assert(offsetof(Compositing::WebGL::WebGLDataSpan, offset) == 0);
+static_assert(offsetof(Compositing::WebGL::WebGLDataSpan, size) == sizeof(u32));
 
 extern "C" {
 
@@ -39,6 +68,8 @@ void web_webgl_transport_sync_call(void* transport, u8 const* request, size_t re
 void web_webgl_transport_read_pixels_robust_angle(void* transport, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, void const* pixels_anonymous_buffer_or_null, ReadPixelsResult* out_result);
 bool web_webgl_transport_read_buffer_sub_data(void* transport, u32 target, i64 offset, i64 size, void const* data_anonymous_buffer);
 void* web_webgl_transport_read_back_drawing_buffer(void* transport, i32 x, i32 y, i32 width, i32 height);
+size_t web_webgl_max_frames_per_message();
+void web_webgl_constants_restated_in_rust(ConstantsRestatedInRust* out_constants);
 void* web_webgl_anonymous_buffer_create(size_t size, u8** out_data);
 void web_webgl_anonymous_buffer_destroy(void* anonymous_buffer);
 void web_webgl_frame_destroy(void* frame);
@@ -146,6 +177,24 @@ void* web_webgl_transport_read_back_drawing_buffer(void* transport, i32 x, i32 y
     if (!shareable_bitmap.is_valid())
         return nullptr;
     return &NonnullRefPtr<Gfx::Bitmap> { *shareable_bitmap.bitmap() }.leak_ref();
+}
+
+size_t web_webgl_max_frames_per_message()
+{
+    // NB: The bytes of the commands take one of the attachments of a message.
+    static_assert(IPC::MAX_MESSAGE_FD_COUNT > 1);
+    return IPC::MAX_MESSAGE_FD_COUNT - 1;
+}
+
+void web_webgl_constants_restated_in_rust(ConstantsRestatedInRust* out_constants)
+{
+    *out_constants = {
+        .record_alignment = Compositing::WebGL::WebGLCommandList::command_alignment,
+        .header_size = sizeof(Compositing::WebGL::WebGLCommandHeader),
+        .header_payload_size_offset = offsetof(Compositing::WebGL::WebGLCommandHeader, payload_size),
+        .shared_data_region_offset = Compositing::WebGL::WebGLSharedCommandBuffer::data_region_offset,
+        .shared_data_region_capacity = Compositing::WebGL::WebGLSharedCommandBuffer::default_data_region_capacity,
+    };
 }
 
 void* web_webgl_anonymous_buffer_create(size_t size, u8** out_data)

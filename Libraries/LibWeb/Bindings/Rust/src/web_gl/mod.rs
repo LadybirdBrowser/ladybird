@@ -8,4 +8,8 @@
 //! back, and records everything else as commands for the Compositor, which runs GL.
 
 pub(crate) mod constants;
+#[cfg(not(test))]
+pub(crate) mod fingerprint;
+#[cfg(not(test))]
+pub(crate) mod host;
 pub(crate) mod proxy;
