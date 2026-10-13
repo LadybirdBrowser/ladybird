@@ -148,20 +148,21 @@ impl JitEntryTable {
         slot
     }
 
-    /// Frees the slot of the executable whose head is at `owner`, which died, and drops its code.
-    pub fn free(&self, slot: u32, owner: u64) {
+    /// Frees the slot of the executable whose head is at `owner`, which died, and returns its code.
+    pub fn free(&self, slot: u32, owner: u64) -> Option<Box<JitCode>> {
         let slot = slot & JIT_ENTRY_SLOT_MASK;
         if slot == NO_JIT_ENTRY_SLOT {
-            return;
+            return None;
         }
         assert!(
             self.is_owned_by(slot, owner),
             "only the owner of a JIT entry slot frees it"
         );
-        drop(self.code_cell(slot).take());
+        let code = self.code_cell(slot).take();
         self.entry_cell(slot).set(self.not_compiled_entry);
         self.owner_cell(slot).set(0);
         self.free_slots.borrow_mut().push(slot);
+        code
     }
 
     /// Whether the slot belongs to the executable whose head is at `owner`.
