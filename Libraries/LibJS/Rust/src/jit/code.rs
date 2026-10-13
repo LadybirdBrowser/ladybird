@@ -16,7 +16,6 @@ use libjs_jit::code::{ExitKind, Site};
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
 use crate::bytecode::executable::Executable;
-use crate::gc::capi;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -281,8 +280,7 @@ impl Executable {
 
     /// The VM whose heap the executable lives in.
     fn heap_vm(&self) -> &Vm {
-        // SAFETY: The VM creates its heap with itself as the context, and outlives every cell in it.
-        unsafe { &*capi::gc_cell_heap_context(core::ptr::from_ref(self).cast()).cast::<Vm>() }
+        Vm::of_cell(self)
     }
 
     /// The executable's slot in the JIT entry table and the table, if it has one.

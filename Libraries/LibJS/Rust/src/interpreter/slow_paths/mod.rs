@@ -1451,8 +1451,7 @@ impl RuntimeFunctions for Runtime {
     }
 
     fn helper_handle_raw_native_exception(vm: u64, encoded_exception: u64) -> u64 {
-        // SAFETY: The interpreter passes its VM.
-        let vm = unsafe { &*core::ptr::with_exposed_provenance::<Vm>(vm as usize) };
+        let vm = vm_from_helper_argument(vm);
         calls::handle_raw_native_exception(vm, Value(encoded_exception)).0 as u64
     }
 

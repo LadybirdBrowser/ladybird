@@ -1789,6 +1789,12 @@ impl Vm {
         script_or_module
     }
 
+    /// The VM whose heap `cell` lives in.
+    pub(crate) fn of_cell<T: GcCell>(cell: &T) -> &Vm {
+        // SAFETY: The VM creates its heap with itself as the context, and outlives every cell in it.
+        unsafe { &*capi::gc_cell_heap_context(core::ptr::from_ref(cell).cast()).cast::<Vm>() }
+    }
+
     pub(crate) fn running_execution_context_ref(&self) -> &ExecutionContext {
         self.running_execution_context_if_any()
             .expect("there is a running execution context")
