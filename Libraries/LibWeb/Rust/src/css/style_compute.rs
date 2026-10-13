@@ -3027,8 +3027,7 @@ fn compute_transform_origin(value: &StyleValueData) -> Option<Arc<StyleValueData
         .iter()
         .map(|offset| match offset_percentage(offset) {
             Some(percentage) => {
-                let pointer = Arc::into_raw(Arc::new(StyleValueData::Percentage { value: percentage }));
-                unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+                RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Percentage { value: percentage }))
             }
             None => offset.clone_retained(),
         })
@@ -3317,7 +3316,7 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &Comp
         COMPUTED_KIND_PERCENTAGE => StyleValueData::Percentage { value: entry.value },
         COMPUTED_KIND_FONT_STYLE => StyleValueData::FontStyle {
             font_style: entry.value as u8,
-            angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
+            angle_value: RetainedStyleValueData::none(),
         },
         COMPUTED_KIND_KEYWORD => StyleValueData::Keyword {
             keyword: entry.value as u16,
