@@ -136,7 +136,7 @@ impl CompilationContext {
             });
         }
         if publication.is_some() {
-            context.selectors = unsafe { self.selectors.within(rule, matching, implicit_root) };
+            context.selectors = self.selectors.within(rule, matching, implicit_root);
         }
         if let Some(container) = rule.container() {
             context.containers.push(std::sync::Arc::as_ptr(container));
@@ -169,7 +169,7 @@ unsafe fn visit_rule(
     callbacks: &NativeCompilationCallbacks,
     publication: Option<&Publisher<'_>>,
 ) {
-    let selectors = publication.and_then(|_| unsafe { context.selectors.matching_selectors(rule) });
+    let selectors = publication.and_then(|_| context.selectors.matching_selectors(rule));
     let result = publication.map_or_else(NativeCompilationResult::default, |publication| {
         publication.compile(rule, sheet, context, selectors.as_ref())
     });
@@ -378,7 +378,7 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     let mut pending = vec![(target, context)];
     let mut affected = Vec::new();
     while let Some((rule, context)) = pending.pop() {
-        let selectors = unsafe { context.selectors.matching_selectors(RuleRef::Materialized(&rule)) };
+        let selectors = context.selectors.matching_selectors(RuleRef::Materialized(&rule));
         if has_compiled_children(RuleRef::Materialized(&rule))
             && let Some(children) = &rule.children
         {
@@ -1533,11 +1533,11 @@ mod tests {
         fn visit(rule: &NativeRule, inputs: &SelectorInputs, bound: &mut Vec<std::sync::Arc<RustParsedSelectorList>>) {
             // The traversal must supply nesting even when no parent owner can be consulted.
             *rule.parent.borrow_mut() = Default::default();
-            let selectors = unsafe { inputs.matching_selectors(RuleRef::Materialized(rule)) };
+            let selectors = inputs.matching_selectors(RuleRef::Materialized(rule));
             if let Some(selectors) = &selectors {
                 bound.push(selectors.clone());
             }
-            let nested = unsafe { inputs.within(RuleRef::Materialized(rule), selectors, u32::MAX) };
+            let nested = inputs.within(RuleRef::Materialized(rule), selectors, u32::MAX);
             if let Some(children) = &rule.children {
                 for child in children.materialized_rules().iter() {
                     visit(child, &nested, bound);

@@ -50,7 +50,7 @@ mod tests {
         host.host_tables().attach_shell(child, shell);
         let read = host.read_for_test();
         // SAFETY: The host lives on this thread until the test host is dropped.
-        assert_eq!(unsafe { render_state_node_shell_if_live(host, read, child) }, shell);
+        assert_eq!(render_state_node_shell_if_live(host, read, child), shell);
 
         let sibling = FfiDetachedBoxSibling {
             style_node: 0,
@@ -72,7 +72,7 @@ mod tests {
         }
         // A recording can still name the removed image. Resolving it must apply the removal before answering.
         // SAFETY: As above; the entry point accepts a stale slot.
-        let resolved = unsafe { render_state_node_shell_if_live(host, read, child) };
+        let resolved = render_state_node_shell_if_live(host, read, child);
         let shell_was_destroyed = !host.host_tables().shells.borrow().contains_key(&child);
         host.run(ScriptForcedRead::for_test(), true, |state| {
             state.arena_mut().free_subtree(parent)
@@ -85,12 +85,8 @@ mod tests {
 
 /// The row's layout node, which the host's shell factory makes the first time it is asked for, or null for a row that
 /// is not live.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread. `id` may be invalid or stale.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_node_shell_if_live(
+pub extern "C" fn render_state_node_shell_if_live(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     id: NodeSlotId,
@@ -104,7 +100,7 @@ pub unsafe extern "C" fn render_state_node_shell_if_live(
             .map_or(std::ptr::null_mut(), |facts| host.host_tables().shell_of(facts));
     }
     // SAFETY: Guaranteed by the caller.
-    let facts = unsafe {
+    let facts = {
         read_arena(host, read, id, |arena, id| {
             let kind = arena.node_kind_if_live(id)?;
             (kind != NodeKind::Unset).then_some(super::super::host_tables::ShellFacts { id, kind })

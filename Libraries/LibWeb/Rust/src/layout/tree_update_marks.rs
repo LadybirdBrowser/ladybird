@@ -189,11 +189,7 @@ impl LayoutTreeUpdateMarkWrite {
 
 /// Answers `read` of the layout tree update marks of `host`'s document for the node `style_node` names, which the host
 /// holds (see [`DocumentHost::read_marks`]). An identity of 0 names no node, and `read` is not run for it.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-unsafe fn read_marks<R: Default>(
+fn read_marks<R: Default>(
     host: &DocumentHost,
     style_node: u32,
     read: fn(&LayoutTreeUpdateMarks, StyleNodeID) -> R,
@@ -205,55 +201,35 @@ unsafe fn read_marks<R: Default>(
 }
 
 /// Makes `write` to the layout tree update marks of `host`'s document, which the host holds, answering what it answers.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-unsafe fn write_marks(host: &DocumentHost, write: LayoutTreeUpdateMarkWrite) -> bool {
+fn write_marks(host: &DocumentHost, write: LayoutTreeUpdateMarkWrite) -> bool {
     host.write_marks(write)
 }
 
 /// Whether the node `style_node` names holds a layout tree update mark of its own.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
+pub extern "C" fn render_state_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::needs) }
+    read_marks(host, style_node, LayoutTreeUpdateMarks::needs)
 }
 
 /// Which narrower rebuilds the marks the node `style_node` names has collected still permit.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_layout_tree_update_reuse_reasons(host: &DocumentHost, style_node: u32) -> u8 {
+pub extern "C" fn render_state_layout_tree_update_reuse_reasons(host: &DocumentHost, style_node: u32) -> u8 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::reuse_reasons) }
+    read_marks(host, style_node, LayoutTreeUpdateMarks::reuse_reasons)
 }
 
 /// Whether a flat-tree descendant of the node `style_node` names holds a layout tree update mark.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_child_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
+pub extern "C" fn render_state_child_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::child_needs) }
+    read_marks(host, style_node, LayoutTreeUpdateMarks::child_needs)
 }
 
 /// Folds a layout tree update mark into the one the node `style_node` names holds, answering
 /// whether its own bit changed: the transition the mark site widens the rebuild from.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_merge_layout_tree_update_mark(
+pub extern "C" fn render_state_merge_layout_tree_update_mark(
     host: &DocumentHost,
     style_node: u32,
     value: bool,
@@ -263,17 +239,13 @@ pub unsafe extern "C" fn render_state_merge_layout_tree_update_mark(
         return false;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { write_marks(host, LayoutTreeUpdateMarkWrite::Merge(style_node, value, reuse_reason)) }
+    write_marks(host, LayoutTreeUpdateMarkWrite::Merge(style_node, value, reuse_reason))
 }
 
 /// Records whether a flat-tree descendant of the node `style_node` names holds a layout tree update
 /// mark, answering what was recorded before. The mark's ancestor walk stops where it was already.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_child_needs_layout_tree_update(
+pub extern "C" fn render_state_set_child_needs_layout_tree_update(
     host: &DocumentHost,
     style_node: u32,
     value: bool,
@@ -282,22 +254,18 @@ pub unsafe extern "C" fn render_state_set_child_needs_layout_tree_update(
         return false;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { write_marks(host, LayoutTreeUpdateMarkWrite::SetChildNeeds(style_node, value)) }
+    write_marks(host, LayoutTreeUpdateMarkWrite::SetChildNeeds(style_node, value))
 }
 
 /// Retires the layout tree update marks the node `style_node` names holds. An identity handed to a node holds none,
 /// whatever the node that held it before left behind.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_clear_layout_tree_update_marks(host: &DocumentHost, style_node: u32) {
+pub extern "C" fn render_state_clear_layout_tree_update_marks(host: &DocumentHost, style_node: u32) {
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { write_marks(host, LayoutTreeUpdateMarkWrite::Clear(style_node)) };
+    write_marks(host, LayoutTreeUpdateMarkWrite::Clear(style_node));
 }
 
 /// A layout tree update mark as the render owner applies it, which says what the reason the DOM made it for asks of the
@@ -466,7 +434,7 @@ pub unsafe extern "C" fn render_state_apply_layout_tree_update_mark(
     use super::layout_changes::{LayoutChange, queue};
     let node = StyleNodeID::from_raw(style_node);
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::ApplyLayoutTreeUpdateMark { node, mark }) };
+    queue(host, LayoutChange::ApplyLayoutTreeUpdateMark { node, mark });
 }
 
 /// What the host marks on a box. A second mark on the box the last queued change marks merges into it, so a burst of
@@ -732,7 +700,7 @@ unsafe fn queue_marks(host: &DocumentHost, target: MarkedBox, marks: FfiBoxMarks
         return;
     }
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
+    super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks });
 }
 
 /// Marks the box bound to the node with `style_node`, or the document's for 0.

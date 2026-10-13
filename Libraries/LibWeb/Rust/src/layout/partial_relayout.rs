@@ -767,20 +767,15 @@ impl LayoutNodeArena {
     }
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `node` must name a live row of its document.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_node_is_partial_relayout_boundary(
+pub extern "C" fn render_state_node_is_partial_relayout_boundary(
     host: &crate::render_state::DocumentHost,
     node: NodeSlotId,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        super::shell_reads::read_arena(host, node_read(), node, |arena, node| {
-            arena.node_is_partial_relayout_boundary(node)
-        })
-    }
+    super::shell_reads::read_arena(host, node_read(), node, |arena, node| {
+        arena.node_is_partial_relayout_boundary(node)
+    })
 }
 
 /// The facts the host owns that take an update off the partial relayout path.
