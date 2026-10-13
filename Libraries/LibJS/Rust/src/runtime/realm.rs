@@ -9,6 +9,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use crate::gc::class::{Extends, GcCell, define_cell};
+use crate::gc::embedder_cell::{EmbedderCell, EmbedderValue};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::execution_context::OwnedExecutionContext;
@@ -28,7 +29,11 @@ use crate::runtime::shape::Shape;
 
 /// The parts of a realm the interpreter does not read.
 #[derive(Default)]
-pub struct RealmStorage {}
+pub struct RealmStorage {
+    /// The cell that an embedder written in Rust keeps its data of the realm in, next to [[HostDefined]], which an
+    /// embedder written in C++ sets.
+    embedder_data: ForeignCellSlot,
+}
 
 define_cell!(Realm, Other);
 
@@ -40,6 +45,7 @@ unsafe impl Trace for Realm {
         self.global_environment.trace(visitor);
         self.global_declarative_environment.trace(visitor);
         self.host_defined.trace(visitor);
+        self.storage.embedder_data.trace(visitor);
     }
 }
 
@@ -251,6 +257,21 @@ impl Realm {
     /// [[HostDefined]]
     pub fn host_defined(&self) -> Option<NonNull<c_void>> {
         self.host_defined.get()
+    }
+
+    /// The data of the realm that an embedder written in Rust set, if it is a cell of the embedder's type.
+    pub fn embedder_data<T: EmbedderValue>(&self) -> Option<Gc<EmbedderCell<T>>> {
+        let cell = self.storage.embedder_data.get()?;
+        // SAFETY: The slot only holds what set_embedder_data() stores, which is a live cell of an embedder's type,
+        //         and the realm keeps the cell alive.
+        unsafe { T::CLASS.downcast(cell) }
+    }
+
+    /// Sets the data of the realm, a cell that the realm keeps alive from then on. A realm holds the data of one
+    /// embedder.
+    pub fn set_embedder_data<T: EmbedderValue>(&self, data: Gc<EmbedderCell<T>>) {
+        // SAFETY: The cell is a live cell of the heap that the realm is in.
+        unsafe { self.storage.embedder_data.set(Some(data.as_non_null().cast())) };
     }
 
     pub fn global_declarative_environment(&self) -> Gc<DeclarativeEnvironment> {

@@ -33,6 +33,7 @@ pub use crate::runtime::data_view::{
 pub use crate::runtime::error::ErrorKind;
 pub use crate::runtime::error_types::ErrorType;
 pub use crate::runtime::intrinsics::Intrinsics;
+pub use crate::runtime::native_function::RawNativeFunction;
 pub use crate::runtime::object::Object;
 pub use crate::runtime::primitive_string::PrimitiveString;
 pub use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
