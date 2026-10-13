@@ -456,9 +456,9 @@ void update_accessibility_tree(WebContentView* view, bool take_initial_focus, bo
         [overlay.elements[key] invalidate];
         [overlay.elements removeObjectForKey:key];
     }
-    // On the overlay, not on Qt's NSView: that one is ignored for accessibility, and a notification posted on an ignored
-    // element reaches no observer.
-    NSAccessibilityPostNotification(overlay, NSAccessibilityLayoutChangedNotification);
+    // No notification for the update itself: VoiceOver answers an AXLayoutChanged on the overlay by moving its cursor
+    // back to the AXWebArea inside it, announcing a "frame" — and by setting AXFocused there, which takes the focus
+    // from whatever element in the page had it.
 
     // Only a page's first tree takes the window's first responder and announces the load — the gate WebContentView
     // puts on its setFocus(), for the same reason: WebContent rebuilds the tree on DOM mutations too, and doing this on
