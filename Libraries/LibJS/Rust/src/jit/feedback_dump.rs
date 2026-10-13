@@ -17,7 +17,7 @@ use crate::bytecode::feedback::{
 use crate::bytecode::instruction::{
     instruction_feedback_slots_from_bytes, instruction_length_from_bytes, instruction_name_from_opcode,
 };
-use crate::gc::class::{GcCell, class_of};
+use crate::gc::class::class_of;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::function_object::NativeFunction;
 use crate::layout::object::Object;
@@ -40,14 +40,6 @@ const TYPED_ARRAY_KINDS: [TypedArrayKind; 12] = [
     TypedArrayKind::Float32Array,
     TypedArrayKind::Float64Array,
 ];
-
-/// The cell as a `T`, if it is one.
-fn cell_as<T: GcCell>(cell: Gc<CellHeader>) -> Option<Gc<T>> {
-    class_of(cell)
-        .is_subclass_of(T::CLASS)
-        // SAFETY: The cell was allocated as a T or a subclass of it.
-        .then(|| unsafe { Gc::from_non_null(cell.as_non_null().cast()) })
-}
 
 fn append_bits<T: Copy + Into<u32>>(out: &mut String, bits: T, names: &[(T, &str)]) {
     let bits: u32 = bits.into();
@@ -74,11 +66,11 @@ fn append_cell(out: &mut String, cell: Option<Gc<CellHeader>>) {
         out.push_str("none");
         return;
     };
-    if let Some(string) = cell_as::<PrimitiveString>(cell) {
+    if let Some(string) = cell.downcast::<PrimitiveString>() {
         let _ = write!(out, "\"{}\"", string.to_utf8());
-    } else if let Some(symbol) = cell_as::<Symbol>(cell) {
+    } else if let Some(symbol) = cell.downcast::<Symbol>() {
         out.push_str(&Utf16View::of_string(&symbol.descriptive_string()).to_utf8());
-    } else if let Some(native_function) = cell_as::<NativeFunction>(cell) {
+    } else if let Some(native_function) = cell.downcast::<NativeFunction>() {
         let name = native_function.name();
         let name = match native_function.initial_name() {
             Some(initial_name) if name.is_empty() => initial_name,
@@ -90,7 +82,7 @@ fn append_cell(out: &mut String, cell: Option<Gc<CellHeader>>) {
         } else {
             let _ = write!(out, "native function {name}");
         }
-    } else if let Some(object) = cell_as::<Object>(cell)
+    } else if let Some(object) = cell.downcast::<Object>()
         && object.is_function()
     {
         let name = Utf16View::of_string(&object.name_for_call_stack()).to_utf8();

@@ -10,7 +10,7 @@ use core::ops::{ControlFlow, Deref};
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Class, GcCell, define_cell};
+use crate::gc::class::{Class, GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
@@ -163,9 +163,7 @@ impl Deref for TypedArrayBase {
 
 /// The typed array an internal method of a typed array was called on.
 fn as_typed_array(object: &Object) -> &TypedArrayBase {
-    assert!(object.is::<TypedArrayBase>());
-    // SAFETY: The object is a TypedArrayBase, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<TypedArrayBase>() }
+    cast_ref(object)
 }
 
 impl TypedArrayBase {

@@ -33,7 +33,7 @@ use crate::embedding::host::host_array::as_host_array;
 use crate::embedding::host::host_function::as_host_function;
 use crate::embedding::host::registry::runtime_class_and_allocator_of_host_class;
 use crate::embedding::object::{property_descriptor_from_abi, property_descriptor_to_abi};
-use crate::gc::class::{Class, Finalize, define_cell};
+use crate::gc::class::{Class, Finalize, cast_ref, define_cell};
 use crate::gc::class_id::ClassId;
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::root::MarkedVec;
@@ -425,9 +425,7 @@ impl HostObject {
 
 /// The host object an internal method of a host object class was called on.
 pub(crate) fn as_host_object(object: &Object) -> &HostObject {
-    debug_assert!(object.is::<HostObject>());
-    // SAFETY: The object is a HostObject, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<HostObject>() }
+    cast_ref(object)
 }
 
 /// host_class_of(): the host class of an object of any host kind, or none for any other object.

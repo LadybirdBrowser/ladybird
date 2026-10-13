@@ -10,7 +10,7 @@ use core::ops::Deref;
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Class, Finalize, GcCell, define_cell};
+use crate::gc::class::{Class, Finalize, GcCell, cast_ref, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
@@ -187,9 +187,7 @@ impl PromiseResolvingElementFunction {
     }
 
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
-        assert!(function.is::<PromiseResolvingElementFunction>());
-        // SAFETY: The function is a PromiseResolvingElementFunction, which starts with its NativeFunction.
-        let function = unsafe { &*core::ptr::from_ref(function).cast::<PromiseResolvingElementFunction>() };
+        let function: &PromiseResolvingElementFunction = cast_ref(function);
 
         if function.already_called.get() {
             return Ok(Value::UNDEFINED);

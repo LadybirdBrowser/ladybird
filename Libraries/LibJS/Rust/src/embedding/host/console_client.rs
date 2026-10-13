@@ -20,7 +20,7 @@ use crate::embedding::abi_types::{
     error_data_into_abi, owned_utf16_string_into_abi, vm_from_abi, vm_into_abi,
 };
 use crate::embedding::console::{JSConsole, log_level_into_abi};
-use crate::gc::class::{GcCell, class_of, define_cell};
+use crate::gc::class::{GcCell, cast_ref, class_of, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
@@ -140,8 +140,7 @@ fn trace_frames_into_abi(trace: &ConsoleTrace) -> Vec<JSConsoleTraceFrame> {
 
 impl HostConsoleClient {
     fn of(client: &ConsoleClient) -> &HostConsoleClient {
-        // SAFETY: Only HostConsoleClient has these methods.
-        unsafe { &*core::ptr::from_ref(client).cast::<HostConsoleClient>() }
+        cast_ref(client)
     }
 
     fn printer<'vm>(

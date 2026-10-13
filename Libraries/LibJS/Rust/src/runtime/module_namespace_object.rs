@@ -7,7 +7,7 @@
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -68,9 +68,7 @@ impl core::ops::Deref for ModuleNamespaceObject {
 
 /// The module namespace object an internal method of a module namespace object was called on.
 fn as_module_namespace_object(object: &Object) -> &ModuleNamespaceObject {
-    assert!(object.is::<ModuleNamespaceObject>());
-    // SAFETY: The object is a ModuleNamespaceObject, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<ModuleNamespaceObject>() }
+    cast_ref(object)
 }
 
 /// The String a property key that is not a Symbol stands for, which [[Exports]] holds export names as.

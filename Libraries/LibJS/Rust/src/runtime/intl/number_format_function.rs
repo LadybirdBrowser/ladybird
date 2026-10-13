@@ -9,7 +9,7 @@ use core::ops::Deref;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -87,9 +87,7 @@ impl NumberFormatFunction {
     }
 
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
-        assert!(function.is::<NumberFormatFunction>());
-        // SAFETY: The function is a NumberFormatFunction, which starts with its NativeFunction.
-        let function = unsafe { &*core::ptr::from_ref(function).cast::<NumberFormatFunction>() };
+        let function: &NumberFormatFunction = cast_ref(function);
 
         // 1. Let nf be F.[[NumberFormat]].
         // 2. Assert: Type(nf) is Object and nf has an [[InitializedNumberFormat]] internal slot.

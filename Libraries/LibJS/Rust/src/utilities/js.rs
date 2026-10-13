@@ -26,7 +26,7 @@ use crate::compile::parse;
 use crate::console::{Console, ConsoleClient, ConsoleClientMethods, LogLevel, PrinterArguments};
 use crate::contrib::test262::global_object::Test262GlobalObject;
 use crate::debugger::{Debugger, PauseInfo, PauseReason, ResumeMode};
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::gc::root::Root;
 use crate::hash_table::HashTable;
 use crate::interpreter::run::set_dump_bytecode;
@@ -1319,8 +1319,7 @@ impl ReplConsoleClient {
     }
 
     fn of(client: &ConsoleClient) -> &ReplConsoleClient {
-        // SAFETY: Only ReplConsoleClient has these methods.
-        unsafe { &*core::ptr::from_ref(client).cast::<ReplConsoleClient>() }
+        cast_ref(client)
     }
 
     fn clear(client: &ConsoleClient) {

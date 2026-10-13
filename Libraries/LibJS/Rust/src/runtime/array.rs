@@ -8,7 +8,7 @@ use core::cell::Cell;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Class, GcCell, define_cell};
+use crate::gc::class::{Class, GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -75,9 +75,7 @@ impl Object {
 
 /// The array an Array internal method was called on.
 fn as_array(object: &Object) -> &Array {
-    assert!(object.is_array_exotic_object());
-    // SAFETY: The object is an Array, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<Array>() }
+    cast_ref(object)
 }
 
 impl Array {

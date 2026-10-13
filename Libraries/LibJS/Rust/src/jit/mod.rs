@@ -55,14 +55,6 @@ fn frame_of<'a>(frame: NonNull<ExecutionContext>) -> &'a ExecutionContext {
     unsafe { frame.as_ref() }
 }
 
-/// The cell as a `T`, if it is one.
-fn cell_as<T: crate::gc::class::GcCell>(cell: Gc<CellHeader>) -> Option<Gc<T>> {
-    crate::gc::class::class_of(cell)
-        .is_subclass_of(T::CLASS)
-        // SAFETY: The cell was allocated as a T or a subclass of it.
-        .then(|| unsafe { Gc::from_non_null(cell.as_non_null().cast()) })
-}
-
 /// A field offset as JIT code takes it.
 fn offset(offset: usize) -> u32 {
     u32::try_from(offset).expect("field offsets fit in u32")

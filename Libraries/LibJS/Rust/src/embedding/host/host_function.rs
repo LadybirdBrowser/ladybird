@@ -29,7 +29,7 @@ use crate::embedding::host::class_table::{
     copy_host_class_flags_into_object, host_class_from_abi, lend_object_to_hook, object_completion_from_hook,
 };
 use crate::embedding::host::registry::runtime_class_and_allocator_of_host_class;
-use crate::gc::class::{Class, Finalize, define_cell};
+use crate::gc::class::{Class, Finalize, cast_ref, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -102,9 +102,7 @@ pub fn derive_host_function_class(table: &'static JSHostClass, parent: &'static 
 
 /// The host function an internal method of a host function class was called on.
 pub(crate) fn as_host_function(object: &Object) -> &HostFunction {
-    debug_assert!(object.is::<HostFunction>());
-    // SAFETY: The object is a HostFunction, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<HostFunction>() }
+    cast_ref(object)
 }
 
 fn host_function_has_constructor(object: &Object) -> bool {

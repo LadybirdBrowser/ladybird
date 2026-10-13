@@ -11,7 +11,7 @@ use std::rc::Rc;
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::Environment;
@@ -72,9 +72,7 @@ impl Deref for ArgumentsObject {
 
 /// The arguments object an internal method of an arguments object was called on.
 fn as_arguments_object(object: &Object) -> &ArgumentsObject {
-    assert!(object.is::<ArgumentsObject>());
-    // SAFETY: The object is an ArgumentsObject, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<ArgumentsObject>() }
+    cast_ref(object)
 }
 
 // NB: The inline named storage ends the object, so the extra slot continues it.

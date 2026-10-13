@@ -11,7 +11,7 @@ use libjs_runtime_macros::Trace;
 
 use super::completion::{Throw, ThrowCompletionOr};
 use super::error_types::ErrorType;
-use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
+use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell, downcast_ref};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -142,12 +142,7 @@ impl Deref for Error {
 
 /// The error_data method of ordinary objects, which finds the slot of the Error objects among them.
 pub fn error_data_of_error(object: &Object) -> Option<&ErrorData> {
-    if !object.is::<Error>() {
-        return None;
-    }
-    // SAFETY: The object is an Error, which starts with its Object.
-    let error = unsafe { &*core::ptr::from_ref(object).cast::<Error>() };
-    Some(&error.error_data)
+    downcast_ref::<_, Error>(object).map(|error| &error.error_data)
 }
 
 impl Error {

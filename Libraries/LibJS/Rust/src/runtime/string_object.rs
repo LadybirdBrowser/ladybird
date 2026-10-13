@@ -8,7 +8,7 @@ use core::ops::{ControlFlow, Deref};
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Class, GcCell, define_cell};
+use crate::gc::class::{Class, GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -55,9 +55,7 @@ impl Deref for StringObject {
 
 /// The String object an internal method of a String object was called on.
 fn as_string_object(object: &Object) -> &StringObject {
-    assert!(object.is::<StringObject>());
-    // SAFETY: The object is a StringObject, which starts with its Object.
-    unsafe { &*core::ptr::from_ref(object).cast::<StringObject>() }
+    cast_ref(object)
 }
 
 impl StringObject {
