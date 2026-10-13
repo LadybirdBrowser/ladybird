@@ -6,7 +6,7 @@
 
 //! The types outside the layout module that it names. build.rs has stand-ins for each of them.
 
-use core::cell::UnsafeCell;
+use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 
 pub use crate::gc::class::Class;
@@ -26,21 +26,22 @@ pub use crate::script::Script;
 
 /// An optional fly string, which is only ever copied in and out.
 #[repr(transparent)]
-pub struct FlyStringSlot(pub UnsafeCell<Option<ak::Utf16FlyString>>);
+pub struct FlyStringSlot(Cell<Option<ak::Utf16FlyString>>);
 
 impl FlyStringSlot {
     pub const fn new(string: Option<ak::Utf16FlyString>) -> Self {
-        Self(UnsafeCell::new(string))
+        Self(Cell::new(string))
     }
 
     pub fn get(&self) -> Option<ak::Utf16FlyString> {
-        // SAFETY: The slot is only ever copied in and out, so no reference into it outlives these calls.
-        unsafe { (*self.0.get()).clone() }
+        let string = self.0.take();
+        let copy = string.clone();
+        self.0.set(string);
+        copy
     }
 
     pub fn set(&self, string: Option<ak::Utf16FlyString>) {
-        // SAFETY: As above. The previous string is dropped after the slot no longer refers to it.
-        drop(unsafe { core::ptr::replace(self.0.get(), string) });
+        self.0.set(string);
     }
 }
 
