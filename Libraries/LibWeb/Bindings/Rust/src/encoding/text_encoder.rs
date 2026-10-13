@@ -16,6 +16,7 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::conversions::UsvString;
+use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::encoding::utf8::{self, EncodeIntoProgress};
 
@@ -23,6 +24,8 @@ use crate::encoding::utf8::{self, EncodeIntoProgress};
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct TextEncoder;
+
+impl Wrappable for TextEncoder {}
 
 /// The dictionary TextEncoderEncodeIntoResult of Encoding/TextEncoder.idl, whose members the bindings convert.
 pub(crate) struct TextEncoderEncodeIntoResult {

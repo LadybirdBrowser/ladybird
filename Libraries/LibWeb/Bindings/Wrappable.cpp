@@ -282,6 +282,11 @@ void preserve_wrapper(Wrappable& wrappable, JS::HostObject& wrapper)
 
 bool wrapper_is_preserved(JS::HostObject const& wrapper)
 {
+    // An object of an interface implemented in Rust keeps its wrapper in the main world alive itself. No other
+    // world keeps a wrapper of it alive.
+    if (JS::is_host_instance_of(wrapper, web_bindings_rust_interface_wrapper_host_class))
+        return host_defined_wrapper_world(wrapper.shape().realm()).is_main_world();
+
     auto const* wrappable = wrappable_impl_from(&wrapper);
     if (!wrappable)
         return false;

@@ -10,6 +10,7 @@ use libjs_rust::api::{
     FunctionObject, Gc, PropertyKey, RawNativeFunction, ThrowCompletionOr, Trace, Value, Vm, raw_native,
 };
 
+use crate::bindings::interface::Wrappable;
 use crate::bindings::realm_data::realm_data;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::streams::queuing_strategy_init::QueuingStrategyInit;
@@ -19,6 +20,8 @@ use crate::streams::queuing_strategy_init::QueuingStrategyInit;
 pub(crate) struct CountQueuingStrategy {
     high_water_mark: f64,
 }
+
+impl Wrappable for CountQueuingStrategy {}
 
 #[expect(
     clippy::unnecessary_wraps,

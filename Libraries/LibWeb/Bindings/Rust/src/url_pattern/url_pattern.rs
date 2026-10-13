@@ -13,6 +13,7 @@ use liburl_rust::pattern::{
 };
 
 use crate::bindings::conversions::UsvString;
+use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 /// The union URLPatternInput of URLPattern/URLPattern.idl, whose members the bindings convert.
@@ -145,6 +146,8 @@ pub(crate) struct URLPattern {
     #[gc(untraced)]
     pattern: Pattern,
 }
+
+impl Wrappable for URLPattern {}
 
 #[expect(
     clippy::unnecessary_wraps,

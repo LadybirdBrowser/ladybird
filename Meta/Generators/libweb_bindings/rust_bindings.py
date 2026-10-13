@@ -35,11 +35,11 @@ from Generators.libweb_bindings.rust_to_js_value import rust_to_js_value
 from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
-from Generators.libweb_bindings.rust_types import rust_module_path
+from Generators.libweb_bindings.rust_types import is_implemented_in_rust
+from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_parameter_type
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_usage import DefinitionUsage
-from Generators.libweb_bindings.rust_usage import is_implemented_in_rust
 from Generators.libweb_bindings.wrappers import wrapper_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
@@ -60,11 +60,6 @@ def rust_entry_point_name(interface: Interface, entry_point: str) -> str:
 
 def wrapper_host_class_symbol(interface: Interface) -> str:
     return f"web_bindings_{wrapper_name(interface)}_host_class"
-
-
-def implementation_path(interface: Interface) -> str:
-    """The Rust path of the implementation: crate::encoding::text_encoder::TextEncoder for Encoding/TextEncoder.idl."""
-    return f"{rust_module_path(interface.path)}::{interface.name}"
 
 
 def interface_name_values(intrinsics: List[Interface]) -> Dict[str, int]:
@@ -152,6 +147,7 @@ def write_cpp_implementation(
     includes.add("LibJS/Runtime/Error.h")
     includes.add("LibJS/Runtime/HostFunction.h")
     includes.add("LibJS/Runtime/Realm.h")
+    includes.add("LibWeb/Bindings/RustInterface.h")
     includes.add_binding(interface.implemented_name)
 
     initialize_prototype = rust_entry_point_name(interface, "initialize_prototype")
@@ -175,7 +171,7 @@ void {initialize_constructor}(JSVM*, void* realm, JSObject* constructor);
 // not an implementation object in their wrappable slot, so they need none of the hooks and flags through which a
 // wrapper keeps its implementation object alive, and the engine's own property caches apply to them.
 constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
-    nullptr, nullptr, nullptr, JS_HOST_CLASS_IS_PLATFORM_OBJECT);
+    &web_bindings_rust_interface_wrapper_host_class, nullptr, nullptr, JS_HOST_CLASS_IS_PLATFORM_OBJECT);
 
 void {interface.prototype_class}::initialize(JS::Realm& realm, JS::Object& object)
 {{
@@ -341,7 +337,7 @@ def implementation_method_signatures(
 def write_rust_interface(
     out: TextIO, context: GenerationContext, module: Module, interface: Interface, interface_name_value: int
 ) -> None:
-    implementation = implementation_path(interface)
+    implementation = rust_interface_path(interface)
     members = rust_members(interface)
     method_documentation = "".join(
         f"/// - `{signature}`\n" for signature in implementation_method_signatures(context, interface, members)
@@ -356,18 +352,20 @@ def write_rust_interface(
 
     use ak::Utf16String;
     use libjs_rust::api::{{
-        EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, Object,
-        RawNativeFunctionResult, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, raw_native,
+        EmbedderClass, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, Object, RawNativeFunctionResult,
+        ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, raw_native,
     }};
 
     use crate::bindings::conversions::{{
-        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js, sequence_to_js,
-        to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array, to_unrestricted_double, to_usv_string,
+        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js,
+        rooted_sequence_to_js, sequence_to_js, to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array,
+        to_unrestricted_double, to_usv_string,
     }};
     use crate::bindings::interface::{{
-        construct_arguments, create_wrapper, define_attribute, define_interface_object_properties, define_operation,
-        define_to_string_tag, entry_point_arguments, implementation_of, prototype_from_new_target,
-        set_interface_prototype_object_prototype, this_object,
+        Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
+        define_interface_object_properties, define_operation, define_to_string_tag, entry_point_arguments,
+        implementation_of, prototype_from_new_target, set_interface_prototype_object_prototype, this_object,
+        to_interface,
     }};
     use crate::bindings::{{CallContext, WebIdlResult}};
 
@@ -376,26 +374,28 @@ def write_rust_interface(
     /// Web::Bindings::InterfaceName::{interface.name}.
     pub(crate) const INTERFACE_NAME: u16 = {interface_name_value};
 
-    /// The class of the cells that hold the implementations of the interface.
-    static CELL_CLASS: EmbedderClass<Implementation> = EmbedderClass::new("{interface.name}");
-
-    impl EmbedderValue for Implementation {{
-        const CLASS: &'static EmbedderClass<Self> = &CELL_CLASS;
-    }}
+    /// The class of the cells of the objects of the interface.
+    static CELL_CLASS: EmbedderClass<Wrapped<Implementation>> = EmbedderClass::new("{interface.name}");
 
     unsafe extern "C" {{
         static {wrapper_host_class_symbol(interface)}: JSHostClass;
     }}
 
-    fn wrapper_class() -> &'static JSHostClass {{
-        // SAFETY: LibWeb defines the class of the wrappers as constant data.
-        unsafe {{ &{wrapper_host_class_symbol(interface)} }}
+    impl Interface for Implementation {{
+        const CELL_CLASS: &'static EmbedderClass<Wrapped<Self>> = &CELL_CLASS;
+        const INTERFACE_NAME: u16 = INTERFACE_NAME;
+        const NAME: &'static str = "{interface.namespaced_name}";
+
+        fn wrapper_class() -> &'static JSHostClass {{
+            // SAFETY: LibWeb defines the class of the wrappers as constant data.
+            unsafe {{ &{wrapper_host_class_symbol(interface)} }}
+        }}
     }}
 
-    /// The implementation that an attribute or an operation runs on, and the context it runs in.
-    fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Gc<EmbedderCell<Implementation>>, CallContext<'_>)> {{
-        let (object, realm) = this_object(vm, wrapper_class(), "{interface.namespaced_name}")?;
-        Ok((implementation_of(object, &CELL_CLASS), CallContext::new(vm, realm)))
+    /// The object that an attribute or an operation runs on, and the context it runs in.
+    fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Ref<Implementation>, CallContext<'_>)> {{
+        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
+        Ok((implementation_of(object), CallContext::new(vm, realm)))
     }}
 """
     )
@@ -547,8 +547,7 @@ def write_rust_constructor(
         f"""        let mut cx = CallContext::new(vm, realm);
         let implementation =
             Implementation::{constructor.method}(&mut cx{arguments}).map_err(|exception| exception.throw(vm))?;
-        let implementation = CELL_CLASS.allocate(vm, implementation);
-        Ok(Value::from_object(create_wrapper(vm, realm, wrapper_class(), prototype, implementation)))
+        Ok(Value::from_object(construct_wrapper(vm, realm, prototype, implementation)))
     }}
 """
     )
@@ -576,10 +575,10 @@ pub(crate) mod definitions {
     use crate::bindings::CallContext;
     use crate::bindings::conversions::{
         BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, dictionary_member,
-        dictionary_object, record_to_js, sequence_to_js, to_boolean, to_buffer_source, to_dom_string, to_float,
-        to_typed_array, to_unrestricted_double, to_usv_string,
+        dictionary_object, record_to_js, rooted_sequence_to_js, sequence_to_js, to_boolean, to_buffer_source,
+        to_dom_string, to_float, to_typed_array, to_unrestricted_double, to_usv_string,
     };
-    use crate::bindings::interface::{create_dictionary_object, set_dictionary_member};
+    use crate::bindings::interface::{Ref, create_dictionary_object, set_dictionary_member, to_interface};
 """
     )
     for name, directions in usage.rust_dictionaries.items():

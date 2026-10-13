@@ -30,6 +30,12 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {"NewObject", "SameObject"}
 SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {"NewObject", "SameObject"}
 
 
+def generated_function_stem(method: str) -> str:
+    """What the names of the generated functions of a member start with: the method without what makes a reserved
+    name usable as an identifier, which a longer name does not need."""
+    return method.removeprefix("r#").removesuffix("_")
+
+
 @dataclass
 class RustAttribute:
     attribute: Attribute
@@ -39,7 +45,7 @@ class RustAttribute:
     @property
     def getter_function(self) -> str:
         """The generated native function of the getter."""
-        return f"{self.getter_method.removeprefix('r#')}_getter"
+        return f"{generated_function_stem(self.getter_method)}_getter"
 
 
 @dataclass
@@ -63,7 +69,7 @@ class RustOperationSet:
     @property
     def function(self) -> str:
         """The generated native function that the prototype holds."""
-        return f"{rust_identifier(self.name).removeprefix('r#')}_function"
+        return f"{generated_function_stem(rust_identifier(self.name))}_function"
 
     @property
     def length(self) -> int:
