@@ -266,7 +266,6 @@ pub struct JSVmHostHooks {
         ) -> JSCompletion,
     >,
     /// HostSystemUTCEpochNanoseconds ( global ): the current time in nanoseconds since the epoch.
-    /// js_vm_default_host_system_utc_epoch_nanoseconds() is the runtime's own.
     pub system_utc_epoch_nanoseconds:
         Option<unsafe extern "C" fn(data: *mut c_void, vm: *mut JSVM, global: *mut JSObject) -> i64>,
     /// VM::on_unimplemented_property_access: code looked for a property of the object that the embedder declared

@@ -21,7 +21,6 @@ use crate::gc::capi::GCHeap;
 use crate::interpreter::vm::{
     Vm, VmOptions, default_host_enqueue_finalization_registry_cleanup_job, default_host_enqueue_promise_job,
     default_host_grow_shared_array_buffer, default_host_promise_job_queue_is_empty, default_host_resize_array_buffer,
-    default_host_system_utc_epoch_nanoseconds,
 };
 use crate::layout::host_class::{JSCompletion, JSObject, JSVM, JSValue};
 use crate::layout::value::Value;
@@ -283,20 +282,6 @@ pub unsafe extern "C" fn js_vm_default_host_load_imported_module(
         )
     };
     Vm::load_imported_module(vm, referrer, module_request, NonNull::new(host_defined), payload);
-}
-
-/// The runtime's own HostSystemUTCEpochNanoseconds ( global ), which a system_utc_epoch_nanoseconds hook can fall
-/// back to: the time of the system clock. Only the VM's thread may call this.
-///
-/// # Safety
-///
-/// `vm` must be a live VM and `global` one of its global objects.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_vm_default_host_system_utc_epoch_nanoseconds(vm: *mut JSVM, global: *mut JSObject) -> i64 {
-    // SAFETY: The caller passes a live VM and object.
-    let (vm, global) = unsafe { (vm_from_abi(vm), cell_from_abi(global)) };
-    let nanoseconds = default_host_system_utc_epoch_nanoseconds(vm, &global);
-    i64::try_from(&nanoseconds).expect("the time of the system clock saturates to the range of i64")
 }
 
 /// The runtime's own HostResizeArrayBuffer ( buffer, newByteLength ), which a resize_array_buffer hook falls back to
