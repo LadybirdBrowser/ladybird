@@ -216,6 +216,8 @@ public:
     size_t pending_input_event_count_for_testing() const { return m_pending_input_events.size(); }
     void handle_external_url(Badge<WebContentPage>, URL::URL, URL::Origin, bool has_transient_activation);
     void did_request_cursor_change(Badge<WebContentPage>, Gfx::Cursor);
+    void did_enter_tooltip_area(Badge<WebContentPage>, ByteString title);
+    void did_leave_tooltip_area(Badge<WebContentPage>);
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
@@ -636,6 +638,7 @@ protected:
     Optional<Action> handle_ui_overlay_mouse_event(Compositing::OverlayPointerState<Action>&, Web::MouseEvent const&, ButtonsForViewport const&);
     bool is_ui_overlay_hovered() const { return m_debugger_overlay_pointer_state.hovered_action().has_value(); }
     void apply_cursor();
+    void apply_tooltip();
     void update_ui_overlays();
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
@@ -827,6 +830,7 @@ protected:
     bool m_debugger_paused { false };
     Compositing::OverlayPointerState<Compositing::PausedDebuggerOverlayAction> m_debugger_overlay_pointer_state;
     Gfx::Cursor m_page_cursor { Gfx::StandardCursor::Arrow };
+    Optional<ByteString> m_page_tooltip;
 
     struct PendingExternalURLRequest {
         URL::URL url;

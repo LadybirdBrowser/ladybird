@@ -879,14 +879,12 @@ void WebContentPage::did_stop_tooltip_override()
 
 void WebContentPage::did_enter_tooltip_area(ByteString title)
 {
-    if (view().on_enter_tooltip_area)
-        view().on_enter_tooltip_area(title);
+    view().did_enter_tooltip_area({}, move(title));
 }
 
 void WebContentPage::did_leave_tooltip_area()
 {
-    if (view().on_leave_tooltip_area)
-        view().on_leave_tooltip_area();
+    view().did_leave_tooltip_area({});
 }
 
 void WebContentPage::did_hover_link(URL::URL url)
