@@ -5,19 +5,20 @@
  */
 
 use core::cell::Cell;
-use core::ptr::NonNull;
 use std::collections::HashMap;
 
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Extends, Finalize, GcCell, define_cell};
+use crate::bytecode::executable::Executable;
+use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::BINDING_FLAG_MUTABLE;
 pub use crate::layout::environment::EnvironmentShape;
+use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 
 /// The names of an environment shape's bindings, whose flags the interpreter reads from the shape itself.
 pub struct EnvironmentShapeStorage {
@@ -101,34 +102,32 @@ impl EnvironmentShape {
     }
 }
 
-/// The slot where the environments one piece of code creates find their shape: an entry of an executable's
-/// environment shape caches, or the function or var environment shape of a function's shared data. Along with a
-/// pointer to the slot, this keeps the cell that owns the slot alive, so that the pointer cannot dangle.
+/// The slot where the environments one piece of code creates find their shape, which this keeps alive along with the
+/// cell that owns it.
 #[derive(Clone, Copy, Trace)]
-pub struct EnvironmentShapeCache {
-    owner: Gc<CellHeader>,
-    #[gc(untraced)]
-    slot: NonNull<Cell<Option<Gc<EnvironmentShape>>>>,
+pub enum EnvironmentShapeCache {
+    /// An entry of an executable's environment shape caches.
+    Executable(Gc<Executable>, #[gc(untraced)] u32),
+    /// The function environment shape of a function's shared data.
+    FunctionEnvironment(Gc<SharedFunctionInstanceData>),
+    /// The var environment shape of a function's shared data.
+    VarEnvironment(Gc<SharedFunctionInstanceData>),
 }
 
 impl EnvironmentShapeCache {
-    /// # Safety
-    ///
-    /// `slot` must be part of the cell `owner`, or of memory that `owner` owns and only frees when it is destroyed.
-    pub unsafe fn new<Owner: Extends<CellHeader>>(owner: Gc<Owner>, slot: &Cell<Option<Gc<EnvironmentShape>>>) -> Self {
-        Self {
-            owner: owner.upcast(),
-            slot: NonNull::from(slot),
+    fn slot(&self) -> &Cell<Option<Gc<EnvironmentShape>>> {
+        match self {
+            Self::Executable(executable, index) => executable.environment_shape_cache_slot(*index),
+            Self::FunctionEnvironment(shared_data) => shared_data.function_environment_shape_slot(),
+            Self::VarEnvironment(shared_data) => shared_data.var_environment_shape_slot(),
         }
     }
 
     pub fn shape(&self) -> Option<Gc<EnvironmentShape>> {
-        // SAFETY: The owner keeps the slot allocated, and this keeps the owner alive.
-        unsafe { self.slot.as_ref() }.get()
+        self.slot().get()
     }
 
     pub fn set_shape(&self, shape: Gc<EnvironmentShape>) {
-        // SAFETY: As above.
-        unsafe { self.slot.as_ref() }.set(Some(shape));
+        self.slot().set(Some(shape));
     }
 }
