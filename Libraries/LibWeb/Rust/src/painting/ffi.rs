@@ -351,11 +351,8 @@ pub extern "C" fn render_state_background_color_can_be_compositor_animated(
     })
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_paintable_visual_context_node_count(
+pub extern "C" fn render_state_paintable_visual_context_node_count(
     host: &DocumentHost,
     slot: NodeSlotId,
     list: crate::painting::host::FfiVisualContextBoxNodeList,

@@ -2878,11 +2878,8 @@ pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
 
 /// Evaluates a retained supports condition whose feature results were captured while parsing.
 /// Returns 3 when the handle does not contain a supports expression.
-///
-/// # Safety
-/// `handle` must point to a live supports-expression handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_evaluate_supports(handle: Option<&FfiQueryHandle>) -> u8 {
+pub extern "C" fn css_query_evaluate_supports(handle: Option<&FfiQueryHandle>) -> u8 {
     handle
         .and_then(FfiQueryHandle::evaluate_supports)
         .map_or(3, |result| result as u8)
@@ -3299,7 +3296,7 @@ mod tests {
             },
         };
 
-        assert_eq!(unsafe { css_query_evaluate_supports(None) }, 3);
-        assert_eq!(unsafe { css_query_evaluate_supports(Some(&handle)) }, 3);
+        assert_eq!(css_query_evaluate_supports(None), 3);
+        assert_eq!(css_query_evaluate_supports(Some(&handle)), 3);
     }
 }

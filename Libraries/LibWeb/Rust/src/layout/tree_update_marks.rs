@@ -421,12 +421,8 @@ impl LayoutNodeArena {
 /// Has the render state invalidate the box of the DOM node `style_node` names, or the document's for 0, as the layout
 /// tree update `mark` on the node asks, as it applies the host's writes: the classification reads the arena, which the
 /// host does not wait for.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_apply_layout_tree_update_mark(
+pub extern "C" fn render_state_apply_layout_tree_update_mark(
     host: &DocumentHost,
     style_node: u32,
     mark: FfiLayoutTreeUpdateMark,

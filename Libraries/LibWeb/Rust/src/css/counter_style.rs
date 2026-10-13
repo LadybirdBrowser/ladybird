@@ -57,12 +57,12 @@ impl FfiCounterStyle {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_descriptors(rule: &FfiCounterStyle) -> *mut FfiDescriptorBlock {
+pub extern "C" fn rust_counter_style_descriptors(rule: &FfiCounterStyle) -> *mut FfiDescriptorBlock {
     rust_descriptor_block_retain(&rule.descriptors)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_name(rule: &FfiCounterStyle) -> FfiUtf16View {
+pub extern "C" fn rust_counter_style_name(rule: &FfiCounterStyle) -> FfiUtf16View {
     let name = rule.name.borrow();
     let name = name.units();
     FfiUtf16View {

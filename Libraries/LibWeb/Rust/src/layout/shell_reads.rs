@@ -195,12 +195,8 @@ pub unsafe extern "C" fn layout_row_bound_shell(host: &DocumentHost, read: &Begu
 /// The content size of the committed box of the row the element with `style_node` is bound to, or none where the
 /// element has no row or its row no committed box. It makes no layout node, so a host callback a layout round makes
 /// on the render owner may ask it.
-///
-/// # Safety
-///
-/// As for [`layout_row_bound_shell`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_bound_committed_content_size(
+pub extern "C" fn layout_row_bound_committed_content_size(
     host: &DocumentHost,
     read: &BegunRead,
     style_node: u32,

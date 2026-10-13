@@ -7129,12 +7129,8 @@ fn finalize_animated_box_type(
 
 /// Applies the box type transformation and element adjustments to the animated composition `animated_overlay` holds
 /// over `longhand_table`.
-///
-/// # Safety
-/// `longhand_table` and `animated_overlay` must be live, and `input_line_height_metrics` a live metrics snapshot when
-/// `box_type` asks to check an input's line-height.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_finalize_animated_box_type(
+pub extern "C" fn rust_finalize_animated_box_type(
     box_type: FfiBoxTypeTransformationInput,
     longhand_table: &ComputedLonghandTable,
     animated_overlay: &mut AnimatedOverlay,

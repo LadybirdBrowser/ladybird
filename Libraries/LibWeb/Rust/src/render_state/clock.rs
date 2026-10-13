@@ -1745,13 +1745,8 @@ pub extern "C" fn document_host_clock_lane_is_coming(host: &DocumentHost) -> boo
 /// `scroll_offset`, if not null, and waits until the StyleLayout thread has run the jobs handed to it before, the tick
 /// among them, and the Paint thread the recording of the frame the tick presents. For a test, whose clock ticks only
 /// where it injects them.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and
-/// `scroll_offset` must be null or valid for reads.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_inject_clock_tick(
+pub extern "C" fn document_host_inject_clock_tick(
     host: &DocumentHost,
     frame_time_nanoseconds: i64,
     scroll_offset: Option<&FfiScrollOffset>,

@@ -662,11 +662,8 @@ pub extern "C" fn render_state_set_node_flag(host: &DocumentHost, node: NodeSlot
     queue(host, LayoutChange::SetNodeFlag { node, flag, value });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_owned_image_natural_size(
+pub extern "C" fn render_state_set_owned_image_natural_size(
     host: &DocumentHost,
     node: NodeSlotId,
     natural_size: FfiNaturalSize,
