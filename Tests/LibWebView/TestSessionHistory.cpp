@@ -435,7 +435,7 @@ TEST_CASE(queued_same_document_entries_are_addressed_by_identity)
             .history_handling = Web::HTML::HistoryHandlingBehavior::Push,
             .user_involvement = Web::HTML::UserNavigationInvolvement::None,
         };
-        traversable.enqueue_history_operation(operation_id, move(parameters), {}, 0);
+        traversable.enqueue_history_operation(operation_id, move(parameters), {});
     };
     enqueue_push({ 8, 1 }, move(first_entry));
     enqueue_push({ 8, 2 }, move(replacement_entry));

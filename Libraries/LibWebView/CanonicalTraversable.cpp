@@ -670,7 +670,7 @@ void CanonicalTraversable::reload()
         .navigable_id = id(),
         .user_involvement = user_involvement,
     };
-    enqueue_history_operation(Application::the().allocate_ui_process_cross_process_id(), parameters, {}, next_sequence_number());
+    enqueue_history_operation(Application::the().allocate_ui_process_cross_process_id(), parameters, {});
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#nav-stop
@@ -2137,8 +2137,10 @@ void CanonicalTraversable::did_attempt_to_populate_the_history_entry_document(We
     navigable->populate_document_for_javascript_url(*navigation, move(history_entry), navigable->create_and_initialize_a_document(response_document));
 }
 
-void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters request, RefPtr<WebContentPage> requesting_page, u64 sequence_number)
+void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters request, RefPtr<WebContentPage> requesting_page)
 {
+    auto sequence_number = next_sequence_number();
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
     // Steps 6-7 remove the nested history before step 9 appends traversal steps. Apply the canonical counterpart while
     // admitting the destruction request, rather than deferring it to the operation's eventual queue position.
