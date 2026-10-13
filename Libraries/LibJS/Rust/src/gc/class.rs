@@ -42,6 +42,8 @@ pub struct Class {
     pub parent: Option<&'static Class>,
     /// The internal methods of the objects of this class. Cells that are not objects have none.
     pub object_methods: Option<&'static ObjectMethods>,
+    /// The kind of the cells of this class, which type_info also holds for LibGC.
+    kind: CellKind,
 }
 
 // The layout module's mirror of the class, through which Layout.h tells an embedder where a class keeps its id and
@@ -96,12 +98,12 @@ impl Class {
             id,
             parent,
             object_methods,
+            kind,
         }
     }
 
     pub fn kind(&self) -> CellKind {
-        // SAFETY: The kind was stored from a CellKind.
-        unsafe { core::mem::transmute::<u8, CellKind>(self.type_info.kind) }
+        self.kind
     }
 
     /// What Cell::class_name() returns for the cells of this class, which printing and messages show. It is the name
@@ -204,6 +206,7 @@ impl Class {
             id: parent.id,
             parent: Some(parent),
             object_methods,
+            kind: parent.kind,
         }));
         #[cfg(feature = "address-sanitizer")]
         // SAFETY: The class is a live allocation, which the process keeps for as long as it runs.
