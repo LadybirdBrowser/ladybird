@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/green-square-100-ref.html" />
+<div style="display: none">
+    <svg>
+        <g id="shape"><rect width="100" height="100" fill="white" /></g>
+        <mask id="m"><use href="#shape" /></mask>
+    </svg>
+</div>
+<svg width="100" height="100">
+    <rect width="100" height="100" fill="green" mask="url(#m)" />
+</svg>

@@ -1,0 +1,9 @@
+hidden icon has no style records: true
+hidden linearGradient and its content have style records: true
+hidden pattern and its content have style records: true
+hidden clipPath and its content have style records: true
+hidden mask and its content have style records: true
+hidden filter and its content have style records: true
+text on the hidden path is laid out: true
+hidden path given an id later has a style record: true
+icon hidden later has no style records: true

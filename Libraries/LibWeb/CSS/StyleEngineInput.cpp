@@ -841,6 +841,8 @@ enum ElementConstructionFact : u32 {
     IsEditingHost = 1 << 4,
     IsBody = 1 << 5,
     ConstructedAsDocumentElement = 1 << 6,
+    IsSvgResourceElement = 1 << 7,
+    IsSvgGeometryElement = 1 << 8,
 };
 u32 element_box_type_adjustment_facts(DOM::Element const& element)
 {
@@ -947,6 +949,7 @@ static u32 element_construction_facts(DOM::Element const& element)
     };
     auto shadow_root = element.containing_shadow_root();
     auto const* html_element = as_if<HTML::HTMLElement>(element);
+    auto const* svg_element = as_if<SVG::SVGElement>(element);
     set(is<HTML::HTMLInputElement>(element), ElementConstructionFact::IsHtmlInputElement);
     set(element.is_html_html_element(), ElementConstructionFact::ConstructedAsHtmlHtmlElement);
     set(shadow_root && shadow_root->is_user_agent_internal(), ElementConstructionFact::IsInUserAgentShadowTree);
@@ -954,6 +957,8 @@ static u32 element_construction_facts(DOM::Element const& element)
     set(element.is_editing_host(), ElementConstructionFact::IsEditingHost);
     set(&element == element.document().body(), ElementConstructionFact::IsBody);
     set(element.is_document_element(), ElementConstructionFact::ConstructedAsDocumentElement);
+    set(svg_element && svg_element->is_resource_element(), ElementConstructionFact::IsSvgResourceElement);
+    set(element.is_svg_geometry_element(), ElementConstructionFact::IsSvgGeometryElement);
     return facts;
 }
 
@@ -2604,6 +2609,9 @@ void record_element_id_changed(DOM::Element& element, Optional<Utf16FlyString> c
     // `getElementById` is case-sensitive in every mode, so the name the inverse index is keyed by
     // is the one written rather than the one a quirks-mode selector folds it to.
     StyleEngineFFI::style_engine_set_element_id_name(style_engine->host(), element.style_node_id(), new_value.has_value() ? style_engine->intern_atom(*new_value) : StyleAtomID {});
+
+    if (element.is_svg_geometry_element())
+        style_engine->record_derived_element_style_input_change(element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
 }
 
 void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16FlyString> old_classes, ReadonlySpan<Utf16FlyString> new_classes)
