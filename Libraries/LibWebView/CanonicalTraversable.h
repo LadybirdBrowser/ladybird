@@ -224,11 +224,11 @@ private:
     void apply_the_traverse_history_step(HistoryOperation&, i32 step, Optional<Web::HTML::NavigationSourceSnapshot>, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement);
     void resume_applying_the_traverse_history_step(HistoryOperation&, i32 step, Web::HTML::UserNavigationInvolvement);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
-    void finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
+    void finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult);
     void end_history_operation(Web::HTML::CrossProcessId operation_id);
     void did_not_apply_reload(Web::HTML::CrossProcessId navigable_id);
     OwnPtr<HistoryOperation> take_history_operation(Web::HTML::CrossProcessId operation_id);
-    void report_history_operation_completion(HistoryOperation&, Optional<i32> committed_step);
+    void report_history_operation_completion(HistoryOperation&);
     void settle_history_operation(NonnullOwnPtr<HistoryOperation>);
     HistoryOperation* ongoing_browser_history_traversal();
 
