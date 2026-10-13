@@ -672,7 +672,8 @@ void CanonicalTraversable::reload(OnHistoryStepApplied on_complete)
         .user_involvement = user_involvement,
     };
     enqueue_history_operation(Application::the().allocate_ui_process_cross_process_id(), parameters, {}, next_sequence_number(), [this, reloading_entry, on_complete = move(on_complete)](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
-        // NB: A reload that did not apply leaves no navigation behind to clear the pending flag.
+        // AD-HOC: The spec leaves reload pending set when the reload does not apply, so a later history step would
+        //         reload the document anyway.
         if (result != Web::HTML::HistoryStepResult::Applied && reloading_entry->document_state->reload_pending) {
             reloading_entry->document_state->reload_pending = false;
             session_history_changed();

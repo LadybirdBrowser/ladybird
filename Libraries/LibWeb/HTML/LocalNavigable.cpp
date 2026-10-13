@@ -4277,7 +4277,8 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
                 if (result == HistoryStepResult::Applied)
                     return;
 
-                // NB: A reload that did not apply leaves no navigation behind to clear the pending flag.
+                // AD-HOC: The spec leaves reload pending set when the reload does not apply, so a later history step would
+                //         reload the document anyway.
                 if (reloading_entry->document_state()->reload_pending()) {
                     reloading_entry->document_state()->set_reload_pending(false);
                     page().client().page_did_set_session_history_entry_document_state_reload_pending(
