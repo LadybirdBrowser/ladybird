@@ -18,10 +18,12 @@ set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYB
 # feedback) and the programs in Tests/LibJS/JIT/programs, under the fast tier of JIT stress modes and compared with the
 # interpreter; and the checks of the IR the JIT's passes produce. Tests/LibJS/JIT/matrix.py runs more modes and suites.
 if (ENABLE_JS_JIT)
+    cmake_host_system_information(RESULT logical_core_count QUERY NUMBER_OF_LOGICAL_CORES)
     add_test(
         NAME test-js-jit
         COMMAND "${Python3_EXECUTABLE}" "${ladybird_SOURCE_DIR}/Tests/LibJS/JIT/matrix.py" --build "${CMAKE_BINARY_DIR}"
             --modes fast --suites test-js,programs --results "${CMAKE_BINARY_DIR}/Testing/jit-matrix"
+            --jobs ${logical_core_count}
     )
     add_test(
         NAME test-jit-ir
