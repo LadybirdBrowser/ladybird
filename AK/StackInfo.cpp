@@ -92,6 +92,11 @@ StackInfo::StackInfo()
     ULONG_PTR high_limit = 0;
     GetCurrentThreadStackLimits(&low_limit, &high_limit);
 
+    // The stack overflows before reaching its low limit by the size reserved for handling that overflow.
+    ULONG stack_guarantee = 0;
+    SetThreadStackGuarantee(&stack_guarantee);
+    low_limit += stack_guarantee;
+
     m_base = static_cast<FlatPtr>(low_limit);
     m_size = static_cast<size_t>(high_limit - low_limit);
 #else
