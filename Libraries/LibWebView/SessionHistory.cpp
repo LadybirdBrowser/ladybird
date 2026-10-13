@@ -484,9 +484,9 @@ static Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_
         }
     }
 
-    // FIXME: The UI mirror can temporarily lack a newly-created navigable's nested history while WebContent and the
-    //        UI process converge. Once navigable creation is ordered with session history updates, apply the
-    //        specification's final assertion.
+    // AD-HOC: A navigable has no entries until the update for its creation has run. Nor does one created in a frame's
+    //         initial about:blank while the frame repopulates the entries its nested history kept, as that document is
+    //         about to be replaced.
     return {};
 }
 
