@@ -2479,7 +2479,7 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
         [&](Web::NavigableCreationHistoryOperationParameters const& parameters) {
             auto parent_navigable = find(parameters.parent_navigable_id);
             auto child_navigable = find(parameters.navigable_id);
-            if (!parent_navigable.has_value() || !child_navigable.has_value() || !operation.requesting_page) {
+            if (!parent_navigable.has_value() || !child_navigable.has_value()) {
                 end_history_operation(operation.operation_id);
                 return;
             }
