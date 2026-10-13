@@ -15,6 +15,9 @@ unsafe extern "C" {
     /// interface implemented in Rust.
     pub(crate) fn web_bindings_ensure_web_prototype(realm: *mut c_void, interface_name: u16) -> *mut c_void;
 
+    /// The interface object of the interface in the realm, likewise.
+    pub(crate) fn web_bindings_ensure_web_constructor(realm: *mut c_void, interface_name: u16) -> *mut c_void;
+
     /// The wrapper world of the realm, a cell that the realm keeps alive, and whether it is the main world of its
     /// agent.
     pub(crate) fn web_bindings_wrapper_world(realm: *mut c_void, is_main_world: *mut bool) -> *mut c_void;

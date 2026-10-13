@@ -30,8 +30,8 @@ use libjs_rust::api::{
 use crate::bindings::CallContext;
 use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
-    web_bindings_ensure_web_prototype, web_bindings_rejected_promise, web_bindings_rust_wrapper_for,
-    web_bindings_set_rust_wrapper,
+    web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype, web_bindings_rejected_promise,
+    web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
 };
 
 /// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
@@ -68,6 +68,13 @@ impl<T: Trace> Deref for Wrapped<T> {
 
 /// An object of the interface that `T` implements.
 pub(crate) type Ref<T> = Gc<EmbedderCell<Wrapped<T>>>;
+
+/// What the implementation of an interface that inherits from another implements, for the implementation of that
+/// interface: where an object of the interface keeps what it is as an object of the inherited interface. The
+/// attributes and operations of the inherited interface run on that.
+pub(crate) trait Inherits<Parent> {
+    fn parent(&self) -> &Parent;
+}
 
 /// An implementation of an interface, as the generated bindings of the interface describe it.
 pub(crate) trait Interface: Wrappable + Trace + Sized + 'static {
@@ -135,10 +142,16 @@ pub(crate) fn this_object(
 
 /// The object that a wrapper of exactly the interface wraps.
 pub(crate) fn implementation_of<T: Interface>(wrapper: Gc<Object>) -> Ref<T> {
+    implementation_if(wrapper).expect("a wrapper holds the cell of its object")
+}
+
+/// The object that the wrapper of an interface implemented in Rust wraps, if it is an object of exactly this
+/// interface and not of one that inherits from it.
+pub(crate) fn implementation_if<T: Interface>(wrapper: Gc<Object>) -> Option<Ref<T>> {
     let host_data = host_data_of(&wrapper).expect("a wrapper holds the cell of its object");
-    // SAFETY: The wrapper is a host object of the interface's wrapper class, whose host data the bindings set to a
-    //         cell of the interface.
-    unsafe { T::CELL_CLASS.downcast(host_data) }.expect("a wrapper holds the cell of its object")
+    // SAFETY: The wrapper is a host object of the wrapper class of an interface implemented in Rust, whose host data
+    //         the bindings set to the cell of an object of such an interface.
+    unsafe { T::CELL_CLASS.downcast(host_data) }
 }
 
 /// An object of the interface converted from a JS value, https://webidl.spec.whatwg.org/#js-interface
@@ -315,10 +328,19 @@ pub(crate) unsafe fn construct_arguments<'vm>(vm: *mut c_void, new_target: *mut 
     unsafe { (&*vm.cast::<Vm>(), Gc::from_non_null(new_target)) }
 }
 
-/// Gives the interface prototype object its [[Prototype]], %Object.prototype%. The Rust bindings do not handle
-/// interfaces that inherit from another interface yet.
-pub(crate) fn set_interface_prototype_object_prototype(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) {
-    prototype.set_prototype(vm, Some(realm.intrinsics().object_prototype(vm)));
+/// Gives the interface prototype object its [[Prototype]]: the interface prototype object of the interface that the
+/// interface inherits from, or %Object.prototype%, https://webidl.spec.whatwg.org/#interface-prototype-object
+pub(crate) fn set_interface_prototype_object_prototype(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    prototype: Gc<Object>,
+    inherited_interface_name: Option<u16>,
+) {
+    let parent = match inherited_interface_name {
+        Some(inherited_interface_name) => interface_prototype_object(realm, inherited_interface_name),
+        None => realm.intrinsics().object_prototype(vm),
+    };
+    prototype.set_prototype(vm, Some(parent));
 }
 
 /// Defines a regular attribute on the interface prototype object, https://webidl.spec.whatwg.org/#es-attributes
@@ -395,8 +417,9 @@ pub(crate) fn define_to_string_tag(vm: &Vm, prototype: Gc<Object>, name: &str) {
     );
 }
 
-/// Defines the "length", "name" and "prototype" properties of the interface object,
-/// https://webidl.spec.whatwg.org/#es-interface-call
+/// Gives the interface object its [[Prototype]], if the interface inherits from another: the interface object of that
+/// interface. Then defines the "length", "name" and "prototype" properties of the interface object,
+/// https://webidl.spec.whatwg.org/#interface-object
 pub(crate) fn define_interface_object_properties(
     vm: &Vm,
     realm: Gc<Realm>,
@@ -404,7 +427,15 @@ pub(crate) fn define_interface_object_properties(
     name: &str,
     length: i32,
     interface_name: u16,
+    inherited_interface_name: Option<u16>,
 ) {
+    if let Some(inherited_interface_name) = inherited_interface_name {
+        // SAFETY: The realm is live, and the interface is implemented in Rust.
+        let parent = unsafe { web_bindings_ensure_web_constructor(realm.as_ptr().cast(), inherited_interface_name) };
+        let parent = NonNull::new(parent.cast::<Object>()).expect("the realm has the interface object");
+        // SAFETY: LibWeb returns the live interface object.
+        constructor.set_prototype(vm, Some(unsafe { Gc::from_non_null(parent) }));
+    }
     constructor.define_direct_property(
         vm,
         &vm.names.length,
