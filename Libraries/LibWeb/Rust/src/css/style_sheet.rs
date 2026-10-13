@@ -527,7 +527,7 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
         conditions.push((identity, holds));
     });
     // SAFETY: Guaranteed by the caller.
-    unsafe { write_rule_conditions(host, conditions) };
+    write_rule_conditions(host, conditions);
     result
 }
 
@@ -547,14 +547,11 @@ pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
         conditions.push((identity, holds));
     });
     // SAFETY: Guaranteed by the caller.
-    unsafe { write_rule_conditions(host, conditions) };
+    write_rule_conditions(host, conditions);
 }
 
 /// Writes whether the conditions of each rule hold, for the rules the engine has.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
-unsafe fn write_rule_conditions(host: &crate::render_state::DocumentHost, conditions: Vec<(u64, bool)>) {
+fn write_rule_conditions(host: &crate::render_state::DocumentHost, conditions: Vec<(u64, bool)>) {
     if conditions.is_empty() {
         return;
     }

@@ -58,11 +58,7 @@ impl Default for SelectorInputs {
 }
 
 impl SelectorInputs {
-    unsafe fn bind(
-        &self,
-        source: &RustParsedSelectorList,
-        parent_kind: StyleNestingParent,
-    ) -> Arc<RustParsedSelectorList> {
+    fn bind(&self, source: &RustParsedSelectorList, parent_kind: StyleNestingParent) -> Arc<RustParsedSelectorList> {
         let empty: crate::css::selector::SelectorList = Box::new([]);
         let parents = if parent_kind == StyleNestingParent::Style {
             self.parents.as_ref().map_or(&empty, |parents| &parents.selectors)
@@ -75,9 +71,9 @@ impl SelectorInputs {
         })
     }
 
-    pub(super) unsafe fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Arc<RustParsedSelectorList>> {
+    pub(super) fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Arc<RustParsedSelectorList>> {
         match rule.rule_type() {
-            NativeRuleType::Style => Some(unsafe { self.bind(&rule.selectors().unwrap(), self.parent_kind) }),
+            NativeRuleType::Style => Some(self.bind(&rule.selectors().unwrap(), self.parent_kind)),
             NativeRuleType::NestedDeclarations => {
                 if let Some(parents) = &self.parents {
                     return Some(parents.clone());
@@ -91,7 +87,7 @@ impl SelectorInputs {
         }
     }
 
-    pub(super) unsafe fn within(
+    pub(super) fn within(
         &self,
         rule: RuleRef<'_>,
         matching: Option<Arc<RustParsedSelectorList>>,
@@ -100,7 +96,7 @@ impl SelectorInputs {
         let mut nested = self.clone();
         nested.immediate_parent_kind = StyleNestingParent::None;
         if rule.rule_type() == NativeRuleType::Style {
-            nested.parents = matching.or_else(|| unsafe { self.matching_selectors(rule) });
+            nested.parents = matching.or_else(|| self.matching_selectors(rule));
             nested.parent_kind = StyleNestingParent::Style;
             nested.immediate_parent_kind = StyleNestingParent::Style;
         }
@@ -110,10 +106,7 @@ impl SelectorInputs {
             } else {
                 self.immediate_parent_kind
             };
-            let start = scope
-                .start
-                .as_ref()
-                .map(|start| unsafe { self.bind(start, parent_kind) });
+            let start = scope.start.as_ref().map(|start| self.bind(start, parent_kind));
             let end = scope.end.as_ref().map(|end| RustParsedSelectorList {
                 selectors: adapt_scope_end_selector_list(&end.selectors),
             });

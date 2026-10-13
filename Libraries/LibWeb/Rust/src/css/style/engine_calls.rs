@@ -349,11 +349,7 @@ fn element_parts(node: u32, names: &[u32], hosts: &[u32]) -> Option<(StyleNodeID
 }
 
 /// Queues `write` for the render state of `host`'s document.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-pub(super) unsafe fn queue(host: &DocumentHost, write: EngineWrite) {
+pub(super) fn queue(host: &DocumentHost, write: EngineWrite) {
     host.queue_change(ArenaChange::Engine(write));
 }
 
@@ -665,12 +661,8 @@ pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
 
 /// Has the engine keep the random base values of the keys that name the element whose style node `node` was, as the
 /// element loses it, in a slot the element holds, or answers null where no element has any.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_park_element_random_base_values(host: &DocumentHost, node: u32) -> *const c_void {
+pub extern "C" fn style_engine_park_element_random_base_values(host: &DocumentHost, node: u32) -> *const c_void {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return std::ptr::null();
     };
@@ -679,7 +671,7 @@ pub unsafe extern "C" fn style_engine_park_element_random_base_values(host: &Doc
     }
     let slot = ParkedBaseValues::default();
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    {
         queue(
             host,
             EngineWrite::ParkRandomBaseValues {

@@ -131,7 +131,7 @@ pub unsafe extern "C" fn painting_dump(
     let visual_context_tree = unsafe { libcompositing_rust::ffi::tree_from_handle(visual_context_tree) };
     let (_, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
     // SAFETY: Guaranteed by the caller.
-    let owners = unsafe {
+    let owners = {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
             let mut owners = VisualContextNodeOwners::collect(arena, viewport);
             for owners in [&mut owners.spatial, &mut owners.clip, &mut owners.effect] {

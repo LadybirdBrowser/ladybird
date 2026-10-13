@@ -203,8 +203,7 @@ pub(crate) fn name_layout_trace_owners(main_thread: &MainThread, read: &crate::r
         return;
     };
     // SAFETY: The host is live for the token's entry.
-    let owners =
-        unsafe { super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.unnamed_owners(arena)) };
+    let owners = super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.unnamed_owners(arena));
     if owners.is_empty() {
         return;
     }
@@ -220,7 +219,7 @@ pub(crate) fn name_layout_trace_owners(main_thread: &MainThread, read: &crate::r
         })
         .collect();
     // SAFETY: As above.
-    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::NameLayoutTraceOwners(names)) };
+    super::layout_changes::queue(host, super::layout_changes::LayoutChange::NameLayoutTraceOwners(names));
 }
 
 fn describe_node(
@@ -247,15 +246,11 @@ impl LayoutNodeArena {
     }
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread. The callback must remain valid until tracing stops
-/// and must synchronously describe the live row it is handed without mutating layout.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_begin_layout_trace(host: &DocumentHost, describe_node: DescribeNode) {
+pub extern "C" fn render_state_begin_layout_trace(host: &DocumentHost, describe_node: DescribeNode) {
     host.host_tables().layout_trace_describe_node.set(Some(describe_node));
     // SAFETY: As above.
-    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::BeginLayoutTrace) };
+    super::layout_changes::queue(host, super::layout_changes::LayoutChange::BeginLayoutTrace);
 }
 
 /// # Safety
@@ -270,7 +265,7 @@ pub unsafe extern "C" fn render_state_take_layout_trace(
     append_text: AppendText,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let text = unsafe { super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.take()) };
+    let text = super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.take());
     unsafe { append_text(context, text.as_ptr(), text.len()) };
 }
 

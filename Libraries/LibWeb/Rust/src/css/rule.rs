@@ -282,10 +282,10 @@ impl NativeRule {
             unreachable!()
         };
         let source = style.selectors();
-        unsafe { self.cached_matching_selectors(source, parent_kind, parents) }
+        self.cached_matching_selectors(source, parent_kind, parents)
     }
 
-    unsafe fn cached_matching_selectors(
+    fn cached_matching_selectors(
         &self,
         source: Arc<RustParsedSelectorList>,
         parent_kind: StyleNestingParent,
@@ -344,10 +344,10 @@ impl NativeRule {
         } else {
             None
         };
-        Some(unsafe { self.cached_matching_selectors(source, parent_kind, parents) })
+        Some(self.cached_matching_selectors(source, parent_kind, parents))
     }
 
-    pub(crate) unsafe fn scope_end_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
+    pub(crate) fn scope_end_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
         let source = self.scope().end.as_ref()?;
         if let Some(cached) = self.scope_end_selectors.borrow().as_ref() {
             return Some(cached.clone());
@@ -875,12 +875,9 @@ pub unsafe extern "C" fn rust_rule_scope_start_selectors(rule: &NativeRule) -> *
         .unwrap_or(std::ptr::null_mut())
 }
 
-/// # Safety
-/// Call for a scope rule or scoped import on the document thread. A non-null result
-/// must be destroyed with `rust_parsed_selector_list_destroy`; null means the end is omitted.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_scope_end_selectors(rule: &NativeRule) -> *mut c_void {
-    unsafe { rule.scope_end_selectors() }
+pub extern "C" fn rust_rule_scope_end_selectors(rule: &NativeRule) -> *mut c_void {
+    rule.scope_end_selectors()
         .map(|selectors| {
             Box::into_raw(Box::new(RustParsedSelectorList {
                 selectors: selectors.selectors.clone(),

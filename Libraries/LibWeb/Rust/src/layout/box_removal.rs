@@ -306,7 +306,7 @@ pub unsafe extern "C" fn render_state_can_detach_box_in_place(
         return false;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    {
         super::shell_reads::read_arena(host, read, (parent, child, facts), |arena, (parent, child, facts)| {
             let (parent_row, child_row) = (arena.bound_row(parent), arena.bound_row(child));
             !parent_row.is_invalid()

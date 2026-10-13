@@ -130,7 +130,7 @@ fn native_scope_publication_outlives_the_rule_graph() {
                     NativeRuleType::Scope | NativeRuleType::Import
                 ) {
                     let start = unsafe { rule.scope_start_selectors() };
-                    let end = unsafe { rule.scope_end_selectors() };
+                    let end = rule.scope_end_selectors();
                     scope.push(start.as_deref(), end.as_deref(), nodes[0].raw());
                 }
                 let children = unsafe { rust_rule_children(&rule).as_ref() };

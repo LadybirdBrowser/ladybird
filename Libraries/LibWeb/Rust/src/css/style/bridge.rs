@@ -1228,7 +1228,7 @@ pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
         row,
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::engine_calls::queue(host, write) };
+    super::engine_calls::queue(host, write);
 }
 
 /// Keeps the store behind an environment an element holds, and what a child inherits of it,
@@ -1257,7 +1257,7 @@ pub unsafe extern "C" fn style_engine_note_custom_property_environment(
         inheritable_store: retain(inheritable_store),
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::engine_calls::queue(host, write) };
+    super::engine_calls::queue(host, write);
 }
 
 /// [`style_engine_note_custom_property_environment`] on `engine`.
@@ -1737,7 +1737,7 @@ pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
     let data = unsafe { block.cast::<DeclarationBlock>().as_ref() }.map(DeclarationBlock::data);
     let has_transitions = data.as_ref().is_some_and(|data| declares_transitions(&data.properties));
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::engine_calls::queue(host, super::engine_calls::EngineWrite::InlineStyle { node, data }) };
+    super::engine_calls::queue(host, super::engine_calls::EngineWrite::InlineStyle { node, data });
     has_transitions
 }
 
@@ -1773,7 +1773,7 @@ pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties
     }
     let has_transitions = declares_transitions(&hints.properties);
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    {
         super::engine_calls::queue(
             host,
             super::engine_calls::EngineWrite::PresentationalHints {

@@ -144,7 +144,7 @@ pub unsafe extern "C" fn render_state_dump_layout_tree(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     // SAFETY: As above.
-    let plan = unsafe {
+    let plan = {
         crate::painting::ffi::read_arena(
             host,
             node_read(),
