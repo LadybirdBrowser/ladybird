@@ -153,13 +153,19 @@ pub fn allocate(heap: &Heap, capacity: u32, fill: Value) -> *mut Value {
 ///
 /// `values` must be storage that allocate() returned, and that nothing uses any more.
 pub unsafe fn deallocate(values: *mut Value) {
-    if kind(values) == ValueStorageKind::Malloc {
+    // SAFETY: Passed on from the caller.
+    if unsafe { kind(values) } == ValueStorageKind::Malloc {
         // SAFETY: Passed on from the caller.
         unsafe { malloc::deallocate(values) };
     }
 }
 
-pub fn capacity(values: *const Value) -> u32 {
+/// The number of values the storage has room for.
+///
+/// # Safety
+///
+/// `values` must be live storage that allocate() returned.
+pub unsafe fn capacity(values: *const Value) -> u32 {
     // SAFETY: allocate() put the capacity in front of the first value.
     unsafe {
         values
@@ -170,7 +176,12 @@ pub fn capacity(values: *const Value) -> u32 {
     }
 }
 
-pub fn kind(values: *const Value) -> ValueStorageKind {
+/// Whether the storage is a cell or malloc storage.
+///
+/// # Safety
+///
+/// `values` must be live storage that allocate() returned.
+pub unsafe fn kind(values: *const Value) -> ValueStorageKind {
     // SAFETY: allocate() put the kind in front of the first value, right after the capacity.
     unsafe {
         values
@@ -182,8 +193,13 @@ pub fn kind(values: *const Value) -> ValueStorageKind {
 }
 
 /// The cell holding the values, or None for malloc storage.
-pub fn cell(values: *mut Value) -> Option<Gc<ValueStorage>> {
-    if kind(values) != ValueStorageKind::Cell {
+///
+/// # Safety
+///
+/// `values` must be live storage that allocate() returned.
+pub unsafe fn cell(values: *mut Value) -> Option<Gc<ValueStorage>> {
+    // SAFETY: Passed on from the caller.
+    if unsafe { kind(values) } != ValueStorageKind::Cell {
         return None;
     }
     // SAFETY: Cell storage starts VALUES_OFFSET bytes in front of the values.
@@ -191,11 +207,17 @@ pub fn cell(values: *mut Value) -> Option<Gc<ValueStorage>> {
 }
 
 /// The memory the storage takes outside the GC heap.
-pub fn external_memory_size_of(values: *const Value) -> usize {
-    if kind(values) != ValueStorageKind::Malloc {
+///
+/// # Safety
+///
+/// `values` must be live storage that allocate() returned.
+pub unsafe fn external_memory_size_of(values: *const Value) -> usize {
+    // SAFETY: Passed on from the caller.
+    if unsafe { kind(values) } != ValueStorageKind::Malloc {
         return 0;
     }
-    malloc::allocation_size(capacity(values))
+    // SAFETY: As above.
+    malloc::allocation_size(unsafe { capacity(values) })
 }
 
 /// Storage beyond MAX_CELL_CAPACITY: [u32 capacity] [u32 kind] [Value 0] [Value 1] ...
@@ -261,7 +283,8 @@ mod malloc {
     ///
     /// `values` must be malloc storage that allocate() returned.
     pub unsafe fn deallocate(values: *mut Value) {
-        let layout = layout(capacity(values));
+        // SAFETY: Passed on from the caller.
+        let layout = layout(unsafe { super::capacity(values) });
         // SAFETY: The header is part of the same allocation, which the caller passes.
         unsafe { raw::deallocate(values.cast::<u8>().sub(INDEXED_ELEMENTS_HEADER_SIZE), layout) };
     }
