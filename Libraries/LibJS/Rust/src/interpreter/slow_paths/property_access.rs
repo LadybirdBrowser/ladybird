@@ -457,7 +457,8 @@ pub fn get_length_with_this(
 pub fn get_method(vm: &Vm, pc: u32, instruction: &op::GetMethod, values: &mut op::GetMethodValues) -> SlowPathControl {
     let executable = vm.current_executable();
     let property_key = executable.get_property_key(instruction.property);
-    let method = asm_try!(vm, pc, values.object.get_method(vm, property_key));
+    let cache = executable.property_lookup_cache(instruction.cache as usize);
+    let method = asm_try!(vm, pc, values.object.get_method_with_cache(vm, property_key, cache));
     values.dst = method.map_or(Value::UNDEFINED, Value::from_object);
     SlowPathControl::continue_at(pc + op::GetMethod::LENGTH)
 }

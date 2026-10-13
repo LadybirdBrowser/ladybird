@@ -737,6 +737,7 @@ define_static_property_lookup_cache_sites! {
     GetIteratorFlattenableMethod,
     IteratorCompleteDone,
     IteratorValueValue,
+    IteratorCloseReturn,
     ArrayAppendIteratorMethod,
     ArrayAppendNextMethod,
     CreateArrayIteratorOwnIteratorMethod,

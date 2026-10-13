@@ -1470,12 +1470,14 @@ fn generate_yield_from(
     } else {
         IteratorHint::Sync
     } as u32;
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::GetIterator {
         dst_iterator_object: iterator.operand(),
         dst_iterator_next: next_method.operand(),
         dst_iterator_done: iterator_done_property.operand(),
         iterable: value.operand(),
         hint,
+        cache,
     });
 
     // 6. Let received be NormalCompletion(undefined).
@@ -1600,10 +1602,12 @@ fn generate_yield_from(
     // i. Let _throw_ be ? GetMethod(_iterator_, *"throw"*).
     let throw_method = generator.allocate_register();
     let throw_key = generator.intern_property_key(utf16!("throw"));
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::GetMethod {
         dst: throw_method.operand(),
         object: iterator.operand(),
         property: throw_key,
+        cache,
     });
 
     // ii. If _throw_ is not *undefined*, then
@@ -1689,10 +1693,12 @@ fn generate_yield_from(
         // AsyncIteratorClose: get return method, call it, await, check object.
         let return_method = generator.allocate_register();
         let return_key = generator.intern_property_key(utf16!("return"));
+        let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::GetMethod {
             dst: return_method.operand(),
             object: iterator.operand(),
             property: return_key,
+            cache,
         });
 
         let call_return_block = generator.make_block();
@@ -1732,12 +1738,14 @@ fn generate_yield_from(
     } else {
         // Sync: IteratorClose with Normal completion.
         let undef = generator.add_constant_undefined();
+        let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::IteratorClose {
             iterator_object: iterator.operand(),
             iterator_next: next_method.operand(),
             iterator_done: done.operand(),
             completion_type: CompletionType::Normal as u32,
             completion_value: undef.operand(),
+            cache,
         });
     }
 
@@ -1761,10 +1769,12 @@ fn generate_yield_from(
     // ii. Let _return_ be ? GetMethod(_iterator_, *"return"*).
     let return_method = generator.allocate_register();
     let return_key = generator.intern_property_key(utf16!("return"));
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::GetMethod {
         dst: return_method.operand(),
         object: iterator.operand(),
         property: return_key,
+        cache,
     });
 
     // iii. If _return_ is *undefined*, then
@@ -7455,6 +7465,7 @@ fn generate_for_of_statement_inner(
         let iterator_object = generator.allocate_register();
         let iterator_next_method = generator.allocate_register();
         let iterator_done = generator.allocate_register();
+        let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::GetIterator {
             dst_iterator_object: iterator_object.operand(),
             dst_iterator_next: iterator_next_method.operand(),
@@ -7465,6 +7476,7 @@ fn generate_for_of_statement_inner(
             } else {
                 IteratorHint::Sync
             } as u32,
+            cache,
         });
 
         (iterator_object, iterator_next_method, iterator_done)
@@ -7656,10 +7668,12 @@ fn generate_for_of_statement_inner(
         let after_close = generator.make_block();
         let return_method = generator.allocate_register();
         let return_key = generator.intern_property_key(utf16!("return"));
+        let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::GetMethod {
             dst: return_method.operand(),
             object: iterator_object.operand(),
             property: return_key,
+            cache,
         });
         let call_return_block = generator.make_block();
         generator.emit(Instruction::JumpUndefined {
@@ -7694,12 +7708,14 @@ fn generate_for_of_statement_inner(
         generator.switch_to_basic_block(after_close);
     } else {
         let undef = generator.add_constant_undefined();
+        let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::IteratorClose {
             iterator_object: iterator_object.operand(),
             iterator_next: iterator_next_method.operand(),
             iterator_done: iterator_done.operand(),
             completion_type: CompletionType::Normal as u32,
             completion_value: undef.operand(),
+            cache,
         });
     }
 
@@ -7781,10 +7797,12 @@ fn generate_for_of_statement_inner(
         {
             let return_method = generator.allocate_register();
             let return_key = generator.intern_property_key(utf16!("return"));
+            let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::GetMethod {
                 dst: return_method.operand(),
                 object: iterator_object.operand(),
                 property: return_key,
+                cache,
             });
 
             let call_return_block = generator.make_block();
@@ -7832,12 +7850,14 @@ fn generate_for_of_statement_inner(
             src: close_completion_value.operand(),
         });
     } else {
+        let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::IteratorClose {
             iterator_object: iterator_object.operand(),
             iterator_next: iterator_next_method.operand(),
             iterator_done: iterator_done.operand(),
             completion_type: CompletionType::Throw as u32,
             completion_value: close_completion_value.operand(),
+            cache,
         });
         if !generator.is_current_block_terminated() {
             generator.emit(Instruction::Throw {
@@ -8046,12 +8066,14 @@ fn generate_array_binding_pattern(
     let iterator_object = generator.allocate_register();
     let iterator_next = generator.allocate_register();
     let iterator_done = generator.allocate_register();
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::GetIterator {
         dst_iterator_object: iterator_object.operand(),
         dst_iterator_next: iterator_next.operand(),
         dst_iterator_done: iterator_done.operand(),
         iterable: input_array.operand(),
         hint: IteratorHint::Sync as u32,
+        cache,
     });
 
     // 13.15.5.1 Runtime Semantics: DestructuringAssignmentEvaluation,
@@ -8260,12 +8282,14 @@ fn generate_array_binding_pattern(
     generator.emit_jump_if(&iterator_done, done_block, not_done_block);
     generator.switch_to_basic_block(not_done_block);
     let undef = generator.add_constant_undefined();
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::IteratorClose {
         iterator_object: iterator_object.operand(),
         iterator_next: iterator_next.operand(),
         iterator_done: iterator_done.operand(),
         completion_type: CompletionType::Normal as u32,
         completion_value: undef.operand(),
+        cache,
     });
     generator.emit(Instruction::Jump { target: done_block });
     generator.switch_to_basic_block(done_block);
@@ -8308,24 +8332,28 @@ fn generate_array_binding_pattern(
 
     generator.switch_to_basic_block(non_throw_close_block);
     let undef = generator.add_constant_undefined();
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::IteratorClose {
         iterator_object: iterator_object.operand(),
         iterator_next: iterator_next.operand(),
         iterator_done: iterator_done.operand(),
         completion_type: CompletionType::Normal as u32,
         completion_value: undef.operand(),
+        cache,
     });
     generator.emit(Instruction::Jump {
         target: dispatch_completion_block,
     });
 
     generator.switch_to_basic_block(throw_close_block);
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::IteratorClose {
         iterator_object: iterator_object.operand(),
         iterator_next: iterator_next.operand(),
         iterator_done: iterator_done.operand(),
         completion_type: CompletionType::Throw as u32,
         completion_value: close_completion_value.operand(),
+        cache,
     });
     if !generator.is_current_block_terminated() {
         generator.emit(Instruction::Throw {

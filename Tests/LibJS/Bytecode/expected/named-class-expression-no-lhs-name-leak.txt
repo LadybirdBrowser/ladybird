@@ -1,4 +1,4 @@
-$ee43eb0f named-class-expression-no-lhs-name-leak.js:1:1
+$f3cbcd2f named-class-expression-no-lhs-name-leak.js:1:1
   Registers: 15
   Blocks:    18
   Constants:
@@ -13,71 +13,71 @@ block0:
   [  10] NewArray dst:reg5
   [  20] Mov dst:reg6, src:Bool(false)
   [  30] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-  [  48] Jump target:block3
+  [  50] Jump target:block3
 
 block1:
-  [  50] Catch dst:reg11
-  [  58] SetLexicalEnvironment environment:reg4
-  [  60] Mov dst:reg10, src:Int32(1)
-  [  70] JumpIf condition:reg9, true_target:block13, false_target:block12
+  [  58] Catch dst:reg11
+  [  60] SetLexicalEnvironment environment:reg4
+  [  68] Mov dst:reg10, src:Int32(1)
+  [  78] JumpIf condition:reg9, true_target:block13, false_target:block12
 
 block2:
-  [  80] End value:Undefined
+  [  88] End value:Undefined
 
 block3:
-  [  88] Jump target:block5
+  [  90] Jump target:block5
 
 block4:
-  [  90] MovSrcUndefined dst:reg12
-  [  98] Jump target:block6
+  [  98] MovSrcUndefined dst:reg12
+  [  a0] Jump target:block6
 
 block5:
-  [  a0] IteratorNextUnpack dst_value:reg12, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  b8] JumpTrueLoop condition:reg6, target:block4
+  [  a8] IteratorNextUnpack dst_value:reg12, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  c0] JumpTrueLoop condition:reg6, target:block4
 
 block6:
-  [  c8] JumpUndefined condition:reg12, true_target:block7, false_target:block8
+  [  d0] JumpUndefined condition:reg12, true_target:block7, false_target:block8
 
 block7:
-  [  d8] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:1, is_catch_environment:false
-  [  f0] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
-  [ 100] SetLexicalEnvironment environment:reg4
-  [ 108] NewClass dst:reg14, class_environment:reg13, class_blueprint_index:0
-  [ 128] Mov dst:reg12, src:reg14
+  [  e0] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:1, is_catch_environment:false
+  [  f8] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
+  [ 108] SetLexicalEnvironment environment:reg4
+  [ 110] NewClass dst:reg14, class_environment:reg13, class_blueprint_index:0
+  [ 130] Mov dst:reg12, src:reg14
 
 block8:
-  [ 138] SetGlobal `C`, src:reg12
+  [ 140] SetGlobal `C`, src:reg12
 
 block9:
-  [ 148] JumpFalse condition:reg9, target:block11
+  [ 150] JumpFalse condition:reg9, target:block11
 
 block10:
-  [ 158] JumpLoop target:block2
+  [ 160] JumpLoop target:block2
 
 block11:
-  [ 160] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 178] JumpLoop target:block10
+  [ 168] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 188] JumpLoop target:block10
 
 block12:
-  [ 180] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
+  [ 190] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
 
 block13:
-  [ 198] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
+  [ 1a8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
 
 block14:
-  [ 1b0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
-  [ 1c8] Throw src:reg11
+  [ 1c0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
+  [ 1e0] Throw src:reg11
 
 block15:
-  [ 1d0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 1e8] JumpLoop target:block13
+  [ 1e8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 208] JumpLoop target:block13
 
 block16:
-  [ 1f0] Return value:reg11
+  [ 210] Return value:reg11
 
 block17:
-  [ 1f8] Throw src:reg11
+  [ 218] Throw src:reg11
 
 Exception handlers:
-  [  88 ..   a0] => handler block1
-  [  c8 ..  148] => handler block1
+  [  90 ..   a8] => handler block1
+  [  d0 ..  150] => handler block1
