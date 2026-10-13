@@ -1426,8 +1426,6 @@ bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryS
         operation.operation_id, navigable_id,
         changing_navigable.target_entry_descriptor(), run.user_involvement(),
         run.navigation_type(),
-        changing_navigable.traversal_yields_to,
-        changing_navigable.canceled_navigation_id,
         finalized_navigation_id,
         run.source_snapshot_params());
     return true;

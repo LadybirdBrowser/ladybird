@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // A cross-document navigation admitted after a traversal must supersede that traversal. The history-queue flush
-    // makes the pushed entry deterministic; requesting back and navigation from one task then gives the UI process
-    // an ordered traversal followed by a newer navigation without rewriting LocalNavigable's state in a test hook.
+    // A cross-document navigation started after a same-document traversal is not dropped by it, as in Chromium and
+    // Gecko: the traversal applies, and the navigation goes on and commits after it, clearing the pushed entry as
+    // forward history. The history-queue flush makes the pushed entry deterministic; requesting back and navigation
+    // from one task then gives the UI process an ordered traversal followed by a newer navigation.
     asyncTest(async (done) => {
         const server = httpTestServer();
 
-        const victim = await server.createEcho("GET", "/navigation-not-dropped-by-concurrent-traversal-victim", {
+        const destination = await server.createEcho("GET", "/navigation-not-dropped-by-concurrent-traversal-destination", {
             status: 200,
             headers: { "Content-Type": "text/html" },
-            body: `<!doctype html><script>top.postMessage("victim-loaded", "*")<\/script>`,
+            body: `<!doctype html><script>top.postMessage(\`destination-loaded \${navigation.entries().length} entries\`, "*")<\/script>`,
         });
 
         const trigger = await server.createEcho("GET", "/navigation-not-dropped-by-concurrent-traversal-trigger", {
@@ -23,7 +24,7 @@
                         top.postMessage("history-pushed", "*");
                     } else if (e.data === "race") {
                         history.back();
-                        location.href = "${victim}";
+                        location.href = "${destination}";
                     }
                 });
                 top.postMessage("trigger-ready", "*");
@@ -42,9 +43,9 @@
                     println("FAIL: cross-document navigation was dropped");
                     done();
                 }, 10000);
-            } else if (e.data === "victim-loaded") {
+            } else if (e.data.startsWith("destination-loaded")) {
                 clearTimeout(stallTimer);
-                println("victim-loaded");
+                println(e.data);
                 done();
             }
         });

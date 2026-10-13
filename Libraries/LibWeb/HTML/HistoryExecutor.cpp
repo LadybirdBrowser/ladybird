@@ -273,7 +273,7 @@ void HistoryExecutor::enqueue_changing_navigable_continuation(CrossProcessId ope
     on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Ready, continuation->update_only, target_document_id);
 }
 
-void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, TraversalYieldsTo traversal_yields_to, Optional<Utf16String> canceled_navigation_id, Optional<Utf16String> finalized_navigation_id, Optional<NavigationSourceSnapshot> navigation_source_snapshot, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
+void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, Optional<Utf16String> finalized_navigation_id, Optional<NavigationSourceSnapshot> navigation_source_snapshot, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
 {
     auto& operation = ensure_history_operation(operation_id);
     auto pending_document = operation.pending_document;
@@ -329,39 +329,21 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     //     job. Retain that exact local entry instead of repeating the global-step lookup in WebContent.
     NonnullRefPtr claimed_target_entry = local_target_entry.release_nonnull();
 
-    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
-    // The UI process is the canonical coordinator for navigation starts and history operations. Only it can prove
-    // that a navigation was admitted after this traversal; the presence of a local navigation ID does not establish
-    // that ordering. A proven-newer navigation owns the visible outcome, so abandon the traversal without committing
-    // its canonical target step.
-    //
-    // A navigation this process started before it learned of a same-document traversal reaches the UI process after
-    // the traversal. Apart from the admitted navigation the traversal canceled, a navigation still awaiting the UI
-    // process is such a newer navigation.
-    auto yields_to_unadmitted_navigation = [&] {
-        auto ongoing_navigation = navigable->ongoing_navigation();
-        auto const* navigation_id = ongoing_navigation.get_pointer<Utf16String>();
-        return navigation_id
-            && canceled_navigation_id != *navigation_id
-            && navigable->has_navigation_parked_for_population(*navigation_id);
-    };
-    if (traversal_yields_to == TraversalYieldsTo::AdmittedNavigation
-        || (traversal_yields_to == TraversalYieldsTo::UnadmittedNavigation && yields_to_unadmitted_navigation())) {
-        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, false, {});
-        return;
-    }
-
     // 8.2. Set navigable's current session history entry to targetEntry.
     navigable->set_current_session_history_entry(claimed_target_entry);
 
     // AD-HOC: The UI operation owns the authoritative traversal tracker, mirrored here when the changing job begins.
     //         As in browsers, only a traversal or reload sets it to "traversal". A push or replace leaves a newer
     //         navigation's ID in place, as that navigation goes on and commits after this one, and nulls the ID of the
-    //         navigation it finalizes. See https://github.com/whatwg/html/issues/12581.
+    //         navigation it finalizes. A same-document traversal leaves the navigation's ID in place too.
+    //         See https://github.com/whatwg/html/issues/12581.
+    auto is_same_document_traversal = navigation_type == Bindings::NavigationType::Traverse
+        && claimed_target_entry->document_state()->document_id() == navigable->active_document_id()
+        && !claimed_target_entry->document_state()->reload_pending();
     if (navigation_type.has_value() && first_is_one_of(*navigation_type, Bindings::NavigationType::Push, Bindings::NavigationType::Replace)) {
         if (finalized_navigation_id.has_value() && navigable->ongoing_navigation() == *finalized_navigation_id)
             navigable->set_ongoing_navigation_without_informing_navigation_api(Empty {});
-    } else {
+    } else if (!is_same_document_traversal) {
         navigable->set_ongoing_navigation_without_informing_navigation_api(HTML::LocalNavigable::Traversal::Tag);
     }
 
