@@ -185,7 +185,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | ConcatenateStrings | The concatenation of two strings, a rope or a cached short string, or the empty value where only the slow path makes it. | | | | allocates |
 | IntegerToString | The VM's cached string of an int32, or the empty value. | | | | cse |
 | LoadPropertyIteratorKeyCount, LoadPropertyIteratorKey | The keys of a property iterator cache, at an index refined to be in bounds. The keys never change. | | | | cse |
-| CreateArrayIterator | `GetIterator` of an array that iterates with `%Array.prototype.values%` and the builtin `next` (input 1), through a runtime call that preserves every register: a new array iterator over its values, or the empty value for anything else. | | Any | | allocates |
+| OpenArrayIteration | `GetIterator` in fast array mode, through a runtime call that preserves every register: the iterable, if it is an array that iterates with `%Array.prototype.values%` and whose array iterators have the builtin `next`, or the empty value. The iteration then keeps the index of the next element in the iterator operand and the array in the next operand, and makes no iterator. | | Any | | |
 | LoadArrayIteratorArray, LoadArrayIteratorIndex | The iterated array (`undefined` once done) and the low 32 bits of the next index of an array iterator (a `Repr::Pointer` that `BranchCondition::ArrayIterator` established is one). | | Iterators | | |
 | StoreArrayIteratorIndex, FinishArrayIterator | Sets the next index of an array iterator, or makes it done. | | | Iterators | |
 | LoadGlobalBinding | A binding of the global declarative environment; exits while uninitialized. | E | Global | | cse |
@@ -274,7 +274,7 @@ the prologue's resumption in the interpreter publishes it inline.
 Compiled code may assume facts that hold until a rare runtime event (`code::Dependency`): a
 prototype chain stays valid, a shape stays stable, a global binding or a property of the global
 object is never assigned, the global declarative environment gets no bindings, no `[[IsHTMLDDA]]`
-object exists.
+object exists, a fuse of a realm stays intact (`runtime/realm_fuses.rs`).
 
 - The builder and check elimination record the dependencies they rely on in
   `Graph::dependencies`.

@@ -90,6 +90,7 @@ impl GraphBuilder<'_> {
                 dst_iterator_done,
                 iterable,
                 hint,
+                fast_array_mode_allowed,
                 ..
             } => match self.try_build_get_iterator(
                 dst_iterator_object,
@@ -97,6 +98,7 @@ impl GraphBuilder<'_> {
                 dst_iterator_done,
                 iterable,
                 hint,
+                fast_array_mode_allowed,
             )? {
                 Some(flow) => Ok(flow),
                 None => self.build_generic(instruction, info),

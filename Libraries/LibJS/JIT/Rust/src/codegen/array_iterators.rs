@@ -19,22 +19,17 @@ use crate::ir::NodeId;
 use crate::ir::value;
 
 impl<M: PortableMacroAssembler> Codegen<'_, M> {
-    /// `CreateArrayIterator`: calls `RuntimeInfo::create_array_iterator`.
-    pub(in crate::codegen) fn emit_create_array_iterator(&mut self, node: NodeId) {
-        let (iterable, next, output) = (self.input(node, 0), self.input(node, 1), self.output(node));
+    /// `OpenArrayIteration`: calls `RuntimeInfo::open_array_iteration`.
+    pub(in crate::codegen) fn emit_open_array_iteration(&mut self, node: NodeId) {
+        let (iterable, output) = (self.input(node, 0), self.output(node));
         let saved = slow_path_saved_registers::<M>()
             .without(output)
             .iter()
             .collect::<Vec<_>>();
         self.emit_save_registers(&saved);
-        // NB: Either may be in the other's argument register.
-        let arguments: [Gpr; 3] = [M::ARGUMENT_GPRS[0], M::ARGUMENT_GPRS[1], M::ARGUMENT_GPRS[2]];
-        let scratch = self.pinned.scratch;
-        self.masm.move64(scratch, next);
-        self.masm.move64(arguments[1], iterable);
-        self.masm.move64(arguments[2], scratch);
-        self.masm.move64(arguments[0], self.pinned.vm);
-        self.masm.call_absolute(self.runtime.create_array_iterator);
+        self.masm.move64(M::ARGUMENT_GPRS[1], iterable);
+        self.masm.move64(M::ARGUMENT_GPRS[0], self.pinned.vm);
+        self.masm.call_absolute(self.runtime.open_array_iteration);
         self.masm.move64(output, M::RETURN_GPRS[0]);
         self.emit_restore_registers(&saved, None);
     }

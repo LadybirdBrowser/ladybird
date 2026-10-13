@@ -978,16 +978,19 @@ pub struct RuntimeInfo {
     /// `Array.prototype.slice.call(arguments, start)` with the arguments
     /// object of `frame`, which the code never created, as an array value.
     pub slice_arguments: u64,
-    /// `u64 libjs_jit_create_array_iterator(VM*, u64 iterable, u64 next)`:
-    /// `GetIterator` of an array whose iterator method is
-    /// `%Array.prototype.values%`, if the iterators it makes have the method
-    /// `next`, as a new array iterator over its values; the empty value,
-    /// having done nothing, otherwise.
-    pub create_array_iterator: u64,
+    /// `u64 libjs_jit_open_array_iteration(VM*, u64 iterable)`:
+    /// `GetIterator` in fast array mode: the iterable, if it is an array whose
+    /// iterator method is `%Array.prototype.values%` and whose iterators have
+    /// the builtin `next` method; the empty value otherwise.
+    pub open_array_iteration: u64,
     /// The builtin `%ArrayIteratorPrototype%.next` of the realm of the
     /// compiled code, if `%ArrayIteratorPrototype%` holds it. Code that
     /// embeds it must list it in `CompiledCode::embedded_cells`.
     pub array_iterator_next: Option<CellId>,
+    /// The fuse of the realm of the compiled code that stays intact while
+    /// its array iterators have no `return` method, if it was intact. Code
+    /// that depends on it must list it in `CompiledCode::embedded_cells`.
+    pub array_iterator_return_fuse: Option<CellId>,
     /// The realm of the compiled code.
     pub realm: CellId,
     /// `%Array.prototype%` and `%Object.prototype%` of the realm of the
