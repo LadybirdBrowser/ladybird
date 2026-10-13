@@ -1740,6 +1740,18 @@ void ViewImplementation::did_request_cursor_change(Badge<WebContentPage>, Gfx::C
     apply_cursor();
 }
 
+void ViewImplementation::did_enter_tooltip_area(Badge<WebContentPage>, ByteString title)
+{
+    m_page_tooltip = move(title);
+    apply_tooltip();
+}
+
+void ViewImplementation::did_leave_tooltip_area(Badge<WebContentPage>)
+{
+    m_page_tooltip.clear();
+    apply_tooltip();
+}
+
 // Returns the action of the button that the event activated.
 template<typename Action, typename ButtonsForViewport>
 Optional<Action> ViewImplementation::handle_ui_overlay_mouse_event(Compositing::OverlayPointerState<Action>& pointer_state, Web::MouseEvent const& event, ButtonsForViewport const& buttons_for_viewport)
@@ -1749,6 +1761,7 @@ Optional<Action> ViewImplementation::handle_ui_overlay_mouse_event(Compositing::
     if (outcome.hover_changed) {
         update_ui_overlays();
         apply_cursor();
+        apply_tooltip();
     }
     return outcome.activated_action;
 }
@@ -1757,6 +1770,31 @@ void ViewImplementation::apply_cursor()
 {
     if (on_cursor_change)
         on_cursor_change(is_ui_overlay_hovered() ? Gfx::Cursor { Gfx::StandardCursor::Hand } : m_page_cursor);
+}
+
+static StringView paused_debugger_overlay_action_tooltip(Compositing::PausedDebuggerOverlayAction action)
+{
+    switch (action) {
+    case Compositing::PausedDebuggerOverlayAction::StepOver:
+        return "Step over"sv;
+    case Compositing::PausedDebuggerOverlayAction::Continue:
+        return "Resume"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void ViewImplementation::apply_tooltip()
+{
+    auto tooltip = m_page_tooltip;
+    if (auto action = m_debugger_overlay_pointer_state.hovered_action(); action.has_value())
+        tooltip = paused_debugger_overlay_action_tooltip(*action);
+
+    if (tooltip.has_value()) {
+        if (on_enter_tooltip_area)
+            on_enter_tooltip_area(*tooltip);
+    } else if (on_leave_tooltip_area) {
+        on_leave_tooltip_area();
+    }
 }
 
 void ViewImplementation::set_debugger_paused(bool paused)
@@ -1768,6 +1806,7 @@ void ViewImplementation::set_debugger_paused(bool paused)
     if (!paused) {
         m_debugger_overlay_pointer_state.reset();
         apply_cursor();
+        apply_tooltip();
     }
     update_ui_overlays();
 }
@@ -2400,6 +2439,7 @@ void ViewImplementation::handle_resize()
         m_debugger_overlay_pointer_state.reset();
         update_ui_overlays();
         apply_cursor();
+        apply_tooltip();
     }
 }
 
