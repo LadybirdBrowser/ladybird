@@ -63,7 +63,7 @@ static void record_element_heading_level(DOM::Element&);
 static void record_element_initial_features(DOM::Element&);
 static void record_element_inline_style_properties(DOM::Element&);
 static void record_heading_levels_in_subtree(DOM::Element&);
-static void republish_assigned_slot_of(DOM::Node&);
+static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>>);
 static Optional<StyleEngineFFI::FfiStateFact> state_fact_for(PseudoClass);
 static StyleAtomID intern_id_or_class_atom(StyleEngine&, DOM::Element const&, Utf16FlyString const&);
 static u32 element_construction_facts(DOM::Element const&);
@@ -552,8 +552,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
         append_dom_order_link(links, node);
     StyleEngineFFI::style_engine_link_style_nodes_in_dom_order(style_engine.host(), links.span());
 
-    for (auto const& node : dom_order_arrivals)
-        republish_assigned_slot_of(node);
+    republish_assigned_slots_of(dom_order_arrivals);
 
     // What the insertion steps publish about a node under its identity waited for the identity (see Node::inserted()).
     auto focused_area = document.focused_area();
@@ -1311,14 +1310,24 @@ void record_top_layer_changed(DOM::Document& document)
 // Assignment runs inside the insertion that connects a node, which happens before the subtree it arrived in is named,
 // and the list published then names only the members that already had an identity. Both ends of the relation therefore
 // republish on arrival: a slottable the list it has just become a member of, and a slot the list it arrived owning.
-static void republish_assigned_slot_of(DOM::Node& node)
+static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>> nodes)
 {
-    if (auto slot = DOM::assigned_slot_for_node(node)) {
-        slot->assign_slottables_if_needed();
-        record_slot_assignment_changed(*slot);
+    Vector<GC::Ref<HTML::HTMLSlotElement>> slots;
+    HashTable<HTML::HTMLSlotElement const*> seen_slots;
+    auto add_slot = [&](HTML::HTMLSlotElement& slot) {
+        if (seen_slots.set(&slot) == HashSetResult::InsertedNewEntry)
+            slots.append(slot);
+    };
+    for (auto const& node : nodes) {
+        if (auto slot = DOM::assigned_slot_for_node(node)) {
+            slot->assign_slottables_if_needed();
+            add_slot(*slot);
+        }
+        if (auto* slot = as_if<HTML::HTMLSlotElement>(*node))
+            add_slot(*slot);
     }
-    if (auto* slot = as_if<HTML::HTMLSlotElement>(node))
-        record_slot_assignment_changed(*slot);
+    for (auto const& slot : slots)
+        record_slot_assignment_changed(slot);
 }
 
 static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree_scope)

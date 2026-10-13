@@ -64,6 +64,7 @@ define_counters! {
     StyleAtomsReclaimed => "styleAtomsReclaimed",
     LanguageTextsPublished => "languageTextsPublished",
     CustomPropertyNamesPublished => "customPropertyNamesPublished",
+    SlotAssignedNodeListsPublished => "slotAssignedNodeListsPublished",
 
     // Exclusive transaction intervals. Fused stages retain one name until execution splits.
     TransactionMicroseconds => "transactionMicroseconds",
