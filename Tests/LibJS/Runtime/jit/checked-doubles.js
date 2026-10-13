@@ -97,3 +97,31 @@ test("compiled identities of doubles that held int32 values convert them", () =>
     values[0] = -(2 ** 31) - 1.5;
     expect(shifted(values)).toBe(3 * (2 ** 31 - 1));
 });
+
+test("folds that give doubles checked to be int32 values int32 users keep the checks", () => {
+    const sum = new Function(
+        "a",
+        "b",
+        "count",
+        "start",
+        `let y = +(a * b);
+        let s = start;
+        for (let i = 0; i < count; i++) {
+            let t = y;
+            if (i > 1000) t = y;
+            y = t;
+            s = s + y;
+        }
+        return s;`
+    );
+    jit.prepare(sum);
+    for (let k = 0; k < 10; ++k) {
+        sum(1.5, 2, 3, 0);
+        sum(1.5, 2, 2, "a");
+    }
+    expect(jit.compile(sum)).toBe(jit.enabled);
+    expect(sum(1.5, 2, 3, 0)).toBe(9);
+    expect(sum(1.5, 2, 2, "a")).toBe("a33");
+    expect(sum(1.25, 2, 2, 1)).toBe(6);
+    expect(sum(1.25, 2, 2, "b")).toBe("b2.52.5");
+});
