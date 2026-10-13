@@ -179,6 +179,12 @@ impl Heap {
         self.raw.as_ptr()
     }
 
+    /// LibGC's heap, for the functions of its C API that only need it to be live.
+    pub fn handle(&self) -> &GCHeap {
+        // SAFETY: This owns the heap, which stays live for as long as this does.
+        unsafe { self.raw.as_ref() }
+    }
+
     /// Moves `cell` into the heap. Nothing can collect garbage between taking the storage and writing the cell, so
     /// the collector never sees a partially written cell.
     pub fn allocate<T: GcCell>(&self, cell: T) -> Gc<T> {
@@ -464,8 +470,7 @@ impl Heap {
     }
 
     pub fn collect_garbage(&self) {
-        // SAFETY: The heap is live.
-        unsafe { capi::gc_heap_collect_garbage(self.raw.as_ptr(), capi::GC_COLLECTION_TYPE_COLLECT_GARBAGE, false) };
+        capi::gc_heap_collect_garbage(self.handle(), capi::GC_COLLECTION_TYPE_COLLECT_GARBAGE, false);
     }
 
     /// Calls `callback` with `context` during every collection, after marking and finalization and before dead cells
@@ -491,13 +496,11 @@ impl Heap {
 
     /// Counts memory a cell allocated outside the heap towards the next collection, which this may start.
     pub fn did_allocate_external_memory(&self, size: usize) {
-        // SAFETY: The heap is live.
-        unsafe { capi::gc_heap_did_allocate_external_memory(self.raw.as_ptr(), size) };
+        capi::gc_heap_did_allocate_external_memory(self.handle(), size);
     }
 
     pub fn did_free_external_memory(&self, size: usize) {
-        // SAFETY: The heap is live.
-        unsafe { capi::gc_heap_did_free_external_memory(self.raw.as_ptr(), size) };
+        capi::gc_heap_did_free_external_memory(self.handle(), size);
     }
 
     pub fn account_external_memory_change(&self, old_size: usize, new_size: usize) {
@@ -509,13 +512,11 @@ impl Heap {
     }
 
     pub fn should_collect_on_every_allocation(&self) -> bool {
-        // SAFETY: The heap is live.
-        unsafe { capi::gc_heap_should_collect_on_every_allocation(self.raw.as_ptr()) }
+        capi::gc_heap_should_collect_on_every_allocation(self.handle())
     }
 
     pub fn set_should_collect_on_every_allocation(&self, should_collect: bool) {
-        // SAFETY: The heap is live.
-        unsafe { capi::gc_heap_set_should_collect_on_every_allocation(self.raw.as_ptr(), should_collect) };
+        capi::gc_heap_set_should_collect_on_every_allocation(self.handle(), should_collect);
     }
 
     /// Heap::uproot_cell(): has the next collection leave `cell` out of its roots, so that copies of it on the stack or
@@ -529,8 +530,7 @@ impl Heap {
     /// The lowest and highest addresses of the stack of the thread that created the heap.
     pub fn stack_bounds(&self) -> (usize, usize) {
         let (mut base, mut top) = (0, 0);
-        // SAFETY: The heap is live.
-        unsafe { capi::gc_heap_stack_bounds(self.raw.as_ptr(), &raw mut base, &raw mut top) };
+        capi::gc_heap_stack_bounds(self.handle(), &mut base, &mut top);
         (base, top)
     }
 }
@@ -566,8 +566,7 @@ pub fn cell_is_dead<T>(cell: Gc<T>) -> bool {
 /// Checks the layouts this crate mirrors against the LibGC it is linked with, and returns LibGC's layout.
 fn check_layout() -> GCLayout {
     let mut layout = GCLayout::default();
-    // SAFETY: LibGC fills in the whole struct.
-    unsafe { capi::gc_get_layout(&raw mut layout) };
+    capi::gc_get_layout(&mut layout);
     let expect = |what: &str, actual: u64, expected: u64| {
         assert!(
             actual == expected,
