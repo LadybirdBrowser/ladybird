@@ -11,6 +11,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/FFIHelpers.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibTextCodec/Decoder.h>
@@ -103,6 +104,22 @@ static Utf16String utf8_string_from_ffi(u8 const* ptr, size_t len)
     if (len == 0)
         return {};
     return Utf16String::from_utf8_without_validation({ reinterpret_cast<char const*>(ptr), len });
+}
+
+// OPTIMIZATION: Markup indents tags with a newline followed by spaces, so many Text nodes hold such a run. Like Blink,
+//               share one string for each length of these runs instead of allocating one for every Text node.
+static Utf16String text_node_data_from_utf8(StringView text)
+{
+    static constexpr size_t newline_then_spaces_table_size = 64;
+    if (text.length() > 1 && text.length() < newline_then_spaces_table_size && text[0] == '\n'
+        && all_of(text.substring_view(1), [](char ch) { return ch == ' '; })) {
+        static thread_local NeverDestroyed<Array<Optional<Utf16String>, newline_then_spaces_table_size>> newline_then_spaces_strings;
+        auto& string = (*newline_then_spaces_strings)[text.length()];
+        if (!string.has_value())
+            string = Utf16String::from_utf8_without_validation(text);
+        return *string;
+    }
+    return Utf16String::from_utf8_without_validation(text);
 }
 
 static Optional<Utf16FlyString> attribute_namespace_from_html_parser_ffi(RustFfiHtmlAttributeNamespace);
@@ -1443,7 +1460,7 @@ bool HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& 
         },
         [&] { parents.take_last(); },
         [&](StringView text) {
-            append(DOM::Text::create(document, Utf16String::from_utf8_without_validation(text)));
+            append(DOM::Text::create(document, text_node_data_from_utf8(text)));
         });
     VERIFY(success);
     return true;
@@ -2574,7 +2591,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     if (parent_node.is_document())
         return;
 
-    auto data = utf8_string_from_ffi(data_ptr, data_len);
+    auto data = text_node_data_from_utf8({ reinterpret_cast<char const*>(data_ptr), data_len });
     if (auto* previous_text = as_if<DOM::Text>(insertion_location.previous_child())) {
         (void)previous_text->append_data(data);
         return;

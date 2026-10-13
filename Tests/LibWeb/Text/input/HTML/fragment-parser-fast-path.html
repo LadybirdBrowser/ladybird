@@ -118,6 +118,11 @@ test(() => {
     const contextual = range.createContextualFragment('<div><span>in fragment</span></div>text');
     println(`Contextual: ${contextual.childNodes.length}, ${contextual.firstChild.firstChild.parentNode === contextual.firstChild}, ${contextual.firstChild.isConnected}`);
 
+    host.innerHTML = '<div>\n          </div><div>\n          </div>';
+    host.firstChild.firstChild.appendData('x');
+    host.lastChild.firstChild.replaceData(1, 2, 'y');
+    println(`Shared whitespace: ${JSON.stringify(host.firstChild.textContent)}, ${JSON.stringify(host.lastChild.textContent)}`);
+
     class CustomInput extends HTMLInputElement {}
     customElements.define('fragment-parser-input', CustomInput, { extends: 'input' });
     host.innerHTML = '<input is="fragment-parser-input" value="custom">';
