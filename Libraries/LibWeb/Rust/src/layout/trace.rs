@@ -138,6 +138,11 @@ impl LayoutTrace {
         }
     }
 
+    /// An in-flow block whose subtree is reused from the previous layout, moved to where the flow now puts it.
+    pub(super) fn reused_in_flow_subtree(&self, node: NodeSlotId) {
+        drop(self.scope("", Some(node), || " REUSE IN-FLOW SUBTREE".into()));
+    }
+
     pub(super) fn run(
         &self,
         root: NodeSlotId,

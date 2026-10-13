@@ -28,8 +28,8 @@
                         BlockContainer<HTML>/block RUN (cache=miss)
                           BlockContainer<DIV>#list.scenario/block RUN (cache=miss)
                             BlockContainer<DIV>.toggle/block REUSE SUBTREE
-                            BlockContainer<DIV>.toggle/block REUSE SUBTREE
-                            BlockContainer<DIV>.toggle/block REUSE SUBTREE
+                            ListItemBox<LI>#li3 REUSE IN-FLOW SUBTREE
+                            ListItemBox<LI>#li4 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
@@ -52,6 +52,9 @@
                         BlockContainer<HTML>/block RUN (cache=miss)
                           BlockContainer<DIV>#list.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#text.scenario/block RUN (cache=miss)
+                            BlockContainer<P>#p1 REUSE IN-FLOW SUBTREE
+                            BlockContainer<P>#p2 REUSE IN-FLOW SUBTREE
+                            BlockContainer<P>#p4 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
                           BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
@@ -72,6 +75,7 @@
                           BlockContainer<DIV>#list.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#margins.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#m3 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
                           BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
                 `,
@@ -111,6 +115,7 @@
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#abspos-scenario.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#e3 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#escaping.escaping/block RUN (cache=miss)
                 `,
                 check: equal => {

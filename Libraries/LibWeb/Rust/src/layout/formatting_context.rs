@@ -331,9 +331,9 @@ pub(crate) fn place_child(
     node: Node,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
-) {
+) -> Option<fragment_tree::PlacedFragment> {
     let containing_block = run.callbacks.in_flow_containing_block(node);
-    place_child_in_containing_block(run, node, containing_block, offset, containing_line_box_fragment);
+    place_child_in_containing_block(run, node, containing_block, offset, containing_line_box_fragment)
 }
 
 pub(crate) fn place_child_in_containing_block(
@@ -342,57 +342,91 @@ pub(crate) fn place_child_in_containing_block(
     containing_block: Node,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
-) {
-    let purpose = run.purpose;
+) -> Option<fragment_tree::PlacedFragment> {
     let records = run.records;
     let callbacks = &run.callbacks;
-    let fragments = run.fragments.as_deref();
     let used = records.used_values(node);
+    set_placement(used, containing_block, offset);
+    let fragments = run.fragments.as_deref()?;
+    fragments.normalize_arrivals_for_placement(node, callbacks);
+    loop {
+        let batch = fragments.take_drainable_abspos(node, records, callbacks);
+        if batch.is_empty() {
+            break;
+        }
+        let engine = abspos_engine::AbsposEngine::for_run(run);
+        for entry in batch {
+            engine.layout_pending_child(run, entry);
+        }
+    }
+    let node_facts = NodeFacts::new(callbacks, node);
+    let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
+        let collapsed = used.uses_collapsing_borders_model.get();
+        CssPixelRect {
+            x: used.content_offset.get().x - used.border_box_left(collapsed),
+            y: used.content_offset.get().y - used.border_box_top(collapsed),
+            width: used.border_box_inline_size(collapsed),
+            height: used.border_box_block_size(collapsed),
+        }
+    });
+    Some(fragments.build_fragment_for_placed_box(
+        callbacks,
+        node,
+        (!containing_block.is_invalid()).then_some(containing_block),
+        used,
+        containing_block_is_sealed(records, containing_block),
+        resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
+        point_add(
+            offset,
+            committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
+        ),
+        own_anchor_candidate_border_box_rect,
+    ))
+}
+
+/// Places an in-flow child whose committed subtree is reused as it is, with the committed fragment it was laid out
+/// to. The child's record must already hold what its layout left in it.
+pub(crate) fn place_reused_child(
+    run: &FormattingContextRun,
+    node: Node,
+    offset: FfiCssPixelPoint,
+    fragment: std::sync::Arc<fragment_tree::Fragment>,
+) {
+    let records = run.records;
+    let callbacks = &run.callbacks;
+    let containing_block = callbacks.in_flow_containing_block(node);
+    let used = records.used_values(node);
+    set_placement(used, containing_block, offset);
+    let fragments = run
+        .fragments
+        .as_deref()
+        .expect("a reused subtree is placed by a run that builds fragments");
+    fragments.attach_reused_subtree(
+        node,
+        fragment,
+        (!containing_block.is_invalid()).then_some(containing_block),
+        used,
+        containing_block_is_sealed(records, containing_block),
+        point_add(
+            offset,
+            committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
+        ),
+    );
+}
+
+fn set_placement(used: &UsedValues, containing_block: Node, offset: FfiCssPixelPoint) {
     assert!(!used.has_content_offset.get());
     used.has_content_offset.set(true);
     used.content_offset.set(offset);
     used.placed_in.set(containing_block);
     used.seal_committed_box_metrics();
-    if let Some(fragments) = fragments {
-        fragments.normalize_arrivals_for_placement(node, callbacks);
-        loop {
-            let batch = fragments.take_drainable_abspos(node, records, callbacks);
-            if batch.is_empty() {
-                break;
-            }
-            let engine = abspos_engine::AbsposEngine::for_run(run);
-            for entry in batch {
-                engine.layout_pending_child(run, entry);
-            }
-        }
-        let containing_block_is_sealed = !containing_block.is_invalid()
-            && records
-                .used_values_if_owned(containing_block)
-                .is_none_or(|containing_block_used| containing_block_used.has_content_offset.get());
-        let node_facts = NodeFacts::new(callbacks, node);
-        let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
-            let collapsed = used.uses_collapsing_borders_model.get();
-            CssPixelRect {
-                x: used.content_offset.get().x - used.border_box_left(collapsed),
-                y: used.content_offset.get().y - used.border_box_top(collapsed),
-                width: used.border_box_inline_size(collapsed),
-                height: used.border_box_block_size(collapsed),
-            }
-        });
-        fragments.build_fragment_for_placed_box(
-            callbacks,
-            node,
-            (!containing_block.is_invalid()).then_some(containing_block),
-            used,
-            containing_block_is_sealed,
-            resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
-            point_add(
-                offset,
-                committed_offset_delta_at_placement(purpose, records, callbacks, node, containing_block, used),
-            ),
-            own_anchor_candidate_border_box_rect,
-        );
-    }
+}
+
+fn containing_block_is_sealed(records: &RunRecords, containing_block: Node) -> bool {
+    !containing_block.is_invalid()
+        && records
+            .used_values_if_owned(containing_block)
+            .is_none_or(|containing_block_used| containing_block_used.has_content_offset.get())
 }
 
 /// The line box index to record for atomic inlines whose containing line

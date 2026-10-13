@@ -1254,6 +1254,7 @@ pub(crate) struct LayoutNodeArena {
     /// under a key so that it survives the node's identity being retired and re-issued.
     next_rows_built_for_same_node: Vec<Cell<NodeSlotId>>,
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
+    in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore,
     pub(super) layout_trace: super::trace::LayoutTrace,
     pub(super) innermost_run: Cell<(NodeSlotId, NodeSlotId)>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
@@ -1367,6 +1368,7 @@ impl LayoutNodeArena {
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             next_rows_built_for_same_node: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
+            in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore::default(),
             layout_trace: super::trace::LayoutTrace::default(),
             innermost_run: Cell::new((NodeSlotId::INVALID, NodeSlotId::INVALID)),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
@@ -1434,6 +1436,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn fc_run_cache_store(&self) -> &super::fc_run_cache::FcRunCacheArenaStore {
         &self.fc_run_cache_store
+    }
+
+    pub(crate) fn in_flow_block_cache_store(&self) -> &super::in_flow_block_cache::InFlowBlockCacheStore {
+        &self.in_flow_block_cache_store
     }
 
     pub(crate) fn end_layout_pass(&self) {
@@ -1709,6 +1715,7 @@ impl LayoutNodeArena {
         self.owned_image_natural_sizes.get_mut().remove(&id);
         self.owned_image_providers.get_mut().remove(&id);
         self.fc_run_cache_store.remove_entry(index);
+        self.in_flow_block_cache_store.remove_entry(index);
         self.remove_layout_update_flag_node(id);
         self.raw_table_column_spans.get_mut().remove(&id);
         if self.replaced_paint_facts.get_mut().contains_key(&id) {
@@ -4839,7 +4846,7 @@ impl LayoutNodeArena {
     pub(crate) fn with_current_committed_fragment<R>(
         &self,
         node: NodeSlotId,
-        read: impl FnOnce(&super::fragment_tree::Fragment) -> R,
+        read: impl FnOnce(&std::sync::Arc<super::fragment_tree::Fragment>) -> R,
     ) -> Option<R> {
         self.paintable_rows.with_current_committed_fragment(
             node.slot_index(),
@@ -5206,6 +5213,8 @@ impl LayoutNodeArena {
             self.fragment_cache_epoch_changed_during_layout_pass.set(true);
         }
         self.fc_run_cache_store.note_invalidated_entry(node);
+        // NB: An in-flow block entry is valid for one epoch only, so it never matches again.
+        self.in_flow_block_cache_store.remove_entry(node.slot_index());
     }
 
     pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {

@@ -32,7 +32,7 @@ displayListTest({
             name: "widen the mask content",
             mutate: () => { document.getElementById("mask-rect").setAttribute("width", "200"); },
             expect: `
-                damage: rows=9 moved=0 order=1 eligibility=0 all=false
+                damage: rows=9 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -60,11 +60,11 @@ displayListTest({
                         BlockContainer(anonymous)/scroll-metadata COPY
                         BlockContainer(anonymous)/background COPY
                         BlockContainer(anonymous)/border COPY
-                        SVGSVGBox<svg>#svg/descendants(background-and-borders) REPLAN
+                        SVGSVGBox<svg>#svg/descendants(background-and-borders) ASSEMBLE
                       BlockContainer<DIV>#other/descendants(background-and-borders) COPY
                     BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
                       BlockContainer(anonymous)/descendants(inline-background-and-borders) ASSEMBLE
-                        SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) REPLAN
+                        SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) ASSEMBLE
                       BlockContainer<DIV>#other/descendants(inline-background-and-borders) COPY
                     BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
@@ -73,7 +73,7 @@ displayListTest({
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer(anonymous)/descendants(foreground) ASSEMBLE
                         BlockContainer(anonymous)/foreground/hit-test COPY
-                        SVGSVGBox<svg>#svg REPLAN
+                        SVGSVGBox<svg>#svg ASSEMBLE
                           SVGSVGBox<svg>#svg/background/hit-test RECORD
                           SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
                           SVGSVGBox<svg>#svg/background SKIP
@@ -95,7 +95,7 @@ displayListTest({
                                 SVGGeometryBox<rect>#masked/foreground/hit-test RECORD
                                 SVGGeometryBox<rect>#masked/foreground RECORD
                         BlockContainer(anonymous)/foreground COPY
-                        SVGSVGBox<svg>#svg/descendants(foreground) REPLAN
+                        SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
                         BlockContainer(anonymous)/outline COPY
                         BlockContainer(anonymous)/overlay/hit-test COPY
                         BlockContainer(anonymous)/overlay COPY

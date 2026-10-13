@@ -463,7 +463,7 @@ impl FcRunCacheArenaStore {
     }
 }
 
-fn run_root_validity(callbacks: &LayoutPass<'_>, box_: Node) -> FcRunCacheValidity {
+pub(super) fn run_root_validity(callbacks: &LayoutPass<'_>, box_: Node) -> FcRunCacheValidity {
     let data = NodeFacts::new(callbacks, box_).data();
     FcRunCacheValidity {
         slot_generation: data.slot_generation.get(),

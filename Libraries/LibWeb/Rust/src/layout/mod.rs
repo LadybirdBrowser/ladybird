@@ -24,6 +24,7 @@ pub(crate) mod generated_content;
 pub mod geometry;
 pub mod grid_formatting_context;
 mod host_tables;
+mod in_flow_block_cache;
 pub mod inline_content;
 pub(crate) mod inline_formatting_context;
 pub mod inline_level_iterator;

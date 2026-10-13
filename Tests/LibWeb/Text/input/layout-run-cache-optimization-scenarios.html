@@ -60,8 +60,11 @@
     function movementWork(testCase) {
         // The single-level run exports the out-of-flow child to its caller.
         // Deeper chains can retain the committed subtree including that child.
+        // An inline-block chain sits in an anonymous block, whose subtree is reused as it is.
         const replay = testCase.depth === 1 && testCase.descendant !== "inFlow";
-        const work = replay
+        const work = testCase.format === "inlineBlock"
+            ? "BlockContainer(anonymous) REUSE IN-FLOW SUBTREE"
+            : replay
             ? `${chainRun(testCase.format)} REPLAY FRAGMENTS\n      BlockContainer<DIV>#target/block REUSE SUBTREE`
             : `${chainRun(testCase.format)} REUSE SUBTREE`;
         return `layout FULL

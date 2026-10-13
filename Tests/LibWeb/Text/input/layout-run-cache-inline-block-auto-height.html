@@ -24,7 +24,7 @@
                     layout FULL
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
-                          BlockContainer<DIV>#cached/block REUSE SUBTREE
+                          BlockContainer(anonymous) REUSE IN-FLOW SUBTREE
                 `,
                 check: equal => {
                     const rect = cached.getBoundingClientRect();
