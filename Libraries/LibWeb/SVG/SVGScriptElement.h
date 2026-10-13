@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>
 
@@ -46,7 +47,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
-    void finish_external_script_fetch(URL::URL const& script_url, ReadonlyBytes body);
+    void finish_external_script_fetch(URL::URL const& script_url, ReadonlyBytes body, HTML::ClassicScript::MutedErrors);
     void execute_script();
 
     bool m_already_processed { false };

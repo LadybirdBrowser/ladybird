@@ -134,14 +134,17 @@ void SVGScriptElement::process_the_script_element()
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
         fetch_algorithms_input.process_response_consume_body
             = [self = GC::Ref { *this }, script_url](auto response, auto body_bytes) {
+                  // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-script
+                  // 6. Let muted errors be true if response was CORS-cross-origin, and false otherwise.
+                  auto muted_errors = response->is_cors_cross_origin() ? HTML::ClassicScript::MutedErrors::Yes : HTML::ClassicScript::MutedErrors::No;
                   if (response->is_network_error()) {
-                      self->finish_external_script_fetch(script_url, {});
+                      self->finish_external_script_fetch(script_url, {}, muted_errors);
                       return;
                   }
 
                   body_bytes.visit(
-                      [&](Core::ImmutableBytes& bytes) { self->finish_external_script_fetch(script_url, bytes.bytes()); },
-                      [&](auto) { self->finish_external_script_fetch(script_url, {}); });
+                      [&](Core::ImmutableBytes& bytes) { self->finish_external_script_fetch(script_url, bytes.bytes(), muted_errors); },
+                      [&](auto) { self->finish_external_script_fetch(script_url, {}, muted_errors); });
               };
 
         (void)Fetch::Fetching::fetch(HTML::relevant_realm(*this), request,
@@ -164,7 +167,7 @@ void SVGScriptElement::process_the_script_element()
     execute_script();
 }
 
-void SVGScriptElement::finish_external_script_fetch(URL::URL const& script_url, ReadonlyBytes body)
+void SVGScriptElement::finish_external_script_fetch(URL::URL const& script_url, ReadonlyBytes body, HTML::ClassicScript::MutedErrors muted_errors)
 {
     if (!body.is_empty() && in_a_document_tree() && !is_scripting_disabled()) {
         auto script_content = Utf16String::try_from_utf8({ body });
@@ -172,7 +175,7 @@ void SVGScriptElement::finish_external_script_fetch(URL::URL const& script_url, 
             dbgln("Failed to decode SVG external script as UTF-8");
         else
             m_script = HTML::ClassicScript::create(script_url.basename(), script_content.release_value(),
-                HTML::relevant_settings_object(*this), m_document->base_url(), m_source_line_number);
+                HTML::relevant_settings_object(*this), m_document->base_url(), m_source_line_number, muted_errors);
     }
 
     if (m_parser_inserted) {

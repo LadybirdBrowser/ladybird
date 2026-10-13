@@ -1,0 +1,2 @@
+Same-origin: message "TypeError: script detail", filename "(set)", line 1, column 7, error TypeError: script detail
+Cross-origin: message "Script error.", filename "", line 0, column 0, error null
