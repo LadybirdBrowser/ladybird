@@ -22,13 +22,9 @@
 //! - `ScopeData` is carried by block-like constructs (Program,
 //!   BlockStatement, FunctionBody, etc.) and holds scope analysis results.
 
-use std::ffi::c_void;
-use std::fmt;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::sync::Arc;
-use std::sync::atomic::AtomicPtr;
-use std::sync::atomic::Ordering;
 
 use crate::fast_hash::HashMap;
 
@@ -1240,52 +1236,10 @@ pub struct TemplateLiteralData {
 // RegExp literal
 // =============================================================================
 
-/// Handle to a compiled regex from the host's regex engine.
-///
-/// Wrapped in `Arc` in `RegExpLiteralData` so that AST clones (e.g. for
-/// class field initializers) share the handle cheaply. The first codegen
-/// path to call `take()` gets the handle; `Drop` frees it if untaken.
-/// Uses `AtomicPtr` so the regex can be safely shared across threads
-/// during background compile of sibling functions.
-pub struct CompiledRegex(AtomicPtr<c_void>);
-
-impl CompiledRegex {
-    pub fn new(ptr: *mut c_void) -> Self {
-        Self(AtomicPtr::new(ptr))
-    }
-
-    /// Take ownership of the compiled regex handle, leaving null behind
-    /// so the destructor won't free it.
-    pub fn take(&self) -> *mut c_void {
-        self.0.swap(std::ptr::null_mut(), Ordering::AcqRel)
-    }
-
-    /// Set the compiled regex handle (used by deferred compilation).
-    pub fn set(&self, ptr: *mut c_void) {
-        self.0.store(ptr, Ordering::Release);
-    }
-}
-
-impl Drop for CompiledRegex {
-    fn drop(&mut self) {
-        let ptr = *self.0.get_mut();
-        if !ptr.is_null() {
-            unsafe { crate::host::free_compiled_regex(ptr) };
-        }
-    }
-}
-
-impl fmt::Debug for CompiledRegex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CompiledRegex({:p})", self.0.load(Ordering::Acquire))
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct RegExpLiteralData {
     pub pattern: Utf16String,
     pub flags: Utf16String,
-    pub compiled_regex: Arc<CompiledRegex>,
 }
 
 // =============================================================================

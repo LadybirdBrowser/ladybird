@@ -30,8 +30,7 @@ use std::collections::HashSet;
 // Compile-time assertion: what parse and compile produce travels from a worker
 // thread to the main thread, so it must be `Send`. After the StringId and
 // ScopeId arena migrations the AST itself contains no `Rc`/`Cell`/`RefCell`
-// values, and compiled regexes are CompiledRegexHandles, so this is naturally
-// satisfied without `unsafe impl Send`.
+// values, so this is naturally satisfied without `unsafe impl Send`.
 const _: fn() = || {
     fn assert_send<T: Send>() {}
     assert_send::<ParsedProgram>();
@@ -597,33 +596,6 @@ impl CompiledProgram {
         CompiledModule {
             executable,
             declarations,
-        }
-    }
-
-    /// Frees a program that will not run, together with the regular expressions the host compiled for it. Dropping it
-    /// instead would leak those, since only the runtime that adopts an executable frees them otherwise.
-    pub fn discard(mut self) {
-        fn free_executable_regexes(executable: &mut ExecutableData) {
-            for regex in executable.compiled_regexes.drain(..) {
-                // SAFETY: No runtime adopted the executables of a program that is discarded, so they still own these.
-                unsafe { crate::host::free_compiled_regex(regex.into_raw()) };
-            }
-            for shared_data in &mut executable.shared_function_data {
-                if let Some(precompiled) = &mut shared_data.precompiled_function {
-                    free_executable_regexes(&mut precompiled.executable);
-                }
-            }
-        }
-
-        match &mut self.bytecode {
-            CompiledProgramBytecode::Program(executable) | CompiledProgramBytecode::AsyncModule(executable) => {
-                free_executable_regexes(executable);
-            }
-        }
-        for declaration in &mut self.declaration_functions {
-            if let Some(precompiled) = &mut declaration.precompiled_function {
-                free_executable_regexes(&mut precompiled.executable);
-            }
         }
     }
 }

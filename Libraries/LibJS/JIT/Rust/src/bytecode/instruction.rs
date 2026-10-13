@@ -88,10 +88,6 @@ impl StringTableIndex {
     }
 }
 
-/// Index into the executable's regex table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RegexTableIndex(pub u32);
-
 /// Environment coordinate used by the binding instructions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EnvironmentCoordinate {

@@ -4677,8 +4677,7 @@ handler NewPrimitiveArray(
 handler NewRegExp(
     dst: out Operand,
     source_index: StringTableIndex,
-    flags_index: StringTableIndex,
-    regex_index: RegexTableIndex
+    flags_index: StringTableIndex
 ) @cold = call_slow_path(new_regexp);
 
 handler NewReferenceError(

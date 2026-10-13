@@ -643,7 +643,6 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
             "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 4, 4, "u32_newtype"),
             "StringTableIndex" => ("StringTableIndex", 4, 4, "u32_newtype"),
             "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 4, 4, "optional_u32_newtype"),
-            "RegexTableIndex" => ("RegexTableIndex", 4, 4, "u32_newtype"),
             "EnvironmentCoordinate" => ("EnvironmentCoordinate", 4, 8, "env_coord"),
             "Builtin" => ("u8", 1, 1, "u8"),
             "Completion::Type" => ("u32", 4, 4, "u32"),

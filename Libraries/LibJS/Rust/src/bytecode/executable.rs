@@ -23,7 +23,6 @@ use crate::bytecode::feedback::{ExecutableFeedback, FeedbackSlotCounts};
 use crate::bytecode::generator::{ConstantValue, ExceptionHandler};
 use crate::bytecode::generator::{LocalVariable, PendingClassBlueprint};
 use crate::bytecode_cache::{DecodedBytecodeBytes, DecodedExecutableRecord};
-use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
@@ -1532,11 +1531,6 @@ impl Executable {
             ));
         }
 
-        // The regexes were only compiled to report early errors; the runtime compiles them again when it runs.
-        for regex in data.compiled_regexes {
-            // SAFETY: Each handle came from rust_compile_regex and is freed once.
-            unsafe { rust_free_compiled_regex(regex.into_raw()) };
-        }
         let parts = ExecutableParts {
             bytecode: ExecutableBytecode::Owned(data.bytecode.into_boxed_slice()),
             number_of_registers: data.number_of_registers,
