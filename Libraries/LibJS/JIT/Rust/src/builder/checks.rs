@@ -143,6 +143,7 @@ impl GraphBuilder<'_> {
             Instruction::GetLength { .. } => self.build_get_length(instruction),
             Instruction::GetById { .. } => self.build_get_by_id(instruction),
             Instruction::PutById { .. } => self.build_put_by_id(instruction),
+            Instruction::IteratorClose { .. } => self.build_iterator_close(instruction),
             Instruction::GetGlobal { .. } => self.build_get_global(instruction),
             Instruction::SetGlobal { .. } => self.build_set_global(instruction),
             _ => match super::speculation::Operation::of(instruction) {

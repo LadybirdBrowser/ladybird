@@ -6,9 +6,11 @@
 
 //! Named property accesses that speculation does not cover, built as IR on
 //! the probes of the interpreter's property lookup caches: `GetById` and
-//! `PutById` probe the cache of the instruction, and `GetLength` branches
-//! on arrays, other objects (through the cache) and strings. What the
-//! probes do not handle, like accessors, takes the instruction's slow path.
+//! `PutById` probe the cache of the instruction, `GetLength` branches on
+//! arrays, other objects (through the cache) and strings, and
+//! `IteratorClose` probes the cache for the return method of the iterator.
+//! What the probes do not handle, like accessors, takes the instruction's
+//! slow path.
 
 use super::Flow;
 use super::GraphBuilder;
@@ -52,6 +54,25 @@ impl GraphBuilder<'_> {
             Some(Repr::Bool),
         );
         self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, vec![stored], true);
+        self.join_slow_paths(slow_paths, None);
+        Ok(Flow::Continue)
+    }
+
+    /// Builds `IteratorClose` (`Handling::Expanded`): an iterator without a
+    /// return method closes without doing anything, for every completion
+    /// type, since the instruction after a close for a throw completion
+    /// throws it again.
+    pub(super) fn build_iterator_close(&mut self, instruction: &Instruction) -> Result<Flow, CompileFailure> {
+        let Instruction::IteratorClose {
+            iterator_object, cache, ..
+        } = *instruction
+        else {
+            unreachable!("only IteratorClose is built here");
+        };
+        let mut slow_paths = self.start_slow_paths(None)?;
+        let iterator = self.read(iterator_object)?;
+        let return_method = self.probe_property_cache(&mut slow_paths, iterator, cache);
+        self.branch_to_slow_path(&mut slow_paths, BranchCondition::Nullish, vec![return_method], true);
         self.join_slow_paths(slow_paths, None);
         Ok(Flow::Continue)
     }

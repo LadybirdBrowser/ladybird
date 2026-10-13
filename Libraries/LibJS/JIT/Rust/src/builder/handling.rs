@@ -290,6 +290,10 @@ pub fn handling(opcode: OpCode) -> Handling {
         // Iteration over arrays.
         O::GetIterator | O::IteratorNextUnpack => EXPANDED,
 
+        // Closing an iterator, which does nothing if the cache of the site
+        // has no return method for it.
+        O::IteratorClose => EXPANDED,
+
         // Conversions that change nothing for objects, and for lengths that
         // are int32 values already.
         O::ToObject | O::ToLength => EXPANDED,
@@ -338,7 +342,6 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::GetLengthWithThis
         | O::GetMethod
         | O::GetObjectPropertyIterator
-        | O::IteratorClose
         | O::IteratorNext
         | O::IteratorToArray
         | O::CacheObjectShape
