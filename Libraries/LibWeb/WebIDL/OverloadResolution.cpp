@@ -71,6 +71,8 @@ static bool has_overload_with_argument_type_or_subtype_matching(EffectiveOverloa
 }
 
 // https://webidl.spec.whatwg.org/#es-overloads
+// NB: Meta/Generators/libweb_bindings/rust_overloads.py writes the steps of this function out for the overloads of the
+//     interfaces implemented in Rust, so a change to its steps has to be made there as well.
 JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, EffectiveOverloadSet& overloads, ReadonlySpan<StringView> dictionary_types)
 {
     auto is_dictionary = [&dictionary_types](Type const& type) {
