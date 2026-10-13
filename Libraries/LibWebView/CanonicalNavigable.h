@@ -233,7 +233,7 @@ public:
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation();
     void cancel_navigation_for_client(WebContentClient&);
-    void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::HistoryStepResult);
+    void did_finish_finalizing_navigation(Utf16String const& navigation_id);
     void did_cancel_navigation(Utf16String navigation_id);
     Optional<Utf16String> tracked_load_navigation_id() const;
 

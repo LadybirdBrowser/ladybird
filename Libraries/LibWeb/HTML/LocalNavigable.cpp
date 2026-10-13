@@ -4273,7 +4273,7 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
             .user_involvement = user_involvement,
         },
         {
-            .on_complete = GC::create_function(heap(), [this, reloading_entry](HistoryStepResult result) {
+            .on_apply_history_step_complete = GC::create_function(heap(), [this, reloading_entry](HistoryStepResult result) {
                 if (result == HistoryStepResult::Applied)
                     return;
 
@@ -4566,7 +4566,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pending_document = pending_document,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .on_complete = GC::create_function(navigable->heap(), [navigable, navigation_id, has_document = !!pending_document](HistoryStepResult) {
+            .on_complete = GC::create_function(navigable->heap(), [navigable, navigation_id, has_document = !!pending_document] {
                 // AD-HOC: Step 2 runs as the navigation's document is activated. When the steps end without activating
                 //         it, the navigation is dropped, and stops delaying load events.
                 if (has_document && !navigable->has_been_destroyed() && navigable->is_delaying_load_events())

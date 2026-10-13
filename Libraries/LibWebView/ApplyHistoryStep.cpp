@@ -56,13 +56,7 @@ void ApplyHistoryStep::apply_the_history_step()
     // FIXME: 1. Assert: This is running within traversable's session history traversal queue.
 
     // 2. Let targetStep be the result of getting the used step given traversable and step.
-    auto target_step = m_session_history.get_the_used_step(m_step);
-    if (!target_step.has_value()) {
-        // AD-HOC: An empty canonical session history has no used steps to resolve against.
-        return_result(Web::HTML::HistoryStepResult::CanceledByMissingPage);
-        return;
-    }
-    m_target_step = *target_step;
+    m_target_step = m_session_history.get_the_used_step(m_step).value();
 
     // 3. If initiatorToCheck is not null, then:
     if (m_initiator_to_check.has_value()) {
@@ -114,10 +108,7 @@ void ApplyHistoryStep::apply_the_history_step()
     }
 
     auto* target_entry = m_session_history.get_the_target_history_entry(m_traversable_navigable, m_target_step);
-    if (!target_entry) {
-        return_result(Web::HTML::HistoryStepResult::CanceledByMissingPage);
-        return;
-    }
+    VERIFY(target_entry);
 
     m_jobs.check_if_unloading_is_canceled(move(navigables_crossing_documents), *target_entry, m_user_involvement,
         [this](Web::HTML::CheckIfUnloadingIsCanceledResult result) {
@@ -374,8 +365,11 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
             } else if (m_navigation_type == Web::Bindings::NavigationType::Push) {
                 target_entry = append_the_claimed_target_entry_again(*navigable, *claimed_target_entry);
                 if (!target_entry) {
-                    return_result(Web::HTML::HistoryStepResult::NoMatchingEntry);
-                    return;
+                    // NB: The push left the navigable no entries to append to. As for a navigable that is gone, its
+                    //     continuation cannot be applied.
+                    clear_ongoing_navigation_traversal(navigable_id);
+                    m_completed_change_jobs++;
+                    continue;
                 }
                 updated_target_entry = target_entry;
             }
