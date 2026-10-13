@@ -12,7 +12,7 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Clone, Copy)]
-enum ArbitrarySubstitutionFunction {
+pub(crate) enum ArbitrarySubstitutionFunction {
     Attr,
     DashedFunction,
     Env,
@@ -37,7 +37,7 @@ impl SubstitutionFunctionsPresence {
     }
 }
 
-fn arbitrary_substitution_function(name: &[u16]) -> Option<ArbitrarySubstitutionFunction> {
+pub(crate) fn arbitrary_substitution_function(name: &[u16]) -> Option<ArbitrarySubstitutionFunction> {
     if equals_ascii_case_insensitive(name, b"attr") {
         return Some(ArbitrarySubstitutionFunction::Attr);
     }
@@ -182,7 +182,7 @@ fn parse_dashed_function_argument(values: &[ComponentValue], position: &mut usiz
 
 // This mirrors parse_according_to_argument_grammar() in
 // CSS/Parser/ArbitrarySubstitutionFunctions.cpp.
-fn arguments_are_valid(function: ArbitrarySubstitutionFunction, values: &[ComponentValue]) -> bool {
+pub(crate) fn arguments_are_valid(function: ArbitrarySubstitutionFunction, values: &[ComponentValue]) -> bool {
     let mut position = 0;
     match function {
         ArbitrarySubstitutionFunction::Attr

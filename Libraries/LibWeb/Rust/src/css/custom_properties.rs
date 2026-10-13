@@ -19,10 +19,12 @@ use ak::ScopeGuard;
 use crate::css::calc::CanonicalNumericType;
 use crate::css::css_tokenizer::OwnedToken;
 use crate::css::css_tokenizer::OwnedTokenKind;
+use crate::css::css_tokenizer::tokenize_for_parser;
 use crate::css::css_tokenizer::tokenize_owned;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::function_signature::FunctionSignature;
-use crate::css::parser::component_value::ComponentSerializationMode;
+use crate::css::parser::arbitrary_substitution::{arbitrary_substitution_function, arguments_are_valid};
+use crate::css::parser::component_value::{ComponentSerializationMode, consume_a_list_of_component_values};
 use crate::css::parser::query_parser::{
     FeatureComparison, FfiMediaEnvironment, MatchResult, StyleFeature, StyleRangeValue as ParsedStyleRangeValue,
     parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition, parse_style_range_from_source,
@@ -3078,6 +3080,14 @@ fn substitute_tokens(
 
         let contents = &tokens[index + 1..close_index];
         let substitutes = is_substitution_function(&tokens[index].kind);
+        // Step 2.3: Parse the function's argument grammar before running its replacement algorithm.
+        if let OwnedTokenKind::Function(name) = &tokens[index].kind
+            && let Some(function) = arbitrary_substitution_function(name)
+            && !consume_a_list_of_component_values(tokenize_for_parser(&serialize_tokens(contents)))
+                .is_ok_and(|values| arguments_are_valid(function, &values))
+        {
+            return TokenResolution::Invalid;
+        }
         let tainted_before = std::mem::take(&mut context.contains_attr_tainted_values);
         let in_url_function = context.in_url_function;
         context.in_url_function |=
@@ -3415,6 +3425,23 @@ mod tests {
         };
         let result = substitute_tokens(None, None, &tokenize_owned(source.as_bytes()), &mut context, 0);
         (result, context.contains_attr_tainted_values)
+    }
+
+    #[test]
+    fn validates_argument_grammar_before_replacement() {
+        for source in ["attr()", "attr(, fallback)"] {
+            assert!(matches!(
+                substitute_without_custom_properties(source),
+                TokenResolution::Invalid
+            ));
+        }
+
+        let (TokenResolution::Resolved(tokens), _) =
+            substitute_with_attributes("attr(data-value, attr())", &[("data-value", "hello")])
+        else {
+            panic!("expected an unused fallback to remain unsubstituted");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16("\"hello\""));
     }
 
     #[test]

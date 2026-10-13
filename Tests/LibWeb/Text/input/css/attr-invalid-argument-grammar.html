@@ -1,0 +1,8 @@
+<!doctype html>
+<div id="target" data-value="attr(, 10px)" style="width: attr(data-value type(*), 20px)"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(target).width);
+    });
+</script>
