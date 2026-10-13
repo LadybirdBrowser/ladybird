@@ -1223,344 +1223,152 @@ fn style_group(group_index: usize) -> StyleGroup {
     STYLE_GROUPS[group_index]
 }
 
+/// Expands `$body` once per style group, with `$payload` naming that group's payload type.
+macro_rules! with_style_group_type {
+    ($group:expr, $payload:ident => $body:expr) => {
+        match $group {
+            StyleGroup::InheritedTable => {
+                type $payload = InheritedTableValues;
+                $body
+            }
+            StyleGroup::InheritedBox => {
+                type $payload = InheritedBoxValues;
+                $body
+            }
+            StyleGroup::Sizing => {
+                type $payload = SizingValues;
+                $body
+            }
+            StyleGroup::Alignment => {
+                type $payload = AlignmentValues;
+                $body
+            }
+            StyleGroup::SVGReset => {
+                type $payload = SVGResetValues;
+                $body
+            }
+            StyleGroup::Surround => {
+                type $payload = SurroundValues;
+                $body
+            }
+            StyleGroup::Box => {
+                type $payload = BoxValues;
+                $body
+            }
+            StyleGroup::Grid => {
+                type $payload = GridValues;
+                $body
+            }
+            StyleGroup::TextReset => {
+                type $payload = TextResetValues;
+                $body
+            }
+            StyleGroup::Transform => {
+                type $payload = TransformValues;
+                $body
+            }
+            StyleGroup::Effects => {
+                type $payload = EffectsValues;
+                $body
+            }
+            StyleGroup::Anchor => {
+                type $payload = AnchorValues;
+                $body
+            }
+            StyleGroup::InheritedUI => {
+                type $payload = InheritedUIValues;
+                $body
+            }
+            StyleGroup::InheritedSVG => {
+                type $payload = InheritedSVGValues;
+                $body
+            }
+            StyleGroup::InheritedText => {
+                type $payload = InheritedTextValues;
+                $body
+            }
+            StyleGroup::Animation => {
+                type $payload = AnimationValues;
+                $body
+            }
+            StyleGroup::Mask => {
+                type $payload = MaskValues;
+                $body
+            }
+            StyleGroup::Background => {
+                type $payload = BackgroundValues;
+                $body
+            }
+            StyleGroup::Border => {
+                type $payload = BorderValues;
+                $body
+            }
+            StyleGroup::Content => {
+                type $payload = ContentValues;
+                $body
+            }
+            StyleGroup::InheritedList => {
+                type $payload = InheritedListValues;
+                $body
+            }
+            StyleGroup::MiscReset => {
+                type $payload = MiscResetValues;
+                $body
+            }
+            StyleGroup::Font => {
+                type $payload = FontValues;
+                $body
+            }
+        }
+    };
+}
+
 fn payload_size(group: StyleGroup) -> usize {
-    match group {
-        StyleGroup::InheritedTable => size_of::<InheritedTableValues>(),
-        StyleGroup::InheritedBox => size_of::<InheritedBoxValues>(),
-        StyleGroup::Sizing => size_of::<SizingValues>(),
-        StyleGroup::Alignment => size_of::<AlignmentValues>(),
-        StyleGroup::SVGReset => size_of::<SVGResetValues>(),
-        StyleGroup::Surround => size_of::<SurroundValues>(),
-        StyleGroup::Box => size_of::<BoxValues>(),
-        StyleGroup::Grid => size_of::<GridValues>(),
-        StyleGroup::TextReset => size_of::<TextResetValues>(),
-        StyleGroup::Transform => size_of::<TransformValues>(),
-        StyleGroup::Effects => size_of::<EffectsValues>(),
-        StyleGroup::Anchor => size_of::<AnchorValues>(),
-        StyleGroup::InheritedUI => size_of::<InheritedUIValues>(),
-        StyleGroup::InheritedSVG => size_of::<InheritedSVGValues>(),
-        StyleGroup::InheritedText => size_of::<InheritedTextValues>(),
-        StyleGroup::Animation => size_of::<AnimationValues>(),
-        StyleGroup::Mask => size_of::<MaskValues>(),
-        StyleGroup::Background => size_of::<BackgroundValues>(),
-        StyleGroup::Border => size_of::<BorderValues>(),
-        StyleGroup::Content => size_of::<ContentValues>(),
-        StyleGroup::InheritedList => size_of::<InheritedListValues>(),
-        StyleGroup::MiscReset => size_of::<MiscResetValues>(),
-        StyleGroup::Font => size_of::<FontValues>(),
-    }
+    with_style_group_type!(group, Payload => size_of::<Payload>())
 }
 
 fn payload_align(group: StyleGroup) -> usize {
-    match group {
-        StyleGroup::InheritedTable => align_of::<InheritedTableValues>(),
-        StyleGroup::InheritedBox => align_of::<InheritedBoxValues>(),
-        StyleGroup::Sizing => align_of::<SizingValues>(),
-        StyleGroup::Alignment => align_of::<AlignmentValues>(),
-        StyleGroup::SVGReset => align_of::<SVGResetValues>(),
-        StyleGroup::Surround => align_of::<SurroundValues>(),
-        StyleGroup::Box => align_of::<BoxValues>(),
-        StyleGroup::Grid => align_of::<GridValues>(),
-        StyleGroup::TextReset => align_of::<TextResetValues>(),
-        StyleGroup::Transform => align_of::<TransformValues>(),
-        StyleGroup::Effects => align_of::<EffectsValues>(),
-        StyleGroup::Anchor => align_of::<AnchorValues>(),
-        StyleGroup::InheritedUI => align_of::<InheritedUIValues>(),
-        StyleGroup::InheritedSVG => align_of::<InheritedSVGValues>(),
-        StyleGroup::InheritedText => align_of::<InheritedTextValues>(),
-        StyleGroup::Animation => align_of::<AnimationValues>(),
-        StyleGroup::Mask => align_of::<MaskValues>(),
-        StyleGroup::Background => align_of::<BackgroundValues>(),
-        StyleGroup::Border => align_of::<BorderValues>(),
-        StyleGroup::Content => align_of::<ContentValues>(),
-        StyleGroup::InheritedList => align_of::<InheritedListValues>(),
-        StyleGroup::MiscReset => align_of::<MiscResetValues>(),
-        StyleGroup::Font => align_of::<FontValues>(),
-    }
+    with_style_group_type!(group, Payload => align_of::<Payload>())
 }
 
+/// Views a type-erased payload as its group's payload type.
+///
+/// # Safety
+/// `payload` must point to a live payload of type `T` that stays live and unmodified for `'a`.
+unsafe fn payload_ref<'a, T>(payload: *const c_void) -> &'a T {
+    unsafe { &*payload.cast::<T>() }
+}
+
+/// The payload must point to uninitialized storage laid out for the group's payload type.
 unsafe fn default_construct(group: StyleGroup, payload: *mut c_void) {
-    match group {
-        StyleGroup::InheritedTable => unsafe {
-            (payload as *mut InheritedTableValues).write(InheritedTableValues::initial());
-        },
-        StyleGroup::InheritedBox => unsafe {
-            (payload as *mut InheritedBoxValues).write(InheritedBoxValues::initial());
-        },
-        StyleGroup::Sizing => unsafe {
-            (payload as *mut SizingValues).write(SizingValues::initial());
-        },
-        StyleGroup::Alignment => unsafe {
-            (payload as *mut AlignmentValues).write(AlignmentValues::initial());
-        },
-        StyleGroup::SVGReset => unsafe {
-            (payload as *mut SVGResetValues).write(SVGResetValues::initial());
-        },
-        StyleGroup::Surround => unsafe {
-            (payload as *mut SurroundValues).write(SurroundValues::initial());
-        },
-        StyleGroup::Box => unsafe {
-            (payload as *mut BoxValues).write(BoxValues::initial());
-        },
-        StyleGroup::Grid => unsafe {
-            (payload as *mut GridValues).write(GridValues::initial());
-        },
-        StyleGroup::TextReset => unsafe {
-            (payload as *mut TextResetValues).write(TextResetValues::initial());
-        },
-        StyleGroup::Transform => unsafe {
-            (payload as *mut TransformValues).write(TransformValues::initial());
-        },
-        StyleGroup::Effects => unsafe {
-            (payload as *mut EffectsValues).write(EffectsValues::initial());
-        },
-        StyleGroup::Anchor => unsafe {
-            (payload as *mut AnchorValues).write(AnchorValues::initial());
-        },
-        StyleGroup::InheritedUI => unsafe {
-            (payload as *mut InheritedUIValues).write(InheritedUIValues::initial());
-        },
-        StyleGroup::InheritedSVG => unsafe {
-            (payload as *mut InheritedSVGValues).write(InheritedSVGValues::initial());
-        },
-        StyleGroup::InheritedText => unsafe {
-            (payload as *mut InheritedTextValues).write(InheritedTextValues::initial());
-        },
-        StyleGroup::Animation => unsafe {
-            (payload as *mut AnimationValues).write(AnimationValues::initial());
-        },
-        StyleGroup::Mask => unsafe {
-            (payload as *mut MaskValues).write(MaskValues::initial());
-        },
-        StyleGroup::Background => unsafe {
-            (payload as *mut BackgroundValues).write(BackgroundValues::initial());
-        },
-        StyleGroup::Border => unsafe {
-            (payload as *mut BorderValues).write(BorderValues::initial());
-        },
-        StyleGroup::Content => unsafe {
-            (payload as *mut ContentValues).write(ContentValues::initial());
-        },
-        StyleGroup::InheritedList => unsafe {
-            (payload as *mut InheritedListValues).write(InheritedListValues::initial());
-        },
-        StyleGroup::MiscReset => unsafe {
-            (payload as *mut MiscResetValues).write(MiscResetValues::initial());
-        },
-        StyleGroup::Font => unsafe {
-            (payload as *mut FontValues).write(FontValues::initial());
-        },
-    }
+    with_style_group_type!(group, Payload => unsafe { payload.cast::<Payload>().write(Payload::initial()) });
 }
 
+/// The payload must point to uninitialized storage laid out for the group's payload type, and the
+/// source to a live payload of that type.
+#[allow(
+    clippy::clone_on_copy,
+    reason = "some style groups are Copy, and the macro expands for every group"
+)]
 unsafe fn copy_construct(group: StyleGroup, payload: *mut c_void, source: *const c_void) {
-    match group {
-        StyleGroup::InheritedTable => unsafe {
-            (payload as *mut InheritedTableValues).write(*(source as *const InheritedTableValues));
-        },
-        StyleGroup::InheritedBox => unsafe {
-            (payload as *mut InheritedBoxValues).write(*(source as *const InheritedBoxValues));
-        },
-        StyleGroup::Sizing => unsafe {
-            (payload as *mut SizingValues).write((*(source as *const SizingValues)).clone());
-        },
-        StyleGroup::Alignment => unsafe {
-            (payload as *mut AlignmentValues).write((*(source as *const AlignmentValues)).clone());
-        },
-        StyleGroup::SVGReset => unsafe {
-            (payload as *mut SVGResetValues).write((*(source as *const SVGResetValues)).clone());
-        },
-        StyleGroup::Surround => unsafe {
-            (payload as *mut SurroundValues).write((*(source as *const SurroundValues)).clone());
-        },
-        StyleGroup::Box => unsafe {
-            (payload as *mut BoxValues).write((*(source as *const BoxValues)).clone());
-        },
-        StyleGroup::Grid => unsafe {
-            (payload as *mut GridValues).write((*(source as *const GridValues)).clone());
-        },
-        StyleGroup::TextReset => unsafe {
-            (payload as *mut TextResetValues).write((*(source as *const TextResetValues)).clone());
-        },
-        StyleGroup::Transform => unsafe {
-            (payload as *mut TransformValues).write((*(source as *const TransformValues)).clone());
-        },
-        StyleGroup::Effects => unsafe {
-            (payload as *mut EffectsValues).write((*(source as *const EffectsValues)).clone());
-        },
-        StyleGroup::Anchor => unsafe {
-            (payload as *mut AnchorValues).write((*(source as *const AnchorValues)).clone());
-        },
-        StyleGroup::InheritedUI => unsafe {
-            (payload as *mut InheritedUIValues).write((*(source as *const InheritedUIValues)).clone());
-        },
-        StyleGroup::InheritedSVG => unsafe {
-            (payload as *mut InheritedSVGValues).write((*(source as *const InheritedSVGValues)).clone());
-        },
-        StyleGroup::InheritedText => unsafe {
-            (payload as *mut InheritedTextValues).write((*(source as *const InheritedTextValues)).clone());
-        },
-        StyleGroup::Animation => unsafe {
-            (payload as *mut AnimationValues).write((*(source as *const AnimationValues)).clone());
-        },
-        StyleGroup::Mask => unsafe {
-            (payload as *mut MaskValues).write((*(source as *const MaskValues)).clone());
-        },
-        StyleGroup::Background => unsafe {
-            (payload as *mut BackgroundValues).write((*(source as *const BackgroundValues)).clone());
-        },
-        StyleGroup::Border => unsafe {
-            (payload as *mut BorderValues).write((*(source as *const BorderValues)).clone());
-        },
-        StyleGroup::Content => unsafe {
-            (payload as *mut ContentValues).write((*(source as *const ContentValues)).clone());
-        },
-        StyleGroup::InheritedList => unsafe {
-            (payload as *mut InheritedListValues).write((*(source as *const InheritedListValues)).clone());
-        },
-        StyleGroup::MiscReset => unsafe {
-            (payload as *mut MiscResetValues).write((*(source as *const MiscResetValues)).clone());
-        },
-        StyleGroup::Font => unsafe {
-            (payload as *mut FontValues).write((*(source as *const FontValues)).clone());
-        },
-    }
+    with_style_group_type!(group, Payload => unsafe {
+        payload.cast::<Payload>().write(payload_ref::<Payload>(source).clone());
+    });
 }
 
+/// The payload must be a live payload of the group's type that nothing uses afterwards.
 unsafe fn destruct(group: StyleGroup, payload: *mut c_void) {
-    match group {
-        StyleGroup::InheritedTable => unsafe { std::ptr::drop_in_place(payload as *mut InheritedTableValues) },
-        StyleGroup::InheritedBox => unsafe { std::ptr::drop_in_place(payload as *mut InheritedBoxValues) },
-        StyleGroup::Sizing => unsafe { std::ptr::drop_in_place(payload as *mut SizingValues) },
-        StyleGroup::Alignment => unsafe { std::ptr::drop_in_place(payload as *mut AlignmentValues) },
-        StyleGroup::SVGReset => unsafe { std::ptr::drop_in_place(payload as *mut SVGResetValues) },
-        StyleGroup::Surround => unsafe { std::ptr::drop_in_place(payload as *mut SurroundValues) },
-        StyleGroup::Box => unsafe { std::ptr::drop_in_place(payload as *mut BoxValues) },
-        StyleGroup::Grid => unsafe { std::ptr::drop_in_place(payload as *mut GridValues) },
-        StyleGroup::TextReset => unsafe { std::ptr::drop_in_place(payload as *mut TextResetValues) },
-        StyleGroup::Transform => unsafe { std::ptr::drop_in_place(payload as *mut TransformValues) },
-        StyleGroup::Effects => unsafe { std::ptr::drop_in_place(payload as *mut EffectsValues) },
-        StyleGroup::Anchor => unsafe { std::ptr::drop_in_place(payload as *mut AnchorValues) },
-        StyleGroup::InheritedUI => unsafe { std::ptr::drop_in_place(payload as *mut InheritedUIValues) },
-        StyleGroup::InheritedSVG => unsafe { std::ptr::drop_in_place(payload as *mut InheritedSVGValues) },
-        StyleGroup::InheritedText => unsafe { std::ptr::drop_in_place(payload as *mut InheritedTextValues) },
-        StyleGroup::Animation => unsafe { std::ptr::drop_in_place(payload as *mut AnimationValues) },
-        StyleGroup::Mask => unsafe { std::ptr::drop_in_place(payload as *mut MaskValues) },
-        StyleGroup::Background => unsafe { std::ptr::drop_in_place(payload as *mut BackgroundValues) },
-        StyleGroup::Border => unsafe { std::ptr::drop_in_place(payload as *mut BorderValues) },
-        StyleGroup::Content => unsafe { std::ptr::drop_in_place(payload as *mut ContentValues) },
-        StyleGroup::InheritedList => unsafe { std::ptr::drop_in_place(payload as *mut InheritedListValues) },
-        StyleGroup::MiscReset => unsafe { std::ptr::drop_in_place(payload as *mut MiscResetValues) },
-        StyleGroup::Font => unsafe { std::ptr::drop_in_place(payload as *mut FontValues) },
-    }
+    with_style_group_type!(group, Payload => unsafe { std::ptr::drop_in_place(payload.cast::<Payload>()) });
 }
 
+/// Both payloads must be live payloads of the group's type.
 unsafe fn payloads_equal(group: StyleGroup, a: *const c_void, b: *const c_void) -> bool {
-    match group {
-        StyleGroup::InheritedTable => unsafe {
-            *(a as *const InheritedTableValues) == *(b as *const InheritedTableValues)
-        },
-        StyleGroup::InheritedBox => unsafe { *(a as *const InheritedBoxValues) == *(b as *const InheritedBoxValues) },
-        StyleGroup::Sizing => unsafe { *(a as *const SizingValues) == *(b as *const SizingValues) },
-        StyleGroup::Alignment => unsafe { *(a as *const AlignmentValues) == *(b as *const AlignmentValues) },
-        StyleGroup::SVGReset => unsafe { *(a as *const SVGResetValues) == *(b as *const SVGResetValues) },
-        StyleGroup::Surround => unsafe { *(a as *const SurroundValues) == *(b as *const SurroundValues) },
-        StyleGroup::Box => unsafe { *(a as *const BoxValues) == *(b as *const BoxValues) },
-        StyleGroup::Grid => unsafe { *(a as *const GridValues) == *(b as *const GridValues) },
-        StyleGroup::TextReset => unsafe { *(a as *const TextResetValues) == *(b as *const TextResetValues) },
-        StyleGroup::Transform => unsafe { *(a as *const TransformValues) == *(b as *const TransformValues) },
-        StyleGroup::Effects => unsafe { *(a as *const EffectsValues) == *(b as *const EffectsValues) },
-        StyleGroup::Anchor => unsafe { *(a as *const AnchorValues) == *(b as *const AnchorValues) },
-        StyleGroup::InheritedUI => unsafe { *(a as *const InheritedUIValues) == *(b as *const InheritedUIValues) },
-        StyleGroup::InheritedSVG => unsafe { *(a as *const InheritedSVGValues) == *(b as *const InheritedSVGValues) },
-        StyleGroup::InheritedText => unsafe {
-            *(a as *const InheritedTextValues) == *(b as *const InheritedTextValues)
-        },
-        StyleGroup::Animation => unsafe { *(a as *const AnimationValues) == *(b as *const AnimationValues) },
-        StyleGroup::Mask => unsafe { *(a as *const MaskValues) == *(b as *const MaskValues) },
-        StyleGroup::Background => unsafe { *(a as *const BackgroundValues) == *(b as *const BackgroundValues) },
-        StyleGroup::Border => unsafe { *(a as *const BorderValues) == *(b as *const BorderValues) },
-        StyleGroup::Content => unsafe { *(a as *const ContentValues) == *(b as *const ContentValues) },
-        StyleGroup::InheritedList => unsafe {
-            *(a as *const InheritedListValues) == *(b as *const InheritedListValues)
-        },
-        StyleGroup::MiscReset => unsafe { *(a as *const MiscResetValues) == *(b as *const MiscResetValues) },
-        StyleGroup::Font => unsafe { *(a as *const FontValues) == *(b as *const FontValues) },
-    }
+    with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(a) == payload_ref::<Payload>(b) })
 }
 
+/// The payload must be a live payload of the group's type.
 unsafe fn payload_content_hash(group: StyleGroup, payload: *const c_void, hasher: &mut FastHasher) {
-    match group {
-        StyleGroup::InheritedTable => unsafe {
-            (*(payload as *const InheritedTableValues)).write_content_hash(hasher);
-        },
-        StyleGroup::InheritedBox => unsafe {
-            (*(payload as *const InheritedBoxValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Sizing => unsafe {
-            (*(payload as *const SizingValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Alignment => unsafe {
-            (*(payload as *const AlignmentValues)).write_content_hash(hasher);
-        },
-        StyleGroup::SVGReset => unsafe {
-            (*(payload as *const SVGResetValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Surround => unsafe {
-            (*(payload as *const SurroundValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Box => unsafe {
-            (*(payload as *const BoxValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Grid => unsafe {
-            (*(payload as *const GridValues)).write_content_hash(hasher);
-        },
-        StyleGroup::TextReset => unsafe {
-            (*(payload as *const TextResetValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Transform => unsafe {
-            (*(payload as *const TransformValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Effects => unsafe {
-            (*(payload as *const EffectsValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Anchor => unsafe {
-            (*(payload as *const AnchorValues)).write_content_hash(hasher);
-        },
-        StyleGroup::InheritedUI => unsafe {
-            (*(payload as *const InheritedUIValues)).write_content_hash(hasher);
-        },
-        StyleGroup::InheritedSVG => unsafe {
-            (*(payload as *const InheritedSVGValues)).write_content_hash(hasher);
-        },
-        StyleGroup::InheritedText => unsafe {
-            (*(payload as *const InheritedTextValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Animation => unsafe {
-            (*(payload as *const AnimationValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Mask => unsafe {
-            (*(payload as *const MaskValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Background => unsafe {
-            (*(payload as *const BackgroundValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Border => unsafe {
-            (*(payload as *const BorderValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Content => unsafe {
-            (*(payload as *const ContentValues)).write_content_hash(hasher);
-        },
-        StyleGroup::InheritedList => unsafe {
-            (*(payload as *const InheritedListValues)).write_content_hash(hasher);
-        },
-        StyleGroup::MiscReset => unsafe {
-            (*(payload as *const MiscResetValues)).write_content_hash(hasher);
-        },
-        StyleGroup::Font => unsafe {
-            (*(payload as *const FontValues)).write_content_hash(hasher);
-        },
-    }
+    with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(payload) }.write_content_hash(hasher));
 }
 
 pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
@@ -1626,33 +1434,112 @@ fn layer_values_hold_image(handle: &ComputedStyleValueHandle) -> bool {
     }
 }
 
-unsafe fn payload_holds_image_values(group: StyleGroup, payload: *const c_void) -> bool {
-    match group {
-        StyleGroup::Background => unsafe {
-            layer_values_hold_image(&(*(payload as *const BackgroundValues)).background_image)
-        },
-        StyleGroup::Mask => unsafe { layer_values_hold_image(&(*(payload as *const MaskValues)).mask_image) },
-        StyleGroup::Border => unsafe {
-            (*(payload as *const BorderValues))
-                .border_image_source
-                .data()
-                .is_some_and(StyleValueData::is_image)
-        },
-        StyleGroup::InheritedList => unsafe {
-            (*(payload as *const InheritedListValues))
-                .list_style_image
-                .data()
-                .is_some_and(StyleValueData::is_image)
-        },
-        StyleGroup::InheritedUI => unsafe {
-            let cursors = &(*(payload as *const InheritedUIValues)).cursor;
-            !cursors.pointer.is_null()
-                && std::slice::from_raw_parts(cursors.pointer, cursors.length)
-                    .iter()
-                    .any(|cursor| cursor.is_cursor_value)
-        },
-        _ => false,
+/// The `<image>` values a style group's payload holds in the properties whose images a layout node
+/// loads and observes. Only the groups holding such properties override the defaults.
+trait StyleGroupImageValues {
+    fn holds_image_values(&self) -> bool {
+        false
     }
+
+    /// Whether `self` and `new` hold different images, by identity.
+    fn image_values_differ(&self, _new: &Self) -> bool {
+        false
+    }
+}
+
+fn image_handles_differ(
+    old: &ComputedStyleValueHandle,
+    new: &ComputedStyleValueHandle,
+    holds_image: fn(&ComputedStyleValueHandle) -> bool,
+) -> bool {
+    old.pointer != new.pointer && (holds_image(old) || holds_image(new))
+}
+
+fn handle_holds_image(handle: &ComputedStyleValueHandle) -> bool {
+    handle.data().is_some_and(StyleValueData::is_image)
+}
+
+impl StyleGroupImageValues for BackgroundValues {
+    fn holds_image_values(&self) -> bool {
+        layer_values_hold_image(&self.background_image)
+    }
+
+    fn image_values_differ(&self, new: &Self) -> bool {
+        image_handles_differ(&self.background_image, &new.background_image, layer_values_hold_image)
+    }
+}
+
+impl StyleGroupImageValues for MaskValues {
+    fn holds_image_values(&self) -> bool {
+        layer_values_hold_image(&self.mask_image)
+    }
+
+    fn image_values_differ(&self, new: &Self) -> bool {
+        image_handles_differ(&self.mask_image, &new.mask_image, layer_values_hold_image)
+    }
+}
+
+impl StyleGroupImageValues for BorderValues {
+    fn holds_image_values(&self) -> bool {
+        handle_holds_image(&self.border_image_source)
+    }
+
+    fn image_values_differ(&self, new: &Self) -> bool {
+        image_handles_differ(&self.border_image_source, &new.border_image_source, handle_holds_image)
+    }
+}
+
+impl StyleGroupImageValues for InheritedListValues {
+    fn holds_image_values(&self) -> bool {
+        handle_holds_image(&self.list_style_image)
+    }
+
+    fn image_values_differ(&self, new: &Self) -> bool {
+        image_handles_differ(&self.list_style_image, &new.list_style_image, handle_holds_image)
+    }
+}
+
+impl StyleGroupImageValues for InheritedUIValues {
+    fn holds_image_values(&self) -> bool {
+        self.cursor.as_slice().iter().any(|cursor| cursor.is_cursor_value)
+    }
+
+    fn image_values_differ(&self, new: &Self) -> bool {
+        (self.cursor.pointer != new.cursor.pointer || self.cursor.length != new.cursor.length)
+            && (self.holds_image_values() || new.holds_image_values())
+    }
+}
+
+macro_rules! impl_style_group_without_image_values {
+    ($($type:ty),+ $(,)?) => {
+        $(impl StyleGroupImageValues for $type {})+
+    };
+}
+
+impl_style_group_without_image_values!(
+    InheritedTableValues,
+    InheritedBoxValues,
+    SizingValues,
+    AlignmentValues,
+    SVGResetValues,
+    SurroundValues,
+    BoxValues,
+    GridValues,
+    TextResetValues,
+    TransformValues,
+    EffectsValues,
+    AnchorValues,
+    InheritedSVGValues,
+    InheritedTextValues,
+    AnimationValues,
+    ContentValues,
+    MiscResetValues,
+    FontValues,
+);
+
+/// The payload must be a live payload of the group's type.
+unsafe fn payload_holds_image_values(group: StyleGroup, payload: *const c_void) -> bool {
+    with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(payload) }.holds_image_values())
 }
 
 /// Whether any of a record's group payloads holds an `<image>` in a property whose images a layout
@@ -1690,54 +1577,11 @@ pub(crate) fn style_group_payloads_move_image_values(old: &[*const c_void], new:
         })
 }
 
-/// Whether `old` and `new`, two payloads of `group`, hold different images, by identity.
+/// Whether `old` and `new`, two live payloads of `group`, hold different images, by identity.
 unsafe fn payload_image_values_differ(group: StyleGroup, old: *const c_void, new: *const c_void) -> bool {
-    fn handles_differ(
-        old: &ComputedStyleValueHandle,
-        new: &ComputedStyleValueHandle,
-        holds_image: fn(&ComputedStyleValueHandle) -> bool,
-    ) -> bool {
-        old.pointer != new.pointer && (holds_image(old) || holds_image(new))
-    }
-    fn holds_image(handle: &ComputedStyleValueHandle) -> bool {
-        handle.data().is_some_and(StyleValueData::is_image)
-    }
-    match group {
-        StyleGroup::Background => unsafe {
-            handles_differ(
-                &(*(old as *const BackgroundValues)).background_image,
-                &(*(new as *const BackgroundValues)).background_image,
-                layer_values_hold_image,
-            )
-        },
-        StyleGroup::Mask => unsafe {
-            handles_differ(
-                &(*(old as *const MaskValues)).mask_image,
-                &(*(new as *const MaskValues)).mask_image,
-                layer_values_hold_image,
-            )
-        },
-        StyleGroup::Border => unsafe {
-            handles_differ(
-                &(*(old as *const BorderValues)).border_image_source,
-                &(*(new as *const BorderValues)).border_image_source,
-                holds_image,
-            )
-        },
-        StyleGroup::InheritedList => unsafe {
-            handles_differ(
-                &(*(old as *const InheritedListValues)).list_style_image,
-                &(*(new as *const InheritedListValues)).list_style_image,
-                holds_image,
-            )
-        },
-        StyleGroup::InheritedUI => unsafe {
-            let [old_cursors, new_cursors] = [old, new].map(|payload| &(*(payload as *const InheritedUIValues)).cursor);
-            (old_cursors.pointer != new_cursors.pointer || old_cursors.length != new_cursors.length)
-                && (payload_holds_image_values(group, old) || payload_holds_image_values(group, new))
-        },
-        _ => false,
-    }
+    with_style_group_type!(group, Payload => unsafe {
+        payload_ref::<Payload>(old).image_values_differ(payload_ref::<Payload>(new))
+    })
 }
 
 /// The intentionally leaked per-group default payloads, for building groups without allocating when
