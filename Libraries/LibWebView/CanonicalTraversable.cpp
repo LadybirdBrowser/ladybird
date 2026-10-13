@@ -979,12 +979,12 @@ StringView CanonicalTraversable::browser_history_traversal_stage_to_string(Brows
 struct CanonicalTraversable::HistoryOperation {
     AK_ALLOC_WITH_KMALLOC;
 
-    HistoryOperation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters, RefPtr<WebContentPage> initiating_page, u64 sequence_number, RefPtr<CanonicalSessionHistoryEntry> target_entry, OnHistoryStepApplied on_history_step_applied)
+    HistoryOperation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters, RefPtr<WebContentPage> requesting_page, u64 sequence_number, RefPtr<CanonicalSessionHistoryEntry> target_entry, OnHistoryStepApplied on_history_step_applied)
         : operation_id(operation_id)
         , parameters(move(parameters))
         , target_entry(move(target_entry))
         , on_history_step_applied(move(on_history_step_applied))
-        , initiating_page(move(initiating_page))
+        , requesting_page(move(requesting_page))
         , sequence_number(sequence_number)
     {
     }
@@ -994,8 +994,8 @@ struct CanonicalTraversable::HistoryOperation {
     // The entry synchronous navigation steps finalize.
     RefPtr<CanonicalSessionHistoryEntry> target_entry;
     OnHistoryStepApplied on_history_step_applied;
-    // Jobs resolve their endpoints at dispatch. This endpoint owns the process-local operation state.
-    RefPtr<WebContentPage> initiating_page;
+    // Jobs resolve their endpoints at dispatch. The requesting page owns the process-local operation state.
+    RefPtr<WebContentPage> requesting_page;
     Vector<NonnullRefPtr<WebContentPage>> completion_endpoints;
     u64 sequence_number;
     // The jobs of a finished operation do nothing until it is destroyed.
@@ -1041,7 +1041,6 @@ struct CanonicalTraversable::HistoryOperation {
     RefPtr<Core::Promise<Empty>> queue_promise;
 
     bool is_browser_traversal() const { return browser_traversal.has_value(); }
-    bool was_initiated_by(WebContentPage const& page) const { return initiating_page.ptr() == &page; }
 };
 
 CanonicalTraversable::~CanonicalTraversable()
@@ -2366,8 +2365,8 @@ void CanonicalTraversable::perform_a_navigation_api_traversal_at_queue_position(
     //    reject the finished promise for apiMethodTracker with an "InvalidStateError" DOMException.
     // 2. Abort these steps.
     auto reject_and_abort = [&] {
-        if (operation.initiating_page)
-            operation.initiating_page->async_reject_navigation_api_traversal(operation.operation_id);
+        if (operation.requesting_page)
+            operation.requesting_page->async_reject_navigation_api_traversal(operation.operation_id);
         end_history_operation(operation.operation_id);
     };
 
@@ -2523,7 +2522,7 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
         [&](Web::NavigableCreationHistoryOperationParameters const& parameters) {
             auto parent_navigable = find(parameters.parent_navigable_id);
             auto child_navigable = find(parameters.navigable_id);
-            if (!parent_navigable.has_value() || !child_navigable.has_value() || !operation.initiating_page) {
+            if (!parent_navigable.has_value() || !child_navigable.has_value() || !operation.requesting_page) {
                 end_history_operation(operation.operation_id);
                 return;
             }
@@ -2582,7 +2581,7 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
         [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&) {
             // A navigation that ended before its completion steps appended this has nothing to finalize.
             auto navigation = finalized_navigation(operation);
-            if (!navigation || navigation->host() != operation.initiating_page.ptr()) {
+            if (!navigation || navigation->host() != operation.requesting_page.ptr()) {
                 end_history_operation(operation.operation_id);
                 return;
             }
@@ -2592,11 +2591,8 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
 
 void CanonicalTraversable::start_history_operation(HistoryOperation& operation, NonnullRefPtr<Core::Promise<Empty>>)
 {
-    if (!operation.initiating_page)
-        operation.initiating_page = page_hosting(*this);
-
     if (operation.is_browser_traversal()) {
-        if (!operation.initiating_page) {
+        if (!page_hosting(*this)) {
             end_history_operation(operation.operation_id);
             return;
         }
@@ -2606,8 +2602,8 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         return;
     }
 
-    if (operation.initiating_page)
-        add_history_operation_completion_endpoint(operation, *operation.initiating_page);
+    if (operation.requesting_page)
+        add_history_operation_completion_endpoint(operation, *operation.requesting_page);
 
     run_history_operation(operation);
 }
@@ -2734,8 +2730,8 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
         return;
 
     // The requesting page learns the result before the operation completes.
-    if (operation->initiating_page)
-        operation->initiating_page->async_history_step_applied(operation_id, result);
+    if (operation->requesting_page)
+        operation->requesting_page->async_history_step_applied(operation_id, result);
     report_history_operation_completion(*operation, committed_step);
     if (operation->on_history_step_applied)
         operation->on_history_step_applied(result, committed_step);
