@@ -696,7 +696,7 @@ fn cached_calculated_descriptors_keep_their_length_resolution_context() {
     let source =
         utf16("@counter-style contextual { system: numeric; symbols: 'a' 'b'; pad: calc(sign(1em - 1px) + 1) '0'; }");
     let mut context = super::tests::parse_context();
-    let mut lengths: crate::css::style_compute::FfiLengthResolutionContext = unsafe { std::mem::zeroed() };
+    let mut lengths = crate::css::style_compute::FfiLengthResolutionContext::default();
     context.length_resolution_context = (&raw const lengths).cast();
     let first = parse(&source, &context);
     lengths.font_metrics.font_size = 16.0;
@@ -726,7 +726,7 @@ fn cache_keys_include_parsing_context_and_replay_side_effects() {
     context.document_base_url = std::ptr::null();
     context.document_base_url_length = 0;
 
-    let mut lengths: crate::css::style_compute::FfiLengthResolutionContext = unsafe { std::mem::zeroed() };
+    let mut lengths = crate::css::style_compute::FfiLengthResolutionContext::default();
     context.length_resolution_context = (&raw const lengths).cast();
     let with_lengths = parse(&source, &context);
     lengths.viewport_width = 800.0;

@@ -542,7 +542,7 @@ mod tests {
         let units: Vec<_> = source.encode_utf16().collect();
         let view = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
-        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let context = ParseContext::default();
         let parsed = unsafe { parse_shared_stylesheet(view, &context) };
         let rules = crate::css::rule::NativeRuleList::from_parsed(parsed);
         let media = MediaList::new(Default::default());
@@ -1194,7 +1194,7 @@ mod tests {
         fn downloaded_sheet(source: &str) -> Rc<NativeStyleSheet> {
             let units: Vec<_> = source.encode_utf16().collect();
             let parsed = std::thread::spawn(move || {
-                let context: ParseContext = unsafe { std::mem::zeroed() };
+                let context = ParseContext::default();
                 let parsed = unsafe {
                     parse_shared_stylesheet(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), &context)
                 };
@@ -1582,8 +1582,7 @@ mod tests {
         std::thread::spawn(move || {
             let context = ParseContext {
                 declared_namespaces: Arc::as_ptr(&namespaces),
-                // All remaining fields are booleans, integers, or nullable pointers.
-                ..unsafe { std::mem::zeroed() }
+                ..ParseContext::default()
             };
             for (source, expected) in [("色|item { color: red; }", 1), ("未知|item { color: red; }", 0)] {
                 let units: Vec<_> = source.encode_utf16().collect();

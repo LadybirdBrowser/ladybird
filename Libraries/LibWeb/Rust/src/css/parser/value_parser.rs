@@ -136,6 +136,28 @@ pub struct ParseContext {
     pub random_function_index: *mut usize,
 }
 
+/// An empty context: no value contexts, namespaces or URLs, outside quirks mode.
+impl Default for ParseContext {
+    fn default() -> Self {
+        Self {
+            in_quirks_mode: false,
+            is_svg_presentation_attribute: false,
+            is_substituted_value: false,
+            contains_attr_tainted_values: false,
+            is_ua_style_sheet: false,
+            value_contexts: std::ptr::null(),
+            value_context_count: 0,
+            declared_namespaces: std::ptr::null(),
+            document_url: std::ptr::null(),
+            document_url_length: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            length_resolution_context: std::ptr::null(),
+            random_function_index: std::ptr::null_mut(),
+        }
+    }
+}
+
 pub(crate) enum ParseOutcome {
     Parsed(Arc<StyleValueData>),
     Invalid,
