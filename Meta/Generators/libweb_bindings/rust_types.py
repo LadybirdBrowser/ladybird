@@ -8,6 +8,7 @@
 import re
 
 from pathlib import Path
+from typing import List
 from typing import Optional
 
 from Generators.libweb_bindings.context import GenerationContext
@@ -109,6 +110,18 @@ def rust_module_path(idl_path: Path) -> str:
     parts = idl_path.parts
     namespace = parts[parts.index("LibWeb") + 1]
     return f"crate::{title_case_to_snake_case(namespace)}::{title_case_to_snake_case(idl_path.stem)}"
+
+
+def inheriting_interfaces(interface: Interface, context: GenerationContext) -> List[Interface]:
+    """The interfaces that inherit from the interface, through any number of interfaces between them."""
+    inheriting = []
+    for other in context.interfaces.values():
+        ancestor = context.interfaces.get(other.parent_name)
+        while ancestor is not None and ancestor.name != interface.name:
+            ancestor = context.interfaces.get(ancestor.parent_name)
+        if ancestor is not None:
+            inheriting.append(other)
+    return inheriting
 
 
 def rust_interface_path(interface: Interface) -> str:
@@ -223,6 +236,12 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
         return "Gc<FunctionObject>"
     interface = rust_interface(idl_type, context)
     if interface is not None:
+        if inheriting_interfaces(interface, context):
+            # NB: An object of such a type is a cell of any of several classes, which Ref<T> cannot express.
+            raise UnsupportedByRustBindings(
+                f"{what} has the type {idl_type}, an interface that others inherit from, which the Rust bindings do "
+                "not convert yet"
+            )
         return f"Ref<{rust_interface_path(interface)}>"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:

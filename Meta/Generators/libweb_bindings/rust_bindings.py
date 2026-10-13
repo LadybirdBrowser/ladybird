@@ -39,6 +39,7 @@ from Generators.libweb_bindings.rust_to_js_value import rust_to_js_value
 from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
+from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_promise_type
 from Generators.libweb_bindings.rust_types import rust_interface_path
@@ -93,14 +94,14 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
         fail(f"the Rust bindings do not handle its extended attributes {sorted(unsupported_attributes)}")
     if interface.is_namespace or interface.is_callback_interface:
         fail("it is not a regular interface")
-    if interface.parent_name:
-        fail("it inherits from another interface")
+    if interface.parent_name and not is_implemented_in_rust(context.interfaces.get(interface.parent_name)):
+        fail(f"it inherits from {interface.parent_name}, which is not implemented in Rust")
     if module.enumerations or module.callback_functions:
         fail("its module defines enumerations or callback functions")
 
-    for other in context.interfaces.values():
-        if other.parent_name == interface.name:
-            fail(f"{other.name} inherits from it")
+    for other in inheriting_interfaces(interface, context):
+        if not is_implemented_in_rust(other):
+            fail(f"{other.name}, which is not implemented in Rust, inherits from it")
 
     rust_members(interface)
 
@@ -162,6 +163,12 @@ def write_cpp_implementation(
     includes.add("LibJS/Runtime/Realm.h")
     includes.add("LibWeb/Bindings/RustInterface.h")
     includes.add_binding(interface.implemented_name)
+    parent = context.interfaces.get(interface.parent_name)
+    if parent is not None:
+        includes.add_binding(parent.implemented_name)
+        parent_host_class = wrapper_host_class_symbol(parent)
+    else:
+        parent_host_class = "web_bindings_rust_interface_wrapper_host_class"
 
     initialize_prototype = rust_entry_point_name(interface, "initialize_prototype")
     initialize_constructor = rust_entry_point_name(interface, "initialize_constructor")
@@ -184,7 +191,7 @@ void {initialize_constructor}(JSVM*, void* realm, JSObject* constructor);
 // not an implementation object in their wrappable slot, so they need none of the hooks and flags through which a
 // wrapper keeps its implementation object alive, and the engine's own property caches apply to them.
 constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
-    &web_bindings_rust_interface_wrapper_host_class, nullptr, nullptr, JS_HOST_CLASS_IS_PLATFORM_OBJECT);
+    &{parent_host_class}, nullptr, nullptr, JS_HOST_CLASS_IS_PLATFORM_OBJECT);
 
 void {interface.prototype_class}::initialize(JS::Realm& realm, JS::Object& object)
 {{
@@ -216,8 +223,10 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::constr
 def write_ensure_web_prototype_declaration(out: TextIO) -> None:
     out.write(
         """
-// The interface prototype object of an interface implemented in Rust in the realm, for the Rust bindings.
+// The interface prototype object and the interface object of an interface implemented in Rust in the realm, for the
+// Rust bindings.
 extern "C" JSObject* web_bindings_ensure_web_prototype(void* realm, u16 interface_name);
+extern "C" JSObject* web_bindings_ensure_web_constructor(void* realm, u16 interface_name);
 """
     )
 
@@ -237,6 +246,26 @@ JSObject* web_bindings_ensure_web_prototype(void* realm, u16 interface_name)
         out.write(
             f"""    case InterfaceName::{interface.name}:
         return JS::HostABI::object_to_abi(&ensure_web_prototype<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string));
+"""
+        )
+    out.write(
+        """    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+JSObject* web_bindings_ensure_web_constructor(void* realm, u16 interface_name)
+{
+    [[maybe_unused]] auto& js_realm = *static_cast<JS::Realm*>(realm);
+    switch (static_cast<InterfaceName>(interface_name)) {
+"""
+    )
+    for interface in intrinsics:
+        if not is_implemented_in_rust(interface):
+            continue
+        out.write(
+            f"""    case InterfaceName::{interface.name}:
+        return JS::HostABI::object_to_abi(&ensure_web_constructor<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string));
 """
         )
     out.write(
@@ -357,6 +386,8 @@ def write_rust_interface(
 ) -> None:
     implementation = rust_interface_path(interface)
     members = rust_members(interface)
+    parent = context.interfaces.get(interface.parent_name)
+    inherited_interface_name = "None" if parent is None else f"Some(super::{rust_module_name(parent)}::INTERFACE_NAME)"
     method_documentation = "".join(
         f"/// - `{signature}`\n" for signature in implementation_method_signatures(context, interface, members)
     )
@@ -381,10 +412,11 @@ def write_rust_interface(
         to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
-        Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute, define_constants,
-        define_interface_object_properties, define_operation, define_to_string_tag, define_unimplemented_property,
-        entry_point_arguments, implementation_of, prototype_from_new_target, rejected_promise,
-        set_interface_prototype_object_prototype, this_object, to_interface,
+        Inherits, Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
+        define_constants, define_interface_object_properties, define_operation, define_to_string_tag,
+        define_unimplemented_property, entry_point_arguments, implementation_if, implementation_of,
+        prototype_from_new_target, rejected_promise, set_interface_prototype_object_prototype, this_object,
+        to_interface,
     }};
     use crate::bindings::{{CallContext, WebIdlResult}};
 
@@ -411,13 +443,9 @@ def write_rust_interface(
         }}
     }}
 
-    /// The object that an attribute or an operation runs on, and the context it runs in.
-    fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Ref<Implementation>, CallContext<'_>)> {{
-        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
-        Ok((implementation_of(object), CallContext::new(vm, realm)))
-    }}
 """
     )
+    write_this_implementation(out, context, interface)
 
     defined_property_names: List[str] = []
     recorded_unimplemented_names: List[str] = []
@@ -468,7 +496,7 @@ def write_rust_interface(
     ) {{
         // SAFETY: The caller passes live pointers.
         let (vm, realm, prototype) = unsafe {{ entry_point_arguments(vm, realm, prototype) }};
-        set_interface_prototype_object_prototype(vm, realm, prototype);
+        set_interface_prototype_object_prototype(vm, realm, prototype, {inherited_interface_name});
 """
     )
     # NB: The properties are defined in the order of the C++ bindings: the attributes, the operations, the operations
@@ -518,7 +546,7 @@ def write_rust_interface(
     ) {{
         // SAFETY: The caller passes live pointers.
         let (vm, realm, constructor) = unsafe {{ entry_point_arguments(vm, realm, constructor) }};
-        define_interface_object_properties(vm, realm, constructor, "{interface.name}", {members.constructor_length}, INTERFACE_NAME);
+        define_interface_object_properties(vm, realm, constructor, "{interface.name}", {members.constructor_length}, INTERFACE_NAME, {inherited_interface_name});
 """
     )
     if members.constants:
@@ -551,6 +579,78 @@ def write_rust_interface(
 """
         )
     out.write("}\n")
+
+
+def write_this_implementation(out: TextIO, context: GenerationContext, interface: Interface) -> None:
+    """The function that finds what an attribute or an operation of the interface runs on. For an interface that
+    others inherit from, that is an object of any of them, which the implementation of each reaches the inherited
+    part of through Inherits."""
+    inheriting = inheriting_interfaces(interface, context)
+    if not inheriting:
+        out.write(
+            """
+    /// The object that an attribute or an operation runs on, and the context it runs in.
+    fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Ref<Implementation>, CallContext<'_>)> {
+        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
+        Ok((implementation_of(object), CallContext::new(vm, realm)))
+    }
+"""
+        )
+        return
+
+    variants = f"        {interface.name}(Ref<Implementation>),\n"
+    arms = f"""                Self::{interface.name}(object) => {{
+                    let object: &Implementation = object;
+                    object
+                }}
+"""
+    choices = f"""        if let Some(object) = implementation_if::<Implementation>(object) {{
+            return Ok((Receiver::{interface.name}(object), cx));
+        }}
+"""
+    for other in inheriting:
+        path = rust_interface_path(other)
+        variants += f"        {other.name}(Ref<{path}>),\n"
+        # NB: An interface reaches the part of an interface it does not inherit from directly through the ones between.
+        steps = f"                    let object: &{path} = object;\n"
+        ancestor = other
+        while ancestor.name != interface.name:
+            next_ancestor = context.interfaces[ancestor.parent_name]
+            next_path = "Implementation" if next_ancestor.name == interface.name else rust_interface_path(next_ancestor)
+            steps += f"                    let object = <{rust_interface_path(ancestor)} as Inherits<{next_path}>>::parent(object);\n"
+            ancestor = next_ancestor
+        arms += f"""                Self::{other.name}(object) => {{
+{steps}                    object
+                }}
+"""
+        choices += f"""        if let Some(object) = implementation_if::<{path}>(object) {{
+            return Ok((Receiver::{other.name}(object), cx));
+        }}
+"""
+    out.write(
+        f"""
+    /// The object that an attribute or an operation of the interface runs on: an object of the interface, or of an
+    /// interface that inherits from it.
+    enum Receiver {{
+{variants}    }}
+
+    impl core::ops::Deref for Receiver {{
+        type Target = Implementation;
+
+        fn deref(&self) -> &Implementation {{
+            match self {{
+{arms}            }}
+        }}
+    }}
+
+    /// The object that an attribute or an operation runs on, and the context it runs in.
+    fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Receiver, CallContext<'_>)> {{
+        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
+        let cx = CallContext::new(vm, realm);
+{choices}        unreachable!("a wrapper of the interface wraps an object of it or of an interface that inherits from it")
+    }}
+"""
+    )
 
 
 def write_rust_attribute_setter(
