@@ -68,6 +68,18 @@ impl UsvString {
         self.0
     }
 
+    pub(crate) fn from_utf8(string: &str) -> Self {
+        Self(Utf16String::from_utf8(string))
+    }
+
+    pub(crate) fn to_utf8(&self) -> String {
+        match self.units() {
+            Utf16StringUnits::Ascii(bytes) => String::from_utf8(bytes.to_vec()),
+            Utf16StringUnits::Utf16(code_units) => String::from_utf16(code_units).map_err(|_| unreachable!()),
+        }
+        .expect("a USVString is well-formed")
+    }
+
     /// The string of the code units, with U+FFFD in place of every surrogate that is not part of a pair.
     pub(crate) fn from_utf16_replacing_lone_surrogates(code_units: &[u16]) -> Self {
         Self(Utf16String::well_formed_from_utf16(code_units))
