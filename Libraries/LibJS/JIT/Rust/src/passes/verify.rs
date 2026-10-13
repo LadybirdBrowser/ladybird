@@ -76,11 +76,17 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
             if operand < RESERVED_REGISTER_COUNT || is_constant {
                 continue;
             }
-            // NB: Conversions of the reader's inputs may come in between.
+            // NB: Conversions of the reader's inputs may come in between, and
+            //     so may the frame's initialization for stores of arguments,
+            //     which it leaves as they are (see `frame_initialization`).
+            let is_argument = operand >= layout.arguments_base();
             let reader = nodes[position + 1..].iter().find(|next| {
                 let op = &graph.node(**next).op;
                 let properties = op.properties();
+                let initializes_frame =
+                    matches!(op, Op::InitializeFrame | Op::EnsureFrameInitialized | Op::PublishFrame);
                 !matches!(op, Op::StoreSlot { .. })
+                    && !(is_argument && initializes_frame)
                     && (properties.is_call
                         || properties.reads != Locations::NONE
                         || properties.writes != Locations::NONE)
