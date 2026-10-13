@@ -101,9 +101,7 @@ impl RetainedState {
             } else {
                 let mut value = engine.intern_declared_property(declaration);
                 value.property = property;
-                declarations.push((value, unsafe {
-                    RetainedStyleValueData::from_retained_pointer(Arc::into_raw(declaration.value.clone()))
-                }));
+                declarations.push((value, RetainedStyleValueData::from_arc(declaration.value.clone())));
             }
         }
         let mut interned = Vec::with_capacity(declarations.len());

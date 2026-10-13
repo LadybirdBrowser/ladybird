@@ -1695,9 +1695,7 @@ mod tests {
     use crate::css::style_value::StyleValueData;
 
     fn retained_number(value: f64) -> RetainedStyleValueData {
-        unsafe {
-            RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Number { value })))
-        }
+        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value }))
     }
 
     #[test]
@@ -1710,11 +1708,12 @@ mod tests {
             }),
         );
         let mut equal = ComputedLonghandTable::new();
-        equal.add_inheritance_dependent_value(property_id::TEXT_DECORATION_COLOR, unsafe {
-            RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Keyword {
+        equal.add_inheritance_dependent_value(
+            property_id::TEXT_DECORATION_COLOR,
+            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
                 keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
-            })))
-        });
+            })),
+        );
         assert_eq!(current_color.non_inherited_inheritance_changes(&equal), 0);
         let resolved = ComputedLonghandTable::new();
         let expected = 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_TEXT_RESET;
@@ -1778,7 +1777,7 @@ mod tests {
     fn set_retains_and_release_drops() {
         let value = Arc::new(StyleValueData::Number { value: 42.0 });
         let weak_value = Arc::downgrade(&value);
-        let retained_value = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(value)) };
+        let retained_value = RetainedStyleValueData::from_arc(value);
 
         let mut table = ComputedLonghandTable::new();
         table.set(FIRST_LONGHAND_PROPERTY_ID, retained_value, -1);
@@ -1794,7 +1793,7 @@ mod tests {
     fn copying_empty_slots_releases_values_and_updates_the_pointer_view() {
         let value = Arc::new(StyleValueData::Number { value: 42.0 });
         let weak_value = Arc::downgrade(&value);
-        let retained_value = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(value)) };
+        let retained_value = RetainedStyleValueData::from_arc(value);
         let mut source = ComputedLonghandTable::new();
         source.set(FIRST_LONGHAND_PROPERTY_ID, retained_value, 3);
         let mut copy = ComputedLonghandTable::new();

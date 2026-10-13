@@ -255,9 +255,9 @@ pub(crate) enum Absolutized {
 }
 
 fn retain_new(value: StyleValueData) -> RetainedStyleValueData {
-    let pointer = Arc::into_raw(Arc::new(value));
+    let pointer = RetainedStyleValueData::from_arc(Arc::new(value));
     // SAFETY: The freshly leaked Arc reference is exactly one strong reference.
-    unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+    pointer
 }
 
 /// Absolutizes one retained child slot. Returns the child for the rebuilt parent, whether any

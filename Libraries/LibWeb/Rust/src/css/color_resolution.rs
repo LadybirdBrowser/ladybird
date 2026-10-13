@@ -882,9 +882,9 @@ pub(crate) fn resolve_alpha(style_value: &StyleValueData, input: &ColorResolutio
 // Shared-graph retained-value constructors, mirroring make_result() in color_interpolation.rs.
 
 fn retained_value(value: StyleValueData) -> RetainedStyleValueData {
-    let pointer = Arc::into_raw(Arc::new(value));
+    let pointer = RetainedStyleValueData::from_arc(Arc::new(value));
     // SAFETY: Arc::into_raw transfers exactly one strong reference.
-    unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+    pointer
 }
 
 fn retained_null() -> RetainedStyleValueData {

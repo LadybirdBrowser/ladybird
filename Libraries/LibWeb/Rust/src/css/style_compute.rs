@@ -2405,9 +2405,7 @@ fn compute_position_area(value: &StyleValueData) -> Option<Arc<StyleValueData>> 
         return None;
     }
 
-    let retained_keyword = |keyword| unsafe {
-        RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Keyword { keyword })))
-    };
+    let retained_keyword = |keyword| RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword { keyword }));
     Some(Arc::new(StyleValueData::ValueList {
         values: RetainedStyleValueDataList::from_retained_values(vec![
             retained_keyword(short_block_keyword),
@@ -2440,12 +2438,10 @@ fn stroke_dasharray_numbers_as_lengths(value: &StyleValueData) -> Option<Arc<Sty
     let computed_dashes = dashes
         .iter()
         .map(|dash| match dash.data() {
-            StyleValueData::Number { value } => unsafe {
-                RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Length {
-                    value: *value,
-                    unit: px_length_unit(),
-                })))
-            },
+            StyleValueData::Number { value } => RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
+                value: *value,
+                unit: px_length_unit(),
+            })),
             _ => dash.clone_retained(),
         })
         .collect();
@@ -2459,7 +2455,7 @@ fn stroke_dasharray_numbers_as_lengths(value: &StyleValueData) -> Option<Arc<Sty
 /// The computed two-value list for a `border-spacing` member used for both axes.
 #[allow(clippy::arc_with_non_send_sync)]
 fn border_spacing_pair(single: StyleValueData) -> Arc<StyleValueData> {
-    let single = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(single))) };
+    let single = RetainedStyleValueData::from_arc(Arc::new(single));
     Arc::new(StyleValueData::ValueList {
         values: RetainedStyleValueDataList::from_retained_values(vec![single.clone_retained(), single]),
         separator: 0,
@@ -2961,10 +2957,9 @@ fn compute_animation_name(value: &StyleValueData) -> Option<Arc<StyleValueData>>
                 string,
                 is_valid_animation_name_custom_ident,
             } => Some(if *is_valid_animation_name_custom_ident {
-                let pointer = Arc::into_raw(Arc::new(StyleValueData::CustomIdent {
+                RetainedStyleValueData::from_arc(Arc::new(StyleValueData::CustomIdent {
                     custom_ident: string.clone(),
-                }));
-                unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+                }))
             } else {
                 entry.clone_retained()
             }),
@@ -3227,7 +3222,7 @@ fn clear_longhand_bit(words: &mut [u64], property_id: u16) {
 
 #[allow(clippy::arc_with_non_send_sync)]
 fn retained_new(value: StyleValueData) -> RetainedStyleValueData {
-    unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(value))) }
+    RetainedStyleValueData::from_arc(Arc::new(value))
 }
 
 fn needs_computed_style_sheet_context(value: *const StyleValueData) -> bool {

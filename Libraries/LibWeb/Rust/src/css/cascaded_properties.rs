@@ -867,7 +867,7 @@ pub(crate) fn resolve_cascade_value(
             std::sync::Arc::new(StyleValueData::GuaranteedInvalid)
         }
     };
-    unsafe { RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(parsed)) }
+    RetainedStyleValueData::from_arc(parsed)
 }
 
 fn custom_property_components(inputs: &[FfiUnresolvedStyleValue]) -> (Vec<Vec<u32>>, u64, bool) {
