@@ -110,27 +110,6 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
     rust_members(interface)
 
 
-def check_cpp_does_not_name_rust_interfaces(context: GenerationContext, usage: DefinitionUsage) -> None:
-    """An interface implemented in Rust has no C++ implementation object, so the C++ bindings cannot convert it."""
-    rust_interfaces = {interface.name for interface in context.interfaces.values() if is_implemented_in_rust(interface)}
-    if not rust_interfaces:
-        return
-
-    def check(path, types) -> None:
-        for idl_type in types:
-            for nested_type in idl_type.nested_types():
-                if nested_type.name in rust_interfaces:
-                    raise UnsupportedByRustBindings(
-                        f"{path}: uses {nested_type.name}, which is implemented in Rust and has no C++ representation"
-                    )
-
-    for module in context.modules:
-        if not is_implemented_in_rust(module.interface):
-            check(module.path, usage.types_named_by_cpp_module(module))
-        for dictionary in usage.cpp_dictionaries(module):
-            check(module.path, [member.type for member in dictionary.members])
-
-
 # C++ side
 
 
@@ -867,13 +846,68 @@ def write_rust_bindings(
         if interface is None or not is_implemented_in_rust(interface):
             continue
         write_rust_interface(out, context, module, interface, values[interface.name])
+    write_rust_wrap_for_cpp(out, usage)
+
+
+def write_rust_wrap_for_cpp(out: TextIO, usage: DefinitionUsage) -> None:
+    """The entry point through which the C++ bindings of the interfaces that name an interface implemented in Rust
+    wrap an object of it, which C++ code holds as the cell of the object."""
+    documentation = """
+/// The wrapper of an object of an interface implemented in Rust in the wrapper world of the realm, for the C++
+/// bindings of the interfaces that name the interface.
+///
+/// # Safety
+///
+/// The pointers must be the VM, a live realm, and the live cell of an object of the interface.
+#[unsafe(no_mangle)]
+"""
+    if not usage.rust_interfaces_named_by_cpp:
+        out.write(
+            f"""{documentation}pub unsafe extern "C" fn web_rust_bindings_wrap(
+    _vm: *mut core::ffi::c_void,
+    _realm: *mut core::ffi::c_void,
+    _interface_name: u16,
+    _cell: *mut core::ffi::c_void,
+) -> *mut core::ffi::c_void {{
+    unreachable!("LibWeb's C++ bindings name no interface that is implemented in Rust")
+}}
+"""
+        )
+        return
+    arms = "".join(
+        f"""        {rust_module_name(interface)}::INTERFACE_NAME => {{
+            // SAFETY: The caller passes the cell of an object of the interface.
+            wrap(&cx, unsafe {{ cell_from_abi::<{rust_interface_path(interface)}>(cell) }})
+        }}
+"""
+        for _, interface in sorted(usage.rust_interfaces_named_by_cpp.items())
+    )
+    out.write(
+        f"""{documentation}pub unsafe extern "C" fn web_rust_bindings_wrap(
+    vm: *mut core::ffi::c_void,
+    realm: *mut core::ffi::c_void,
+    interface_name: u16,
+    cell: *mut core::ffi::c_void,
+) -> *mut core::ffi::c_void {{
+    use crate::bindings::CallContext;
+    use crate::bindings::interface::{{cell_from_abi, realm_arguments, wrap}};
+
+    // SAFETY: The caller passes the VM and a live realm.
+    let (vm, realm) = unsafe {{ realm_arguments(vm, realm) }};
+    let cx = CallContext::new(vm, realm);
+    let wrapper = match interface_name {{
+{arms}        _ => unreachable!("LibWeb's C++ bindings name no other interface that is implemented in Rust"),
+    }};
+    wrapper.as_ptr().cast()
+}}
+"""
+    )
 
 
 def check_rust_bindings(context: GenerationContext, usage: DefinitionUsage, intrinsics: List[Interface]) -> None:
     """Raises an error for every use of [ImplementedIn] that the bindings do not handle, before anything is written.
     The functions that write the Rust bindings reject the types and the definitions that they do not handle
     themselves, so the bindings are written once to find those."""
-    check_cpp_does_not_name_rust_interfaces(context, usage)
     for module in context.modules:
         interface = module.interface
         if interface is None:

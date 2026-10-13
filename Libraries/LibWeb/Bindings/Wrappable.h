@@ -268,10 +268,9 @@ WEB_API Wrappable* wrappable_impl_from(JS::Object*);
 WEB_API Wrappable const* wrappable_impl_from(JS::Object const*);
 
 template<typename Impl, typename Object>
+requires(IsBaseOf<Wrappable, Impl>)
 [[nodiscard]] CopyConst<Object, Impl>* impl_from(Object* object)
 {
-    static_assert(IsBaseOf<Wrappable, Impl>);
-
     if (!object)
         return nullptr;
 

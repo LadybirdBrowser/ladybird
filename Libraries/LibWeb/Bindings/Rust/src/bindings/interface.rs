@@ -255,6 +255,23 @@ fn create_wrapper<T: Interface>(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>
     }
 }
 
+/// The cell of an object of the interface, as LibWeb's C++ code holds it: a pointer to a class that derives from
+/// Web::Bindings::RustInterfaceCell.
+pub(crate) fn cell_into_abi<T: Interface>(object: Ref<T>) -> *mut c_void {
+    object.as_ptr().cast()
+}
+
+/// The object of the interface whose cell LibWeb's C++ code holds.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of an object of an interface implemented in Rust.
+pub(crate) unsafe fn cell_from_abi<T: Interface>(cell: *mut c_void) -> Ref<T> {
+    let cell = NonNull::new(cell).expect("C++ passes the cell of an object");
+    // SAFETY: The caller passes a live cell of an embedder class.
+    unsafe { T::CELL_CLASS.downcast(cell) }.expect("C++ passes the cell of an object of the interface")
+}
+
 /// What an operation that returns a promise type returns in place of throwing: a promise rejected with what its
 /// steps threw, https://webidl.spec.whatwg.org/#dfn-create-operation-function
 pub(crate) fn rejected_promise(vm: &Vm, throw: Throw) -> Value {
@@ -315,6 +332,17 @@ pub(crate) unsafe fn entry_point_arguments<'vm>(
     let object = NonNull::new(object.cast::<Object>()).expect("C++ passes an object");
     // SAFETY: The caller guarantees that the pointers are live.
     unsafe { (&*vm.cast::<Vm>(), Gc::from_non_null(realm), Gc::from_non_null(object)) }
+}
+
+/// Unwraps the VM and the realm that LibWeb's C++ bindings pass an entry point.
+///
+/// # Safety
+///
+/// The pointers must be the live VM and a live realm.
+pub(crate) unsafe fn realm_arguments<'vm>(vm: *mut c_void, realm: *mut c_void) -> (&'vm Vm, Gc<Realm>) {
+    let realm = NonNull::new(realm.cast::<Realm>()).expect("C++ passes a realm");
+    // SAFETY: The caller guarantees that the pointers are live.
+    unsafe { (&*vm.cast::<Vm>(), Gc::from_non_null(realm)) }
 }
 
 /// Unwraps the raw arguments that LibWeb's C++ bindings pass the entry point that constructs an object.
