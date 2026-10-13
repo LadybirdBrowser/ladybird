@@ -34,6 +34,11 @@ test(() => {
         '<li><div><li>implicitly closed</li></div></li>',
         '<li><ul><li>implicitly closed<li>again</li></ul></li>',
         '<span>'.repeat(130) + 'deep' + '</span>'.repeat(130),
+        '<li data-id="1"><label>Купить молоко</label><input class="edit" value="Купить молоко"></li>',
+        '<div title="日本語 😀">テキスト\u00a0😀</div>\n    <span>\n    </span>',
+        '<div>lone \ud800 surrogate \udc00</div><b title="\udbff">x</b>',
+        '<dïv>non-ASCII tag</dïv>', '<div tïtle="x">non-ASCII attribute name</div>', '<ä>tag</ä>',
+        '<div title="é&amp;">é&lt;</div>', '<div>é\r\n</div>', '<input type="täxt" value="é">',
     ];
     const pairedTags = ['a', 'b', 'button', 'div', 'footer', 'i', 'label', 'li', 'ol', 'span', 'strong', 'ul', 'article', 'aside', 'header', 'main', 'nav', 'section', 'big', 'code', 'em', 's', 'small', 'strike', 'tt', 'u'];
     for (const outer of pairedTags) {
