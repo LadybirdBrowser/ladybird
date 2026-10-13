@@ -5,6 +5,8 @@
 # The Rust types of IDL values, and the Rust expressions that convert JS values to them, for the Rust bindings of the
 # interfaces implemented in Rust. They cover the types that those interfaces use so far; every other type is an error.
 
+import re
+
 from typing import Optional
 
 from Generators.libweb_bindings.context import GenerationContext
@@ -30,6 +32,11 @@ TYPED_ARRAY_NAMES = {
 
 # The extended attributes of a type or a parameter that the Rust bindings handle.
 SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {"AllowShared", "AllowResizable"}
+
+# The floating point types, with the Rust type of their values.
+FLOATING_POINT_TYPES = {"float": "f32"}
+
+DECIMAL_LITERAL = re.compile(r"-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?")
 
 
 class UnsupportedByRustBindings(Exception):
@@ -60,6 +67,8 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
         return "bool"
     if name == "unsigned long long":
         return "u64"
+    if name in FLOATING_POINT_TYPES:
+        return FLOATING_POINT_TYPES[name]
     if name == "undefined":
         return "()"
     if name in TYPED_ARRAY_NAMES:
@@ -78,14 +87,22 @@ def rust_parameter_type(parameter: OperationParameter, context: GenerationContex
 
 
 def rust_conversion_to_idl_value(
-    idl_type: IDLType, parameter_attributes: dict[str, str], value: str, context: GenerationContext, what: str
+    idl_type: IDLType,
+    parameter_attributes: dict[str, str],
+    value: str,
+    identifier: str,
+    context: GenerationContext,
+    what: str,
 ) -> str:
-    """An expression of type ThrowCompletionOr<T> that converts the JS value to the IDL value."""
+    """An expression of type ThrowCompletionOr<T> that converts the JS value to the IDL value. The identifier is the
+    name of the parameter or member that the value is of, which the errors of some conversions name."""
     name = idl_type.name
     if name == "DOMString":
         return f"to_dom_string(vm, {value})"
     if name == "USVString":
         return f"to_usv_string(vm, {value})"
+    if name == "float":
+        return f'to_float(vm, {value}, "{identifier}")'
     if name in TYPED_ARRAY_NAMES:
         attributes = {**idl_type.extended_attributes, **parameter_attributes}
         allow_shared = "true" if "AllowShared" in attributes else "false"
@@ -108,6 +125,8 @@ def rust_default_value(parameter: OperationParameter, context: GenerationContext
         if name == "USVString":
             return f'UsvString::from_ascii(b"{string}")'
         return f'Utf16String::from_ascii(b"{string}")'
+    if name in FLOATING_POINT_TYPES and default_value is not None and DECIMAL_LITERAL.fullmatch(default_value):
+        return f"{default_value}_{FLOATING_POINT_TYPES[name]}"
     raise UnsupportedByRustBindings(
         f"{what} has the default value {default_value}, which the Rust bindings do not have"
     )

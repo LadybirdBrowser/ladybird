@@ -80,6 +80,35 @@ pub(crate) fn to_usv_string(vm: &Vm, value: Value) -> ThrowCompletionOr<UsvStrin
     Ok(UsvString(to_well_formed(&string)))
 }
 
+/// A JS value converted to a float, https://webidl.spec.whatwg.org/#js-float
+///
+/// The identifier is the name of the parameter or member that the value is of, which the error names.
+pub(crate) fn to_float(vm: &Vm, value: Value, identifier: &str) -> ThrowCompletionOr<f32> {
+    // 1. Let x be ? ToNumber(V).
+    let x = value.to_double(vm)?;
+
+    // 2. If x is NaN, +∞, or −∞, then throw a TypeError.
+    // 3. Let S be the set of finite IEEE 754 single-precision floating point values except −0, but with two special
+    //    values added: 2^128 and −2^128.
+    // 4. Let y be the number in S that is closest to x, selecting the number with an even significand if there are two
+    //    equally close values. (The two special values 2^128 and −2^128 are considered to have even significands for
+    //    this purpose.)
+    // 5. If y is 2^128 or −2^128, then throw a TypeError.
+    // 6. If y is +0 and x is negative, return −0.
+    // 7. Return y.
+    // NB: Rounding x to the nearest float gives an infinity where step 4 gives one of the two special values.
+    #[allow(clippy::cast_possible_truncation, reason = "the spec rounds to the closest float")]
+    let y = x as f32;
+    if !y.is_finite() {
+        return vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::InvalidRestrictedFloatingPointParameter,
+            &[&identifier],
+        );
+    }
+    Ok(y)
+}
+
 /// What the extended attributes of a buffer source type allow, https://webidl.spec.whatwg.org/#es-buffer-source-types
 pub(crate) struct BufferSourceRules {
     pub(crate) allow_shared: bool,
@@ -149,6 +178,13 @@ impl ToJs for u64 {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
         #[allow(clippy::cast_precision_loss, reason = "the spec converts to the closest double")]
         Ok(Value::from_f64(self as f64))
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-float
+impl ToJs for f32 {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_f64(f64::from(self)))
     }
 }
 
