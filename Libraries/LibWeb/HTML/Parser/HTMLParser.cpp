@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/FFIHelpers.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/UnicodeUtils.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibTextCodec/Decoder.h>
@@ -92,34 +93,59 @@ static Utf16FlyString utf16_fly_string_from_ffi(u16 const* ptr, size_t len)
     return Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(ptr), len });
 }
 
+static Utf16String utf16_string_from_span(ReadonlySpan<char> utf8)
+{
+    if (utf8.is_empty())
+        return {};
+    return Utf16String::from_utf8_without_validation({ utf8.data(), utf8.size() });
+}
+
+static Utf16String utf16_string_from_span(ReadonlySpan<char16_t> utf16)
+{
+    if (utf16.is_empty())
+        return {};
+    return Utf16String::from_utf16(Utf16View { utf16.data(), utf16.size() });
+}
+
 static Utf16String utf16_string_from_ffi(u16 const* ptr, size_t len)
 {
-    if (!ptr || len == 0)
+    if (!ptr)
         return {};
-    return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(ptr), len });
+    return utf16_string_from_span(ReadonlySpan<char16_t> { reinterpret_cast<char16_t const*>(ptr), len });
 }
 
 static Utf16String utf8_string_from_ffi(u8 const* ptr, size_t len)
 {
-    if (len == 0)
+    if (!ptr)
         return {};
-    return Utf16String::from_utf8_without_validation({ reinterpret_cast<char const*>(ptr), len });
+    return utf16_string_from_span(ReadonlySpan<char> { reinterpret_cast<char const*>(ptr), len });
+}
+
+static constexpr size_t newline_then_spaces_table_size = 64;
+
+static Utf16String const& newline_then_spaces_string(size_t length)
+{
+    VERIFY(length > 1 && length < newline_then_spaces_table_size);
+    static thread_local NeverDestroyed<Array<Optional<Utf16String>, newline_then_spaces_table_size>> newline_then_spaces_strings;
+    auto& string = (*newline_then_spaces_strings)[length];
+    if (!string.has_value()) {
+        Array<char, newline_then_spaces_table_size> characters;
+        characters[0] = '\n';
+        characters.span().slice(1, length - 1).fill(' ');
+        string = Utf16String::from_utf8_without_validation({ characters.data(), length });
+    }
+    return *string;
 }
 
 // OPTIMIZATION: Markup indents tags with a newline followed by spaces, so many Text nodes hold such a run. Like Blink,
 //               share one string for each length of these runs instead of allocating one for every Text node.
-static Utf16String text_node_data_from_utf8(StringView text)
+template<typename CharT>
+static Utf16String text_node_data_from_span(ReadonlySpan<CharT> text)
 {
-    static constexpr size_t newline_then_spaces_table_size = 64;
-    if (text.length() > 1 && text.length() < newline_then_spaces_table_size && text[0] == '\n'
-        && all_of(text.substring_view(1), [](char ch) { return ch == ' '; })) {
-        static thread_local NeverDestroyed<Array<Optional<Utf16String>, newline_then_spaces_table_size>> newline_then_spaces_strings;
-        auto& string = (*newline_then_spaces_strings)[text.length()];
-        if (!string.has_value())
-            string = Utf16String::from_utf8_without_validation(text);
-        return *string;
-    }
-    return Utf16String::from_utf8_without_validation(text);
+    if (text.size() > 1 && text.size() < newline_then_spaces_table_size && text[0] == '\n'
+        && all_of(text.slice(1), [](CharT ch) { return ch == ' '; }))
+        return newline_then_spaces_string(text.size());
+    return utf16_string_from_span(text);
 }
 
 static Optional<Utf16FlyString> attribute_namespace_from_html_parser_ffi(RustFfiHtmlAttributeNamespace);
@@ -1212,10 +1238,24 @@ DOM::Document& HTMLParser::document()
 
 namespace {
 
+// Attribute names are ASCII, since the scanner only accepts lowercase ASCII letters, digits and hyphens in names.
+template<typename CharT>
 struct FragmentAttribute {
-    StringView name;
-    StringView value;
+    ReadonlySpan<CharT> name;
+    ReadonlySpan<CharT> value;
 };
+
+template<typename CharT>
+bool fragment_span_equals(ReadonlySpan<CharT> span, StringView ascii)
+{
+    if (span.size() != ascii.length())
+        return false;
+    for (size_t i = 0; i < span.size(); ++i) {
+        if (span[i] != static_cast<CharT>(ascii[i]))
+            return false;
+    }
+    return true;
+}
 
 Utf16FlyString const* supported_fragment_tag(StringView name)
 {
@@ -1281,9 +1321,29 @@ Utf16FlyString const* supported_fragment_tag(StringView name)
     return nullptr;
 }
 
+template<typename CharT>
+Utf16FlyString const* supported_fragment_tag(ReadonlySpan<CharT> name)
+{
+    if constexpr (IsSame<CharT, char>) {
+        return supported_fragment_tag(StringView { name.data(), name.size() });
+    } else {
+        // Supported tag names are ASCII and short.
+        Array<char, 8> ascii_name;
+        if (name.size() > ascii_name.size())
+            return nullptr;
+        for (size_t i = 0; i < name.size(); ++i) {
+            if (!is_ascii(name[i]))
+                return nullptr;
+            ascii_name[i] = static_cast<char>(name[i]);
+        }
+        return supported_fragment_tag(StringView { ascii_name.data(), name.size() });
+    }
+}
+
+template<typename CharT>
 class FragmentScanner {
 public:
-    explicit FragmentScanner(StringView input)
+    explicit FragmentScanner(ReadonlySpan<CharT> input)
         : m_input(input)
     {
     }
@@ -1292,16 +1352,15 @@ public:
     bool parse(Open&& open, Close&& close, Text&& text)
     {
         Vector<Utf16FlyString const*, 32> stack;
-        Vector<FragmentAttribute, 16> attributes;
-        while (m_offset < m_input.length()) {
+        Vector<FragmentAttribute<CharT>, 16> attributes;
+        while (m_offset < m_input.size()) {
             if (peek() != '<') {
                 auto start = m_offset;
-                while (m_offset < m_input.length() && peek() != '<') {
-                    if (peek() == '&' || peek() == '\r' || peek() == '\0')
+                while (m_offset < m_input.size() && peek() != '<') {
+                    if (!consume_data_code_point())
                         return false;
-                    ++m_offset;
                 }
-                text(m_input.substring_view(start, m_offset - start));
+                text(m_input.slice(start, m_offset - start));
                 continue;
             }
             ++m_offset;
@@ -1340,31 +1399,30 @@ public:
                 if (peek() == '>' || peek() == '/')
                     break;
                 auto attribute_name = scan_name();
-                if (attribute_name.is_empty() || attribute_name == "is"sv || attributes.size() >= 64)
+                if (attribute_name.is_empty() || fragment_span_equals(attribute_name, "is"sv) || attributes.size() >= 64)
                     return false;
                 for (auto const& attribute : attributes) {
                     if (attribute.name == attribute_name)
                         return false;
                 }
                 skip_whitespace();
-                StringView value = ""sv;
+                ReadonlySpan<CharT> value;
                 if (consume('=')) {
                     skip_whitespace();
-                    char quote = peek();
+                    CharT quote = peek();
                     if (quote != '\'' && quote != '"')
                         return false;
                     ++m_offset;
                     auto start = m_offset;
-                    while (m_offset < m_input.length() && peek() != quote) {
-                        if (peek() == '&' || peek() == '\r' || peek() == '\0')
+                    while (m_offset < m_input.size() && peek() != quote) {
+                        if (!consume_data_code_point())
                             return false;
-                        ++m_offset;
                     }
-                    value = m_input.substring_view(start, m_offset - start);
+                    value = m_input.slice(start, m_offset - start);
                     if (!consume(quote))
                         return false;
                 }
-                if (tag == &TagNames::input && attribute_name == "type"sv && !value.is_one_of("text"sv, "checkbox"sv))
+                if (tag == &TagNames::input && fragment_span_equals(attribute_name, "type"sv) && !fragment_span_equals(value, "text"sv) && !fragment_span_equals(value, "checkbox"sv))
                     return false;
                 attributes.append({ attribute_name, value });
             }
@@ -1381,11 +1439,32 @@ public:
     }
 
 private:
-    char peek() const { return m_offset < m_input.length() ? m_input[m_offset] : '\0'; }
+    CharT peek() const { return m_offset < m_input.size() ? m_input[m_offset] : '\0'; }
 
-    bool consume(char ch)
+    // Consumes one code point of text or of an attribute value, unless it needs the general parser.
+    bool consume_data_code_point()
     {
-        if (m_offset == m_input.length() || peek() != ch)
+        auto ch = peek();
+        // Character references and input preprocessing use the general parser.
+        if (ch == '&' || ch == '\r' || ch == '\0')
+            return false;
+        if constexpr (IsSame<CharT, char16_t>) {
+            // The general parser replaces a lone surrogate with U+FFFD.
+            if (AK::UnicodeUtils::is_utf16_low_surrogate(ch))
+                return false;
+            if (AK::UnicodeUtils::is_utf16_high_surrogate(ch)) {
+                if (m_offset + 1 == m_input.size() || !AK::UnicodeUtils::is_utf16_low_surrogate(m_input[m_offset + 1]))
+                    return false;
+                ++m_offset;
+            }
+        }
+        ++m_offset;
+        return true;
+    }
+
+    bool consume(CharT ch)
+    {
+        if (m_offset == m_input.size() || peek() != ch)
             return false;
         ++m_offset;
         return true;
@@ -1397,18 +1476,60 @@ private:
             ++m_offset;
     }
 
-    StringView scan_name()
+    ReadonlySpan<CharT> scan_name()
     {
         auto start = m_offset;
         while (is_ascii_lower_alpha(peek()) || is_ascii_digit(peek()) || peek() == '-')
             ++m_offset;
-        return m_input.substring_view(start, m_offset - start);
+        return m_input.slice(start, m_offset - start);
     }
 
-    StringView m_input;
+    ReadonlySpan<CharT> m_input;
     size_t m_offset { 0 };
 };
 
+}
+
+template<typename CharT>
+static bool parse_fast_fragment_into_detached_nodes(DOM::Element& context, ReadonlySpan<CharT> source, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes)
+{
+    if (!FragmentScanner<CharT> { source }.parse([](auto const&, auto, bool) { }, [] { }, [](auto) { }))
+        return false;
+
+    auto& document = context.document();
+    auto registry = look_up_a_custom_element_registry(context);
+    GC::RootVector<GC::Ref<DOM::Node>, 32> parents;
+    auto append = [&](GC::Ref<DOM::Node> node) {
+        if (parents.is_empty())
+            top_level_nodes.append(node);
+        else
+            parents.last()->parser_append_child_without_insertion_steps(node);
+    };
+    auto success = FragmentScanner<CharT> { source }.parse(
+        [&](Utf16FlyString const& tag, ReadonlySpan<FragmentAttribute<CharT>> attributes, bool is_void) {
+            auto element = MUST(DOM::create_element(document, tag, Namespace::HTML, {}, {}, false, registry));
+            element->ensure_attribute_capacity(attributes.size());
+            for (auto const& attribute : attributes) {
+                Utf16FlyString local_name;
+                if constexpr (IsSame<CharT, char>)
+                    local_name = Utf16FlyString::from_utf8_without_validation({ attribute.name.data(), attribute.name.size() });
+                else
+                    local_name = Utf16FlyString::from_utf16({ attribute.name.data(), attribute.name.size() });
+                element->append_attribute(DOM::QualifiedName { move(local_name), {}, {} }, utf16_string_from_span(attribute.value));
+            }
+            auto& html_element = as<HTMLElement>(*element);
+            if (html_element.is_form_associated_element() && html_element.is_resettable())
+                html_element.reset_algorithm();
+            append(element);
+            if (!is_void)
+                parents.append(element);
+        },
+        [&] { parents.take_last(); },
+        [&](ReadonlySpan<CharT> text) {
+            append(DOM::Text::create(document, text_node_data_from_span(text)));
+        });
+    VERIFY(success);
+    return true;
 }
 
 bool HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& context, Utf16View input, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes)
@@ -1421,7 +1542,7 @@ bool HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& 
     //               Nothing can observe the skipped steps: the nodes are new, so no script, observer, live range or
     //               collection can reach them, and the children changed steps of a new element have nothing to update.
     VERIFY(top_level_nodes.is_empty());
-    if (context.namespace_uri() != Namespace::HTML || context.document().is_xml_document() || !input.has_ascii_storage())
+    if (context.namespace_uri() != Namespace::HTML || context.document().is_xml_document())
         return false;
     if (!context.local_name().is_one_of(TagNames::body, TagNames::div, TagNames::span, TagNames::ul, TagNames::ol,
             TagNames::li, TagNames::footer, TagNames::button, TagNames::label, TagNames::p))
@@ -1429,41 +1550,9 @@ bool HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& 
     if (context.first_ancestor_of_type<HTMLFormElement>())
         return false;
 
-    StringView source { input.ascii_span().data(), input.length_in_code_units() };
-    // Character references and input preprocessing use the general parser.
-    if (!FragmentScanner { source }.parse([](auto const&, auto, bool) { }, [] { }, [](auto) { }))
-        return false;
-
-    auto& document = context.document();
-    auto registry = look_up_a_custom_element_registry(context);
-    GC::RootVector<GC::Ref<DOM::Node>, 32> parents;
-    auto append = [&](GC::Ref<DOM::Node> node) {
-        if (parents.is_empty())
-            top_level_nodes.append(node);
-        else
-            parents.last()->parser_append_child_without_insertion_steps(node);
-    };
-    auto success = FragmentScanner { source }.parse(
-        [&](Utf16FlyString const& tag, ReadonlySpan<FragmentAttribute> attributes, bool is_void) {
-            auto element = MUST(DOM::create_element(document, tag, Namespace::HTML, {}, {}, false, registry));
-            element->ensure_attribute_capacity(attributes.size());
-            for (auto const& attribute : attributes) {
-                DOM::QualifiedName name { Utf16FlyString::from_utf8_without_validation(attribute.name), {}, {} };
-                element->append_attribute(move(name), Utf16String::from_utf8_without_validation(attribute.value));
-            }
-            auto& html_element = as<HTMLElement>(*element);
-            if (html_element.is_form_associated_element() && html_element.is_resettable())
-                html_element.reset_algorithm();
-            append(element);
-            if (!is_void)
-                parents.append(element);
-        },
-        [&] { parents.take_last(); },
-        [&](StringView text) {
-            append(DOM::Text::create(document, text_node_data_from_utf8(text)));
-        });
-    VERIFY(success);
-    return true;
+    if (input.has_ascii_storage())
+        return parse_fast_fragment_into_detached_nodes(context, ReadonlySpan<char> { input.ascii_span().data(), input.length_in_code_units() }, top_level_nodes);
+    return parse_fast_fragment_into_detached_nodes(context, input.utf16_span(), top_level_nodes);
 }
 
 GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Element& context, Utf16View input)
@@ -2591,7 +2680,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     if (parent_node.is_document())
         return;
 
-    auto data = text_node_data_from_utf8({ reinterpret_cast<char const*>(data_ptr), data_len });
+    auto data = text_node_data_from_span(ReadonlySpan<char> { reinterpret_cast<char const*>(data_ptr), data_len });
     if (auto* previous_text = as_if<DOM::Text>(insertion_location.previous_child())) {
         (void)previous_text->append_data(data);
         return;
