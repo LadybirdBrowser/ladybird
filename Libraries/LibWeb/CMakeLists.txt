@@ -1048,6 +1048,7 @@ set(SOURCES
     WebDriver/Screenshot.cpp
     WebDriver/UserPrompt.cpp
     WebGL/EventNames.cpp
+    WebGL/RemoteWebGLTransportFFI.cpp
     WebGL/Extensions/ANGLEInstancedArrays.cpp
     WebGL/Extensions/EXTBlendMinMax.cpp
     WebGL/Extensions/EXTColorBufferFloat.cpp

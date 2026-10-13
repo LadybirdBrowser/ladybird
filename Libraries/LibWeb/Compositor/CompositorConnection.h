@@ -81,7 +81,7 @@ public:
     void set_webgl_command_buffer(Compositing::CanvasId, Core::AnonymousBuffer const&);
     void send_webgl_commands_from_shared_buffer(Compositing::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     bool drain_webgl_command_buffer(Compositing::CanvasId);
-    void send_webgl_commands(Compositing::CanvasId, ByteBuffer const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
+    void send_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
     void clear_webgl_drawing_buffer(Compositing::CanvasId);
     ByteBuffer webgl_sync_call(Compositing::CanvasId, ByteBuffer request);

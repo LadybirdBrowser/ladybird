@@ -606,13 +606,13 @@ bool CompositorConnection::drain_webgl_command_buffer(Compositing::CanvasId canv
     return true;
 }
 
-void CompositorConnection::send_webgl_commands(Compositing::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+void CompositorConnection::send_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     if (!can_send_message_to_compositor())
         return;
 
     auto shared_commands = MUST(Core::AnonymousBuffer::create_with_size(commands.size()));
-    commands.bytes().copy_to({ shared_commands.data<u8>(), shared_commands.size() });
+    commands.copy_to({ shared_commands.data<u8>(), shared_commands.size() });
 
     auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommands::static_encode(canvas_id, shared_commands, bitmaps));
     if (post_message(encoded_message).is_error())

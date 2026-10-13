@@ -72,7 +72,7 @@ void WebGLContextProxyBase::record_bytes(WebGLCommandType type, ReadonlyBytes pa
         flush_commands();
         WebGLCommandList oversized_command_list;
         oversized_command_list.append_bytes(type, payload, inline_data);
-        m_transport->send_commands(oversized_command_list.buffer(), {});
+        m_transport->send_commands(oversized_command_list.bytes(), {});
         return;
     }
 
@@ -135,7 +135,7 @@ void WebGLContextProxyBase::flush_commands()
 
     if (m_out_of_line_commands.is_empty())
         return;
-    m_transport->send_commands(m_out_of_line_commands.buffer(), m_pending_bitmaps);
+    m_transport->send_commands(m_out_of_line_commands.bytes(), m_pending_bitmaps);
     m_out_of_line_commands.clear_with_capacity();
     m_pending_bitmaps.clear_with_capacity();
 }
