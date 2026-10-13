@@ -134,12 +134,8 @@ fn has_own_string_property(vm: &Vm, object: Gc<Object>, name: &Utf16FlyString) -
 
 /// `Object.prototype.hasOwnProperty` called on `object` with `key`.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM.
-pub unsafe extern "C" fn libjs_jit_has_own_property(vm: *const Vm, object: u64, key: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+pub extern "C" fn libjs_jit_has_own_property(vm: &Vm, object: u64, key: u64) -> u64 {
     let (object, key) = (Value(object), Value(key));
     if !object.is_object() || !has_ordinary_lookups(object.as_object()) {
         return Value::EMPTY.0;
@@ -162,12 +158,8 @@ pub unsafe extern "C" fn libjs_jit_has_own_property(vm: *const Vm, object: u64, 
 
 /// `key in object`.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM.
-pub unsafe extern "C" fn libjs_jit_has_property(vm: *const Vm, key: u64, object: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+pub extern "C" fn libjs_jit_has_property(vm: &Vm, key: u64, object: u64) -> u64 {
     let (key_value, object) = (Value(key), Value(object));
     let index_key = key_value.is_int32() && key_value.as_i32() >= 0;
     if !object.is_object() || !(key_value.is_string() || key_value.is_symbol() || index_key) {
@@ -219,12 +211,8 @@ pub unsafe extern "C" fn libjs_jit_has_property(vm: *const Vm, key: u64, object:
 /// have the method `next` (the builtin `%ArrayIteratorPrototype%.next` of the realm of JIT code, which it passes):
 /// a new array iterator over the values of the array, made like `%Array.prototype.values%` makes it.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM.
-pub unsafe extern "C" fn libjs_jit_create_array_iterator(vm: *const Vm, iterable: u64, next: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+pub extern "C" fn libjs_jit_create_array_iterator(vm: &Vm, iterable: u64, next: u64) -> u64 {
     let iterable = Value(iterable);
     if !iterable.is_object() {
         return Value::EMPTY.0;

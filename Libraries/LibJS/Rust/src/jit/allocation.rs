@@ -416,24 +416,14 @@ pub fn lexical_environment_templates(
 /// `Environment* libjs_jit_create_lexical_environment(VM*, Environment* parent, Executable*, u32 shape_cache, u32
 /// capacity)`: what CreateLexicalEnvironment without a catch environment creates, for JIT code.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM, a live parent environment and the executable of its frame.
-pub unsafe extern "C" fn libjs_jit_create_lexical_environment(
-    vm: *const Vm,
-    parent: *mut Environment,
-    executable: *mut Executable,
+pub extern "C" fn libjs_jit_create_lexical_environment(
+    vm: &Vm,
+    parent: Gc<Environment>,
+    executable: Gc<Executable>,
     shape_cache: u32,
     capacity: u32,
 ) -> *mut DeclarativeEnvironment {
-    // SAFETY: JIT code passes its VM and live cells.
-    let (vm, parent, executable) = unsafe {
-        (
-            &*vm,
-            Gc::from_non_null(NonNull::new_unchecked(parent)),
-            Gc::from_non_null(NonNull::new_unchecked(executable)),
-        )
-    };
     create_lexical_environment(
         vm,
         parent,
@@ -512,24 +502,16 @@ pub fn closure_template_snapshots(
 /// `Object* libjs_jit_allocate_object(VM*, Shape*, u32 reserve)`: a plain object of the shape, every named property
 /// undefined, with room for `reserve` properties inline if a size class has room for them.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM and a live shape.
-pub unsafe extern "C" fn libjs_jit_allocate_object(vm: *const Vm, shape: *mut Shape, reserve: u32) -> *mut Object {
-    // SAFETY: JIT code passes its VM and a shape it embeds.
-    let (vm, shape) = unsafe { (&*vm, Gc::from_non_null(NonNull::new_unchecked(shape))) };
+pub extern "C" fn libjs_jit_allocate_object(vm: &Vm, shape: Gc<Shape>, reserve: u32) -> *mut Object {
     Object::create_with_premade_shape_and_reserve(vm, shape, reserve).as_ptr()
 }
 
 /// `Array* libjs_jit_allocate_array(VM*, u32 count)`: an array of the running realm with `count` packed undefined
 /// elements.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM.
-pub unsafe extern "C" fn libjs_jit_allocate_array(vm: *const Vm, count: u32) -> *mut Array {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+pub extern "C" fn libjs_jit_allocate_array(vm: &Vm, count: u32) -> *mut Array {
     let realm = vm.current_realm().expect("JIT code runs in a realm");
     let array = Array::create(vm, realm, 0, None).must();
     array.set_indexed_property_elements_to_undefined(count);
@@ -539,26 +521,20 @@ pub unsafe extern "C" fn libjs_jit_allocate_array(vm: *const Vm, count: u32) -> 
 /// `ECMAScriptFunctionObject* libjs_jit_clone_function(VM*, ECMAScriptFunctionObject* sample, Environment*,
 /// PrivateEnvironment*)`: a closure like the sample of a closure template, with the given environments.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM, a sample it embeds and live environments (or null private environment).
-pub unsafe extern "C" fn libjs_jit_clone_function(
-    vm: *const Vm,
-    sample: *mut EcmascriptFunctionObject,
-    environment: *mut Environment,
-    private_environment: *mut PrivateEnvironment,
+pub extern "C" fn libjs_jit_clone_function(
+    vm: &Vm,
+    sample: Gc<EcmascriptFunctionObject>,
+    environment: Option<Gc<Environment>>,
+    private_environment: Option<Gc<PrivateEnvironment>>,
 ) -> *mut EcmascriptFunctionObject {
-    // SAFETY: JIT code passes its VM and live cells.
-    let (vm, sample) = unsafe { (&*vm, Gc::from_non_null(NonNull::new_unchecked(sample))) };
     let realm = sample.realm().expect("an ECMAScript function has a realm");
     let closure = EcmascriptFunctionObject::create_from_function_data_with_prototype(
         vm,
         realm,
         sample.shared_data.get(),
-        // SAFETY: JIT code passes live environments.
-        NonNull::new(environment).map(|environment| unsafe { Gc::from_non_null(environment) }),
-        // SAFETY: As above.
-        NonNull::new(private_environment).map(|environment| unsafe { Gc::from_non_null(environment) }),
+        environment,
+        private_environment,
         realm.function_prototype(),
     );
     closure.script_or_module.set(sample.script_or_module.get());
