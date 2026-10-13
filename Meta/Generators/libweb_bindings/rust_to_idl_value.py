@@ -21,6 +21,8 @@ from Generators.libweb_bindings.rust_types import FLOATING_POINT_TYPES
 from Generators.libweb_bindings.rust_types import INTEGER_TYPES
 from Generators.libweb_bindings.rust_types import TYPED_ARRAY_NAMES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
+from Generators.libweb_bindings.rust_types import cpp_interface
+from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
@@ -109,6 +111,9 @@ def rust_to_idl_value(
     interface = rust_interface(idl_type, context)
     if interface is not None:
         return f"to_interface::<{rust_interface_path(interface)}>(vm, {value})"
+    interface = cpp_interface(idl_type, context)
+    if interface is not None:
+        return f'to_cpp_interface(vm, {value}, {cpp_interface_name_constant(interface)}, "{interface.name}")'
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return f"<{rust_dictionary_path(dictionary, context)}>::from_js(vm, {value})"
@@ -148,6 +153,7 @@ class UnionMembers:
     string_type: Optional[IDLType] = None
     sequence_type: Optional[IDLParameterizedType] = None
     typed_array_types: List[IDLType] = field(default_factory=list)
+    cpp_interface_types: List[IDLType] = field(default_factory=list)
 
 
 def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, what: str) -> UnionMembers:
@@ -159,6 +165,8 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
             members.string_type = member_type
         elif member_type.name in TYPED_ARRAY_NAMES:
             members.typed_array_types.append(member_type)
+        elif cpp_interface(member_type, context) is not None:
+            members.cpp_interface_types.append(member_type)
         elif (
             isinstance(member_type, IDLParameterizedType)
             and member_type.name == "sequence"
@@ -323,7 +331,7 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
         dictionary_conversion = (
             f"Ok(Self::{rust_union_variant(dictionary_type)}(<{dictionary_path}>::from_js(vm, value)?))"
         )
-    if members.typed_array_types or members.sequence_type is not None:
+    if members.typed_array_types or members.sequence_type is not None or members.cpp_interface_types:
         if dictionary_conversion is not None:
             steps.append(
                 f"""            // 3. If V is null or undefined, then:
@@ -335,6 +343,19 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
 """
             )
         steps.append("            if value.is_object() {\n")
+        for interface_type in members.cpp_interface_types:
+            interface = context.interfaces[interface_type.name]
+            steps.append(
+                f"""                // 5. If V is a platform object, then:
+                //     1. If types includes an interface type that V implements, then return the IDL value that is a
+                //        reference to the object V.
+                if implements_cpp_interface(value.as_object(), {cpp_interface_name_constant(interface)}) {{
+                    // SAFETY: The object is a wrapper of an object that implements the interface.
+                    let object = unsafe {{ CppInterface::from_wrapper(value.as_object()) }};
+                    return Ok(Self::{rust_union_variant(interface_type)}(object));
+                }}
+"""
+            )
         for typed_array_type in members.typed_array_types:
             name = typed_array_type.name
             conversion = rust_to_idl_value(typed_array_type, {}, "value", "value", context, what)

@@ -41,6 +41,7 @@ from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_enumeration_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
+from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_promise_type
@@ -408,10 +409,10 @@ def write_rust_interface(
     }};
 
     use crate::bindings::conversions::{{
-        ArrayBufferView, BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js,
-        rooted_sequence_to_js, sequence_from_js, sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source,
-        to_dom_string, to_float, to_long, to_long_long, to_typed_array, to_unrestricted_double,
-        to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
+        ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
+        record_to_js, rooted_sequence_to_js, sequence_from_js, sequence_to_js, to_array_buffer_view, to_boolean,
+        to_buffer_source, to_cpp_interface, to_dom_string, to_float, to_long, to_long_long, to_typed_array,
+        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
         Inherits, Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
@@ -757,6 +758,28 @@ def write_rust_constructor(
     )
 
 
+def write_cpp_interface_names(out: TextIO, usage: DefinitionUsage, interface_name_values: Dict[str, int]) -> None:
+    """The values by which the bindings ask LibWeb whether an object implements an interface that it implements in
+    C++."""
+    if not usage.cpp_interfaces_named_by_rust:
+        return
+    out.write(
+        """
+/// Web::Bindings::InterfaceName of the interfaces that LibWeb implements in C++ and that the interfaces implemented in
+/// Rust name.
+pub(crate) mod cpp_interface_names {
+"""
+    )
+    for name, interface in sorted(usage.cpp_interfaces_named_by_rust.items()):
+        if name not in interface_name_values:
+            raise UnsupportedByRustBindings(
+                f"An interface implemented in Rust names {name}, which has no Web::Bindings::InterfaceName"
+            )
+        constant = cpp_interface_name_constant(interface).rpartition("::")[2]
+        out.write(f"    pub(crate) const {constant}: u16 = {interface_name_values[name]};\n")
+    out.write("}\n")
+
+
 def write_rust_definitions(out: TextIO, context: GenerationContext, usage: DefinitionUsage) -> None:
     """The conversions of the dictionaries and unions that the interfaces implemented in Rust name, each written once,
     whichever interfaces name it."""
@@ -778,12 +801,12 @@ pub(crate) mod definitions {
 
     use crate::bindings::CallContext;
     use crate::bindings::conversions::{
-        ArrayBufferView, BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString,
-        dictionary_member, dictionary_object, enumeration_value_to_js, iterator_method, record_to_js,
-        rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
-        throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source, to_dom_string,
-        to_enumeration_value, to_float, to_long, to_long_long, to_typed_array, to_unrestricted_double,
-        to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
+        ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
+        dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface, iterator_method,
+        record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
+        throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
+        to_dom_string, to_enumeration_value, to_float, to_long, to_long_long, to_typed_array,
+        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
     };
     use crate::bindings::interface::{Ref, create_dictionary_object, set_dictionary_member, to_interface};
 """
@@ -821,8 +844,9 @@ def write_rust_bindings(
 // The bindings of the interfaces that are implemented in Rust.
 """
     )
-    write_rust_definitions(out, context, usage)
     values = interface_name_values(intrinsics)
+    write_cpp_interface_names(out, usage, values)
+    write_rust_definitions(out, context, usage)
     for module in context.modules:
         interface = module.interface
         if interface is None or not is_implemented_in_rust(interface):

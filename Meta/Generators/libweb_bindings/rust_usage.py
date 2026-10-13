@@ -14,6 +14,7 @@ from typing import Set
 
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.rust_members import rust_members
+from Generators.libweb_bindings.rust_types import cpp_interface
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import runtime_union_type
@@ -77,6 +78,8 @@ class DefinitionUsage:
         self.rust_unions: Dict[IDLUnionType, ConversionDirections] = {}
         # The enumerations that the interfaces implemented in Rust name.
         self.rust_enumerations: Dict[str, ConversionDirections] = {}
+        # The interfaces that LibWeb implements in C++ and that the interfaces implemented in Rust name.
+        self.cpp_interfaces_named_by_rust: Dict[str, Interface] = {}
         # The dictionaries that have a C++ representation.
         self.cpp_dictionary_names: Set[str] = set()
         self._collect_rust_dictionaries()
@@ -120,6 +123,10 @@ class DefinitionUsage:
             return
         for child_type in idl_type.child_types():
             self._name_for_rust(child_type, from_js, to_js)
+        named_cpp_interface = cpp_interface(idl_type, self.context)
+        if named_cpp_interface is not None:
+            self.cpp_interfaces_named_by_rust[named_cpp_interface.name] = named_cpp_interface
+            return
         if idl_type.name in self.context.enumerations:
             directions = self.rust_enumerations.setdefault(idl_type.name, ConversionDirections())
             directions.from_js = directions.from_js or from_js
