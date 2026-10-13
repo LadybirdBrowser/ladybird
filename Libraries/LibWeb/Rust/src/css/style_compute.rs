@@ -42,7 +42,7 @@ include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
 /// The font metrics needed for font-relative length resolution, as unrounded
 /// CSS pixel values.
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct FfiFontMetrics {
     pub font_size: f64,
     pub x_height: f64,
@@ -72,6 +72,28 @@ pub struct FfiLengthResolutionContext {
     /// resolution here consumed viewport metrics. Callers that report the
     /// dependency through their return value may leave this null.
     pub resolved_viewport_relative_length: *mut bool,
+}
+
+/// A context with no viewport, font metrics or container basis, which tracks no viewport dependency.
+impl Default for FfiLengthResolutionContext {
+    fn default() -> Self {
+        Self {
+            viewport_width: 0.0,
+            viewport_height: 0.0,
+            font_metrics: FfiFontMetrics::default(),
+            root_font_metrics: FfiFontMetrics::default(),
+            font_metrics_depend_on_viewport_metrics: false,
+            root_font_metrics_depend_on_viewport_metrics: false,
+            has_container_width_basis: false,
+            has_container_height_basis: false,
+            container_width_basis: 0.0,
+            container_height_basis: 0.0,
+            container_width_basis_depends_on_viewport_metrics: false,
+            container_height_basis_depends_on_viewport_metrics: false,
+            subject_inline_axis_is_horizontal: false,
+            resolved_viewport_relative_length: std::ptr::null_mut(),
+        }
+    }
 }
 
 /// Records a viewport metric dependency on the context's tracking flag, if one is set.

@@ -191,7 +191,7 @@ mod tests {
         let units: Vec<_> = "@function --f() { result: 1px; }".encode_utf16().collect();
         let view = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
-        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let context = ParseContext::default();
         let parsed = unsafe { parse_shared_stylesheet(view, &context) };
         let rules = crate::css::rule::NativeRuleList::from_parsed(parsed);
         let media = MediaList::new(Default::default());

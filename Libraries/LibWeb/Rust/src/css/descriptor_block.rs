@@ -335,7 +335,7 @@ mod tests {
             .collect();
         let input = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
-        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let context = ParseContext::default();
         let parse = unsafe { parse_shared_stylesheet(input, &context) };
         let rules = crate::css::rule::NativeRuleList::from_parsed(parse);
         let rule = unsafe { &*rust_rule_list_at(&rules, 0) };

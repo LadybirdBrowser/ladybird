@@ -104,7 +104,7 @@ fn parse(property: u16, source: TokenizerInput<'_>) -> Option<std::sync::Arc<Sty
     use crate::css::parser::component_value::consume_a_list_of_component_values;
     let values = consume_a_list_of_component_values(tokenize_for_parser(source)).ok()?;
     // All fields are booleans, integers, or nullable pointers. Serialization has no document context.
-    let context: ParseContext = unsafe { std::mem::zeroed() };
+    let context = ParseContext::default();
     match parse_css_value(&context, property, &values) {
         ParseOutcome::Parsed(value) => Some(value),
         _ => None,

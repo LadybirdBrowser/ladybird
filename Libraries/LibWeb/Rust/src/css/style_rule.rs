@@ -62,7 +62,7 @@ mod tests {
         let units: Vec<_> = source.encode_utf16().collect();
         let source = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
-        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let context = ParseContext::default();
         let parsed = unsafe { parse_shared_stylesheet(source, &context) };
         crate::css::rule::NativeRuleList::from_parsed(parsed)
     }

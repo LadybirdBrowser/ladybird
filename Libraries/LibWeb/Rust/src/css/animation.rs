@@ -8175,7 +8175,7 @@ mod tests {
         let units: Vec<_> = source.encode_utf16().collect();
         let values = consume_a_list_of_component_values(tokenize_for_parser(TokenizerInput::Utf16(&units))).unwrap();
         // All fields are scalars or nullable pointers.
-        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let context = ParseContext::default();
         let ParseOutcome::Parsed(value) = parse_css_value(&context, property, &values) else {
             panic!("invalid test value {source}");
         };

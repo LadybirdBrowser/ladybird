@@ -663,7 +663,7 @@ mod tests {
     fn parse(source: &str) -> std::sync::Arc<ParsedStyleSheet> {
         let units: Vec<_> = source.encode_utf16().collect();
         // All fields are booleans, integers, or nullable pointers; zero is an empty parser context.
-        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let context = ParseContext::default();
         unsafe { parse_shared_stylesheet(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), &context) }
     }
 
