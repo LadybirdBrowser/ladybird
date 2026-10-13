@@ -1079,6 +1079,7 @@ impl RetainedState {
 
     /// Replace the ordered list of nodes a slot has assigned to it, text nodes included.
     pub fn set_slot_assigned_nodes(&mut self, slot: StyleNodeID, nodes: &[StyleNodeID]) {
+        self.counters.bump(Counter::SlotAssignedNodeListsPublished);
         self.tree.set_assigned_nodes(slot, nodes, &mut self.memory);
     }
 

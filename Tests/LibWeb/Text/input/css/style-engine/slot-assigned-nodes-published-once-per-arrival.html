@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        host.attachShadow({ mode: "open" }).innerHTML = "<slot></slot>";
+        internals.updateStyle();
+        const before = internals.styleEngineCounters().slotAssignedNodeListsPublished;
+        for (let i = 0; i < 20; ++i)
+            host.append(" ", document.createElement("span"));
+        internals.updateStyle();
+        const after = internals.styleEngineCounters().slotAssignedNodeListsPublished;
+        println(`slot lists published: ${after - before}`);
+    });
+</script>
