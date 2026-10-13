@@ -772,7 +772,6 @@ pub extern "C" fn render_state_node_is_partial_relayout_boundary(
     host: &crate::render_state::DocumentHost,
     node: NodeSlotId,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     super::shell_reads::read_arena(host, node_read(), node, |arena, node| {
         arena.node_is_partial_relayout_boundary(node)
     })

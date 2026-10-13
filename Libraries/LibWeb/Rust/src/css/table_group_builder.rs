@@ -1286,27 +1286,25 @@ fn build_transform_group(
     let perspective_origin_x = position_offset(edge_x);
     let perspective_origin_y = position_offset(edge_y);
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::TRANSFORM,
-            &entries,
-            |payload: &mut TransformValues| {
-                payload.transformations = transform_list;
-                payload.resolved_transforms = RetainedComputedResolvedTransformList::from_vec(resolved);
-                payload.transform_origin_x = transform_origin_x;
-                payload.transform_origin_y = transform_origin_y;
-                payload.transform_origin_z = transform_origin_z;
-                payload.rotate = rotate;
-                payload.translate = translate;
-                payload.scale = scale;
-                payload.has_perspective = has_perspective;
-                payload.perspective_px = perspective_px;
-                payload.perspective_origin_x = perspective_origin_x;
-                payload.perspective_origin_y = perspective_origin_y;
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::TRANSFORM,
+        &entries,
+        |payload: &mut TransformValues| {
+            payload.transformations = transform_list;
+            payload.resolved_transforms = RetainedComputedResolvedTransformList::from_vec(resolved);
+            payload.transform_origin_x = transform_origin_x;
+            payload.transform_origin_y = transform_origin_y;
+            payload.transform_origin_z = transform_origin_z;
+            payload.rotate = rotate;
+            payload.translate = translate;
+            payload.scale = scale;
+            payload.has_perspective = has_perspective;
+            payload.perspective_px = perspective_px;
+            payload.perspective_origin_x = perspective_origin_x;
+            payload.perspective_origin_y = perspective_origin_y;
+        },
+        parent,
+    )
 }
 
 /// The shared prefix of every color style value variant.
@@ -1578,33 +1576,29 @@ fn build_effects_group(
         filter_list: backdrop_list,
         operations: RetainedComputedFilterOperationList::from_vec(backdrop_operations),
     };
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::EFFECTS,
-            &entries,
-            |payload: &mut EffectsValues| {
-                payload.filter = filter;
-                payload.backdrop_filter = backdrop_filter;
-                payload.box_shadows = RetainedComputedShadowList::from_vec(shadows);
-                payload.clip_is_rect = clip_is_rect;
-                payload.clip_edges = clip_edges;
-                payload.opacity_style_value =
-                    ComputedStyleValueHandle::from_retained(values.handle(property_id::OPACITY));
-                payload.filter_style_value =
-                    ComputedStyleValueHandle::from_retained(values.handle(property_id::FILTER));
-                payload.backdrop_filter_style_value =
-                    ComputedStyleValueHandle::from_retained(values.handle(property_id::BACKDROP_FILTER));
-                payload.mix_blend_mode_style_value =
-                    ComputedStyleValueHandle::from_retained(values.handle(property_id::MIX_BLEND_MODE));
-                payload.isolation_style_value =
-                    ComputedStyleValueHandle::from_retained(values.handle(property_id::ISOLATION));
-                payload.box_shadow_style_value =
-                    ComputedStyleValueHandle::from_retained(values.handle(property_id::BOX_SHADOW));
-                payload.clip_style_value = ComputedStyleValueHandle::from_retained(values.handle(property_id::CLIP));
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::EFFECTS,
+        &entries,
+        |payload: &mut EffectsValues| {
+            payload.filter = filter;
+            payload.backdrop_filter = backdrop_filter;
+            payload.box_shadows = RetainedComputedShadowList::from_vec(shadows);
+            payload.clip_is_rect = clip_is_rect;
+            payload.clip_edges = clip_edges;
+            payload.opacity_style_value = ComputedStyleValueHandle::from_retained(values.handle(property_id::OPACITY));
+            payload.filter_style_value = ComputedStyleValueHandle::from_retained(values.handle(property_id::FILTER));
+            payload.backdrop_filter_style_value =
+                ComputedStyleValueHandle::from_retained(values.handle(property_id::BACKDROP_FILTER));
+            payload.mix_blend_mode_style_value =
+                ComputedStyleValueHandle::from_retained(values.handle(property_id::MIX_BLEND_MODE));
+            payload.isolation_style_value =
+                ComputedStyleValueHandle::from_retained(values.handle(property_id::ISOLATION));
+            payload.box_shadow_style_value =
+                ComputedStyleValueHandle::from_retained(values.handle(property_id::BOX_SHADOW));
+            payload.clip_style_value = ComputedStyleValueHandle::from_retained(values.handle(property_id::CLIP));
+        },
+        parent,
+    )
 }
 
 // --- Border lowering -------------------------------------------------------
@@ -1668,27 +1662,25 @@ fn build_background_group(
         .and_then(crate::css::css_enums::keyword_to_background_box)
         .expect("a computed background-clip keyword maps to its enum");
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::BACKGROUND,
-            &entries,
-            |payload: &mut BackgroundValues| {
-                payload.background_color = background_color;
-                payload.background_color_style_value = retained(property_id::BACKGROUND_COLOR);
-                payload.background_color_clip = background_color_clip;
-                payload.background_image = retained(property_id::BACKGROUND_IMAGE);
-                payload.background_attachment = retained(property_id::BACKGROUND_ATTACHMENT);
-                payload.background_blend_mode = retained(property_id::BACKGROUND_BLEND_MODE);
-                payload.background_clip = retained(property_id::BACKGROUND_CLIP);
-                payload.background_origin = retained(property_id::BACKGROUND_ORIGIN);
-                payload.background_position_x = retained(property_id::BACKGROUND_POSITION_X);
-                payload.background_position_y = retained(property_id::BACKGROUND_POSITION_Y);
-                payload.background_repeat = retained(property_id::BACKGROUND_REPEAT);
-                payload.background_size = retained(property_id::BACKGROUND_SIZE);
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::BACKGROUND,
+        &entries,
+        |payload: &mut BackgroundValues| {
+            payload.background_color = background_color;
+            payload.background_color_style_value = retained(property_id::BACKGROUND_COLOR);
+            payload.background_color_clip = background_color_clip;
+            payload.background_image = retained(property_id::BACKGROUND_IMAGE);
+            payload.background_attachment = retained(property_id::BACKGROUND_ATTACHMENT);
+            payload.background_blend_mode = retained(property_id::BACKGROUND_BLEND_MODE);
+            payload.background_clip = retained(property_id::BACKGROUND_CLIP);
+            payload.background_origin = retained(property_id::BACKGROUND_ORIGIN);
+            payload.background_position_x = retained(property_id::BACKGROUND_POSITION_X);
+            payload.background_position_y = retained(property_id::BACKGROUND_POSITION_Y);
+            payload.background_repeat = retained(property_id::BACKGROUND_REPEAT);
+            payload.background_size = retained(property_id::BACKGROUND_SIZE);
+        },
+        parent,
+    )
 }
 
 /// Builds the mask group from retained canonical computed values.
@@ -1702,25 +1694,23 @@ fn build_mask_group(
         return std::ptr::null();
     };
     let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::MASK,
-            &entries,
-            |payload: &mut MaskValues| {
-                payload.mask_image = retained(property_id::MASK_IMAGE);
-                payload.mask_type = retained(property_id::MASK_TYPE);
-                payload.clip_path = retained(property_id::CLIP_PATH);
-                payload.mask_mode = retained(property_id::MASK_MODE);
-                payload.mask_repeat = retained(property_id::MASK_REPEAT);
-                payload.mask_position = retained(property_id::MASK_POSITION);
-                payload.mask_clip = retained(property_id::MASK_CLIP);
-                payload.mask_origin = retained(property_id::MASK_ORIGIN);
-                payload.mask_size = retained(property_id::MASK_SIZE);
-                payload.mask_composite = retained(property_id::MASK_COMPOSITE);
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::MASK,
+        &entries,
+        |payload: &mut MaskValues| {
+            payload.mask_image = retained(property_id::MASK_IMAGE);
+            payload.mask_type = retained(property_id::MASK_TYPE);
+            payload.clip_path = retained(property_id::CLIP_PATH);
+            payload.mask_mode = retained(property_id::MASK_MODE);
+            payload.mask_repeat = retained(property_id::MASK_REPEAT);
+            payload.mask_position = retained(property_id::MASK_POSITION);
+            payload.mask_clip = retained(property_id::MASK_CLIP);
+            payload.mask_origin = retained(property_id::MASK_ORIGIN);
+            payload.mask_size = retained(property_id::MASK_SIZE);
+            payload.mask_composite = retained(property_id::MASK_COMPOSITE);
+        },
+        parent,
+    )
 }
 
 /// Builds the border group from layout-facing side facts and retained
@@ -1778,69 +1768,67 @@ fn build_border_group(
         }
     };
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::BORDER,
-            &entries,
-            |payload: &mut BorderValues| {
-                payload.border_left = side(
-                    property_id::BORDER_LEFT_STYLE,
-                    property_id::BORDER_LEFT_WIDTH,
-                    property_id::BORDER_LEFT_COLOR,
-                );
-                payload.border_top = side(
-                    property_id::BORDER_TOP_STYLE,
-                    property_id::BORDER_TOP_WIDTH,
-                    property_id::BORDER_TOP_COLOR,
-                );
-                payload.border_right = side(
-                    property_id::BORDER_RIGHT_STYLE,
-                    property_id::BORDER_RIGHT_WIDTH,
-                    property_id::BORDER_RIGHT_COLOR,
-                );
-                payload.border_bottom = side(
-                    property_id::BORDER_BOTTOM_STYLE,
-                    property_id::BORDER_BOTTOM_WIDTH,
-                    property_id::BORDER_BOTTOM_COLOR,
-                );
-                payload.border_left_color_style_value = retained(property_id::BORDER_LEFT_COLOR);
-                payload.border_top_color_style_value = retained(property_id::BORDER_TOP_COLOR);
-                payload.border_right_color_style_value = retained(property_id::BORDER_RIGHT_COLOR);
-                payload.border_bottom_color_style_value = retained(property_id::BORDER_BOTTOM_COLOR);
-                payload.border_left_computed_width = length_to_css_pixels(
-                    values
-                        .value(property_id::BORDER_LEFT_WIDTH)
-                        .expect("border-left-width has a computed value"),
-                );
-                payload.border_top_computed_width = length_to_css_pixels(
-                    values
-                        .value(property_id::BORDER_TOP_WIDTH)
-                        .expect("border-top-width has a computed value"),
-                );
-                payload.border_right_computed_width = length_to_css_pixels(
-                    values
-                        .value(property_id::BORDER_RIGHT_WIDTH)
-                        .expect("border-right-width has a computed value"),
-                );
-                payload.border_bottom_computed_width = length_to_css_pixels(
-                    values
-                        .value(property_id::BORDER_BOTTOM_WIDTH)
-                        .expect("border-bottom-width has a computed value"),
-                );
-                payload.border_bottom_left_radius = retained(property_id::BORDER_BOTTOM_LEFT_RADIUS);
-                payload.border_bottom_right_radius = retained(property_id::BORDER_BOTTOM_RIGHT_RADIUS);
-                payload.border_top_left_radius = retained(property_id::BORDER_TOP_LEFT_RADIUS);
-                payload.border_top_right_radius = retained(property_id::BORDER_TOP_RIGHT_RADIUS);
-                payload.has_noninitial_border_radii = has_noninitial_border_radii;
-                payload.border_image_source = retained(property_id::BORDER_IMAGE_SOURCE);
-                payload.border_image_slice = retained(property_id::BORDER_IMAGE_SLICE);
-                payload.border_image_width = retained(property_id::BORDER_IMAGE_WIDTH);
-                payload.border_image_outset = retained(property_id::BORDER_IMAGE_OUTSET);
-                payload.border_image_repeat = retained(property_id::BORDER_IMAGE_REPEAT);
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::BORDER,
+        &entries,
+        |payload: &mut BorderValues| {
+            payload.border_left = side(
+                property_id::BORDER_LEFT_STYLE,
+                property_id::BORDER_LEFT_WIDTH,
+                property_id::BORDER_LEFT_COLOR,
+            );
+            payload.border_top = side(
+                property_id::BORDER_TOP_STYLE,
+                property_id::BORDER_TOP_WIDTH,
+                property_id::BORDER_TOP_COLOR,
+            );
+            payload.border_right = side(
+                property_id::BORDER_RIGHT_STYLE,
+                property_id::BORDER_RIGHT_WIDTH,
+                property_id::BORDER_RIGHT_COLOR,
+            );
+            payload.border_bottom = side(
+                property_id::BORDER_BOTTOM_STYLE,
+                property_id::BORDER_BOTTOM_WIDTH,
+                property_id::BORDER_BOTTOM_COLOR,
+            );
+            payload.border_left_color_style_value = retained(property_id::BORDER_LEFT_COLOR);
+            payload.border_top_color_style_value = retained(property_id::BORDER_TOP_COLOR);
+            payload.border_right_color_style_value = retained(property_id::BORDER_RIGHT_COLOR);
+            payload.border_bottom_color_style_value = retained(property_id::BORDER_BOTTOM_COLOR);
+            payload.border_left_computed_width = length_to_css_pixels(
+                values
+                    .value(property_id::BORDER_LEFT_WIDTH)
+                    .expect("border-left-width has a computed value"),
+            );
+            payload.border_top_computed_width = length_to_css_pixels(
+                values
+                    .value(property_id::BORDER_TOP_WIDTH)
+                    .expect("border-top-width has a computed value"),
+            );
+            payload.border_right_computed_width = length_to_css_pixels(
+                values
+                    .value(property_id::BORDER_RIGHT_WIDTH)
+                    .expect("border-right-width has a computed value"),
+            );
+            payload.border_bottom_computed_width = length_to_css_pixels(
+                values
+                    .value(property_id::BORDER_BOTTOM_WIDTH)
+                    .expect("border-bottom-width has a computed value"),
+            );
+            payload.border_bottom_left_radius = retained(property_id::BORDER_BOTTOM_LEFT_RADIUS);
+            payload.border_bottom_right_radius = retained(property_id::BORDER_BOTTOM_RIGHT_RADIUS);
+            payload.border_top_left_radius = retained(property_id::BORDER_TOP_LEFT_RADIUS);
+            payload.border_top_right_radius = retained(property_id::BORDER_TOP_RIGHT_RADIUS);
+            payload.has_noninitial_border_radii = has_noninitial_border_radii;
+            payload.border_image_source = retained(property_id::BORDER_IMAGE_SOURCE);
+            payload.border_image_slice = retained(property_id::BORDER_IMAGE_SLICE);
+            payload.border_image_width = retained(property_id::BORDER_IMAGE_WIDTH);
+            payload.border_image_outset = retained(property_id::BORDER_IMAGE_OUTSET);
+            payload.border_image_repeat = retained(property_id::BORDER_IMAGE_REPEAT);
+        },
+        parent,
+    )
 }
 
 // --- SVG, list and content lowering -----------------------------------------
@@ -1987,26 +1975,23 @@ fn build_inherited_svg_group(
         .and_then(keyword_of)
         .and_then(crate::css::css_enums::keyword_to_baseline_metric);
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::INHERITED_SVG,
-            &entries,
-            |payload: &mut InheritedSVGValues| {
-                payload.fill = lower_svg_paint(values, property_id::FILL, input);
-                payload.stroke = lower_svg_paint(values, property_id::STROKE, input);
-                payload.stroke_dasharray = RetainedComputedSvgDashList::from_vec(dashes);
-                payload.stroke_dashoffset =
-                    lower_svg_length_percentage_or_number(values, property_id::STROKE_DASHOFFSET);
-                payload.stroke_width = lower_svg_length_percentage_or_number(values, property_id::STROKE_WIDTH);
-                payload.paint_order = order;
-                payload.paint_order_serialization_length = serialization_length;
-                payload.paint_order_is_normal = is_normal;
-                payload.has_dominant_baseline = dominant_baseline.is_some();
-                payload.dominant_baseline = dominant_baseline.unwrap_or(0);
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::INHERITED_SVG,
+        &entries,
+        |payload: &mut InheritedSVGValues| {
+            payload.fill = lower_svg_paint(values, property_id::FILL, input);
+            payload.stroke = lower_svg_paint(values, property_id::STROKE, input);
+            payload.stroke_dasharray = RetainedComputedSvgDashList::from_vec(dashes);
+            payload.stroke_dashoffset = lower_svg_length_percentage_or_number(values, property_id::STROKE_DASHOFFSET);
+            payload.stroke_width = lower_svg_length_percentage_or_number(values, property_id::STROKE_WIDTH);
+            payload.paint_order = order;
+            payload.paint_order_serialization_length = serialization_length;
+            payload.paint_order_is_normal = is_normal;
+            payload.has_dominant_baseline = dominant_baseline.is_some();
+            payload.dominant_baseline = dominant_baseline.unwrap_or(0);
+        },
+        parent,
+    )
 }
 
 /// Builds the inherited list group from canonical values without leaving
@@ -2025,24 +2010,22 @@ fn build_inherited_list_group(
         return std::ptr::null();
     };
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::INHERITED_LIST,
-            &entries,
-            |payload: &mut InheritedListValues| {
-                let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
-                payload.list_style_type = retained(property_id::LIST_STYLE_TYPE);
-                payload.list_style_position = values
-                    .value(property_id::LIST_STYLE_POSITION)
-                    .and_then(keyword_of)
-                    .and_then(crate::css::css_enums::keyword_to_list_style_position)
-                    .expect("a computed list-style-position maps to its enum");
-                payload.list_style_image = retained(property_id::LIST_STYLE_IMAGE);
-                payload.quotes = retained(property_id::QUOTES);
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::INHERITED_LIST,
+        &entries,
+        |payload: &mut InheritedListValues| {
+            let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
+            payload.list_style_type = retained(property_id::LIST_STYLE_TYPE);
+            payload.list_style_position = values
+                .value(property_id::LIST_STYLE_POSITION)
+                .and_then(keyword_of)
+                .and_then(crate::css::css_enums::keyword_to_list_style_position)
+                .expect("a computed list-style-position maps to its enum");
+            payload.list_style_image = retained(property_id::LIST_STYLE_IMAGE);
+            payload.quotes = retained(property_id::QUOTES);
+        },
+        parent,
+    )
 }
 
 /// Builds the content group from its canonical values without leaving Rust.
@@ -2060,20 +2043,18 @@ fn build_content_group(
         return std::ptr::null();
     };
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::CONTENT,
-            &entries,
-            |payload: &mut ContentValues| {
-                let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
-                payload.content = retained(property_id::CONTENT);
-                payload.counter_increment = retained(property_id::COUNTER_INCREMENT);
-                payload.counter_reset = retained(property_id::COUNTER_RESET);
-                payload.counter_set = retained(property_id::COUNTER_SET);
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::CONTENT,
+        &entries,
+        |payload: &mut ContentValues| {
+            let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
+            payload.content = retained(property_id::CONTENT);
+            payload.counter_increment = retained(property_id::COUNTER_INCREMENT);
+            payload.counter_reset = retained(property_id::COUNTER_RESET);
+            payload.counter_set = retained(property_id::COUNTER_SET);
+        },
+        parent,
+    )
 }
 
 // --- Inherited UI, inherited text and misc lowering -------------------------
@@ -2167,21 +2148,19 @@ fn build_inherited_ui_group(
         schemes.as_slice().iter().map(|name| name.to_fly_string()).collect(),
     );
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::INHERITED_UI,
-            &entries,
-            |payload: &mut InheritedUIValues| {
-                payload.caret_color = caret_color;
-                payload.accent_color = accent_color;
-                payload.cursor = RetainedComputedCursorList::from_vec(cursors);
-                payload.scrollbar_color = scrollbar_color;
-                payload.color_schemes = color_schemes;
-                payload.color_scheme_only = *only;
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::INHERITED_UI,
+        &entries,
+        |payload: &mut InheritedUIValues| {
+            payload.caret_color = caret_color;
+            payload.accent_color = accent_color;
+            payload.cursor = RetainedComputedCursorList::from_vec(cursors);
+            payload.scrollbar_color = scrollbar_color;
+            payload.color_schemes = color_schemes;
+            payload.color_scheme_only = *only;
+        },
+        parent,
+    )
 }
 
 /// Resolves a computed length-percentage against the element's font size.
@@ -2270,39 +2249,37 @@ fn build_inherited_text_group(
         font_relative_length_to_css_pixels(underline_offset_data, input)
     };
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::INHERITED_TEXT,
-            &entries,
-            |payload: &mut InheritedTextValues| {
-                payload.text_shadow = RetainedComputedShadowList::from_vec(text_shadows);
-                payload.text_underline_position = ComputedTextUnderlinePosition {
-                    horizontal: *horizontal,
-                    vertical: *vertical,
-                };
-                payload.text_underline_offset = ComputedTextUnderlineOffset {
-                    used_value: underline_offset_used,
-                    is_auto: underline_offset_is_auto,
-                    value: if underline_offset_is_auto {
-                        ComputedStyleValueHandle::empty()
-                    } else {
-                        ComputedStyleValueHandle::from_retained(values.handle(property_id::TEXT_UNDERLINE_OFFSET))
-                    },
-                };
-                payload.text_indent = ComputedTextIndent {
-                    length_percentage: ComputedStyleValueHandle::from_retained(length_percentage),
-                    each_line: *each_line,
-                    hanging: *hanging,
-                };
-                payload.tab_size_is_number = tab_size_is_number;
-                payload.tab_size_number = tab_size_number;
-                payload.tab_size_length = CssPixels::from_raw(tab_size_px);
-                payload.word_spacing = word_spacing;
-                payload.letter_spacing = letter_spacing;
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::INHERITED_TEXT,
+        &entries,
+        |payload: &mut InheritedTextValues| {
+            payload.text_shadow = RetainedComputedShadowList::from_vec(text_shadows);
+            payload.text_underline_position = ComputedTextUnderlinePosition {
+                horizontal: *horizontal,
+                vertical: *vertical,
+            };
+            payload.text_underline_offset = ComputedTextUnderlineOffset {
+                used_value: underline_offset_used,
+                is_auto: underline_offset_is_auto,
+                value: if underline_offset_is_auto {
+                    ComputedStyleValueHandle::empty()
+                } else {
+                    ComputedStyleValueHandle::from_retained(values.handle(property_id::TEXT_UNDERLINE_OFFSET))
+                },
+            };
+            payload.text_indent = ComputedTextIndent {
+                length_percentage: ComputedStyleValueHandle::from_retained(length_percentage),
+                each_line: *each_line,
+                hanging: *hanging,
+            };
+            payload.tab_size_is_number = tab_size_is_number;
+            payload.tab_size_number = tab_size_number;
+            payload.tab_size_length = CssPixels::from_raw(tab_size_px);
+            payload.word_spacing = word_spacing;
+            payload.letter_spacing = letter_spacing;
+        },
+        parent,
+    )
 }
 
 /// Builds the misc reset group entirely from Rust-owned canonical values.
@@ -2460,54 +2437,52 @@ fn build_misc_reset_group(
         .expect("a computed outline-color resolves in the Rust color context"),
     );
 
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::MISC_RESET,
-            &entries,
-            |payload: &mut MiscResetValues| {
-                let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
-                payload.outline_offset_style_value = retained(property_id::OUTLINE_OFFSET);
-                payload.outline_offset = outline_offset;
-                payload.scroll_margin = ComputedLengthBox::from_data(
-                    values.handle(property_id::SCROLL_MARGIN_TOP),
-                    values.handle(property_id::SCROLL_MARGIN_RIGHT),
-                    values.handle(property_id::SCROLL_MARGIN_BOTTOM),
-                    values.handle(property_id::SCROLL_MARGIN_LEFT),
-                    false,
-                );
-                payload.scroll_padding = ComputedLengthBox::from_data(
-                    values.handle(property_id::SCROLL_PADDING_TOP),
-                    values.handle(property_id::SCROLL_PADDING_RIGHT),
-                    values.handle(property_id::SCROLL_PADDING_BOTTOM),
-                    values.handle(property_id::SCROLL_PADDING_LEFT),
-                    true,
-                );
-                payload.overflow_clip_margin = ComputedOverflowClipMargin {
-                    left: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_LEFT),
-                    top: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_TOP),
-                    right: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_RIGHT),
-                    bottom: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_BOTTOM),
-                };
-                payload.appearance = normalized_appearance;
-                payload.computed_appearance = computed_appearance;
-                payload.column_height = ComputedSize::from_data(values.handle(property_id::COLUMN_HEIGHT));
-                payload.outline_color = outline_color;
-                payload.object_position_x = position_offset(edge_x);
-                payload.object_position_y = position_offset(edge_y);
-                payload.view_transition_name = retained(property_id::VIEW_TRANSITION_NAME);
-                payload.scroll_snap_align_block = scroll_snap_align_block;
-                payload.scroll_snap_align_inline = scroll_snap_align_inline;
-                payload.scroll_snap_axis = scroll_snap_axis;
-                payload.scroll_snap_strictness = scroll_snap_strictness;
-                payload.scrollbar_gutter = *scrollbar_gutter;
-                payload.shape_margin = retained(property_id::SHAPE_MARGIN);
-                payload.shape_outside = retained(property_id::SHAPE_OUTSIDE);
-                payload.will_change = retained(property_id::WILL_CHANGE);
-                payload.implicit_will_change = RetainedWillChangePropertyList::from_vec(implicit_will_change.to_vec());
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::MISC_RESET,
+        &entries,
+        |payload: &mut MiscResetValues| {
+            let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
+            payload.outline_offset_style_value = retained(property_id::OUTLINE_OFFSET);
+            payload.outline_offset = outline_offset;
+            payload.scroll_margin = ComputedLengthBox::from_data(
+                values.handle(property_id::SCROLL_MARGIN_TOP),
+                values.handle(property_id::SCROLL_MARGIN_RIGHT),
+                values.handle(property_id::SCROLL_MARGIN_BOTTOM),
+                values.handle(property_id::SCROLL_MARGIN_LEFT),
+                false,
+            );
+            payload.scroll_padding = ComputedLengthBox::from_data(
+                values.handle(property_id::SCROLL_PADDING_TOP),
+                values.handle(property_id::SCROLL_PADDING_RIGHT),
+                values.handle(property_id::SCROLL_PADDING_BOTTOM),
+                values.handle(property_id::SCROLL_PADDING_LEFT),
+                true,
+            );
+            payload.overflow_clip_margin = ComputedOverflowClipMargin {
+                left: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_LEFT),
+                top: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_TOP),
+                right: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_RIGHT),
+                bottom: overflow_clip_margin_side(property_id::OVERFLOW_CLIP_MARGIN_BOTTOM),
+            };
+            payload.appearance = normalized_appearance;
+            payload.computed_appearance = computed_appearance;
+            payload.column_height = ComputedSize::from_data(values.handle(property_id::COLUMN_HEIGHT));
+            payload.outline_color = outline_color;
+            payload.object_position_x = position_offset(edge_x);
+            payload.object_position_y = position_offset(edge_y);
+            payload.view_transition_name = retained(property_id::VIEW_TRANSITION_NAME);
+            payload.scroll_snap_align_block = scroll_snap_align_block;
+            payload.scroll_snap_align_inline = scroll_snap_align_inline;
+            payload.scroll_snap_axis = scroll_snap_axis;
+            payload.scroll_snap_strictness = scroll_snap_strictness;
+            payload.scrollbar_gutter = *scrollbar_gutter;
+            payload.shape_margin = retained(property_id::SHAPE_MARGIN);
+            payload.shape_outside = retained(property_id::SHAPE_OUTSIDE);
+            payload.will_change = retained(property_id::WILL_CHANGE);
+            payload.implicit_will_change = RetainedWillChangePropertyList::from_vec(implicit_will_change.to_vec());
+        },
+        parent,
+    )
 }
 
 /// The C++ StyleValueList::Separator::Comma discriminant, static-asserted in
@@ -3169,39 +3144,36 @@ fn build_animation_group(
         };
         matches!(item.data(), StyleValueData::Time { value, .. } if *value == 0.0)
     };
-    {
-        crate::css::computed_values::build_group_payload_with_rust_fill(
-            group_index::ANIMATION,
-            &entries,
-            |payload: &mut AnimationValues| {
-                payload.animation_name = retained(property_id::ANIMATION_NAME);
-                payload.animation_composition = retained(property_id::ANIMATION_COMPOSITION);
-                payload.animation_delay = retained(property_id::ANIMATION_DELAY);
-                payload.animation_direction = retained(property_id::ANIMATION_DIRECTION);
-                payload.animation_duration = retained(property_id::ANIMATION_DURATION);
-                payload.animation_fill_mode = retained(property_id::ANIMATION_FILL_MODE);
-                payload.animation_iteration_count = retained(property_id::ANIMATION_ITERATION_COUNT);
-                payload.animation_play_state = retained(property_id::ANIMATION_PLAY_STATE);
-                payload.animation_timeline = retained(property_id::ANIMATION_TIMELINE);
-                payload.animation_timing_function = retained(property_id::ANIMATION_TIMING_FUNCTION);
-                payload.scroll_timeline_name = retained(property_id::SCROLL_TIMELINE_NAME);
-                payload.scroll_timeline_axis = retained(property_id::SCROLL_TIMELINE_AXIS);
-                payload.timeline_scope = retained(property_id::TIMELINE_SCOPE);
-                payload.view_timeline_name = retained(property_id::VIEW_TIMELINE_NAME);
-                payload.view_timeline_axis = retained(property_id::VIEW_TIMELINE_AXIS);
-                payload.view_timeline_inset = retained(property_id::VIEW_TIMELINE_INSET);
-                payload.transition_property = retained(property_id::TRANSITION_PROPERTY);
-                payload.transition_duration = retained(property_id::TRANSITION_DURATION);
-                payload.transition_timing_function = retained(property_id::TRANSITION_TIMING_FUNCTION);
-                payload.transition_delay = retained(property_id::TRANSITION_DELAY);
-                payload.transition_behavior = retained(property_id::TRANSITION_BEHAVIOR);
-                payload.transition_delay_and_duration_are_single_zero =
-                    is_single_zero_time(property_id::TRANSITION_DELAY)
-                        && is_single_zero_time(property_id::TRANSITION_DURATION);
-            },
-            parent,
-        )
-    }
+    crate::css::computed_values::build_group_payload_with_rust_fill(
+        group_index::ANIMATION,
+        &entries,
+        |payload: &mut AnimationValues| {
+            payload.animation_name = retained(property_id::ANIMATION_NAME);
+            payload.animation_composition = retained(property_id::ANIMATION_COMPOSITION);
+            payload.animation_delay = retained(property_id::ANIMATION_DELAY);
+            payload.animation_direction = retained(property_id::ANIMATION_DIRECTION);
+            payload.animation_duration = retained(property_id::ANIMATION_DURATION);
+            payload.animation_fill_mode = retained(property_id::ANIMATION_FILL_MODE);
+            payload.animation_iteration_count = retained(property_id::ANIMATION_ITERATION_COUNT);
+            payload.animation_play_state = retained(property_id::ANIMATION_PLAY_STATE);
+            payload.animation_timeline = retained(property_id::ANIMATION_TIMELINE);
+            payload.animation_timing_function = retained(property_id::ANIMATION_TIMING_FUNCTION);
+            payload.scroll_timeline_name = retained(property_id::SCROLL_TIMELINE_NAME);
+            payload.scroll_timeline_axis = retained(property_id::SCROLL_TIMELINE_AXIS);
+            payload.timeline_scope = retained(property_id::TIMELINE_SCOPE);
+            payload.view_timeline_name = retained(property_id::VIEW_TIMELINE_NAME);
+            payload.view_timeline_axis = retained(property_id::VIEW_TIMELINE_AXIS);
+            payload.view_timeline_inset = retained(property_id::VIEW_TIMELINE_INSET);
+            payload.transition_property = retained(property_id::TRANSITION_PROPERTY);
+            payload.transition_duration = retained(property_id::TRANSITION_DURATION);
+            payload.transition_timing_function = retained(property_id::TRANSITION_TIMING_FUNCTION);
+            payload.transition_delay = retained(property_id::TRANSITION_DELAY);
+            payload.transition_behavior = retained(property_id::TRANSITION_BEHAVIOR);
+            payload.transition_delay_and_duration_are_single_zero = is_single_zero_time(property_id::TRANSITION_DELAY)
+                && is_single_zero_time(property_id::TRANSITION_DURATION);
+        },
+        parent,
+    )
 }
 
 /// Rebuilds the font group from the table and the platform font inputs the engine resolved.

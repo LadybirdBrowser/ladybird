@@ -215,13 +215,11 @@ pub(crate) fn queue(host: &DocumentHost, change: PaintChange) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_viewport_scroll_offset(host: &DocumentHost, offset: FfiCssPixelPoint) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::SetViewportScrollOffset(offset.into()));
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_invalidate_scroll_state(host: &DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::InvalidateScrollState);
 }
 
@@ -250,13 +248,11 @@ pub unsafe extern "C" fn render_state_apply_selection(
         start_offset,
         end_offset,
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_clear_selection(host: &DocumentHost, viewport: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::ClearSelection { viewport });
 }
 
@@ -291,7 +287,6 @@ pub unsafe extern "C" fn render_state_apply_search_text(
         ranges,
         entries,
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
@@ -302,7 +297,6 @@ pub extern "C" fn render_state_clear_search_text(host: &DocumentHost) {
     if !host.host_tables().shows_search_text.replace(false) {
         return;
     }
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::ClearSearchText);
 }
 
@@ -325,7 +319,6 @@ pub extern "C" fn render_state_sync_highlight_pseudo_styles(
             search_text_current_style_record,
         ],
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
@@ -341,7 +334,6 @@ pub extern "C" fn render_state_set_scrollbar_enlarged(
         direction,
         enlarged,
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
@@ -381,12 +373,10 @@ pub unsafe extern "C" fn render_state_set_layer_image_paint_facts(
         rows_with_facts.insert(node);
     }
     drop(rows_with_facts);
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::SetLayerImagePaintFacts { node, entries });
 }
 
 fn queue_replaced_paint_facts(host: &DocumentHost, target: MarkedBox, facts: ReplacedPaintFacts) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::SetReplacedPaintFacts { target, facts });
 }
 
@@ -394,7 +384,6 @@ fn queue_replaced_paint_facts(host: &DocumentHost, target: MarkedBox, facts: Rep
 /// applies them: the element may change beside a frame in flight, which holds the boxes.
 fn queue_element_paint_facts(host: &DocumentHost, element: u32, facts: ReplacedPaintFacts) {
     if let Some(element) = StyleNodeID::from_raw(element) {
-        // SAFETY: Guaranteed by the caller.
         queue_replaced_paint_facts(host, MarkedBox::Node(Some(element)), facts);
     }
 }
@@ -405,7 +394,6 @@ pub extern "C" fn render_state_set_form_control_paint_facts(
     element: u32,
     facts: FfiFormControlPaintFacts,
 ) {
-    // SAFETY: Guaranteed by the caller.
     queue_element_paint_facts(host, element, ReplacedPaintFacts::FormControl(facts));
 }
 
@@ -413,7 +401,6 @@ pub extern "C" fn render_state_set_form_control_paint_facts(
 /// paints.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_canvas_paint_facts(host: &DocumentHost, element: u32, facts: FfiCanvasPaintFacts) {
-    // SAFETY: Guaranteed by the caller.
     queue_element_paint_facts(host, element, ReplacedPaintFacts::Canvas(facts));
 }
 
@@ -426,7 +413,6 @@ pub extern "C" fn render_state_set_navigable_container_paint_facts(
     facts: FfiNavigableContainerPaintFacts,
 ) {
     let facts = ReplacedPaintFacts::NavigableContainer(facts);
-    // SAFETY: Guaranteed by the caller.
     queue_replaced_paint_facts(host, MarkedBox::Row(node), facts);
 }
 
@@ -443,7 +429,6 @@ pub unsafe extern "C" fn render_state_set_replaced_image_paint_facts(
 ) {
     // SAFETY: Guaranteed by the caller.
     let facts = unsafe { ImagePaintFacts::from_ffi(&facts) };
-    // SAFETY: Guaranteed by the caller.
     queue_replaced_paint_facts(host, MarkedBox::Row(node), ReplacedPaintFacts::Image(facts));
 }
 
@@ -461,7 +446,6 @@ pub unsafe extern "C" fn render_state_set_element_image_paint_facts(
 ) {
     // SAFETY: Guaranteed by the caller.
     let facts = unsafe { ImagePaintFacts::from_ffi(&facts) };
-    // SAFETY: Guaranteed by the caller.
     queue_element_paint_facts(host, element, ReplacedPaintFacts::Image(facts));
 }
 
@@ -477,7 +461,6 @@ pub unsafe extern "C" fn render_state_set_video_paint_facts(
 ) {
     // SAFETY: Guaranteed by the caller.
     let facts = unsafe { VideoPaintFacts::from_ffi(&facts) };
-    // SAFETY: Guaranteed by the caller.
     queue_element_paint_facts(host, element, ReplacedPaintFacts::Video(facts));
 }
 
@@ -512,7 +495,6 @@ pub unsafe extern "C" fn render_state_publish_image_map_areas(
             }
         })
         .collect();
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::PublishImageMapAreas { node, areas });
 }
 
@@ -528,13 +510,11 @@ pub extern "C" fn render_state_note_visual_context_style_change(
     } else {
         VisualContextBoxDirtyKind::StyleValueChange
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::NoteVisualContextBoxDirty { node, kind });
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_invalidate_all_paint_caches(host: &DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::InvalidateAllPaintCaches);
 }
 
@@ -543,12 +523,10 @@ pub extern "C" fn render_state_visual_context_request_full_rebuild(
     host: &DocumentHost,
     scope: crate::painting::visual_context::dirty::VisualContextUpdateScope,
 ) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::RequestFullVisualContextRebuild(scope));
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_recording_trace_enabled(host: &DocumentHost, enabled: bool) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, PaintChange::SetRecordingTraceEnabled(enabled));
 }

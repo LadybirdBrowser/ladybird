@@ -526,7 +526,6 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
     let result = sheet.evaluate_media_queries(unsafe { environment.borrow() }, state, &mut |identity, holds| {
         conditions.push((identity, holds));
     });
-    // SAFETY: Guaranteed by the caller.
     write_rule_conditions(host, conditions);
     result
 }
@@ -546,7 +545,6 @@ pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
     sheet.visit_conditions(unsafe { environment.borrow() }, true, &mut |identity, holds| {
         conditions.push((identity, holds));
     });
-    // SAFETY: Guaranteed by the caller.
     write_rule_conditions(host, conditions);
 }
 

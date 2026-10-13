@@ -1227,7 +1227,6 @@ pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
         shadow_root_identity,
         row,
     };
-    // SAFETY: Guaranteed by the caller.
     super::engine_calls::queue(host, write);
 }
 
@@ -1256,7 +1255,6 @@ pub unsafe extern "C" fn style_engine_note_custom_property_environment(
         inheritable,
         inheritable_store: retain(inheritable_store),
     };
-    // SAFETY: Guaranteed by the caller.
     super::engine_calls::queue(host, write);
 }
 
@@ -1736,7 +1734,6 @@ pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
     // SAFETY: Guaranteed by the caller.
     let data = unsafe { block.cast::<DeclarationBlock>().as_ref() }.map(DeclarationBlock::data);
     let has_transitions = data.as_ref().is_some_and(|data| declares_transitions(&data.properties));
-    // SAFETY: Guaranteed by the caller.
     super::engine_calls::queue(host, super::engine_calls::EngineWrite::InlineStyle { node, data });
     has_transitions
 }
@@ -1772,17 +1769,14 @@ pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties
         hints.append_in_specified_order(unsafe { declaration_from_view(property) });
     }
     let has_transitions = declares_transitions(&hints.properties);
-    // SAFETY: Guaranteed by the caller.
-    {
-        super::engine_calls::queue(
-            host,
-            super::engine_calls::EngineWrite::PresentationalHints {
-                node,
-                kind,
-                properties: hints.properties.into_boxed_slice(),
-            },
-        );
-    }
+    super::engine_calls::queue(
+        host,
+        super::engine_calls::EngineWrite::PresentationalHints {
+            node,
+            kind,
+            properties: hints.properties.into_boxed_slice(),
+        },
+    );
     has_transitions
 }
 
@@ -2290,7 +2284,6 @@ unsafe fn publish_sampled_animation_overlay(
         // A pseudo-element the engine holds no assignment for owns no overlay slot, so the record is published again
         // whole, with the overlay over the same base.
         None => {
-            // SAFETY: The base record stays live for the call.
             let base = style_record_view(engine, input.style_record);
             // SAFETY: Guaranteed by the caller, and the base's arrays are live.
             unsafe {
@@ -2318,7 +2311,6 @@ unsafe fn publish_sampled_animation_overlay(
     Ok(FfiAnimationOverlayPublication {
         invalidation,
         publication,
-        // SAFETY: The published record is live.
         view: style_record_view(engine, publication.new_style_record),
         rebuilt_every_group: rebuilt.every_group,
     })
@@ -2365,7 +2357,6 @@ pub extern "C" fn style_engine_style_record_view(
     if let Some(view) = super::engine_calls::known_style_record_view(host, style_record) {
         return view;
     }
-    // SAFETY: Guaranteed by the caller.
     let view = with_engine(read, host, |engine| style_record_view(engine, style_record));
     if view.present {
         host.engine_memo().views.set(style_record, view);
@@ -2401,8 +2392,6 @@ pub extern "C" fn style_engine_remove_computed_pseudo(
     node: u32,
     pseudo_kind: u8,
 ) -> FfiStyleRecordDelta {
-    // SAFETY: Guaranteed by the caller.
-    // SAFETY: Guaranteed by the caller.
     with_engine(read, host, |engine| remove_computed_pseudo(engine, node, pseudo_kind))
 }
 
@@ -2686,8 +2675,6 @@ pub extern "C" fn style_engine_settle_pseudo_records_after_host_record(
     node: u32,
     old_is_list_item: bool,
 ) -> FfiSettledPseudoRecords {
-    // SAFETY: Guaranteed by the caller.
-    // SAFETY: Guaranteed by the caller.
     with_engine(read, host, |engine| {
         settle_pseudo_records_after_host_record(engine, node, old_is_list_item)
     })

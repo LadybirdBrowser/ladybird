@@ -49,7 +49,6 @@ mod tests {
         let shell = std::ptr::without_provenance_mut(8);
         host.host_tables().attach_shell(child, shell);
         let read = host.read_for_test();
-        // SAFETY: The host lives on this thread until the test host is dropped.
         assert_eq!(render_state_node_shell_if_live(host, read, child), shell);
 
         let sibling = FfiDetachedBoxSibling {
@@ -71,7 +70,6 @@ mod tests {
             );
         }
         // A recording can still name the removed image. Resolving it must apply the removal before answering.
-        // SAFETY: As above; the entry point accepts a stale slot.
         let resolved = render_state_node_shell_if_live(host, read, child);
         let shell_was_destroyed = !host.host_tables().shells.borrow().contains_key(&child);
         host.run(ScriptForcedRead::for_test(), true, |state| {
@@ -99,7 +97,6 @@ pub extern "C" fn render_state_node_shell_if_live(
             .shell_facts(id)
             .map_or(std::ptr::null_mut(), |facts| host.host_tables().shell_of(facts));
     }
-    // SAFETY: Guaranteed by the caller.
     let facts = {
         read_arena(host, read, id, |arena, id| {
             let kind = arena.node_kind_if_live(id)?;
@@ -189,11 +186,7 @@ pub unsafe extern "C" fn document_host_replace_image_observers(
     host.host_tables().replace_image_observers(slot, observers)
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-// SAFETY: Guaranteed by the caller.
 pub extern "C" fn document_host_image_observers(host: &DocumentHost, slot: NodeSlotId) -> *mut c_void {
     host.host_tables().image_observers(slot)
 }

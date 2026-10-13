@@ -800,10 +800,8 @@ impl LayoutRoundAnswer {
         // SAFETY (for every call below): Guaranteed by the caller.
         std::mem::take(&mut self.work).pay(main_thread);
         if let Some((replaced_viewport, built)) = self.build.take() {
-            {
-                layout_host.deliver_commit_messages(main_thread, read, &built.reports);
-                layout_host.take_built_scroll_containers(main_thread, read, &built.built_scroll_containers);
-            }
+            layout_host.deliver_commit_messages(main_thread, read, &built.reports);
+            layout_host.take_built_scroll_containers(main_thread, read, &built.built_scroll_containers);
             host.finish_layout_tree_build(main_thread, read, replaced_viewport, built.outcome.viewport);
         }
         if self.commits.is_empty() {
@@ -815,7 +813,6 @@ impl LayoutRoundAnswer {
         super::trace::name_layout_trace_owners(main_thread, read);
         if let Some(geometry_host) = document_host.host_tables().geometry_host.get() {
             for (slot, offset) in self.clamped_scroll_offsets.drain(..) {
-                // SAFETY: The round clamped the offsets of rows it left live, whose layout nodes the host has now.
                 geometry_host.set_scroll_offset(main_thread, read, slot, offset.into());
             }
         }
@@ -903,7 +900,6 @@ fn seal_first_round(
 ) {
     // A round is sealed for a document whose layout is up to date as well: the frame's style may leave it layout to
     // do, which the round finds once the frame has applied the style.
-    // SAFETY: Guaranteed by the caller.
     if let Some(round) = sealed_first_round(main_thread, document_host, read, inputs, |_| true) {
         document_host.seal_round(round);
     }
@@ -928,7 +924,6 @@ fn fly_first_round(
     let host = layout_update_host(document_host);
     host.process_pending_list_item_renumbers(main_thread, read);
     host.process_pending_top_layer_layout_changes(main_thread, read);
-    // SAFETY: Guaranteed by the caller.
     let round = {
         sealed_first_round(main_thread, document_host, read, inputs, |facts| {
             !host_layout_is_up_to_date(document_host, read, facts)

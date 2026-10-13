@@ -294,7 +294,6 @@ impl StyleJob {
         let records = records
             .into_iter()
             .filter_map(|record| {
-                // SAFETY: The view points into the record, which stays live while the rows name it.
                 let view = super::bridge::style_record_view(engine, record);
                 view.present.then(|| {
                     let environment = engine

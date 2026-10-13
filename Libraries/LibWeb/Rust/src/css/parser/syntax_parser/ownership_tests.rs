@@ -548,11 +548,9 @@ fn import_preludes_outlive_the_worker_and_shared_sheet() {
     assert!(anonymous.layer.as_ref().unwrap().units().is_empty());
     assert!(unlayered.layer.is_none());
     assert!(unlayered.supports.is_none());
-    {
-        assert_eq!(css_query_evaluate_supports(named.supports.as_deref()), 1);
-        assert_eq!(css_query_evaluate_supports(anonymous.supports.as_deref()), 0);
-        assert_eq!(css_query_evaluate_supports(Some(&*supports)), 1);
-    }
+    assert_eq!(css_query_evaluate_supports(named.supports.as_deref()), 1);
+    assert_eq!(css_query_evaluate_supports(anonymous.supports.as_deref()), 0);
+    assert_eq!(css_query_evaluate_supports(Some(&*supports)), 1);
     assert_eq!(
         serialize_style_value_to_utf16(&named.url).unwrap(),
         utf16("url(\"a.css\")")

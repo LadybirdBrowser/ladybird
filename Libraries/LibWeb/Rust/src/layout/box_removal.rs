@@ -305,13 +305,10 @@ pub unsafe extern "C" fn render_state_can_detach_box_in_place(
     let (Some(parent), Some(child)) = (StyleNodeID::from_raw(parent), StyleNodeID::from_raw(child)) else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
-    {
-        super::shell_reads::read_arena(host, read, (parent, child, facts), |arena, (parent, child, facts)| {
-            let (parent_row, child_row) = (arena.bound_row(parent), arena.bound_row(child));
-            !parent_row.is_invalid()
-                && !child_row.is_invalid()
-                && arena.can_detach_box_in_place(parent, parent_row, child_row, &facts)
-        })
-    }
+    super::shell_reads::read_arena(host, read, (parent, child, facts), |arena, (parent, child, facts)| {
+        let (parent_row, child_row) = (arena.bound_row(parent), arena.bound_row(child));
+        !parent_row.is_invalid()
+            && !child_row.is_invalid()
+            && arena.can_detach_box_in_place(parent, parent_row, child_row, &facts)
+    })
 }

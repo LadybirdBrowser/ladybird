@@ -5576,7 +5576,6 @@ pub extern "C" fn render_state_content_counter_styles_changed(
     let Some(owner) = counter_owner(style_node, generated_for) else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
     read_arena(host, read, owner, |arena, owner| {
         super::generated_content::content_counter_styles_changed(arena, owner)
     })
@@ -5608,19 +5607,15 @@ pub extern "C" fn render_state_set_node_needs_compositor_animation_frame(
     kind: super::node_data::CompositorAnimationFrameKind,
     value: bool,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    {
-        queue(
-            host,
-            LayoutChange::SetNodeNeedsCompositorAnimationFrame { node: id, kind, value },
-        );
-    }
+    queue(
+        host,
+        LayoutChange::SetNodeNeedsCompositorAnimationFrame { node: id, kind, value },
+    );
 }
 
 /// What the row is scrolled to, as the document published it.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_row_scroll_offset(host: &DocumentHost, slot: NodeSlotId, out: &mut FfiCssPixelPoint) {
-    // SAFETY: Guaranteed by the caller.
     *out = {
         read_arena(host, node_read(), slot, |arena, slot| {
             arena.row_scroll_offset(slot).into()
@@ -5640,7 +5635,6 @@ pub unsafe extern "C" fn render_state_set_node_style(
         record: style_record,
         payloads: StylePayloadsRef::new(payloads.cast()),
     };
-    // SAFETY: Guaranteed by the caller.
     queue(host, change);
 }
 
@@ -5697,29 +5691,24 @@ pub extern "C" fn render_state_pin_bound_box_style_record_for_detachment(
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return;
     };
-    // SAFETY: Guaranteed by the caller.
-    {
-        queue(
-            host,
-            LayoutChange::PinBoundBoxStyleRecordForDetachment {
-                style_node,
-                generated_for,
-            },
-        );
-    }
+    queue(
+        host,
+        LayoutChange::PinBoundBoxStyleRecordForDetachment {
+            style_node,
+            generated_for,
+        },
+    );
 }
 
 /// Pins the style record `record` for the host's readers of the row `slot`, until the host
 /// releases it or the row is freed.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_pin_node_style_record_for_host(host: &DocumentHost, slot: NodeSlotId, record: u64) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::PinNodeStyleRecordForHost { node: slot, record });
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_release_node_style_record_pin_for_host(host: &DocumentHost, slot: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::ReleaseNodeStyleRecordPinForHost { node: slot });
 }
 
@@ -5742,18 +5731,14 @@ pub unsafe extern "C" fn render_state_set_box_presence_host(
     context: *mut c_void,
     callback: unsafe extern "C" fn(*mut c_void, u32, u8),
 ) {
-    // SAFETY: Guaranteed by the caller.
-    {
-        queue(
-            host,
-            LayoutChange::SetBoxPresenceHost(Some(BoxPresenceHost(context, callback))),
-        );
-    }
+    queue(
+        host,
+        LayoutChange::SetBoxPresenceHost(Some(BoxPresenceHost(context, callback))),
+    );
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_clear_box_presence_host(host: &DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
     queue(host, LayoutChange::SetBoxPresenceHost(None));
 }
 
@@ -5780,7 +5765,6 @@ pub unsafe extern "C" fn document_host_set_style_record_host_callbacks(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_layout_pass_is_running(host: &DocumentHost) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_arena(host, node_read(), (), |arena, ()| arena.layout_pass_is_running())
 }
 
@@ -5789,13 +5773,11 @@ pub extern "C" fn render_state_needs_full_layout_tree_update(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     read_arena(host, read, (), |arena, ()| arena.needs_full_layout_tree_update())
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_layout_root(host: &DocumentHost, read: &crate::render_state::BegunRead) -> NodeSlotId {
-    // SAFETY: Guaranteed by the caller.
     read_arena(host, read, (), |arena, ()| arena.layout_root())
 }
 
