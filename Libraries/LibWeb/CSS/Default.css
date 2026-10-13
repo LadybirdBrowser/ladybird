@@ -361,6 +361,11 @@ rt {
     outline: auto;
 }
 
+/* This matches the behavior of other engines. */
+html:focus-visible, body:focus-visible {
+    outline-style: none;
+}
+
 mark {
     background: Mark;
     color: MarkText;
