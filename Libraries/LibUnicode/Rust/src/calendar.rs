@@ -302,13 +302,16 @@ pub unsafe extern "C" fn icu_iso_date_to_calendar_date(
     iso_day: u8,
 ) -> FfiCalendarDate {
     abort_on_panic(|| {
-        let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
-
-        iso_date_to_calendar_date_impl(calendar_name, iso_year, iso_month, iso_day).unwrap_or(EMPTY_CALENDAR_DATE)
+        iso_date_to_calendar_date(
+            ascii_string_from_ffi(calendar, calendar_length),
+            iso_year,
+            iso_month,
+            iso_day,
+        )
     })
 }
 
-fn calendar_date_to_iso_date_impl(
+pub fn calendar_date_to_iso_date(
     calendar_name: &str,
     arithmetic_year: i32,
     ordinal_month: u8,
@@ -338,10 +341,8 @@ pub unsafe extern "C" fn icu_calendar_date_to_iso_date(
     day: u8,
 ) -> FfiOptionalISODate {
     abort_on_panic(|| {
-        let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
-
-        iso_date_to_ffi(calendar_date_to_iso_date_impl(
-            calendar_name,
+        iso_date_to_ffi(calendar_date_to_iso_date(
+            ascii_string_from_ffi(calendar, calendar_length),
             arithmetic_year,
             ordinal_month,
             day,
@@ -349,7 +350,7 @@ pub unsafe extern "C" fn icu_calendar_date_to_iso_date(
     })
 }
 
-fn iso_year_and_month_code_to_iso_date_impl(
+pub fn iso_year_and_month_code_to_iso_date(
     calendar_name: &str,
     month_code_string: &str,
     iso_year: i32,
@@ -414,7 +415,7 @@ pub unsafe extern "C" fn icu_iso_year_and_month_code_to_iso_date(
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
         let month_code_string = ascii_string_from_ffi(month_code, month_code_length);
 
-        iso_date_to_ffi(iso_year_and_month_code_to_iso_date_impl(
+        iso_date_to_ffi(iso_year_and_month_code_to_iso_date(
             calendar_name,
             month_code_string,
             iso_year,
@@ -423,7 +424,7 @@ pub unsafe extern "C" fn icu_iso_year_and_month_code_to_iso_date(
     })
 }
 
-fn calendar_year_and_month_code_to_iso_date_impl(
+pub fn calendar_year_and_month_code_to_iso_date(
     calendar_name: &str,
     arithmetic_year: i32,
     month_code_string: &str,
@@ -468,7 +469,7 @@ pub unsafe extern "C" fn icu_calendar_year_and_month_code_to_iso_date(
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
         let month_code_string = ascii_string_from_ffi(month_code, month_code_length);
 
-        iso_date_to_ffi(calendar_year_and_month_code_to_iso_date_impl(
+        iso_date_to_ffi(calendar_year_and_month_code_to_iso_date(
             calendar_name,
             arithmetic_year,
             month_code_string,
@@ -500,7 +501,7 @@ pub unsafe extern "C" fn icu_calendar_months_in_year(
     abort_on_panic(|| {
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
 
-        calendar_months_in_year_impl(calendar_name, arithmetic_year).unwrap_or(12)
+        calendar_months_in_year(calendar_name, arithmetic_year)
     })
 }
 
@@ -531,7 +532,7 @@ pub unsafe extern "C" fn icu_calendar_days_in_month(
     abort_on_panic(|| {
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
 
-        calendar_days_in_month_impl(calendar_name, arithmetic_year, ordinal_month).unwrap_or(30)
+        calendar_days_in_month(calendar_name, arithmetic_year, ordinal_month)
     })
 }
 
@@ -576,7 +577,7 @@ pub unsafe extern "C" fn icu_calendar_max_days_in_month_code(
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
         let month_code = ascii_string_from_ffi(month_code, month_code_length);
 
-        calendar_max_days_in_month_code_impl(calendar_name, month_code).unwrap_or(30)
+        calendar_max_days_in_month_code(calendar_name, month_code)
     })
 }
 
@@ -612,6 +613,31 @@ pub unsafe extern "C" fn icu_year_contains_month_code(
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
         let month_code_string = ascii_string_from_ffi(month_code, month_code_length);
 
-        year_contains_month_code_impl(calendar_name, arithmetic_year, month_code_string).unwrap_or(false)
+        year_contains_month_code(calendar_name, arithmetic_year, month_code_string)
     })
+}
+
+/// The calendar date of an ISO date in `calendar_name`, or an empty date if the calendar or date is invalid.
+pub fn iso_date_to_calendar_date(calendar_name: &str, iso_year: i32, iso_month: u8, iso_day: u8) -> FfiCalendarDate {
+    iso_date_to_calendar_date_impl(calendar_name, iso_year, iso_month, iso_day).unwrap_or(EMPTY_CALENDAR_DATE)
+}
+
+/// The number of months in a year of `calendar_name`, or 12 if the calendar or year is invalid.
+pub fn calendar_months_in_year(calendar_name: &str, arithmetic_year: i32) -> u8 {
+    calendar_months_in_year_impl(calendar_name, arithmetic_year).unwrap_or(12)
+}
+
+/// The number of days in a month of `calendar_name`, or 30 if the calendar, year or month is invalid.
+pub fn calendar_days_in_month(calendar_name: &str, arithmetic_year: i32, ordinal_month: u8) -> u8 {
+    calendar_days_in_month_impl(calendar_name, arithmetic_year, ordinal_month).unwrap_or(30)
+}
+
+/// The most days a month with this month code has in `calendar_name`, or 30 if the calendar or month code is invalid.
+pub fn calendar_max_days_in_month_code(calendar_name: &str, month_code: &str) -> u8 {
+    calendar_max_days_in_month_code_impl(calendar_name, month_code).unwrap_or(30)
+}
+
+/// Whether a year of `calendar_name` has a month with this month code.
+pub fn year_contains_month_code(calendar_name: &str, arithmetic_year: i32, month_code: &str) -> bool {
+    year_contains_month_code_impl(calendar_name, arithmetic_year, month_code).unwrap_or(false)
 }
