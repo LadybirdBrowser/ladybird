@@ -253,7 +253,7 @@ On the `AXWebArea` itself, three text-marker-related attributes work together to
 
 Beyond text markers, the document `AXWebArea` element exposes a small set of attributes that VoiceOver uses to recognize it as the active reading target after page load:
 
-- `AXFocused`: returns `YES` when the containing view is window first responder. VoiceOver uses this to identify which web area is currently the active reading target.
+- `AXFocused`: returns `YES` exactly when the `AXWebArea` is the page’s focused UI element — that is, when nothing in the page has the focus. VoiceOver expects the element the application reports as focused to say so itself. When it doesn’t, VoiceOver sets `AXFocused` on it, and then again after every tree update — announcing “web content” each time.
 - `AXURL`: the page URL. VoiceOver compares this against its own page-identity tracking — to decide whether the load is a new page worth re-reading.
 - `AXVisibleCharacterRange`: a non-empty range — so that VoiceOver doesn’t treat the `AXWebArea` as skippable empty content.
 

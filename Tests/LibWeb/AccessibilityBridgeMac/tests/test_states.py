@@ -4,7 +4,7 @@ The macOS surface is narrower than AT-SPI2 here: no platform-level "focusable" b
 "sensitive" state. The wrapper exposes:
 
 * AXEnabled  ←  *not* data->is_disabled
-* AXFocused  ←  data->is_focused (or view-is-first-responder, for the document)
+* AXFocused  ←  data->is_focused (or, for the document, being the focused UI element)
 * AXPress action  ←  for button/link/checkbox/radio/menuitem/tab roles only"""
 
 from __future__ import annotations
@@ -16,10 +16,14 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from ApplicationServices import AXUIElementCopyActionNames  # noqa: E402
+from ApplicationServices import AXUIElementSetAttributeValue  # noqa: E402
 from ApplicationServices import kAXEnabledAttribute  # noqa: E402
 from ApplicationServices import kAXFocusedAttribute  # noqa: E402
+from ApplicationServices import kAXFocusedUIElementAttribute  # noqa: E402
+from ApplicationServices import kAXRoleAttribute  # noqa: E402
 from ApplicationServices import kAXValueAttribute  # noqa: E402
 from harness import AccessibilityBridgeMacTestCase  # noqa: E402
+from harness import wait_for  # noqa: E402
 from harness import wait_for_descendant_by_role  # noqa: E402
 from harness.ladybird import _ax_attr  # noqa: E402
 
@@ -73,8 +77,8 @@ class EnabledStateTests(AccessibilityBridgeMacTestCase):
 
 
 class FocusedStateTests(AccessibilityBridgeMacTestCase):
-    """AXFocused on individual elements tracks data->is_focused; the document is special-cased to mirror
-    view-is-first-responder."""
+    """AXFocused on individual elements tracks data->is_focused; the document reports it exactly when it's the page's
+    focused UI element."""
 
     FIXTURE = "states.html"
 
@@ -85,6 +89,34 @@ class FocusedStateTests(AccessibilityBridgeMacTestCase):
         self.assertIsNotNone(btn)
         # Could be either False or NO (False); the wrapper returns @YES/@NO which PyObjC marshals to True/False.
         self.assertEqual(_ax_attr(btn, kAXFocusedAttribute), False)
+
+    def test_web_area_is_focused_while_nothing_in_the_page_is(self):
+        """With nothing in the page focused, the application's focused UI element is the AXWebArea — and the web area
+        reports AXFocused=YES itself. Defends the regression where it reported NO: VoiceOver then set AXFocused on it
+        after every tree update, announcing the web area over and over and never reading the page."""
+        focused = wait_for(
+            lambda: _ax_attr(self.app, kAXFocusedUIElementAttribute), description="the application's focused element"
+        )
+        self.assertIsNotNone(focused, "the application reports no focused UI element")
+        self.assertEqual(_ax_attr(focused, kAXRoleAttribute), "AXWebArea")
+        self.assertEqual(_ax_attr(focused, kAXFocusedAttribute), True)
+        self.assertEqual(_ax_attr(self.web, kAXFocusedAttribute), True)
+
+
+class FocusedElementStateTests(AccessibilityBridgeMacTestCase):
+    """Once an element in the page has the focus, it alone reports AXFocused=YES — not the AXWebArea too."""
+
+    FIXTURE = "states.html"
+
+    def test_web_area_is_not_focused_while_an_element_is(self):
+        btn = wait_for_descendant_by_role(self.web, "AXButton", title="Normal button")
+        self.assertIsNotNone(btn)
+        self.assertEqual(AXUIElementSetAttributeValue(btn, kAXFocusedAttribute, True), 0, "setting AXFocused failed")
+        self.assertTrue(
+            wait_for(lambda: _ax_attr(btn, kAXFocusedAttribute) is True, description="the button to take focus"),
+            "the button never reported AXFocused",
+        )
+        self.assertEqual(_ax_attr(self.web, kAXFocusedAttribute), False)
 
 
 class ActionNameTests(AccessibilityBridgeMacTestCase):
