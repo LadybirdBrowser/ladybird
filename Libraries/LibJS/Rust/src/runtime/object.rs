@@ -16,7 +16,6 @@ use libjs_runtime_macros::Trace;
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::bytecode::property_access::{Strict, put_by_property_key};
 use crate::embedding::abi_types::JSRealm;
-use crate::gc::capi;
 use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::{Heap, RuntimeClassAllocator, SizeClassAllocator};
@@ -3646,8 +3645,7 @@ impl Object {
 
     /// The VM whose heap the object lives in, for operations that allocate storage without being handed the VM.
     fn vm(&self) -> &Vm {
-        // SAFETY: The VM creates its heap with itself as the context, and outlives every cell in it.
-        unsafe { &*capi::gc_cell_heap_context(core::ptr::from_ref(self).cast()).cast::<Vm>() }
+        Vm::of_cell(self)
     }
 
     /// Replaces the named or indexed storage `storage` points at with `new_storage`, and frees the old storage if it is
