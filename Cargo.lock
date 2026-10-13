@@ -980,6 +980,7 @@ dependencies = [
  "liburl_rust",
  "libweb_rust",
  "rustc-demangle",
+ "serde_json",
 ]
 
 [[package]]
