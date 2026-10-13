@@ -130,11 +130,6 @@ extern "C" void NSAccessibilityHandleFocusChanged();
     return [NSURL URLWithString:ns_string];
 }
 
-- (BOOL)accessibilityViewIsFirstResponder
-{
-    return [[self window] firstResponder] == self;
-}
-
 // NSAccessibility: scroll area containing the web content root
 
 - (BOOL)isAccessibilityElement

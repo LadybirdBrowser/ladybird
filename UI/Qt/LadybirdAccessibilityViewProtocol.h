@@ -16,7 +16,7 @@
 - (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint;
 - (void)performAccessibilityAction:(NSString*)action forNodeID:(int64_t)nodeID;
 - (NSURL*)accessibilityPageURL;
-- (BOOL)accessibilityViewIsFirstResponder;
+- (id)accessibilityFocusedUIElement;
 - (NSWindow*)window;
 
 @end

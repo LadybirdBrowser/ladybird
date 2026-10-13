@@ -498,11 +498,11 @@ static NSString* nsStringFromAK(String const& string)
     if ([attribute isEqualToString:NSAccessibilityFocusedAttribute]) {
         if (!data)
             return @NO;
-        // The document AXWebArea reports focused when its containing view is first responder. VoiceOver uses this to
-        // know which web area is the active reading target on the page. Without it, AXLoadComplete fires — but
-        // VoiceOver doesn't move its cursor into the web content.
+        // The document AXWebArea is focused exactly when it's the page's focused UI element: when nothing in the page
+        // has the focus. VoiceOver expects the element reported as focused to say so itself — and when it doesn't,
+        // VoiceOver sets AXFocused on it, and again after every tree update, announcing the web area each time.
         if (data->role.bytes_as_string_view() == "document"sv)
-            return [_view accessibilityViewIsFirstResponder] ? @YES : @NO;
+            return [_view accessibilityFocusedUIElement] == self ? @YES : @NO;
         return data->is_focused ? @YES : @NO;
     }
 
