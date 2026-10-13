@@ -837,7 +837,6 @@ set(SOURCES
     Speech/SpeechRecognition.cpp
     Speech/SpeechRecognitionAlternative.cpp
     Speech/SpeechRecognitionEvent.cpp
-    Speech/SpeechRecognitionPhrase.cpp
     Speech/SpeechRecognitionResult.cpp
     Speech/SpeechRecognitionResultList.cpp
     Speech/SpeechSynthesis.cpp
