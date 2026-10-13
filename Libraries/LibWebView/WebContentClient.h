@@ -192,6 +192,7 @@ private:
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
     virtual Messages::WebContentClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
     virtual Messages::WebContentClient::RequestAudioServerConnectionResponse request_audio_server_connection() override;
+    virtual void request_video_presentation_channel() override;
     virtual void did_start_using_gamepads() override;
     virtual void gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect) override;
     virtual void gamepad_stop_effects(Web::Gamepad::GamepadHandle handle) override;
@@ -234,6 +235,7 @@ private:
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
     // until it exits. The AudioServer mixes for this process alone, so a compromised one hears only its own site.
     RefPtr<MediaClient::Client> m_media_server_client;
+    Optional<int> m_media_server_client_id;
     RefPtr<AudioServerControlClient> m_audio_server_client;
     u64 m_audio_tab_id { 0 };
     // The pages the user let capture audio, and whether an open page is one of them; the AudioServer is told of the latter,

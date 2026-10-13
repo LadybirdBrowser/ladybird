@@ -87,9 +87,9 @@ public:
     // The process's render clock, made the first time it is asked for.
     static RenderClock& the();
 
-    // Builds a new channel on the clock thread, in place of the previous one and with nothing armed, and returns the
-    // end to offer the Compositor. Blocks until the channel exists.
-    ErrorOr<IPC::TransportHandle> attach();
+    // Takes up a channel to the Compositor on the clock thread, in place of the previous one and with nothing armed.
+    // Blocks until the channel exists.
+    ErrorOr<void> attach(IPC::TransportHandle);
 
     // Asynchronous. Hands the pointer moves over the context to `ticks` from now on, until another document's ticks take
     // their place or the channel is lost, and arms the context's ticks for them where they ask for them; with
@@ -128,7 +128,7 @@ private:
     void run_on_clock_thread_and_wait(Function<void()>);
 
     // On the clock thread.
-    ErrorOr<IPC::TransportHandle> replace_channel();
+    ErrorOr<void> replace_channel(IPC::TransportHandle);
     void drop_channel();
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>);

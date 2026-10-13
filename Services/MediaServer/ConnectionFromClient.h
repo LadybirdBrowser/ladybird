@@ -43,7 +43,7 @@ public:
 private:
     virtual Messages::MediaServer::ConnectNewClientResponse connect_new_client() override;
 
-    virtual Messages::MediaServer::CreateVideoPresentationChannelResponse create_video_presentation_channel() override;
+    virtual void connect_video_presentation_channel(int client_id, IPC::TransportHandle handle) override;
 
     virtual Messages::MediaServer::QueryFileMediaSupportResponse query_file_media_support(String type, String subtype, Optional<String> codecs_parameter) override;
     virtual Messages::MediaServer::QueryDecoderCapabilitiesResponse query_decoder_capabilities(String codecs_parameter) override;
@@ -90,7 +90,12 @@ private:
     virtual void set_source_buffer_pending_initialization_segment_for_change_type_flag(u64 session_id, u64 source_buffer_id, bool flag) override;
     virtual void set_source_buffer_reached_end_of_stream(u64 session_id, u64 source_buffer_id, bool reached) override;
 
-    static ErrorOr<IPC::TransportHandle> create_renderer_connection();
+    struct RendererConnection {
+        IPC::TransportHandle handle;
+        int client_id { -1 };
+    };
+    static ErrorOr<RendererConnection> create_renderer_connection();
+    void install_video_presentation_channel(IPC::TransportHandle);
     bool verify_renderer_role();
     PlaybackSession* find_playback_session(u64 session_id);
     Media::IncrementallyPopulatedStream* find_media_stream(u64 stream_id);

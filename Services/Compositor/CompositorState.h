@@ -96,6 +96,8 @@ public:
     void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
     void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
+    // For a presentation channel that arrives after the sinks did, or that replaces the one their edges were on.
+    void create_video_edges(CompositorStateWebContentClient&);
     void remove_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     void set_video_sink_ticking(CompositorStateWebContentClient&, Media::VideoSinkHandle, bool should_tick);
     void on_video_sink_ready(CompositorStateWebContentClient&, Media::VideoSinkHandle, NonnullRefPtr<Media::DisplayingVideoSink> const&);

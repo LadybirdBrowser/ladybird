@@ -50,8 +50,6 @@ public:
     // Set by the Browser on the controller connection; a server's request for an AudioServer connection goes here.
     Function<ErrorOr<IPC::TransportHandle>()> on_request_audio_server_connection;
 
-    ErrorOr<IPC::TransportHandle> create_video_presentation_channel();
-
     // The synchronous queries serve APIs that must answer on the spot; everything else asks through a promise.
     Media::MediaSupportInfo query_file_media_support(StringView type, StringView subtype, Optional<String> codecs_parameter);
     Optional<Media::DecoderCapabilities> query_decoder_capabilities(StringView codecs_parameter);

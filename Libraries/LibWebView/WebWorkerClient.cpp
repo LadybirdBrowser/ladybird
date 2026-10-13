@@ -159,14 +159,14 @@ Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_kn
 
 Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient::request_media_server_connection()
 {
-    auto handle = connect_new_media_server_client(m_media_server_client, [this] {
+    auto connection = connect_new_media_server_client(m_media_server_client, [this] {
         return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
     });
-    if (handle.is_error()) {
-        warnln("Unable to connect a MediaServer client: {}", handle.error());
+    if (connection.is_error()) {
+        warnln("Unable to connect a MediaServer client: {}", connection.error());
         return OptionalNone {};
     }
-    return handle.release_value();
+    return move(connection.value().handle);
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)

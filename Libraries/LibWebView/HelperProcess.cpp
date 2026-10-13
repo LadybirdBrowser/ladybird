@@ -649,7 +649,7 @@ ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServer
     return response->take_handle().release_value();
 }
 
-ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server)
+ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server)
 {
     if (!controller || !controller->is_open()) {
         controller = TRY(launch_media_server_process());
@@ -659,7 +659,7 @@ ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient
     auto response = controller->send_sync_but_allow_failure<Messages::MediaServer::ConnectNewClient>();
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to MediaServer");
-    return response->take_handle().release_value();
+    return MediaServerClientConnection { response->take_handle().release_value(), response->client_id() };
 }
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)

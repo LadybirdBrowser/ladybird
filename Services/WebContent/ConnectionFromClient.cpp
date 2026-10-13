@@ -432,7 +432,7 @@ void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::Transp
 #endif
 }
 
-void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle)
+void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle)
 {
     auto transport = MUST(handle.create_transport());
     m_compositor_connection = adopt_ref(*new Web::Compositor::CompositorConnection(move(transport)));
@@ -445,8 +445,11 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
     m_compositor_connection->on_compositor_lost = [this] {
         m_page_host->compositor_process_lost();
     };
+    m_compositor_connection->on_request_video_presentation_channel = [this] {
+        async_request_video_presentation_channel();
+    };
 
-    m_compositor_connection->attach_render_clock();
+    m_compositor_connection->attach_render_clock(move(render_clock_handle));
     m_compositor_connection->hand_frame_sink_to_paint_thread();
 }
 

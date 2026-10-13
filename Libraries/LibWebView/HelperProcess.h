@@ -67,7 +67,11 @@ WEBVIEW_API ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerContr
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 audio_tab_id);
 // Launches the MediaServer for a renderer if it has none, keeping its controller connection in the given slot, and
 // connects a new client to it. The server gets its AudioServer connection through connect_audio_server.
-WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
+struct MediaServerClientConnection {
+    IPC::TransportHandle handle;
+    int client_id { -1 };
+};
+WEBVIEW_API ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
 #if defined(HAVE_WASM_COMPILER_SERVICE)
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_wasm_compiler_client();
 #endif

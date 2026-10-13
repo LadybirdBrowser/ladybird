@@ -21,9 +21,6 @@
 
 endpoint CompositorWebContentServer
 {
-    offer_video_presentation_channel(IPC::TransportHandle handle) =|
-    offer_render_clock_channel(IPC::TransportHandle handle) =|
-
     add_video_sink(Media::VideoSinkHandle video_sink_handle) =|
     remove_video_sink(Media::VideoSinkHandle video_sink_handle) =|
     set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick) =|

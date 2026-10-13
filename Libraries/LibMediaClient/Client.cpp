@@ -88,14 +88,6 @@ u64 Client::allocate_id()
     return m_next_id++;
 }
 
-ErrorOr<IPC::TransportHandle> Client::create_video_presentation_channel()
-{
-    auto response = send_sync_but_allow_failure<Messages::MediaServer::CreateVideoPresentationChannel>();
-    if (!response || !response->handle().has_value())
-        return Error::from_string_literal("The media server did not create a video presentation channel");
-    return response->take_handle().release_value();
-}
-
 Media::MediaSupportInfo Client::query_file_media_support(StringView type, StringView subtype, Optional<String> codecs_parameter)
 {
     auto response = send_sync_but_allow_failure<Messages::MediaServer::QueryFileMediaSupport>(String::from_utf8_without_validation(type.bytes()), String::from_utf8_without_validation(subtype.bytes()), move(codecs_parameter));

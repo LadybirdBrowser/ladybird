@@ -91,9 +91,11 @@ void CompositorConnection::die()
 
 void CompositorConnection::ensure_video_presentation_channel()
 {
-    if (!can_send_message_to_compositor())
+    if (!can_send_message_to_compositor() || !on_request_video_presentation_channel)
         return;
 
+    // Acquiring the client has the Browser connect this process to a media server, which the Browser then connects to
+    // the Compositor on request. A replacement server needs a channel of its own.
     auto media_client_or_error = MediaClient::Client::acquire();
     if (media_client_or_error.is_error()) {
         dbgln("Failed to reach the media server for a video presentation channel: {}", media_client_or_error.error());
@@ -103,27 +105,17 @@ void CompositorConnection::ensure_video_presentation_channel()
     if (m_video_presentation_channel_media_client_generation == media_client->generation())
         return;
 
-    auto handle_or_error = media_client->create_video_presentation_channel();
-    if (handle_or_error.is_error()) {
-        dbgln("Failed to create video presentation channel: {}", handle_or_error.error());
-        return;
-    }
-
-    async_offer_video_presentation_channel(handle_or_error.release_value());
+    on_request_video_presentation_channel();
     m_video_presentation_channel_media_client_generation = media_client->generation();
-    dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "WebContent: offered the media server's video presentation channel to Compositor");
+    dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "WebContent: asked the Browser for a video presentation channel to the Compositor");
 }
 
-void CompositorConnection::attach_render_clock()
+void CompositorConnection::attach_render_clock(IPC::TransportHandle handle)
 {
     if (!can_send_message_to_compositor())
         return;
-    auto handle_or_error = RenderClock::the().attach();
-    if (handle_or_error.is_error()) {
-        dbgln("Failed to attach the render clock to the compositor: {}", handle_or_error.error());
-        return;
-    }
-    async_offer_render_clock_channel(handle_or_error.release_value());
+    if (auto result = RenderClock::the().attach(move(handle)); result.is_error())
+        dbgln("Failed to attach the render clock to the compositor: {}", result.error());
 }
 
 void CompositorConnection::set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id)

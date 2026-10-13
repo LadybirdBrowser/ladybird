@@ -30,23 +30,24 @@ void ConnectionFromWebContent::die()
         m_on_death(*this);
 }
 
-void ConnectionFromWebContent::offer_video_presentation_channel(IPC::TransportHandle handle)
+void ConnectionFromWebContent::install_video_presentation_channel(IPC::TransportHandle handle)
 {
     auto transport_or_error = handle.create_transport();
     if (transport_or_error.is_error()) {
-        did_misbehave("WebContent sent an unusable video presentation transport handle");
+        dbgln("Compositor: Could not take up a video presentation channel: {}", transport_or_error.error());
         return;
     }
     m_video_presentation_connection = adopt_ref(*new Media::VideoPresentationClientConnection(transport_or_error.release_value()));
+    m_compositor_state->create_video_edges(*this);
 
     dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "Compositor: established video presentation channel for WebContent (client_id={})", client_id());
 }
 
-void ConnectionFromWebContent::offer_render_clock_channel(IPC::TransportHandle handle)
+void ConnectionFromWebContent::install_render_clock_channel(IPC::TransportHandle handle)
 {
     auto transport_or_error = handle.create_transport();
     if (transport_or_error.is_error()) {
-        did_misbehave("WebContent sent an unusable render clock transport handle");
+        dbgln("Compositor: Could not take up a render clock channel: {}", transport_or_error.error());
         return;
     }
     // A new channel replaces the one before it, whose requests were for the contexts the process armed then.

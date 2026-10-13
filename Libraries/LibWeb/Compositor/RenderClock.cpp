@@ -139,16 +139,16 @@ bool RenderClock::invoke_on_clock_thread(Function<void()> function)
     return true;
 }
 
-ErrorOr<IPC::TransportHandle> RenderClock::attach()
+ErrorOr<void> RenderClock::attach(IPC::TransportHandle handle)
 {
     Mutex result_mutex;
     ConditionVariable result_condition { result_mutex };
-    Optional<ErrorOr<IPC::TransportHandle>> result;
+    Optional<ErrorOr<void>> result;
 
-    auto invoked = invoke_on_clock_thread([&] {
-        auto handle_or_error = replace_channel();
+    auto invoked = invoke_on_clock_thread([&, handle = move(handle)]() mutable {
+        auto channel_result = replace_channel(move(handle));
         MutexLocker locker(result_mutex);
-        result = move(handle_or_error);
+        result = move(channel_result);
         result_condition.broadcast();
     });
     if (!invoked)
@@ -160,14 +160,14 @@ ErrorOr<IPC::TransportHandle> RenderClock::attach()
     return result.release_value();
 }
 
-ErrorOr<IPC::TransportHandle> RenderClock::replace_channel()
+ErrorOr<void> RenderClock::replace_channel(IPC::TransportHandle handle)
 {
     // A new channel starts with nothing armed: the contexts armed on the previous one were armed for a Compositor that
     // is gone.
     drop_channel();
-    auto paired = TRY(IPC::Transport::create_paired());
-    m_channel = adopt_ref(*new RenderClockChannel(move(paired.local), *this));
-    return move(paired.remote_handle);
+    auto transport = TRY(handle.create_transport());
+    m_channel = adopt_ref(*new RenderClockChannel(move(transport), *this));
+    return {};
 }
 
 void RenderClock::drop_channel()
