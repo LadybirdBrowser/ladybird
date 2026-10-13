@@ -37,7 +37,7 @@ use super::intern_table::content_hash;
 use smallvec::SmallVec;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 
 use crate::css::cascaded_properties::CascadeOrigin;
 
@@ -1418,6 +1418,21 @@ pub(super) const STATE_READS_ELEMENT_RANDOM_BASE: u8 = 1 << 5;
 pub(super) const STATE_READS_CONTAINER_UNITS: u8 = 1 << 6;
 /// What a state's winners read has been decided.
 const STATE_READS_DECIDED: u8 = 1 << 7;
+/// A state's summary has been decided.
+const STATE_SUMMARY_DECIDED: u64 = 1 << 63;
+/// A state's summary holds a winner written with a substitution.
+const STATE_SUMMARY_HAS_SUBSTITUTIONS: u64 = 1 << 32;
+
+/// What the engine asks of a state's winners' written values for each element it computes a record for, which depends
+/// on the winners alone.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct StateSummary {
+    /// The style groups of each non-inherited property the state declares `inherit` for, and every group for a value
+    /// the engine cannot see the spelling of.
+    pub(super) explicitly_inherited_groups: u32,
+    /// Whether a longhand winner is written with a substitution.
+    pub(super) has_substitutions: bool,
+}
 
 /// Interned per-node winning declarations.
 ///
@@ -1440,6 +1455,9 @@ pub struct WinnerGroups {
     /// first time it is asked and `STATE_READS_DECIDED` from then on. A state's winners never
     /// change, and neither does what they read.
     state_reads: Vec<crate::fork::ForkCopied<AtomicU8>>,
+    /// Each state's [`StateSummary`], packed, decided the first time it is asked where every winner's written value was
+    /// found, and `STATE_SUMMARY_DECIDED` from then on.
+    state_summaries: Vec<crate::fork::ForkCopied<AtomicU64>>,
     groups: InternTable<WinnerGroupID, Box<[SemanticPropertyWinner]>>,
     provenance_groups: InternTable<WinnerProvenanceGroupID, Box<[WinnerProvenance]>>,
     priorities: InternTable<CascadePriorityID, CascadePriority>,
@@ -1507,6 +1525,7 @@ impl Default for WinnerGroups {
             state_pending_reference_counts: Vec::new(),
             state_winning_rules: Vec::new(),
             state_reads: Vec::new(),
+            state_summaries: Vec::new(),
             groups: InternTable::default(),
             provenance_groups: InternTable::default(),
             priorities: InternTable::default(),
@@ -1557,6 +1576,11 @@ impl WinnerGroups {
                 .state_reads
                 .iter()
                 .map(|reads| crate::fork::ForkCopied::new(AtomicU8::new(reads.load(Ordering::Relaxed))))
+                .collect(),
+            state_summaries: self
+                .state_summaries
+                .iter()
+                .map(|summary| crate::fork::ForkCopied::new(AtomicU64::new(summary.load(Ordering::Relaxed))))
                 .collect(),
             groups: self.groups.clone(),
             provenance_groups: self.provenance_groups.clone(),
@@ -1766,6 +1790,8 @@ impl WinnerGroups {
         self.state_pending_reference_counts.push(0);
         self.state_winning_rules.push(winning_rules);
         self.state_reads.push(crate::fork::ForkCopied::new(AtomicU8::new(0)));
+        self.state_summaries
+            .push(crate::fork::ForkCopied::new(AtomicU64::new(0)));
         id
     }
 
@@ -2043,6 +2069,29 @@ impl WinnerGroups {
     pub(super) fn note_state_reads(&self, state: CascadeStateID, reads: u8) {
         if let Some(slot) = self.state_reads.get(state.0 as usize) {
             slot.store(reads | STATE_READS_DECIDED, Ordering::Relaxed);
+        }
+    }
+
+    /// The summary of `state`'s winners, once decided.
+    pub(super) fn state_summary(&self, state: CascadeStateID) -> Option<StateSummary> {
+        let packed = self.state_summaries.get(state.0 as usize)?.load(Ordering::Relaxed);
+        (packed & STATE_SUMMARY_DECIDED != 0).then_some(StateSummary {
+            explicitly_inherited_groups: packed as u32,
+            has_substitutions: packed & STATE_SUMMARY_HAS_SUBSTITUTIONS != 0,
+        })
+    }
+
+    pub(super) fn note_state_summary(&self, state: CascadeStateID, summary: StateSummary) {
+        if let Some(slot) = self.state_summaries.get(state.0 as usize) {
+            let substitutions = if summary.has_substitutions {
+                STATE_SUMMARY_HAS_SUBSTITUTIONS
+            } else {
+                0
+            };
+            slot.store(
+                u64::from(summary.explicitly_inherited_groups) | substitutions | STATE_SUMMARY_DECIDED,
+                Ordering::Relaxed,
+            );
         }
     }
 
@@ -2586,6 +2635,7 @@ impl WinnerGroups {
         self.state_pending_reference_counts = Vec::new();
         self.state_winning_rules = Vec::new();
         self.state_reads = Vec::new();
+        self.state_summaries = Vec::new();
         self.groups = InternTable::default();
         self.provenance_groups = InternTable::default();
         self.priorities = InternTable::default();
@@ -2618,6 +2668,7 @@ impl WinnerGroups {
                 self.state_pending_reference_counts,
                 self.state_winning_rules,
                 self.state_reads,
+                self.state_summaries,
                 self.winner_rule_references,
             ];
             cached [self.nested_residency.bytes()];
