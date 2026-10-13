@@ -1088,8 +1088,6 @@ class SpeechSynthesisVoice;
 
 namespace Web::Streams {
 
-class ByteLengthQueuingStrategy;
-class CountQueuingStrategy;
 class ReadableByteStreamController;
 class ReadableStream;
 class ReadableStreamAsyncIterator;

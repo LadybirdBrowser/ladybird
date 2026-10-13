@@ -125,9 +125,6 @@ public:
     };
     void report_an_exception(JS::Value exception, OmitError = OmitError::No);
 
-    GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
-    GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
-
     void push_onto_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise>);
     bool remove_from_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise>);
 
@@ -243,12 +240,6 @@ private:
     // https://w3c.github.io/resource-timing/#dfn-resource-timing-secondary-buffer
     // A resource timing secondary buffer to store PerformanceResourceTiming objects that is initially empty.
     Vector<GC::Ref<ResourceTiming::PerformanceResourceTiming>> m_resource_timing_secondary_buffer;
-
-    // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
-    GC::Ptr<WebIDL::CallbackType> m_count_queuing_strategy_size_function;
-
-    // https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
-    GC::Ptr<WebIDL::CallbackType> m_byte_length_queuing_strategy_size_function;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#about-to-be-notified-rejected-promises-list
     GC::Ptr<GC::HeapVector<GC::Ref<JS::Promise>>> m_about_to_be_notified_rejected_promises_list;

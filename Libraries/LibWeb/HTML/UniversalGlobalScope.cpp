@@ -43,8 +43,6 @@ static JS::Realm& relevant_realm_for_universal_global_scope(DOM::EventTarget& gl
 
 void UniversalGlobalScopeMixin::visit_edges(GC::Cell::Visitor& visitor)
 {
-    visitor.visit(m_count_queuing_strategy_size_function);
-    visitor.visit(m_byte_length_queuing_strategy_size_function);
     visitor.ignore(m_outstanding_rejected_promises_weak_set);
     visitor.visit(m_about_to_be_notified_rejected_promises_list);
 }
@@ -114,54 +112,6 @@ WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::R
 
     // 3. Return deserializeRecord.[[Deserialized]].
     return deserialized.deserialized;
-}
-
-// https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
-GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::count_queuing_strategy_size_function()
-{
-    auto& realm = relevant_realm_for_universal_global_scope(this_impl());
-
-    if (!m_count_queuing_strategy_size_function) {
-        // 1. Let steps be the following steps:
-        auto steps = [](auto const&) {
-            // 1. Return 1.
-            return 1.0;
-        };
-
-        // 2. Let F be ! CreateBuiltinFunction(steps, 0, "size", « », globalObject’s relevant Realm).
-        auto function = JS::NativeFunction::create(realm, move(steps), 0, "size"_utf16_fly_string, &realm);
-
-        // 3. Set globalObject’s count queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
-        // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec
-        m_count_queuing_strategy_size_function = GC::Heap::the().allocate<WebIDL::CallbackType>(*function, realm);
-    }
-
-    return GC::Ref { *m_count_queuing_strategy_size_function };
-}
-
-// https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
-GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::byte_length_queuing_strategy_size_function()
-{
-    auto& realm = relevant_realm_for_universal_global_scope(this_impl());
-
-    if (!m_byte_length_queuing_strategy_size_function) {
-        // 1. Let steps be the following steps, given chunk:
-        auto steps = [](JS::VM& vm) {
-            auto chunk = vm.argument(0);
-
-            // 1. Return ? GetV(chunk, "byteLength").
-            return chunk.get(vm, vm.names.byteLength);
-        };
-
-        // 2. Let F be ! CreateBuiltinFunction(steps, 1, "size", « », globalObject’s relevant Realm).
-        auto function = JS::NativeFunction::create(realm, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> { move(steps) }, 1, "size"_utf16_fly_string, &realm);
-
-        // 3. Set globalObject’s byte length queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
-        // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec
-        m_byte_length_queuing_strategy_size_function = GC::Heap::the().allocate<WebIDL::CallbackType>(*function, realm);
-    }
-
-    return GC::Ref { *m_byte_length_queuing_strategy_size_function };
 }
 
 void UniversalGlobalScopeMixin::push_onto_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise> promise)
