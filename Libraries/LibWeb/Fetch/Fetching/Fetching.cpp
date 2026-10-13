@@ -1121,8 +1121,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
             // 2. If fetchParams’s process response end-of-body is non-null, then run fetchParams’s process response
             //    end-of-body given response.
-            if (fetch_params.algorithms()->process_response_end_of_body())
-                (fetch_params.algorithms()->process_response_end_of_body())(response_view);
+            auto algorithms = fetch_params.controller()->algorithms();
+            if (algorithms->process_response_end_of_body())
+                (algorithms->process_response_end_of_body())(response_view);
 
             report_timing_if_appropriate();
         });
@@ -1133,9 +1134,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // 5. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
     //    given response, with fetchParams’s task destination.
-    if (fetch_params.algorithms()->process_response()) {
+    if (fetch_params.controller()->algorithms()->process_response()) {
         Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params, response_view]() {
-            fetch_params.algorithms()->process_response()(response_view);
+            fetch_params.controller()->algorithms()->process_response()(response_view);
         }));
     }
 
@@ -1165,7 +1166,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     if (Core::StatsLog::the() && body_view)
         track_rendering_pending_stream(fetch_params.controller().ptr(), *body_view->stream());
 
-    auto algorithms = fetch_params.algorithms();
+    auto algorithms = fetch_params.controller()->algorithms();
 
     auto body_intent = fetch_params.body_intent();
 
@@ -2976,9 +2977,9 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // 1. If body is null and fetchParams’s process request end-of-body is non-null, then queue a fetch task given
     //    fetchParams’s process request end-of-body and fetchParams’s task destination.
     if (request->body().has<Empty>()) {
-        if (fetch_params.algorithms()->process_request_end_of_body()) {
+        if (fetch_params.controller()->algorithms()->process_request_end_of_body()) {
             Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params]() {
-                fetch_params.algorithms()->process_request_end_of_body()();
+                fetch_params.controller()->algorithms()->process_request_end_of_body()();
             }));
         }
     }
@@ -2996,8 +2997,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
             // 3. If fetchParams’s process request body chunk length is non-null, then run fetchParams’s process
             //    request body chunk length given bytes’s length.
-            if (fetch_params.algorithms()->process_request_body_chunk_length())
-                fetch_params.algorithms()->process_request_body_chunk_length()(length);
+            if (fetch_params.controller()->algorithms()->process_request_body_chunk_length())
+                fetch_params.controller()->algorithms()->process_request_body_chunk_length()(length);
         };
 
         // 2. Let processEndOfBody be these steps:
@@ -3008,8 +3009,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
             // 2. If fetchParams’s process request end-of-body is non-null, then run fetchParams’s process request
             //    end-of-body.
-            if (fetch_params.algorithms()->process_request_end_of_body())
-                fetch_params.algorithms()->process_request_end_of_body()();
+            if (fetch_params.controller()->algorithms()->process_request_end_of_body())
+                fetch_params.controller()->algorithms()->process_request_end_of_body()();
         });
 
         // 3. Let processBodyError given e be these steps:
@@ -3039,7 +3040,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
                 }));
             }
             Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), process_end_of_body);
-        } else if (auto const& request_body_reader = fetch_params.algorithms()->request_body_reader(); request_body_reader.has_value()) {
+        } else if (auto const& request_body_reader = fetch_params.controller()->algorithms()->request_body_reader(); request_body_reader.has_value()) {
             // FIXME: Send the bytes read here to RequestServer, which only receives a body's source.
             auto process_body_chunk_bytes = GC::create_function(GC::Heap::the(), [process_body_chunk](ByteBuffer bytes) {
                 process_body_chunk(bytes.size());

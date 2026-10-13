@@ -67,6 +67,9 @@ public:
     void set_fetch_params(Badge<FetchParams>, GC::Ref<FetchParams> fetch_params) { m_fetch_params = fetch_params; }
     [[nodiscard]] GC::Ptr<FetchParams> fetch_params() const { return m_fetch_params; }
 
+    void set_algorithms(Badge<FetchParams>, GC::Ref<FetchAlgorithms const> algorithms) { m_algorithms = algorithms; }
+    [[nodiscard]] GC::Ref<FetchAlgorithms const> algorithms() const;
+
     // AD-HOC: Whether this fetch's response has arrived: as headers from the network, or at main fetch. From then on,
     //         its body delivery is queued as event-loop tasks, and its response processing captures its task
     //         destination as it was then — so re-targeting the fetch no longer reaches either.
@@ -133,6 +136,23 @@ private:
     GC::Ptr<GC::Function<void()>> m_next_manual_redirect_steps;
 
     GC::Ptr<FetchParams> m_fetch_params;
+
+    // AD-HOC: The fetch params' algorithms are kept on their controller, which every copy of the fetch params shares.
+    // https://fetch.spec.whatwg.org/#fetch-params-process-request-body
+    // process request body chunk length (default null)
+    // https://fetch.spec.whatwg.org/#fetch-params-process-request-end-of-body
+    // process request end-of-body (default null)
+    // https://fetch.spec.whatwg.org/#fetch-params-process-early-hints-response
+    // process early hints response (default null)
+    // https://fetch.spec.whatwg.org/#fetch-params-process-response
+    // process response (default null)
+    // https://fetch.spec.whatwg.org/#fetch-params-process-response-end-of-body
+    // process response end-of-body (default null)
+    // https://fetch.spec.whatwg.org/#fetch-params-process-response-consume-body
+    // process response consume body (default null)
+    //     Null or an algorithm.
+    GC::Ptr<FetchAlgorithms const> m_algorithms;
+
     bool m_response_arrived { false };
     // NB: Assumes one waiting consumer for a pending preloaded response.
     // Widen this if preload handoff ever supports multiple consumers.
