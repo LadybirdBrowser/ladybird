@@ -536,7 +536,7 @@ impl Clone for RetainedStyleValueDataList {
             .iter()
             .map(|value| {
                 let Some(data) = value.optional_data() else {
-                    return unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) };
+                    return RetainedStyleValueData::none();
                 };
                 let pointer = data as *const StyleValueData as usize;
                 if let Some((_, cloned)) = cloned_by_pointer.iter().find(|(original, _)| *original == pointer) {
@@ -3456,13 +3456,11 @@ mod equality_tests {
     }
 
     fn retained_number(value: f64) -> RetainedStyleValueData {
-        let value = Arc::into_raw(Arc::new(StyleValueData::Number { value }));
-        unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value }))
     }
 
     fn retained(value: StyleValueData) -> RetainedStyleValueData {
-        let value = Arc::into_raw(Arc::new(value));
-        unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+        RetainedStyleValueData::from_arc(Arc::new(value))
     }
 
     fn color_function(color_syntax: u8) -> StyleValueData {

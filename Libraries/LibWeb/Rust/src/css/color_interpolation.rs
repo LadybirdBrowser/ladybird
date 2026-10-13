@@ -222,10 +222,9 @@ fn retained_number(value: f32) -> RetainedStyleValueData {
 }
 
 fn retained_none() -> RetainedStyleValueData {
-    let value = Arc::into_raw(Arc::new(StyleValueData::Keyword {
+    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
         keyword: crate::css::style_compute::none_keyword(),
-    }));
-    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    }))
 }
 
 fn retained_component(value: f32, missing: bool) -> RetainedStyleValueData {
@@ -257,7 +256,7 @@ fn make_result(color_type: u8, components: [f32; 4], missing: [bool; 4]) -> Styl
         alpha: retained_component(components[3], missing[3]),
         has_name: false,
         name: unsafe { crate::css::style_value::CssString::from_leaked_raw(0) },
-        origin_color: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
+        origin_color: RetainedStyleValueData::none(),
     }
 }
 

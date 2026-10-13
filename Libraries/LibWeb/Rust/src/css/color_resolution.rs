@@ -889,7 +889,7 @@ fn retained_value(value: StyleValueData) -> RetainedStyleValueData {
 
 fn retained_null() -> RetainedStyleValueData {
     // SAFETY: null encodes an absent optional value.
-    unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) }
+    RetainedStyleValueData::none()
 }
 
 /// Clamp a legacy RGB channel to a byte. NaN becomes 0, then values round half away from zero.

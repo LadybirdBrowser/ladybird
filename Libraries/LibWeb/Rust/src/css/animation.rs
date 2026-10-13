@@ -1304,8 +1304,7 @@ fn retained_length_percentage_calculation(
         }
         _ => crate::css::calc::length_percentage_calculated_style_value(calculation, resolved_type),
     };
-    let value = Arc::into_raw(Arc::new(value));
-    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    RetainedStyleValueData::from_arc(Arc::new(value))
 }
 
 fn interpolate_translate_component(
@@ -1335,8 +1334,8 @@ fn interpolate_translate_component(
             (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta as f64),
             _ => unreachable!(),
         };
-        let value = Arc::into_raw(Arc::new(StyleValueData::Percentage { value: percentage }));
-        return Some(unsafe { RetainedStyleValueData::from_retained_pointer(value) });
+        let value = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Percentage { value: percentage }));
+        return Some(value);
     }
 
     let from = length_percentage_calculation_node(from)?;
@@ -1385,11 +1384,10 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
     };
     let is_3d = from.len() == 3 || to.len() == 3;
     let zero = || {
-        let zero = Arc::into_raw(Arc::new(StyleValueData::Length {
+        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
             value: 0.0,
             unit: crate::css::calc::canonical_pixel_unit(),
-        }));
-        unsafe { RetainedStyleValueData::from_retained_pointer(zero) }
+        }))
     };
     if is_3d {
         from.resize_with(3, zero);
@@ -1462,16 +1460,14 @@ fn interpolate_individual_rotate(
         let (Some(from), Some(to)) = (angle(from), angle(to)) else {
             return not_handled();
         };
-        let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+        let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
             value: interpolate_f64(from, to, delta, None),
             unit: 0,
         }));
         return owned(StyleValueData::Transformation {
             property: crate::css::property_metadata::property_id::ROTATE,
             transform_function: TRANSFORM_FUNCTION_ROTATE,
-            values: RetainedStyleValueDataList::from_retained_values(vec![unsafe {
-                RetainedStyleValueData::from_retained_pointer(angle)
-            }]),
+            values: RetainedStyleValueDataList::from_retained_values(vec![angle]),
         });
     }
 
@@ -1485,12 +1481,12 @@ fn interpolate_individual_rotate(
     };
     let normalize = |value: &StyleValueData| {
         if is_none(value) {
-            let angle = Arc::into_raw(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
+            let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
             return Some(RetainedStyleValueDataList::from_retained_values(vec![
                 retained_number(0.0),
                 retained_number(0.0),
                 retained_number(1.0),
-                unsafe { RetainedStyleValueData::from_retained_pointer(angle) },
+                angle,
             ]));
         }
         let StyleValueData::Transformation {
@@ -1580,7 +1576,7 @@ struct ExpandedGridTrack<'a> {
 }
 
 fn empty_retained_style_value() -> RetainedStyleValueData {
-    unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) }
+    RetainedStyleValueData::none()
 }
 
 fn empty_grid_line_names() -> CssStringList {
@@ -1895,18 +1891,16 @@ fn composite_grid_track_entries(
 }
 
 fn retained_percentage(value: f64) -> RetainedStyleValueData {
-    let value = Arc::into_raw(Arc::new(StyleValueData::Percentage { value }));
-    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Percentage { value }))
 }
 
 fn retained_computed_center_position() -> RetainedStyleValueData {
     let edge = || {
-        let edge = Arc::into_raw(Arc::new(StyleValueData::Edge {
+        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Edge {
             has_edge: false,
             edge: 0,
             offset: retained_percentage(50.0),
-        }));
-        unsafe { RetainedStyleValueData::from_retained_pointer(edge) }
+        }))
     };
     RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Position {
         edge_x: edge(),
@@ -2815,11 +2809,10 @@ fn common_rotation_axis(
 }
 
 fn individual_rotation_value(axis: [f64; 3], angle_degrees: f64) -> StyleValueData {
-    let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+    let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
         value: angle_degrees,
         unit: 0,
     }));
-    let angle = unsafe { RetainedStyleValueData::from_retained_pointer(angle) };
     if axis == [0.0, 0.0, 1.0] {
         return StyleValueData::Transformation {
             property: crate::css::property_metadata::property_id::ROTATE,
@@ -3866,12 +3859,10 @@ fn interpolate_scalar_value(
             let to_normalized_value = normalized_super_ellipse_half_corner(*to);
             let interpolated_value =
                 interpolate_f64(from_normalized_value, to_normalized_value, delta, Some((0.0, 1.0)));
-            let parameter = Arc::into_raw(Arc::new(StyleValueData::Number {
+            let parameter = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number {
                 value: interpolation_value_to_super_ellipse_parameter(interpolated_value),
             }));
-            owned(StyleValueData::Superellipse {
-                parameter: unsafe { RetainedStyleValueData::from_retained_pointer(parameter) },
-            })
+            owned(StyleValueData::Superellipse { parameter })
         }
         (
             StyleValueData::BackgroundSize {
@@ -4287,11 +4278,9 @@ fn interpolate_scalar_value(
                 accepted_range(property_id, VALUE_TYPE_RATIO, range_overrides),
             )
             .exp();
-            let numerator = Arc::into_raw(Arc::new(StyleValueData::Number { value }));
-            let denominator = Arc::into_raw(Arc::new(StyleValueData::Number { value: 1.0 }));
             owned(StyleValueData::Ratio {
-                numerator: unsafe { RetainedStyleValueData::from_retained_pointer(numerator) },
-                denominator: unsafe { RetainedStyleValueData::from_retained_pointer(denominator) },
+                numerator: RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value })),
+                denominator: RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: 1.0 })),
             })
         }
         (
@@ -4462,11 +4451,11 @@ fn interpolate_rotate_3d(
         let argument = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value }));
         arguments.push(argument);
     }
-    let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+    let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
         value: result_angle.to_degrees(),
         unit: 0,
     }));
-    arguments.push(unsafe { RetainedStyleValueData::from_retained_pointer(angle) });
+    arguments.push(angle);
 
     Some(StyleValueData::Transformation {
         property,
@@ -4480,11 +4469,10 @@ fn retained_number(value: f64) -> RetainedStyleValueData {
 }
 
 fn retained_zero_px() -> RetainedStyleValueData {
-    let value = Arc::into_raw(Arc::new(StyleValueData::Length {
+    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
         value: 0.0,
         unit: crate::css::style_compute::px_length_unit(),
-    }));
-    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    }))
 }
 
 fn retained_length(value: f64, unit: u8) -> RetainedStyleValueData {
@@ -5258,8 +5246,8 @@ fn interpolate_transform_matrix_suffix(
     let from = post_multiply(from).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
     let to = post_multiply(to).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
     let matrix = interpolate_matrices(from, to, delta).ok_or(TransformMatrixInterpolationError::NonInvertible)?;
-    let transformation = Arc::into_raw(Arc::new(matrix_transformation(property, matrix)));
-    Ok(unsafe { RetainedStyleValueData::from_retained_pointer(transformation) })
+    let transformation = RetainedStyleValueData::from_arc(Arc::new(matrix_transformation(property, matrix)));
+    Ok(transformation)
 }
 
 fn interpolate_transform_list(
@@ -5392,13 +5380,12 @@ fn interpolate_transform_list(
             let argument = if reciprocal_depth == 0.0 {
                 retained_none_keyword()
             } else {
-                let value = Arc::into_raw(Arc::new(StyleValueData::Length {
+                RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
                     value: 1.0 / reciprocal_depth,
                     unit: from_unit
                         .or(to_unit)
                         .unwrap_or_else(crate::css::style_compute::px_length_unit),
-                }));
-                unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+                }))
             };
             let transformation = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Transformation {
                 property: *from_property,
@@ -5502,7 +5489,7 @@ fn interpolate_transform_list(
 }
 
 fn retained_legacy_color(red: u8, green: u8, blue: u8, alpha: u8) -> RetainedStyleValueData {
-    let value = Arc::into_raw(Arc::new(StyleValueData::ColorFunction {
+    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::ColorFunction {
         color_base: ColorBase {
             has_color_type: true,
             color_type: COLOR_TYPE_RGB,
@@ -5515,8 +5502,7 @@ fn retained_legacy_color(red: u8, green: u8, blue: u8, alpha: u8) -> RetainedSty
         has_name: false,
         name: empty_retained_fly_string(),
         origin_color: empty_retained_style_value(),
-    }));
-    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    }))
 }
 
 fn retained_transparent_legacy_color() -> RetainedStyleValueData {
@@ -5680,7 +5666,7 @@ fn blank_shadow(other: &StyleValueData) -> Option<RetainedStyleValueData> {
     else {
         return None;
     };
-    let value = Arc::into_raw(Arc::new(StyleValueData::Shadow {
+    let value = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Shadow {
         shadow_type: *shadow_type,
         color: retained_transparent_legacy_color(),
         offset_x: retained_zero_px(),
@@ -5689,7 +5675,7 @@ fn blank_shadow(other: &StyleValueData) -> Option<RetainedStyleValueData> {
         spread_distance: retained_zero_px(),
         placement: *placement,
     }));
-    Some(unsafe { RetainedStyleValueData::from_retained_pointer(value) })
+    Some(value)
 }
 
 fn interpolate_shadow(
@@ -5864,12 +5850,11 @@ fn interpolate_shadow_list(
 }
 
 fn retained_filter(kind: u8, color_operation: u8, value: RetainedStyleValueData) -> RetainedStyleValueData {
-    let value = Arc::into_raw(Arc::new(StyleValueData::Filter {
+    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Filter {
         kind,
         color_operation,
         value,
-    }));
-    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    }))
 }
 
 fn initial_filter_value(
@@ -6548,7 +6533,7 @@ pub(crate) fn interpolate_value(
                     unit: 0,
                 }))
             }
-            _ => unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
+            _ => RetainedStyleValueData::none(),
         };
         return owned(StyleValueData::FontStyle {
             font_style,

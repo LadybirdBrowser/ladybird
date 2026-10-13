@@ -308,7 +308,7 @@ fn currentcolor_keyword() -> StyleValueData {
 
 fn retained_null() -> RetainedStyleValueData {
     // SAFETY: null encodes an absent optional value.
-    unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) }
+    RetainedStyleValueData::none()
 }
 
 fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
