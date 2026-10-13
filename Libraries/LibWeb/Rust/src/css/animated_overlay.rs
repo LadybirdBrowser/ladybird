@@ -220,7 +220,7 @@ pub unsafe extern "C" fn rust_animated_overlay_free(overlay: *mut AnimatedOverla
 /// value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_overlay_set(
-    overlay: *mut AnimatedOverlay,
+    overlay: &mut AnimatedOverlay,
     property: u16,
     value: *const c_void,
     inherited: bool,
@@ -229,7 +229,6 @@ pub unsafe extern "C" fn rust_animated_overlay_set(
     let retained = unsafe {
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
     };
-    let overlay = unsafe { &mut *overlay };
     overlay.set_owned(property, retained, inherited, result_of_transition);
 }
 

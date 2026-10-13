@@ -409,8 +409,7 @@ pub(crate) fn visit_declaration_images(data: &DeclarationBlockData, visit: &mut 
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_declaration_block_is_empty(block: *const DeclarationBlock) -> bool {
-    let block = unsafe { &*block };
+pub extern "C" fn rust_declaration_block_is_empty(block: &DeclarationBlock) -> bool {
     let data = block.data();
     data.properties.is_empty() && data.custom_properties.is_empty()
 }
@@ -735,7 +734,7 @@ mod tests {
         let borrowed = block.data();
         assert_eq!(borrowed.properties.len(), 1);
         assert_eq!(borrowed.custom_properties.len(), 1);
-        assert!(!unsafe { rust_declaration_block_is_empty(block) });
+        assert!(!rust_declaration_block_is_empty(block));
         assert_eq!(rust_declaration_block_revision(block), 0);
         assert!(rust_declaration_block_external_memory_size(block) > 0);
         let mut fork = unsafe { Box::from_raw(rust_declaration_block_share(block)) };

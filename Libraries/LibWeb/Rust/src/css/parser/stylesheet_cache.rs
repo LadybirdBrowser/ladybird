@@ -332,10 +332,9 @@ fn find(entries: &Entries, hash: u64, key: &StyleSheetKey) -> Option<Arc<ParsedS
 /// All pointers in `context` must remain valid for this call, just as for parsing.
 pub(super) unsafe fn parse_with_cache(
     source: TokenizerInput<'_>,
-    context: *const ParseContext,
+    context: Option<&ParseContext>,
     parse: impl FnOnce() -> ParsedStyleSheet,
 ) -> Arc<ParsedStyleSheet> {
-    let context = unsafe { context.as_ref() };
     let context_key = match context {
         Some(context) => match unsafe { ContextKey::new(context) } {
             Some(key) => Some(key),

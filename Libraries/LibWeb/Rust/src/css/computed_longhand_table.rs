@@ -1469,14 +1469,8 @@ pub unsafe extern "C" fn rust_computed_longhand_table_copy_from_values(
 /// Returns the table's value span: one borrowed data pointer per longhand,
 /// null where the drive stored no value. The span stays valid while the
 /// caller's table reference is live and the table stays frozen.
-///
-/// # Safety
-/// `table` must be a valid, frozen table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_values(
-    table: *const ComputedLonghandTable,
-) -> *const *const c_void {
-    let table = unsafe { &*table };
+pub extern "C" fn rust_computed_longhand_table_values(table: &ComputedLonghandTable) -> *const *const c_void {
     debug_assert!(table.frozen, "only frozen tables hand out their value span");
     table.value_pointers().as_ptr()
 }
@@ -1518,13 +1512,12 @@ pub extern "C" fn rust_computed_longhand_table_inheritance_bits(table: &Computed
 /// have exactly `LONGHAND_BITMAP_BYTES` readable bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
-    table: *mut ComputedLonghandTable,
+    table: &mut ComputedLonghandTable,
     importance: *const u8,
     importance_count: usize,
     inheritance: *const u8,
     inheritance_count: usize,
 ) {
-    let table = unsafe { &mut *table };
     table.load_flag_bitmaps(
         unsafe { std::slice::from_raw_parts(importance, importance_count) },
         unsafe { std::slice::from_raw_parts(inheritance, inheritance_count) },
@@ -1573,10 +1566,9 @@ pub extern "C" fn rust_computed_longhand_table_metadata(
 /// `table` must be a valid table and `out_count` writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_computed_longhand_table_inheritance_dependent_values(
-    table: *const ComputedLonghandTable,
+    table: &ComputedLonghandTable,
     out_count: *mut usize,
 ) -> *const FfiTableInheritanceDependentValue {
-    let table = unsafe { &*table };
     unsafe { *out_count = table.inheritance_dependent_view.len() };
     table.inheritance_dependent_view.as_ptr()
 }

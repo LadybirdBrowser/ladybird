@@ -3404,11 +3404,10 @@ pub(crate) fn resolve_calculated_line_height_without_context(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_resolve(
     calculated: *const std::ffi::c_void,
-    context: *const FfiCalcResolutionContext,
+    context: &FfiCalcResolutionContext,
     apply_censoring_and_clamping: bool,
 ) -> FfiResolvedCalc {
     let calculated = unsafe { &*calculated.cast::<crate::css::style_value::StyleValueData>() };
-    let context = unsafe { &*context };
     let externals = prepare_external_resolutions(
         unsafe { &*calc_root_from_calculated(std::ptr::from_ref(calculated).cast()) },
         context,
