@@ -53,6 +53,8 @@ impl Argument {
 pub struct FieldSpec {
     pub cpp_type: String,
     pub name: String,
+    /// The index of the argument that the field carries, for a field that follows from the signature of the function.
+    pub argument: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -157,6 +159,7 @@ fn parse_wire_fields(
         field_specs.push(FieldSpec {
             cpp_type: required_string_member(field, "type", &what)?,
             name: required_string_member(field, "name", &what)?,
+            argument: None,
         });
     }
     Ok(Some(field_specs))
@@ -260,6 +263,10 @@ impl Function {
         if self.is_builtin() { &self.name } else { &self.name[2..] }
     }
 
+    pub fn method_name(&self) -> String {
+        title_case_to_snake_case(self.command_name())
+    }
+
     pub fn is_command_stream_entry(&self) -> bool {
         matches!(self.category, Category::Command | Category::Gen) || self.wire_command.is_some()
     }
@@ -285,9 +292,10 @@ impl Function {
             fields.push(FieldSpec {
                 cpp_type: "WebGLObjectId".into(),
                 name: "id".into(),
+                argument: None,
             });
         }
-        for argument in &self.arguments {
+        for (index, argument) in self.arguments.iter().enumerate() {
             let name = title_case_to_snake_case(&argument.name);
             let cpp_type = if is_gen && argument.is_pointer() && !argument.is_const_pointer() {
                 // The ids that the recorder allocated.
@@ -303,6 +311,7 @@ impl Function {
                     fields.push(FieldSpec {
                         cpp_type: "bool".into(),
                         name: format!("has_{name}"),
+                        argument: Some(index),
                     });
                 }
                 "WebGLDataSpan"
@@ -314,6 +323,7 @@ impl Function {
             fields.push(FieldSpec {
                 cpp_type: cpp_type.to_string(),
                 name,
+                argument: Some(index),
             });
         }
         Ok(fields)
@@ -324,7 +334,7 @@ impl Function {
             return Ok(fields.clone());
         }
         let mut fields = Vec::new();
-        for argument in &self.arguments {
+        for (index, argument) in self.arguments.iter().enumerate() {
             if argument.is_out {
                 continue;
             }
@@ -340,6 +350,7 @@ impl Function {
             fields.push(FieldSpec {
                 cpp_type: cpp_type.to_string(),
                 name: title_case_to_snake_case(&argument.name),
+                argument: Some(index),
             });
         }
         Ok(fields)
@@ -357,9 +368,10 @@ impl Function {
             fields.push(FieldSpec {
                 cpp_type: return_type.clone(),
                 name: "return_value".into(),
+                argument: None,
             });
         }
-        for argument in &self.arguments {
+        for (index, argument) in self.arguments.iter().enumerate() {
             if !argument.is_out {
                 continue;
             }
@@ -371,6 +383,7 @@ impl Function {
             fields.push(FieldSpec {
                 cpp_type,
                 name: title_case_to_snake_case(&argument.name),
+                argument: Some(index),
             });
         }
         fields
@@ -481,6 +494,14 @@ pub struct WireStruct {
     pub alignment: usize,
 }
 
+impl WireStruct {
+    /// The Rust struct has fields of its own for the bytes that are not part of a field of the model.
+    pub fn has_unused_bytes(&self) -> bool {
+        let size_of_fields: usize = self.fields.iter().map(|field| field.wire_type.size()).sum();
+        size_of_fields != self.size
+    }
+}
+
 pub fn wire_struct(cpp_name: String, field_specs: Vec<FieldSpec>) -> Result<WireStruct, String> {
     let mut fields = Vec::new();
     let mut end_of_fields: usize = 0;
@@ -578,6 +599,7 @@ mod tests {
             .map(|(cpp_type, name)| FieldSpec {
                 cpp_type: (*cpp_type).into(),
                 name: (*name).into(),
+                argument: None,
             })
             .collect()
     }

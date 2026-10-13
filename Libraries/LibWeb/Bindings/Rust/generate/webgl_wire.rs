@@ -156,6 +156,18 @@ pub fn write_wire_vocabulary(vocabulary: &Vocabulary) -> String {
         "What a synchronous call is, in the order of the C++ enum `WebGLSyncCallType`.",
         &sync_call_names,
     );
+    let max_command_struct_size = vocabulary
+        .commands
+        .iter()
+        .map(|entry| entry.layout.size)
+        .max()
+        .unwrap_or(0);
+    out.push_str("/// The size of the largest struct of a record.\n");
+    writeln!(
+        out,
+        "pub(crate) const MAX_COMMAND_STRUCT_SIZE: usize = {max_command_struct_size};\n"
+    )
+    .unwrap();
 
     out.push_str(
         "/// The structs of the records of the command stream, which are those of the C++ namespace `Commands`.\n",

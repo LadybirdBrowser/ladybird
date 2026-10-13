@@ -56,7 +56,13 @@ pub(crate) mod web_gl;
 #[path = "../generate/webgl_constants.rs"]
 mod webgl_constants;
 #[cfg(test)]
-#[allow(dead_code, reason = "the tests do not run the writers that the model is for")]
+#[path = "../generate/webgl_proxy.rs"]
+mod webgl_proxy;
+#[cfg(test)]
+#[allow(
+    dead_code,
+    reason = "the tests do not run the writer of the vocabulary, which the model is for as well"
+)]
 #[path = "../generate/webgl_wire_model.rs"]
 mod webgl_wire_model;
 

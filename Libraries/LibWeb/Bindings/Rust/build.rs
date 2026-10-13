@@ -11,7 +11,8 @@
 //! the crate includes it.
 //!
 //! Also generates what the WebGL implementation shares with the rest of the tree: the vocabulary of the command
-//! stream and the GL constants. Those do not need the bindings, so every build of the crate has them.
+//! stream, the methods of its recorder and the GL constants. Those do not need the bindings, so every build of the
+//! crate has them.
 
 use std::env;
 use std::fs;
@@ -19,6 +20,9 @@ use std::path::{Path, PathBuf};
 
 #[path = "generate/webgl_constants.rs"]
 mod webgl_constants;
+
+#[path = "generate/webgl_proxy.rs"]
+mod webgl_proxy;
 
 #[path = "generate/webgl_wire.rs"]
 mod webgl_wire;
@@ -31,16 +35,20 @@ fn read_tracked(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
-fn generate_webgl_wire_vocabulary(libraries: &Path, out_dir: &Path) {
+fn generate_webgl_command_recording(libraries: &Path, out_dir: &Path) {
     let functions_path = libraries.join("LibCompositing/WebGL/GLFunctions.json");
-    let generated = webgl_wire_model::parse_functions(&read_tracked(&functions_path))
-        .and_then(|functions| {
-            Ok(webgl_wire::write_wire_vocabulary(&webgl_wire_model::vocabulary(
-                &functions,
-            )?))
-        })
+    let generate = |json: &str| -> Result<(String, String), String> {
+        let functions = webgl_wire_model::parse_functions(json)?;
+        let vocabulary = webgl_wire_model::vocabulary(&functions)?;
+        Ok((
+            webgl_wire::write_wire_vocabulary(&vocabulary),
+            webgl_proxy::write_proxy(&functions)?,
+        ))
+    };
+    let (wire_vocabulary, proxy) = generate(&read_tracked(&functions_path))
         .unwrap_or_else(|error| panic!("{}: {error}", functions_path.display()));
-    fs::write(out_dir.join("webgl_wire.rs"), generated).expect("write webgl_wire.rs");
+    fs::write(out_dir.join("webgl_wire.rs"), wire_vocabulary).expect("write webgl_wire.rs");
+    fs::write(out_dir.join("webgl_proxy.rs"), proxy).expect("write webgl_proxy.rs");
 }
 
 fn idl_files_in(directory: &Path, idl_files: &mut Vec<PathBuf>) {
@@ -83,7 +91,7 @@ fn main() {
         .ancestors()
         .nth(3)
         .expect("the crate is in Libraries/LibWeb/Bindings/Rust");
-    generate_webgl_wire_vocabulary(libraries, &out_dir);
+    generate_webgl_command_recording(libraries, &out_dir);
     generate_webgl_constants(libraries, &out_dir);
 
     println!("cargo:rustc-check-cfg=cfg(web_idl_bindings)");

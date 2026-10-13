@@ -20,9 +20,9 @@ pub(crate) const RECORD_ALIGNMENT: usize = 16;
 /// What precedes the struct of a record and of a request: its type as a `u16`, two unused bytes, and the number of
 /// bytes that follow the header as a `u32`.
 pub(crate) const HEADER_SIZE: usize = 8;
+pub(crate) const HEADER_PAYLOAD_SIZE_OFFSET: usize = 4;
 
-/// The data that a field of a struct stands for: `size` bytes that start `offset` bytes after the start of the
-/// struct.
+/// `size` bytes that start `offset` bytes after the start of the struct that has the span as a field.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub(crate) struct DataSpan {
@@ -33,29 +33,28 @@ pub(crate) struct DataSpan {
 impl DataSpan {
     pub(crate) const EMPTY: Self = Self { offset: 0, size: 0 };
 
-    /// The span of the data that follows a struct `S`.
     pub(crate) fn following<S: WireStruct>(data: InlineData<'_>) -> Self {
         Self {
-            offset: wire_u32(size_of::<S>().next_multiple_of(RECORD_ALIGNMENT)),
-            size: wire_u32(data.len()),
+            offset: const { offset_of_data_following_struct(size_of::<S>()) },
+            // NB: Data of 4 GiB or more has no span. It has no `FramedSize` either, so the recorder refuses what it
+            //     would be sent in, and the size that stands in for the real one here is never sent.
+            size: u32::try_from(data.len()).unwrap_or(u32::MAX),
         }
     }
 }
 
-/// A size or an offset as the stream carries it. The stream cannot carry a record of 4 GiB, which is far more than a
-/// buffer that script can allocate holds.
-fn wire_u32(size: usize) -> u32 {
-    u32::try_from(size).expect("a WebGL command and its data are smaller than 4 GiB")
+const fn offset_of_data_following_struct(struct_size: usize) -> u32 {
+    let offset = struct_size.next_multiple_of(RECORD_ALIGNMENT);
+    assert!(offset <= u32::MAX as usize);
+    offset as u32
 }
 
-/// A struct that crosses the command stream as its bytes.
-///
 /// # Safety
 ///
 /// The type is `repr(C)`, made of numbers, booleans and [`DataSpan`]s, and has no byte that is not part of a field.
 pub(crate) unsafe trait WireStruct: Copy + 'static {
-    /// The struct with every field zero. A struct is built from it, so that the bytes that the C ABI leaves unused
-    /// between its fields, which are fields of their own here, do not have to be named.
+    /// A struct is built from it, so that the bytes that the C ABI leaves unused between its fields, which are fields
+    /// of their own here, do not have to be named.
     const ZEROED: Self;
 
     fn as_bytes(&self) -> &[u8] {
@@ -121,41 +120,71 @@ impl InlineData<'_> {
     }
 }
 
-/// The number of bytes that a struct and its data take together.
-fn payload_layout_size(struct_size: usize, inline_data: InlineData<'_>) -> usize {
-    match inline_data.len() {
-        0 => struct_size,
-        inline_data_size => struct_size.next_multiple_of(RECORD_ALIGNMENT) + inline_data_size,
+fn payload_layout_size(struct_size: usize, inline_data_size: usize) -> Option<usize> {
+    match inline_data_size {
+        0 => Some(struct_size),
+        inline_data_size => struct_size
+            .checked_next_multiple_of(RECORD_ALIGNMENT)?
+            .checked_add(inline_data_size),
     }
 }
 
-/// The number of bytes that a record takes in the command stream.
-pub(crate) fn padded_record_size(struct_size: usize, inline_data: InlineData<'_>) -> usize {
-    (HEADER_SIZE + payload_layout_size(struct_size, inline_data)).next_multiple_of(RECORD_ALIGNMENT)
+/// There is none for a struct with 4 GiB of data or more, as the header says in a `u32` how many bytes follow it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct FramedSize {
+    size_with_header: usize,
+    size_after_header: u32,
 }
 
-/// Writes a header, a struct and its data, and zeroes what is left of `size` bytes, so that no byte of the stream is
-/// one that happened to be in memory.
+impl FramedSize {
+    fn with_size_after_header(size_after_header: usize) -> Option<Self> {
+        Some(Self {
+            size_with_header: HEADER_SIZE.checked_add(size_after_header)?,
+            size_after_header: u32::try_from(size_after_header).ok()?,
+        })
+    }
+
+    /// A record is padded to the alignment of records as a whole.
+    fn of_record(struct_size: usize, inline_data_size: usize) -> Option<Self> {
+        let size_with_header = HEADER_SIZE
+            .checked_add(payload_layout_size(struct_size, inline_data_size)?)?
+            .checked_next_multiple_of(RECORD_ALIGNMENT)?;
+        Self::with_size_after_header(size_with_header - HEADER_SIZE)
+    }
+
+    /// What follows the header of a request is padded to the alignment of records.
+    fn of_sync_request(struct_size: usize, inline_data_size: usize) -> Option<Self> {
+        let size_after_header =
+            payload_layout_size(struct_size, inline_data_size)?.checked_next_multiple_of(RECORD_ALIGNMENT)?;
+        Self::with_size_after_header(size_after_header)
+    }
+}
+
+pub(crate) fn padded_record_size(struct_size: usize, inline_data_size: usize) -> Option<usize> {
+    FramedSize::of_record(struct_size, inline_data_size).map(|size| size.size_with_header)
+}
+
+/// Writes a header, a struct and its data, and zeroes what is left of the size, so that no byte of the stream is one
+/// that happened to be in memory.
 ///
 /// # Safety
 ///
-/// `destination` is valid for writes of `size` bytes, which are at least as many as the header, the struct and the
-/// data take, and which overlap neither the struct nor the data.
+/// `size` is that of the struct with the data, and `destination` is valid for writes of as many bytes, which overlap
+/// neither the struct nor the data.
 unsafe fn write_framed(
     destination: *mut u8,
-    size: usize,
+    size: FramedSize,
     type_number: u16,
     payload: &[u8],
     inline_data: InlineData<'_>,
 ) {
-    let payload_size = wire_u32(size - HEADER_SIZE);
     let mut header = [0; HEADER_SIZE];
     header[..2].copy_from_slice(&type_number.to_ne_bytes());
-    header[4..].copy_from_slice(&payload_size.to_ne_bytes());
+    header[HEADER_PAYLOAD_SIZE_OFFSET..].copy_from_slice(&size.size_after_header.to_ne_bytes());
 
     let mut written = HEADER_SIZE + payload.len();
-    // SAFETY: The caller provides `size` bytes, and every write below stays inside the layout that
-    //         payload_layout_size() computes, which `size` covers.
+    // SAFETY: The caller provides the bytes of the size, and every write below stays inside the layout that
+    //         payload_layout_size() computes, which the size covers.
     unsafe {
         ptr::copy_nonoverlapping(header.as_ptr(), destination, HEADER_SIZE);
         ptr::copy_nonoverlapping(payload.as_ptr(), destination.add(HEADER_SIZE), payload.len());
@@ -165,70 +194,87 @@ unsafe fn write_framed(
             inline_data.write_to(destination.add(inline_data_offset));
             written = inline_data_offset + inline_data.len();
         }
-        ptr::write_bytes(destination.add(written), 0, size - written);
+        ptr::write_bytes(destination.add(written), 0, size.size_with_header - written);
     }
 }
 
-/// Writes a record of the command stream.
-///
-/// # Safety
-///
-/// `destination` is valid for writes of `padded_record_size(payload.len(), inline_data)` bytes that overlap neither
-/// the payload nor the data.
-pub(crate) unsafe fn write_record(
-    destination: *mut u8,
+pub(crate) struct Record<'a> {
     command_type: CommandType,
-    payload: &[u8],
-    inline_data: InlineData<'_>,
-) {
-    let record_size = padded_record_size(payload.len(), inline_data);
-    // SAFETY: The caller provides the bytes of the record.
-    unsafe { write_framed(destination, record_size, command_type as u16, payload, inline_data) };
+    payload: &'a [u8],
+    inline_data: InlineData<'a>,
+    size: FramedSize,
 }
 
-/// Appends a record to commands that are kept outside the shared command buffer.
-pub(crate) fn append_record(
-    commands: &mut Vec<u8>,
-    command_type: CommandType,
-    payload: &[u8],
-    inline_data: InlineData<'_>,
-) {
-    let record_offset = commands.len();
-    assert!(record_offset.is_multiple_of(RECORD_ALIGNMENT));
-    commands.resize(record_offset + padded_record_size(payload.len(), inline_data), 0);
-    // SAFETY: The vector was just grown by the size of the record, and it owns its bytes.
-    unsafe {
-        write_record(
-            commands.as_mut_ptr().add(record_offset),
+impl<'a> Record<'a> {
+    pub(crate) fn new(command_type: CommandType, payload: &'a [u8], inline_data: InlineData<'a>) -> Option<Self> {
+        Some(Self {
             command_type,
             payload,
             inline_data,
-        );
+            size: FramedSize::of_record(payload.len(), inline_data.len())?,
+        })
+    }
+
+    pub(crate) fn size(&self) -> usize {
+        self.size.size_with_header
+    }
+
+    /// # Safety
+    ///
+    /// `destination` is valid for writes of `self.size()` bytes that overlap neither the struct nor the data.
+    pub(crate) unsafe fn write_to(&self, destination: *mut u8) {
+        // SAFETY: The caller provides the bytes of the record, whose size is that of the struct with the data.
+        unsafe {
+            write_framed(
+                destination,
+                self.size,
+                self.command_type as u16,
+                self.payload,
+                self.inline_data,
+            );
+        }
+    }
+
+    pub(crate) fn append_to(&self, commands: &mut Vec<u8>) {
+        let record_offset = commands.len();
+        assert!(record_offset.is_multiple_of(RECORD_ALIGNMENT));
+        commands.resize(record_offset + self.size(), 0);
+        // SAFETY: The vector was just grown by the size of the record, and it owns its bytes.
+        unsafe { self.write_to(commands.as_mut_ptr().add(record_offset)) };
+    }
+
+    pub(crate) fn encoded(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        self.append_to(&mut bytes);
+        bytes
     }
 }
 
-/// Replaces the contents of `request_bytes` with the request of a synchronous call.
+/// False, with no request in `request_bytes`, when the stream cannot carry the request.
+#[must_use]
 pub(crate) fn encode_sync_request<R: SyncRequest>(
     request_bytes: &mut Vec<u8>,
     request: &R,
     inline_data: InlineData<'_>,
-) {
-    let payload_size = payload_layout_size(size_of::<R>(), inline_data).next_multiple_of(RECORD_ALIGNMENT);
+) -> bool {
     request_bytes.clear();
-    request_bytes.resize(HEADER_SIZE + payload_size, 0);
-    // SAFETY: The vector has the size of the header and the padded payload, and it owns its bytes.
+    let Some(size) = FramedSize::of_sync_request(size_of::<R>(), inline_data.len()) else {
+        return false;
+    };
+    request_bytes.resize(size.size_with_header, 0);
+    // SAFETY: The vector has the size of the request, and it owns its bytes.
     unsafe {
         write_framed(
             request_bytes.as_mut_ptr(),
-            request_bytes.len(),
+            size,
             R::TYPE as u16,
             request.as_bytes(),
             inline_data,
         );
     }
+    true
 }
 
-/// The data that a span of the struct of a reply stands for.
 pub(crate) fn resolve_data_span(reply: &[u8], span: DataSpan) -> &[u8] {
     let start = span.offset as usize;
     start
@@ -243,10 +289,15 @@ mod tests {
     use super::*;
 
     fn record(command_type: CommandType, payload: &[u8], inline_data: InlineData<'_>) -> Vec<u8> {
+        let record = Record::new(command_type, payload, inline_data).unwrap();
+        assert_eq!(
+            Some(record.size()),
+            padded_record_size(payload.len(), inline_data.len())
+        );
         // NB: The bytes that a record is written over are not zero, as those of a reused buffer are not.
-        let mut bytes = vec![0xAA; padded_record_size(payload.len(), inline_data)];
+        let mut bytes = vec![0xAA; record.size()];
         // SAFETY: The vector has the size of the record.
-        unsafe { write_record(bytes.as_mut_ptr(), command_type, payload, inline_data) };
+        unsafe { record.write_to(bytes.as_mut_ptr()) };
         bytes
     }
 
@@ -343,13 +394,12 @@ mod tests {
             width: 3,
             height: 4,
         };
-        append_record(&mut commands, CommandType::Enable, enable.as_bytes(), InlineData::NONE);
-        append_record(
-            &mut commands,
-            CommandType::Viewport,
-            viewport.as_bytes(),
-            InlineData::NONE,
-        );
+        Record::new(CommandType::Enable, enable.as_bytes(), InlineData::NONE)
+            .unwrap()
+            .append_to(&mut commands);
+        Record::new(CommandType::Viewport, viewport.as_bytes(), InlineData::NONE)
+            .unwrap()
+            .append_to(&mut commands);
         assert_eq!(commands.len(), 16 + 32);
         assert_eq!(commands[..8], header(CommandType::Enable as u16, 8));
         assert_eq!(commands[16..24], header(CommandType::Viewport as u16, 24));
@@ -360,11 +410,11 @@ mod tests {
         // NB: The replayer rejects a request whose payload is shorter than its struct, and the struct of a request
         //     without arguments is one byte in C++.
         let mut request_bytes = vec![0xAA; 64];
-        encode_sync_request(
+        assert!(encode_sync_request(
             &mut request_bytes,
             &sync_calls::GetErrorRequest::ZEROED,
             InlineData::NONE,
-        );
+        ));
         assert_eq!(request_bytes.len(), 24);
         assert_eq!(request_bytes[..8], header(SyncCallType::GetError as u16, 16));
         assert_eq!(request_bytes[8..], [0; 16]);
@@ -374,12 +424,47 @@ mod tests {
             program: 3,
             name: DataSpan::following::<sync_calls::GetAttribLocationRequest>(name),
         };
-        encode_sync_request(&mut request_bytes, &request, name);
+        assert!(encode_sync_request(&mut request_bytes, &request, name));
         assert_eq!(request_bytes.len(), 8 + 32);
         assert_eq!(request_bytes[..8], header(SyncCallType::GetAttribLocation as u16, 32));
         assert_eq!(request_bytes[8..20], *request.as_bytes());
         assert_eq!(request_bytes[24..30], *b"color\0");
         assert_eq!(request_bytes[30..], [0; 10]);
+    }
+
+    #[test]
+    fn the_stream_carries_what_its_header_can_count() {
+        const FOUR_GIB: usize = 1 << 32;
+
+        // The largest record: 8 bytes of header, 16 of struct, and data up to the last multiple of the alignment
+        // that leaves what follows the header countable.
+        let largest_data_size = FOUR_GIB - 8 - 16;
+        assert_eq!(padded_record_size(16, largest_data_size), Some(FOUR_GIB));
+        assert_eq!(
+            FramedSize::of_record(16, largest_data_size),
+            Some(FramedSize {
+                size_with_header: FOUR_GIB,
+                size_after_header: u32::MAX - 7
+            })
+        );
+        assert_eq!(padded_record_size(16, largest_data_size + 1), None);
+        assert_eq!(padded_record_size(16, FOUR_GIB), None);
+        assert_eq!(padded_record_size(16, usize::MAX), None);
+        assert_eq!(padded_record_size(16, usize::MAX - 16), None);
+        assert_eq!(padded_record_size(usize::MAX, 0), None);
+        assert_eq!(padded_record_size(usize::MAX, 1), None);
+
+        // The largest request: what follows its header is padded on its own.
+        assert_eq!(
+            FramedSize::of_sync_request(16, FOUR_GIB - 16 - 16),
+            Some(FramedSize {
+                size_with_header: FOUR_GIB - 8,
+                size_after_header: u32::MAX - 15
+            })
+        );
+        assert_eq!(FramedSize::of_sync_request(16, FOUR_GIB - 16 - 15), None);
+        assert_eq!(FramedSize::of_sync_request(16, usize::MAX), None);
+        assert_eq!(FramedSize::of_sync_request(1, 0).unwrap().size_with_header, 8 + 16);
     }
 
     #[test]
