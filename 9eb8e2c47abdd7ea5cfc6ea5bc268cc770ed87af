@@ -1,0 +1,12 @@
+For an accessibility tree update, Ladybird posts no notification at
+all — and never AXLayoutChanged. Chrome never posts AXLayoutChanged
+either: BrowserAccessibilityManagerMac::FireGeneratedEvent() maps
+tree events to specific notifications (value, live-region, and focus
+changes, e.g.), none of them a layout notification. Gecko and WebKit
+post AXLayoutComplete only when an iframe’s document finishes loading:
+Gecko from MOXWebAreaAccessible’s handleAccessibleEvent: for an
+EVENT_DOCUMENT_LOAD_COMPLETE on a document that isn’t top-level, and
+WebKit from AXObjectCache::onNonTopDocumentLoaded(). That fits what
+VoiceOver did with Ladybird’s AXLayoutChanged on the scroll area holding
+the AXWebArea: It treated the web area as a frame that had just loaded,
+announcing a “frame” and moving into it.
