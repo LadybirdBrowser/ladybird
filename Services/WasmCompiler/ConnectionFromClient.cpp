@@ -7,7 +7,6 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/Process.h>
-#include <LibCore/System.h>
 #include <WasmCompiler/Compiler.h>
 #include <WasmCompiler/ConnectionFromClient.h>
 
@@ -37,17 +36,6 @@ void ConnectionFromClient::die()
 
     if (terminate)
         Core::Process::terminate_immediately(0);
-}
-
-Messages::WasmCompilerServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#else
-    did_misbehave("Unexpected WebAssembly compiler transport initialization");
-    return 0;
-#endif
 }
 
 ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client()

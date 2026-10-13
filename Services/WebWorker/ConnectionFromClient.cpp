@@ -6,7 +6,6 @@
 
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/Process.h>
-#include <LibCore/System.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
@@ -18,15 +17,6 @@
 #include <WebWorker/WorkerHost.h>
 
 namespace WebWorker {
-
-Messages::WebWorkerServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#endif
-    VERIFY_NOT_REACHED();
-}
 
 void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle, int client_id)
 {
@@ -77,13 +67,6 @@ void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
     m_compositor_connection->on_compositor_lost = [this] {
         m_page_host->compositor_process_lost();
     };
-
-#ifdef AK_OS_WINDOWS
-    if constexpr (requires { m_compositor_connection->transport().set_peer_pid(0); }) {
-        auto response = m_compositor_connection->send_sync<Messages::CompositorWebContentServer::InitTransport>(Core::System::getpid());
-        m_compositor_connection->transport().set_peer_pid(response->compositor_pid());
-    }
-#endif
 
     m_page_host->ensure_compositor_host();
 }

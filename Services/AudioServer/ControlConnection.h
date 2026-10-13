@@ -26,7 +26,6 @@ public:
 private:
     explicit ControlConnection(NonnullOwnPtr<IPC::Transport>);
 
-    virtual Messages::AudioServerControl::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::AudioServerControl::ConnectNewClientResponse connect_new_client(u64 tab_id) override;
     virtual void set_capture_permission(u64 tab_id, bool granted) override;
     virtual void capture_decided(u64 request_id, bool allowed) override;

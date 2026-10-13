@@ -11,7 +11,6 @@
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
-#include <LibCore/System.h>
 #include <LibWebCommon/Page/InputEvent.h>
 
 namespace Compositor {
@@ -40,10 +39,6 @@ void ConnectionFromWebContent::offer_video_presentation_channel(IPC::TransportHa
     }
     m_video_presentation_connection = adopt_ref(*new Media::VideoPresentationClientConnection(transport_or_error.release_value()));
 
-#ifdef AK_OS_WINDOWS
-    m_video_presentation_connection->async_init_transport(Core::System::getpid());
-#endif
-
     dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "Compositor: established video presentation channel for WebContent (client_id={})", client_id());
 }
 
@@ -56,9 +51,6 @@ void ConnectionFromWebContent::offer_render_clock_channel(IPC::TransportHandle h
     }
     // A new channel replaces the one before it, whose requests were for the contexts the process armed then.
     m_render_clock_connection = RenderClockConnection::construct(transport_or_error.release_value(), client_id());
-#ifdef AK_OS_WINDOWS
-    m_render_clock_connection->transport().set_peer_pid(transport().peer_pid());
-#endif
     m_render_clock_connection->on_request_clock_tick = [this](Web::CompositorContextId context_id, double maximum_frames_per_second) {
         if (!context_is_owned_by_this_connection(context_id))
             return;
@@ -121,17 +113,6 @@ void ConnectionFromWebContent::release_video_edge(Media::VideoSinkHandle video_s
 void ConnectionFromWebContent::notify_compositor_lost()
 {
     async_did_lose_compositor();
-}
-
-Messages::CompositorWebContentServer::InitTransportResponse ConnectionFromWebContent::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#else
-    did_misbehave("Unexpected Compositor transport initialization from WebContent");
-    return 0;
-#endif
 }
 
 void ConnectionFromWebContent::request_rendering_update()

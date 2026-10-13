@@ -12,7 +12,6 @@
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
-#include <LibCore/System.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
@@ -47,17 +46,6 @@ void ConnectionFromClient::die()
     if (s_connections.is_empty()) {
         Core::Process::terminate_immediately(0);
     }
-}
-
-Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#else
-    did_misbehave("Unexpected image decoder transport initialization");
-    return 0;
-#endif
 }
 
 static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<RefPtr<Gfx::Bitmap>>& bitmaps, Vector<u32>& durations)

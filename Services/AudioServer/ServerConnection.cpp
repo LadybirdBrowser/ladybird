@@ -6,7 +6,6 @@
 
 #include <AK/Atomic.h>
 #include <AudioServer/ServerConnection.h>
-#include <LibCore/System.h>
 
 namespace Audio {
 
@@ -75,17 +74,6 @@ void ServerConnection::remove_streams_from_mixer()
             m_mixer->remove_client(stream.mixer_client_id);
     }
     m_streams.clear();
-}
-
-Messages::AudioServer::InitTransportResponse ServerConnection::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#else
-    did_misbehave("Unexpected audio server transport initialization");
-    return 0;
-#endif
 }
 
 ServerConnection::StreamState* ServerConnection::find_stream(u64 stream_id, StringView operation)

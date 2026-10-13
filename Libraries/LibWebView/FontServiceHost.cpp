@@ -7,7 +7,6 @@
 #include <LibCompositing/FontClientEndpoint.h>
 #include <LibCompositing/FontServerEndpoint.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/System.h>
 #include <LibGfx/Font/Font.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Transport.h>
@@ -31,15 +30,6 @@ private:
     virtual void die() override
     {
         m_host.m_connections.remove_first_matching([this](auto const& connection) { return connection.ptr() == this; });
-    }
-
-    virtual Messages::FontServer::InitTransportResponse init_transport([[maybe_unused]] int peer_pid) override
-    {
-#ifdef AK_OS_WINDOWS
-        m_transport->set_peer_pid(peer_pid);
-        return Core::System::getpid();
-#endif
-        VERIFY_NOT_REACHED();
     }
 
     virtual Messages::FontServer::OpenFontResponse open_font(u64 generation, u64 face_id) override

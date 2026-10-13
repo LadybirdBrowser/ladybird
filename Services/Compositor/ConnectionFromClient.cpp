@@ -11,7 +11,6 @@
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/Process.h>
-#include <LibCore/System.h>
 #include <LibIPC/Transport.h>
 
 namespace Compositor {
@@ -60,15 +59,6 @@ void ConnectionFromClient::did_consume_input_event(Web::CompositorContextId cont
 void ConnectionFromClient::did_not_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id)
 {
     async_did_not_dispatch_input_event(context_id, event_id);
-}
-
-Messages::CompositorControlServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#endif
-    VERIFY_NOT_REACHED();
 }
 
 void ConnectionFromClient::set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)

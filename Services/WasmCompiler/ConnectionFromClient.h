@@ -29,7 +29,6 @@ public:
 
 private:
     virtual void die() override;
-    virtual Messages::WasmCompilerServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::WasmCompilerServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
     virtual void compile(Core::AnonymousBuffer, u64 request_id) override;
 

@@ -32,7 +32,6 @@ public:
 
     virtual void die() override;
 
-    virtual Messages::WebWorkerServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
     virtual void close_worker() override;
 

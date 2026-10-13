@@ -12,7 +12,6 @@
 
 endpoint RequestServer
 {
-    init_transport(int peer_pid) => (int peer_pid)
 
     // Test if a specific protocol is supported, e.g "http"
     is_supported_protocol(ByteString protocol) => (bool supported)

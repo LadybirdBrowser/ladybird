@@ -41,7 +41,6 @@ public:
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_audio_server_transport();
 
 private:
-    virtual Messages::MediaServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::MediaServer::ConnectNewClientResponse connect_new_client() override;
 
     virtual Messages::MediaServer::CreateVideoPresentationChannelResponse create_video_presentation_channel() override;

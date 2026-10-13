@@ -26,8 +26,6 @@ class Client final
     C_OBJECT_ABSTRACT(Client);
 
 public:
-    using InitTransport = Messages::WasmCompilerServer::InitTransport;
-
     explicit Client(NonnullOwnPtr<IPC::Transport>);
 
     Core::AnonymousBuffer compile(Core::AnonymousBuffer const&);

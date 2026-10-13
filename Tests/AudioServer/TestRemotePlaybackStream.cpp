@@ -98,7 +98,6 @@ struct RemoteFixture {
         server_weak = server->make_weak_ptr<Audio::ServerConnection>();
         client = adopt_ref(*new Audio::ClientConnection(MUST(paired.remote_handle.create_transport())));
         client_weak = client->make_weak_ptr<Audio::ClientConnection>();
-        introduce_paired_transports(server->transport(), client->transport());
     }
 
     // The client goes first, and the loop runs until both ends are gone for good: a stream's last reference may be the
@@ -495,7 +494,6 @@ struct RemoteSinkFixture {
             auto paired = TRY(IPC::Transport::create_paired());
             servers.append(Audio::ServerConnection::construct(move(paired.local), static_cast<int>(connections_requested), *mixer, Audio::ServerConnection::DeviceEnumeration::Platform, Audio::CaptureDevices::create([](Audio::SampleSpecification const&, u32, StringView, Audio::RecordStream::RecordCallback) { return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("No capture in this test")); }), [](ByteString const&, Function<void(bool)> on_decided) { on_decided(false); }));
             auto transport = TRY(paired.remote_handle.create_transport());
-            introduce_paired_transports(servers.last()->transport(), *transport);
             return transport;
         });
     }

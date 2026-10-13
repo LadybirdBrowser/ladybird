@@ -14,11 +14,15 @@
 #include <LibCore/Socket.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
+#include <LibIPC/HandleBroker.h>
 #include <LibIPC/ReceivedMessageBytes.h>
 #include <LibIPC/TransportHandle.h>
 
 namespace IPC {
 
+// A Windows socket carries bytes alone, so the attachments of a message are parked with the handle broker and the
+// message carries their token. The Browser copies them out of this process and into the peer, so neither needs any
+// right over the other.
 class TransportSocketWindows {
     AK_MAKE_NONCOPYABLE(TransportSocketWindows);
     AK_MAKE_NONMOVABLE(TransportSocketWindows);
@@ -36,12 +40,13 @@ public:
     explicit TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> socket);
     ~TransportSocketWindows();
 
-    void set_peer_pid(int pid);
-    int peer_pid() const { return m_peer_pid; }
     void set_up_read_hook(Function<void()>);
     bool is_open() const;
     void close();
     void close_after_sending_all_pending_messages();
+
+    // Fails a send that the peer has no room for, rather than wait for the peer to read.
+    void set_disconnects_when_peer_stops_reading(bool value) { m_disconnects_when_peer_stops_reading = value; }
 
     void wait_until_readable();
 
@@ -65,16 +70,18 @@ public:
     ErrorOr<TransportHandle> release_for_transfer();
 
 private:
-    ErrorOr<Vector<u8>> serialize_attachments(Vector<Attachment>&);
-    Attachment deserialize_attachment(ReadonlyBytes&);
+    struct MessageHeader;
+
     ErrorOr<void> transfer(ReadonlyBytes);
 
-private:
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     Atomic<bool> m_socket_is_open { true };
     Mutex m_send_mutex;
     ByteBuffer m_unprocessed_bytes;
-    int m_peer_pid = -1;
+    // Names this end to the handle broker, so what it parked can be forgotten once the peer can no longer read it.
+    HandleBrokerChannel m_handle_broker_channel { 0 };
+    bool m_has_parked_attachments { false };
+    bool m_disconnects_when_peer_stops_reading { false };
 };
 
 }

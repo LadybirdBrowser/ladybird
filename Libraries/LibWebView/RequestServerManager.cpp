@@ -9,7 +9,6 @@
 #include <LibCore/DirIterator.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
@@ -137,10 +136,6 @@ ErrorOr<void> RequestServerManager::launch_process(RequestServerInstance& instan
     auto connection = TRY(connect_new_client(instance, instance.session(), RequestServer::SiteBinding::Unrestricted));
     auto transport = TRY(connection.handle.create_transport());
     auto ui_client = make_ref_counted<Requests::RequestClient>(move(transport));
-#ifdef AK_OS_WINDOWS
-    auto init_transport_response = ui_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
-    ui_client->transport().set_peer_pid(init_transport_response->peer_pid());
-#endif
     instance.m_ui_client = move(ui_client);
 
     return {};

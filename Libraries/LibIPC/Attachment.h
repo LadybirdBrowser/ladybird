@@ -27,6 +27,9 @@ public:
 
     static Attachment from_fd(int fd);
     int to_fd();
+#if !defined(AK_OS_MACOS) && !defined(AK_OS_IOS)
+    int fd() const { return m_fd; }
+#endif
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     static Attachment from_mach_port(Core::MachPort, Core::MachPort::MessageRight);

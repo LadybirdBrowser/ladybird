@@ -20,8 +20,6 @@ class WEBVIEW_API AudioServerControlClient final
     C_OBJECT_ABSTRACT(AudioServerControlClient);
 
 public:
-    using InitTransport = Messages::AudioServerControl::InitTransport;
-
     explicit AudioServerControlClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~AudioServerControlClient() override;
 

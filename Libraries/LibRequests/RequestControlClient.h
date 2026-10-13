@@ -27,8 +27,6 @@ class RequestControlClient final
     C_OBJECT_ABSTRACT(RequestControlClient)
 
 public:
-    using InitTransport = Messages::RequestServerControl::InitTransport;
-
     explicit RequestControlClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestControlClient() override;
 

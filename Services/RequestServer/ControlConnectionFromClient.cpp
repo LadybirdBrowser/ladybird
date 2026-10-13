@@ -5,7 +5,6 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/TransportHandle.h>
 #include <RequestServer/AlternativeServices.h>
@@ -51,15 +50,6 @@ void ControlConnectionFromClient::die()
 
     if (m_connections.is_empty())
         Core::EventLoop::current().quit(0);
-}
-
-Messages::RequestServerControl::InitTransportResponse ControlConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#endif
-    VERIFY_NOT_REACHED();
 }
 
 ErrorOr<ControlConnectionFromClient::ClientSocket> ControlConnectionFromClient::create_client_socket(IsPrivate is_private, SiteBinding site_binding)

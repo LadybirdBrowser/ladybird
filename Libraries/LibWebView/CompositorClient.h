@@ -23,8 +23,6 @@ class WEBVIEW_API CompositorClient final
     C_OBJECT_ABSTRACT(CompositorClient)
 
 public:
-    using InitTransport = Messages::CompositorControlServer::InitTransport;
-
     explicit CompositorClient(NonnullOwnPtr<IPC::Transport>);
 
     Function<void()> on_death;

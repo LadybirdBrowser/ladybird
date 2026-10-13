@@ -74,8 +74,6 @@ class WEBVIEW_API WebContentClient final
     friend class WebContentTestClient;
 
 public:
-    using InitTransport = Messages::WebContentServer::InitTransport;
-
     template<CallableAs<IterationDecision, WebContentClient&> Callback>
     static void for_each_client(Callback callback);
 

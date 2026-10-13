@@ -5,8 +5,6 @@
 #include <LibMedia/VideoSinkHandle.h>
 
 endpoint VideoPresentationServer {
-    init_transport(int peer_pid) =|
-
     create_video_edge(Media::VideoSinkHandle video_sink_handle, u64 edge_id) =|
     release_video_edge(u64 edge_id) =|
 

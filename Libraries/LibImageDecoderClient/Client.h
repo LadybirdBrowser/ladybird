@@ -38,8 +38,6 @@ class Client final
     C_OBJECT_ABSTRACT(Client);
 
 public:
-    using InitTransport = Messages::ImageDecoderServer::InitTransport;
-
     Client(NonnullOwnPtr<IPC::Transport>);
 
     NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size = {}, Optional<ByteString> mime_type = {});

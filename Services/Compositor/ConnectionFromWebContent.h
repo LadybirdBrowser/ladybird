@@ -38,7 +38,6 @@ private:
 
     virtual void die() override;
 
-    virtual Messages::CompositorWebContentServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void offer_video_presentation_channel(IPC::TransportHandle handle) override;
     virtual void offer_render_clock_channel(IPC::TransportHandle handle) override;
     virtual void add_video_sink(Media::VideoSinkHandle) override;

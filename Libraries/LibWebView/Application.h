@@ -189,6 +189,9 @@ public:
     static SessionStore* session_store(IsPrivate);
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
+#if defined(AK_OS_WINDOWS)
+    static IPC::HandleBrokerServer& handle_broker_server() { return *the().m_handle_broker_server; }
+#endif
 
     // Runs the handler when the ImageDecoder with the given pid exits.
     void set_image_decoder_exit_handler(pid_t, Function<void()>);
@@ -621,6 +624,9 @@ private:
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     Core::EventLoop* m_event_loop { nullptr };
+#if defined(AK_OS_WINDOWS)
+    OwnPtr<IPC::HandleBrokerServer> m_handle_broker_server;
+#endif
     OwnPtr<ProcessManager> m_process_manager;
 
     RefPtr<Action> m_reload_action;

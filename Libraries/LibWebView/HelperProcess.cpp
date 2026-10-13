@@ -292,11 +292,6 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
         if constexpr (requires { new_client->set_pid(pid_t {}); })
             new_client->set_pid(process.pid());
 
-        if constexpr (requires { new_client->transport().set_peer_pid(0); }) {
-            auto response = new_client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
-            new_client->transport().set_peer_pid(response->peer_pid());
-        }
-
         client = move(new_client);
         return move(process);
     }));

@@ -88,7 +88,6 @@ struct RemoteCaptureFixture {
         server_weak = server->make_weak_ptr<Audio::ServerConnection>();
         client = adopt_ref(*new Audio::ClientConnection(MUST(paired.remote_handle.create_transport())));
         client_weak = client->make_weak_ptr<Audio::ClientConnection>();
-        introduce_paired_transports(server->transport(), client->transport());
     }
 
     // The client goes first, and the loop runs until both ends are gone for good: a stream's last reference may be the

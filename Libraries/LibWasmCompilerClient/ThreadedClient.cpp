@@ -6,7 +6,6 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/System.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibThreading/Thread.h>
 #include <LibWasmCompilerClient/Client.h>
@@ -87,13 +86,6 @@ static ErrorOr<NonnullRefPtr<Client>> create_client(IPC::TransportHandle const& 
 {
     auto transport = TRY(handle.create_transport());
     auto client = TRY(try_make_ref_counted<Client>(move(transport)));
-
-#ifdef AK_OS_WINDOWS
-    if (auto response = client->send_sync_but_allow_failure<Client::InitTransport>(Core::System::getpid()))
-        client->transport().set_peer_pid(response->peer_pid());
-    else
-        return Error::from_string_literal("Failed to initialize WebAssembly compiler transport");
-#endif
 
     return client;
 }

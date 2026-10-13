@@ -21,7 +21,6 @@
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
-#include <LibCore/System.h>
 #include <LibDevTools/IndexedDBSerialization.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
@@ -134,15 +133,6 @@ void ConnectionFromClient::did_destroy_compositor_context(Web::CompositorContext
 void ConnectionFromClient::die()
 {
     Core::Process::terminate_immediately(0);
-}
-
-Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#endif
-    VERIFY_NOT_REACHED();
 }
 
 void ConnectionFromClient::set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
@@ -456,13 +446,6 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
         m_page_host->compositor_process_lost();
     };
 
-#ifdef AK_OS_WINDOWS
-    // Perform Windows peer PID handshake before any other IPC
-    if constexpr (requires { m_compositor_connection->transport().set_peer_pid(0); }) {
-        auto response = m_compositor_connection->send_sync<Messages::CompositorWebContentServer::InitTransport>(Core::System::getpid());
-        m_compositor_connection->transport().set_peer_pid(response->compositor_pid());
-    }
-#endif
     m_compositor_connection->attach_render_clock();
     m_compositor_connection->hand_frame_sink_to_paint_thread();
 }

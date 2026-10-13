@@ -65,14 +65,6 @@ struct TestServer {
         connection = RequestServer::ConnectionFromClient::construct(
             move(pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Bound,
             connections, request_transfer_leases, *disk_cache);
-
-#ifdef AK_OS_WINDOWS
-        auto pid = Core::System::getpid();
-        control_connection->transport().set_peer_pid(pid);
-        control_remote_transport->set_peer_pid(pid);
-        connection->transport().set_peer_pid(pid);
-        remote_transport->set_peer_pid(pid);
-#endif
     }
 
     ~TestServer()
