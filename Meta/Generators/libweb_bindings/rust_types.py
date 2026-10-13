@@ -13,6 +13,7 @@ from typing import Optional
 from Generators.libweb_bindings.context import GenerationContext
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Dictionary
+from Utils.webidl_parser import IDLParameterizedType
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import IDLUnionType
 from Utils.webidl_parser import OperationParameter
@@ -96,14 +97,55 @@ def runtime_union_type(idl_type: IDLType, context: GenerationContext) -> Optiona
     return None
 
 
+def member_other_than_undefined(idl_type: IDLType) -> Optional[IDLType]:
+    """The other member of a union of a type and undefined, whose IDL values are those of the type or nothing."""
+    if not isinstance(idl_type, IDLUnionType) or idl_type.nullable or len(idl_type.member_types) != 2:
+        return None
+    others = [member for member in idl_type.member_types if member.name != "undefined"]
+    return others[0] if len(others) == 1 else None
+
+
+def is_named_union(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the Rust type of the union is an enum that the module of the typedef of the union defines."""
+    return (
+        isinstance(idl_type, IDLUnionType)
+        and runtime_union_type(idl_type, context) is None
+        and member_other_than_undefined(idl_type) is None
+    )
+
+
+def rust_union_variant(member_type: IDLType) -> str:
+    """The variant of a member of a union in the enum of the union, which has the name of the type of the member."""
+    return member_type.name.replace(" ", "")
+
+
+def rust_union_path(idl_type: IDLUnionType, context: GenerationContext, what: str) -> str:
+    """The Rust path of the enum of a union, which is in the module of the IDL file whose typedef names the union:
+    crate::url_pattern::url_pattern::URLPatternInput."""
+    name = union_typedef_name(idl_type, context, what)
+    for module in context.modules:
+        if any(typedef.name == name for typedef in module.typedefs):
+            return f"{rust_module_path(module.path)}::{name}"
+    raise RuntimeError(f"No module defines the typedef {name}")
+
+
 def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
     """The Rust type of the IDL values of the type."""
     unsupported_attributes = set(idl_type.extended_attributes) - SUPPORTED_TYPE_EXTENDED_ATTRIBUTES
     if unsupported_attributes:
         raise UnsupportedByRustBindings(f"{what} has extended attributes {sorted(unsupported_attributes)}")
     if idl_type.nullable:
-        raise UnsupportedByRustBindings(f"{what} has the nullable type {idl_type}")
+        return f"Option<{rust_type(idl_type.without_nullable(), context, what)}>"
     name = idl_type.name
+    if isinstance(idl_type, IDLParameterizedType):
+        if name == "sequence":
+            return f"Vec<{rust_type(idl_type.parameters[0], context, what)}>"
+        if name == "record":
+            key_type, value_type = idl_type.parameters
+            if key_type.name not in ("DOMString", "USVString"):
+                raise UnsupportedByRustBindings(f"{what} has a record with keys of the type {key_type}")
+            return f"Vec<({rust_type(key_type, context, what)}, {rust_type(value_type, context, what)})>"
+        raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")
     if name == "DOMString":
         return "Utf16String"
     if name == "USVString":
@@ -124,8 +166,13 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
     runtime_type = runtime_union_type(idl_type, context)
     if runtime_type is not None:
         return runtime_type
+    optional_member = member_other_than_undefined(idl_type)
+    if optional_member is not None:
+        return f"Option<{rust_type(optional_member, context, what)}>"
     if isinstance(idl_type, IDLUnionType):
-        union_typedef_name(idl_type, context, what)
+        for member_type in idl_type.flattened_member_types():
+            rust_type(member_type, context, what)
+        return rust_union_path(idl_type, context, what)
     raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")
 
 
