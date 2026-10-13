@@ -18,7 +18,6 @@
 namespace Web::Encoding {
 
 using TextDecoderOptions = Bindings::TextDecoderOptions;
-using TextDecodeOptions = Bindings::TextDecodeOptions;
 
 struct EndOfQueue {
 };

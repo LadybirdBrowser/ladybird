@@ -66,6 +66,11 @@ impl UsvString {
     pub(crate) fn into_utf16_string(self) -> Utf16String {
         self.0
     }
+
+    /// The string of the code units, with U+FFFD in place of every surrogate that is not part of a pair.
+    pub(crate) fn from_utf16_replacing_lone_surrogates(code_units: &[u16]) -> Self {
+        Self(Utf16String::well_formed_from_utf16(code_units))
+    }
 }
 
 /// A JS value converted to a DOMString, https://webidl.spec.whatwg.org/#es-DOMString

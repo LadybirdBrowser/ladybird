@@ -554,7 +554,6 @@ enum class HistoryAction : u8;
 
 namespace Web::Encoding {
 
-class TextDecoder;
 class TextEncoderStream;
 
 }

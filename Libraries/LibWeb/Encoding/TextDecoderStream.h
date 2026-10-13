@@ -9,7 +9,6 @@
 #include <AK/ByteBuffer.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Encoding/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
