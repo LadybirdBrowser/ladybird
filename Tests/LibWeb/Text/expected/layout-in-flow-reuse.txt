@@ -1,0 +1,5 @@
+PASS: removing the first list item moves the rest (work + checks)
+PASS: editing one paragraph moves the following ones (work + checks)
+PASS: a changed margin before a box makes it lay out again (work + checks)
+PASS: a float before boxes makes them lay out again (work)
+PASS: a box with an abspos descendant positioned by an ancestor is laid out again (work + checks)
