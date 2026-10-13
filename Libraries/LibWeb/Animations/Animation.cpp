@@ -700,15 +700,19 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         // 1. Run the procedure to reset an animation’s pending tasks on animation.
         reset_an_animations_pending_tasks();
 
-        // 2. Reject the current finished promise with a DOMException named "AbortError".
-        auto dom_exception = WebIDL::AbortError::create("Animation was cancelled"_utf16);
-        WebIDL::reject_promise(current_finished_promise(), dom_exception);
+        // OPTIMIZATION: A current finished promise that was never created is a pending promise nothing can observe,
+        //               and the new promise of step 4 is just like it, so steps 2 to 4 only matter for a created one.
+        if (m_current_finished_promise) {
+            // 2. Reject the current finished promise with a DOMException named "AbortError".
+            auto dom_exception = WebIDL::AbortError::create("Animation was cancelled"_utf16);
+            WebIDL::reject_promise(*m_current_finished_promise, dom_exception);
 
-        // 3. Set the [[PromiseIsHandled]] internal slot of the current finished promise to true.
-        WebIDL::mark_promise_as_handled(current_finished_promise());
+            // 3. Set the [[PromiseIsHandled]] internal slot of the current finished promise to true.
+            WebIDL::mark_promise_as_handled(*m_current_finished_promise);
 
-        // 4. Let current finished promise be a new promise in the relevant Realm of animation.
-        m_current_finished_promise = WebIDL::create_promise_for(relevant_global_object());
+            // 4. Let current finished promise be a new promise in the relevant Realm of animation.
+            m_current_finished_promise = nullptr;
+        }
         m_is_finished = false;
 
         // 5. Create an AnimationPlaybackEvent, cancelEvent.
@@ -1548,16 +1552,22 @@ void Animation::reset_an_animations_pending_tasks()
     // 4. Apply any pending playback rate on animation.
     apply_any_pending_playback_rate();
 
+    // OPTIMIZATION: A current ready promise that was never created is a resolved promise nothing can observe. Rejecting
+    //               it does nothing, and the new resolved promise of step 7 is just like it, so steps 5 to 7 only
+    //               matter for a created one.
+    if (!m_current_ready_promise)
+        return;
+
     // 5. Reject animation’s current ready promise with a DOMException named "AbortError".
     auto dom_exception = WebIDL::AbortError::create("Animation was cancelled"_utf16);
-    WebIDL::reject_promise(current_ready_promise(), dom_exception);
+    WebIDL::reject_promise(*m_current_ready_promise, dom_exception);
 
     // 6. Set the [[PromiseIsHandled]] internal slot of animation’s current ready promise to true.
-    WebIDL::mark_promise_as_handled(current_ready_promise());
+    WebIDL::mark_promise_as_handled(*m_current_ready_promise);
 
     // 7. Let animation’s current ready promise be the result of creating a new resolved Promise object with value
     //    animation in the relevant Realm of animation.
-    m_current_ready_promise = Bindings::create_resolved_animation_promise(*this);
+    m_current_ready_promise = nullptr;
 }
 
 // https://drafts.csswg.org/web-animations-2/#ready
