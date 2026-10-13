@@ -16,6 +16,7 @@ use super::code::{CompileState, EntryStatus, JitEntry, JitResult};
 use super::translate::{self, RegisterDump};
 use super::{executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
+use crate::bytecode::feedback::tier_up_costs;
 use crate::interpreter::vm::Vm;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::value::Value;
@@ -81,10 +82,15 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
     if !can_enter_jit_code(vm, &executable) || !frame_ref.frame_initialized.get() {
         return None;
     }
-    let entry = executable
-        .jit_code()
-        .expect("the executable has JIT code")
-        .osr_entry(pc)?;
+    let code = executable.jit_code().expect("the executable has JIT code");
+    let Some(entry) = code.osr_entry(pc) else {
+        // NB: A fixed budget can keep expiring at the same back edge in nested loops, missing the code's OSR entry
+        //     forever. Try the next back edge when the code has an entry at another loop.
+        if code.has_osr_entries() {
+            executable.head.tier_up_budget.set(tier_up_costs::LOOP_ITERATION);
+        }
+        return None;
+    };
     vm.jit.count_coverage("osr-entry");
     frame_ref.program_counter.set(pc);
     Some(enter_from_native_code(vm, frame, entry))
