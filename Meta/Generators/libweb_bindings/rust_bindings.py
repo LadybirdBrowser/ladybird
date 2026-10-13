@@ -14,6 +14,8 @@
 # A wrapper is a platform object whose host data holds a GC cell of the implementation. Its wrappable slot stays
 # empty, so the C++ bindings see a platform object without a C++ implementation object.
 
+import textwrap
+
 from io import StringIO
 from typing import Dict
 from typing import List
@@ -23,6 +25,7 @@ from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.rust_members import RustConstructor
 from Generators.libweb_bindings.rust_members import RustMembers
+from Generators.libweb_bindings.rust_members import RustOperation
 from Generators.libweb_bindings.rust_members import rust_members
 from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
@@ -36,8 +39,10 @@ from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
+from Generators.libweb_bindings.rust_types import is_promise_type
 from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_parameter_type
+from Generators.libweb_bindings.rust_types import rust_result_type
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_usage import DefinitionUsage
 from Generators.libweb_bindings.wrappers import wrapper_name
@@ -329,7 +334,7 @@ def implementation_method_signatures(
             parameters = parameter_list(what, overload.operation.parameters)
             signatures.append(
                 f"fn {overload.method}(&self, cx: &mut CallContext{parameters}) -> "
-                f"WebIdlResult<{rust_type(overload.operation.return_type, context, what)}>"
+                f"WebIdlResult<{rust_result_type(overload.operation.return_type, context, what)}>"
             )
     return signatures
 
@@ -358,14 +363,15 @@ def write_rust_interface(
 
     use crate::bindings::conversions::{{
         BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js,
-        rooted_sequence_to_js, sequence_to_js, to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array,
-        to_unrestricted_double, to_usv_string,
+        rooted_sequence_to_js, sequence_to_js, to_boolean, to_buffer_source, to_dom_string, to_float, to_long,
+        to_long_long, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
+        to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
         Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
         define_interface_object_properties, define_operation, define_to_string_tag, entry_point_arguments,
-        implementation_of, prototype_from_new_target, set_interface_prototype_object_prototype, this_object,
-        to_interface,
+        implementation_of, prototype_from_new_target, rejected_promise, set_interface_prototype_object_prototype,
+        this_object, to_interface,
     }};
     use crate::bindings::{{CallContext, WebIdlResult}};
 
@@ -417,28 +423,8 @@ def write_rust_interface(
         )
 
     for operation_set in members.operation_sets:
-        name = operation_set.name
-        overload = operation_set.overloads[0]
-        operation = overload.operation
-        out.write(
-            f"""
-    fn {operation_set.function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
-        let (implementation, mut cx) = this_implementation(vm)?;
-"""
-        )
-        write_argument_count_check(out, name, overload.length)
-        if operation.parameters:
-            out.write("        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());\n")
-            write_parameter_conversions(out, f"{interface.name}.{name}()", operation.parameters, context)
-            out.write("        drop(type_error_realm_scope);\n")
-        arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
-        conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, f"{interface.name}.{name}()")
-        out.write(
-            f"""        let result = Implementation::{overload.method}(&implementation, &mut cx{arguments})
-            .map_err(|exception| exception.throw(vm))?;
-        {conversion}
-    }}
-"""
+        write_rust_operation(
+            out, context, interface, operation_set.name, operation_set.function, operation_set.overloads[0]
         )
 
     out.write(
@@ -525,6 +511,49 @@ def write_rust_interface(
     out.write("}\n")
 
 
+def write_rust_operation(
+    out: TextIO, context: GenerationContext, interface: Interface, name: str, function: str, overload: RustOperation
+) -> None:
+    """The native function of the steps of an operation, in the order of the C++ bindings: the this value is checked,
+    then the arguments are counted and converted, with the type errors of the conversions in the realm of the object."""
+    operation = overload.operation
+    what = f"{interface.name}.{name}()"
+    steps = StringIO()
+    steps.write("        let (implementation, mut cx) = this_implementation(vm)?;\n")
+    write_argument_count_check(steps, name, overload.length)
+    if operation.parameters:
+        steps.write("        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());\n")
+        write_parameter_conversions(steps, what, operation.parameters, context)
+        steps.write("        drop(type_error_realm_scope);\n")
+    arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
+    returns_promise = is_promise_type(operation.return_type) and not operation.return_type.nullable
+    if returns_promise:
+        conversion = "result.to_js(&cx)"
+    else:
+        conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
+    steps.write(
+        f"""        let result = Implementation::{overload.method}(&implementation, &mut cx{arguments})
+            .map_err(|exception| exception.throw(vm))?;
+        {conversion}
+"""
+    )
+
+    out.write(f"\n    fn {function}(vm: &Vm) -> ThrowCompletionOr<Value> {{\n")
+    if returns_promise:
+        # NB: The C++ bindings run everything, the check of the this value included, inside these steps.
+        out.write(
+            f"""        // An exception that the steps of an operation with a promise type throw rejects a new promise,
+        // https://webidl.spec.whatwg.org/#dfn-create-operation-function
+        let steps = || -> ThrowCompletionOr<Value> {{
+{textwrap.indent(steps.getvalue(), "    ")}        }};
+        steps().or_else(|throw| Ok(rejected_promise(vm, throw)))
+"""
+        )
+    else:
+        out.write(steps.getvalue())
+    out.write("    }\n")
+
+
 def write_rust_constructor(
     out: TextIO, context: GenerationContext, interface: Interface, constructor: RustConstructor
 ) -> None:
@@ -576,7 +605,8 @@ pub(crate) mod definitions {
     use crate::bindings::conversions::{
         BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, dictionary_member,
         dictionary_object, record_to_js, rooted_sequence_to_js, sequence_to_js, to_boolean, to_buffer_source,
-        to_dom_string, to_float, to_typed_array, to_unrestricted_double, to_usv_string,
+        to_dom_string, to_float, to_long, to_long_long, to_typed_array, to_unrestricted_double,
+        to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
     };
     use crate::bindings::interface::{Ref, create_dictionary_object, set_dictionary_member, to_interface};
 """

@@ -38,17 +38,47 @@ TYPED_ARRAY_NAMES = {
 # The extended attributes of a type or a parameter that the Rust bindings handle.
 SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {"AllowShared", "AllowResizable"}
 
+# The integer types, with the Rust type of their values.
+INTEGER_TYPES = {"long": "i32", "unsigned long": "u32", "long long": "i64", "unsigned long long": "u64"}
+
 # The floating point types, with the Rust type of their values.
-FLOATING_POINT_TYPES = {"float": "f32", "unrestricted double": "f64"}
+FLOATING_POINT_TYPES = {"float": "f32", "unrestricted float": "f32", "unrestricted double": "f64"}
 
 # The unions that the bindings runtime has a type for, by the name of the typedef that names the union.
 RUNTIME_UNION_TYPES = {"BufferSource": "BufferSource"}
 
 DECIMAL_LITERAL = re.compile(r"-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?")
 
+# https://webidl.spec.whatwg.org/#prod-integer
+INTEGER_LITERAL = re.compile(r"-?([1-9][0-9]*|0[Xx][0-9A-Fa-f]+|0[0-7]*)")
+
 
 class UnsupportedByRustBindings(Exception):
     pass
+
+
+def rust_integer_literal(literal: Optional[str], idl_type_name: str) -> Optional[str]:
+    """The Rust literal of the value of an integer token of the IDL, or None if the token is not one or its value is
+    not one of the integer type."""
+    if literal is None or not INTEGER_LITERAL.fullmatch(literal):
+        return None
+    digits = literal.removeprefix("-")
+    if digits[:2] in ("0x", "0X"):
+        magnitude = int(digits, 16)
+    elif digits.startswith("0"):
+        magnitude = int(digits, 8)
+    else:
+        magnitude = int(digits, 10)
+    integer = -magnitude if literal.startswith("-") else magnitude
+    rust_integer_type = INTEGER_TYPES[idl_type_name]
+    bits = int(rust_integer_type[1:])
+    if rust_integer_type.startswith("u"):
+        lowest, highest = 0, 2**bits - 1
+    else:
+        lowest, highest = -(2 ** (bits - 1)), 2 ** (bits - 1) - 1
+    if not lowest <= integer <= highest:
+        return None
+    return f"{integer}_{rust_integer_type}"
 
 
 def is_implemented_in_rust(interface: Optional[Interface]) -> bool:
@@ -171,12 +201,16 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
         return "UsvString"
     if name == "boolean":
         return "bool"
-    if name == "unsigned long long":
-        return "u64"
+    if name in INTEGER_TYPES:
+        return INTEGER_TYPES[name]
     if name in FLOATING_POINT_TYPES:
         return FLOATING_POINT_TYPES[name]
     if name == "undefined":
         return "()"
+    if name == "any":
+        return "Value"
+    if name == "object":
+        return "Gc<Object>"
     if name in TYPED_ARRAY_NAMES:
         return "Gc<TypedArrayBase>"
     if context.callback_function(idl_type) is not None:
@@ -198,6 +232,29 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
             rust_type(member_type, context, what)
         return rust_union_path(idl_type, context, what)
     raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")
+
+
+def is_promise_type(idl_type: IDLType) -> bool:
+    return isinstance(idl_type, IDLParameterizedType) and idl_type.name == "Promise"
+
+
+def rust_result_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
+    """The Rust type that the method of an operation returns. An operation that returns a promise type returns the
+    promise object, which is the only place the Rust bindings handle a promise type in."""
+    if is_promise_type(idl_type) and not idl_type.nullable:
+        return "Gc<Object>"
+    return rust_type(idl_type, context, what)
+
+
+def holds_cells(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the Rust type of the IDL values of the type is or can hold a cell, which a Vec would hide from the
+    collector."""
+    idl_type = idl_type.without_nullable()
+    if isinstance(idl_type, (IDLParameterizedType, IDLUnionType)):
+        return False
+    if idl_type.name in ("any", "object") or idl_type.name in TYPED_ARRAY_NAMES:
+        return True
+    return context.callback_function(idl_type) is not None or rust_interface(idl_type, context) is not None
 
 
 def rust_parameter_type(parameter: OperationParameter, context: GenerationContext, what: str) -> str:

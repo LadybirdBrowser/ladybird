@@ -118,6 +118,85 @@ pub(crate) fn to_boolean(value: Value) -> ThrowCompletionOr<bool> {
     Ok(value.to_boolean())
 }
 
+/// A JS value converted to a long, https://webidl.spec.whatwg.org/#js-long
+pub(crate) fn to_long(vm: &Vm, value: Value) -> ThrowCompletionOr<i32> {
+    // 1. Let x be ? ConvertToInt(V, 32, "signed"), which is ToInt32 without the extended attributes that change it.
+    // 2. Return the IDL long value that represents the same numeric value as x.
+    value.to_i32(vm)
+}
+
+/// A JS value converted to an unsigned long, https://webidl.spec.whatwg.org/#js-unsigned-long
+pub(crate) fn to_unsigned_long(vm: &Vm, value: Value) -> ThrowCompletionOr<u32> {
+    // 1. Let x be ? ConvertToInt(V, 32, "unsigned"), which is ToUint32 without the extended attributes that change
+    //    it.
+    // 2. Return the IDL unsigned long value that represents the same numeric value as x.
+    value.to_u32(vm)
+}
+
+/// The number that https://webidl.spec.whatwg.org/#abstract-opdef-converttoint has after step 10 for a bit length of
+/// 64, as WebIDL::convert_to_int() of the C++ bindings computes it.
+///
+/// FIXME: The C++ bindings do the arithmetic in doubles, which cannot represent most integers near 2^64, so a
+///        negative number does not wrap around to the integer the spec asks for: -1 becomes 2^64. The Rust bindings
+///        do the same, so that an interface behaves the same in either language, until both are corrected together.
+fn to_number_modulo_two_to_the_64(vm: &Vm, value: Value) -> ThrowCompletionOr<f64> {
+    const TWO_TO_THE_64: f64 = 18_446_744_073_709_551_616.0;
+
+    // 4. Let x be ? ToNumber(V).
+    // 5. If x is −0, then set x to +0.
+    let x = value.to_double(vm)?;
+
+    // 8. If x is NaN, +0, +∞, or −∞, then return +0.
+    if x.is_nan() || x == 0.0 || x.is_infinite() {
+        return Ok(0.0);
+    }
+
+    // 9. Set x to IntegerPart(x).
+    let x = x.trunc();
+
+    // 10. Set x to x modulo 2^bitLength.
+    let remainder = x % TWO_TO_THE_64;
+    Ok(if remainder < 0.0 {
+        remainder + TWO_TO_THE_64
+    } else {
+        remainder
+    })
+}
+
+/// A JS value converted to a long long, https://webidl.spec.whatwg.org/#js-long-long
+pub(crate) fn to_long_long(vm: &Vm, value: Value) -> ThrowCompletionOr<i64> {
+    const TWO_TO_THE_63: f64 = 9_223_372_036_854_775_808.0;
+    const TWO_TO_THE_64: f64 = 18_446_744_073_709_551_616.0;
+
+    // 1. Let x be ? ConvertToInt(V, 64, "signed").
+    let x = to_number_modulo_two_to_the_64(vm, value)?;
+
+    // 11. If signedness is "signed" and x ≥ 2^(bitLength − 1), then return x − 2^(bitLength).
+    // NB: The C++ bindings compare with the largest long long, which is 2^63 as a double, and with greater than.
+    let x = if x > TWO_TO_THE_63 { x - TWO_TO_THE_64 } else { x };
+
+    // 2. Return the IDL long long value that represents the same numeric value as x.
+    #[allow(
+        clippy::cast_possible_truncation,
+        reason = "x is an integer of at most 2^63, which saturates"
+    )]
+    Ok(x as i64)
+}
+
+/// A JS value converted to an unsigned long long, https://webidl.spec.whatwg.org/#js-unsigned-long-long
+pub(crate) fn to_unsigned_long_long(vm: &Vm, value: Value) -> ThrowCompletionOr<u64> {
+    // 1. Let x be ? ConvertToInt(V, 64, "unsigned").
+    let x = to_number_modulo_two_to_the_64(vm, value)?;
+
+    // 2. Return the IDL unsigned long long value that represents the same numeric value as x.
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "x is an integer from 0 to 2^64, which saturates"
+    )]
+    Ok(x as u64)
+}
+
 /// A JS value converted to a float, https://webidl.spec.whatwg.org/#js-float
 ///
 /// The identifier is the name of the parameter or member that the value is of, which the error names.
@@ -145,6 +224,27 @@ pub(crate) fn to_float(vm: &Vm, value: Value, identifier: &str) -> ThrowCompleti
         );
     }
     Ok(y)
+}
+
+/// A JS value converted to an unrestricted float, https://webidl.spec.whatwg.org/#js-unrestricted-float
+pub(crate) fn to_unrestricted_float(vm: &Vm, value: Value) -> ThrowCompletionOr<f32> {
+    // 1. Let x be ? ToNumber(V).
+    let x = value.to_double(vm)?;
+
+    // 2. If x is NaN, then return the IDL unrestricted float value that represents the IEEE 754 NaN value with the
+    //    bit pattern 0x7fc00000.
+    // 3. Let S be the set of finite IEEE 754 single-precision floating point values except −0, but with two special
+    //    values added: 2^128 and −2^128.
+    // 4. Let y be the number in S that is closest to x, selecting the number with an even significand if there are two
+    //    equally close values. (The two special values 2^128 and −2^128 are considered to have even significands for
+    //    this purpose.)
+    // 5. If y is 2^128, return +∞.
+    // 6. If y is −2^128, return −∞.
+    // 7. If y is +0 and x is negative, return −0.
+    // 8. Return y.
+    // NB: Rounding x to the nearest float gives an infinity where step 4 gives one of the two special values.
+    #[allow(clippy::cast_possible_truncation, reason = "the spec rounds to the closest float")]
+    Ok(x as f32)
 }
 
 /// A JS value converted to an unrestricted double, https://webidl.spec.whatwg.org/#js-unrestricted-double
@@ -370,6 +470,43 @@ impl ToJs for () {
 impl ToJs for bool {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_bool(self))
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-any
+impl ToJs for Value {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(self)
+    }
+}
+
+/// An object converted to a JS value: https://webidl.spec.whatwg.org/#js-object, and what an implementation returns
+/// for a promise type, https://webidl.spec.whatwg.org/#js-promise, which is the promise object.
+impl ToJs for Gc<Object> {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_object(self))
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-long
+impl ToJs for i32 {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_i32(self))
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-unsigned-long
+impl ToJs for u32 {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_f64(f64::from(self)))
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-long-long
+impl ToJs for i64 {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        #[allow(clippy::cast_precision_loss, reason = "the spec converts to the closest double")]
+        Ok(Value::from_f64(self as f64))
     }
 }
 

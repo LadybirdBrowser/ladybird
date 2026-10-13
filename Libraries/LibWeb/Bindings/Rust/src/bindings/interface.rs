@@ -22,14 +22,15 @@ use core::ptr::NonNull;
 
 use libjs_rust::api::{
     Attribute, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject, Gc, HostObject,
-    JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunctionPointer, Realm,
+    JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunctionPointer, Realm, Throw,
     ThrowCompletionOr, Trace, Value, Vm, get_function_realm, host_data_of, is_host_instance_of,
 };
 
 use crate::bindings::CallContext;
 use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
-    web_bindings_ensure_web_prototype, web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
+    web_bindings_ensure_web_prototype, web_bindings_rejected_promise, web_bindings_rust_wrapper_for,
+    web_bindings_set_rust_wrapper,
 };
 
 /// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
@@ -238,6 +239,18 @@ fn create_wrapper<T: Interface>(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>
             Some(object.as_non_null().cast()),
         )
     }
+}
+
+/// What an operation that returns a promise type returns in place of throwing: a promise rejected with what its
+/// steps threw, https://webidl.spec.whatwg.org/#dfn-create-operation-function
+pub(crate) fn rejected_promise(vm: &Vm, throw: Throw) -> Value {
+    let current_realm = vm.current_realm().expect("a native function runs in a realm");
+    // SAFETY: The realm is live, and the values are live while the native function runs.
+    let promise =
+        unsafe { web_bindings_rejected_promise(current_realm.as_ptr().cast(), vm.this_value().0, throw.value().0) };
+    let promise = NonNull::new(promise.cast::<Object>()).expect("LibWeb returns the promise");
+    // SAFETY: LibWeb returns a live promise.
+    Value::from_object(unsafe { Gc::from_non_null(promise) })
 }
 
 /// The interface prototype object of the interface in the realm.
