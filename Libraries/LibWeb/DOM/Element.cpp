@@ -306,6 +306,53 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<
     }
 }
 
+NonnullOwnPtr<Element::AttributeList> Element::AttributeList::create(size_t capacity)
+{
+    VERIFY(capacity > 0 && capacity <= NumericLimits<u32>::max());
+    auto allocation_size = Checked<size_t>(capacity);
+    allocation_size *= sizeof(Attribute);
+    allocation_size += sizeof(AttributeList);
+    auto* memory = AttributeList::operator new(allocation_size.value());
+    return adopt_own(*new (memory) AttributeList(static_cast<u32>(capacity)));
+}
+
+Element::AttributeList::~AttributeList()
+{
+    for (auto& attribute : span())
+        attribute.~Attribute();
+}
+
+NonnullOwnPtr<Element::AttributeList> Element::AttributeList::ensure_room_for_one_more(NonnullOwnPtr<AttributeList> list)
+{
+    if (list->m_size < list->m_capacity)
+        return list;
+    return list->moved_into_new_list(max(static_cast<size_t>(list->m_capacity) * 2, static_cast<size_t>(4)));
+}
+
+NonnullOwnPtr<Element::AttributeList> Element::AttributeList::moved_into_new_list(size_t capacity)
+{
+    VERIFY(capacity >= m_size);
+    auto new_list = create(capacity);
+    for (auto& attribute : span())
+        new (&new_list->attributes()[new_list->m_size++]) Attribute(move(attribute));
+    return new_list;
+}
+
+void Element::AttributeList::unchecked_append(QualifiedName name, Utf16String value)
+{
+    VERIFY(m_size < m_capacity);
+    new (&attributes()[m_size++]) Attribute(move(name), move(value));
+}
+
+void Element::AttributeList::remove(size_t index)
+{
+    VERIFY(index < m_size);
+    auto* attributes = this->attributes();
+    for (size_t i = index; i + 1 < m_size; ++i)
+        attributes[i] = move(attributes[i + 1]);
+    attributes[--m_size].~Attribute();
+}
+
 Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
     , m_qualified_name(move(qualified_name))
@@ -314,17 +361,14 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
 
 Element::~Element() = default;
 
-Element::AttributeList& Element::ensure_attribute_list()
-{
-    if (!m_attributes)
-        m_attributes = make<AttributeList>();
-    return *m_attributes;
-}
-
 void Element::append_to_attribute_list(QualifiedName name, Utf16String value)
 {
     add_to_subtree_attribute_name_filter(attribute_name_filter_bit(name.local_name()));
-    ensure_attribute_list().empend(move(name), move(value));
+    if (!m_attributes)
+        m_attributes = AttributeList::create(1);
+    else
+        m_attributes = AttributeList::ensure_room_for_one_more(m_attributes.release_nonnull());
+    m_attributes->unchecked_append(move(name), move(value));
 }
 
 void Element::add_to_subtree_attribute_name_filter(u64 bits)
@@ -338,7 +382,10 @@ void Element::ensure_attribute_capacity(size_t capacity)
 {
     if (capacity == 0)
         return;
-    ensure_attribute_list().ensure_capacity(capacity);
+    if (!m_attributes)
+        m_attributes = AttributeList::create(capacity);
+    else if (m_attributes->capacity() < capacity)
+        m_attributes = m_attributes->moved_into_new_list(capacity);
 }
 
 void Element::synchronize_attribute(Utf16FlyString const& qualified_name) const
@@ -413,9 +460,8 @@ size_t Element::external_memory_size() const
     if (!m_attributes)
         return size;
 
-    size = JS::saturating_add_external_memory_size(size, sizeof(AttributeList));
-    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(*m_attributes));
-    for (auto const& attribute : *m_attributes)
+    size = JS::saturating_add_external_memory_size(size, sizeof(AttributeList) + m_attributes->capacity() * sizeof(Attribute));
+    for (auto const& attribute : m_attributes->span())
         size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(attribute.value));
     return size;
 }
@@ -1176,7 +1222,7 @@ Vector<Utf16FlyString> Element::get_attribute_names() const
     if (!m_attributes)
         return {};
     Vector<Utf16FlyString> names;
-    for (auto const& attribute : *m_attributes)
+    for (auto const& attribute : m_attributes->span())
         names.append(attribute.name.as_string());
     return names;
 }
@@ -2896,7 +2942,7 @@ void Element::did_update_inline_style()
     bool had_style_attribute = m_style_attribute_is_dirty;
     Optional<Utf16String> old_value;
     if (m_attributes) {
-        for (auto const& attribute : *m_attributes) {
+        for (auto const& attribute : m_attributes->span()) {
             if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
                 had_style_attribute = true;
                 old_value = attribute.value;
