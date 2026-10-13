@@ -14,6 +14,7 @@ use crate::bytecode::feedback::{
     ExecutableFeedback, are_closures_of_one_function, call_feedback_flags, keyed_feedback_bits,
 };
 use crate::bytecode::instruction::OpCode;
+use crate::bytecode::instruction_at;
 use crate::bytecode::op;
 use crate::interpreter::runtime_functions::SlowPathControl;
 use crate::interpreter::vm::Vm;
@@ -179,8 +180,7 @@ pub fn record_forwarded_call(
     if pc as usize >= bytecode.len() || bytecode[pc as usize] != OpCode::Call as u8 {
         return;
     }
-    // SAFETY: The bytes at pc are a Call instruction.
-    let call = unsafe { &*bytecode[pc as usize..].as_ptr().cast::<op::Call>() };
+    let call = instruction_at::<op::Call>(&executable, pc);
     let call_feedback = &feedback.call()[usize::from(call.call_feedback)];
     if call_feedback.target() != Some(callee) {
         return;

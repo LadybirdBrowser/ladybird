@@ -155,13 +155,7 @@ pub fn get_super_constructor(vm: &Vm, pc: u32, values: &mut op::GetSuperConstruc
 
 /// The element key operands NewClass stores after its fixed fields.
 fn element_key_operands(instruction: &op::NewClass) -> &[OptionalOperand] {
-    // SAFETY: The bytecode stores the instruction's element_keys_count element key operands right after it.
-    unsafe {
-        core::slice::from_raw_parts(
-            instruction.element_keys.as_ptr(),
-            instruction.element_keys_count as usize,
-        )
-    }
+    instruction.element_keys()
 }
 
 pub fn new_class(
