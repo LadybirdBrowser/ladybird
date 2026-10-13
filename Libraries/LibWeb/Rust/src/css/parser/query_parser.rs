@@ -1313,10 +1313,9 @@ where
     Some(Expression::StyleFeature(StyleFeature::Boolean(name)))
 }
 
-/// A `<style-range>` as `style()` parses it, or `None` where the source is not one.
-pub(crate) fn parse_style_range_from_source(source: &[u16]) -> Option<StyleFeature> {
-    let values = components_from_source(source)?;
-    let mut stream = TokenStream::new(&values);
+/// A `<style-range>` as `style()` parses it, or `None` where the values are not one.
+pub(crate) fn parse_style_range(values: &[ComponentValue]) -> Option<StyleFeature> {
+    let mut stream = TokenStream::new(values);
     match parse_style_feature(&mut stream, &resolve_query_feature)? {
         Expression::StyleFeature(range @ StyleFeature::Range { .. }) => Some(range),
         _ => None,

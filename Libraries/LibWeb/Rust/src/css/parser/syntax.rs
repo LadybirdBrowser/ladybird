@@ -243,7 +243,7 @@ pub(crate) fn parse_syntax(source: &[u16], limit_ident_to_custom_ident: bool) ->
     parse_syntax_values(&values, limit_ident_to_custom_ident)
 }
 
-fn parse_syntax_values(values: &[ComponentValue], limit_ident_to_custom_ident: bool) -> Option<SyntaxNode> {
+pub(crate) fn parse_syntax_values(values: &[ComponentValue], limit_ident_to_custom_ident: bool) -> Option<SyntaxNode> {
     let mut position = 0;
     discard_whitespace(values, &mut position);
 
