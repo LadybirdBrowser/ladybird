@@ -43,7 +43,7 @@ pub struct FfiFunctionParameterView {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_function_signature_view(signature: &FunctionSignature) -> FfiFunctionSignatureView {
+pub extern "C" fn rust_function_signature_view(signature: &FunctionSignature) -> FfiFunctionSignatureView {
     let name = signature.name.units();
     FfiFunctionSignatureView {
         name: FfiUtf16View {
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn rust_function_signature_view(signature: &FunctionSignat
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_function_signature_parameter(
+pub extern "C" fn rust_function_signature_parameter(
     signature: &FunctionSignature,
     index: usize,
 ) -> FfiFunctionParameterView {

@@ -34,7 +34,7 @@ pub struct FfiPropertyRuleView {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_property_rule_view(rule: &PropertyRuleData) -> FfiPropertyRuleView {
+pub extern "C" fn rust_property_rule_view(rule: &PropertyRuleData) -> FfiPropertyRuleView {
     let name = rule.name.units();
     let syntax_source = rule.syntax_source.units();
     FfiPropertyRuleView {

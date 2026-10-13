@@ -104,12 +104,12 @@ pub extern "C" fn rust_media_list_create() -> *mut MediaList {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_retain(list: &MediaList) -> *mut MediaList {
+pub extern "C" fn rust_media_list_retain(list: &MediaList) -> *mut MediaList {
     Box::into_raw(Box::new(list.clone()))
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_share(list: &MediaList) -> *mut MediaList {
+pub extern "C" fn rust_media_list_share(list: &MediaList) -> *mut MediaList {
     Box::into_raw(Box::new(list.share()))
 }
 
@@ -121,7 +121,7 @@ pub unsafe extern "C" fn rust_media_list_free(list: *mut MediaList) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_length(list: &MediaList) -> usize {
+pub extern "C" fn rust_media_list_length(list: &MediaList) -> usize {
     list.owner.borrow().data.queries.len()
 }
 
@@ -218,12 +218,12 @@ pub unsafe extern "C" fn rust_media_list_item(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_matches(list: &MediaList) -> bool {
+pub extern "C" fn rust_media_list_matches(list: &MediaList) -> bool {
     list.matches()
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_item_matches(list: &MediaList, index: usize) -> bool {
+pub extern "C" fn rust_media_list_item_matches(list: &MediaList, index: usize) -> bool {
     list.owner.borrow().matches[index]
 }
 

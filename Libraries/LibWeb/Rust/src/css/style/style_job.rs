@@ -405,12 +405,8 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
 /// Takes in the style transaction of `host`'s document that the host let fly, waiting for it to land, for the host to
 /// drain its reactions against the inputs it was sealed with. What the host wrote beside the transaction reaches the
 /// render state only once style_engine_end_flown_style_drain() ends the drain: it is the next transaction's.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, that let a style transaction fly.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
+pub extern "C" fn style_engine_take_flown_style_transaction(
     host: &DocumentHost,
     read: &BegunRead,
 ) -> FfiStyleTransactionView {
@@ -421,24 +417,16 @@ pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
 
 /// Ends the drain of the style transaction of `host`'s document that flew, behind which the writes the host made beside
 /// it reach the render state.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, that drains a style transaction that flew.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_end_flown_style_drain(host: &DocumentHost) {
+pub extern "C" fn style_engine_end_flown_style_drain(host: &DocumentHost) {
     host.engine_memo().beside_flown_transaction.borrow_mut().clear();
     host.end_style_drain();
 }
 
 /// Notes that the element `node` names arrived, moved or retired beside the style transaction of `host`'s document that
 /// flew, which knows nothing of that, until the drain of its reactions ends.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_note_style_node_beside_flown_transaction(host: &DocumentHost, node: u32) {
+pub extern "C" fn style_engine_note_style_node_beside_flown_transaction(host: &DocumentHost, node: u32) {
     if let Some(node) = StyleNodeID::from_raw(node) {
         host.engine_memo().beside_flown_transaction.borrow_mut().insert(node);
     }
@@ -446,39 +434,23 @@ pub unsafe extern "C" fn style_engine_note_style_node_beside_flown_transaction(h
 
 /// Whether the element `node` names arrived, moved or retired beside the style transaction of `host`'s document that
 /// flew.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_node_is_beside_flown_transaction(host: &DocumentHost, node: u32) -> bool {
+pub extern "C" fn style_engine_style_node_is_beside_flown_transaction(host: &DocumentHost, node: u32) -> bool {
     StyleNodeID::from_raw(node).is_some_and(|node| host.engine_memo().beside_flown_transaction.borrow().contains(&node))
 }
 
 /// Whether the frame whose style transaction `host`'s document drains applied the element `style_node` names its record
 /// `style_record` ahead of the host, and marked the relayout the move asks for: the host's install of the row marks none
 /// then.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_frame_marked_relayout(
-    host: &DocumentHost,
-    style_node: u32,
-    style_record: u64,
-) -> bool {
+pub extern "C" fn style_engine_frame_marked_relayout(host: &DocumentHost, style_node: u32, style_record: u64) -> bool {
     StyleNodeID::from_raw(style_node).is_some_and(|style_node| host.frame_marked_relayout(style_node, style_record))
 }
 
 /// Whether the style transaction of `host`'s document the host let fly still flies; one that has landed is taken in.
 /// The event loop asks between two tasks, so this never waits.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and the event loop must call this between two tasks.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_transaction_flies(host: &DocumentHost) -> bool {
+pub extern "C" fn style_engine_style_transaction_flies(host: &DocumentHost) -> bool {
     let boundary = TaskBoundary::at_event_loop_entry(&TAKES_FINISHED_STYLE_IN);
     host.frame_still_flies(&boundary)
 }

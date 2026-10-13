@@ -770,7 +770,7 @@ mod tests {
         rust_rule_list_remove(&first.rules, 0);
         set_media(&first, "print, screen");
         assert_eq!(rust_rule_list_count(&second.rules), 2);
-        assert_eq!(unsafe { rust_media_list_length(&second.media) }, 1);
+        assert_eq!(rust_media_list_length(&second.media), 1);
         assert_eq!(rust_rule_list_count(&sheet(&parsed).rules), 2);
         drop(parsed);
 
@@ -780,7 +780,7 @@ mod tests {
         let media = retained.media.clone();
         drop(retained);
         assert_eq!(rust_rule_list_count(&rules), 1);
-        assert_eq!(unsafe { rust_media_list_length(&media) }, 2);
+        assert_eq!(rust_media_list_length(&media), 2);
     }
 
     fn layer_names(sheet: &NativeStyleSheet) -> Vec<Vec<u16>> {

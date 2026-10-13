@@ -1444,12 +1444,8 @@ pub unsafe extern "C" fn clock_ticks_pointer_moved(
 /// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, as the compositor would,
 /// beside the mouse event with the input event id `input_event_id`, or none for 0, which the next tick hovers. For a
 /// test, whose clock ticks only where it injects them.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_move_pointer(
+pub extern "C" fn document_host_move_pointer(
     host: &crate::render_state::DocumentHost,
     x: f32,
     y: f32,
@@ -1466,12 +1462,8 @@ pub unsafe extern "C" fn document_host_move_pointer(
 /// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, beside the mouse event with
 /// the input event id `input_event_id`, or none for 0, ticks them at `frame_time_nanoseconds`, and waits until the
 /// StyleLayout thread has run the tick and the Paint thread the recording of the frame it presents. For a test.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_inject_pointer(
+pub extern "C" fn document_host_inject_pointer(
     host: &crate::render_state::DocumentHost,
     x: f32,
     y: f32,

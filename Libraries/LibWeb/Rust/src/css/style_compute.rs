@@ -6585,11 +6585,8 @@ pub(crate) fn rust_box_type_transformation_input(
 /// samples over the record the engine holds for it: the same input the engine drives the record
 /// against, read from the element's published facts and its parent's record. A target the engine
 /// does not know is transformed with no facts and no parent display.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_box_type_transformation_input(
+pub extern "C" fn rust_animated_box_type_transformation_input(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,

@@ -18,7 +18,7 @@ const _: () = {
 };
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_namespace_rule_prefix(rule: &NamespaceRuleData) -> FfiUtf16View {
+pub extern "C" fn rust_namespace_rule_prefix(rule: &NamespaceRuleData) -> FfiUtf16View {
     let units = rule.prefix.units();
     FfiUtf16View {
         ascii: std::ptr::null(),
@@ -28,7 +28,7 @@ pub unsafe extern "C" fn rust_namespace_rule_prefix(rule: &NamespaceRuleData) ->
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_namespace_rule_uri(rule: &NamespaceRuleData) -> FfiUtf16View {
+pub extern "C" fn rust_namespace_rule_uri(rule: &NamespaceRuleData) -> FfiUtf16View {
     let units = rule.uri.units();
     FfiUtf16View {
         ascii: std::ptr::null(),

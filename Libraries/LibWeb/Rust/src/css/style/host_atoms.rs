@@ -116,11 +116,8 @@ pub unsafe extern "C" fn document_host_intern_atom(host: &DocumentHost, raw: usi
 
 /// How many times the engine reclaimed atoms the host interned, which tells apart what the host keyed by the atoms
 /// before and after.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_atom_generation(host: &DocumentHost) -> u64 {
+pub extern "C" fn document_host_atom_generation(host: &DocumentHost) -> u64 {
     host.engine_memo().atoms.borrow().generation
 }
 
@@ -267,11 +264,8 @@ pub unsafe extern "C" fn document_host_intern_attribute_value(host: &DocumentHos
 
 /// Whether the host knows that nothing reads what the values of the attribute name `name` spell, which spares it the
 /// value's text.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_attribute_value_text_is_known_unread(host: &DocumentHost, name: u32) -> bool {
+pub extern "C" fn document_host_attribute_value_text_is_known_unread(host: &DocumentHost, name: u32) -> bool {
     value_text_is_known_unread(host, StyleAtomID(name))
 }
 
@@ -310,11 +304,8 @@ fn value_text_is_known_unread(host: &DocumentHost, name: StyleAtomID) -> bool {
 /// Whether the host knows that nothing of the engine reads the attribute name `name`: no selector tests it, by `name` or
 /// the other forms the host published with it, and no `attr()` reads it, by its local name if it has one. Where it does
 /// not know, the host hands the engine each change to the attribute.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_attribute_is_known_unread(host: &DocumentHost, name: u32) -> bool {
+pub extern "C" fn document_host_attribute_is_known_unread(host: &DocumentHost, name: u32) -> bool {
     let atoms = host.engine_memo().atoms.borrow();
     let Some(PublishedAttributeName {
         forms,
@@ -330,11 +321,8 @@ pub unsafe extern "C" fn document_host_attribute_is_known_unread(host: &Document
 
 /// Whether the engine's requirements of attribute value text moved since the host last asked, which makes the host ask
 /// again about the names it knew nothing read.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_refresh_attribute_value_text_requirements(
+pub extern "C" fn document_host_refresh_attribute_value_text_requirements(
     host: &DocumentHost,
     read: &BegunRead,
 ) -> bool {
