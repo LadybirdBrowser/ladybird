@@ -560,7 +560,7 @@ impl PaintableRowStore {
         layout_slot_index: u32,
         layout_slot_generation: u8,
         geometry_epoch: u32,
-        read: impl FnOnce(&fragment_tree::Fragment) -> R,
+        read: impl FnOnce(&std::sync::Arc<fragment_tree::Fragment>) -> R,
     ) -> Option<R> {
         let slots = self.committed_fragment_links.borrow();
         let slot = slots.get(layout_slot_index as usize)?;

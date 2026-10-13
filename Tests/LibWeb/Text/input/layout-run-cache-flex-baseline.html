@@ -29,7 +29,7 @@
                     layout FULL
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
-                          Box<DIV>#cached/flex REUSE SUBTREE
+                          BlockContainer<DIV> REUSE IN-FLOW SUBTREE
                 `,
                 check: equal => {
                     const after = big.getBoundingClientRect();

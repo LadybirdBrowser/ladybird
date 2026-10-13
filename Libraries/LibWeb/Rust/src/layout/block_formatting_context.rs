@@ -31,7 +31,7 @@ pub(crate) struct PendingTopMarginGroup {
     pub(crate) pinned_by_clearance: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct BlockMarginState {
     current_positive_collapsible_margin: CssPixels,
     current_negative_collapsible_margin: CssPixels,
@@ -101,6 +101,29 @@ impl BlockMarginState {
         self.current_negative_collapsible_margin = CssPixels::default();
         self.current_positive_collapsible_margin = CssPixels::default();
     }
+}
+
+/// What the probe for a stored in-flow layout found, and what storing the fresh layout needs.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "held on the stack while one child is laid out, where boxing would allocate for every child"
+)]
+enum InFlowReuse {
+    Ineligible,
+    Hit {
+        entry: std::sync::Arc<in_flow_block_cache::InFlowBlockEntry>,
+        fragment: std::sync::Arc<fragment_tree::Fragment>,
+    },
+    Store {
+        key: in_flow_block_cache::InFlowBlockKey,
+        validity: fc_run_cache::FcRunCacheValidity,
+        flow_position: CssPixels,
+        abspos_containing_block_info_contributions_received: u64,
+        verify: Option<(
+            std::sync::Arc<in_flow_block_cache::InFlowBlockEntry>,
+            std::sync::Arc<fragment_tree::Fragment>,
+        )>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -336,8 +359,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         node: Node,
         offset: FfiCssPixelPoint,
         containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
-    ) {
-        formatting_context::place_child(&self.run, node, offset, containing_line_box_fragment);
+    ) -> Option<fragment_tree::PlacedFragment> {
+        formatting_context::place_child(&self.run, node, offset, containing_line_box_fragment)
     }
 
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
@@ -1707,6 +1730,20 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
 
+        let in_flow_reuse = match self.probe_in_flow_reuse(
+            node,
+            block_container,
+            block_container_inline_size,
+            input,
+            containing_line_box_fragment,
+        ) {
+            InFlowReuse::Hit { entry, fragment } => {
+                self.reuse_in_flow_child(node, block_container, &entry, fragment, bottom_of_lowest_margin_box);
+                return;
+            }
+            attempt => attempt,
+        };
+
         self.margin_state
             .borrow_mut()
             .add_margin(self.used(node).margin_top.get());
@@ -2044,12 +2081,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let dependency_was_not_reported_by_a_child_run = !has_independent_formatting_context;
+        let mut depends_on_percentage_block_size = false;
         if dependency_was_not_reported_by_a_child_run {
+            depends_on_percentage_block_size = self.sizing().resolve_percentage_block_size_dependency(node);
             formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                 run.records,
                 &self.run.callbacks,
                 node,
-                self.sizing().resolve_percentage_block_size_dependency(node),
+                depends_on_percentage_block_size,
             );
         }
 
@@ -2063,9 +2102,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
         );
 
-        if let Some(position) = pending_position {
-            self.place_child_on_line(node, position, containing_line_box_fragment);
-        }
+        let placed = pending_position
+            .and_then(|position| self.place_child_on_line(node, position, containing_line_box_fragment));
 
         if has_independent_formatting_context || !self.margins_collapse_through(node) {
             let mut margin_state = self.margin_state.borrow_mut();
@@ -2094,6 +2132,224 @@ impl<'pass> BlockFormattingContext<'pass> {
                 + used.content_block_size.get()
                 + used.margin_box_bottom(used.uses_collapsing_borders_model.get()),
         );
+        self.conclude_in_flow_reuse(in_flow_reuse, node, placed, depends_on_percentage_block_size);
+    }
+
+    /// Whether the layout of an in-flow child can be stored and reused by `InFlowBlockKey`: only a block container
+    /// laid out in this run's own flow, where no float and no line clamp can read its position in the root.
+    fn in_flow_child_may_be_reused(
+        &self,
+        node: Node,
+        block_container: Node,
+        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+    ) -> bool {
+        let facts = self.facts(node);
+        let container_facts = self.facts(block_container);
+        self.run.purpose == formatting_context::LayoutPurpose::Commit
+            && self.run.layout_mode == LayoutMode::Normal
+            && self.run.fragments.is_some()
+            && !self.run.should_collect_devtools_layout_data
+            && containing_line_box_fragment.is_none()
+            && self.floats.borrow().is_empty()
+            && !self.is_line_clamp_container
+            && self.max_lines.get().is_none()
+            && !self.laying_out_invisible_line_clamp_content.get()
+            && formatting_context::formatting_context_type_created_by_box(facts).is_none()
+            && facts.is_block_container()
+            && !facts.is_anonymous_button_content_wrapper()
+            && !facts.has_preferred_aspect_ratio()
+            && self.style(node).clear() == clear::NONE
+            && !container_facts.is_fieldset_box()
+            && !container_facts.is_table_wrapper()
+    }
+
+    fn probe_in_flow_reuse(
+        &self,
+        node: Node,
+        block_container: Node,
+        block_container_inline_size: CssPixels,
+        input: LayoutInput,
+        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+    ) -> InFlowReuse {
+        if !self.in_flow_child_may_be_reused(node, block_container, containing_line_box_fragment) {
+            return InFlowReuse::Ineligible;
+        }
+        let callbacks = &self.run.callbacks;
+        let key = in_flow_block_cache::InFlowBlockKey::new(
+            &self.run,
+            input,
+            block_container_inline_size,
+            self.style(block_container).direction() == direction::RTL,
+            self.margin_state.borrow().clone(),
+        );
+        let validity = fc_run_cache::run_root_validity(callbacks, node);
+        let hit = callbacks
+            .arena()
+            .in_flow_block_cache_store()
+            .matching(node.slot_index(), validity, &key)
+            .and_then(|entry| {
+                // NB: The committed subtree is reused only while it is the one the stored layout produced. A layout
+                //     whose fragments were superseded within its pass never committed them.
+                let fragment = callbacks
+                    .arena()
+                    .with_current_committed_fragment(node, |fragment| {
+                        (fragment.identity == entry.fragment_identity).then(|| fragment.clone())
+                    })
+                    .flatten()?;
+                Some((entry, fragment))
+            });
+        if let Some((entry, fragment)) = hit {
+            if !in_flow_block_cache::verification_is_enabled() {
+                return InFlowReuse::Hit { entry, fragment };
+            }
+            return InFlowReuse::Store {
+                key,
+                validity,
+                flow_position: self.flow_position(),
+                abspos_containing_block_info_contributions_received: self
+                    .abspos_containing_block_info_contributions_received(),
+                verify: Some((entry, fragment)),
+            };
+        }
+        InFlowReuse::Store {
+            key,
+            validity,
+            flow_position: self.flow_position(),
+            abspos_containing_block_info_contributions_received: self
+                .abspos_containing_block_info_contributions_received(),
+            verify: None,
+        }
+    }
+
+    fn flow_position(&self) -> CssPixels {
+        self.block_offset_of_current_block_container
+            .get()
+            .expect("a block container flow cursor is active")
+    }
+
+    fn abspos_containing_block_info_contributions_received(&self) -> u64 {
+        self.run.fragments.as_deref().map_or(0, |fragments| {
+            fragments.abspos_containing_block_info_contributions_received()
+        })
+    }
+
+    fn reuse_in_flow_child(
+        &self,
+        node: Node,
+        block_container: Node,
+        entry: &in_flow_block_cache::InFlowBlockEntry,
+        fragment: std::sync::Arc<fragment_tree::Fragment>,
+        bottom_of_lowest_margin_box: &mut CssPixels,
+    ) {
+        self.run.callbacks.arena().layout_trace.reused_in_flow_subtree(node);
+        let used = self.used(node);
+        entry.cells.apply_to_record(used);
+        if let Some(line_data) = &fragment.line_data {
+            used.set_finished_line_data(line_data.clone());
+        }
+        let flow_position = self.flow_position();
+        *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
+        used.depends_on_percentage_block_size
+            .set(entry.depends_on_percentage_block_size);
+        formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
+            self.run.records,
+            &self.run.callbacks,
+            node,
+            entry.depends_on_percentage_block_size,
+        );
+        let block_container_used = self.used(block_container);
+        self.compute_inset(
+            &self.run,
+            node,
+            geometry::LogicalSize {
+                inline_size: block_container_used.content_inline_size.get(),
+                block_size: block_container_used.content_block_size.get(),
+            },
+        );
+        formatting_context::place_reused_child(
+            &self.run,
+            node,
+            FfiCssPixelPoint {
+                x: entry.offset_from_flow_position.x,
+                y: entry.offset_from_flow_position.y + flow_position,
+            },
+            fragment,
+        );
+        self.block_offset_of_current_block_container
+            .set(Some(flow_position + entry.flow_position_advance));
+        *bottom_of_lowest_margin_box =
+            (*bottom_of_lowest_margin_box).max(flow_position + entry.margin_box_bottom_from_flow_position);
+    }
+
+    fn conclude_in_flow_reuse(
+        &self,
+        attempt: InFlowReuse,
+        node: Node,
+        placed: Option<fragment_tree::PlacedFragment>,
+        depends_on_percentage_block_size: bool,
+    ) {
+        let InFlowReuse::Store {
+            key,
+            validity,
+            flow_position,
+            abspos_containing_block_info_contributions_received,
+            verify,
+        } = attempt
+        else {
+            return;
+        };
+        let store = self.run.callbacks.arena().in_flow_block_cache_store();
+        let Some(placed) = placed else {
+            store.remove_entry(node.slot_index());
+            return;
+        };
+        let used = self.used(node);
+        // NB: A child whose border box has no block size may let margins collapse through it, which its parent
+        //     decides by looking at the child's own children.
+        let reusable = !placed.exports_payloads
+            && self.floats.borrow().is_empty()
+            && self.abspos_containing_block_info_contributions_received()
+                == abspos_containing_block_info_contributions_received
+            && used.border_box_block_size(false) != CssPixels::default();
+        let mut cells = used_values::UsedValuesCellState::capture(used);
+        cells.has_content_offset = false;
+        cells.content_offset = FfiCssPixelPoint::default();
+        let content_offset = used.content_offset.get();
+        let entry = in_flow_block_cache::InFlowBlockEntry {
+            key,
+            validity,
+            cells,
+            offset_from_flow_position: FfiCssPixelPoint {
+                x: content_offset.x,
+                y: content_offset.y - flow_position,
+            },
+            flow_position_advance: self.flow_position() - flow_position,
+            outgoing_margins: self.margin_state.borrow().clone(),
+            margin_box_bottom_from_flow_position: content_offset.y
+                + used.content_block_size.get()
+                + used.margin_box_bottom(used.uses_collapsing_borders_model.get())
+                - flow_position,
+            depends_on_percentage_block_size,
+            fragment_identity: placed.fragment.identity,
+        };
+        if let Some((stored, committed)) = verify {
+            let fragments = self.run.fragments.as_deref();
+            let was_reused = |slot: u32| fragments.is_some_and(|fragments| fragments.subtree_was_reused(slot));
+            in_flow_block_cache::verify_reuse(
+                node,
+                &stored,
+                &committed,
+                &entry,
+                &placed.fragment,
+                reusable,
+                &was_reused,
+            );
+        }
+        if reusable {
+            store.store(node.slot_index(), entry);
+        } else {
+            store.remove_entry(node.slot_index());
+        }
     }
 
     fn layout_block_level_children(

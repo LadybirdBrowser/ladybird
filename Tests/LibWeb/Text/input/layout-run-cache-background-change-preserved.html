@@ -60,10 +60,12 @@
                     layout FULL
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#cached/block RUN (cache=miss)
                     layout FULL
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#cached/block RUN (cache=miss)
                 `,
                 check: equal => {

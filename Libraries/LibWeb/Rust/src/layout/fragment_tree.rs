@@ -117,6 +117,47 @@ impl Fragment {
             && self.clamped_content_is_scrollable_overflow == previous.clamped_content_is_scrollable_overflow
     }
 
+    /// Whether this fragment's subtree came out of layout like `previous`, ignoring which allocations hold the pieces.
+    /// A subtree this layout reused as a whole, as `was_reused` says by slot, carries no descendants, and compares
+    /// equal down to its root.
+    pub(crate) fn lays_out_like(&self, previous: &Fragment, was_reused: &impl Fn(u32) -> bool) -> bool {
+        let same_line_data = match (&self.line_data, &previous.line_data) {
+            (None, None) => true,
+            (Some(left), Some(right)) => left == right,
+            _ => false,
+        };
+        self.node == previous.node
+            && self.content_inline_size == previous.content_inline_size
+            && self.content_block_size == previous.content_block_size
+            && self.margin_left == previous.margin_left
+            && self.margin_right == previous.margin_right
+            && self.margin_top == previous.margin_top
+            && self.margin_bottom == previous.margin_bottom
+            && self.border_left == previous.border_left
+            && self.border_right == previous.border_right
+            && self.border_top == previous.border_top
+            && self.border_bottom == previous.border_bottom
+            && self.padding_left == previous.padding_left
+            && self.padding_right == previous.padding_right
+            && self.padding_top == previous.padding_top
+            && self.padding_bottom == previous.padding_bottom
+            && self.uses_collapsing_borders_model == previous.uses_collapsing_borders_model
+            && self.svg == previous.svg
+            && self.has_line_clamp_point == previous.has_line_clamp_point
+            && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
+            && same_line_data
+            && ((self.children.is_empty() && was_reused(self.node.slot_index()))
+                || (self.children.len() == previous.children.len()
+                    && self
+                        .children
+                        .iter()
+                        .zip(&previous.children)
+                        .all(|(link, previous_link)| {
+                            link.has_same_placement(previous_link)
+                                && link.fragment.lays_out_like(&previous_link.fragment, was_reused)
+                        })))
+    }
+
     pub(crate) fn has_same_child_placements(&self, previous: &Fragment) -> bool {
         self.children.len() == previous.children.len()
             && self
@@ -415,6 +456,12 @@ fn snapshot_fragment(
     std::sync::Arc::new(fragment)
 }
 
+/// The fragment a placement built, and whether anything from its subtree went on to its containing block.
+pub(crate) struct PlacedFragment {
+    pub(crate) fragment: std::sync::Arc<Fragment>,
+    pub(crate) exports_payloads: bool,
+}
+
 pub(crate) struct PlacementData {
     pub(crate) committed_offset: FfiCssPixelPoint,
     pub(crate) inset_left: CssPixels,
@@ -477,19 +524,23 @@ pub(crate) struct CompletedPassFragments {
 
 impl CompletedPassFragments {
     pub(crate) fn links_by_slot(&self) -> HashMap<u32, &FragmentLink> {
-        fn insert_links<'tree>(links: &'tree [FragmentLink], links_by_slot: &mut HashMap<u32, &'tree FragmentLink>) {
+        fn insert_links<'tree>(
+            links: &'tree [FragmentLink],
+            reused_subtree_roots: &HashSet<u32>,
+            links_by_slot: &mut HashMap<u32, &'tree FragmentLink>,
+        ) {
             for link in links {
-                let previous = links_by_slot.insert(link.fragment.node.slot_index(), link);
-                assert!(
-                    previous.is_none(),
-                    "two fragments claim slot {}",
-                    link.fragment.node.slot_index()
-                );
-                insert_links(&link.fragment.children, links_by_slot);
+                let slot = link.fragment.node.slot_index();
+                let previous = links_by_slot.insert(slot, link);
+                assert!(previous.is_none(), "two fragments claim slot {slot}");
+                // NB: Commit stops at a reused subtree's root, so nothing looks up the links below it.
+                if !reused_subtree_roots.contains(&slot) {
+                    insert_links(&link.fragment.children, reused_subtree_roots, links_by_slot);
+                }
             }
         }
         let mut links_by_slot = HashMap::default();
-        insert_links(&self.roots, &mut links_by_slot);
+        insert_links(&self.roots, &self.reused_subtree_roots, &mut links_by_slot);
         links_by_slot
     }
 
@@ -533,6 +584,8 @@ struct RunFragmentBuilderInner {
     anchor_candidates_at_root: Vec<AnchorCandidate>,
     inline_containing_block_rects_at_root: Vec<InlineContainingBlockRect>,
     abspos_containing_block_info_contributions: Vec<AbsposContainingBlockInfoContribution>,
+    /// How many abspos containing block info contributions the run has received, whether or not they are still listed.
+    abspos_containing_block_info_contributions_received: u64,
     top_scope_links: Vec<FragmentLink>,
     reused_subtree_roots: HashSet<u32>,
 }
@@ -706,6 +759,7 @@ impl RunFragmentBuilder {
         inner
             .abspos_containing_block_info_contributions
             .push(AbsposContainingBlockInfoContribution { child_box, info });
+        inner.abspos_containing_block_info_contributions_received += 1;
     }
 
     pub(crate) fn find_abspos_containing_block_info(
@@ -859,6 +913,8 @@ impl RunFragmentBuilder {
         pending_fragment
             .inline_containing_block_rects
             .extend(root.propagated_inline_containing_block_rects);
+        inner.abspos_containing_block_info_contributions_received +=
+            root.propagated_abspos_containing_block_info.len() as u64;
         inner
             .abspos_containing_block_info_contributions
             .extend(root.propagated_abspos_containing_block_info);
@@ -875,7 +931,7 @@ impl RunFragmentBuilder {
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         own_anchor_candidate_border_box_rect: Option<CssPixelRect>,
-    ) {
+    ) -> PlacedFragment {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
         debug_assert!(
@@ -892,11 +948,16 @@ impl RunFragmentBuilder {
             .pending_fragments
             .remove(&slot)
             .unwrap_or_else(|| PendingFragment::new(node));
+        let fragment = snapshot_fragment(callbacks, node, children, used);
         let link = link_fragment(
-            snapshot_fragment(callbacks, node, children, used),
+            fragment.clone(),
             PlacementData::from_record(used, containing_line_box_index, committed_offset),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
+        let exports_payloads = !pending_abspos_from_placed_box.is_empty()
+            || !anchor_candidates_from_placed_box.is_empty()
+            || !inline_containing_block_rects_from_placed_box.is_empty()
+            || own_anchor_candidate_border_box_rect.is_some();
         let content_offset = used.content_offset.get();
         for mut entry in pending_abspos_from_placed_box {
             debug_assert!(
@@ -938,6 +999,42 @@ impl RunFragmentBuilder {
                 None => inner.inline_containing_block_rects_at_root.push(payload),
             }
         }
+        PlacedFragment {
+            fragment,
+            exports_payloads,
+        }
+    }
+
+    /// Places the committed fragment of a box whose subtree is reused as it is. Commit stops at the box, so its
+    /// committed descendants stay as they are.
+    pub(crate) fn attach_reused_subtree(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        fragment: std::sync::Arc<Fragment>,
+        containing_block: Option<crate::layout::node_data::NodeSlotId>,
+        used: &UsedValues,
+        containing_block_is_sealed: bool,
+        committed_offset: FfiCssPixelPoint,
+    ) {
+        let mut inner = self.inner.borrow_mut();
+        let slot = node.slot_index();
+        debug_assert!(
+            !inner.child_roots_awaiting_placement.contains_key(&slot) && !inner.pending_fragments.contains_key(&slot),
+            "a reused subtree's box has fragments of its own in this run (slot {slot})"
+        );
+        let link = link_fragment(fragment, PlacementData::from_record(used, None, committed_offset));
+        self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
+        inner.reused_subtree_roots.insert(slot);
+    }
+
+    /// How many abspos containing block contributions the run has collected so far.
+    /// How many abspos containing block info contributions the run has received so far, which only grows.
+    pub(crate) fn abspos_containing_block_info_contributions_received(&self) -> u64 {
+        self.inner.borrow().abspos_containing_block_info_contributions_received
+    }
+
+    pub(crate) fn subtree_was_reused(&self, slot: u32) -> bool {
+        self.inner.borrow().reused_subtree_roots.contains(&slot)
     }
 
     fn attach(
