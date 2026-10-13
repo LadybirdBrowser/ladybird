@@ -198,6 +198,10 @@ impl JitCode {
             .map(|(_, entry)| *entry)
     }
 
+    pub fn has_osr_entries(&self) -> bool {
+        !self.osr_entries.is_empty()
+    }
+
     pub fn site(&self, index: u32) -> &Site {
         &self.sites[index as usize]
     }

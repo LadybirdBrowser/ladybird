@@ -158,6 +158,14 @@ pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
         return;
     }
 
+    // NB: Frames with installed code may check successive back edges to find an OSR entry. Folding all their value
+    //     feedback at each check is unnecessary: a new compile's snapshot folds it before using it.
+    if executable.jit_compile_state() == CompileState::Installed && !options.dump_feedback {
+        install_finished_compiles(vm);
+        executable.head.tier_up_budget.set(compile_wait_budget(options));
+        return;
+    }
+
     // A warm executable starts collecting feedback, and the tier-up threshold counts from here, unless the JIT would
     // never compile it.
     if executable.interpreter_tier() == InterpreterTier::WarmingUp {
