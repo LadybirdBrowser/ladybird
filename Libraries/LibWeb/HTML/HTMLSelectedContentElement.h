@@ -32,6 +32,7 @@ private:
     HTMLSelectedContentElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void post_connection() override;
+    virtual bool has_post_connection_steps() const override { return true; }
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#selectedcontent-disabled

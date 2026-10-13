@@ -412,6 +412,9 @@ public:
 
     MUST_UPCALL virtual void inserted();
     virtual void post_connection();
+    // Whether this node overrides post_connection(). Every override of post_connection() must also override this to
+    // return true, since insertions skip the post-connection steps when no inserted node has them.
+    virtual bool has_post_connection_steps() const { return false; }
     enum class IsSubtreeRoot : u8 {
         No,
         Yes,
