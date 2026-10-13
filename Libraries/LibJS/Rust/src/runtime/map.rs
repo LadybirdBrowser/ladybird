@@ -245,8 +245,7 @@ impl Map {
 
     pub fn begin(&self) -> ConstIterator {
         ConstIterator {
-            // SAFETY: Maps only exist as cells, since every way to create one allocates it.
-            map: unsafe { Gc::from_ref(self) },
+            map: Gc::from_ref(self),
             index: Cell::new(0),
             generation: Cell::new(self.storage.borrow().generation),
             next_insertion_id: Cell::new(0),

@@ -136,8 +136,7 @@ impl CyclicModule {
     }
 
     pub fn as_cyclic_module_gc(&self) -> Gc<CyclicModule> {
-        // SAFETY: Modules only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     pub fn status(&self) -> ModuleStatus {

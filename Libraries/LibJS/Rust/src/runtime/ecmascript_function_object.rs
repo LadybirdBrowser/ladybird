@@ -279,8 +279,7 @@ impl EcmascriptFunctionObject {
     }
 
     pub fn as_ecmascript_function_gc(&self) -> Gc<EcmascriptFunctionObject> {
-        // SAFETY: ECMAScript function objects only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     /// The function's executable, compiled first if the function never ran.

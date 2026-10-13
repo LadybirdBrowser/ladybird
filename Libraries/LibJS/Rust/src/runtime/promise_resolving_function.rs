@@ -143,8 +143,7 @@ impl PromiseResolvingFunction {
     /// The function whose [[AlreadyResolved]] this one uses: the resolve function keeps the bit both share.
     fn already_resolved_owner(&self) -> Gc<PromiseResolvingFunction> {
         if self.kind == PromiseResolvingFunctionKind::Resolve {
-            // SAFETY: Promise resolving functions only exist as cells once constructed.
-            return unsafe { Gc::from_ref(self) };
+            return Gc::from_ref(self);
         }
 
         self.resolve_function

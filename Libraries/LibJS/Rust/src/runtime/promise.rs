@@ -139,8 +139,7 @@ impl Promise {
     }
 
     pub fn as_gc(&self) -> Gc<Promise> {
-        // SAFETY: Promises only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     pub fn state(&self) -> PromiseState {

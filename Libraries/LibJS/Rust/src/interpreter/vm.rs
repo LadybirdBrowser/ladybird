@@ -1791,7 +1791,13 @@ impl Vm {
 
     /// The VM whose heap `cell` lives in.
     pub(crate) fn of_cell<T: GcCell>(cell: &T) -> &Vm {
-        // SAFETY: The VM creates its heap with itself as the context, and outlives every cell in it.
+        assert!(
+            crate::gc::class::is_in_heap_region(core::ptr::from_ref(cell).addr()),
+            "a {} that has yet to be allocated is in no heap",
+            T::CLASS.name
+        );
+        // SAFETY: The cell is in the heap region, so it is a cell of a heap, which the VM creates with itself as the
+        //         context and outlives every cell in.
         unsafe { &*capi::gc_cell_heap_context(core::ptr::from_ref(cell).cast()).cast::<Vm>() }
     }
 

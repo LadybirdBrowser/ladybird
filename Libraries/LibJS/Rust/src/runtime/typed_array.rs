@@ -769,8 +769,7 @@ pub fn make_typed_array_with_buffer_witness_record(
 
     // 4. Return the TypedArray With Buffer Witness Record { [[Object]]: obj, [[CachedBufferByteLength]]: byteLength }.
     TypedArrayWithBufferWitness {
-        // SAFETY: Typed arrays only exist as cells.
-        object: unsafe { Gc::from_ref(typed_array) },
+        object: Gc::from_ref(typed_array),
         cached_buffer_byte_length: byte_length,
     }
 }

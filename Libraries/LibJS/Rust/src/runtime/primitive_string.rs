@@ -462,8 +462,7 @@ impl PrimitiveString {
             return PropertyKey::from(fly_string);
         }
         *entry = StringToAtomCacheEntry {
-            // SAFETY: Strings only exist as cells, since every way to create one allocates it.
-            string: Some(unsafe { Gc::from_ref(self) }),
+            string: Some(Gc::from_ref(self)),
             atom: Some(fly_string.clone()),
         };
         PropertyKey::from(fly_string)
@@ -506,8 +505,7 @@ impl PrimitiveString {
             return Ok(None);
         }
 
-        // SAFETY: Strings only exist as cells, since every way to create one allocates it.
-        let this = unsafe { Gc::from_ref(self) };
+        let this = Gc::from_ref(self);
         Ok(Some(Value::from_string(Self::create_from_substring(
             vm, this, index, 1,
         ))))

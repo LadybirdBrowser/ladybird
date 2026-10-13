@@ -203,8 +203,7 @@ impl GeneratorObject {
     }
 
     pub fn as_gc(&self) -> Gc<GeneratorObject> {
-        // SAFETY: Generator objects only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     /// [[GeneratorContext]]. It lives out of line until the generator is finalized, so the pointer stays valid for

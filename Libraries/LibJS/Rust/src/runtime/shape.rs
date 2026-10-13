@@ -353,8 +353,7 @@ impl Shape {
     }
 
     fn as_gc(&self) -> Gc<Shape> {
-        // SAFETY: Shapes only exist as cells, since every way to create one allocates it.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     fn descriptors(&self) -> Option<Gc<DescriptorArray>> {

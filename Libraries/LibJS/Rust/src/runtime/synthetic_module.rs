@@ -161,8 +161,7 @@ impl SyntheticModule {
     }
 
     fn as_synthetic_module_gc(&self) -> Gc<SyntheticModule> {
-        // SAFETY: Modules only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     // 16.2.1.8.3 SetSyntheticModuleExport ( module, exportName, exportValue ), https://tc39.es/ecma262/#sec-setsyntheticmoduleexport

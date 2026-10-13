@@ -123,8 +123,7 @@ impl NativeJavaScriptBackedFunction {
     }
 
     pub fn as_native_javascript_backed_function_gc(&self) -> Gc<NativeJavaScriptBackedFunction> {
-        // SAFETY: NativeJavaScriptBackedFunctions only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) {

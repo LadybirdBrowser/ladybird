@@ -746,8 +746,7 @@ impl Object {
     }
 
     pub(crate) fn as_gc(&self) -> Gc<Object> {
-        // SAFETY: Objects only exist as cells once constructed, since allocate_object() moves every one into the heap.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     pub fn class(&self) -> &'static Class {

@@ -253,8 +253,7 @@ impl Module {
     }
 
     pub fn as_gc(&self) -> Gc<Module> {
-        // SAFETY: Modules only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     /// The module as a `T`, if it was allocated as one.
