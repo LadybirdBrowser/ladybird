@@ -167,6 +167,8 @@ Chromium uses `NSAccessibilityElement` as its base class. We tried that but enco
 
 `NSObject` with the “informal” protocol gives us full control. Tradeoff: we have to override certain “modern” property API methods that `NSAccessibilityElement` would provide automatically. In particular, we found that missing overrides for `accessibilityWindow` and `accessibilityTopLevelUIElement` caused VoiceOver to treat nested elements as orphaned (not part of any window) — breaking VoiceOver forward navigation into nested groups.
 
+Likewise `accessibilityShouldUseUniqueId`, which `NSAccessibilityElement` answers `YES` and `NSObject` answers `NO`. Without a unique id, AppKit identifies an element to an assistive technology by its path of child indices from the window: Every request resolves that path again, asking each ancestor for its `AXChildren` on the way down — enough work on a big page for VoiceOver to report “Ladybird not responding”. And a handle VoiceOver holds then names a position, not an element. So `LadybirdAccessibilityElement` answers `YES`, as WebKit’s wrappers do, and gives the id up (`NSAccessibilityUnregisterUniqueIdForUIElement`) when its node leaves the tree or it’s deallocated — AppKit’s table of ids doesn’t retain the elements.
+
 ### Dual API support: “informal” and “modern”
 
 The macOS accessibility system queries objects via two code paths:

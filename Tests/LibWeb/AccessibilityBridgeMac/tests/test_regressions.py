@@ -15,12 +15,14 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from ApplicationServices import AXUIElementCopyAttributeValue  # noqa: E402
 from ApplicationServices import AXUIElementIsAttributeSettable  # noqa: E402
+from ApplicationServices import AXUIElementPerformAction  # noqa: E402
 from ApplicationServices import AXUIElementSetAttributeValue  # noqa: E402
 from ApplicationServices import kAXFocusedAttribute  # noqa: E402
 from ApplicationServices import kAXParentAttribute  # noqa: E402
 from ApplicationServices import kAXPositionAttribute  # noqa: E402
 from ApplicationServices import kAXRoleAttribute  # noqa: E402
 from ApplicationServices import kAXSizeAttribute  # noqa: E402
+from ApplicationServices import kAXTitleAttribute  # noqa: E402
 from ApplicationServices import kAXValueAttribute  # noqa: E402
 from harness import AccessibilityBridgeMacTestCase  # noqa: E402
 from harness import NotificationCollector  # noqa: E402
@@ -583,6 +585,40 @@ class TreeUpdatesUnderContinuousMutationTests(AccessibilityBridgeMacTestCase):
         time.sleep(1.5)
         second = self._status_text()
         self.assertNotEqual(first, second, f"the tree stopped updating: the status text still reads {first!r}")
+
+
+class ElementKeepsItsIdentityAcrossSiblingInsertionTests(AccessibilityBridgeMacTestCase):
+    """Symptom: VoiceOver kept reporting "Ladybird not responding" while the user navigated a page, and its cursor could
+    land on the wrong element after the page changed.
+
+    Root cause: the elements didn't ask AppKit for unique ids, so AppKit identified each one to an AT by its path of
+    child indices from the window. Every request resolved that path again, computing the AXChildren of each ancestor
+    on the way down: Seconds per navigation step on a big page, since the AXWebArea's children skip through every
+    unnamed div and paragraph. And a handle the AT held named a position, not an element: Once a sibling was inserted
+    before it, the handle resolved to whatever element had moved into its place.
+
+    Fix: every element uses a unique id (accessibilityShouldUseUniqueId), and gives it up when its node leaves the
+    tree."""
+
+    FIXTURE = "sibling_insert.html"
+
+    def test_handle_still_names_its_element_after_a_sibling_is_inserted_before_it(self):
+        insert = wait_for_descendant_by_role(self.web, "AXButton", title="Insert")
+        beta = wait_for_descendant_by_role(self.web, "AXButton", title="Beta")
+        self.assertIsNotNone(insert, "sibling_insert.html must expose its Insert button")
+        self.assertIsNotNone(beta, "sibling_insert.html must expose its Beta button")
+
+        err = AXUIElementPerformAction(insert, "AXPress")
+        self.assertEqual(err, 0, "pressing the Insert button failed")
+        self.assertIsNotNone(
+            wait_for_descendant_by_role(self.ctx.find_web_area(), "AXButton", title="Inserted", timeout=10.0),
+            "the inserted button never reached the tree",
+        )
+        self.assertEqual(
+            _ax_attr(beta, kAXTitleAttribute),
+            "Beta",
+            "the handle to the Beta button now names another element: the element is identified by its position",
+        )
 
 
 if __name__ == "__main__":

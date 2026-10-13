@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body style="font: 16px sans-serif; margin: 40px;">
+<button id="insert">Insert</button>
+<button>Alpha</button>
+<button>Beta</button>
+<script>
+  document.getElementById("insert").addEventListener("click", () => {
+    const inserted = document.createElement("button");
+    inserted.textContent = "Inserted";
+    document.getElementById("insert").after(inserted);
+  });
+</script>
+</body>
+</html>
