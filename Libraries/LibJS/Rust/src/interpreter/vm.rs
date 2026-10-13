@@ -624,8 +624,8 @@ impl Vm {
     /// `storage` must be valid for writes of a Vm and aligned for one. The VM must stay there until it is dropped in
     /// place, which only the thread that constructed it may do.
     pub unsafe fn create_at(storage: *mut Vm, options: VmOptions) {
-        // SAFETY: Initializes the region cell pointers are relative to.
-        let heap_region_base = unsafe { capi::gc_heap_region_base() };
+        // NB: Initializes the region cell pointers are relative to.
+        let heap_region_base = capi::gc_heap_region_base();
         let primitive_storage_cage_base = crate::runtime::array_buffer::primitive_storage_cage_base();
         let interpreter_stack_memory = InterpreterStackMemory::allocate();
         // SAFETY: An all-zero NativeFunctionTableEntry is valid: no function and the first function type.
