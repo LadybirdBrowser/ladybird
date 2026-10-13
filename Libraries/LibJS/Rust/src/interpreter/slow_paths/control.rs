@@ -10,7 +10,6 @@ use ak::{Utf16FlyString, Utf16String};
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::bytecode::op;
-use crate::bytecode::property_access::get_own_property_without_side_effects;
 use crate::debugger::PauseReason;
 use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
 use crate::interpreter::vm::Vm;
@@ -35,6 +34,7 @@ use crate::runtime::object::{IndexedStorageKind, IntegrityLevel};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_fuses;
 use crate::runtime::regexp_object::RegExpObject;
 use crate::runtime::set::Set;
 use crate::runtime::set_iterator::set_iteration_is_unobservable;
@@ -212,30 +212,15 @@ pub fn array_append(
 
             // OPTIMIZATION: The original array iterator has no observable side effects, so a packed
             //               array can be appended in bulk if its next method is also unchanged.
-            let original_iterator_method = current_realm(vm).array_prototype_values_function();
+            let realm = current_realm(vm);
             if let Some(rhs_array) = rhs_array
-                && iterator_method == original_iterator_method
+                && iterator_method == realm.array_prototype_values_function()
                 && rhs_array.is_simple_packed_array()
+                && realm_fuses::array_iterators_have_builtin_next(&realm)
+                && rhs_array.indexed_packed_element_count() <= u32::MAX - lhs_size
             {
-                let iterator_prototype = current_realm(vm).array_iterator_prototype();
-
-                // NB: Inspect the intrinsic prototype's own property without invoking it. Using get()
-                //     here would call an accessor with the prototype as its receiver, whereas the
-                //     iterator protocol calls it with the newly created iterator as its receiver.
-                //     Accessors and replacement methods therefore take the generic path below.
-                let next_method = get_own_property_without_side_effects(
-                    &iterator_prototype,
-                    &vm.names.next,
-                    vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::ArrayAppendNextMethod),
-                );
-                if next_method.is_function()
-                    && next_method.as_function().as_native_function().is_some()
-                    && next_method.as_function().is_array_prototype_next_builtin()
-                    && rhs_array.indexed_packed_element_count() <= u32::MAX - lhs_size
-                {
-                    lhs_array.indexed_append_packed_elements_of(&rhs_array);
-                    return SlowPathControl::continue_at(pc + op::ArrayAppend::LENGTH);
-                }
+                lhs_array.indexed_append_packed_elements_of(&rhs_array);
+                return SlowPathControl::continue_at(pc + op::ArrayAppend::LENGTH);
             }
 
             // OPTIMIZATION: Iterating a Set or Map with its original iteration functions cannot be observed, and no

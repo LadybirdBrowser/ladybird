@@ -52,6 +52,7 @@ use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes
 use crate::runtime::property_descriptor::{PropertyDescriptor, to_property_descriptor};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_fuses;
 use crate::runtime::shape::{AssignCopy, Shape};
 use crate::runtime::symbol::Symbol;
 use crate::runtime::value::{PreferredType, is_strictly_equal, same_value};
@@ -2831,6 +2832,8 @@ impl Object {
             remove_intrinsic_accessor(vm, self, property_key);
         }
 
+        realm_fuses::note_property_change(vm, self, property_key);
+
         if attributes != metadata.attributes {
             let shape = self.shape();
             if shape.is_dictionary() {
@@ -2870,6 +2873,8 @@ impl Object {
             return None;
         }
 
+        realm_fuses::note_property_change(vm, self, property_key);
+
         if !self.shape().is_dictionary()
             && self.shape().property_count() >= MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY
         {
@@ -2902,6 +2907,8 @@ impl Object {
         }
 
         let metadata = self.shape().lookup(property_key).expect("the object has the property");
+
+        realm_fuses::note_property_change(vm, self, property_key);
 
         // NB: Deleting the property moves those after it to the slots before them.
         if self.has_global_object_flag() {
@@ -2938,6 +2945,7 @@ impl Object {
         if self.prototype() == new_prototype {
             return;
         }
+        realm_fuses::note_prototype_change(vm, self);
         self.shape
             .set(self.shape().create_prototype_transition(vm, new_prototype));
     }

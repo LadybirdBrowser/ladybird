@@ -30,6 +30,7 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_descriptor::{from_property_descriptor, to_property_descriptor};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_fuses;
 use crate::runtime::value::same_value;
 use crate::utf16::utf16_formatted;
 
@@ -788,6 +789,7 @@ fn try_assign_from_shape(vm: &Vm, target: &Object, source: &Object) -> ThrowComp
             && metadata.attributes.is_writable()
             && !target.get_direct(metadata.offset).is_accessor()
         {
+            realm_fuses::note_property_change(vm, target, &property_key);
             target.put_direct(metadata.offset, value);
             continue;
         }
