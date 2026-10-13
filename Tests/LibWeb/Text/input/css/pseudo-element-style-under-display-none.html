@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    .item { display: none; }
+    .item.shown { display: block; }
+    .red { color: rgb(255, 0, 0); }
+    .green { color: rgb(0, 128, 0); }
+    .item::after { content: "x"; border-left: 1px solid currentcolor; display: inline-block; }
+    .item.wide::after { border-left-width: 3px; }
+</style>
+<div id="list">
+    <div class="item red"></div>
+    <div class="item green"></div>
+    <div class="item red wide"></div>
+    <div class="item red"></div>
+    <div class="item green"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const items = [...document.querySelectorAll(".item")];
+    const describe = label => {
+        println(label);
+        for (const [index, item] of items.entries()) {
+            const style = getComputedStyle(item, "::after");
+            println(`  ${index}: ${style.content} ${style.color} ${style.borderLeftColor} ${style.borderLeftWidth} ${style.display}`);
+        }
+    };
+    describe("hidden");
+
+    items[1].classList.replace("green", "red");
+    items[3].classList.replace("red", "green");
+    describe("hidden, colors swapped");
+
+    items[0].classList.add("shown");
+    items[4].classList.add("wide");
+    describe("first shown, last wide");
+
+    for (const item of items)
+        item.classList.add("shown");
+    describe("all shown");
+});
+</script>

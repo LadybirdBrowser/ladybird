@@ -1,0 +1,24 @@
+hidden
+  0: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  1: "x" rgb(0, 128, 0) rgb(0, 128, 0) 1px inline-block
+  2: "x" rgb(255, 0, 0) rgb(255, 0, 0) 3px inline-block
+  3: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  4: "x" rgb(0, 128, 0) rgb(0, 128, 0) 1px inline-block
+hidden, colors swapped
+  0: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  1: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  2: "x" rgb(255, 0, 0) rgb(255, 0, 0) 3px inline-block
+  3: "x" rgb(0, 128, 0) rgb(0, 128, 0) 1px inline-block
+  4: "x" rgb(0, 128, 0) rgb(0, 128, 0) 1px inline-block
+first shown, last wide
+  0: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  1: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  2: "x" rgb(255, 0, 0) rgb(255, 0, 0) 3px inline-block
+  3: "x" rgb(0, 128, 0) rgb(0, 128, 0) 1px inline-block
+  4: "x" rgb(0, 128, 0) rgb(0, 128, 0) 3px inline-block
+all shown
+  0: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  1: "x" rgb(255, 0, 0) rgb(255, 0, 0) 1px inline-block
+  2: "x" rgb(255, 0, 0) rgb(255, 0, 0) 3px inline-block
+  3: "x" rgb(0, 128, 0) rgb(0, 128, 0) 1px inline-block
+  4: "x" rgb(0, 128, 0) rgb(0, 128, 0) 3px inline-block
