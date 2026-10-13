@@ -50,11 +50,6 @@ struct TraverseByDeltaHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
-struct TraverseToStepHistoryOperationParameters {
-    i32 target_step;
-    HTML::UserNavigationInvolvement user_involvement;
-};
-
 struct NavigationAPITraverseHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     Utf16String key;
@@ -98,7 +93,6 @@ using HistoryOperationParameters = Variant<
     FinalizeCrossDocumentNavigationHistoryOperationParameters,
     ReloadHistoryOperationParameters,
     TraverseByDeltaHistoryOperationParameters,
-    TraverseToStepHistoryOperationParameters,
     NavigationAPITraverseHistoryOperationParameters,
     ResumeTraverseHistoryOperationParameters,
     NavigableCreationHistoryOperationParameters,
@@ -125,11 +119,6 @@ template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::TraverseByDeltaHistoryOperationParameters const&);
 template<>
 WEBCOMMON_API ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::TraverseToStepHistoryOperationParameters const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::TraverseToStepHistoryOperationParameters> decode(Decoder&);
 
 template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::NavigationAPITraverseHistoryOperationParameters const&);

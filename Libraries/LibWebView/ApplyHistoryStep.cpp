@@ -327,7 +327,7 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
 
         // NB: targetStep was computed before the asynchronous parts of this algorithm. Re-normalize it in case a
         //     child navigable's removal made it unused meanwhile.
-        m_target_step = m_session_history.get_the_used_step(m_step).value_or(m_target_step);
+        m_target_step = m_session_history.get_the_used_step(m_step).value();
 
         auto* navigable = find_navigable(navigable_id);
 
@@ -445,7 +445,7 @@ CanonicalSessionHistoryEntry* ApplyHistoryStep::append_the_claimed_target_entry_
 void ApplyHistoryStep::update_nonchanging_navigables()
 {
     // NB: targetStep is re-normalized once more; the continuation loop can have removed child navigables.
-    m_target_step = m_session_history.get_the_used_step(m_step).value_or(m_target_step);
+    m_target_step = m_session_history.get_the_used_step(m_step).value();
 
     // 17. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index
     //     given traversable and targetStep.

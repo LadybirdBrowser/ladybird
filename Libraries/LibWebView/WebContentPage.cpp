@@ -1619,6 +1619,10 @@ void WebContentPage::request_history_operation(Web::HTML::CrossProcessId operati
         async_complete_history_operation(operation_id, {}, traversable().session_history().size());
         return;
     }
+    if (auto const* resume = parameters.get_pointer<Web::ResumeTraverseHistoryOperationParameters>(); resume && !traversable().session_history().get_the_used_step(resume->target_step).has_value()) {
+        client().did_misbehave("request_history_operation"sv, "resumed traversal to a step before every used step"sv);
+        return;
+    }
     view().request_history_operation({}, *this, operation_id, move(parameters));
 }
 
