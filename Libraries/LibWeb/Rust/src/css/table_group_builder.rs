@@ -210,7 +210,7 @@ fn resolved_wrapped_number(data: &StyleValueData) -> Option<f64> {
 
 /// Gathers one group's descriptor entries from the table, resolving the
 /// color and number sidecars the descriptor kinds ask for.
-unsafe fn gather_group_entries(
+fn gather_group_entries(
     group_index: usize,
     values: &EffectiveValues,
     input: &ColorResolutionInput,
@@ -220,8 +220,8 @@ unsafe fn gather_group_entries(
     assert!(descriptors.len() <= MAX_GROUP_FIELD_COUNT);
     let mut entries = GroupValueEntries::new();
     for descriptor in descriptors {
-        let data_pointer = values.pointer(descriptor.property_id);
-        let data = unsafe { data_pointer.cast::<StyleValueData>().as_ref() }?;
+        let data = values.value(descriptor.property_id)?;
+        let data_pointer = std::ptr::from_ref(data).cast::<c_void>();
         let mut entry = GroupValueEntry {
             data: data_pointer,
             resolved_color: 0,
@@ -263,7 +263,7 @@ unsafe fn build_generic_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index, values, input, used_color_scheme) }) else {
+    let Some(entries) = gather_group_entries(group_index, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
     // SAFETY: The entries hold live value data gathered above and the caller
@@ -1267,8 +1267,7 @@ unsafe fn build_transform_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index::TRANSFORM, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::TRANSFORM, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -1592,8 +1591,7 @@ unsafe fn build_effects_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index::EFFECTS, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::EFFECTS, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -1706,8 +1704,7 @@ unsafe fn build_background_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index::BACKGROUND, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::BACKGROUND, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
     let retained = |property| ComputedStyleValueHandle::retained(values.pointer(property).cast());
@@ -1758,7 +1755,7 @@ unsafe fn build_mask_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index::MASK, values, input, used_color_scheme) }) else {
+    let Some(entries) = gather_group_entries(group_index::MASK, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
     let retained = |property| ComputedStyleValueHandle::retained(values.pointer(property).cast());
@@ -1796,7 +1793,7 @@ unsafe fn build_border_group(
     if !generic.is_null() {
         return generic;
     }
-    let Some(entries) = (unsafe { gather_group_entries(group_index::BORDER, values, input, used_color_scheme) }) else {
+    let Some(entries) = gather_group_entries(group_index::BORDER, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
     let retained = |property| ComputedStyleValueHandle::retained(values.pointer(property).cast());
@@ -1972,8 +1969,7 @@ unsafe fn build_inherited_svg_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index::INHERITED_SVG, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::INHERITED_SVG, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -2093,9 +2089,7 @@ unsafe fn build_inherited_list_group(
     if !generic.is_null() {
         return generic;
     }
-    let Some(entries) =
-        (unsafe { gather_group_entries(group_index::INHERITED_LIST, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::INHERITED_LIST, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -2132,8 +2126,7 @@ unsafe fn build_content_group(
     if !generic.is_null() {
         return generic;
     }
-    let Some(entries) = (unsafe { gather_group_entries(group_index::CONTENT, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::CONTENT, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -2163,8 +2156,7 @@ unsafe fn build_inherited_ui_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index::INHERITED_UI, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::INHERITED_UI, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -2293,9 +2285,7 @@ unsafe fn build_inherited_text_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) =
-        (unsafe { gather_group_entries(group_index::INHERITED_TEXT, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::INHERITED_TEXT, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -2414,8 +2404,7 @@ unsafe fn build_misc_reset_group(
         }
     }
 
-    let Some(entries) = (unsafe { gather_group_entries(group_index::MISC_RESET, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::MISC_RESET, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -2720,7 +2709,7 @@ unsafe fn build_anchor_group(
     if !generic.is_null() {
         return generic;
     }
-    let Some(entries) = (unsafe { gather_group_entries(group_index::ANCHOR, values, input, used_color_scheme) }) else {
+    let Some(entries) = gather_group_entries(group_index::ANCHOR, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
 
@@ -3260,8 +3249,7 @@ unsafe fn build_animation_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let Some(entries) = (unsafe { gather_group_entries(group_index::ANIMATION, values, input, used_color_scheme) })
-    else {
+    let Some(entries) = gather_group_entries(group_index::ANIMATION, values, input, used_color_scheme) else {
         return std::ptr::null();
     };
     let retained = |property| ComputedStyleValueHandle::retained(values.pointer(property).cast());
