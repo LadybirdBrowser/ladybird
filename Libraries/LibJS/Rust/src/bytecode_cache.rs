@@ -113,11 +113,26 @@ pub fn serialize_compiled_program(
 
 pub type FreeBytecodeCacheBlobOwner = unsafe extern "C" fn(*mut c_void);
 
-/// An embedder's handle on the bytes of a bytecode cache blob.
-pub struct ForeignBytecodeCacheBlobOwner {
-    pub owner: *mut c_void,
-    /// Releases a handle once nothing decoded from the bytes needs them anymore.
-    pub free_owner: FreeBytecodeCacheBlobOwner,
+/// What keeps the bytes of a bytecode cache blob alive.
+pub enum BytecodeCacheBlobOwner {
+    /// An embedder's handle on the bytes, which `free_owner` releases once nothing decoded from them needs them
+    /// anymore.
+    Foreign {
+        owner: *mut c_void,
+        free_owner: FreeBytecodeCacheBlobOwner,
+    },
+    /// A copy of bytes that were not aligned for running in place. A Vec, unlike a Box, can be moved while the bytes
+    /// are borrowed.
+    Aligned(Vec<u64>),
+}
+
+impl Drop for BytecodeCacheBlobOwner {
+    fn drop(&mut self) {
+        if let Self::Foreign { owner, free_owner } = self {
+            // SAFETY: The embedder's release function takes the owner it handed over, once.
+            unsafe { free_owner(*owner) };
+        }
+    }
 }
 
 /// Decodes a blob that [`serialize_compiled_program()`] wrote for `expected_runtime` and a program of
@@ -128,13 +143,13 @@ pub struct ForeignBytecodeCacheBlobOwner {
 /// program type or source, and for a malformed one.
 ///
 /// # Safety
-/// `bytes` must stay alive and unchanged until `owner.free_owner` is called with `owner.owner`.
+/// `bytes` must stay alive and unchanged until `owner` is dropped.
 pub unsafe fn decode_blob(
     bytes: &[u8],
     expected_program_type: ast::ProgramType,
     expected_source_hash: &[u8; SOURCE_HASH_SIZE],
     expected_runtime: BytecodeCacheRuntime,
-    owner: ForeignBytecodeCacheBlobOwner,
+    owner: BytecodeCacheBlobOwner,
 ) -> Option<DecodedCacheBlob> {
     let mut decoder = Decoder::new(bytes, Some(owner));
     let blob = CacheBlob::decode(
@@ -189,16 +204,7 @@ impl Encoder {
 struct ForeignBytecodeCacheBlob {
     data: *const u8,
     length: usize,
-    owner: *mut c_void,
-    free_owner: FreeBytecodeCacheBlobOwner,
-}
-
-impl Drop for ForeignBytecodeCacheBlob {
-    fn drop(&mut self) {
-        unsafe {
-            (self.free_owner)(self.owner);
-        }
-    }
+    _owner: BytecodeCacheBlobOwner,
 }
 
 struct Decoder<'a> {
@@ -208,13 +214,12 @@ struct Decoder<'a> {
 }
 
 impl<'a> Decoder<'a> {
-    fn new(bytes: &'a [u8], owner: Option<ForeignBytecodeCacheBlobOwner>) -> Self {
+    fn new(bytes: &'a [u8], owner: Option<BytecodeCacheBlobOwner>) -> Self {
         let foreign_blob = owner.map(|owner| {
             Rc::new(ForeignBytecodeCacheBlob {
                 data: bytes.as_ptr(),
                 length: bytes.len(),
-                owner: owner.owner,
-                free_owner: owner.free_owner,
+                _owner: owner,
             })
         });
         Self {
@@ -3108,7 +3113,7 @@ mod tests {
     }
 
     /// Copies `bytes` into storage of the returned owner, which adds one to `releases` when it is released.
-    fn test_blob(bytes: &[u8], releases: &Rc<Cell<usize>>) -> (&'static [u8], ForeignBytecodeCacheBlobOwner) {
+    fn test_blob(bytes: &[u8], releases: &Rc<Cell<usize>>) -> (&'static [u8], BytecodeCacheBlobOwner) {
         let mut storage = Box::new(TestBlobStorage {
             words: vec![0u64; bytes.len().div_ceil(size_of::<u64>())],
             releases: releases.clone(),
@@ -3119,7 +3124,7 @@ mod tests {
         }
         // SAFETY: The owner keeps the words alive until the decoded blob releases it.
         let view = unsafe { std::slice::from_raw_parts(storage.words.as_ptr().cast::<u8>(), bytes.len()) };
-        let owner = ForeignBytecodeCacheBlobOwner {
+        let owner = BytecodeCacheBlobOwner::Foreign {
             owner: Box::into_raw(storage).cast(),
             free_owner: release_test_blob,
         };

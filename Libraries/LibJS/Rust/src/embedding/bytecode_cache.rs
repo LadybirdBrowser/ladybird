@@ -19,9 +19,7 @@ use core::ffi::c_void;
 use std::rc::Rc;
 
 use crate::bytecode::bytecode_cache::DecodedBytecodeCache;
-use crate::bytecode_cache::{
-    BytecodeCacheRuntime, ForeignBytecodeCacheBlobOwner, decode_blob, serialize_compiled_program,
-};
+use crate::bytecode_cache::{BytecodeCacheBlobOwner, BytecodeCacheRuntime, decode_blob, serialize_compiled_program};
 use crate::compile::FunctionPrecompileMode;
 use crate::embedding::abi_types::{
     JSByteSink, JSRealm, JSSourceCode, JSUtf16View, cell_from_abi, cell_into_abi, vm_from_abi,
@@ -126,17 +124,7 @@ pub unsafe extern "C" fn js_bytecode_cache_serialize(
     unsafe { append(sink.context, blob.as_ptr(), blob.len()) }
 }
 
-/// The bytes of a blob that was not aligned for running in place, copied to storage that is.
-struct AlignedBlobBytes {
-    words: Box<[u64]>,
-}
-
 const _: () = assert!(align_of::<u64>() == JS_BYTECODE_CACHE_BLOB_ALIGNMENT);
-
-unsafe extern "C" fn release_aligned_blob_bytes(owner: *mut c_void) {
-    // SAFETY: The owner is the boxed copy that decode() handed over, which is released once.
-    drop(unsafe { Box::from_raw(owner.cast::<AlignedBlobBytes>()) });
-}
 
 /// Decodes the blob in `bytes`, whose owner it takes over, releasing the owner if it rejects the blob.
 ///
@@ -167,29 +155,26 @@ unsafe fn decode(
         return None;
     }
     let program_type = program_type_from_abi(program_type);
+    // SAFETY: The caller passes bytes that stay alive and unchanged until the owner is released.
+    let bytes = unsafe { core::slice::from_raw_parts(bytes, length) };
 
-    let (bytes, owner) = if bytes.addr().is_multiple_of(JS_BYTECODE_CACHE_BLOB_ALIGNMENT) {
-        // SAFETY: The caller passes bytes that stay alive and unchanged until the owner is released.
-        let bytes = unsafe { core::slice::from_raw_parts(bytes, length) };
-        let owner = ForeignBytecodeCacheBlobOwner {
+    let (bytes, owner) = if bytes.as_ptr().addr().is_multiple_of(JS_BYTECODE_CACHE_BLOB_ALIGNMENT) {
+        let owner = BytecodeCacheBlobOwner::Foreign {
             owner: owner.owner,
             free_owner: release,
         };
         (bytes, owner)
     } else {
-        let mut copy = Box::new(AlignedBlobBytes {
-            words: vec![0; length.div_ceil(size_of::<u64>())].into_boxed_slice(),
-        });
-        // SAFETY: The caller passes `length` readable bytes, and the words have room for them.
-        unsafe { core::ptr::copy_nonoverlapping(bytes, copy.words.as_mut_ptr().cast::<u8>(), length) };
+        let mut words = vec![0; length.div_ceil(size_of::<u64>())];
+        for (word, chunk) in words.iter_mut().zip(bytes.chunks(size_of::<u64>())) {
+            let mut word_bytes = [0; size_of::<u64>()];
+            word_bytes[..chunk.len()].copy_from_slice(chunk);
+            *word = u64::from_ne_bytes(word_bytes);
+        }
         release_owner();
-        // SAFETY: The copy, which the owner below releases, keeps its words alive and unchanged.
-        let bytes = unsafe { core::slice::from_raw_parts(copy.words.as_ptr().cast::<u8>(), length) };
-        let owner = ForeignBytecodeCacheBlobOwner {
-            owner: Box::into_raw(copy).cast(),
-            free_owner: release_aligned_blob_bytes,
-        };
-        (bytes, owner)
+        // SAFETY: The words, which the owner below keeps, stay alive and unchanged.
+        let bytes = unsafe { core::slice::from_raw_parts(words.as_ptr().cast::<u8>(), length) };
+        (bytes, BytecodeCacheBlobOwner::Aligned(words))
     };
     // SAFETY: The owner keeps the bytes alive and unchanged until it is released.
     let blob = unsafe { decode_blob(bytes, program_type, source_hash, BytecodeCacheRuntime::Rust, owner) }?;
