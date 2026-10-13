@@ -1,0 +1,15 @@
+When nothing in the page has the focus, Ladybird reports the AXWebArea
+as AXFocused — exactly when it’s the page’s focused UI element. Chrome
+follows the same rule: AXPlatformNodeCocoa’s isAccessibilityFocused
+compares the node against GetFocus(), and BrowserAccessibilityManager::
+GetFocusFromThisOrDescendantFrame() resolves that to the root when no
+node in the page is focused. Gecko’s mozAccessible::moxFocused reads the
+document’s FOCUSED state, which DocAccessible::NativeState() sets when
+FocusMgr()->IsFocused() says so — and FocusManager::FocusedDOMNode()
+falls back to the focused browsing context’s document when no element
+has the focus. But Gecko also requires that browsing context to
+hold the focus, so its web area isn’t focused while the URL bar is;
+Ladybird, like Chrome, checks no keyboard focus. WebKit differs: Its
+AccessibilityNodeObject::isFocused() returns false whenever the document
+has no focused element, and reports a web area focused only while some
+element has the focus and the frame’s selection is focused and active.
