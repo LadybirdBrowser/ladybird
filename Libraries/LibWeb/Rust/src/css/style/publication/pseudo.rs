@@ -77,7 +77,7 @@ impl RetainedState {
                     .into_iter()
                     .filter_map(|kind| self.computed_group_sets.pseudo_style_record(node, kind))
                     .filter_map(|record| self.computed_group_sets.style_record_view(record.raw()))
-                    .filter_map(|view| unsafe { view.longhand_table.as_ref() })
+                    .filter_map(|view| view.longhand_table)
                     .any(|table| table.display_is_list_item());
             if !marker_is_live {
                 required &= !(1_u64 << MARKER);
@@ -178,7 +178,7 @@ impl RetainedState {
         let display_is_list_item = |engine: &Self, record: computed::FinalStyleRecordID| -> bool {
             let view = engine.computed_group_sets.style_record_view(record.raw());
             debug_assert!(view.is_some(), "an installed record has a view");
-            view.and_then(|view| unsafe { view.longhand_table.as_ref() })
+            view.and_then(|view| view.longhand_table)
                 .is_none_or(|table| table.display_is_list_item())
         };
         let new_is_list_item = display_is_list_item(self, new_element_record);
@@ -236,9 +236,7 @@ impl RetainedState {
                 let Some(new_view) = self.computed_group_sets.style_record_view(new_element_record.raw()) else {
                     return false;
                 };
-                let (Some(old_table), Some(new_table)) = (unsafe { old_view.longhand_table.as_ref() }, unsafe {
-                    new_view.longhand_table.as_ref()
-                }) else {
+                let (Some(old_table), Some(new_table)) = (old_view.longhand_table, new_view.longhand_table) else {
                     return false;
                 };
                 let old_display = crate::css::style_compute::effective_display(old_table, None);

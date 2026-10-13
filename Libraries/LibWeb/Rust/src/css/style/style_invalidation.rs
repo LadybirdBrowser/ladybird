@@ -645,8 +645,8 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
 
 fn effective_value<'a>(view: &super::computed::StyleRecordView<'a>, property: u16) -> &'a StyleValueData {
     let index = usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
-    let table = unsafe { view.longhand_table.deref() };
-    if let Some(entry) = unsafe { view.animated_overlay.as_ref() }.and_then(|overlay| overlay.get(property))
+    let table = view.longhand_table.expect("a live record carries a longhand table");
+    if let Some(entry) = view.animated_overlay.and_then(|overlay| overlay.get(property))
         && overlay_wins(entry, table.is_important(property))
     {
         return entry.value();
@@ -726,9 +726,10 @@ impl RetainedState {
             .style_record_view(old_style_record)
             .unwrap_or_else(|| panic!("old style record {old_style_record:#x} is not live"));
         assert_eq!(payloads.len(), old_record.payloads.len());
-        // SAFETY: A live record's table lives as long as the record.
-        let table = unsafe { old_record.longhand_table.deref() };
-        let old_overlay = unsafe { old_record.animated_overlay.as_ref() };
+        let table = old_record
+            .longhand_table
+            .expect("a live record carries a longhand table");
+        let old_overlay = old_record.animated_overlay;
         let new_overlay = unsafe { animated_overlay.as_ref() };
         let old_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(old_record.payloads));
         let new_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads));
@@ -901,8 +902,12 @@ impl RetainedState {
             .unwrap_or_else(|| panic!("new style record {new_style_record:#x} is not live"));
         let old_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(old_record.payloads));
         let new_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(new_record.payloads));
-        let old_table = unsafe { old_record.longhand_table.deref() };
-        let new_table = unsafe { new_record.longhand_table.deref() };
+        let old_table = old_record
+            .longhand_table
+            .expect("a live record carries a longhand table");
+        let new_table = new_record
+            .longhand_table
+            .expect("a live record carries a longhand table");
         let all_groups_equal = old_record
             .payloads
             .iter()
@@ -912,8 +917,8 @@ impl RetainedState {
         let can_skip = all_groups_equal
             && std::ptr::eq(old_table, new_table)
             && font_lists_equal
-            && old_record.animated_overlay.is_null()
-            && new_record.animated_overlay.is_null();
+            && old_record.animated_overlay.is_none()
+            && new_record.animated_overlay.is_none();
         let mut result = StyleInvalidation::default();
         if !font_lists_equal
             || ((old_values.continue_() != crate::css::css_enums::continue_value::AUTO
@@ -994,8 +999,8 @@ impl RetainedState {
                 }
                 result.merge(invalidation);
             }
-            let old_overlay = unsafe { old_record.animated_overlay.cast::<AnimatedOverlay>().as_ref() };
-            let new_overlay = unsafe { new_record.animated_overlay.cast::<AnimatedOverlay>().as_ref() };
+            let old_overlay = old_record.animated_overlay;
+            let new_overlay = new_record.animated_overlay;
             if old_overlay.is_some() || new_overlay.is_some() {
                 for (index, effective_changed) in effective_changed.into_iter().enumerate() {
                     if effective_changed {

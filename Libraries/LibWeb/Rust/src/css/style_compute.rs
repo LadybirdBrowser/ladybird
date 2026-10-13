@@ -3078,15 +3078,13 @@ pub(crate) fn parent_snapshot_for_style_record<'a>(
     let view = style_engine
         .style_record_view(style_record)
         .expect("the inheritance parent style record must remain live during computation");
-    let table = unsafe {
-        view.longhand_table
-            .as_ref()
-            .expect("the inheritance parent style record must carry a longhand table")
-    };
+    let table = view
+        .longhand_table
+        .expect("the inheritance parent style record must carry a longhand table");
     ParentSnapshot {
         table,
         inherited_value_overlay: animated_overlay,
-        stored_animated_overlay: unsafe { view.animated_overlay.as_ref() },
+        stored_animated_overlay: view.animated_overlay,
         font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
         highlight_colors_authored: view.dependency_flags & HIGHLIGHT_COLORS_AUTHORED != 0,
         highlight_color_is_current_color: view.dependency_flags & HIGHLIGHT_COLOR_IS_CURRENT_COLOR != 0,
@@ -4790,7 +4788,7 @@ fn settled_animation_plan(
     record: u64,
 ) -> Option<(smallvec::SmallVec<[FfiComputedAnimation; 1]>, bool)> {
     let view = style_engine.style_record_view(record)?;
-    let table = unsafe { view.longhand_table.as_ref() }?;
+    let table = view.longhand_table?;
     let declaration_scope = style_engine.animation_name_declaration_scope_of(node, pseudo_kind)?;
     let existing_animations = style_engine.element_css_defined_animations(node, animation_slot(pseudo_kind));
     let element_tree_scope = style_engine.tree().tree_scope(node);

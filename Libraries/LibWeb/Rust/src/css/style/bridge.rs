@@ -2398,8 +2398,8 @@ pub unsafe fn style_record_view(engine: &mut StyleEngine, style_record: u64) -> 
         Some(view) => FfiStyleRecordView {
             payloads: SharedPayload::as_pointer_slice(view.payloads).as_ptr(),
             base_payloads: SharedPayload::as_pointer_slice(view.base_payloads).as_ptr(),
-            longhand_table: view.longhand_table.cast().as_ptr(),
-            animated_overlay: view.animated_overlay.cast().as_ptr(),
+            longhand_table: HostShared::from_option(view.longhand_table).cast().as_ptr(),
+            animated_overlay: HostShared::from_option(view.animated_overlay).cast().as_ptr(),
             payload_count: view.payloads.len(),
             pseudo_element_styles: view.pseudo_element_styles,
             counter_style_environment_identity: view.counter_style_environment_identity,

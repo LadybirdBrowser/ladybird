@@ -129,8 +129,8 @@ impl RetainedState {
         while let Some(current) = ancestor {
             let record = self.computed_group_sets.assigned_style_record(current)?;
             let view = self.computed_group_sets.style_record_view(record.raw())?;
-            let ancestor_table = unsafe { view.longhand_table.as_ref() }?;
-            if let Some(entry) = unsafe { view.animated_overlay.as_ref() }.and_then(|overlay| overlay.get(property)) {
+            let ancestor_table = view.longhand_table?;
+            if let Some(entry) = view.animated_overlay.and_then(|overlay| overlay.get(property)) {
                 if !entry.result_of_transition {
                     return Some(InheritedAnimatedValue::Animation(entry));
                 }
