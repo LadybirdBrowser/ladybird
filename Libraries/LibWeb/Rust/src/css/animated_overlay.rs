@@ -81,7 +81,18 @@ impl FfiAnimatedOverlayEntry {
     }
 
     pub(crate) fn value(&self) -> &StyleValueData {
-        unsafe { &*self.value.cast() }
+        self.value_handle().data()
+    }
+
+    /// The entry's value as the handle that owns it.
+    pub(crate) fn value_handle(&self) -> &RetainedStyleValueData {
+        const {
+            assert!(size_of::<RetainedStyleValueData>() == size_of::<*const c_void>());
+            assert!(align_of::<RetainedStyleValueData>() == align_of::<*const c_void>());
+        }
+        // SAFETY: `value` owns one strong reference while the entry is stored, which is exactly what a
+        //         RetainedStyleValueData holds, and that repr(C) type is a single pointer of the same layout.
+        unsafe { &*std::ptr::from_ref(&self.value).cast::<RetainedStyleValueData>() }
     }
 
     pub(crate) fn value_pointer(&self) -> *const StyleValueData {

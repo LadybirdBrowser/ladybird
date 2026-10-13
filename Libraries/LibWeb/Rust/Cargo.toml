@@ -24,7 +24,7 @@ liburl_rust = { path = "../../LibURL/Rust", default-features = false }
 libweb_html_tokenizer = { path = "../HTML/Parser/Rust" }
 rustc-demangle = "0.1"
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
-smallvec = "1.15.1"
+smallvec = { version = "1.15.1", features = ["const_generics"] }
 
 [build-dependencies]
 cbindgen = "0.29"
