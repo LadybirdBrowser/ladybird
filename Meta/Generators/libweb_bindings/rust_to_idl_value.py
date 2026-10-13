@@ -64,6 +64,8 @@ def rust_to_idl_value(
         return f"to_boolean({value})"
     if name == "float":
         return f'to_float(vm, {value}, "{identifier}")'
+    if name == "unrestricted double":
+        return f"to_unrestricted_double(vm, {value})"
     if name in TYPED_ARRAY_NAMES:
         rules = buffer_source_rules(idl_type, parameter_attributes)
         return f'to_typed_array(vm, {value}, TypedArrayKind::{name}, "{name}", {rules})'

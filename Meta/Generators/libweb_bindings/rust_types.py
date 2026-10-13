@@ -38,7 +38,7 @@ TYPED_ARRAY_NAMES = {
 SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {"AllowShared", "AllowResizable"}
 
 # The floating point types, with the Rust type of their values.
-FLOATING_POINT_TYPES = {"float": "f32"}
+FLOATING_POINT_TYPES = {"float": "f32", "unrestricted double": "f64"}
 
 # The unions that the bindings runtime has a type for, by the name of the typedef that names the union.
 RUNTIME_UNION_TYPES = {"BufferSource": "BufferSource"}
@@ -160,6 +160,8 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
         return "()"
     if name in TYPED_ARRAY_NAMES:
         return "Gc<TypedArrayBase>"
+    if context.callback_function(idl_type) is not None:
+        return "Gc<FunctionObject>"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return rust_dictionary_path(dictionary, context)
