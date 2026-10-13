@@ -1,0 +1,11 @@
+<!doctype html>
+<div id="target" style="width: attr(data-value type(<length>), 30px)"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const index of ["+1", "-0", "-1"]) {
+            target.setAttribute("data-value", `env(unknown ${index}, 20px)`);
+            println(getComputedStyle(target).width);
+        }
+    });
+</script>
