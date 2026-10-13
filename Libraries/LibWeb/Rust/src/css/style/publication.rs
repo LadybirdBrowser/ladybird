@@ -2756,7 +2756,9 @@ impl RetainedState {
         let dependency_flags = view.dependency_flags;
         let environment = self.inherited_custom_property_environment(parent)?;
         let inherited_groups = self.computed_group_sets.node_inherited_groups_identity(parent)?;
-        let parent_display = self.box_type_parent_display(parent)?;
+        // C++ styles the children of a display:none element on demand, past the engine's view of
+        // the parent, so no first record is computed under one.
+        let parent_display = self.box_type_parent_display(parent, UnderDisplayNone::NoKey)?;
         let record = if self.state_explicitly_inherits_non_inherited_property(node, state) {
             parent_record.raw()
         } else {
@@ -2772,17 +2774,16 @@ impl RetainedState {
     }
 
     /// The display the box-type transformation reads as the parent's for a child of the parent:
-    /// the parent's own, past any display:contents ancestor, packed into one word.
-    fn box_type_parent_display(&self, parent: StyleNodeID) -> Option<u32> {
+    /// the parent's own, past any display:contents ancestor, packed into one word. Under a
+    /// display:none parent, `display_none` says whether there is one.
+    fn box_type_parent_display(&self, parent: StyleNodeID, display_none: UnderDisplayNone) -> Option<u32> {
         let mut ancestor = Some(parent);
         while let Some(current) = ancestor {
             let record = self.computed_group_sets.assigned_style_record(current)?;
             let view = self.computed_group_sets.style_record_view(record.raw())?;
             let table = view.longhand_table?;
             let display = crate::css::style_compute::effective_display(table, None);
-            // C++ styles the children of a display:none element on demand, past the engine's
-            // view of the parent, so no first record is computed under one.
-            if display.is_none() {
+            if display.is_none() && display_none == UnderDisplayNone::NoKey {
                 return None;
             }
             if !display.is_contents() {
@@ -4432,6 +4433,13 @@ impl SiblingPositionCache {
 pub(super) struct SiblingPosition {
     pub(super) count: u32,
     pub(super) index: u32,
+}
+
+/// Whether a record derived under a display:none parent is keyed by the parent's display.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum UnderDisplayNone {
+    NoKey,
+    Keyed,
 }
 
 /// What a first record was derived from: the parent's side of the computation, the winner state
