@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #grow {
+        font-size: 10px;
+        line-height: 1;
+    }
+</style>
+<div id="grow">Grow</div>
+<script>
+    // The render clock samples an animation whose keyframes declare shorthands, padding and border, beside color. Past the
+    // end of the animation, the box shows the height of the style the host installed again.
+    asyncTest(async done => {
+        const heightBefore = grow.getBoundingClientRect().height;
+        const result = await whileLaneAnimates(() => {
+            return grow.animate(
+                [
+                    { color: "rgb(0, 0, 0)", padding: "0px", border: "0px solid" },
+                    { color: "rgb(0, 0, 200)", padding: "20px", border: "2px solid" },
+                ],
+                { duration: 200 }
+            );
+        }, (frameTime, animation, startTime) => {
+            internals.injectClockTick(startTime + 100);
+            const during = {
+                color: internals.presentedColor(grow),
+                height: internals.presentedBorderBox(grow)?.height,
+            };
+            internals.injectClockTick(startTime + 500);
+            return {
+                during,
+                after: {
+                    color: internals.presentedColor(grow),
+                    height: internals.presentedBorderBox(grow)?.height,
+                },
+            };
+        });
+        const { during, after } = result;
+        println(`the box's color moved: ${during.color !== null && during.color !== "rgb(0, 0, 0)"}`);
+        println(`the box grew: ${during.height > heightBefore}`);
+        println(`the box's color after its end: ${after.color}`);
+        println(`the box's height after its end is the one before: ${after.height === heightBefore}`);
+        done();
+    });
+</script>

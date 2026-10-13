@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #card {
+        color: rgb(0, 0, 0);
+        font-size: 10px;
+        transition: color 1s linear;
+    }
+    #card.red {
+        color: rgb(200, 0, 0);
+    }
+    #grow {
+        font-size: 10px;
+        line-height: 1;
+    }
+    @keyframes grow {
+        from {
+            color: rgb(0, 0, 0);
+            font-size: 10px;
+        }
+        to {
+            color: rgb(0, 0, 200);
+            font-size: 30px;
+        }
+    }
+    #grow.animated {
+        animation: grow 200ms linear;
+    }
+</style>
+<div id="card">Card<div>block child</div></div>
+<div id="grow">Grow</div>
+<script>
+    // The render clock samples a transition of color, which only repaints its box, and an animation of color and
+    // font-size, which lays its box out again, beside a task. Past the end of the animation, the box shows the
+    // color and the height of the style the host installed again.
+    asyncTest(async done => {
+        const heightBefore = grow.getBoundingClientRect().height;
+        const cardBefore = card.getBoundingClientRect();
+        const result = await whileLaneAnimates(() => {
+            card.classList.add("red");
+            grow.classList.add("animated");
+            return grow.getAnimations()[0];
+        }, (frameTime, animation, startTime) => {
+            internals.injectClockTick(startTime + 100);
+            const during = {
+                card: internals.presentedColor(card),
+                cardBox: internals.presentedBorderBox(card),
+                grow: internals.presentedColor(grow),
+                growHeight: internals.presentedBorderBox(grow)?.height,
+            };
+            internals.injectClockTick(startTime + 500);
+            return {
+                during,
+                after: {
+                    card: internals.presentedColor(card),
+                    grow: internals.presentedColor(grow),
+                    growHeight: internals.presentedBorderBox(grow)?.height,
+                },
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        const { during, after } = result;
+        println(`the card's color moved: ${during.card !== null && during.card !== "rgb(0, 0, 0)" && during.card !== "rgb(200, 0, 0)"}`);
+        println(`the card's box did not move: ${during.cardBox?.height === cardBefore.height && during.cardBox?.width === cardBefore.width}`);
+        println(`the growing box's color moved: ${during.grow !== null && during.grow !== "rgb(0, 0, 0)"}`);
+        println(`the growing box grew: ${during.growHeight > heightBefore}`);
+        println(`the growing box's color after its end: ${after.grow}`);
+        println(`the growing box's height after its end is the one before: ${after.growHeight === heightBefore}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

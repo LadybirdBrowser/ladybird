@@ -21,7 +21,7 @@ use crate::css::transition::{HoverTransitions, LaneTransitions};
 use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId, pseudo_kind_of,
 };
-use crate::layout::{LayoutNodeArena, SampleKind};
+use crate::layout::{LayoutNodeArena, SampleKind, StyleRelayout};
 use crate::painting::host::FfiVisualAnimationTargetKind;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::visual_animation::VisualAnimation;
@@ -282,6 +282,7 @@ impl Lane {
             scroll_snaps,
             subtree_follows: inheriting.covers_subtree,
         };
+        let effect_properties = state.engine_ref().animated_properties(node);
         let shown = state
             .engine_mut()
             .sample_at(node, host_record, samples, reference_box, bounds)
@@ -290,6 +291,7 @@ impl Lane {
                     state,
                     (row, node, sample),
                     &overlay,
+                    &effect_properties,
                     &inheriting.descendants,
                     SampleKind::Animation,
                     bounds,
@@ -375,6 +377,7 @@ impl Lane {
             let elapsed = timestamp - start_time;
             let ended = elapsed >= transitions.duration;
             let inheriting = transitions.inheriting.clone();
+            let properties: SmallVec<[u16; 8]> = transitions.properties().iter().copied().collect();
             let bounds = SampleBounds {
                 scroll_snaps,
                 subtree_follows: transitions.inheriting_covers_subtree,
@@ -382,7 +385,6 @@ impl Lane {
             let row = state.arena.arena().bound_row(node);
             let shown = if ended {
                 // The boxes show the after-change styles of the element and of what inherits from it.
-                let properties: SmallVec<[u16; 8]> = transitions.properties().iter().copied().collect();
                 moved |= self.show_host_styles(state, row, &properties, &inheriting);
                 None
             } else if row.is_invalid() {
@@ -401,6 +403,7 @@ impl Lane {
                             state,
                             (row, node, sample),
                             &overlay,
+                            &properties,
                             &inheriting,
                             SampleKind::Transition,
                             bounds,
@@ -448,7 +451,7 @@ impl Lane {
             engine.element_record_damage(node, false, shown, sample.record)
         }) | engine.sampled_properties_damage(shown, sample.record, properties);
         let arena = state.arena.arena();
-        let host_style = arena.install_sample_beside_anonymous_boxes(row, sample);
+        let host_style = arena.install_sample_beside_anonymous_boxes(row, sample, StyleRelayout::ByDamage(damage));
         // The box shows what the sample of transitions the hover started animates of what the compositor animates, in
         // place of the compositor. The compositor runs the host's animations as the ticks sample them, and on once the
         // lane presents no more.
@@ -467,18 +470,27 @@ impl Lane {
     /// Shows `element`'s sample of the effects of the element in its box, and what `overlay`, the values it animates,
     /// gives each of the `inheriting` descendants in its box, and the `::before`, `::after` and `::marker` boxes of
     /// those in theirs, over the record the host installed there, all at once: where one of the boxes takes no sample,
-    /// none of them shows one. A descendant with no box shows nothing.
+    /// none of them shows one. A descendant with no box shows nothing. `effect_properties` are the properties the
+    /// effects animate over their whole run, which a box that showed an earlier sample of them may show yet where
+    /// `overlay` animates them no more, as past their end.
+    #[allow(clippy::too_many_arguments)]
     fn show_element(
         &mut self,
         state: &mut RenderState,
         element: (NodeSlotId, StyleNodeID, DerivedStyleRecord),
         overlay: &AnimatedOverlay,
+        effect_properties: &[u16],
         inheriting: &InheritingDescendants,
         kind: SampleKind,
         bounds: SampleBounds,
     ) -> Result<(), NeedsHost> {
         let (element_row, element_node, element_sample) = element;
-        let animated: SmallVec<[u16; 8]> = overlay.entries().iter().map(|entry| entry.property).collect();
+        let mut animated: SmallVec<[u16; 8]> = overlay.entries().iter().map(|entry| entry.property).collect();
+        for &property in effect_properties {
+            if !animated.contains(&property) {
+                animated.push(property);
+            }
+        }
         let mut samples: SmallVec<[BoxSample<'_>; 4]> =
             smallvec::smallvec![(element_row, element_node, element_sample, &animated[..])];
         let mut composed = Ok(());
@@ -793,7 +805,7 @@ impl Lane {
                     .engine_mut()
                     .sampled_properties_damage(shown, host_style.record(), properties);
                 let arena = state.arena.arena();
-                arena.restore_host_style(row, host_style);
+                arena.restore_host_style(row, host_style, StyleRelayout::ByDamage(damage));
                 arena.note_style_visual_context_moves(row, damage);
                 arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
                 moved = true;

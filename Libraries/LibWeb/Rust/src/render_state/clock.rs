@@ -1025,7 +1025,7 @@ fn restore_samples_for_build(
         restyles.extend(kept_restyles);
     }
     for (row, host_style) in ticked.extract_if(.., |(row, host_style)| holds(*row, host_style)) {
-        arena.restore_host_style(row, host_style);
+        arena.restore_host_style(row, host_style, crate::layout::StyleRelayout::ByLayoutAffectingGroups);
         arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
     }
     Ok(())

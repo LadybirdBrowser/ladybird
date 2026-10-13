@@ -1142,6 +1142,15 @@ pub(crate) enum SampleKind {
     Transition,
 }
 
+/// How a box that shows a style in place of the one it showed decides whether it lays out again: by the damage word of
+/// the move, an `FfiStyleInvalidationField` word whose level says so as the host's install of the move would, or, where
+/// the caller knows no damage, by whether the style moved any group that affects layout.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StyleRelayout {
+    ByDamage(u32),
+    ByLayoutAffectingGroups,
+}
+
 /// The style a clock tick took from a box to show a sample of its element's animations in its place:
 /// the record the host installed for the box, and the pin the arena held it by. Only
 /// [`LayoutNodeArena::restore_host_style`] gives it back, so the host never reads a sample.
@@ -2602,17 +2611,19 @@ impl LayoutNodeArena {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(sample.record));
             return Err(NeedsHost);
         }
-        Ok(self.install_sample_beside_anonymous_boxes(row, sample))
+        Ok(self.install_sample_beside_anonymous_boxes(row, sample, StyleRelayout::ByLayoutAffectingGroups))
     }
 
     /// Shows `sample` in the box `row`, which [`Self::takes_sample_beside_anonymous_boxes`] answers for, or in one of
     /// the anonymous boxes below such a box, which shows what it inherits of the sample (see
     /// [`Self::anonymous_child_samples`]), in place of the record the host installed. Answers the host's style where
-    /// the box held it, or nothing where it held a sample already, which `sample` replaces.
+    /// the box held it, or nothing where it held a sample already, which `sample` replaces. The box lays out again as
+    /// `relayout` decides.
     pub(crate) fn install_sample_beside_anonymous_boxes(
         &self,
         row: NodeSlotId,
         sample: DerivedStyleRecord,
+        relayout: StyleRelayout,
     ) -> Option<HostStyle> {
         let index = row.slot_index() as usize;
         let host_style = match self.style_record_pins[index].get() {
@@ -2627,7 +2638,7 @@ impl LayoutNodeArena {
             }),
         };
         self.style_record_pins[index].set(ArenaStylePin::Sampled);
-        self.show_style(row, self.node_style_node(row), sample);
+        self.show_style(row, self.node_style_node(row), sample, relayout);
         host_style
     }
 
@@ -2662,8 +2673,9 @@ impl LayoutNodeArena {
         !style_payloads_equal_in_inherited_groups(self.data(row).style.get(), host_payloads)
     }
 
-    /// Gives `row` back the style the host installed for it, which a clock tick took to show a sample in its place.
-    pub(crate) fn restore_host_style(&self, row: NodeSlotId, host_style: HostStyle) {
+    /// Gives `row` back the style the host installed for it, which a clock tick took to show a sample in its place. The
+    /// box lays out again as `relayout` decides.
+    pub(crate) fn restore_host_style(&self, row: NodeSlotId, host_style: HostStyle, relayout: StyleRelayout) {
         let index = row.slot_index() as usize;
         assert!(
             self.style_record_pins[index].get() == ArenaStylePin::Sampled,
@@ -2686,12 +2698,20 @@ impl LayoutNodeArena {
                 record,
                 payloads: StylePayloadsRef::new(payloads.cast()),
             },
+            relayout,
         );
     }
 
     /// Shows `style` in `row`, whose pin the caller set, as the host's install of a row of a box that styles no anonymous
-    /// box does.
-    fn show_style(&self, row: NodeSlotId, style_node: Option<StyleNodeID>, style: DerivedStyleRecord) {
+    /// box does, laying the box out again as `relayout` decides. A move whose damage only repaints, such as one of
+    /// `color`, lays out nothing again.
+    fn show_style(
+        &self,
+        row: NodeSlotId,
+        style_node: Option<StyleNodeID>,
+        style: DerivedStyleRecord,
+        relayout: StyleRelayout,
+    ) {
         let previous_payloads = self.data(row).style.get();
         self.style_records[row.slot_index() as usize].set(style.record);
         let shape = self.write_shape(row);
@@ -2706,6 +2726,11 @@ impl LayoutNodeArena {
             return;
         }
         self.bump_fragment_cache_epoch_of_self_and_ancestors(row);
+        if let StyleRelayout::ByDamage(damage) = relayout
+            && (damage & crate::css::style::bridge::FfiStyleInvalidationField::LevelMask as u32) < RELAYOUT_LEVEL
+        {
+            return;
+        }
         self.reset_cached_intrinsic_sizes_of_self_and_ancestors(row);
         if let Some(style_node) = style_node {
             self.mark_row_for_relayout_after_style_change(style_node, row);
