@@ -37,32 +37,32 @@ pub struct FfiNestedLayoutRoot {
 
 /// What a layout tree dump asks the document. The fields are private: the callbacks are reached
 /// only through the methods below, which take the main thread token.
+///
+/// NB: The callbacks are typed as safe functions because the table only comes from the host through an export
+///     whose safety contract keeps them callable, and the private fields let nothing else call them.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiLayoutTreeDumpCallbacks {
     context: *mut c_void,
     /// The document whose rows are dumped, which resolves the nodes they stand for.
     document: *mut c_void,
-    describe_dom_node: unsafe extern "C" fn(
+    describe_dom_node: extern "C" fn(
         document: *mut c_void,
         node: FfiNodeIdentity,
         tag_name_sink: *mut c_void,
         identifier_sink: *mut c_void,
     ),
-    navigable_container_content_document: unsafe extern "C" fn(
-        document: *mut c_void,
-        node: FfiNodeIdentity,
-        url_sink: *mut c_void,
-    ) -> FfiNestedLayoutRoot,
-    svg_as_image_layout_root: unsafe extern "C" fn(document: *mut c_void, node: FfiNodeIdentity) -> *mut c_void,
-    dump_nested_layout_tree: unsafe extern "C" fn(
+    navigable_container_content_document:
+        extern "C" fn(document: *mut c_void, node: FfiNodeIdentity, url_sink: *mut c_void) -> FfiNestedLayoutRoot,
+    svg_as_image_layout_root: extern "C" fn(document: *mut c_void, node: FfiNodeIdentity) -> *mut c_void,
+    dump_nested_layout_tree: extern "C" fn(
         context: *mut c_void,
         layout_root: *mut c_void,
         indent: usize,
         interactive: bool,
         output_sink: *mut c_void,
     ),
-    append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
+    append_text: extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
 
 impl FfiLayoutTreeDumpCallbacks {
@@ -73,8 +73,8 @@ impl FfiLayoutTreeDumpCallbacks {
         tag_name_sink: &mut Vec<u8>,
         identifier_sink: &mut Vec<u8>,
     ) {
-        // SAFETY: The C++ host fills both sinks synchronously through the exported push function.
-        unsafe {
+        // The C++ host fills both sinks synchronously through the exported push function.
+        {
             (self.describe_dom_node)(
                 self.document,
                 node,
@@ -90,14 +90,14 @@ impl FfiLayoutTreeDumpCallbacks {
         node: FfiNodeIdentity,
     ) -> Option<(Vec<u8>, *mut c_void)> {
         let mut url = Vec::new();
-        // SAFETY: The C++ host fills the url sink synchronously through the exported push function.
-        let nested = unsafe { (self.navigable_container_content_document)(self.document, node, (&raw mut url).cast()) };
+        // The C++ host fills the url sink synchronously through the exported push function.
+        let nested = (self.navigable_container_content_document)(self.document, node, (&raw mut url).cast());
         nested.has_document.then_some((url, nested.layout_root))
     }
 
     fn svg_as_image_layout_root(&self, _: &MainThread, node: FfiNodeIdentity) -> *mut c_void {
-        // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.svg_as_image_layout_root)(self.document, node) }
+        // The C++ host answers synchronously.
+        (self.svg_as_image_layout_root)(self.document, node)
     }
 
     fn dump_nested_layout_tree(
@@ -108,10 +108,10 @@ impl FfiLayoutTreeDumpCallbacks {
         interactive: bool,
         output: &mut Vec<u8>,
     ) {
-        // SAFETY: The C++ host re-enters the dump for the nested document's own arena and appends
+        // The C++ host re-enters the dump for the nested document's own arena and appends
         // into the output sink synchronously through the exported push function; no reference to
         // the output vector is alive across the call.
-        unsafe {
+        {
             (self.dump_nested_layout_tree)(
                 self.context,
                 layout_root,
@@ -123,8 +123,8 @@ impl FfiLayoutTreeDumpCallbacks {
     }
 
     fn append_text(&self, _: &MainThread, bytes: &[u8]) {
-        // SAFETY: The C++ sink copies the completed dump synchronously.
-        unsafe { (self.append_text)(self.context, bytes.as_ptr(), bytes.len()) };
+        // The C++ sink copies the completed dump synchronously.
+        (self.append_text)(self.context, bytes.as_ptr(), bytes.len());
     }
 }
 
@@ -143,7 +143,6 @@ pub unsafe extern "C" fn render_state_dump_layout_tree(
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
-    // SAFETY: As above.
     let plan = {
         crate::painting::ffi::read_arena(
             host,
