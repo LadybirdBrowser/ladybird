@@ -63,7 +63,6 @@ public:
     };
 
     [[nodiscard]] static GC::Ref<FetchAlgorithms> create(Input);
-    [[nodiscard]] GC::Ref<FetchAlgorithms> with_body_intent(Engine::BodyIntent) const;
 
     Engine::BodyIntent body_intent() const { return m_body_intent; }
     Optional<RequestBodyReader> const& request_body_reader() const { return m_request_body_reader; }

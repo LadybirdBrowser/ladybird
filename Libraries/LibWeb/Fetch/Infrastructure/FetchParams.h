@@ -44,6 +44,9 @@ public:
     [[nodiscard]] GC::Ref<FetchAlgorithms const> algorithms() const { return m_algorithms; }
     void set_algorithms(GC::Ref<FetchAlgorithms const> algorithms) { m_algorithms = algorithms; }
 
+    [[nodiscard]] Engine::BodyIntent body_intent() const { return m_body_intent; }
+    void set_body_intent(Engine::BodyIntent body_intent) { m_body_intent = body_intent; }
+
     [[nodiscard]] TaskDestination& task_destination() { return m_task_destination; }
     [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
     void set_task_destination(TaskDestination task_destination) { m_task_destination = move(task_destination); }
@@ -92,6 +95,8 @@ private:
     // process response consume body (default null)
     //     Null or an algorithm.
     GC::Ref<FetchAlgorithms const> m_algorithms;
+
+    Engine::BodyIntent m_body_intent;
 
     // https://fetch.spec.whatwg.org/#fetch-params-task-destination
     // task destination (default null)
