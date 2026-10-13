@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#blqs-class-definition
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface ByteLengthQueuingStrategy {
     constructor(QueuingStrategyInit init);
 

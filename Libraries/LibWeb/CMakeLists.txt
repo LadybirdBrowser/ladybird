@@ -848,8 +848,6 @@ set(SOURCES
     StorageAPI/StorageManager.cpp
     StorageAPI/StorageShelf.cpp
     Streams/AbstractOperations.cpp
-    Streams/ByteLengthQueuingStrategy.cpp
-    Streams/CountQueuingStrategy.cpp
     Streams/GenericTransformStream.cpp
     Streams/ReadableByteStreamController.cpp
     Streams/ReadableStream.cpp
