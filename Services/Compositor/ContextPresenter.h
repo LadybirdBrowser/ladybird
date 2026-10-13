@@ -19,6 +19,7 @@
 #include <LibCompositing/DisplayList/CompositedContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/Forward.h>
+#include <LibCompositing/OverlayFade.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/UIOverlays.h>
@@ -85,6 +86,8 @@ public:
     Compositing::UIOverlays const& ui_overlays() const { return m_ui_overlays; }
     void set_ui_overlays(Compositing::UIOverlays);
     Optional<Gfx::IntRect> viewport_rect_for_ui_overlay() const;
+    bool ui_overlay_fades_need_frame() const { return m_picture_in_picture_controls_fade.is_fading(); }
+    Optional<PendingFrame> advance_ui_overlay_fades(MonotonicTime frame_time);
 
     Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing);
     void invalidate_backing_stores();
@@ -148,6 +151,7 @@ private:
     double m_device_pixel_ratio { 1.0 };
     Compositing::WindowResizingInProgress m_window_resize_in_progress { Compositing::WindowResizingInProgress::No };
     Compositing::UIOverlays m_ui_overlays;
+    Compositing::OverlayFade m_picture_in_picture_controls_fade;
 
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;

@@ -15,6 +15,8 @@ namespace Compositing {
 
 enum class PausedDebuggerOverlayAction : u8;
 struct PausedDebuggerOverlayState;
+enum class PictureInPictureControl : u8;
+struct PictureInPictureControlsState;
 struct UIOverlays;
 
 class AccumulatedVisualContextTree;

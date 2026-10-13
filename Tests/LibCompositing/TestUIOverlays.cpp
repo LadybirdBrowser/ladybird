@@ -37,6 +37,10 @@ TEST_CASE(overlays_survive_ipc)
         .font_family = "Inter"_string,
         .hovered_action = PausedDebuggerOverlayAction::Continue,
     };
+    overlays.picture_in_picture_controls = PictureInPictureControlsState {
+        .shown = true,
+        .hovered_control = PictureInPictureControl::BackToTab,
+    };
 
     auto decoded = MUST(decode_overlays([&](IPC::Encoder& encoder) { return encoder.encode(overlays); }));
     EXPECT(decoded == overlays);
@@ -48,6 +52,7 @@ TEST_CASE(an_overlay_that_is_not_shown_stays_absent)
 
     auto decoded = MUST(decode_overlays([&](IPC::Encoder& encoder) { return encoder.encode(overlays); }));
     EXPECT(!decoded.paused_debugger.has_value());
+    EXPECT(!decoded.picture_in_picture_controls.has_value());
 }
 
 TEST_CASE(an_unknown_paused_debugger_action_is_rejected)
@@ -55,6 +60,19 @@ TEST_CASE(an_unknown_paused_debugger_action_is_rejected)
     auto decoded = decode_overlays([](IPC::Encoder& encoder) -> ErrorOr<void> {
         TRY(encoder.encode(true));
         TRY(encoder.encode(Optional<String> {}));
+        TRY(encoder.encode(Optional<u8> { 255 }));
+        TRY(encoder.encode(false));
+        return {};
+    });
+    EXPECT(decoded.is_error());
+}
+
+TEST_CASE(an_unknown_picture_in_picture_control_is_rejected)
+{
+    auto decoded = decode_overlays([](IPC::Encoder& encoder) -> ErrorOr<void> {
+        TRY(encoder.encode(false));
+        TRY(encoder.encode(true));
+        TRY(encoder.encode(true));
         TRY(encoder.encode(Optional<u8> { 255 }));
         return {};
     });

@@ -8,6 +8,7 @@
 #include <Compositor/ContextScene.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/PausedDebuggerOverlay.h>
+#include <Compositor/PictureInPictureControls.h>
 #include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
@@ -79,6 +80,22 @@ void ContextPresenter::finish_window_resize()
 void ContextPresenter::set_ui_overlays(Compositing::UIOverlays overlays)
 {
     m_ui_overlays = move(overlays);
+
+    auto const& picture_in_picture_controls = m_ui_overlays.picture_in_picture_controls;
+    auto shows_picture_in_picture_controls = picture_in_picture_controls.has_value() && picture_in_picture_controls->shown;
+    m_picture_in_picture_controls_fade.fade_to(shows_picture_in_picture_controls ? 1 : 0, MonotonicTime::now());
+}
+
+Optional<PendingFrame> ContextPresenter::advance_ui_overlay_fades(MonotonicTime frame_time)
+{
+    if (!m_picture_in_picture_controls_fade.advance_to(frame_time))
+        return {};
+
+    auto viewport_rect = viewport_rect_for_ui_overlay();
+    if (!viewport_rect.has_value())
+        return {};
+    auto geometry = Compositing::picture_in_picture_controls_geometry(m_viewport_size, m_device_pixel_ratio);
+    return PendingFrame { *viewport_rect, Compositing::overlay_buttons_bounds(geometry.buttons()) };
 }
 
 Optional<Gfx::IntRect> ContextPresenter::viewport_rect_for_ui_overlay() const
@@ -489,8 +506,13 @@ void ContextPresenter::paint_current_display_list(DisplayListPlayerSkia& display
             &m_canvas_surface_registry,
             frame_content.composited_context_resolver);
         frame_content.scrollbar_controller.paint(target_surface, display_list_player, frame_content.presented_scroll_state_snapshot);
-        if (paint_ui_overlay == PaintUIOverlay::Yes && m_ui_overlays.paused_debugger.has_value())
+        if (paint_ui_overlay == PaintUIOverlay::No)
+            return;
+
+        if (m_ui_overlays.paused_debugger.has_value())
             paint_paused_debugger_overlay(target_surface, m_viewport_size, m_device_pixel_ratio, *m_ui_overlays.paused_debugger);
+        if (auto opacity = m_picture_in_picture_controls_fade.opacity(); m_ui_overlays.picture_in_picture_controls.has_value() && opacity > 0)
+            paint_picture_in_picture_controls(target_surface, m_viewport_size, m_device_pixel_ratio, *m_ui_overlays.picture_in_picture_controls, opacity);
     };
 
     if (damage_rect.has_value() && !damage_rect->is_empty() && presents_to_client() && damage_rect->size() != surface.size() && surface.skia_backend_context()) {

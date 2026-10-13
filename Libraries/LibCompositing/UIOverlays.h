@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
+#include <LibCompositing/PictureInPictureControls.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Page/InputEvent.h>
 
@@ -22,10 +23,19 @@ struct PausedDebuggerOverlayState {
     bool operator==(PausedDebuggerOverlayState const&) const = default;
 };
 
-// What the browser draws over a context's page, on top of anything the page draws, with each overlay that is shown
+// The controls stay present while they are hidden, so that they fade out.
+struct PictureInPictureControlsState {
+    bool shown { false };
+    Optional<PictureInPictureControl> hovered_control;
+
+    bool operator==(PictureInPictureControlsState const&) const = default;
+};
+
+// What the browser draws over a context's page, on top of anything the page draws, with each overlay the view has
 // present. The browser handles their input before the page sees any of it.
 struct UIOverlays {
     Optional<PausedDebuggerOverlayState> paused_debugger;
+    Optional<PictureInPictureControlsState> picture_in_picture_controls;
 
     bool operator==(UIOverlays const&) const = default;
 };
@@ -97,6 +107,11 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::PausedDebuggerOverlayState const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::PausedDebuggerOverlayState> decode(Decoder&);
+
+template<>
+COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::PictureInPictureControlsState const&);
+template<>
+COMPOSITING_API ErrorOr<Compositing::PictureInPictureControlsState> decode(Decoder&);
 
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::UIOverlays const&);

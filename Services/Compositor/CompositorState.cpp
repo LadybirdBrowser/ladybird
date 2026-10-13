@@ -701,9 +701,14 @@ void CompositorState::viewport_size_updated(Web::CompositorContextId context_id,
     if (!context)
         return;
 
+    auto only_the_pixel_ratio_changed = viewport_size == context->presenter().viewport_size() && device_pixel_ratio != context->presenter().device_pixel_ratio();
     context->viewport_size_updated(viewport_size, device_pixel_ratio, window_resize_in_progress);
     resize_backing_stores_if_needed(context_id, *context);
-    if (context->presenter().ui_overlays().paused_debugger.has_value()) {
+
+    // The paused debugger's page will not paint again. Any other page's next frame damages the whole viewport when its
+    // size changes, but a new pixel ratio alone need not damage the overlays.
+    auto const& overlays = context->presenter().ui_overlays();
+    if (overlays.paused_debugger.has_value() || (only_the_pixel_ratio_changed && overlays.picture_in_picture_controls.has_value())) {
         if (auto viewport_rect = context->presenter().viewport_rect_for_ui_overlay(); viewport_rect.has_value())
             schedule_present_frame(context_id, *context, *viewport_rect);
     }
@@ -982,6 +987,8 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
                 context.presenter().queue_present_frame(PendingFrame::repainting_changes(*animation_frame));
             if (auto rebound_frame = context.advance_elastic_overscroll_rebounds(frame_time); rebound_frame.has_value())
                 context.presenter().queue_present_frame(PendingFrame::repainting_changes(*rebound_frame));
+            if (auto fade_frame = context.presenter().advance_ui_overlay_fades(frame_time); fade_frame.has_value())
+                context.presenter().queue_present_frame(*fade_frame);
         }
 
         // A render clock tick goes to the process's render clock thread, beside what its main thread is doing, with
