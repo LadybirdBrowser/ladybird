@@ -14,6 +14,7 @@ from typing import Optional
 from typing import Set
 
 from Generators.libweb_bindings.context import GenerationContext
+from Generators.libweb_bindings.rust_members import rust_members
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import runtime_union_type
 from Utils.webidl_parser import Dictionary
@@ -70,6 +71,8 @@ class ConversionDirections:
 
 
 class DefinitionUsage:
+    """Raises the errors of rust_members() for the interfaces implemented in Rust, whose members it reads."""
+
     def __init__(self, context: GenerationContext) -> None:
         self.context = context
         # The dictionaries that the interfaces implemented in Rust name, in the order of their first use.
@@ -90,14 +93,16 @@ class DefinitionUsage:
             interface = module.interface
             if interface is None or not is_implemented_in_rust(interface):
                 continue
-            for attribute in interface.regular_attributes:
-                self._name_for_rust(attribute.type, from_js=not attribute.readonly, to_js=True)
-            for operation in interface.regular_operations:
-                self._name_for_rust(operation.return_type, from_js=False, to_js=True)
-                for parameter in operation.parameters:
-                    self._name_for_rust(parameter.type, from_js=True, to_js=False)
-            for constructor in interface.constructors:
-                for parameter in constructor.parameters:
+            members = rust_members(interface)
+            for attribute in members.attributes:
+                self._name_for_rust(attribute.attribute.type, from_js=False, to_js=True)
+            for operation_set in members.operation_sets:
+                for overload in operation_set.overloads:
+                    self._name_for_rust(overload.operation.return_type, from_js=False, to_js=True)
+                    for parameter in overload.operation.parameters:
+                        self._name_for_rust(parameter.type, from_js=True, to_js=False)
+            for constructor in members.constructors:
+                for parameter in constructor.constructor.parameters:
                     self._name_for_rust(parameter.type, from_js=True, to_js=False)
 
     def _name_for_rust(self, idl_type: IDLType, from_js: bool, to_js: bool) -> None:

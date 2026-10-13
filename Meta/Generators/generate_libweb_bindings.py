@@ -269,10 +269,10 @@ def main() -> int:
     context = GenerationContext(modules)
     modules = context.modules
 
-    usage = DefinitionUsage(context)
     interface_sets = collect_interface_sets(modules)
 
     try:
+        usage = DefinitionUsage(context)
         rust_bindings.check_rust_bindings(context, usage, interface_sets.intrinsics)
     except rust_bindings.UnsupportedByRustBindings as error:
         print(f"error: {error}", file=sys.stderr)
