@@ -15,7 +15,7 @@ use core::time::Duration;
 use libjs_runtime_macros::Trace;
 use num_bigint::BigInt as NumBigInt;
 
-use crate::futex::{self, AtomicWaitResult};
+use crate::futex::{self, AtomicWaitResult, WaitWord};
 use crate::gc::capi::{GC_PRIMITIVE_STORAGE_NULL_HANDLE, GCPrimitiveStorageHandle, gc_cell_type_info};
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
@@ -519,8 +519,22 @@ impl DataBlock {
             assert!(byte_offset == 0);
             return core::ptr::null_mut();
         }
-        // SAFETY: Callers only address bytes within the block.
-        unsafe { data.add(byte_offset) }
+        // NB: This only forms the address, which callers that access the bytes check against the block.
+        data.wrapping_add(byte_offset)
+    }
+
+    /// The aligned bytes at `byte_index` as an atomic, which every access to bytes that are shared goes through.
+    pub(crate) fn atomic_at<A: AtomicWord>(&self, byte_index: usize) -> &A {
+        assert!(
+            byte_index
+                .checked_add(size_of::<A>())
+                .is_some_and(|end| end <= self.size())
+        );
+        let address = self.data_at(byte_index);
+        assert!(address.addr().is_multiple_of(align_of::<A>()));
+        // SAFETY: The block has the aligned bytes, which are only ever accessed atomically while they are shared, and
+        //         which stay in place for as long as the block is borrowed.
+        unsafe { &*address.cast::<A>() }
     }
 
     #[inline]
@@ -726,32 +740,23 @@ impl DataBlock {
     }
 
     fn atomic_load(&self, byte_index: usize, size: usize, ordering: Ordering) -> u64 {
-        let address = self.data_at(byte_index);
-        assert!(address.addr().is_multiple_of(size));
-        // SAFETY: The block has the aligned bytes, which are only ever accessed atomically while they are shared.
-        unsafe {
-            match size {
-                1 => u64::from(AtomicU8::from_ptr(address).load(ordering)),
-                2 => u64::from(AtomicU16::from_ptr(address.cast()).load(ordering)),
-                4 => u64::from(AtomicU32::from_ptr(address.cast()).load(ordering)),
-                8 => AtomicU64::from_ptr(address.cast()).load(ordering),
-                _ => unreachable!("atomic accesses are 1, 2, 4 or 8 bytes wide"),
-            }
+        match size {
+            1 => u64::from(self.atomic_at::<AtomicU8>(byte_index).load(ordering)),
+            2 => u64::from(self.atomic_at::<AtomicU16>(byte_index).load(ordering)),
+            4 => u64::from(self.atomic_at::<AtomicU32>(byte_index).load(ordering)),
+            8 => self.atomic_at::<AtomicU64>(byte_index).load(ordering),
+            _ => unreachable!("atomic accesses are 1, 2, 4 or 8 bytes wide"),
         }
     }
 
+    /// Stores `value`, truncated to the access size.
     fn atomic_store(&self, byte_index: usize, size: usize, value: u64, ordering: Ordering) {
-        let address = self.data_at(byte_index);
-        assert!(address.addr().is_multiple_of(size));
-        // SAFETY: As for atomic_load(). The value is truncated to the access size.
-        unsafe {
-            match size {
-                1 => AtomicU8::from_ptr(address).store(value as u8, ordering),
-                2 => AtomicU16::from_ptr(address.cast()).store(value as u16, ordering),
-                4 => AtomicU32::from_ptr(address.cast()).store(value as u32, ordering),
-                8 => AtomicU64::from_ptr(address.cast()).store(value, ordering),
-                _ => unreachable!("atomic accesses are 1, 2, 4 or 8 bytes wide"),
-            }
+        match size {
+            1 => self.atomic_at::<AtomicU8>(byte_index).store(value as u8, ordering),
+            2 => self.atomic_at::<AtomicU16>(byte_index).store(value as u16, ordering),
+            4 => self.atomic_at::<AtomicU32>(byte_index).store(value as u32, ordering),
+            8 => self.atomic_at::<AtomicU64>(byte_index).store(value, ordering),
+            _ => unreachable!("atomic accesses are 1, 2, 4 or 8 bytes wide"),
         }
     }
 
@@ -763,9 +768,8 @@ impl DataBlock {
         operand: u64,
     ) -> u64 {
         macro_rules! perform {
-            ($atomic:ty, $address:expr, $operand:expr) => {{
-                // SAFETY: As for atomic_load().
-                let atomic = unsafe { <$atomic>::from_ptr($address) };
+            ($atomic:ty, $operand:expr) => {{
+                let atomic = self.atomic_at::<$atomic>(byte_index);
                 let ordering = Ordering::SeqCst;
                 u64::from(match operation {
                     ReadWriteModifyOperation::Add => atomic.fetch_add($operand, ordering),
@@ -778,22 +782,19 @@ impl DataBlock {
             }};
         }
 
-        let address = self.data_at(byte_index);
-        assert!(address.addr().is_multiple_of(size));
         match size {
-            1 => perform!(AtomicU8, address, operand as u8),
-            2 => perform!(AtomicU16, address.cast(), operand as u16),
-            4 => perform!(AtomicU32, address.cast(), operand as u32),
-            8 => perform!(AtomicU64, address.cast(), operand),
+            1 => perform!(AtomicU8, operand as u8),
+            2 => perform!(AtomicU16, operand as u16),
+            4 => perform!(AtomicU32, operand as u32),
+            8 => perform!(AtomicU64, operand),
             _ => unreachable!("atomic accesses are 1, 2, 4 or 8 bytes wide"),
         }
     }
 
     fn atomic_compare_exchange(&self, byte_index: usize, size: usize, expected: u64, replacement: u64) -> u64 {
         macro_rules! perform {
-            ($atomic:ty, $type:ty, $address:expr) => {{
-                // SAFETY: As for atomic_load().
-                let atomic = unsafe { <$atomic>::from_ptr($address) };
+            ($atomic:ty, $type:ty) => {{
+                let atomic = self.atomic_at::<$atomic>(byte_index);
                 let observed = atomic.compare_exchange(
                     expected as $type,
                     replacement as $type,
@@ -804,17 +805,23 @@ impl DataBlock {
             }};
         }
 
-        let address = self.data_at(byte_index);
-        assert!(address.addr().is_multiple_of(size));
         match size {
-            1 => perform!(AtomicU8, u8, address),
-            2 => perform!(AtomicU16, u16, address.cast()),
-            4 => perform!(AtomicU32, u32, address.cast()),
-            8 => perform!(AtomicU64, u64, address.cast()),
+            1 => perform!(AtomicU8, u8),
+            2 => perform!(AtomicU16, u16),
+            4 => perform!(AtomicU32, u32),
+            8 => perform!(AtomicU64, u64),
             _ => unreachable!("atomic accesses are 1, 2, 4 or 8 bytes wide"),
         }
     }
 }
+
+/// The atomic integer types, the only types DataBlock::atomic_at() hands out, as every bit pattern is one of their
+/// values.
+pub(crate) trait AtomicWord {}
+impl AtomicWord for AtomicU8 {}
+impl AtomicWord for AtomicU16 {}
+impl AtomicWord for AtomicU32 {}
+impl AtomicWord for AtomicU64 {}
 
 /// A large allocation that fails may succeed once dead buffers pinning address space are collected, so it is retried
 /// once after a collection before giving up, as WebKit does.
@@ -1410,15 +1417,20 @@ impl ArrayBuffer {
         size: usize,
         timeout: Option<Duration>,
     ) -> AtomicWaitResult {
-        let address = self.data_block.borrow().data_at(byte_index);
-        // NB: The data block stays in place while the agent waits, since the agent is the only one that could change it.
-        futex::atomic_wait(address, expected, size, timeout)
+        // NB: The data block stays borrowed while the agent waits, since the agent is the only one that could change it.
+        let data_block = self.data_block.borrow();
+        let word = match size {
+            4 => WaitWord::Word32(data_block.atomic_at(byte_index)),
+            8 => WaitWord::Word64(data_block.atomic_at(byte_index)),
+            _ => unreachable!("Atomics.wait waits on 4-byte or 8-byte elements"),
+        };
+        futex::atomic_wait(word, expected, timeout)
     }
 
     /// Core::atomic_notify() on the word at `byte_index`.
-    pub fn atomic_notify(&self, byte_index: usize, size: usize, max_count: usize) -> usize {
-        let address = self.data_block.borrow().data_at(byte_index);
-        futex::atomic_notify(address, size, max_count)
+    pub fn atomic_notify(&self, byte_index: usize, max_count: usize) -> usize {
+        // NB: Waiters of both sizes key on the low 32-bit half of their word.
+        futex::atomic_notify(self.data_block.borrow().atomic_at::<AtomicU32>(byte_index), max_count)
     }
 }
 

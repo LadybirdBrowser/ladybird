@@ -513,7 +513,7 @@ impl AtomicsObject {
         } else {
             usize::MAX
         };
-        let woken = buffer.atomic_notify(byte_index_in_buffer, typed_array.element_size() as usize, max_count);
+        let woken = buffer.atomic_notify(byte_index_in_buffer, max_count);
 
         // 16. Return 𝔽(n).
         Ok(Value::from_f64(woken as f64))

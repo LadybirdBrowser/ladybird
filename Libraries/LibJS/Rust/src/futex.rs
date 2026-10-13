@@ -18,36 +18,55 @@ pub enum AtomicWaitResult {
     TimedOut,
 }
 
-fn read_word(address: *mut u8, size: usize) -> u64 {
-    // SAFETY: The caller passes the aligned word of a typed array element, which is only accessed atomically.
-    unsafe {
-        if size >= 8 {
-            return AtomicU64::from_ptr(address.cast()).load(Ordering::SeqCst);
+/// The word of a shared typed array element that Atomics.wait waits on, which is 4 or 8 bytes wide.
+#[derive(Clone, Copy)]
+pub(crate) enum WaitWord<'a> {
+    Word32(&'a AtomicU32),
+    Word64(&'a AtomicU64),
+}
+
+impl WaitWord<'_> {
+    /// The address waiters key on, which is that of the low 32-bit half of the word.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    fn address(self) -> *mut u32 {
+        match self {
+            WaitWord::Word32(word) => word.as_ptr(),
+            WaitWord::Word64(word) => word.as_ptr().cast(),
         }
-        u64::from(AtomicU32::from_ptr(address.cast()).load(Ordering::SeqCst))
+    }
+
+    /// A sequentially-consistent read, matching the memory model's read for the wait comparison.
+    fn load(self) -> u64 {
+        match self {
+            WaitWord::Word32(word) => u64::from(word.load(Ordering::SeqCst)),
+            WaitWord::Word64(word) => word.load(Ordering::SeqCst),
+        }
     }
 }
 
-// Whether the word at address currently equals expected, masked to the wait size (Atomics.wait uses 4-byte or 8-byte
-// words). A sequentially-consistent read, matching the memory model's read for the wait comparison.
-fn word_equals(address: *mut u8, expected: u64, size: usize) -> bool {
-    let mask = if size >= 8 { u64::MAX } else { u64::from(u32::MAX) };
-    (read_word(address, size) & mask) == (expected & mask)
+// Whether the word currently equals expected, masked to the wait size.
+fn word_equals(word: WaitWord<'_>, expected: u64) -> bool {
+    let mask = match word {
+        WaitWord::Word32(_) => u64::from(u32::MAX),
+        WaitWord::Word64(_) => u64::MAX,
+    };
+    (word.load() & mask) == (expected & mask)
 }
 
 // Fallback where there's no cross-process wait primitive: Poll for a change to the word. That observes value changes
 // rather than notifications — which matches the lock/futex protocol Emscripten uses (the waker writes the word before
 // notifying). The gap is a notify that leaves the word unchanged: It wakes no poll-waiter, and the paired atomic_notify
 // reports zero woken. An untimed wait whose only wake would be such a notify therefore never returns.
-fn poll_wait(address: *mut u8, expected: u64, size: usize, timeout: Option<Duration>) -> AtomicWaitResult {
-    if !word_equals(address, expected, size) {
+#[cfg(not(target_os = "linux"))]
+fn poll_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
+    if !word_equals(word, expected) {
         return AtomicWaitResult::NotEqual;
     }
 
     let start = Instant::now();
     loop {
         std::thread::sleep(Duration::from_micros(200));
-        if !word_equals(address, expected, size) {
+        if !word_equals(word, expected) {
             return AtomicWaitResult::Woken;
         }
         if timeout.is_some_and(|timeout| start.elapsed() >= timeout) {
@@ -110,13 +129,13 @@ fn errno() -> i32 {
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout: Option<Duration>) -> AtomicWaitResult {
+pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
     // Compare the value in userspace first. os_sync_wait_on_address reports a value mismatch as a *successful* return
     // (it has no EAGAIN). So, without this, the "not-equal" result would be unreachable; it also faults the shared page
     // in — avoiding a transient first-touch EFAULT below. A store landing between this read and the kernel's own
     // comparison is reported as a wake, rather than "not-equal" — a nanoseconds-wide window inherent to the os_sync API
     // (Linux's kernel futex and the poll fallback don't have it).
-    if !word_equals(address, expected, size) {
+    if !word_equals(word, expected) {
         return AtomicWaitResult::NotEqual;
     }
 
@@ -138,7 +157,7 @@ pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout:
                 // SAFETY: The address is the aligned word of a shared typed array element.
                 unsafe {
                     (functions.wait_on_address_with_timeout)(
-                        address.cast(),
+                        word.address().cast(),
                         u64::from(expected as u32),
                         4,
                         os_sync::OS_SYNC_WAIT_ON_ADDRESS_SHARED,
@@ -150,7 +169,7 @@ pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout:
                 // SAFETY: As above.
                 unsafe {
                     (functions.wait_on_address)(
-                        address.cast(),
+                        word.address().cast(),
                         u64::from(expected as u32),
                         4,
                         os_sync::OS_SYNC_WAIT_ON_ADDRESS_SHARED,
@@ -166,7 +185,7 @@ pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout:
                 // os_sync reports a value mismatch as a successful wake — so retrying with the original expected would
                 // turn a store that landed while we slept into a spurious "ok". Re-read first: If the word changed,
                 // report "not-equal" (as if the critical section were entered late) — matching the Linux EAGAIN path.
-                if !word_equals(address, expected, size) {
+                if !word_equals(word, expected) {
                     return AtomicWaitResult::NotEqual;
                 }
                 continue;
@@ -183,13 +202,13 @@ pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout:
     }
     if let Some(deadline) = deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
-        return poll_wait(address, expected, size, Some(remaining));
+        return poll_wait(word, expected, Some(remaining));
     }
-    poll_wait(address, expected, size, timeout)
+    poll_wait(word, expected, timeout)
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn atomic_notify(address: *mut u8, _size: usize, max_count: usize) -> usize {
+pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     // Waiters key on the low 32-bit half — so, wake with size 4 regardless of the notifying view's element size. That
     // lets a 4-byte notify wake an 8-byte waiter (and vice versa) at the same address — which the spec's single per-
     // address WaiterList requires.
@@ -202,8 +221,9 @@ pub(crate) fn atomic_notify(address: *mut u8, _size: usize, max_count: usize) ->
     let mut woken = 0;
     while woken < max_count {
         // SAFETY: The address is the aligned word of a shared typed array element.
-        let result =
-            unsafe { (functions.wake_by_address_any)(address.cast(), 4, os_sync::OS_SYNC_WAKE_BY_ADDRESS_SHARED) };
+        let result = unsafe {
+            (functions.wake_by_address_any)(word.as_ptr().cast(), 4, os_sync::OS_SYNC_WAKE_BY_ADDRESS_SHARED)
+        };
         if result == 0 {
             woken += 1;
             continue;
@@ -218,16 +238,11 @@ pub(crate) fn atomic_notify(address: *mut u8, _size: usize, max_count: usize) ->
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout: Option<Duration>) -> AtomicWaitResult {
+pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
     // Compare the value in userspace first — so a zero or already-elapsed timeout still yields "not-equal" (which the
     // spec orders before "timed-out"), and so 8-byte waits and the poll fallback share one compare.
-    if !word_equals(address, expected, size) {
+    if !word_equals(word, expected) {
         return AtomicWaitResult::NotEqual;
-    }
-
-    // Atomics.wait only ever uses size 4 or 8 (ValidateIntegerTypedArray); keep the poll fallback as a guard.
-    if size != 4 && size != 8 {
-        return poll_wait(address, expected, size, timeout);
     }
 
     // Anchor the timeout to a fixed deadline — so EINTR retries reduce the remaining time, rather than restarting the
@@ -252,7 +267,7 @@ pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout:
         let result = unsafe {
             libc::syscall(
                 libc::SYS_futex,
-                address,
+                word.address(),
                 libc::FUTEX_WAIT,
                 expected as u32,
                 timeout_pointer,
@@ -276,15 +291,15 @@ pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout:
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn atomic_notify(address: *mut u8, _size: usize, max_count: usize) -> usize {
-    // FUTEX_WAKE wakes waiters keyed on the low 32-bit half at 'address'. That covers both 4-byte and 8-byte waiters
+pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
+    // FUTEX_WAKE wakes waiters keyed on the low 32-bit half at the word's address. That covers both 4-byte and 8-byte waiters
     // (8-byte waits key on the low half too), and returns the exact number of waiters woken.
     let count = i32::try_from(max_count).unwrap_or(i32::MAX);
     // SAFETY: The address is the aligned word of a shared typed array element.
     let result = unsafe {
         libc::syscall(
             libc::SYS_futex,
-            address,
+            word.as_ptr(),
             libc::FUTEX_WAKE,
             count,
             core::ptr::null::<libc::timespec>(),
@@ -298,12 +313,12 @@ pub(crate) fn atomic_notify(address: *mut u8, _size: usize, max_count: usize) ->
 // No native wait/wake primitive is wired up on this platform. Poll for a change to the word, instead of reporting
 // "not-equal" unconditionally — which would make every Atomics.wait return immediately, and spin its caller.
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-pub(crate) fn atomic_wait(address: *mut u8, expected: u64, size: usize, timeout: Option<Duration>) -> AtomicWaitResult {
-    poll_wait(address, expected, size, timeout)
+pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
+    poll_wait(word, expected, timeout)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-pub(crate) fn atomic_notify(_address: *mut u8, _size: usize, _max_count: usize) -> usize {
+pub(crate) fn atomic_notify(_word: &AtomicU32, _max_count: usize) -> usize {
     // The waiters poll for the value change the waker has already made — so there's nothing to signal.
     0
 }
