@@ -628,8 +628,8 @@ impl DataBlock {
         if data.is_null() {
             return data;
         }
-        // SAFETY: Callers only address bytes within the block.
-        unsafe { data.add(byte_offset) }
+        // NB: This only forms the address, which callers that access the bytes check against the block.
+        data.wrapping_add(byte_offset)
     }
 
     pub fn set_size(&mut self, new_size: usize, zero_fill_new_bytes: ZeroFillNewBytes) {

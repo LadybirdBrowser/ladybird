@@ -674,10 +674,13 @@ pub(super) fn materialize_call_site_frames(
     let running = vm.head.running_execution_context.get();
     let top = stack.top.get();
     if let Some(callee) = callee {
-        // SAFETY: Compiled code left this room below the callee's frame.
-        stack
-            .top
-            .set(unsafe { callee.as_ptr().cast::<u8>().sub(site.inlined_frame_bytes as usize) });
+        // NB: Compiled code left this room below the callee's frame.
+        stack.top.set(
+            callee
+                .as_ptr()
+                .cast::<u8>()
+                .wrapping_sub(site.inlined_frame_bytes as usize),
+        );
     }
     vm.head.running_execution_context.set(root.as_ptr());
 

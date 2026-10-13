@@ -143,8 +143,12 @@ pub fn allocate(heap: &Heap, capacity: u32, fill: Value) -> *mut Value {
         },
         fill,
     );
-    // SAFETY: The values follow the cell's header.
-    unsafe { storage.as_ptr().cast::<u8>().add(VALUES_OFFSET).cast::<Value>() }
+    // NB: The values follow the cell's header.
+    storage
+        .as_ptr()
+        .cast::<u8>()
+        .wrapping_add(VALUES_OFFSET)
+        .cast::<Value>()
 }
 
 /// Frees malloc storage. Cells are collected instead.

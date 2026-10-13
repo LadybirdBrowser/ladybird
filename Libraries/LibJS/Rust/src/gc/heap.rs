@@ -146,8 +146,11 @@ impl Heap {
         // SAFETY: The caller keeps the context alive for the heap's lifetime.
         let raw = unsafe { capi::gc_heap_create(gather_roots, context, become_process_default) };
         let raw = NonNull::new(raw).expect("LibGC creates the heap");
-        // SAFETY: LibGC reports offsets of fields of its heap.
-        let counter = |offset: u32| unsafe { raw.byte_add(offset as usize) }.cast::<usize>();
+        // NB: LibGC reports offsets of fields of its heap.
+        let counter = |offset: u32| {
+            NonNull::new(raw.as_ptr().wrapping_byte_add(offset as usize).cast::<usize>())
+                .expect("the fields of LibGC's heap are not at null")
+        };
         Self {
             raw,
             allocators: [const { Cell::new(None) }; CLASS_COUNT],

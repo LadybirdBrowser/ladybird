@@ -385,8 +385,8 @@ impl ExecutableMemory {
             .map(|(offset, bytes)| {
                 assert!(*offset as usize + bytes.len() <= self.size);
                 CodeWrite {
-                    // SAFETY: The offset is within the memory, as asserted.
-                    destination: unsafe { self.address.add(*offset as usize) },
+                    // NB: The offset is within the memory, as asserted.
+                    destination: self.address.wrapping_add(*offset as usize),
                     code: bytes,
                 }
             })
