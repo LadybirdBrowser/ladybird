@@ -86,8 +86,25 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
                 op.name
             );
         }
-        out.push_str("}\n");
+        // NB: Only bytecode holds instructions, so nothing outside this module can make one.
+        out.push_str("    _view_of_bytecode: (),\n}\n");
         out.push_str(&assertions);
+        let _ = writeln!(
+            out,
+            "// SAFETY: The struct lays out the instruction of this opcode, and is only ever a view of bytecode.\nunsafe impl super::BytecodeOp for {name} {{\n    const OPCODE: u8 = crate::bytecode::instruction::OpCode::{name} as u8;\n\n    fn length(&self) -> u32 {{\n        {name}::length(self)\n    }}\n}}",
+            name = op.name
+        );
+        if let Some(array) = &op.array {
+            let array_field = &op.fields[array.field_index];
+            let count_field = field_name(&op.fields[array.count_field_index].name);
+            let name = field_name(&array_field.name);
+            let ty = rust_type(&array_field.ty);
+            let _ = writeln!(
+                out,
+                "impl {op_name} {{\n    /// The elements the instruction holds after its fixed fields, within the length it records.\n    pub fn {name}(&self) -> &[{ty}] {{\n        let count = self.{count_field} as usize;\n        assert!(core::mem::offset_of!({op_name}, {name}) + count * size_of::<{ty}>() <= self.length() as usize);\n        // SAFETY: The instruction is a view of bytecode that holds the length it records, which the elements are\n        //         within.\n        unsafe {{ core::slice::from_raw_parts(self.{name}.as_ptr(), count) }}\n    }}\n}}",
+                op_name = op.name
+            );
+        }
         match (op.layout.size, op.layout.m_length_offset) {
             (Some(size), _) => {
                 let _ = writeln!(

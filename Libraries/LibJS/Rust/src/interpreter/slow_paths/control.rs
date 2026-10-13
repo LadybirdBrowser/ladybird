@@ -85,9 +85,7 @@ fn iterator_record_from_registers(
 
 /// The primitive values a NewPrimitiveArray instruction carries after its fixed fields.
 fn primitive_array_elements(instruction: &op::NewPrimitiveArray) -> &[Value] {
-    // SAFETY: The bytecode holds element_count values right after the fixed fields of the instruction, within the
-    // length it records, and it does not change while the executable that holds it is alive.
-    unsafe { core::slice::from_raw_parts(instruction.elements.as_ptr(), instruction.element_count as usize) }
+    instruction.elements()
 }
 
 pub fn debugger_check_breakpoint(vm: &Vm, pc: u32) {

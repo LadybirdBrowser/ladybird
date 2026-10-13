@@ -53,7 +53,37 @@ pub mod operand;
 pub mod property_access;
 pub mod validator;
 
+/// The view of an instruction in `op`, which lays out the instruction of its opcode in the bytecode.
+///
+/// # Safety
+///
+/// The type must lay out the instruction of `OPCODE`, and only ever be a view of bytecode that holds the instruction.
 #[cfg(not(test))]
+pub unsafe trait BytecodeOp: Sized {
+    const OPCODE: u8;
+
+    /// The instruction's size in the bytecode.
+    fn length(&self) -> u32;
+}
+
+/// The instruction at `pc` of the executable's bytecode, which has to be an `Op`.
+#[cfg(not(test))]
+pub fn instruction_at<Op: BytecodeOp>(executable: &executable::Executable, pc: u32) -> &Op {
+    let bytes = &executable.bytecode()[pc as usize..];
+    assert_eq!(bytes[0], Op::OPCODE);
+    assert!(size_of::<Op>() <= bytes.len() && bytes.as_ptr().addr().is_multiple_of(align_of::<Op>()));
+    // SAFETY: Executables only hold validated bytecode, so an instruction of this opcode, with the layout of Op and
+    //         valid fields, starts at pc.
+    let instruction = unsafe { &*bytes.as_ptr().cast::<Op>() };
+    assert!(instruction.length() as usize <= bytes.len());
+    instruction
+}
+
+#[cfg(not(test))]
+#[allow(
+    clippy::manual_non_exhaustive,
+    reason = "the instruction views keep code outside this module, not only other crates, from making them"
+)]
 pub mod op {
     use super::encoding::*;
     use crate::layout::property_lookup_cache::EnvironmentCoordinate;

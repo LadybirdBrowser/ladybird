@@ -30,6 +30,7 @@ use super::code::{CompileState, EXIT_COUNT_BEFORE_DISCARD, InlinedFunction, JitC
 use super::{DeferGc, executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
 use crate::bytecode::instruction::{OpCode, instruction_length_from_bytes};
+use crate::bytecode::instruction_at;
 use crate::bytecode::op;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -195,26 +196,21 @@ struct CallLinkage {
 
 /// The argument count, length and kind of the Call or CallConstruct instruction at the start of `bytes`, or of the call
 /// of a getter a GetById instruction or of a setter a PutById instruction makes.
-fn call_instruction_shape(bytes: &[u8]) -> (u32, u32, bool) {
-    let opcode = bytes[0];
+fn call_instruction_shape(executable: &Executable, pc: u32) -> (u32, u32, bool) {
+    let opcode = executable.bytecode()[pc as usize];
     if opcode == OpCode::GetById as u8 {
-        // SAFETY: The bytes start with a GetById instruction.
-        let get = unsafe { &*bytes.as_ptr().cast::<op::GetById>() };
+        let get = instruction_at::<op::GetById>(executable, pc);
         return (0, get.length(), false);
     }
     if opcode == OpCode::PutById as u8 {
-        // SAFETY: The bytes start with a PutById instruction.
-        let put = unsafe { &*bytes.as_ptr().cast::<op::PutById>() };
+        let put = instruction_at::<op::PutById>(executable, pc);
         return (1, put.length(), false);
     }
     if opcode == OpCode::CallConstruct as u8 {
-        // SAFETY: The bytes start with a CallConstruct instruction.
-        let call = unsafe { &*bytes.as_ptr().cast::<op::CallConstruct>() };
+        let call = instruction_at::<op::CallConstruct>(executable, pc);
         return (call.argument_count, call.length(), true);
     }
-    assert_eq!(opcode, OpCode::Call as u8);
-    // SAFETY: The bytes start with a Call instruction.
-    let call = unsafe { &*bytes.as_ptr().cast::<op::Call>() };
+    let call = instruction_at::<op::Call>(executable, pc);
     (call.argument_count, call.length(), false)
 }
 
@@ -226,7 +222,7 @@ fn call_linkage(executable: &Executable, frame_state: &FrameState) -> CallLinkag
         unreachable!("frames at calls resume after them");
     };
     let pc = frame_state.pc;
-    let (argument_count, length, is_construct) = call_instruction_shape(&executable.bytecode()[pc as usize..]);
+    let (argument_count, length, is_construct) = call_instruction_shape(executable, pc);
     CallLinkage {
         passed_argument_count: frame_state.passed_argument_count.unwrap_or(argument_count),
         return_pc: pc + length,
