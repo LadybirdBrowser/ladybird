@@ -421,13 +421,13 @@ def write_rust_interface(
 
     use ak::Utf16String;
     use libjs_rust::api::{{
-        EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, Gc, JSHostClass, Object,
+        EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, Object,
         RawNativeFunctionResult, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, raw_native,
     }};
 
     use crate::bindings::conversions::{{
         BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js, sequence_to_js,
-        to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array, to_usv_string,
+        to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array, to_unrestricted_double, to_usv_string,
     }};
     use crate::bindings::interface::{{
         construct_arguments, create_wrapper, define_attribute, define_interface_object_properties, define_operation,
@@ -636,7 +636,7 @@ pub(crate) mod definitions {
     use crate::bindings::conversions::{
         BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, dictionary_member,
         dictionary_object, record_to_js, sequence_to_js, to_boolean, to_buffer_source, to_dom_string, to_float,
-        to_typed_array, to_usv_string,
+        to_typed_array, to_unrestricted_double, to_usv_string,
     };
     use crate::bindings::interface::{create_dictionary_object, set_dictionary_member};
 """

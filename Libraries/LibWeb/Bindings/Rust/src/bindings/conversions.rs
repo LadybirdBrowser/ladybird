@@ -11,10 +11,10 @@ use core::mem::MaybeUninit;
 
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
-    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, Gc, Object, PrimitiveString, PropertyKey,
-    ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, get_view_byte_length, is_typed_array_out_of_bounds,
-    is_view_out_of_bounds, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
-    to_well_formed, typed_array_byte_length,
+    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, FunctionObject, Gc, Object, PrimitiveString,
+    PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, get_view_byte_length,
+    is_typed_array_out_of_bounds, is_view_out_of_bounds, make_data_view_with_buffer_witness_record,
+    make_typed_array_with_buffer_witness_record, to_well_formed, typed_array_byte_length,
 };
 
 use crate::bindings::CallContext;
@@ -145,6 +145,15 @@ pub(crate) fn to_float(vm: &Vm, value: Value, identifier: &str) -> ThrowCompleti
         );
     }
     Ok(y)
+}
+
+/// A JS value converted to an unrestricted double, https://webidl.spec.whatwg.org/#js-unrestricted-double
+pub(crate) fn to_unrestricted_double(vm: &Vm, value: Value) -> ThrowCompletionOr<f64> {
+    // 1. Let x be ? ToNumber(V).
+    // 2. If x is NaN, then return the IDL unrestricted double value that represents the IEEE 754 NaN value with the
+    //    bit pattern 0x7ff8000000000000.
+    // 3. Return the IDL unrestricted double value that represents the same numeric value as x.
+    value.to_double(vm)
 }
 
 /// What the extended attributes of a buffer source type allow, https://webidl.spec.whatwg.org/#es-buffer-source-types
@@ -376,6 +385,20 @@ impl ToJs for u64 {
 impl ToJs for f32 {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_f64(f64::from(self)))
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-unrestricted-double
+impl ToJs for f64 {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_f64(self))
+    }
+}
+
+/// A callback function converted to a JS value, https://webidl.spec.whatwg.org/#js-callback-function
+impl ToJs for Gc<FunctionObject> {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_object(self))
     }
 }
 
