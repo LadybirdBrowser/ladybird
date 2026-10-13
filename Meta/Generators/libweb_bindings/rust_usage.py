@@ -75,6 +75,8 @@ class DefinitionUsage:
         self.rust_dictionaries: Dict[str, ConversionDirections] = {}
         # The unions that the interfaces implemented in Rust name and that have an enum of their own, by their type.
         self.rust_unions: Dict[IDLUnionType, ConversionDirections] = {}
+        # The enumerations that the interfaces implemented in Rust name.
+        self.rust_enumerations: Dict[str, ConversionDirections] = {}
         # The dictionaries that have a C++ representation.
         self.cpp_dictionary_names: Set[str] = set()
         self._collect_rust_dictionaries()
@@ -118,6 +120,11 @@ class DefinitionUsage:
             return
         for child_type in idl_type.child_types():
             self._name_for_rust(child_type, from_js, to_js)
+        if idl_type.name in self.context.enumerations:
+            directions = self.rust_enumerations.setdefault(idl_type.name, ConversionDirections())
+            directions.from_js = directions.from_js or from_js
+            directions.to_js = directions.to_js or to_js
+            return
         dictionary = self.context.dictionaries.get(idl_type.name)
         if dictionary is None:
             return

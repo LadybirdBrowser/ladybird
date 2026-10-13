@@ -8,12 +8,16 @@
 import re
 
 from pathlib import Path
+from typing import FrozenSet
+from typing import Iterable
 from typing import List
 from typing import Optional
 
 from Generators.libweb_bindings.context import GenerationContext
+from Utils.utils import string_to_cpp_enum_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Dictionary
+from Utils.webidl_parser import Enumeration
 from Utils.webidl_parser import IDLParameterizedType
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import IDLUnionType
@@ -45,8 +49,19 @@ INTEGER_TYPES = {"long": "i32", "unsigned long": "u32", "long long": "i64", "uns
 # The floating point types, with the Rust type of their values.
 FLOATING_POINT_TYPES = {"float": "f32", "unrestricted float": "f32", "unrestricted double": "f64"}
 
+# The types whose values are plain data, with the Rust type of their values. None of these Rust types is or holds a
+# cell, which holds_cells() relies on.
+PLAIN_DATA_TYPES = {
+    "DOMString": "Utf16String",
+    "USVString": "UsvString",
+    "boolean": "bool",
+    "undefined": "()",
+    **INTEGER_TYPES,
+    **FLOATING_POINT_TYPES,
+}
+
 # The unions that the bindings runtime has a type for, by the name of the typedef that names the union.
-RUNTIME_UNION_TYPES = {"BufferSource": "BufferSource"}
+RUNTIME_UNION_TYPES = {"ArrayBufferView": "ArrayBufferView", "BufferSource": "BufferSource"}
 
 DECIMAL_LITERAL = re.compile(r"-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?")
 
@@ -183,8 +198,30 @@ def is_named_union(idl_type: IDLType, context: GenerationContext) -> bool:
 
 
 def rust_union_variant(member_type: IDLType) -> str:
-    """The variant of a member of a union in the enum of the union, which has the name of the type of the member."""
+    """The variant of a member of a union in the enum of the union, which has the name of the type of the member. A
+    union has at most one sequence type, whose variant is Sequence."""
+    if isinstance(member_type, IDLParameterizedType) and member_type.name == "sequence":
+        return "Sequence"
     return member_type.name.replace(" ", "")
+
+
+def rust_enumeration_path(enumeration: Enumeration, context: GenerationContext) -> str:
+    """The Rust path of the enum of an enumeration, which is in the module of the IDL file that defines the
+    enumeration: crate::web_gl::web_gl_rendering_context::WebGLPowerPreference."""
+    return f"{rust_module_path(enumeration.path)}::{enumeration.name}"
+
+
+def rust_enumeration_variant(value: str, enumeration: Enumeration) -> str:
+    """The variant of a value of an enumeration in the enum of the enumeration, which the C++ bindings name the same
+    way."""
+    variant = string_to_cpp_enum_name(value)
+    is_plain = value.isascii() and value.isprintable() and '"' not in value and "\\" not in value
+    if not is_plain or not re.fullmatch(r"[A-Z][A-Za-z0-9]*", variant) or variant == "Self":
+        raise UnsupportedByRustBindings(
+            f"The value {value!r} of the enumeration {enumeration.name} has no name that the Rust bindings can give "
+            "its variant"
+        )
+    return variant
 
 
 def rust_union_path(idl_type: IDLUnionType, context: GenerationContext, what: str) -> str:
@@ -214,18 +251,8 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
                 raise UnsupportedByRustBindings(f"{what} has a record with keys of the type {key_type}")
             return f"Vec<({rust_type(key_type, context, what)}, {rust_type(value_type, context, what)})>"
         raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")
-    if name == "DOMString":
-        return "Utf16String"
-    if name == "USVString":
-        return "UsvString"
-    if name == "boolean":
-        return "bool"
-    if name in INTEGER_TYPES:
-        return INTEGER_TYPES[name]
-    if name in FLOATING_POINT_TYPES:
-        return FLOATING_POINT_TYPES[name]
-    if name == "undefined":
-        return "()"
+    if name in PLAIN_DATA_TYPES:
+        return PLAIN_DATA_TYPES[name]
     if name == "any":
         return "Value"
     if name == "object":
@@ -246,6 +273,9 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return rust_dictionary_path(dictionary, context)
+    enumeration = context.enumeration(idl_type)
+    if enumeration is not None:
+        return rust_enumeration_path(enumeration, context)
     runtime_type = runtime_union_type(idl_type, context)
     if runtime_type is not None:
         return runtime_type
@@ -271,15 +301,40 @@ def rust_result_type(idl_type: IDLType, context: GenerationContext, what: str) -
     return rust_type(idl_type, context, what)
 
 
-def holds_cells(idl_type: IDLType, context: GenerationContext) -> bool:
+def holds_cells(
+    idl_type: IDLType, context: GenerationContext, enclosing_dictionary_names: FrozenSet[str] = frozenset()
+) -> bool:
     """Whether the Rust type of the IDL values of the type is or can hold a cell, which a Vec would hide from the
-    collector."""
-    idl_type = idl_type.without_nullable()
-    if isinstance(idl_type, (IDLParameterizedType, IDLUnionType)):
-        return False
-    if idl_type.name in ("any", "object") or idl_type.name in TYPED_ARRAY_NAMES:
+    collector. Only plain data, and what is made of nothing but plain data, holds none: a type that this function
+    does not know holds one."""
+
+    def any_holds_cells(idl_types: Iterable[IDLType]) -> bool:
+        return any(holds_cells(inner_type, context, enclosing_dictionary_names) for inner_type in idl_types)
+
+    if isinstance(idl_type, IDLUnionType):
+        if runtime_union_type(idl_type, context) is not None:
+            # NB: The bindings runtime defines the types of its unions by hand, so nothing checks them against the
+            #     members of the unions.
+            return True
+        return any_holds_cells(idl_type.flattened_member_types())
+    if isinstance(idl_type, IDLParameterizedType):
+        if idl_type.name in ("sequence", "record"):
+            return any_holds_cells(idl_type.parameters)
         return True
-    return context.callback_function(idl_type) is not None or rust_interface(idl_type, context) is not None
+    if idl_type.name in PLAIN_DATA_TYPES or context.enumeration(idl_type) is not None:
+        return False
+    dictionary = resolved_dictionary(idl_type, context)
+    if dictionary is None:
+        return True
+    if dictionary.name in enclosing_dictionary_names:
+        # NB: A dictionary that names itself, as it can through a sequence, holds a cell only if a member outside of
+        #     that cycle does.
+        return False
+    return any(
+        holds_cells(member.type, context, enclosing_dictionary_names | {dictionary.name})
+        for inherited_dictionary in context.dictionary_inheritance_stack(dictionary)
+        for member in inherited_dictionary.members
+    )
 
 
 def rust_parameter_type(parameter: OperationParameter, context: GenerationContext, what: str) -> str:

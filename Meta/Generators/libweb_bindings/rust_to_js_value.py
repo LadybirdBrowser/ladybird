@@ -12,13 +12,17 @@ from typing import TextIO
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
+from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
+from Generators.libweb_bindings.rust_types import rust_enumeration_path
+from Generators.libweb_bindings.rust_types import rust_enumeration_variant
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_types import rust_union_path
 from Generators.libweb_bindings.rust_types import rust_union_variant
 from Utils.webidl_parser import Dictionary
+from Utils.webidl_parser import Enumeration
 from Utils.webidl_parser import IDLParameterizedType
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import IDLUnionType
@@ -54,8 +58,37 @@ def rust_to_js_value(
         function = "rooted_sequence_to_js" if holds_cells(element_type, context) else "sequence_to_js"
         return f"{function}({call_context}, {expression}, |value| {inner(element_type)})"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
-        return f"record_to_js({call_context}, {expression}, |value| {inner(idl_type.parameters[1])})"
+        value_type = idl_type.parameters[1]
+        if holds_cells(value_type, context):
+            # NB: The entries are in a Vec, which hides the values from the collector while those before them are
+            #     converted.
+            raise UnsupportedByRustBindings(
+                f"{what} has the type {idl_type}, a record of values that are or can hold cells, which the Rust "
+                "bindings do not convert yet"
+            )
+        return f"record_to_js({call_context}, {expression}, |value| {inner(value_type)})"
     return f"{expression}.to_js({call_context})"
+
+
+def write_enumeration_to_js(out: TextIO, context: GenerationContext, enumeration: Enumeration) -> None:
+    """The conversion of the enum of an enumeration, which matches every variant, so that an enum that does not match
+    the values of the enumeration does not compile."""
+    arms = "".join(
+        f'                Self::{rust_enumeration_variant(value, enumeration)} => "{value}",\n'
+        for value in enumeration.values
+    )
+    out.write(
+        f"""
+    /// The conversion of the enumeration {enumeration.name}, https://webidl.spec.whatwg.org/#js-enumeration
+    impl ToJs for {rust_enumeration_path(enumeration, context)} {{
+        fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {{
+            let enumeration_value = match self {{
+{arms}            }};
+            Ok(enumeration_value_to_js(cx, enumeration_value))
+        }}
+    }}
+"""
+    )
 
 
 def write_union_to_js(out: TextIO, context: GenerationContext, union_type: IDLUnionType) -> None:
@@ -81,6 +114,17 @@ def write_union_to_js(out: TextIO, context: GenerationContext, union_type: IDLUn
     )
 
 
+def has_sequence_of_cells(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the IDL values of the type have a sequence of values that are or can hold cells, however deep in the
+    type the sequence is."""
+    return any(
+        isinstance(nested_type, IDLParameterizedType)
+        and nested_type.name == "sequence"
+        and holds_cells(nested_type, context)
+        for nested_type in idl_type.nested_types()
+    )
+
+
 def write_dictionary_to_js(out: TextIO, context: GenerationContext, dictionary: Dictionary) -> None:
     """The conversion of the dictionary's struct, which the implementation defines with a field per member: the type
     of a required member or of one with a default value, and an Option of it otherwise. The fields are bound to locals
@@ -92,6 +136,13 @@ def write_dictionary_to_js(out: TextIO, context: GenerationContext, dictionary: 
     for member in dictionary.members:
         what = f"{dictionary.name}.{member.name}"
         member_type = rust_type(member.type, context, what)
+        if has_sequence_of_cells(member.type, context):
+            # NB: A sequence is kept alive from where its conversion starts, which is after the object of the
+            #     dictionary is created and the members before this one are converted.
+            raise UnsupportedByRustBindings(
+                f"{what} has the type {member.type}, with a sequence of values that are or can hold cells, which the "
+                "Rust bindings do not convert from a member of a dictionary yet"
+            )
         field = rust_identifier(member.name)
         local = rust_local_name(member.name)
         key = f"{rust_identifier(member.name).removeprefix('r#').rstrip('_').upper()}_KEY"

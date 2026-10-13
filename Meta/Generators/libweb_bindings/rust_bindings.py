@@ -34,9 +34,11 @@ from Generators.libweb_bindings.rust_overloads import write_constructor_overload
 from Generators.libweb_bindings.rust_to_idl_value import rust_default_value
 from Generators.libweb_bindings.rust_to_idl_value import rust_to_idl_value
 from Generators.libweb_bindings.rust_to_idl_value import write_dictionary_from_js
+from Generators.libweb_bindings.rust_to_idl_value import write_enumeration_from_js
 from Generators.libweb_bindings.rust_to_idl_value import write_union_from_js
 from Generators.libweb_bindings.rust_to_js_value import rust_to_js_value
 from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
+from Generators.libweb_bindings.rust_to_js_value import write_enumeration_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
@@ -96,8 +98,8 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
         fail("it is not a regular interface")
     if interface.parent_name and not is_implemented_in_rust(context.interfaces.get(interface.parent_name)):
         fail(f"it inherits from {interface.parent_name}, which is not implemented in Rust")
-    if module.enumerations or module.callback_functions:
-        fail("its module defines enumerations or callback functions")
+    if module.callback_functions:
+        fail("its module defines callback functions")
 
     for other in inheriting_interfaces(interface, context):
         if not is_implemented_in_rust(other):
@@ -406,10 +408,10 @@ def write_rust_interface(
     }};
 
     use crate::bindings::conversions::{{
-        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js,
-        rooted_sequence_to_js, sequence_to_js, to_boolean, to_buffer_source, to_dom_string, to_float, to_long,
-        to_long_long, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
-        to_unsigned_long_long, to_usv_string,
+        ArrayBufferView, BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js,
+        rooted_sequence_to_js, sequence_from_js, sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source,
+        to_dom_string, to_float, to_long, to_long_long, to_typed_array, to_unrestricted_double,
+        to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
         Inherits, Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
@@ -660,6 +662,11 @@ def write_rust_attribute_setter(
     the this value is checked, and a missing value is undefined instead of an error."""
     name = attribute.attribute.name
     what = f"{interface.name}.{name}"
+    if context.enumeration(attribute.attribute.type) is not None:
+        # NB: The setter of such an attribute ignores a value that is not one of the enumeration's instead of throwing.
+        raise UnsupportedByRustBindings(
+            f"{what} is not read only and has an enumeration type, which the Rust bindings do not handle yet"
+        )
     conversion = rust_to_idl_value(
         attribute.attribute.type, attribute.attribute.extended_attributes, "value", name, context, what
     )
@@ -753,7 +760,7 @@ def write_rust_constructor(
 def write_rust_definitions(out: TextIO, context: GenerationContext, usage: DefinitionUsage) -> None:
     """The conversions of the dictionaries and unions that the interfaces implemented in Rust name, each written once,
     whichever interfaces name it."""
-    if not usage.rust_dictionaries and not usage.rust_unions:
+    if not usage.rust_dictionaries and not usage.rust_unions and not usage.rust_enumerations:
         return
     out.write(
         """
@@ -771,9 +778,11 @@ pub(crate) mod definitions {
 
     use crate::bindings::CallContext;
     use crate::bindings::conversions::{
-        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, dictionary_member,
-        dictionary_object, record_to_js, rooted_sequence_to_js, sequence_to_js, to_boolean, to_buffer_source,
-        to_dom_string, to_float, to_long, to_long_long, to_typed_array, to_unrestricted_double,
+        ArrayBufferView, BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString,
+        dictionary_member, dictionary_object, enumeration_value_to_js, iterator_method, record_to_js,
+        rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
+        throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source, to_dom_string,
+        to_enumeration_value, to_float, to_long, to_long_long, to_typed_array, to_unrestricted_double,
         to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
     };
     use crate::bindings::interface::{Ref, create_dictionary_object, set_dictionary_member, to_interface};
@@ -789,6 +798,12 @@ pub(crate) mod definitions {
             write_dictionary_from_js(out, context, dictionary)
         if directions.to_js:
             write_dictionary_to_js(out, context, dictionary)
+    for name, directions in usage.rust_enumerations.items():
+        enumeration = context.enumerations[name]
+        if directions.from_js:
+            write_enumeration_from_js(out, context, enumeration)
+        if directions.to_js:
+            write_enumeration_to_js(out, context, enumeration)
     for union_type, directions in usage.rust_unions.items():
         if directions.from_js:
             write_union_from_js(out, context, union_type)

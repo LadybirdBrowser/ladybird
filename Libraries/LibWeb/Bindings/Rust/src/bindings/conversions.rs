@@ -12,9 +12,10 @@ use core::mem::MaybeUninit;
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
     Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, FunctionObject, Gc, Object, PrimitiveString,
-    PropertyKey, Root, ThrowCompletionOr, Trace, TypedArrayBase, TypedArrayKind, Value, Vm, get_view_byte_length,
-    is_typed_array_out_of_bounds, is_view_out_of_bounds, make_data_view_with_buffer_witness_record,
-    make_typed_array_with_buffer_witness_record, to_well_formed, typed_array_byte_length,
+    PropertyKey, Root, ThrowCompletionOr, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
+    get_iterator_from_method_impl, get_view_byte_length, is_typed_array_out_of_bounds, is_view_out_of_bounds,
+    iterator_step_value, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
+    to_well_formed, typed_array_byte_length,
 };
 
 use crate::bindings::CallContext;
@@ -104,6 +105,43 @@ pub(crate) fn to_usv_string(vm: &Vm, value: Value) -> ThrowCompletionOr<UsvStrin
 
     // 2. Return an IDL USVString value that is the result of converting string to a sequence of scalar values.
     Ok(UsvString(to_well_formed(&string)))
+}
+
+/// The value of an enumeration that a JS value names, https://webidl.spec.whatwg.org/#js-enumeration: the index of
+/// the string that the value converts to among the values of the enumeration, which are ASCII.
+pub(crate) fn to_enumeration_value(
+    vm: &Vm,
+    value: Value,
+    enumeration_name: &str,
+    enumeration_values: &[&str],
+) -> ThrowCompletionOr<usize> {
+    // 1. Let S be the result of calling ? ToString(V).
+    let string = value.to_utf16_string(vm)?;
+
+    // 2. If S is not one of E's enumeration values, then throw a TypeError.
+    // 3. Return the enumeration value of type E that is equal to S.
+    let index = enumeration_values
+        .iter()
+        .position(|enumeration_value| match string.as_units() {
+            Utf16StringUnits::Ascii(units) => units == enumeration_value.as_bytes(),
+            Utf16StringUnits::Utf16(units) => units.iter().copied().eq(enumeration_value.bytes().map(u16::from)),
+        });
+    match index {
+        Some(index) => Ok(index),
+        None => vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::InvalidEnumerationValue,
+            &[&string, &enumeration_name],
+        ),
+    }
+}
+
+/// A value of an enumeration converted to a JS value, https://webidl.spec.whatwg.org/#js-enumeration
+pub(crate) fn enumeration_value_to_js(cx: &CallContext, enumeration_value: &str) -> Value {
+    Value::from_string(PrimitiveString::create_from_ascii(
+        cx.vm(),
+        enumeration_value.as_bytes(),
+    ))
 }
 
 /// A JS value converted to a boolean, https://webidl.spec.whatwg.org/#js-boolean
@@ -314,10 +352,27 @@ fn check_buffer_of_buffer_source(
 }
 
 /// An IDL BufferSource value, https://webidl.spec.whatwg.org/#BufferSource
+#[derive(Clone, Copy)]
 pub(crate) enum BufferSource {
     ArrayBuffer(Gc<ArrayBuffer>),
     DataView(Gc<DataView>),
     TypedArray(Gc<TypedArrayBase>),
+}
+
+/// An IDL ArrayBufferView value, https://webidl.spec.whatwg.org/#ArrayBufferView
+#[derive(Clone, Copy)]
+pub(crate) enum ArrayBufferView {
+    DataView(Gc<DataView>),
+    TypedArray(Gc<TypedArrayBase>),
+}
+
+impl From<ArrayBufferView> for BufferSource {
+    fn from(view: ArrayBufferView) -> Self {
+        match view {
+            ArrayBufferView::DataView(view) => Self::DataView(view),
+            ArrayBufferView::TypedArray(typed_array) => Self::TypedArray(typed_array),
+        }
+    }
 }
 
 impl BufferSource {
@@ -375,6 +430,17 @@ impl BufferSource {
     }
 }
 
+impl ArrayBufferView {
+    /// # Safety
+    ///
+    /// The function must not run script or allocate a cell, either of which could detach, resize or free the buffer
+    /// that the bytes are in.
+    pub(crate) unsafe fn with_bytes<R>(&self, function: impl FnOnce(&[u8]) -> R) -> R {
+        // SAFETY: The caller keeps the function from running script and from allocating.
+        unsafe { BufferSource::from(*self).with_bytes(function) }
+    }
+}
+
 /// A JS value converted to a BufferSource, with the steps of the conversion to a union type that apply to the buffer
 /// source types, https://webidl.spec.whatwg.org/#js-union
 pub(crate) fn to_buffer_source(vm: &Vm, value: Value, rules: &BufferSourceRules) -> ThrowCompletionOr<BufferSource> {
@@ -411,7 +477,97 @@ pub(crate) fn to_buffer_source(vm: &Vm, value: Value, rules: &BufferSourceRules)
     }
 
     // 19. Throw a TypeError.
+    throw_no_union_types_matched(vm)
+}
+
+/// A JS value converted to an ArrayBufferView, with the steps of the conversion to a union type that apply to the
+/// types of the views, https://webidl.spec.whatwg.org/#js-union
+pub(crate) fn to_array_buffer_view(
+    vm: &Vm,
+    value: Value,
+    rules: &BufferSourceRules,
+) -> ThrowCompletionOr<ArrayBufferView> {
+    if value.is_object() {
+        let object = value.as_object();
+
+        // 8. If V is an Object and V has a [[DataView]] internal slot, then:
+        //     1. If types includes DataView, then return the result of converting V to DataView.
+        if let Some(view) = object.downcast::<DataView>() {
+            check_buffer_of_buffer_source(vm, &view.viewed_array_buffer(), "DataView", rules)?;
+            return Ok(ArrayBufferView::DataView(view));
+        }
+
+        // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
+        //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]] internal slot,
+        //        then return the result of converting V to that type.
+        if let Some(typed_array) = object.downcast::<TypedArrayBase>() {
+            let type_name = format!("{:?}", typed_array.kind());
+            check_buffer_of_buffer_source(vm, &typed_array.viewed_array_buffer(), &type_name, rules)?;
+            return Ok(ArrayBufferView::TypedArray(typed_array));
+        }
+    }
+
+    // 19. Throw a TypeError.
+    throw_no_union_types_matched(vm)
+}
+
+/// The last step of the conversion of a JS value to a union type, https://webidl.spec.whatwg.org/#js-union, with
+/// the message of the C++ bindings.
+pub(crate) fn throw_no_union_types_matched<T>(vm: &Vm) -> ThrowCompletionOr<T> {
+    // 19. Throw a TypeError.
     vm.throw_completion_with_message(ErrorKind::TypeError, "No union types matched".to_string())
+}
+
+/// A JS value converted to an IDL sequence, https://webidl.spec.whatwg.org/#js-sequence, with the conversion of its
+/// elements. The elements are in a Vec, which hides cells from the collector, so their type holds none.
+pub(crate) fn sequence_from_js<T>(
+    vm: &Vm,
+    value: Value,
+    element_from_js: impl FnMut(Value) -> ThrowCompletionOr<T>,
+) -> ThrowCompletionOr<Vec<T>> {
+    // 1. If V is not an Object, throw a TypeError.
+    if !value.is_object() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+
+    // 2. Let method be ? GetMethod(V, %Symbol.iterator%).
+    // 3. If method is undefined, throw a TypeError.
+    let Some(method) = iterator_method(vm, value)? else {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotIterable, &[&value]);
+    };
+
+    // 4. Return the result of creating a sequence from V and method.
+    sequence_from_iterable(vm, value, method, element_from_js)
+}
+
+/// ? GetMethod(V, %Symbol.iterator%), which decides whether a JS value converts to a sequence type.
+pub(crate) fn iterator_method(vm: &Vm, value: Value) -> ThrowCompletionOr<Option<Gc<FunctionObject>>> {
+    value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().iterator))
+}
+
+/// An IDL sequence created from an iterable and its iterator getter method,
+/// https://webidl.spec.whatwg.org/#create-sequence-from-iterable
+pub(crate) fn sequence_from_iterable<T>(
+    vm: &Vm,
+    iterable: Value,
+    method: Gc<FunctionObject>,
+    mut element_from_js: impl FnMut(Value) -> ThrowCompletionOr<T>,
+) -> ThrowCompletionOr<Vec<T>> {
+    // 1. Let iteratorRecord be ? GetIteratorFromMethod(iterable, method).
+    let iterator_record = get_iterator_from_method_impl(vm, iterable, method)?;
+
+    // 2. Initialize i to be 0.
+    // 3. Repeat
+    let mut sequence = Vec::new();
+    //     1. Let next be ? IteratorStepValue(iteratorRecord).
+    //     2. If next is done, then return an IDL sequence value of type sequence<T> of length i, where the value of the
+    //        element at index j is Sj.
+    while let Some(next) = iterator_step_value(vm, &iterator_record)? {
+        //     3. Initialize Si to the result of converting next to an IDL value of type T.
+        //     4. Set i to i + 1.
+        sequence.push(element_from_js(next)?);
+    }
+    Ok(sequence)
 }
 
 /// The types of the IDL definitions that a JS value converts to, with the conversions that the generated bindings
