@@ -529,12 +529,12 @@ pub enum FfiNumericTypeMatch {
 pub unsafe extern "C" fn rust_numeric_type_operate(
     operation: FfiNumericTypeOperation,
     first: *const FfiNumericType,
-    second: *const FfiNumericType,
+    second: &FfiNumericType,
 ) -> FfiNumericType {
     let first = unsafe { &*first }.to_calc();
     let result = match operation {
-        FfiNumericTypeOperation::Add => first.added_to(&unsafe { &*second }.to_calc()),
-        FfiNumericTypeOperation::Multiply => first.multiplied_by(&unsafe { &*second }.to_calc()),
+        FfiNumericTypeOperation::Add => first.added_to(&second.to_calc()),
+        FfiNumericTypeOperation::Multiply => first.multiplied_by(&second.to_calc()),
         FfiNumericTypeOperation::Invert => Some(first.inverted()),
     };
     FfiNumericType::from_calc(result)
@@ -1178,23 +1178,20 @@ pub unsafe extern "C" fn rust_calc_node_retain(node: *const CalcNode) {
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_determine_type(
-    node: *const CalcNode,
+    node: &CalcNode,
     has_percentages_resolve_as: bool,
     resolve_as_is_number: bool,
     resolve_as_base: u8,
 ) -> FfiNumericType {
     let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
     let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
-    FfiNumericType::from_calc(unsafe { &*node }.numeric_type(&percentage_leaf_type))
+    FfiNumericType::from_calc(node.numeric_type(&percentage_leaf_type))
 }
 
 /// Whether any leaf of the calculation is a percentage.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNode) -> bool {
-    unsafe { &*node }.contains_percentage()
+pub extern "C" fn rust_calc_node_contains_percentage(node: &CalcNode) -> bool {
+    node.contains_percentage()
 }
 
 /// What percentages resolve against in the surrounding context.

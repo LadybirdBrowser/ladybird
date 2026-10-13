@@ -3739,15 +3739,12 @@ pub unsafe extern "C" fn rust_page_selector_list_serialize(
 }
 
 /// Retains a normalized declaration block from parsed block contents, ignoring rules.
-///
-/// # Safety
-/// `parse` must be a live result of `rust_parse_css_block_syntax`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_css_syntax_parse_declaration_block(
-    parse: *const ParsedStyleSheet,
+pub extern "C" fn rust_css_syntax_parse_declaration_block(
+    parse: &ParsedStyleSheet,
 ) -> *mut crate::css::declaration_block::DeclarationBlock {
     use crate::css::declaration_block::DeclarationBlock;
-    let parsed = unsafe { &*parse };
+    let parsed = parse;
     let declarations = declaration_block_from_blocks(parsed.items.iter().filter_map(|item| match item {
         ParsedRuleChild::Declarations(list) => list.declaration_block.as_ref(),
         ParsedRuleChild::Rule(_) => None,

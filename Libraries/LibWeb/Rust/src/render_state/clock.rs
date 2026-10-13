@@ -1754,11 +1754,11 @@ pub extern "C" fn document_host_clock_lane_is_coming(host: &DocumentHost) -> boo
 pub unsafe extern "C" fn document_host_inject_clock_tick(
     host: &DocumentHost,
     frame_time_nanoseconds: i64,
-    scroll_offset: *const FfiScrollOffset,
+    scroll_offset: Option<&FfiScrollOffset>,
 ) {
     settle_lanes_for_testing();
     // SAFETY: Guaranteed by the caller.
-    let scroll_offsets = unsafe { scroll_offset.as_ref() }.map_or(&[][..], std::slice::from_ref);
+    let scroll_offsets = scroll_offset.map_or(&[][..], std::slice::from_ref);
     host.clock_ticks().tick(frame_time_nanoseconds, scroll_offsets);
     settle_lanes_for_testing();
 }

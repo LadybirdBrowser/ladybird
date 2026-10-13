@@ -838,9 +838,9 @@ pub extern "C" fn rust_rule_containing_function(rule: &NativeRule) -> *const Nat
 pub unsafe extern "C" fn rust_rule_set_selector_text(
     rule: &NativeRule,
     input: FfiUtf16View,
-    sheet_rules: *const NativeRuleList,
+    sheet_rules: Option<&NativeRuleList>,
 ) -> bool {
-    unsafe { input.units() }.is_some_and(|input| rule.set_selector_text(input, unsafe { sheet_rules.as_ref() }))
+    unsafe { input.units() }.is_some_and(|input| rule.set_selector_text(input, sheet_rules))
 }
 
 #[unsafe(no_mangle)]

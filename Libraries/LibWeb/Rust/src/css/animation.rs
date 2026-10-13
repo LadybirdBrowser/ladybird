@@ -180,11 +180,11 @@ pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -
 /// descriptor kind is linear.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_evaluate_easing(
-    descriptor: *const FfiEasingDescriptor,
+    descriptor: &FfiEasingDescriptor,
     input_progress: f64,
     before_flag: bool,
 ) -> f64 {
-    evaluate_easing_descriptor(unsafe { &*descriptor }, input_progress, before_flag)
+    evaluate_easing_descriptor(descriptor, input_progress, before_flag)
 }
 
 /// Describes the easing a computed timing function value names, appending a linear easing's
@@ -7466,20 +7466,13 @@ pub(crate) unsafe fn evaluate_animations(computed: *const FfiComputedAnimationBa
 /// `StyleValueData` allocations.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
-    context: *const FfiAnimationContext,
+    context: Option<&FfiAnimationContext>,
     property_id: u16,
-    from: *const StyleValueData,
-    to: *const StyleValueData,
+    from: &StyleValueData,
+    to: &StyleValueData,
     delta: f32,
 ) -> FfiAnimationValueResult {
-    interpolate_value(
-        unsafe { context.as_ref() },
-        property_id,
-        unsafe { &*from },
-        unsafe { &*to },
-        delta,
-    )
-    .into_ffi()
+    interpolate_value(context, property_id, from, to, delta).into_ffi()
 }
 
 /// Test-only bridge for exercising Rust-owned style value composition without constructing an
@@ -7489,11 +7482,11 @@ pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
 /// `underlying` and `animated` must point at live `StyleValueData` allocations.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_test_composite_style_value(
-    underlying: *const StyleValueData,
-    animated: *const StyleValueData,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
     operation: FfiCompositeOperation,
 ) -> FfiAnimationValueResult {
-    composite_scalar_value(unsafe { &*underlying }, unsafe { &*animated }, operation).into_ffi()
+    composite_scalar_value(underlying, animated, operation).into_ffi()
 }
 
 #[cfg(test)]

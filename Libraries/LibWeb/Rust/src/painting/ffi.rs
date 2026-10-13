@@ -1421,11 +1421,11 @@ pub unsafe extern "C" fn compositor_animation_effect_reset(state: *mut c_void) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_animation_effect_only_translates_horizontally(
     request: *const crate::painting::host::FfiCompositorAnimationRequest,
-    host: *const crate::painting::host::FfiCompositorAnimationHost,
+    host: &crate::painting::host::FfiCompositorAnimationHost,
 ) -> bool {
     use crate::painting::visual_animation_builder::{Host, Request, effect_only_translates_horizontally};
     let request = unsafe { Request::new(&*request) };
-    effect_only_translates_horizontally(&request, &Host::new(unsafe { &*host }))
+    effect_only_translates_horizontally(&request, &Host::new(host))
 }
 
 /// # Safety
@@ -1434,11 +1434,11 @@ pub unsafe extern "C" fn compositor_animation_effect_only_translates_horizontall
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_animation_effect_transform_preserves_axes(
     request: *const crate::painting::host::FfiCompositorAnimationRequest,
-    host: *const crate::painting::host::FfiCompositorAnimationHost,
+    host: &crate::painting::host::FfiCompositorAnimationHost,
 ) -> bool {
     use crate::painting::visual_animation_builder::{Host, Request, effect_transform_preserves_axes};
     let request = unsafe { Request::new(&*request) };
-    effect_transform_preserves_axes(&request, &Host::new(unsafe { &*host }))
+    effect_transform_preserves_axes(&request, &Host::new(host))
 }
 
 /// Starts an update pass: the effects publish into an empty document list.
