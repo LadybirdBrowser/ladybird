@@ -1,0 +1,12 @@
+Ladybird’s accessibility elements answer YES when AppKit calls their
+accessibilityShouldUseUniqueId, so an assistive technology gets a unique
+id for each element rather than its path of child indices. An element
+gives its id up with NSAccessibilityUnregisterUniqueIdForUIElement when
+its node leaves the tree or it’s deallocated. WebKit does the same: Its
+WebAccessibilityObjectWrapper and WKAccessibilityWebPageObject answer
+YES too (a comment there says “it’s faster within AppKit to look them
+up”), and they unregister in WebAccessibilityObjectWrapper’s detach and
+WKAccessibilityWebPageObject’s dealloc. Chrome’s AXPlatformNodeCocoa
+subclasses NSAccessibilityElement, which already answers YES. Gecko’s
+MOXAccessibleBase is a plain NSObject that keeps AppKit’s default, so
+AppKit identifies Gecko’s elements by their path.
