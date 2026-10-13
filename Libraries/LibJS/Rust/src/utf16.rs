@@ -248,10 +248,7 @@ impl<'a> Utf16View<'a> {
         match (self, needle) {
             (Self::Ascii(haystack), Utf16View::Ascii(needle)) => {
                 find_subslice(haystack, needle, start_offset, |candidates, first_byte| {
-                    // SAFETY: The pointer and length describe the candidates slice.
-                    let found =
-                        unsafe { libc::memchr(candidates.as_ptr().cast(), first_byte.into(), candidates.len()) };
-                    (!found.is_null()).then(|| found as usize - candidates.as_ptr() as usize)
+                    memchr::memchr(first_byte, candidates)
                 })
             }
             (Self::Utf16(haystack), Utf16View::Utf16(needle)) => {

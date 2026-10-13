@@ -19,6 +19,7 @@ thread-sanitizer = []
 [dependencies]
 ak = { path = "../../../AK/Rust" }
 foldhash = "0.1"
+getrandom = "0.4"
 hashbrown = { version = "0.16.1", default-features = false }
 indexmap = "2"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
@@ -26,6 +27,7 @@ libc = "0.2"
 libjs_abi = { path = "../ABI" }
 libjs_jit = { path = "../JIT/Rust", optional = true }
 libjs_runtime_macros = { path = "macros" }
+memchr = "2"
 libregex_rust = { path = "../../LibRegex/Rust", default-features = false }
 libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
 num-bigint = "0.4"
