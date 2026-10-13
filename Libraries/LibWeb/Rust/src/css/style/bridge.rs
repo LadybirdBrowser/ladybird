@@ -2289,7 +2289,7 @@ unsafe fn publish_sampled_animation_overlay(
         // whole, with the overlay over the same base.
         None => {
             // SAFETY: The base record stays live for the call.
-            let base = unsafe { style_record_view(engine, input.style_record) };
+            let base = style_record_view(engine, input.style_record);
             // SAFETY: Guaranteed by the caller, and the base's arrays are live.
             unsafe {
                 publish_computed_groups(
@@ -2317,7 +2317,7 @@ unsafe fn publish_sampled_animation_overlay(
         invalidation,
         publication,
         // SAFETY: The published record is live.
-        view: unsafe { style_record_view(engine, publication.new_style_record) },
+        view: style_record_view(engine, publication.new_style_record),
         rebuilt_every_group: rebuilt.every_group,
     })
 }
@@ -2353,12 +2353,8 @@ pub unsafe extern "C" fn style_engine_changed_style_groups(
 }
 
 /// Returns a synchronous borrowed view of a base or live animation-overlay record.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and its document's style engine
-/// must stay as it is for every read through the returned pointers.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_view(
+pub extern "C" fn style_engine_style_record_view(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     style_record: u64,
@@ -2367,7 +2363,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
         return view;
     }
     // SAFETY: Guaranteed by the caller.
-    let view = with_engine(read, host, |engine| unsafe { style_record_view(engine, style_record) });
+    let view = with_engine(read, host, |engine| style_record_view(engine, style_record));
     if view.present {
         host.engine_memo().views.set(style_record, view);
     }
@@ -2375,10 +2371,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
 }
 
 /// [`style_engine_style_record_view`] on `engine`.
-///
-/// # Safety
-/// As for [`style_engine_style_record_view`], for the arguments after `engine`.
-pub unsafe fn style_record_view(engine: &mut StyleEngine, style_record: u64) -> FfiStyleRecordView {
+pub fn style_record_view(engine: &mut StyleEngine, style_record: u64) -> FfiStyleRecordView {
     let view = engine.style_record_view(style_record);
     match &view {
         None => FfiStyleRecordView::missing(),
@@ -2398,11 +2391,8 @@ pub unsafe fn style_record_view(engine: &mut StyleEngine, style_record: u64) -> 
 }
 
 /// Removes the retained computed-input assignment for one pseudo-element kind.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_remove_computed_pseudo(
+pub extern "C" fn style_engine_remove_computed_pseudo(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
@@ -2410,16 +2400,11 @@ pub unsafe extern "C" fn style_engine_remove_computed_pseudo(
 ) -> FfiStyleRecordDelta {
     // SAFETY: Guaranteed by the caller.
     // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| unsafe {
-        remove_computed_pseudo(engine, node, pseudo_kind)
-    })
+    with_engine(read, host, |engine| remove_computed_pseudo(engine, node, pseudo_kind))
 }
 
 /// [`style_engine_remove_computed_pseudo`] on `engine`.
-///
-/// # Safety
-/// As for [`style_engine_remove_computed_pseudo`], for the arguments after `engine`.
-pub unsafe fn remove_computed_pseudo(engine: &mut StyleEngine, node: u32, pseudo_kind: u8) -> FfiStyleRecordDelta {
+pub fn remove_computed_pseudo(engine: &mut StyleEngine, node: u32, pseudo_kind: u8) -> FfiStyleRecordDelta {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return FfiStyleRecordDelta::default();
     };
@@ -2691,11 +2676,8 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
 }
 
 /// Settle the synthetic pseudo-element records of an element whose record the host just installed.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
+pub extern "C" fn style_engine_settle_pseudo_records_after_host_record(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
@@ -2703,16 +2685,13 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
 ) -> FfiSettledPseudoRecords {
     // SAFETY: Guaranteed by the caller.
     // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| unsafe {
+    with_engine(read, host, |engine| {
         settle_pseudo_records_after_host_record(engine, node, old_is_list_item)
     })
 }
 
 /// [`style_engine_settle_pseudo_records_after_host_record`] on `engine`.
-///
-/// # Safety
-/// As for [`style_engine_settle_pseudo_records_after_host_record`], for the arguments after `engine`.
-pub unsafe fn settle_pseudo_records_after_host_record(
+pub fn settle_pseudo_records_after_host_record(
     engine: &mut StyleEngine,
     node: u32,
     old_is_list_item: bool,

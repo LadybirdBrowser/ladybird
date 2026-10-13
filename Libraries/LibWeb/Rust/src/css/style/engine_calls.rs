@@ -703,28 +703,20 @@ pub unsafe extern "C" fn style_engine_release_random_base_values(slot: *const c_
 }
 
 /// Answer a read of one element's style the host makes before the next style update.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_answer_record_demand(
+pub extern "C" fn style_engine_answer_record_demand(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
     demand: FfiRecordDemand,
 ) -> FfiRecordDemandAnswer {
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_record_demand(host, read, node, RecordDemand::Element(demand)) }
+    ask_record_demand(host, read, node, RecordDemand::Element(demand))
 }
 
 /// Answer a read of one of an element's pseudo-elements the host makes before the next style update.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_answer_pseudo_element_record_demand(
+pub extern "C" fn style_engine_answer_pseudo_element_record_demand(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
@@ -732,13 +724,10 @@ pub unsafe extern "C" fn style_engine_answer_pseudo_element_record_demand(
     pseudo_element: FfiDemandedPseudoElement,
 ) -> FfiRecordDemandAnswer {
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_record_demand(host, read, node, RecordDemand::PseudoElement(demand, pseudo_element)) }
+    ask_record_demand(host, read, node, RecordDemand::PseudoElement(demand, pseudo_element))
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-unsafe fn ask_record_demand(
+fn ask_record_demand(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,

@@ -1075,7 +1075,7 @@ mod tests {
         let test_host = TestHost::new();
         let host = test_host.host();
         // SAFETY: The host is live, on this thread.
-        unsafe {
+        {
             document_host_note_paint_preparation_is_current(host);
             render_state_mark_node_box(host, 1, FfiBoxMarks::default());
         }

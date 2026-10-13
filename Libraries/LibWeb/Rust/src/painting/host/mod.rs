@@ -49,12 +49,7 @@ pub struct FfiGeometryHostCallbacks {
 
 impl FfiGeometryHostCallbacks {
     /// Stores a scroll offset the overflow pass settled on, after the pass, in `read`.
-    ///
-    /// # Safety
-    ///
-    /// `slot` must name a live row. The host re-enters geometry queries and writes the store the
-    /// offset lives in, so no mutable arena or cache borrow may be held across this call.
-    pub(crate) unsafe fn set_scroll_offset(
+    pub(crate) fn set_scroll_offset(
         &self,
         _: &crate::stage::MainThread,
         read: &crate::render_state::BegunRead,
