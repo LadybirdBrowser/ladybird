@@ -66,7 +66,7 @@ fn int32(value: Value) -> u64 {
 }
 
 /// `string.indexOf(search_string, position)`.
-unsafe extern "C" fn string_index_of(_vm: *const Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
+extern "C" fn string_index_of(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     int32(StringPrototype::index_of_string(
         string_value.as_string(),
@@ -76,21 +76,17 @@ unsafe extern "C" fn string_index_of(_vm: *const Vm, string_value: u64, search_s
 }
 
 /// `string.toLowerCase()`.
-unsafe extern "C" fn string_to_lowercase(vm: *const Vm, string_value: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn string_to_lowercase(vm: &Vm, string_value: u64) -> u64 {
     StringPrototype::to_lowercase_string(vm, string(string_value).as_string()).0
 }
 
 /// `string.toUpperCase()`.
-unsafe extern "C" fn string_to_uppercase(vm: *const Vm, string_value: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn string_to_uppercase(vm: &Vm, string_value: u64) -> u64 {
     StringPrototype::to_uppercase_string(vm, string(string_value).as_string()).0
 }
 
 /// `string.lastIndexOf(search_string, position)`.
-unsafe extern "C" fn string_last_index_of(_vm: *const Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
+extern "C" fn string_last_index_of(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     int32(StringPrototype::last_index_of_string(
         string_value.as_string(),
@@ -100,7 +96,7 @@ unsafe extern "C" fn string_last_index_of(_vm: *const Vm, string_value: u64, sea
 }
 
 /// `string.includes(search_string, position)`.
-unsafe extern "C" fn string_includes(_vm: *const Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
+extern "C" fn string_includes(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     u64::from(StringPrototype::includes_string(
         string_value.as_string(),
@@ -110,7 +106,7 @@ unsafe extern "C" fn string_includes(_vm: *const Vm, string_value: u64, search_s
 }
 
 /// `string.startsWith(search_string, position)`.
-unsafe extern "C" fn string_starts_with(_vm: *const Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
+extern "C" fn string_starts_with(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     u64::from(StringPrototype::starts_with_string(
         string_value.as_string(),
@@ -120,7 +116,7 @@ unsafe extern "C" fn string_starts_with(_vm: *const Vm, string_value: u64, searc
 }
 
 /// `string.endsWith(search_string, end_position)`.
-unsafe extern "C" fn string_ends_with(_vm: *const Vm, string_value: u64, search_string: u64, end_position: i32) -> u64 {
+extern "C" fn string_ends_with(_vm: &Vm, string_value: u64, search_string: u64, end_position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     u64::from(StringPrototype::ends_with_string(
         string_value.as_string(),
@@ -130,45 +126,33 @@ unsafe extern "C" fn string_ends_with(_vm: *const Vm, string_value: u64, search_
 }
 
 /// `string.slice(start, end)`.
-unsafe extern "C" fn string_slice(vm: *const Vm, string_value: u64, start: i32, end: i32) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn string_slice(vm: &Vm, string_value: u64, start: i32, end: i32) -> u64 {
     StringPrototype::slice_string(vm, string(string_value).as_string(), f64::from(start), f64::from(end)).0
 }
 
 /// `string.substring(start, end)`.
-unsafe extern "C" fn string_substring(vm: *const Vm, string_value: u64, start: i32, end: i32) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn string_substring(vm: &Vm, string_value: u64, start: i32, end: i32) -> u64 {
     StringPrototype::substring_string(vm, string(string_value).as_string(), f64::from(start), f64::from(end)).0
 }
 
 /// `string.trim()`.
-unsafe extern "C" fn string_trim(vm: *const Vm, string_value: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn string_trim(vm: &Vm, string_value: u64) -> u64 {
     trim_primitive_string(vm, string(string_value).as_string(), TrimMode::Both).0
 }
 
 /// `string.trimStart()`.
-unsafe extern "C" fn string_trim_start(vm: *const Vm, string_value: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn string_trim_start(vm: &Vm, string_value: u64) -> u64 {
     trim_primitive_string(vm, string(string_value).as_string(), TrimMode::Left).0
 }
 
 /// `string.trimEnd()`.
-unsafe extern "C" fn string_trim_end(vm: *const Vm, string_value: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn string_trim_end(vm: &Vm, string_value: u64) -> u64 {
     trim_primitive_string(vm, string(string_value).as_string(), TrimMode::Right).0
 }
 
 /// `regexp.exec(string)`, for a RegExp object `regexp` whose exec runs no code (see
 /// `regexp_builtin_exec_running_no_code()`).
-unsafe extern "C" fn regexp_exec(vm: *const Vm, regexp: u64, string_value: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+extern "C" fn regexp_exec(vm: &Vm, regexp: u64, string_value: u64) -> u64 {
     regexp_builtin_exec_running_no_code(vm, Value(regexp), string(string_value).as_string())
         .map_or(Value::EMPTY.0, |result| result.0)
 }

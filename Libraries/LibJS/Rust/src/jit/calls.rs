@@ -930,12 +930,8 @@ pub unsafe extern "C" fn libjs_jit_prepare_call_environment(
 /// `u64 libjs_jit_array_push(Array*, u64 value)`: appends `value` to the array, which Array.prototype.push would
 /// append it to without any observable step, and returns the new length as a value.
 ///
-/// # Safety
-///
 /// JIT code calls this with a live array whose elements are packed.
-pub unsafe extern "C" fn libjs_jit_array_push(array: *const Array, value: u64) -> u64 {
-    // SAFETY: JIT code passes a live array.
-    let array = unsafe { &*array };
+pub extern "C" fn libjs_jit_array_push(array: &Array, value: u64) -> u64 {
     assert!(matches!(
         array.indexed_storage_kind(),
         IndexedStorageKind::None | IndexedStorageKind::Packed
@@ -947,12 +943,8 @@ pub unsafe extern "C" fn libjs_jit_array_push(array: *const Array, value: u64) -
 /// `u64 libjs_jit_primitive_to_string(VM*, u64 primitive)`: `String(primitive)`, which is ToString of the primitive,
 /// but the descriptive string of a symbol.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM and a primitive.
-pub unsafe extern "C" fn libjs_jit_primitive_to_string(vm: *const Vm, primitive: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+pub extern "C" fn libjs_jit_primitive_to_string(vm: &Vm, primitive: u64) -> u64 {
     let primitive = Value(primitive);
     assert!(!primitive.is_object());
     // 22.1.1.1 String ( value ), https://tc39.es/ecma262/#sec-string-constructor-string-value
@@ -966,12 +958,8 @@ pub unsafe extern "C" fn libjs_jit_primitive_to_string(vm: *const Vm, primitive:
 /// `u64 libjs_jit_to_object(VM*, u64 primitive, u64 function)`: ToObject of a primitive other than undefined and
 /// null, as the builtin function `function` makes it, or the empty value if that function is of another realm.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM, a function object and such a primitive.
-pub unsafe extern "C" fn libjs_jit_to_object(vm: *const Vm, primitive: u64, function: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+pub extern "C" fn libjs_jit_to_object(vm: &Vm, primitive: u64, function: u64) -> u64 {
     let (function, primitive) = (Value(function).as_object(), Value(primitive));
     assert!(!primitive.is_object() && !primitive.is_nullish());
     if vm.current_realm() != Some(function.shape().realm()) {
@@ -984,12 +972,8 @@ pub unsafe extern "C" fn libjs_jit_to_object(vm: *const Vm, primitive: u64, func
 /// `u64 libjs_jit_array_create(VM*, u32 length, u64 function)`: ArrayCreate(length) as the builtin function `function`
 /// (the Array constructor) makes it, or the empty value if that function is of another realm.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM, a length below 2^31 and a function object.
-pub unsafe extern "C" fn libjs_jit_array_create(vm: *const Vm, length: u32, function: u64) -> u64 {
-    // SAFETY: JIT code passes its VM.
-    let vm = unsafe { &*vm };
+pub extern "C" fn libjs_jit_array_create(vm: &Vm, length: u32, function: u64) -> u64 {
     let realm = Value(function).as_object().shape().realm();
     if vm.current_realm() != Some(realm) {
         return Value::EMPTY.0;
@@ -1001,12 +985,8 @@ pub unsafe extern "C" fn libjs_jit_array_create(vm: *const Vm, length: u32, func
 /// `u64 libjs_jit_slice_arguments(VM*, ExecutionContext* frame, i32 start)`: `Array.prototype.slice.call(arguments,
 /// start)` with the arguments object of the frame, which the code never created, as an array value.
 ///
-/// # Safety
-///
 /// JIT code calls this with its VM and its frame.
-pub unsafe extern "C" fn libjs_jit_slice_arguments(vm: *const Vm, frame: *const ExecutionContext, start: i32) -> u64 {
-    // SAFETY: JIT code passes live pointers.
-    let (vm, frame) = unsafe { (&*vm, &*frame) };
+pub extern "C" fn libjs_jit_slice_arguments(vm: &Vm, frame: &ExecutionContext, start: i32) -> u64 {
     // 23.1.3.28 Array.prototype.slice ( start, end ), https://tc39.es/ecma262/#sec-array.prototype.slice
     // NB: The arguments object has every passed argument, and its length is their count.
     let length = i64::from(frame.passed_argument_count.get());
