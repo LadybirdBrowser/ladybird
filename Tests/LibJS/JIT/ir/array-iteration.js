@@ -1,5 +1,6 @@
-// For-of loops over arrays make array iterators without calling the
-// iterator method, and step them inline.
+// For-of loops over arrays iterate them without array iterators and without
+// calling the iterator method, and step them inline: the iterator operand
+// holds the index of the next element.
 
 function sum(array) {
     let total = 0;
@@ -20,9 +21,8 @@ if (sum([4, 5]) !== 9) throw new Error("wrong sum");
 // CHECK-NOT: Uint32Min
 // CHECK: LoadElementAt Holey
 // CHECK-PASS: frame initialization
-// CHECK: [[ITERATOR:v\d+]] = CreateArrayIterator
-// CHECK: BranchArrayIterator
-// CHECK: LoadArrayIteratorArray
-// CHECK: LoadArrayIteratorIndex
-// CHECK: LoadElementAt Holey
-// CHECK: StoreArrayIteratorIndex
+// CHECK: [[ARRAY:v\d+]] = OpenArrayIteration
+// CHECK: BranchNonNegativeInt32
+// CHECK: [[INDEX:v\d+]]:int32 = UnboxInt32
+// CHECK: LoadElementAt Holey ({{v\d+}}, [[INDEX]])
+// CHECK: BoxInt32

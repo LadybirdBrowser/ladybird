@@ -454,9 +454,10 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         },
         array_push: super::calls::libjs_jit_array_push as *const () as u64,
         slice_arguments: super::calls::libjs_jit_slice_arguments as *const () as u64,
-        create_array_iterator: super::intrinsics::libjs_jit_create_array_iterator as *const () as u64,
+        open_array_iteration: super::intrinsics::libjs_jit_open_array_iteration as *const () as u64,
         // NB: Filled in by capture_snapshot(), which lists it as an embedded cell.
         array_iterator_next: None,
+        array_iterator_return_fuse: None,
         jit_exit: super::entry_exit::libjs_jit_exit as *const () as u64,
         to_boolean: addresses.to_boolean,
         primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,

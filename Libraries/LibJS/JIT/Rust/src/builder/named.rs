@@ -17,6 +17,7 @@ use super::GraphBuilder;
 use super::checks::SlowPaths;
 use crate::CompileFailure;
 use crate::bytecode::Instruction;
+use crate::code::Dependency;
 use crate::code::Repr;
 use crate::ir::BranchCondition;
 use crate::ir::Comparison;
@@ -71,6 +72,20 @@ impl GraphBuilder<'_> {
         };
         let mut slow_paths = self.start_slow_paths(None)?;
         let iterator = self.read(iterator_object)?;
+
+        // NB: In fast array mode, the iterator operand holds the index of the
+        //     next element (see `try_build_get_iterator()`), and the return
+        //     fuse tells if array iterators have a return method.
+        if let Some(return_fuse) = self.runtime.array_iterator_return_fuse {
+            let (fast_array_mode, iterator_object) =
+                self.branch_both_ways(BranchCondition::NonNegativeInt32, vec![iterator]);
+            self.block = fast_array_mode;
+            self.embed(return_fuse);
+            self.assume(Dependency::Fuse(return_fuse));
+            self.end_hot_path(&mut slow_paths, Vec::new());
+            self.block = iterator_object;
+        }
+
         let return_method = self.probe_property_cache(&mut slow_paths, iterator, cache);
         self.branch_to_slow_path(&mut slow_paths, BranchCondition::Nullish, vec![return_method], true);
         self.join_slow_paths(slow_paths, None);

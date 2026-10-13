@@ -20,11 +20,10 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
-use crate::runtime::array_iterator::ArrayIterator;
 use crate::runtime::module_namespace_object::ModuleNamespaceObject;
-use crate::runtime::object::PropertyKind;
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_object::ProxyObject;
+use crate::runtime::realm_fuses;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::typed_array::{ContentType, TypedArrayBase};
 use crate::utf16::{has_fly_string_storage, to_utf16_fly_string};
@@ -207,12 +206,13 @@ pub extern "C" fn libjs_jit_has_property(vm: &Vm, key: u64, object: u64) -> u64 
     Value::FALSE.0
 }
 
-/// `GetIterator(iterable, sync)` for an array whose iterator method is `%Array.prototype.values%`, whose iterators
-/// have the method `next` (the builtin `%ArrayIteratorPrototype%.next` of the realm of JIT code, which it passes):
-/// a new array iterator over the values of the array, made like `%Array.prototype.values%` makes it.
+/// `GetIterator(iterable, sync)` in fast array mode (see `get_iterator()` in the interpreter's slow paths): the
+/// iterable, if it is an array whose iterator method is `%Array.prototype.values%` of the realm of JIT code and whose
+/// iterators have the builtin `next` method, so that nothing can observe the iterator GetIterator would make. The
+/// empty value otherwise.
 ///
 /// JIT code calls this with its VM.
-pub extern "C" fn libjs_jit_create_array_iterator(vm: &Vm, iterable: u64, next: u64) -> u64 {
+pub extern "C" fn libjs_jit_open_array_iteration(vm: &Vm, iterable: u64) -> u64 {
     let iterable = Value(iterable);
     if !iterable.is_object() {
         return Value::EMPTY.0;
@@ -221,10 +221,12 @@ pub extern "C" fn libjs_jit_create_array_iterator(vm: &Vm, iterable: u64, next: 
     if array.downcast::<Array>().is_none() {
         return Value::EMPTY.0;
     }
-    // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property, and
-    //     array iterators inherit `next` from %ArrayIteratorPrototype%. The cached lookups of own properties run
-    //     no code.
+    // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property. The cached
+    //     lookups of own properties run no code.
     let realm = vm.current_realm().expect("JIT code runs in a realm");
+    if !realm_fuses::array_iterators_have_builtin_next(&realm) {
+        return Value::EMPTY.0;
+    }
     let array_prototype = realm.array_prototype();
     let iterator_key = PropertyKey::from(vm.well_known_symbols().iterator);
     let cache = |site| vm.static_property_lookup_cache(site);
@@ -232,7 +234,7 @@ pub extern "C" fn libjs_jit_create_array_iterator(vm: &Vm, iterable: u64, next: 
         || get_own_property_without_side_effects(
             &array,
             &iterator_key,
-            cache(StaticPropertyLookupCacheSite::CreateArrayIteratorOwnIteratorMethod),
+            cache(StaticPropertyLookupCacheSite::OpenArrayIterationOwnIteratorMethod),
         ) != Value::EMPTY
     {
         return Value::EMPTY.0;
@@ -241,15 +243,10 @@ pub extern "C" fn libjs_jit_create_array_iterator(vm: &Vm, iterable: u64, next: 
     let iterator_method = get_own_property_without_side_effects(
         &array_prototype,
         &iterator_key,
-        cache(StaticPropertyLookupCacheSite::CreateArrayIteratorIteratorMethod),
+        cache(StaticPropertyLookupCacheSite::OpenArrayIterationIteratorMethod),
     );
-    let next_method = get_own_property_without_side_effects(
-        &realm.array_iterator_prototype(),
-        &vm.names.next,
-        cache(StaticPropertyLookupCacheSite::CreateArrayIteratorNextMethod),
-    );
-    if iterator_method != values || next_method != Value(next) {
+    if iterator_method != values {
         return Value::EMPTY.0;
     }
-    Value::from_object(ArrayIterator::create(vm, realm, iterable, PropertyKind::Value).upcast::<Object>()).0
+    iterable.0
 }

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Iteration over arrays, built as IR: `GetIterator` makes array iterators
-//! without looking up and calling the iterator method of the array, and
-//! `IteratorNextUnpack` steps them like `%ArrayIteratorPrototype%.next`
-//! does. The slow paths of the instructions handle everything else.
+//! Iteration over arrays, built as IR: `GetIterator` iterates arrays in fast
+//! array mode, without an iterator, and `IteratorNextUnpack` steps that mode
+//! and array iterators like `%ArrayIteratorPrototype%.next` does. The slow
+//! paths of the instructions handle everything else.
 
 use super::Flow;
 use super::GraphBuilder;
@@ -37,10 +37,9 @@ impl GraphBuilder<'_> {
     }
 
     /// Builds `GetIterator` (`Handling::Expanded`) of a synchronous iterator
-    /// as a new array iterator for arrays (see `Op::CreateArrayIterator`),
-    /// whose next method is the builtin one and which is not done yet.
-    /// Returns `None`, having built nothing, if the realm's array iterators
-    /// had another next method.
+    /// in fast array mode, where the instruction allows it (see
+    /// `Op::OpenArrayIteration`): the index 0, the array, and not done.
+    /// Returns `None`, having built nothing, where it does not.
     pub(super) fn try_build_get_iterator(
         &mut self,
         dst_iterator_object: Operand,
@@ -48,19 +47,18 @@ impl GraphBuilder<'_> {
         dst_iterator_done: Operand,
         iterable: Operand,
         hint: u32,
+        fast_array_mode_allowed: bool,
     ) -> Result<Option<Flow>, CompileFailure> {
-        if hint != SYNC_HINT {
+        if hint != SYNC_HINT || !fast_array_mode_allowed {
             return Ok(None);
         }
-        let Some(next) = self.array_iterator_next() else {
-            return Ok(None);
-        };
         let iterable = self.read(iterable)?;
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
-        let iterator = self.emit(Op::CreateArrayIterator, vec![iterable, next], Some(Repr::Tagged));
-        let iterator = self.branch_if_empty(&mut slow_paths, iterator);
+        let array = self.emit(Op::OpenArrayIteration, vec![iterable], Some(Repr::Tagged));
+        let array = self.branch_if_empty(&mut slow_paths, array);
+        let first_index = self.constant(value::int32(0));
         let not_done = self.constant(value::FALSE);
-        let outputs = self.join_paths(slow_paths, vec![iterator, next, not_done], |_, outputs| outputs);
+        let outputs = self.join_paths(slow_paths, vec![first_index, array, not_done], |_, outputs| outputs);
         self.write(dst_iterator_object, outputs[0])?;
         self.write(dst_iterator_next, outputs[1])?;
         self.write(dst_iterator_done, outputs[2])?;
