@@ -90,6 +90,7 @@ impl GraphBuilder<'_> {
                 dst_iterator_done,
                 iterable,
                 hint,
+                ..
             } => match self.try_build_get_iterator(
                 dst_iterator_object,
                 dst_iterator_next,

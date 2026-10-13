@@ -126,7 +126,7 @@ block5:
   [  f0] JumpLoop target:block2
 
 
-forOfTeardown$94a2ae97 lexical-env-teardown.js:38:5
+forOfTeardown$1604a71f lexical-env-teardown.js:38:5
   Registers: 12
   Blocks:    9
   Locals:    v~0, outer~1
@@ -142,41 +142,41 @@ block0:
   [  10] Mov dst:outer~1, src:Int32(5)
   [  20] NewPrimitiveArray dst:reg5, elements:[10, 20]
   [  40] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5
-  [  58] Jump target:block2
+  [  60] Jump target:block2
 
 block1:
-  [  60] Return value:outer~1
+  [  68] Return value:outer~1
 
 block2:
-  [  68] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  80] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
+  [  70] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  88] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
 
 block3:
-  [  90] Catch dst:reg9
-  [  98] SetLexicalEnvironment environment:reg4
-  [  a0] Mov dst:reg5, src:Int32(1)
-  [  b0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:1, true_target:block5, false_target:block6
+  [  98] Catch dst:reg9
+  [  a0] SetLexicalEnvironment environment:reg4
+  [  a8] Mov dst:reg5, src:Int32(1)
+  [  b8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:1, true_target:block5, false_target:block6
 
 block4:
-  [  c8] Mov dst:v~0, src:reg10
-  [  d8] JumpLoop target:block2
+  [  d0] Mov dst:v~0, src:reg10
+  [  e0] JumpLoop target:block2
 
 block5:
-  [  e0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-  [  f8] Throw src:reg9
+  [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [ 108] Throw src:reg9
 
 block6:
-  [ 100] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 118] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 110] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 130] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [ 130] Return value:reg9
+  [ 148] Return value:reg9
 
 block8:
-  [ 138] Throw src:reg9
+  [ 150] Throw src:reg9
 
 Exception handlers:
-  [  c8 ..   e0] => handler block3
+  [  d0 ..   e8] => handler block3
 
 
 catchTeardown$68bf4d7d lexical-env-teardown.js:48:5

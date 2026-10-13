@@ -11,7 +11,7 @@ use core::ops::Deref;
 
 use libjs_runtime_macros::Trace;
 
-use crate::bytecode::executable::StaticPropertyLookupCacheSite;
+use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
@@ -250,6 +250,21 @@ pub fn get_iterator_from_method(
 
 // 7.4.4 GetIterator ( obj, kind ), https://tc39.es/ecma262/#sec-getiterator
 pub fn get_iterator_impl(vm: &Vm, object: Value, kind: IteratorHint) -> ThrowCompletionOr<IteratorRecordImpl> {
+    get_iterator_impl_with_cache(
+        vm,
+        object,
+        kind,
+        vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::GetIteratorMethod),
+    )
+}
+
+/// GetIterator, with the cache that the lookup of @@iterator for synchronous iteration uses.
+pub fn get_iterator_impl_with_cache(
+    vm: &Vm,
+    object: Value,
+    kind: IteratorHint,
+    iterator_method_cache: &PropertyLookupCache,
+) -> ThrowCompletionOr<IteratorRecordImpl> {
     let method;
     let iterator_symbol = PropertyKey::from(vm.well_known_symbols().iterator);
 
@@ -282,11 +297,7 @@ pub fn get_iterator_impl(vm: &Vm, object: Value, kind: IteratorHint) -> ThrowCom
     // 2. Else,
     else {
         // a. Let method be ? GetMethod(obj, @@iterator).
-        method = object.get_method_with_cache(
-            vm,
-            &iterator_symbol,
-            vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::GetIteratorMethod),
-        )?;
+        method = object.get_method_with_cache(vm, &iterator_symbol, iterator_method_cache)?;
     }
 
     // 3. If method is undefined, throw a TypeError exception.
@@ -515,7 +526,12 @@ pub fn iterator_step_value(vm: &Vm, iterator_record: &IteratorRecordImpl) -> Thr
 // NB: AsyncIteratorClose is not implemented here. It is inlined as bytecode
 //     by the codegen, using the Await bytecode op to yield naturally instead of
 //     spinning the event loop synchronously.
-fn iterator_close_impl(vm: &Vm, iterator_record: &IteratorRecordImpl, completion: Completion) -> Completion {
+fn iterator_close_impl(
+    vm: &Vm,
+    iterator_record: &IteratorRecordImpl,
+    completion: Completion,
+    return_method_cache: &PropertyLookupCache,
+) -> Completion {
     // 1. Assert: Type(iteratorRecord.[[Iterator]]) is Object.
 
     // 2. Let iterator be iteratorRecord.[[Iterator]].
@@ -523,7 +539,7 @@ fn iterator_close_impl(vm: &Vm, iterator_record: &IteratorRecordImpl, completion
 
     // 3. Let innerResult be Completion(GetMethod(iterator, "return")).
     let mut inner_result: ThrowCompletionOr<Value> = Ok(Value::UNDEFINED);
-    let get_method_result = iterator.get_method(vm, &vm.names.return_);
+    let get_method_result = iterator.get_method_with_cache(vm, &vm.names.return_, return_method_cache);
     if let Err(throw) = get_method_result {
         inner_result = Err(throw);
     }
@@ -564,7 +580,22 @@ fn iterator_close_impl(vm: &Vm, iterator_record: &IteratorRecordImpl, completion
 
 // 7.4.11 IteratorClose ( iteratorRecord, completion , https://tc39.es/ecma262/#sec-iteratorclose
 pub fn iterator_close(vm: &Vm, iterator_record: &IteratorRecordImpl, completion: Completion) -> Completion {
-    iterator_close_impl(vm, iterator_record, completion)
+    iterator_close_impl(
+        vm,
+        iterator_record,
+        completion,
+        vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::IteratorCloseReturn),
+    )
+}
+
+/// IteratorClose, with the cache that the lookup of the return method uses.
+pub fn iterator_close_with_cache(
+    vm: &Vm,
+    iterator_record: &IteratorRecordImpl,
+    completion: Completion,
+    return_method_cache: &PropertyLookupCache,
+) -> Completion {
+    iterator_close_impl(vm, iterator_record, completion, return_method_cache)
 }
 
 // 7.4.12 IteratorCloseAll ( iters, completion ), https://tc39.es/ecma262/#sec-iteratorclose

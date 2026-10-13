@@ -26,8 +26,8 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::iterator::{
-    IteratorRecord, IteratorRecordImpl, get_iterator_from_method_impl, get_iterator_impl, get_iterator_values,
-    iterator_close, iterator_hint_from_bytecode, iterator_next, iterator_step_value,
+    IteratorRecord, IteratorRecordImpl, get_iterator_from_method_impl, get_iterator_impl_with_cache,
+    get_iterator_values, iterator_close_with_cache, iterator_hint_from_bytecode, iterator_next, iterator_step_value,
 };
 use crate::runtime::map::Map;
 use crate::runtime::map_iterator::map_iteration_is_unobservable;
@@ -394,10 +394,17 @@ pub fn get_iterator(
     instruction: &op::GetIterator,
     values: &mut op::GetIteratorValues,
 ) -> SlowPathControl {
+    let executable = vm.current_executable();
+    let cache = executable.property_lookup_cache(instruction.cache as usize);
     let iterator_record = asm_try!(
         vm,
         pc,
-        get_iterator_impl(vm, values.iterable, iterator_hint_from_bytecode(instruction.hint))
+        get_iterator_impl_with_cache(
+            vm,
+            values.iterable,
+            iterator_hint_from_bytecode(instruction.hint),
+            cache
+        )
     );
     values.dst_iterator_object = Value::from_object(iterator_record.iterator());
     values.dst_iterator_next = iterator_record.next_method();
@@ -418,10 +425,12 @@ pub fn iterator_close_slow_path(
         completion_type_from_bytecode(instruction.completion_type),
         values.completion_value,
     );
+    let executable = vm.current_executable();
+    let cache = executable.property_lookup_cache(instruction.cache as usize);
     asm_try!(
         vm,
         pc,
-        iterator_close(vm, &iterator_record, completion).into_throw_completion_or()
+        iterator_close_with_cache(vm, &iterator_record, completion, cache).into_throw_completion_or()
     );
     SlowPathControl::continue_at(pc + op::IteratorClose::LENGTH)
 }

@@ -3690,7 +3690,8 @@ handler GetLengthWithThis(
 handler GetMethod(
     dst: out Operand,
     object: Operand,
-    property: PropertyKeyTableIndex
+    property: PropertyKeyTableIndex,
+    cache: PropertyLookupCacheIndex
 ) @cold = call_slow_path(get_method);
 
 handler GetIterator(
@@ -3698,7 +3699,8 @@ handler GetIterator(
     dst_iterator_next: out Operand,
     dst_iterator_done: out Operand,
     iterable: Operand,
-    hint: IteratorHint
+    hint: IteratorHint,
+    cache: PropertyLookupCacheIndex
 ) @cold = call_slow_path(get_iterator);
 
 handler GetGlobal(
@@ -4551,7 +4553,8 @@ handler IteratorClose(
     iterator_next: Operand,
     iterator_done: Operand,
     completion_type: Completion::Type,
-    completion_value: Operand
+    completion_value: Operand,
+    cache: PropertyLookupCacheIndex
 ) @cold = call_slow_path(iterator_close);
 
 handler IteratorNext(
