@@ -374,7 +374,7 @@ pub(crate) fn serialize_context_free_calculation(
         resolve_numbers_as_integers: false,
         accepted_ranges: crate::css::style_value::RetainedNumericRangeList::empty(),
     };
-    crate::css::serialize::serialize_style_value_to_utf16(&calculated)
+    Some(crate::css::serialize::serialize_style_value_to_utf16(&calculated))
 }
 
 /// The result of evaluating a calculation: the numeric value in canonical

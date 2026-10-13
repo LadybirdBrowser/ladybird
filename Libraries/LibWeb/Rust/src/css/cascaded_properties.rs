@@ -600,24 +600,21 @@ pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;
 #[allow(clippy::arc_with_non_send_sync)]
 fn resolve_cascade_value(
     resolution_context: &mut CascadeResolutionContext,
-    resolution_environment: Option<&mut crate::css::custom_properties::VarResolutionEnvironment>,
+    resolution_environment: &mut crate::css::custom_properties::VarResolutionEnvironment,
     property_id: u16,
     root_custom_property_name: &[u16],
     unresolved: &StyleValueData,
     final_custom_properties: Option<&HashMap<Vec<u16>, RetainedStyleValueData>>,
 ) -> RetainedStyleValueData {
-    let native_resolution = match resolution_environment {
-        Some(resolution_environment) => crate::css::custom_properties::resolve_vars(
-            &resolution_context.inputs,
-            property_id,
-            root_custom_property_name,
-            unresolved,
-            resolution_environment,
-            resolution_context.style_query_dependencies.as_deref_mut(),
-            final_custom_properties,
-        ),
-        None => crate::css::custom_properties::NativeVarResolution::NotHandled,
-    };
+    let native_resolution = crate::css::custom_properties::resolve_vars(
+        &resolution_context.inputs,
+        property_id,
+        root_custom_property_name,
+        unresolved,
+        resolution_environment,
+        resolution_context.style_query_dependencies.as_deref_mut(),
+        final_custom_properties,
+    );
 
     let parsed = match native_resolution {
         crate::css::custom_properties::NativeVarResolution::Resolved {
@@ -778,7 +775,7 @@ fn resolve_unresolved_style_values(
             }
             outputs[member as usize] = resolve_cascade_value(
                 resolution_context,
-                resolution_environment.as_mut(),
+                &mut resolution_environment,
                 input.property_id,
                 input.root_custom_property_name,
                 input.value.data(),

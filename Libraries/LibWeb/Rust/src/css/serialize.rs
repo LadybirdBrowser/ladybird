@@ -224,7 +224,7 @@ pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::C
         ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
             // SAFETY: These computed size kinds retain a live style value.
             let value = unsafe { &*size.value.pointer.cast::<StyleValueData>() };
-            assert!(serialize_style_value(&mut sink, value, SerializationMode::Normal));
+            serialize_style_value(&mut sink, value, SerializationMode::Normal);
         }
         ComputedSizeKind::MinContent => sink.push_ascii("min-content"),
         ComputedSizeKind::MaxContent => sink.push_ascii("max-content"),
@@ -235,7 +235,7 @@ pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::C
                 sink.push_ascii("fit-content(");
                 // SAFETY: A non-keyword fit-content size retains its live argument value.
                 let value = unsafe { &*size.value.pointer.cast::<StyleValueData>() };
-                assert!(serialize_style_value(&mut sink, value, SerializationMode::Normal));
+                serialize_style_value(&mut sink, value, SerializationMode::Normal);
                 sink.push_ascii(")");
             }
         }
@@ -244,14 +244,16 @@ pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::C
     sink.into_string()
 }
 
-pub(crate) fn serialize_style_value_to_utf16(value: &StyleValueData) -> Option<Vec<u16>> {
+pub(crate) fn serialize_style_value_to_utf16(value: &StyleValueData) -> Vec<u16> {
     let mut sink = TextSink::new();
-    serialize_style_value(&mut sink, value, SerializationMode::Normal).then(|| sink.into_utf16())
+    serialize_style_value(&mut sink, value, SerializationMode::Normal);
+    sink.into_utf16()
 }
 
-pub(crate) fn serialize_resolved_style_value_to_utf16(value: &StyleValueData) -> Option<Vec<u16>> {
+pub(crate) fn serialize_resolved_style_value_to_utf16(value: &StyleValueData) -> Vec<u16> {
     let mut sink = TextSink::new();
-    serialize_style_value(&mut sink, value, SerializationMode::ResolvedValue).then(|| sink.into_utf16())
+    serialize_style_value(&mut sink, value, SerializationMode::ResolvedValue);
+    sink.into_utf16()
 }
 
 pub(crate) fn serialize_component_values_to_utf16(
@@ -554,9 +556,8 @@ fn serialize_request_url_modifier(sink: &mut TextSink, modifier: &crate::css::st
     sink.push_ascii(")");
 }
 
-/// Serializes one style value into `sink`. Returns false for an invalid value graph;
-/// the sink contents are unspecified in that case and must be discarded.
-pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) -> bool {
+/// Serializes a style value, asserting that its internal value graph is valid.
+pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) {
     use crate::css::calc::{
         ANGLE_UNIT_CANONICAL_RATIOS, ANGLE_UNIT_NAMES, FLEX_UNIT_CANONICAL_RATIOS, FLEX_UNIT_NAMES,
         FREQUENCY_UNIT_CANONICAL_RATIOS, FREQUENCY_UNIT_NAMES, RESOLUTION_UNIT_CANONICAL_RATIOS, RESOLUTION_UNIT_NAMES,
@@ -567,20 +568,16 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
     match value {
         StyleValueData::Keyword { keyword: code } => {
             sink.push_ascii(keyword::NAMES[*code as usize]);
-            true
         }
         StyleValueData::Number { value } => {
             serialize_a_number(sink, *value, mode);
-            true
         }
         StyleValueData::Integer { value } => {
             sink.push_ascii(&value.to_string());
-            true
         }
         StyleValueData::Percentage { value } => {
             serialize_a_number(sink, *value, mode);
             sink.push_ascii("%");
-            true
         }
         StyleValueData::Angle { value, unit } => {
             // https://drafts.csswg.org/cssom/#serialize-a-css-value -> <angle>
@@ -589,7 +586,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 serialize_a_dimension(sink, *value, ANGLE_UNIT_NAMES[*unit as usize], mode);
             }
-            true
         }
         StyleValueData::Flex { value, unit } => {
             // AD-HOC: No spec definition, so copy the other <dimension> definitions.
@@ -598,7 +594,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 serialize_a_dimension(sink, *value, FLEX_UNIT_NAMES[*unit as usize], mode);
             }
-            true
         }
         StyleValueData::Frequency { value, unit } => {
             if mode.is_resolved() {
@@ -611,7 +606,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 serialize_a_dimension(sink, *value, FREQUENCY_UNIT_NAMES[*unit as usize], mode);
             }
-            true
         }
         StyleValueData::Time { value, unit } => {
             // AD-HOC: WPT expects us to serialize using the actual unit, like for other
@@ -621,7 +615,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 serialize_a_dimension(sink, *value, TIME_UNIT_NAMES[*unit as usize], mode);
             }
-            true
         }
         StyleValueData::Resolution { value, unit } => {
             if mode.is_resolved() {
@@ -634,7 +627,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 serialize_a_dimension(sink, *value, RESOLUTION_UNIT_NAMES[*unit as usize], mode);
             }
-            true
         }
         StyleValueData::Length { value, unit } => {
             // FIXME: Manually skip this for px so we avoid rounding errors in
@@ -648,15 +640,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 serialize_a_dimension(sink, *value, LENGTH_UNIT_NAMES[*unit as usize], mode);
             }
-            true
         }
         StyleValueData::String { string, .. } => {
             with_fly_string_units(string, |units| serialize_a_string(sink, &units));
-            true
         }
         StyleValueData::CustomIdent { custom_ident } => {
             with_fly_string_units(custom_ident, |units| serialize_an_identifier(sink, &units));
-            true
         }
         StyleValueData::UnicodeRange {
             min_code_point,
@@ -667,17 +656,11 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 sink.push_ascii(&format!("U+{min_code_point:X}-{max_code_point:X}"));
             }
-            true
         }
         StyleValueData::Ratio { numerator, denominator } => {
-            let (Some(numerator), Some(denominator)) = (numerator.optional_data(), denominator.optional_data()) else {
-                return false;
-            };
-            if !serialize_style_value(sink, numerator, mode) {
-                return false;
-            }
+            serialize_style_value(sink, numerator.data(), mode);
             sink.push_ascii(" / ");
-            serialize_style_value(sink, denominator, mode)
+            serialize_style_value(sink, denominator.data(), mode);
         }
         StyleValueData::Url {
             url,
@@ -692,9 +675,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 serialize_request_url_modifier(sink, modifier);
             }
             sink.push_ascii(")");
-            true
         }
-        StyleValueData::GuaranteedInvalid => true,
+        StyleValueData::GuaranteedInvalid => {}
         StyleValueData::Edge { has_edge, edge, offset } => {
             use crate::css::css_enums::position_edge;
             if *has_edge {
@@ -704,11 +686,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 if *has_edge {
                     sink.push_ascii(" ");
                 }
-                if !serialize_style_value(sink, offset, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, offset, mode);
             }
-            true
         }
         StyleValueData::Rect {
             top,
@@ -721,34 +700,20 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 if index > 0 {
                     sink.push_ascii(", ");
                 }
-                let Some(side) = side.optional_data() else {
-                    return false;
-                };
-                if !serialize_style_value(sink, side, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, side.data(), mode);
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::BorderRadius {
             is_elliptical: _,
             horizontal_radius,
             vertical_radius,
         } => {
-            let (Some(horizontal), Some(vertical)) =
-                (horizontal_radius.optional_data(), vertical_radius.optional_data())
-            else {
-                return false;
-            };
+            let (horizontal, vertical) = (horizontal_radius.data(), vertical_radius.data());
             let mut horizontal_sink = TextSink::new();
-            if !serialize_style_value(&mut horizontal_sink, horizontal, mode) {
-                return false;
-            }
+            serialize_style_value(&mut horizontal_sink, horizontal, mode);
             let mut vertical_sink = TextSink::new();
-            if !serialize_style_value(&mut vertical_sink, vertical, mode) {
-                return false;
-            }
+            serialize_style_value(&mut vertical_sink, vertical, mode);
             sink.push_sink(&horizontal_sink);
             // NOTE: The C++ serializer compares the values, not their serializations; value
             //       equality is content equality for style value data, so this matches.
@@ -756,7 +721,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 sink.push_ascii(" ");
                 sink.push_sink(&vertical_sink);
             }
-            true
         }
         StyleValueData::BorderRadiusRect {
             top_left,
@@ -768,41 +732,30 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             let mut horizontal = Vec::with_capacity(4);
             let mut vertical = Vec::with_capacity(4);
             for corner in corners {
-                let Some(StyleValueData::BorderRadius {
+                let StyleValueData::BorderRadius {
                     horizontal_radius,
                     vertical_radius,
                     ..
-                }) = corner.optional_data()
+                } = corner.data()
                 else {
-                    return false;
+                    unreachable!("BorderRadiusRect style values must have valid value graphs");
                 };
-                let (Some(horizontal_radius), Some(vertical_radius)) =
-                    (horizontal_radius.optional_data(), vertical_radius.optional_data())
-                else {
-                    return false;
-                };
-                horizontal.push(horizontal_radius);
-                vertical.push(vertical_radius);
+                horizontal.push(horizontal_radius.data());
+                vertical.push(vertical_radius.data());
             }
             let mut horizontal_sink = TextSink::new();
-            if !serialize_a_positional_value_list(&mut horizontal_sink, &horizontal, mode) {
-                return false;
-            }
+            serialize_a_positional_value_list(&mut horizontal_sink, &horizontal, mode);
             let mut vertical_sink = TextSink::new();
-            if !serialize_a_positional_value_list(&mut vertical_sink, &vertical, mode) {
-                return false;
-            }
+            serialize_a_positional_value_list(&mut vertical_sink, &vertical, mode);
             sink.push_sink(&horizontal_sink);
             if !horizontal_sink.content_equals(&vertical_sink) {
                 sink.push_ascii(" / ");
                 sink.push_sink(&vertical_sink);
             }
-            true
         }
         StyleValueData::Calculated { .. } => serialize_calculated(sink, value, mode),
         StyleValueData::Display { raw } => {
             serialize_display(sink, *raw);
-            true
         }
         StyleValueData::ColorScheme {
             schemes,
@@ -811,7 +764,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         } => {
             if schemes.as_slice().is_empty() {
                 sink.push_ascii("normal");
-                return true;
+                return;
             }
             for (index, scheme) in schemes.as_slice().iter().enumerate() {
                 if index > 0 {
@@ -822,7 +775,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             if *only {
                 sink.push_ascii(" only");
             }
-            true
         }
         StyleValueData::GridAutoFlow { row, dense } => {
             if *row && !*dense {
@@ -836,7 +788,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
                 sink.push_ascii("dense");
             }
-            true
         }
         StyleValueData::TextUnderlinePosition { horizontal, vertical } => {
             use crate::css::css_enums::{text_underline_position_horizontal, text_underline_position_vertical};
@@ -853,31 +804,19 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 sink.push_ascii(" ");
                 sink.push_ascii(text_underline_position_vertical::NAMES[*vertical as usize]);
             }
-            true
         }
         StyleValueData::Position { edge_x, edge_y } => {
-            let (Some(edge_x), Some(edge_y)) = (edge_x.optional_data(), edge_y.optional_data()) else {
-                return false;
-            };
-            if !serialize_style_value(sink, edge_x, mode) {
-                return false;
-            }
+            serialize_style_value(sink, edge_x.data(), mode);
             sink.push_ascii(" ");
-            serialize_style_value(sink, edge_y, mode)
+            serialize_style_value(sink, edge_y.data(), mode);
         }
         StyleValueData::ScrollbarColor {
             thumb_color,
             track_color,
         } => {
-            let (Some(thumb_color), Some(track_color)) = (thumb_color.optional_data(), track_color.optional_data())
-            else {
-                return false;
-            };
-            if !serialize_style_value(sink, thumb_color, mode) {
-                return false;
-            }
+            serialize_style_value(sink, thumb_color.data(), mode);
             sink.push_ascii(" ");
-            serialize_style_value(sink, track_color, mode)
+            serialize_style_value(sink, track_color.data(), mode);
         }
         StyleValueData::ScrollbarGutter { value } => {
             // CSS::ScrollbarGutter: auto, stable, both-edges.
@@ -886,7 +825,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 1 => "stable",
                 _ => "stable both-edges",
             });
-            true
         }
         StyleValueData::Shadow {
             shadow_type,
@@ -898,60 +836,40 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             placement,
         } => {
             if let Some(color) = color.optional_data() {
-                if !serialize_style_value(sink, color, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, color, mode);
                 sink.push_ascii(" ");
             }
-            let (Some(offset_x), Some(offset_y)) = (offset_x.optional_data(), offset_y.optional_data()) else {
-                return false;
-            };
-            if !serialize_style_value(sink, offset_x, mode) {
-                return false;
-            }
+            serialize_style_value(sink, offset_x.data(), mode);
             sink.push_ascii(" ");
-            if !serialize_style_value(sink, offset_y, mode) {
-                return false;
-            }
+            serialize_style_value(sink, offset_y.data(), mode);
             if let Some(blur_radius) = blur_radius.optional_data() {
                 sink.push_ascii(" ");
-                if !serialize_style_value(sink, blur_radius, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, blur_radius, mode);
             }
             // ShadowType::Normal is 0; text shadows have no spread.
             if *shadow_type == 0
                 && let Some(spread_distance) = spread_distance.optional_data()
             {
                 sink.push_ascii(" ");
-                if !serialize_style_value(sink, spread_distance, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, spread_distance, mode);
             }
             // ShadowPlacement::Inner is 1.
             if *placement == 1 {
                 sink.push_ascii(" inset");
             }
-            true
         }
         StyleValueData::TextIndent {
             length_percentage,
             hanging,
             each_line,
         } => {
-            let Some(length_percentage) = length_percentage.optional_data() else {
-                return false;
-            };
-            if !serialize_style_value(sink, length_percentage, mode) {
-                return false;
-            }
+            serialize_style_value(sink, length_percentage.data(), mode);
             if *each_line {
                 sink.push_ascii(" each-line");
             }
             if *hanging {
                 sink.push_ascii(" hanging");
             }
-            true
         }
         StyleValueData::OverflowClipMargin {
             has_visual_box,
@@ -959,9 +877,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             offset,
         } => {
             use crate::css::css_enums::background_box;
-            let Some(offset) = offset.optional_data() else {
-                return false;
-            };
+            let offset = offset.data();
             let is_default_box = *has_visual_box && *visual_box == background_box::PADDING_BOX;
             let is_zero_offset = matches!(offset, StyleValueData::Length { value, .. } if *value == 0.0);
             if !*has_visual_box || is_default_box {
@@ -970,19 +886,16 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             sink.push_ascii(background_box::NAMES[*visual_box as usize]);
             if !is_zero_offset {
                 sink.push_ascii(" ");
-                return serialize_style_value(sink, offset, mode);
+                serialize_style_value(sink, offset, mode);
             }
-            true
         }
         StyleValueData::OpacityValue { value } => {
-            let Some(value) = value.optional_data() else {
-                return false;
-            };
+            let value = value.data();
             if let StyleValueData::Percentage { value } = value {
                 serialize_a_number(sink, value * 0.01, mode);
-                return true;
+                return;
             }
-            serialize_style_value(sink, value, mode)
+            serialize_style_value(sink, value, mode);
         }
         StyleValueData::OpenTypeTagged {
             mode: tagged_mode,
@@ -991,13 +904,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             value,
         } => {
             with_fly_string_units(tag, |units| serialize_a_string(sink, &units));
-            let Some(value) = value.optional_data() else {
-                return false;
-            };
             let mut value_sink = TextSink::new();
-            if !serialize_style_value(&mut value_sink, value, mode) {
-                return false;
-            }
+            serialize_style_value(&mut value_sink, value.data(), mode);
             // OpenTypeTaggedStyleValue::Mode: FontFeatureSettings is 0.
             if *tagged_mode == 0 {
                 if !sink_is_ascii_str(&value_sink, "1") {
@@ -1008,7 +916,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 sink.push_ascii(" ");
                 sink.push_sink(&value_sink);
             }
-            true
         }
         StyleValueData::Tuple { values } => {
             let mut first = true;
@@ -1020,11 +927,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(" ");
                 }
                 first = false;
-                if !serialize_style_value(sink, value, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, value, mode);
             }
-            true
         }
         StyleValueData::ValueList {
             values,
@@ -1033,26 +937,21 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         } => {
             let entries = values.as_slice();
             if entries.is_empty() {
-                return true;
+                return;
             }
             // StyleValueList::Separator: Space is 0, Comma is 1.
             let separator = if *separator == 0 { " " } else { ", " };
-            let first_value = entries[0].optional_data();
+            let first_value = entries[0].data();
             if separator == " "
                 && *collapsible
-                && let Some(first_value) = first_value
                 && !matches!(first_value, StyleValueData::EmptyOptional)
-                && entries
-                    .iter()
-                    .all(|value| value.optional_data().is_some_and(|value| value == first_value))
+                && entries.iter().all(|value| value.data() == first_value)
             {
                 return serialize_style_value(sink, first_value, mode);
             }
             let mut first = true;
             for value in entries {
-                let Some(value) = value.optional_data() else {
-                    continue;
-                };
+                let value = value.data();
                 if matches!(value, StyleValueData::EmptyOptional) {
                     continue;
                 }
@@ -1060,25 +959,16 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(separator);
                 }
                 first = false;
-                if !serialize_style_value(sink, value, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, value, mode);
             }
-            true
         }
         StyleValueData::Function { name, value } => {
             with_fly_string_units(name, |units| push_units_raw(sink, &units));
             sink.push_ascii("(");
-            let Some(value) = value.optional_data() else {
-                return false;
-            };
-            if !serialize_style_value(sink, value, mode) {
-                return false;
-            }
+            serialize_style_value(sink, value.data(), mode);
             sink.push_ascii(")");
-            true
         }
-        StyleValueData::PendingSubstitution { .. } => true,
+        StyleValueData::PendingSubstitution { .. } => {}
         StyleValueData::TreeCountingFunction { function, .. } => {
             // The parser numbers sibling-count() 0 and sibling-index() 1.
             sink.push_ascii(if *function == 0 {
@@ -1086,7 +976,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } else {
                 "sibling-index()"
             });
-            true
         }
         StyleValueData::RepeatStyle { repeat_x, repeat_y } => {
             use crate::css::css_enums::repetition;
@@ -1101,12 +990,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 sink.push_ascii(" ");
                 sink.push_ascii(repetition::NAMES[*repeat_y as usize]);
             }
-            true
         }
         StyleValueData::Superellipse { parameter } => {
-            let Some(parameter) = parameter.optional_data() else {
-                return false;
-            };
+            let parameter = parameter.data();
             let number = match parameter {
                 StyleValueData::Number { value } => Some(*value),
                 _ => None,
@@ -1131,7 +1017,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 };
                 if let Some(keyword) = keyword {
                     sink.push_ascii(keyword);
-                    return true;
+                    return;
                 }
             }
             sink.push_ascii("superellipse(");
@@ -1139,13 +1025,10 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 Some(number) if number == f64::INFINITY => sink.push_ascii("infinity"),
                 Some(number) if number == f64::NEG_INFINITY => sink.push_ascii("-infinity"),
                 _ => {
-                    if !serialize_style_value(sink, parameter, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, parameter, mode);
                 }
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::FontStyle {
             font_style,
@@ -1155,9 +1038,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             let angle_sink = match angle_value.optional_data() {
                 Some(angle) => {
                     let mut angle_sink = TextSink::new();
-                    if !serialize_style_value(&mut angle_sink, angle, mode) {
-                        return false;
-                    }
+                    serialize_style_value(&mut angle_sink, angle, mode);
                     Some(angle_sink)
                 }
                 None => None,
@@ -1167,7 +1048,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 && sink_is_ascii_str(angle_sink, "0deg")
             {
                 sink.push_ascii("normal");
-                return true;
+                return;
             }
             sink.push_ascii(font_style_keyword::NAMES[*font_style as usize]);
             if let Some(angle_sink) = &angle_sink
@@ -1176,29 +1057,15 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 sink.push_ascii(" ");
                 sink.push_sink(angle_sink);
             }
-            true
         }
         StyleValueData::Cursor { image, x, y } => {
-            let Some(image) = image.optional_data() else {
-                return false;
-            };
-            if !serialize_style_value(sink, image, mode) {
-                return false;
-            }
+            serialize_style_value(sink, image.data(), mode);
             if let Some(x) = x.optional_data() {
                 sink.push_ascii(" ");
-                if !serialize_style_value(sink, x, mode) {
-                    return false;
-                }
-                let Some(y) = y.optional_data() else {
-                    return false;
-                };
+                serialize_style_value(sink, x, mode);
                 sink.push_ascii(" ");
-                if !serialize_style_value(sink, y, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, y.data(), mode);
             }
-            true
         }
         StyleValueData::Image {
             url,
@@ -1213,13 +1080,11 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 serialize_request_url_modifier(sink, modifier);
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::Unresolved { source_text, .. } => {
             for &code_unit in source_text.units() {
                 sink.push_code_unit(code_unit);
             }
-            true
         }
         StyleValueData::BorderImageSlice {
             top,
@@ -1228,55 +1093,31 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             left,
             fill,
         } => {
-            let (Some(top), Some(right), Some(bottom), Some(left)) = (
-                top.optional_data(),
-                right.optional_data(),
-                bottom.optional_data(),
-                left.optional_data(),
-            ) else {
-                return false;
-            };
-            if !serialize_style_value(sink, top, mode) {
-                return false;
-            }
+            let (top, right, bottom, left) = (top.data(), right.data(), bottom.data(), left.data());
+            serialize_style_value(sink, top, mode);
             // NOTE: The C++ serializer compares values, which is content equality here.
             if !(top == right && top == bottom && top == left) {
                 sink.push_ascii(" ");
-                if !serialize_style_value(sink, right, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, right, mode);
                 if top != bottom || right != left {
                     sink.push_ascii(" ");
-                    if !serialize_style_value(sink, bottom, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, bottom, mode);
                     if left != right {
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, left, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, left, mode);
                     }
                 }
             }
             if *fill {
                 sink.push_ascii(" fill");
             }
-            true
         }
         StyleValueData::Content { content, alt_text } => {
-            let Some(content) = content.optional_data() else {
-                return false;
-            };
-            if !serialize_style_value(sink, content, mode) {
-                return false;
-            }
+            serialize_style_value(sink, content.data(), mode);
             if let Some(alt_text) = alt_text.optional_data() {
                 sink.push_ascii(" / ");
-                if !serialize_style_value(sink, alt_text, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, alt_text, mode);
             }
-            true
         }
         StyleValueData::Counter {
             function,
@@ -1284,9 +1125,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             counter_style,
             join_string,
         } => {
-            let Some(counter_style) = counter_style.optional_data() else {
-                return false;
-            };
             let is_counters = *function == COUNTER_FUNCTION_COUNTERS;
             sink.push_ascii(if is_counters { "counters(" } else { "counter(" });
             with_fly_string_units(counter_name, |units| serialize_an_identifier(sink, &units));
@@ -1295,15 +1133,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 with_fly_string_units(join_string, |units| serialize_a_string(sink, &units));
             }
             let mut style_sink = TextSink::new();
-            if !serialize_style_value(&mut style_sink, counter_style, mode) {
-                return false;
-            }
+            serialize_style_value(&mut style_sink, counter_style.data(), mode);
             if !sink_is_ascii_str(&style_sink, "decimal") {
                 sink.push_ascii(", ");
                 sink.push_sink(&style_sink);
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::CounterStyle {
             is_symbols,
@@ -1314,7 +1149,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             use crate::css::css_enums::symbols_type as symbols_type_enum;
             if !*is_symbols {
                 with_fly_string_units(name, |units| push_units_raw(sink, &units));
-                return true;
+                return;
             }
             sink.push_ascii("symbols(");
             if *symbols_type != symbols_type_enum::SYMBOLIC {
@@ -1328,7 +1163,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 with_fly_string_units(symbol, |units| serialize_a_string(sink, &units));
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::CounterStyleSystem {
             kind,
@@ -1343,9 +1177,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii("fixed");
                     if let Some(first_symbol) = first_symbol.optional_data() {
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, first_symbol, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, first_symbol, mode);
                     }
                 }
                 _ => {
@@ -1353,7 +1185,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     with_fly_string_units(name, |units| serialize_an_identifier(sink, &units));
                 }
             }
-            true
         }
         StyleValueData::CounterDefinitions { counter_definitions } => {
             for (index, definition) in counter_definitions.as_slice().iter().enumerate() {
@@ -1369,12 +1200,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
                 if let Some(value) = definition.value().optional_data() {
                     sink.push_ascii(" ");
-                    if !serialize_style_value(sink, value, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, value, mode);
                 }
             }
-            true
         }
         StyleValueData::GridTrackPlacement {
             kind,
@@ -1388,15 +1216,11 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 0 => sink.push_ascii("auto"),
                 1 => {
                     sink.push_ascii("span");
-                    let value = value.optional_data();
-                    let is_one = matches!(value, Some(StyleValueData::Integer { value: 1 }));
-                    if !(*has_name && is_one)
-                        && let Some(value) = value
-                    {
+                    let value = value.data();
+                    let is_one = matches!(value, StyleValueData::Integer { value: 1 });
+                    if !(*has_name && is_one) {
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, value, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, value, mode);
                     }
                     if *has_name {
                         sink.push_ascii(" ");
@@ -1405,9 +1229,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
                 _ => {
                     if let Some(value) = value.optional_data() {
-                        if !serialize_style_value(sink, value, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, value, mode);
                         if *has_name {
                             sink.push_ascii(" ");
                             with_fly_string_units(name, |units| serialize_an_identifier(sink, &units));
@@ -1417,7 +1239,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     }
                 }
             }
-            true
         }
         StyleValueData::RandomValueSharing {
             fixed_value,
@@ -1441,7 +1262,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
                 sink.push_ascii("element-shared");
             }
-            true
         }
         StyleValueData::Anchor {
             has_anchor_name,
@@ -1454,20 +1274,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 with_fly_string_units(anchor_name, |units| serialize_an_identifier(sink, &units));
                 sink.push_ascii(" ");
             }
-            let Some(anchor_side) = anchor_side.optional_data() else {
-                return false;
-            };
-            if !serialize_style_value(sink, anchor_side, mode) {
-                return false;
-            }
+            serialize_style_value(sink, anchor_side.data(), mode);
             if let Some(fallback_value) = fallback_value.optional_data() {
                 sink.push_ascii(", ");
-                if !serialize_style_value(sink, fallback_value, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, fallback_value, mode);
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::AnchorSize {
             has_anchor_name,
@@ -1491,54 +1303,33 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 if *has_anchor_name || *has_anchor_size {
                     sink.push_ascii(", ");
                 }
-                if !serialize_style_value(sink, fallback_value, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, fallback_value, mode);
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::BackgroundSize { size_x, size_y } => {
-            let (Some(size_x), Some(size_y)) = (size_x.optional_data(), size_y.optional_data()) else {
-                return false;
-            };
+            let (size_x, size_y) = (size_x.data(), size_y.data());
             if value_has_auto(size_x) && value_has_auto(size_y) {
                 sink.push_ascii("auto");
-                return true;
+                return;
             }
-            if !serialize_style_value(sink, size_x, mode) {
-                return false;
-            }
+            serialize_style_value(sink, size_x, mode);
             sink.push_ascii(" ");
-            serialize_style_value(sink, size_y, mode)
+            serialize_style_value(sink, size_y, mode);
         }
         StyleValueData::LightDark { light, dark, .. } => {
             // FIXME: We don't have enough information to determine the computed value here.
             //        (Matches the C++ FIXME.)
-            let (Some(light), Some(dark)) = (light.optional_data(), dark.optional_data()) else {
-                return false;
-            };
             sink.push_ascii("light-dark(");
-            if !serialize_style_value(sink, light, mode) {
-                return false;
-            }
+            serialize_style_value(sink, light.data(), mode);
             sink.push_ascii(", ");
-            if !serialize_style_value(sink, dark, mode) {
-                return false;
-            }
+            serialize_style_value(sink, dark.data(), mode);
             sink.push_ascii(")");
-            true
         }
         StyleValueData::ContrastColor { color, .. } => {
-            let Some(color) = color.optional_data() else {
-                return false;
-            };
             sink.push_ascii("contrast-color(");
-            if !serialize_style_value(sink, color, mode) {
-                return false;
-            }
+            serialize_style_value(sink, color.data(), mode);
             sink.push_ascii(")");
-            true
         }
         StyleValueData::Easing {
             kind,
@@ -1559,17 +1350,10 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         if index > 0 {
                             sink.push_ascii(", ");
                         }
-                        let Some(output) = stop.output().optional_data() else {
-                            return false;
-                        };
-                        if !serialize_style_value(sink, output, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, stop.output().data(), mode);
                         if let Some(input) = stop.input().optional_data() {
                             sink.push_ascii(" ");
-                            if !serialize_style_value(sink, input, mode) {
-                                return false;
-                            }
+                            serialize_style_value(sink, input, mode);
                         }
                     }
                     sink.push_ascii(")");
@@ -1580,23 +1364,13 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         if index > 0 {
                             sink.push_ascii(", ");
                         }
-                        let Some(coordinate) = coordinate.optional_data() else {
-                            return false;
-                        };
-                        if !serialize_style_value(sink, coordinate, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, coordinate.data(), mode);
                     }
                     sink.push_ascii(")");
                 }
                 _ => {
                     sink.push_ascii("steps(");
-                    let Some(number_of_intervals) = number_of_intervals.optional_data() else {
-                        return false;
-                    };
-                    if !serialize_style_value(sink, number_of_intervals, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, number_of_intervals.data(), mode);
                     if *step_position != step_position_enum::JUMP_END && *step_position != step_position_enum::END {
                         sink.push_ascii(", ");
                         sink.push_ascii(step_position_enum::NAMES[*step_position as usize]);
@@ -1604,16 +1378,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(")");
                 }
             }
-            true
         }
         StyleValueData::Filter {
             kind,
             color_operation,
             value,
         } => {
-            let Some(value) = value.optional_data() else {
-                return false;
-            };
             // FilterStyleValue kinds: blur is 0, drop-shadow is 1, hue-rotate is 2, color is 3;
             // color operations follow Gfx::ColorFilterType.
             sink.push_ascii(match kind {
@@ -1630,11 +1400,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     _ => "sepia(",
                 },
             });
-            if !serialize_style_value(sink, value, mode) {
-                return false;
-            }
+            serialize_style_value(sink, value.data(), mode);
             sink.push_ascii(")");
-            true
         }
         StyleValueData::RadialSize {
             component_count,
@@ -1656,15 +1423,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 if *is_extent {
                     sink.push_ascii(radial_extent::NAMES[*extent as usize]);
                 } else {
-                    let Some(value) = value.optional_data() else {
-                        return false;
-                    };
-                    if !serialize_style_value(sink, value, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, value.data(), mode);
                 }
             }
-            true
         }
         StyleValueData::ColorInterpolationMethod {
             is_polar,
@@ -1672,7 +1433,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             hue_interpolation_method,
         } => {
             serialize_color_interpolation_method(sink, *is_polar, *color_space, *hue_interpolation_method);
-            true
         }
         StyleValueData::LinearGradient {
             has_direction_value,
@@ -1698,9 +1458,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             sink.push_ascii("linear-gradient(");
             if has_direction {
                 if let Some(direction_value) = direction_value.optional_data() {
-                    if !serialize_style_value(sink, direction_value, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, direction_value, mode);
                 } else {
                     if !is_webkit {
                         sink.push_ascii("to ");
@@ -1718,14 +1476,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
             }
             let mut method_sink = TextSink::new();
-            let Some(has_color_space) = serialize_gradient_interpolation_method(
+            let has_color_space = serialize_gradient_interpolation_method(
                 &mut method_sink,
                 color_interpolation_method,
                 *color_syntax,
                 mode,
-            ) else {
-                return false;
-            };
+            );
             if has_color_space {
                 if has_direction {
                     sink.push_ascii(" ");
@@ -1735,11 +1491,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             if has_direction || has_color_space {
                 sink.push_ascii(", ");
             }
-            if !serialize_color_stop_list(sink, color_stop_list, mode) {
-                return false;
-            }
+            serialize_color_stop_list(sink, color_stop_list, mode);
             sink.push_ascii(")");
-            true
         }
         StyleValueData::ConicGradient {
             from_angle,
@@ -1754,37 +1507,26 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             }
             sink.push_ascii("conic-gradient(");
             let has_from_angle = from_angle.optional_data().is_some();
-            let has_at_position = match position.optional_data() {
-                Some(position) => match position_is_center(position, mode) {
-                    Some(is_center) => !is_center,
-                    None => return false,
-                },
-                None => false,
-            };
+            let position = position.data();
+            let has_at_position = !position_is_center(position, mode);
             if let Some(from_angle) = from_angle.optional_data() {
                 sink.push_ascii("from ");
-                if !serialize_style_value(sink, from_angle, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, from_angle, mode);
             }
             if has_at_position {
                 if has_from_angle {
                     sink.push_ascii(" ");
                 }
                 sink.push_ascii("at ");
-                if !serialize_style_value(sink, position.optional_data().unwrap(), mode) {
-                    return false;
-                }
+                serialize_style_value(sink, position, mode);
             }
             let mut method_sink = TextSink::new();
-            let Some(has_color_space) = serialize_gradient_interpolation_method(
+            let has_color_space = serialize_gradient_interpolation_method(
                 &mut method_sink,
                 color_interpolation_method,
                 *color_syntax,
                 mode,
-            ) else {
-                return false;
-            };
+            );
             if has_color_space {
                 if has_from_angle || has_at_position {
                     sink.push_ascii(" ");
@@ -1794,11 +1536,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             if has_from_angle || has_at_position || has_color_space {
                 sink.push_ascii(", ");
             }
-            if !serialize_color_stop_list(sink, color_stop_list, mode) {
-                return false;
-            }
+            serialize_color_stop_list(sink, color_stop_list, mode);
             sink.push_ascii(")");
-            true
         }
         StyleValueData::RadialGradient {
             ending_shape: _,
@@ -1814,22 +1553,10 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             }
             sink.push_ascii("radial-gradient(");
             let mut size_sink = TextSink::new();
-            let has_size = match size.optional_data() {
-                Some(size) => {
-                    if !serialize_style_value(&mut size_sink, size, mode) {
-                        return false;
-                    }
-                    !sink_is_ascii_str(&size_sink, "farthest-corner")
-                }
-                None => false,
-            };
-            let has_at_position = match position.optional_data() {
-                Some(position) => match position_is_center(position, mode) {
-                    Some(is_center) => !is_center,
-                    None => return false,
-                },
-                None => false,
-            };
+            serialize_style_value(&mut size_sink, size.data(), mode);
+            let has_size = !sink_is_ascii_str(&size_sink, "farthest-corner");
+            let position = position.data();
+            let has_at_position = !position_is_center(position, mode);
             if has_size {
                 sink.push_sink(&size_sink);
             }
@@ -1838,19 +1565,15 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(" ");
                 }
                 sink.push_ascii("at ");
-                if !serialize_style_value(sink, position.optional_data().unwrap(), mode) {
-                    return false;
-                }
+                serialize_style_value(sink, position, mode);
             }
             let mut method_sink = TextSink::new();
-            let Some(has_color_space) = serialize_gradient_interpolation_method(
+            let has_color_space = serialize_gradient_interpolation_method(
                 &mut method_sink,
                 color_interpolation_method,
                 *color_syntax,
                 mode,
-            ) else {
-                return false;
-            };
+            );
             if has_color_space {
                 if has_size || has_at_position {
                     sink.push_ascii(" ");
@@ -1860,11 +1583,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             if has_size || has_at_position || has_color_space {
                 sink.push_ascii(", ");
             }
-            if !serialize_color_stop_list(sink, color_stop_list, mode) {
-                return false;
-            }
+            serialize_color_stop_list(sink, color_stop_list, mode);
             sink.push_ascii(")");
-            true
         }
         StyleValueData::ImageSet { options } => {
             sink.push_ascii("image-set(");
@@ -1873,16 +1593,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(", ");
                 }
                 let [image, resolution] = option.values();
-                let (Some(image), Some(resolution)) = (image.optional_data(), resolution.optional_data()) else {
-                    return false;
-                };
-                if !serialize_style_value(sink, image, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, image.data(), mode);
                 sink.push_ascii(" ");
-                if !serialize_style_value(sink, resolution, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, resolution.data(), mode);
                 if let Some(type_string) = option.type_string() {
                     sink.push_ascii(" type(\"");
                     with_fly_string_units(type_string, |units| push_escaped_for_json(sink, &units));
@@ -1890,7 +1603,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::GridTemplateArea {
             grid_areas,
@@ -1899,7 +1611,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         } => {
             if *row_count == 0 {
                 sink.push_ascii("none");
-                return true;
+                return;
             }
             for row in 0..*row_count {
                 if row > 0 {
@@ -1917,7 +1629,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
                 serialize_a_string_sink(sink, &row_sink);
             }
-            true
         }
         StyleValueData::GridTrackSizeList {
             is_subgrid,
@@ -1933,9 +1644,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 && grid_track_list_has_intrinsic_auto_repeat(entries.as_slice())
             {
                 sink.push_ascii("none");
-                return true;
+                return;
             }
-            serialize_grid_track_size_list(sink, *is_subgrid, entries.as_slice(), mode)
+            serialize_grid_track_size_list(sink, *is_subgrid, entries.as_slice(), mode);
         }
         StyleValueData::BasicShape { shape } => {
             let BasicShapeData {
@@ -1951,38 +1662,19 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             } = shape.as_ref();
             // BasicShape kinds: inset 0, xywh 1, rect 2, circle 3, ellipse 4, polygon 5, path 6;
             // fill rules follow Gfx::WindingRule (Nonzero 0, EvenOdd 1).
-            let round_clause =
-                |sink: &mut TextSink, radius: &crate::css::style_value::RetainedStyleValueData| -> bool {
-                    let Some(radius) = radius.optional_data() else {
-                        return true;
-                    };
-                    let mut radius_sink = TextSink::new();
-                    if !serialize_style_value(&mut radius_sink, radius, mode) {
-                        return false;
-                    }
-                    if !sink_is_ascii_str(&radius_sink, "0px") {
-                        sink.push_ascii(" round ");
-                        sink.push_sink(&radius_sink);
-                    }
-                    true
-                };
+            let round_clause = |sink: &mut TextSink, radius: &crate::css::style_value::RetainedStyleValueData| {
+                let mut radius_sink = TextSink::new();
+                serialize_style_value(&mut radius_sink, radius.data(), mode);
+                if !sink_is_ascii_str(&radius_sink, "0px") {
+                    sink.push_ascii(" round ");
+                    sink.push_sink(&radius_sink);
+                }
+            };
             match kind {
                 0 => {
-                    let (Some(top), Some(right), Some(bottom), Some(left)) = (
-                        v0.optional_data(),
-                        v1.optional_data(),
-                        v2.optional_data(),
-                        v3.optional_data(),
-                    ) else {
-                        return false;
-                    };
                     sink.push_ascii("inset(");
-                    if !serialize_a_positional_value_list(sink, &[top, right, bottom, left], mode) {
-                        return false;
-                    }
-                    if !round_clause(sink, v4) {
-                        return false;
-                    }
+                    serialize_a_positional_value_list(sink, &[v0.data(), v1.data(), v2.data(), v3.data()], mode);
+                    round_clause(sink, v4);
                     sink.push_ascii(")");
                 }
                 1 | 2 => {
@@ -1991,28 +1683,16 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         if index > 0 {
                             sink.push_ascii(" ");
                         }
-                        let Some(side) = side.optional_data() else {
-                            return false;
-                        };
-                        if !serialize_style_value(sink, side, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, side.data(), mode);
                     }
-                    if !round_clause(sink, v4) {
-                        return false;
-                    }
+                    round_clause(sink, v4);
                     sink.push_ascii(")");
                 }
                 3 | 4 => {
                     let is_circle = *kind == 3;
                     sink.push_ascii(if is_circle { "circle(" } else { "ellipse(" });
-                    let Some(radius) = v0.optional_data() else {
-                        return false;
-                    };
                     let mut radius_sink = TextSink::new();
-                    if !serialize_style_value(&mut radius_sink, radius, mode) {
-                        return false;
-                    }
+                    serialize_style_value(&mut radius_sink, v0.data(), mode);
                     let omission_sentinel = if is_circle {
                         "closest-side"
                     } else {
@@ -2027,9 +1707,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                             sink.push_ascii(" ");
                         }
                         sink.push_ascii("at ");
-                        if !serialize_style_value(sink, position, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, position, mode);
                     }
                     sink.push_ascii(")");
                 }
@@ -2046,16 +1724,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         }
                         first = false;
                         let [x, y] = point.values();
-                        let (Some(x), Some(y)) = (x.optional_data(), y.optional_data()) else {
-                            return false;
-                        };
-                        if !serialize_style_value(sink, x, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, x.data(), mode);
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, y, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, y.data(), mode);
                     }
                     sink.push_ascii(")");
                 }
@@ -2068,7 +1739,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(")");
                 }
             }
-            true
         }
         StyleValueData::Transformation {
             property,
@@ -2077,7 +1747,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         } => {
             use crate::css::property_metadata::property_id;
             let entries = values.as_slice();
-            let entry_data = |index: usize| entries.get(index).and_then(|value| value.optional_data());
+            let entry_data = |index: usize| entries.get(index).map(|value| value.data());
             if *property == property_id::ROTATE {
                 // TransformFunction codes are generated from TransformFunctions.json.
                 let name = TRANSFORM_FUNCTION_NAMES[*transform_function as usize];
@@ -2088,9 +1758,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         } else if name == "rotateY" {
                             sink.push_ascii("y ");
                         }
-                        let Some(angle) = entry_data(0) else {
-                            return false;
-                        };
+                        let angle = entry_data(0).expect("Transformation style values retain their required angle");
                         return serialize_style_value(sink, angle, mode);
                     }
                     _ => {
@@ -2105,7 +1773,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         };
                         let (Some(x), Some(y), Some(z), Some(angle)) = (axis(0), axis(1), axis(2), entry_data(3))
                         else {
-                            return false;
+                            unreachable!("Transformation style values must have valid value graphs");
                         };
                         if x > 0.0 && y == 0.0 && z == 0.0 {
                             sink.push_ascii("x ");
@@ -2128,18 +1796,18 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             }
             if *property == property_id::SCALE {
                 // Numbers, percentages, and resolvable calculations serialize as plain numbers.
-                let resolve = |index: usize| -> Option<Option<TextSink>> {
+                let resolve = |index: usize| -> Option<TextSink> {
                     match entry_data(index) {
-                        None => Some(None),
+                        None => None,
                         Some(StyleValueData::Number { value }) => {
                             let mut resolved = TextSink::new();
                             serialize_a_number(&mut resolved, *value, mode);
-                            Some(Some(resolved))
+                            Some(resolved)
                         }
                         Some(StyleValueData::Percentage { value }) => {
                             let mut resolved = TextSink::new();
                             serialize_a_number(&mut resolved, value * 0.01, mode);
-                            Some(Some(resolved))
+                            Some(resolved)
                         }
                         Some(value) => {
                             let mut resolved = TextSink::new();
@@ -2150,23 +1818,18 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                                 })
                             {
                                 serialize_a_number(&mut resolved, number, mode);
-                            } else if !serialize_style_value(&mut resolved, value, mode) {
-                                return None;
+                            } else {
+                                serialize_style_value(&mut resolved, value, mode);
                             }
-                            Some(Some(resolved))
+                            Some(resolved)
                         }
                     }
                 };
-                let (Some(Some(x)), Some(Some(y))) = (resolve(0), resolve(1)) else {
-                    return false;
+                let (Some(x), Some(y)) = (resolve(0), resolve(1)) else {
+                    unreachable!("Transformation style values must have valid value graphs");
                 };
                 let z = match entries.len() {
-                    3 if !matches!(entry_data(2), Some(StyleValueData::Number { value: v }) if *v == 1.0) => {
-                        match resolve(2) {
-                            Some(z) => z,
-                            None => return false,
-                        }
-                    }
+                    3 if !matches!(entry_data(2), Some(StyleValueData::Number { value: v }) if *v == 1.0) => resolve(2),
                     _ => None,
                 };
                 sink.push_sink(&x);
@@ -2181,32 +1844,23 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(" ");
                     sink.push_sink(z);
                 }
-                return true;
+                return;
             }
             if *property == property_id::TRANSLATE {
-                let resolve = |index: usize| -> Option<Option<TextSink>> {
-                    let Some(value) = entry_data(index) else {
-                        return Some(None);
-                    };
+                let resolve = |index: usize| -> Option<TextSink> {
+                    let value = entry_data(index)?;
                     let mut resolved = TextSink::new();
-                    if !serialize_style_value(&mut resolved, value, mode) {
+                    serialize_style_value(&mut resolved, value, mode);
+                    if sink_is_ascii_str(&resolved, "0px") {
                         return None;
                     }
-                    if sink_is_ascii_str(&resolved, "0px") {
-                        return Some(None);
-                    }
-                    Some(Some(resolved))
+                    Some(resolved)
                 };
-                let (Some(x), Some(y)) = (resolve(0), resolve(1)) else {
-                    return false;
-                };
+                let (x, y) = (resolve(0), resolve(1));
                 let z = if entries.len() == 3
                     && !matches!(entry_data(2), Some(StyleValueData::Length { value, .. }) if *value == 0.0)
                 {
-                    match resolve(2) {
-                        Some(z) => z,
-                        None => return false,
-                    }
+                    resolve(2)
                 } else {
                     None
                 };
@@ -2225,7 +1879,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(" ");
                     sink.push_sink(z);
                 }
-                return true;
+                return;
             }
             let name = TRANSFORM_FUNCTION_NAMES[*transform_function as usize];
             let scale_family = matches!(name, "scale" | "scale3d" | "scaleX" | "scaleY" | "scaleZ");
@@ -2235,9 +1889,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 if index > 0 {
                     sink.push_ascii(", ");
                 }
-                let Some(value) = value.optional_data() else {
-                    return false;
-                };
+                let value = value.data();
                 if scale_family && let StyleValueData::Percentage { value } = value {
                     // Preserve the shortest round-trip formatting used for scale() percentages.
                     let number = value * 0.01;
@@ -2259,12 +1911,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     }
                     continue;
                 }
-                if !serialize_style_value(sink, value, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, value, mode);
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::FontSource {
             is_local,
@@ -2279,15 +1928,10 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             use crate::css::css_enums::font_tech;
             // NOTE: The C++ serializer ignores the mode, forcing Normal for local names.
             if *is_local {
-                let Some(local_name) = local_name.optional_data() else {
-                    return false;
-                };
                 sink.push_ascii("local(");
-                if !serialize_style_value(sink, local_name, SerializationMode::Normal) {
-                    return false;
-                }
+                serialize_style_value(sink, local_name.data(), SerializationMode::Normal);
                 sink.push_ascii(")");
-                return true;
+                return;
             }
             sink.push_ascii(if *url_type == 0 { "url(" } else { "src(" });
             serialize_url_text(sink, url);
@@ -2311,7 +1955,6 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
                 sink.push_ascii(")");
             }
-            true
         }
         StyleValueData::Shorthand {
             shorthand_property,
@@ -2338,9 +1981,10 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             use crate::css::color_resolution::{
                 EMPTY_INPUT, SerializationBehavior, descriptor_for_color_type, to_color,
             };
-            if !color_base.has_color_type {
-                return false;
-            }
+            assert!(
+                color_base.has_color_type,
+                "ColorFunction style values have a color type"
+            );
             let descriptor = descriptor_for_color_type(color_base.color_type);
             let channels = [channel_0, channel_1, channel_2];
 
@@ -2348,39 +1992,28 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             if let Some(origin) = origin_color.optional_data() {
                 if descriptor.behavior == SerializationBehavior::ColorFunction {
                     sink.push_ascii("color(from ");
-                    if !serialize_style_value(sink, origin, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, origin, mode);
                     sink.push_ascii(" ");
                     sink.push_ascii(descriptor.name);
                     sink.push_ascii(" ");
                 } else {
                     sink.push_ascii(descriptor.name);
                     sink.push_ascii("(from ");
-                    if !serialize_style_value(sink, origin, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, origin, mode);
                     sink.push_ascii(" ");
                 }
                 for (index, channel) in channels.into_iter().enumerate() {
                     if index > 0 {
                         sink.push_ascii(" ");
                     }
-                    let Some(channel) = channel.optional_data() else {
-                        return false;
-                    };
-                    if !serialize_style_value(sink, channel, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, channel.data(), mode);
                 }
                 if let Some(alpha) = alpha.optional_data() {
                     sink.push_ascii(" / ");
-                    if !serialize_style_value(sink, alpha, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, alpha, mode);
                 }
                 sink.push_ascii(")");
-                return true;
+                return;
             }
 
             if matches!(
@@ -2389,13 +2022,13 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             ) {
                 if !mode.is_resolved() && *has_name {
                     with_fly_string_units(name, |units| push_units_ascii_lowercased(sink, &units));
-                    return true;
+                    return;
                 }
                 // sRGB-equivalent shortcut: serialize through the resolved color when it
                 // resolves cleanly.
                 if let Some(color) = to_color(value, &EMPTY_INPUT) {
                     color.serialize_a_srgb_value(sink);
-                    return true;
+                    return;
                 }
             }
 
@@ -2410,12 +2043,10 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 if index > 0 {
                     sink.push_ascii(" ");
                 }
-                let Some(channel) = channel.optional_data() else {
-                    return false;
-                };
+                let channel = channel.data();
                 let channel_descriptor = &descriptor.channels[index];
-                let serialized = if channel_descriptor.is_hue {
-                    serialize_hue_component(sink, channel, mode)
+                if channel_descriptor.is_hue {
+                    serialize_hue_component(sink, channel, mode);
                 } else {
                     serialize_color_component(
                         sink,
@@ -2424,22 +2055,16 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         channel_descriptor.serialize_clamp_min,
                         channel_descriptor.serialize_clamp_max,
                         mode,
-                    )
+                    );
                 };
-                if !serialized {
-                    return false;
-                }
             }
             if let Some(alpha) = alpha.optional_data()
                 && alpha_should_be_serialized(alpha)
             {
                 sink.push_ascii(" / ");
-                if !serialize_alpha_component(sink, alpha, mode) {
-                    return false;
-                }
+                serialize_alpha_component(sink, alpha, mode);
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::ColorMix {
             color_interpolation_method,
@@ -2458,9 +2083,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         if *color_space == rectangular_color_space::OKLAB
                 );
                 if !is_default_oklab {
-                    if !serialize_style_value(sink, method, mode) {
-                        return false;
-                    }
+                    serialize_style_value(sink, method, mode);
                     sink.push_ascii(", ");
                 }
             }
@@ -2472,29 +2095,20 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             };
             let is_calc = |value: Option<&StyleValueData>| matches!(value, Some(StyleValueData::Calculated { .. }));
 
-            let Some(first_color) = first_color.optional_data() else {
-                return false;
-            };
-            if !serialize_style_value(sink, first_color, mode) {
-                return false;
-            }
+            serialize_style_value(sink, first_color.data(), mode);
             match (first, second) {
                 (Some(first_value), Some(_)) => {
                     let both_fifty =
                         literal_percentage(first) == Some(50.0) && literal_percentage(second) == Some(50.0);
                     if !both_fifty {
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, first_value, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, first_value, mode);
                     }
                 }
                 (Some(first_value), None) => {
                     if literal_percentage(first) != Some(50.0) {
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, first_value, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, first_value, mode);
                     }
                 }
                 (None, Some(_)) => {
@@ -2509,12 +2123,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 (None, None) => {}
             }
             sink.push_ascii(", ");
-            let Some(second_color) = second_color.optional_data() else {
-                return false;
-            };
-            if !serialize_style_value(sink, second_color, mode) {
-                return false;
-            }
+            serialize_style_value(sink, second_color.data(), mode);
             match (first, second) {
                 (Some(_), Some(second_value)) => {
                     let sum_is_hundred = match (literal_percentage(first), literal_percentage(second)) {
@@ -2523,23 +2132,18 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     };
                     if !sum_is_hundred {
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, second_value, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, second_value, mode);
                     }
                 }
                 (Some(_) | None, None) => {}
                 (None, Some(second_value)) => {
                     if literal_percentage(second) != Some(50.0) && is_calc(second) {
                         sink.push_ascii(" ");
-                        if !serialize_style_value(sink, second_value, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, second_value, mode);
                     }
                 }
             }
             sink.push_ascii(")");
-            true
         }
         StyleValueData::EmptyOptional => unreachable!("optional placeholders must be skipped by their containing list"),
     }
@@ -2627,9 +2231,8 @@ fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8, 
 
 /// https://drafts.csswg.org/css-values-4/#serialize-a-math-function, by walking the piece
 /// batch the calc serializer in calc.rs produces; mirrors the consumer loop in
-/// CalculatedStyleValue.cpp. Returns false when an embedded style value's serialization has
-/// not been ported yet.
-fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) -> bool {
+/// CalculatedStyleValue.cpp.
+fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) {
     use crate::css::css_enums::channel_keyword;
 
     let pieces = crate::css::calc::serialize_math_function_pieces(value, mode.is_resolved());
@@ -2643,9 +2246,7 @@ fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: Seria
                 // SAFETY: Style value pieces point at data retained by the calculation tree,
                 // which outlives this walk.
                 let child = unsafe { &*piece.style_value.cast::<StyleValueData>() };
-                if !serialize_style_value(sink, child, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, child, mode);
             }
             3 => sink.push_ascii(channel_keyword::NAMES[piece.unit_or_channel as usize]),
             4 => {
@@ -2657,7 +2258,6 @@ fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: Seria
         }
         previous_piece_appended = sink.len() > start_length;
     }
-    true
 }
 
 /// Literal pieces are produced from static ASCII strings in calc.rs.
@@ -2667,14 +2267,12 @@ fn literal_piece_text(bytes: *const u8, length: usize) -> &'static str {
 }
 
 /// Port of Web::CSS::serialize_a_positional_value_list: 2 or 4 values with equal-serialization
-/// suffixes dropped. Returns false for an invalid value graph.
-fn serialize_a_positional_value_list(sink: &mut TextSink, values: &[&StyleValueData], mode: SerializationMode) -> bool {
+/// suffixes dropped.
+fn serialize_a_positional_value_list(sink: &mut TextSink, values: &[&StyleValueData], mode: SerializationMode) {
     let mut serialized = Vec::with_capacity(values.len());
     for value in values {
         let mut sub_sink = TextSink::new();
-        if !serialize_style_value(&mut sub_sink, value, mode) {
-            return false;
-        }
+        serialize_style_value(&mut sub_sink, value, mode);
         serialized.push(sub_sink);
     }
     let emit = |sink: &mut TextSink, parts: &[&TextSink]| {
@@ -2706,7 +2304,6 @@ fn serialize_a_positional_value_list(sink: &mut TextSink, values: &[&StyleValueD
         }
         _ => unreachable!("positional value lists have two or four values"),
     }
-    true
 }
 
 /// Appends a fly string's code units verbatim, with no escaping.
@@ -2772,88 +2369,69 @@ fn interpolation_method_is_default(method: &StyleValueData, color_syntax: u8) ->
 }
 
 /// Serializes a gradient's interpolation method when it differs from the syntax default.
-/// Returns whether anything was emitted, or None to decline.
+/// Returns whether anything was emitted.
 fn serialize_gradient_interpolation_method(
     sink: &mut TextSink,
     method: &crate::css::style_value::RetainedStyleValueData,
     color_syntax: u8,
     mode: SerializationMode,
-) -> Option<bool> {
+) -> bool {
     let Some(method) = method.optional_data() else {
-        return Some(false);
+        return false;
     };
     if interpolation_method_is_default(method, color_syntax) {
-        return Some(false);
+        return false;
     }
-    if !serialize_style_value(sink, method, mode) {
-        return None;
-    }
-    Some(true)
+    serialize_style_value(sink, method, mode);
+    true
 }
 
 /// Port of Web::CSS::serialize_color_stop_list.
-fn serialize_color_stop_list(sink: &mut TextSink, stops: &RetainedColorStopList, mode: SerializationMode) -> bool {
+fn serialize_color_stop_list(sink: &mut TextSink, stops: &RetainedColorStopList, mode: SerializationMode) {
     for (index, stop) in stops.as_slice().iter().enumerate() {
         if index > 0 {
             sink.push_ascii(", ");
         }
         let [transition_hint, color, position, second_position] = stop.values();
         if let Some(transition_hint) = transition_hint.optional_data() {
-            if !serialize_style_value(sink, transition_hint, mode) {
-                return false;
-            }
+            serialize_style_value(sink, transition_hint, mode);
             sink.push_ascii(", ");
         }
-        let Some(color) = color.optional_data() else {
-            return false;
-        };
-        if !serialize_style_value(sink, color, mode) {
-            return false;
-        }
+        serialize_style_value(sink, color.data(), mode);
         if let Some(position) = position.optional_data() {
             sink.push_ascii(" ");
-            if !serialize_style_value(sink, position, mode) {
-                return false;
-            }
+            serialize_style_value(sink, position, mode);
         }
         if let Some(second_position) = second_position.optional_data() {
             sink.push_ascii(" ");
-            if !serialize_style_value(sink, second_position, mode) {
-                return false;
-            }
+            serialize_style_value(sink, second_position, mode);
         }
     }
-    true
 }
 
-/// Port of EdgeStyleValue::is_center; None means a component's serialization declined.
-fn edge_is_center(edge: &StyleValueData, mode: SerializationMode) -> Option<bool> {
+/// Port of EdgeStyleValue::is_center.
+fn edge_is_center(edge: &StyleValueData, mode: SerializationMode) -> bool {
     use crate::css::css_enums::position_edge;
     let StyleValueData::Edge { has_edge, edge, offset } = edge else {
-        return Some(false);
+        return false;
     };
     if *has_edge && *edge == position_edge::CENTER {
-        return Some(true);
+        return true;
     }
     let Some(offset) = offset.optional_data() else {
-        return Some(false);
+        return false;
     };
     let mut offset_sink = TextSink::new();
-    if !serialize_style_value(&mut offset_sink, offset, mode) {
-        return None;
-    }
-    Some(sink_is_ascii_str(&offset_sink, "50%"))
+    serialize_style_value(&mut offset_sink, offset, mode);
+    sink_is_ascii_str(&offset_sink, "50%")
 }
 
-/// Port of PositionStyleValue::is_center; None means a component's serialization declined.
-fn position_is_center(position: &StyleValueData, mode: SerializationMode) -> Option<bool> {
+/// Port of PositionStyleValue::is_center.
+fn position_is_center(position: &StyleValueData, mode: SerializationMode) -> bool {
     let StyleValueData::Position { edge_x, edge_y } = position else {
-        return Some(false);
+        return false;
     };
-    let (Some(edge_x), Some(edge_y)) = (edge_x.optional_data(), edge_y.optional_data()) else {
-        return Some(false);
-    };
-    Some(edge_is_center(edge_x, mode)? && edge_is_center(edge_y, mode)?)
+    edge_is_center(edge_x.data(), mode) && edge_is_center(edge_y.data(), mode)
 }
 
 /// Appends a fly string's units ASCII-lowercased, matching to_ascii_lowercase on names.
@@ -2889,11 +2467,11 @@ fn serialize_color_component(
     clamp_min: Option<f64>,
     clamp_max: Option<f64>,
     mode: SerializationMode,
-) -> bool {
+) {
     use crate::css::color_resolution::{EMPTY_INPUT, resolve_with_reference_value};
     if matches!(value, StyleValueData::Keyword { keyword: code } if *code == keyword::NONE) {
         sink.push_ascii("none");
-        return true;
+        return;
     }
     if matches!(value, StyleValueData::Calculated { .. }) && mode == SerializationMode::Normal {
         return serialize_style_value(sink, value, mode);
@@ -2907,18 +2485,17 @@ fn serialize_color_component(
                 resolved = resolved.min(clamp_max);
             }
             serialize_a_number(sink, resolved, mode);
-            true
         }
         None => serialize_style_value(sink, value, mode),
     }
 }
 
 /// Port of ColorStyleValue::serialize_alpha_component.
-fn serialize_alpha_component(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) -> bool {
+fn serialize_alpha_component(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) {
     use crate::css::color_resolution::{EMPTY_INPUT, resolve_alpha};
     if matches!(value, StyleValueData::Keyword { keyword: code } if *code == keyword::NONE) {
         sink.push_ascii("none");
-        return true;
+        return;
     }
     if matches!(value, StyleValueData::Calculated { .. }) && mode == SerializationMode::Normal {
         return serialize_style_value(sink, value, mode);
@@ -2926,7 +2503,6 @@ fn serialize_alpha_component(sink: &mut TextSink, value: &StyleValueData, mode: 
     match resolve_alpha(value, &EMPTY_INPUT) {
         Some(resolved) => {
             serialize_a_number(sink, resolved, mode);
-            true
         }
         None => serialize_style_value(sink, value, mode),
     }
@@ -2934,11 +2510,11 @@ fn serialize_alpha_component(sink: &mut TextSink, value: &StyleValueData, mode: 
 
 /// Port of ColorStyleValue::serialize_hue_component, which prints through AK's four-digit
 /// precision formatting instead of serialize_a_number.
-fn serialize_hue_component(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) -> bool {
+fn serialize_hue_component(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) {
     use crate::css::color_resolution::{EMPTY_INPUT, resolve_hue};
     if matches!(value, StyleValueData::Keyword { keyword: code } if *code == keyword::NONE) {
         sink.push_ascii("none");
-        return true;
+        return;
     }
     if matches!(value, StyleValueData::Calculated { .. }) && mode == SerializationMode::Normal {
         return serialize_style_value(sink, value, mode);
@@ -2946,7 +2522,6 @@ fn serialize_hue_component(sink: &mut TextSink, value: &StyleValueData, mode: Se
     match resolve_hue(value, &EMPTY_INPUT) {
         Some(resolved) => {
             format_double_with_precision(sink, resolved, 4, false);
-            true
         }
         None => serialize_style_value(sink, value, mode),
     }
@@ -2960,7 +2535,7 @@ fn serialize_color_function_form(
     channels: &[&crate::css::style_value::RetainedStyleValueData; 3],
     alpha: &crate::css::style_value::RetainedStyleValueData,
     mode: SerializationMode,
-) -> bool {
+) {
     // Converts percentages (and, in resolved mode, calc percentages and numbers) to plain
     // numbers; other values serialize as themselves.
     enum Converted<'a> {
@@ -2985,14 +2560,11 @@ fn serialize_color_function_form(
         }
         Converted::Original(value)
     }
-    let serialize_converted = |sink: &mut TextSink, converted: &Converted| -> bool {
-        match converted {
-            Converted::Number(number) => {
-                serialize_a_number(sink, *number, mode);
-                true
-            }
-            Converted::Original(value) => serialize_style_value(sink, value, mode),
+    let serialize_converted = |sink: &mut TextSink, converted: &Converted| match converted {
+        Converted::Number(number) => {
+            serialize_a_number(sink, *number, mode);
         }
+        Converted::Original(value) => serialize_style_value(sink, value, mode),
     };
 
     // An omitted alpha is treated as 1 and not serialized. Like the C++ serializer, the
@@ -3022,21 +2594,13 @@ fn serialize_color_function_form(
         if index > 0 {
             sink.push_ascii(" ");
         }
-        let Some(channel) = channel.optional_data() else {
-            return false;
-        };
-        if !serialize_converted(sink, &convert_percentage(channel, mode)) {
-            return false;
-        }
+        serialize_converted(sink, &convert_percentage(channel.data(), mode));
     }
     if is_alpha_required && let Some(converted_alpha) = &converted_alpha {
         sink.push_ascii(" / ");
-        if !serialize_converted(sink, converted_alpha) {
-            return false;
-        }
+        serialize_converted(sink, converted_alpha);
     }
     sink.push_ascii(")");
-    true
 }
 
 /// Serializes a sink's accumulated contents with the serialize-a-string rules.
@@ -3055,10 +2619,10 @@ fn serialize_a_string_sink(sink: &mut TextSink, contents: &TextSink) {
 fn grid_track_list_has_intrinsic_auto_repeat(entries: &[crate::css::style_value::RetainedGridTrackEntry]) -> bool {
     use crate::css::style_value::GridTrackEntryKind;
 
-    let breadth_is_fixed = |value: Option<&StyleValueData>| {
+    let breadth_is_fixed = |value: &StyleValueData| {
         matches!(
             value,
-            Some(StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated { .. })
+            StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated { .. }
         )
     };
     entries.iter().any(|entry| {
@@ -3067,10 +2631,9 @@ fn grid_track_list_has_intrinsic_auto_repeat(entries: &[crate::css::style_value:
             return false;
         }
         entry.repeat_entries().iter().any(|repeated| match repeated.kind {
-            GridTrackEntryKind::Size => !breadth_is_fixed(repeated.size_value.optional_data()),
+            GridTrackEntryKind::Size => !breadth_is_fixed(repeated.size_value.data()),
             GridTrackEntryKind::MinMax => {
-                !breadth_is_fixed(repeated.min_value.optional_data())
-                    && !breadth_is_fixed(repeated.max_value.optional_data())
+                !breadth_is_fixed(repeated.min_value.data()) && !breadth_is_fixed(repeated.max_value.data())
             }
             _ => false,
         })
@@ -3082,18 +2645,18 @@ fn serialize_grid_track_size_list(
     is_subgrid: bool,
     entries: &[crate::css::style_value::RetainedGridTrackEntry],
     mode: SerializationMode,
-) -> bool {
+) {
     use crate::css::style_value::GridTrackEntryKind;
 
     if is_subgrid {
         sink.push_ascii("subgrid");
         if entries.is_empty() {
-            return true;
+            return;
         }
         sink.push_ascii(" ");
     } else if entries.is_empty() {
         sink.push_ascii("none");
-        return true;
+        return;
     }
     for (index, entry) in entries.iter().enumerate() {
         if index > 0 {
@@ -3111,25 +2674,13 @@ fn serialize_grid_track_size_list(
                 sink.push_ascii("]");
             }
             GridTrackEntryKind::Size => {
-                let Some(size) = entry.size_value.optional_data() else {
-                    return false;
-                };
-                if !serialize_style_value(sink, size, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, entry.size_value.data(), mode);
             }
             GridTrackEntryKind::MinMax => {
-                let (Some(min), Some(max)) = (entry.min_value.optional_data(), entry.max_value.optional_data()) else {
-                    return false;
-                };
                 sink.push_ascii("minmax(");
-                if !serialize_style_value(sink, min, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, entry.min_value.data(), mode);
                 sink.push_ascii(", ");
-                if !serialize_style_value(sink, max, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, entry.max_value.data(), mode);
                 sink.push_ascii(")");
             }
             GridTrackEntryKind::Repeat => {
@@ -3139,23 +2690,15 @@ fn serialize_grid_track_size_list(
                     0 => sink.push_ascii("auto-fit"),
                     1 => sink.push_ascii("auto-fill"),
                     _ => {
-                        let Some(repeat_count) = entry.repeat_count.optional_data() else {
-                            return false;
-                        };
-                        if !serialize_style_value(sink, repeat_count, mode) {
-                            return false;
-                        }
+                        serialize_style_value(sink, entry.repeat_count.data(), mode);
                     }
                 }
                 sink.push_ascii(", ");
-                if !serialize_grid_track_size_list(sink, entry.repeat_is_subgrid, entry.repeat_entries(), mode) {
-                    return false;
-                }
+                serialize_grid_track_size_list(sink, entry.repeat_is_subgrid, entry.repeat_entries(), mode);
                 sink.push_ascii(")");
             }
         }
     }
-    true
 }
 
 /// Port of StringBuilder::append_escaped_for_json over UTF-16 code units.
@@ -3251,7 +2794,7 @@ fn serialize_shorthand(
     sub_properties: &[u16],
     values: &crate::css::style_value::RetainedStyleValueDataList,
     mode: SerializationMode,
-) -> bool {
+) {
     use crate::css::property_metadata::{POSITIONAL_VALUE_LIST_SHORTHANDS, property_id, property_initial_value};
     use crate::css::style_compute::{expand_shorthands_with, value_is_css_wide_keyword};
 
@@ -3282,12 +2825,12 @@ fn serialize_shorthand(
         if all_same_keyword {
             sink.push_ascii(keyword::NAMES[code as usize]);
         }
-        return true;
+        return;
     }
 
     let longhand = |id: u16| -> Option<&StyleValueData> {
         let index = sub_properties.iter().position(|&sub| sub == id)?;
-        values.as_slice().get(index)?.optional_data()
+        values.as_slice().get(index).map(|value| value.data())
     };
     let property_is_shorthand = |id: u16| !crate::css::property_metadata::longhands_for_shorthand(id).is_empty();
     let initial_source = |id: u16| -> Option<&'static str> {
@@ -3296,36 +2839,26 @@ fn serialize_shorthand(
         }
         Some(property_initial_value(id))
     };
-    let sub_sink = |value: &StyleValueData| -> Option<TextSink> {
+    let sub_sink = |value: &StyleValueData| {
         let mut serialized = TextSink::new();
-        serialize_style_value(&mut serialized, value, mode).then_some(serialized)
+        serialize_style_value(&mut serialized, value, mode);
+        serialized
     };
 
-    let default_serialize = |sink: &mut TextSink| -> bool {
+    let default_serialize = |sink: &mut TextSink| {
         let entries = values.as_slice();
-        let first_value = entries.first().and_then(|value| value.optional_data());
-        let Some(first_value) = first_value else {
-            return false;
-        };
-        if entries
-            .iter()
-            .all(|value| value.optional_data().is_some_and(|value| value == first_value))
-        {
+        let first_value = entries.first().expect("Shorthand style values contain values").data();
+        if entries.iter().all(|value| value.data() == first_value) {
             return serialize_style_value(sink, first_value, mode);
         }
         let mut first = true;
         for (index, value) in entries.iter().enumerate() {
-            let Some(value) = value.optional_data() else {
-                return false;
-            };
-            let Some(value_sink) = sub_sink(value) else {
-                return false;
-            };
+            let value_sink = sub_sink(value.data());
             let mut initial_sink = TextSink::new();
             if let Some(source) = initial_source(sub_properties[index]) {
                 initial_sink.push_ascii(source);
-            } else if !serialize_style_value(&mut initial_sink, &shorthand::initial(sub_properties[index]), mode) {
-                return false;
+            } else {
+                serialize_style_value(&mut initial_sink, &shorthand::initial(sub_properties[index]), mode);
             }
             if value_sink.content_equals(&initial_sink)
                 || value_sink.content_equals_ascii_case_insensitive(&initial_sink)
@@ -3342,15 +2875,14 @@ fn serialize_shorthand(
         // NOTE: Like the C++ serializer, this checks the whole builder, not just this
         //       shorthand's own output.
         if sink.len() == 0 {
-            return serialize_style_value(sink, first_value, mode);
+            serialize_style_value(sink, first_value, mode);
         }
-        true
     };
 
     if shorthand_property == property_id::ALL {
         // NOTE: 'all' can only be serialized in the case all sub-properties share the same
         //       CSS-wide keyword, which was handled above; serialize the empty string.
-        return true;
+        return;
     }
     if matches!(
         shorthand_property,
@@ -3361,7 +2893,7 @@ fn serialize_shorthand(
             longhand(property_id::BLOCK_ELLIPSIS),
             longhand(property_id::CONTINUE),
         ) else {
-            return false;
+            unreachable!("Shorthand style values must have valid value graphs");
         };
         let is_keyword = |value: &StyleValueData, expected| matches!(value, StyleValueData::Keyword { keyword: code } if *code == expected);
         let max_lines_is_none = is_keyword(max_lines, keyword::NONE);
@@ -3376,27 +2908,25 @@ fn serialize_shorthand(
             } else if !max_lines_is_none && block_ellipsis_is_auto && continue_is_legacy {
                 return serialize_style_value(sink, max_lines, mode);
             }
-            return true;
+            return;
         }
 
         if max_lines_is_none && is_keyword(block_ellipsis, keyword::NO_ELLIPSIS) && continue_is_auto {
             sink.push_ascii("none");
-            return true;
+            return;
         }
         if !continue_is_legacy && !is_keyword(continue_value, keyword::COLLAPSE) {
-            return true;
+            return;
         }
 
-        if !max_lines_is_none && !serialize_style_value(sink, max_lines, mode) {
-            return false;
+        if !max_lines_is_none {
+            serialize_style_value(sink, max_lines, mode);
         }
         if !block_ellipsis_is_auto || max_lines_is_none {
             if sink.len() != 0 {
                 sink.push_ascii(" ");
             }
-            if !serialize_style_value(sink, block_ellipsis, mode) {
-                return false;
-            }
+            serialize_style_value(sink, block_ellipsis, mode);
         }
         if continue_is_legacy {
             if sink.len() != 0 {
@@ -3404,7 +2934,7 @@ fn serialize_shorthand(
             }
             sink.push_ascii("-webkit-legacy");
         }
-        return true;
+        return;
     }
     if shorthand_property == property_id::BORDER_IMAGE {
         for (index, (id, separator)) in [
@@ -3421,13 +2951,11 @@ fn serialize_shorthand(
                 sink.push_ascii(separator);
             }
             let Some(value) = longhand(id) else {
-                return false;
+                unreachable!("Shorthand style values must have valid value graphs");
             };
-            if !serialize_style_value(sink, value, mode) {
-                return false;
-            }
+            serialize_style_value(sink, value, mode);
         }
-        return true;
+        return;
     }
     if shorthand_property == property_id::BORDER_RADIUS {
         let corners = [
@@ -3436,8 +2964,7 @@ fn serialize_shorthand(
             longhand(property_id::BORDER_BOTTOM_RIGHT_RADIUS),
             longhand(property_id::BORDER_BOTTOM_LEFT_RADIUS),
         ];
-        let radius_sink = |corner: Option<&StyleValueData>, vertical: bool| -> Option<TextSink> {
-            let corner = corner?;
+        let radius_sink = |corner: &StyleValueData, vertical: bool| {
             if let StyleValueData::BorderRadius {
                 horizontal_radius,
                 vertical_radius,
@@ -3445,7 +2972,7 @@ fn serialize_shorthand(
             } = corner
             {
                 let radius = if vertical { vertical_radius } else { horizontal_radius };
-                return sub_sink(radius.optional_data()?);
+                return sub_sink(radius.data());
             }
             sub_sink(corner)
         };
@@ -3473,14 +3000,9 @@ fn serialize_shorthand(
         let mut horizontal = Vec::with_capacity(4);
         let mut vertical = Vec::with_capacity(4);
         for corner in corners {
-            horizontal.push(match radius_sink(corner, false) {
-                Some(serialized) => serialized,
-                None => return false,
-            });
-            vertical.push(match radius_sink(corner, true) {
-                Some(serialized) => serialized,
-                None => return false,
-            });
+            let corner = corner.expect("Shorthand style values retain their required corners");
+            horizontal.push(radius_sink(corner, false));
+            vertical.push(radius_sink(corner, true));
         }
         let horizontal: [TextSink; 4] = horizontal.try_into().ok().unwrap();
         let vertical: [TextSink; 4] = vertical.try_into().ok().unwrap();
@@ -3493,7 +3015,7 @@ fn serialize_shorthand(
             sink.push_ascii(" / ");
             sink.push_sink(&vertical_sink);
         }
-        return true;
+        return;
     }
     if matches!(
         shorthand_property,
@@ -3502,9 +3024,9 @@ fn serialize_shorthand(
         let Some(serialized_longhand) = sub_properties
             .first()
             .and_then(|&longhand_id| longhand(longhand_id))
-            .and_then(&sub_sink)
+            .map(&sub_sink)
         else {
-            return false;
+            unreachable!("Shorthand style values must have valid value graphs");
         };
         let legacy_keyword_passes_through = ["auto", "avoid", "left", "right"]
             .iter()
@@ -3518,15 +3040,15 @@ fn serialize_shorthand(
         {
             sink.push_ascii("avoid");
         }
-        return true;
+        return;
     }
     if shorthand_property == property_id::COLUMNS {
         let (Some(width), Some(count), Some(height)) = (
-            longhand(property_id::COLUMN_WIDTH).and_then(&sub_sink),
-            longhand(property_id::COLUMN_COUNT).and_then(&sub_sink),
-            longhand(property_id::COLUMN_HEIGHT).and_then(&sub_sink),
+            longhand(property_id::COLUMN_WIDTH).map(&sub_sink),
+            longhand(property_id::COLUMN_COUNT).map(&sub_sink),
+            longhand(property_id::COLUMN_HEIGHT).map(&sub_sink),
         ) else {
-            return false;
+            unreachable!("Shorthand style values must have valid value graphs");
         };
         if width.content_equals(&count) {
             sink.push_sink(&width);
@@ -3543,7 +3065,7 @@ fn serialize_shorthand(
             sink.push_ascii(" / ");
             sink.push_sink(&height);
         }
-        return true;
+        return;
     }
     if shorthand_property == property_id::FLEX {
         for (index, id) in [
@@ -3558,39 +3080,31 @@ fn serialize_shorthand(
                 sink.push_ascii(" ");
             }
             let Some(value) = longhand(id) else {
-                return false;
+                unreachable!("Shorthand style values must have valid value graphs");
             };
-            if !serialize_style_value(sink, value, mode) {
-                return false;
-            }
+            serialize_style_value(sink, value, mode);
         }
-        return true;
+        return;
     }
     if shorthand_property == property_id::CONTAINER {
         let (Some(name), Some(container_type)) = (
             longhand(property_id::CONTAINER_NAME),
             longhand(property_id::CONTAINER_TYPE),
         ) else {
-            return false;
+            unreachable!("Shorthand style values must have valid value graphs");
         };
-        if !serialize_style_value(sink, name, mode) {
-            return false;
-        }
+        serialize_style_value(sink, name, mode);
         let Some(container_type_initial) = initial_source(property_id::CONTAINER_TYPE) else {
-            return false;
+            unreachable!("Shorthand style values must have valid value graphs");
         };
-        let Some(container_type_sink) = sub_sink(container_type) else {
-            return false;
-        };
+        let container_type_sink = sub_sink(container_type);
         let mut container_type_initial_sink = TextSink::new();
         container_type_initial_sink.push_ascii(container_type_initial);
         if !container_type_sink.content_equals(&container_type_initial_sink) {
             sink.push_ascii(" / ");
-            if !serialize_style_value(sink, container_type, mode) {
-                return false;
-            }
+            serialize_style_value(sink, container_type, mode);
         }
-        return true;
+        return;
     }
     if shorthand_property == property_id::GRID_COLUMN || shorthand_property == property_id::GRID_ROW {
         let (start_id, end_id) = if shorthand_property == property_id::GRID_COLUMN {
@@ -3599,7 +3113,7 @@ fn serialize_shorthand(
             (property_id::GRID_ROW_START, property_id::GRID_ROW_END)
         };
         let (Some(start), Some(end)) = (longhand(start_id), longhand(end_id)) else {
-            return false;
+            unreachable!("Shorthand style values must have valid value graphs");
         };
         let end_is_auto_placement = matches!(end, StyleValueData::GridTrackPlacement { kind: 0, .. });
         // NB: When the start line is a lone <custom-ident>, omitting the end line would make it copy
@@ -3608,9 +3122,7 @@ fn serialize_shorthand(
         if start == end || (end_is_auto_placement && !start_is_lone_custom_ident) {
             return serialize_style_value(sink, start, mode);
         }
-        if !serialize_style_value(sink, start, mode) {
-            return false;
-        }
+        serialize_style_value(sink, start, mode);
         sink.push_ascii(" / ");
         return serialize_style_value(sink, end, mode);
     }
@@ -3618,11 +3130,7 @@ fn serialize_shorthand(
         || shorthand_property == property_id::PLACE_ITEMS
         || shorthand_property == property_id::PLACE_SELF
     {
-        let entries: Vec<&StyleValueData> = match values.as_slice().iter().map(|value| value.optional_data()).collect()
-        {
-            Some(entries) => entries,
-            None => return false,
-        };
+        let entries: Vec<&StyleValueData> = values.as_slice().iter().map(|value| value.data()).collect();
         return serialize_a_positional_value_list(sink, &entries, mode);
     }
     if shorthand_property == property_id::TEXT_DECORATION {
@@ -3635,29 +3143,25 @@ fn serialize_shorthand(
             property_id::TEXT_DECORATION_COLOR,
         ] {
             let (Some(value), Some(initial_source)) = (longhand(id), initial_source(id)) else {
-                return false;
+                unreachable!("Shorthand style values must have valid value graphs");
             };
-            let Some(value_sink) = sub_sink(value) else {
-                return false;
-            };
+            let value_sink = sub_sink(value);
             let mut initial_sink = TextSink::new();
             initial_sink.push_ascii(initial_source);
             if !value_sink.content_equals(&initial_sink) {
                 if sink.len() != 0 {
                     sink.push_ascii(" ");
                 }
-                if !serialize_style_value(sink, value, mode) {
-                    return false;
-                }
+                serialize_style_value(sink, value, mode);
             }
         }
         if sink.len() == 0 {
             let Some(line) = longhand(property_id::TEXT_DECORATION_LINE) else {
-                return false;
+                unreachable!("Shorthand style values must have valid value graphs");
             };
             return serialize_style_value(sink, line, mode);
         }
-        return true;
+        return;
     }
     if shorthand_property == property_id::WHITE_SPACE {
         let (Some(collapse), Some(wrap_mode), Some(trim)) = (
@@ -3665,7 +3169,7 @@ fn serialize_shorthand(
             longhand(property_id::TEXT_WRAP_MODE),
             longhand(property_id::WHITE_SPACE_TRIM),
         ) else {
-            return false;
+            unreachable!("Shorthand style values must have valid value graphs");
         };
         if matches!(trim, StyleValueData::Keyword { keyword: code } if *code == keyword::NONE)
             && let (StyleValueData::Keyword { keyword: collapse }, StyleValueData::Keyword { keyword: wrap_mode }) =
@@ -3680,7 +3184,7 @@ fn serialize_shorthand(
             };
             if let Some(short) = short {
                 sink.push_ascii(short);
-                return true;
+                return;
             }
         }
         return default_serialize(sink);
@@ -3706,14 +3210,10 @@ fn serialize_shorthand(
         return shorthand::serialize(sink, whole_value, shorthand_property, mode, default_serialize);
     }
     if POSITIONAL_VALUE_LIST_SHORTHANDS.contains(&shorthand_property) {
-        let entries: Vec<&StyleValueData> = match values.as_slice().iter().map(|value| value.optional_data()).collect()
-        {
-            Some(entries) => entries,
-            None => return false,
-        };
+        let entries: Vec<&StyleValueData> = values.as_slice().iter().map(|value| value.data()).collect();
         return serialize_a_positional_value_list(sink, &entries, mode);
     }
-    default_serialize(sink)
+    default_serialize(sink);
 }
 
 /// Transfers a native `AK::Utf16String` ownership reference without copying.
@@ -3728,7 +3228,7 @@ pub(crate) fn sink_into_raw(sink: TextSink) -> usize {
     string.into_raw()
 }
 
-/// Serializes a style value into native ASCII-or-UTF-16 storage, returning zero on failure.
+/// Serializes a style value into native ASCII-or-UTF-16 storage.
 ///
 /// # Safety
 /// `value` must point at live style value data.
@@ -3736,9 +3236,7 @@ pub(crate) fn sink_into_raw(sink: TextSink) -> usize {
 pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: u8) -> usize {
     let value = unsafe { &*value.cast::<StyleValueData>() };
     let mut sink = TextSink::new();
-    if !serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode)) {
-        return 0;
-    }
+    serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode));
     sink_into_raw(sink)
 }
 

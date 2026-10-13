@@ -967,11 +967,10 @@ static bool property_computed_value_may_be_stored_as_style_value_handle(Property
 }
 
 // Serialize native value data without constructing a C++ style value wrapper.
-static Optional<Utf16String> serialize_style_value_handle(RustStyleValueHandle const& handle, SerializationMode mode)
+static Utf16String serialize_style_value_handle(RustStyleValueHandle const& handle, SerializationMode mode)
 {
     auto text = StyleValueFFI::rust_style_value_serialize(handle.data(), to_underlying(mode));
-    if (!text)
-        return {};
+    VERIFY(text);
     return Utf16String::adopt_raw(text);
 }
 

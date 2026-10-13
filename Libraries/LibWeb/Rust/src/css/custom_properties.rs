@@ -374,8 +374,9 @@ impl CustomPropertyRegistry {
         if let Some((_, parsed)) = parses.get(&key) {
             return parsed.clone();
         }
-        let parsed = crate::css::serialize::serialize_resolved_style_value_to_utf16(value.data())
-            .and_then(|source| self.parse_registered_value(registration, &source))
+        let source = crate::css::serialize::serialize_resolved_style_value_to_utf16(value.data());
+        let parsed = self
+            .parse_registered_value(registration, &source)
             .map(RetainedStyleValueData::from_owned);
         if parses.len() >= MAX_REGISTERED_VALUE_PARSES {
             parses.clear();
@@ -498,8 +499,7 @@ impl CustomPropertyRegistry {
 
         // A value an attr() substituted into stays tainted, as an unresolved value carrying what
         // it computed to.
-        let source =
-            crate::css::serialize::serialize_resolved_style_value_to_utf16(computed.data()).unwrap_or_default();
+        let source = crate::css::serialize::serialize_resolved_style_value_to_utf16(computed.data());
         let mut wrapped = crate::css::parser::value_parser::unresolved_value(
             &source,
             &[],
@@ -1079,7 +1079,7 @@ fn single_css_wide_keyword(tokens: &[OwnedToken]) -> Option<&[u16]> {
     .then_some(keyword.as_slice())
 }
 
-fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool, bool)> {
+fn tokens_for_custom_property_value(data: &StyleValueData) -> (Vec<OwnedToken>, bool, bool) {
     if let StyleValueData::Unresolved {
         presence_attr,
         presence_dashed_function,
@@ -1105,7 +1105,7 @@ fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedT
                 tokens.pop();
             }
         }
-        return Some((
+        return (
             tokens,
             *presence_var
                 || *presence_attr
@@ -1114,29 +1114,29 @@ fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedT
                 || *presence_if
                 || *presence_inherit,
             *contains_attr_tainted_values,
-        ));
+        );
     }
-    let source = crate::css::serialize::serialize_style_value_to_utf16(data)?;
-    Some((tokenize_owned(&source), false, false))
+    let source = crate::css::serialize::serialize_style_value_to_utf16(data);
+    (tokenize_owned(&source), false, false)
 }
 
 fn cached_tokens_for_custom_property_value(
     data: &StyleValueData,
     context: &mut ASFResolutionContext<'_>,
-) -> Option<(Arc<[OwnedToken]>, bool, bool)> {
+) -> (Arc<[OwnedToken]>, bool, bool) {
     let key = std::ptr::from_ref(data);
     if let Some(cached) = context.token_cache.as_deref().and_then(|cache| cache.get(&key)) {
-        return Some(cached.clone());
+        return cached.clone();
     }
-    let (tokens, includes_substitution, contains_attr_tainted_values) = tokens_for_custom_property_value(data)?;
+    let (tokens, includes_substitution, contains_attr_tainted_values) = tokens_for_custom_property_value(data);
     let result = (Arc::from(tokens), includes_substitution, contains_attr_tainted_values);
     if let Some(cache) = context.token_cache.as_deref_mut() {
         cache.insert(key, result.clone());
     }
-    Some(result)
+    result
 }
 
-fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool)> {
+fn tokens_for_function_value(data: &StyleValueData) -> (Vec<OwnedToken>, bool) {
     if let StyleValueData::Unresolved {
         presence_attr,
         presence_dashed_function,
@@ -1147,7 +1147,7 @@ fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, 
         ..
     } = data
     {
-        return Some((
+        return (
             tokenize_owned(
                 data.unresolved_token_source()
                     .expect("unresolved values provide token source"),
@@ -1158,10 +1158,10 @@ fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, 
                 || *presence_env
                 || *presence_if
                 || *presence_inherit,
-        ));
+        );
     }
-    let source = crate::css::serialize::serialize_style_value_to_utf16(data)?;
-    Some((tokenize_owned(&source), false))
+    let source = crate::css::serialize::serialize_style_value_to_utf16(data);
+    (tokenize_owned(&source), false)
 }
 
 /// An array the host lends, empty when it has no entries.
@@ -1180,20 +1180,22 @@ fn custom_function_registry(
     definitions: &[SubstitutionFunctionDefinition],
     caller_scope_identity: usize,
     visibilities: &[FfiSubstitutionFunctionVisibility],
-) -> Option<CustomFunctionRegistry> {
+) -> CustomFunctionRegistry {
     let mut parsed_definitions = Vec::with_capacity(definitions.len());
     for definition in definitions {
         let signature = definition.signature.clone();
         let mut parameter_defaults = Vec::with_capacity(signature.parameters.len());
         for parameter in &signature.parameters {
-            parameter_defaults.push(match &parameter.default_value {
-                Some(data) => Some(tokens_for_function_value(data)?.0),
-                None => None,
-            });
+            parameter_defaults.push(
+                parameter
+                    .default_value
+                    .as_ref()
+                    .map(|data| tokens_for_function_value(data).0),
+            );
         }
         let mut parsed_declarations = Vec::with_capacity(definition.declarations.len());
         for declaration in &definition.declarations {
-            let (tokens, includes_substitution) = tokens_for_function_value(&declaration.value)?;
+            let (tokens, includes_substitution) = tokens_for_function_value(&declaration.value);
             parsed_declarations.push((declaration.name.units().to_vec(), tokens, includes_substitution));
         }
         parsed_definitions.push(CustomFunctionDefinition {
@@ -1214,11 +1216,11 @@ fn custom_function_registry(
             Some((visibility.caller_scope_identity, index?))
         })
         .collect();
-    Some(CustomFunctionRegistry {
+    CustomFunctionRegistry {
         caller_scope_identity,
         definitions: parsed_definitions,
         visible,
-    })
+    }
 }
 
 /// Builds the element-wide immutable substitution inputs once for all declarations in a cascade.
@@ -1227,7 +1229,7 @@ pub(crate) fn prepare_var_resolution_environment(
     custom_functions: &[SubstitutionFunctionDefinition],
     custom_function_scope_identity: usize,
     custom_function_visibilities: &[FfiSubstitutionFunctionVisibility],
-) -> Option<VarResolutionEnvironment> {
+) -> VarResolutionEnvironment {
     let attributes = attributes
         .iter()
         .map(|attribute| (attribute.name.to_vec(), attribute.value.to_vec()))
@@ -1236,12 +1238,12 @@ pub(crate) fn prepare_var_resolution_environment(
         custom_functions,
         custom_function_scope_identity,
         custom_function_visibilities,
-    )?;
-    Some(VarResolutionEnvironment {
+    );
+    VarResolutionEnvironment {
         attributes,
         custom_functions,
         token_cache: HashMap::new(),
-    })
+    }
 }
 
 fn registration_accepts_tokens(
@@ -1344,11 +1346,7 @@ fn normalize_function_tokens(
     } else {
         None
     };
-    let Some(source) =
-        crate::css::serialize::serialize_resolved_style_value_to_utf16(computed.as_ref().unwrap_or(&parsed))
-    else {
-        return TokenResolution::Invalid;
-    };
+    let source = crate::css::serialize::serialize_resolved_style_value_to_utf16(computed.as_ref().unwrap_or(&parsed));
     TokenResolution::from_source(&source)
 }
 
@@ -1497,11 +1495,8 @@ fn resolve_custom_property_with_lookup(
         if matches!(data, StyleValueData::GuaranteedInvalid) {
             return TokenResolution::Invalid;
         }
-        let Some((tokens, includes_substitution, contains_attr_tainted_values)) =
-            cached_tokens_for_custom_property_value(data, context)
-        else {
-            return TokenResolution::NotHandled;
-        };
+        let (tokens, includes_substitution, contains_attr_tainted_values) =
+            cached_tokens_for_custom_property_value(data, context);
         context.contains_attr_tainted_values |= contains_attr_tainted_values;
         if !includes_substitution {
             return TokenResolution::Resolved(tokens.to_vec());
@@ -1526,11 +1521,7 @@ fn resolve_custom_property_with_lookup(
     if matches!(data, StyleValueData::GuaranteedInvalid) {
         return TokenResolution::Invalid;
     }
-    let Some((source, includes_var, contains_attr_tainted_values)) =
-        cached_tokens_for_custom_property_value(data, context)
-    else {
-        return TokenResolution::NotHandled;
-    };
+    let (source, includes_var, contains_attr_tainted_values) = cached_tokens_for_custom_property_value(data, context);
     context.contains_attr_tainted_values |= contains_attr_tainted_values;
     if lookup == CustomPropertyLookup::ExplicitInheritance {
         context
@@ -2904,7 +2895,7 @@ fn parse_attr_value_with_syntax(
     let registry = registry?;
     let mut random_function_index = 0;
     let parsed = parse_with_syntax(&registry.parse_context(&mut random_function_index), source, syntax)?;
-    let serialized = crate::css::serialize::serialize_style_value_to_utf16(&parsed)?;
+    let serialized = crate::css::serialize::serialize_style_value_to_utf16(&parsed);
     Some(tokenize_owned(&serialized))
 }
 
@@ -3314,11 +3305,8 @@ pub(crate) fn resolve_vars(
         token_cache: Some(token_cache),
         ..Default::default()
     };
-    let Some((source, includes_substitution, contains_attr_tainted_values)) =
-        cached_tokens_for_custom_property_value(value_data, &mut context)
-    else {
-        return NativeVarResolution::NotHandled;
-    };
+    let (source, includes_substitution, contains_attr_tainted_values) =
+        cached_tokens_for_custom_property_value(value_data, &mut context);
     // A value holding no substitution function has nothing to resolve: it is invalid at
     // computed-value time, as every caller takes an unresolved value it cannot substitute.
     if !includes_substitution {
