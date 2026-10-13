@@ -42,7 +42,7 @@ mod protection_key {
     unsafe extern "C" {
         /// glibc's wrapper of WRPKRU for one key.
         fn pkey_set(key: libc::c_int, rights: libc::c_uint) -> libc::c_int;
-        fn pkey_alloc(flags: libc::c_uint, access_rights: libc::c_uint) -> libc::c_int;
+        safe fn pkey_alloc(flags: libc::c_uint, access_rights: libc::c_uint) -> libc::c_int;
         pub fn pkey_mprotect(
             address: *mut libc::c_void,
             length: libc::size_t,
@@ -57,8 +57,7 @@ mod protection_key {
     pub fn key() -> Option<libc::c_int> {
         static KEY: OnceLock<Option<libc::c_int>> = OnceLock::new();
         *KEY.get_or_init(|| {
-            // SAFETY: pkey_alloc() has no preconditions.
-            let key = unsafe { pkey_alloc(0, PKEY_DISABLE_WRITE) };
+            let key = pkey_alloc(0, PKEY_DISABLE_WRITE);
             (key >= 0).then_some(key)
         })
     }
