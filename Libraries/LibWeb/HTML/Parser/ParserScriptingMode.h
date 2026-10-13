@@ -27,4 +27,10 @@ enum class ParserScriptingMode : u8 {
     Fragment,
 };
 
+// Whether the HTML fragment parsing algorithm may try the fragment fast path. Callers that have already tried it skip it.
+enum class FragmentFastPath : u8 {
+    Allow,
+    Skip,
+};
+
 }

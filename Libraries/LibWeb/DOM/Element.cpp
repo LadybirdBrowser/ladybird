@@ -2700,12 +2700,20 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(Utf16View html)
     auto* template_element = as_if<HTML::HTMLTemplateElement>(*this);
     if (template_element)
         target = template_element->content();
-    auto fragment = TRY(parse_fragment(target, html));
 
-    // 5. Replace all with fragment within target.
-    target.visit([&](auto node) {
-        node->replace_all(fragment);
-    });
+    // OPTIMIZATION: Markup the fast fragment parser supports needs no fragment. Inserting the parsed nodes directly
+    //               runs their insertion steps once and skips removing them from a fragment no one can observe.
+    GC::RootVector<GC::Ref<Node>> fast_parsed_nodes;
+    if (!template_element && HTML::HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(*this, html, fast_parsed_nodes)) {
+        replace_all(move(fast_parsed_nodes));
+    } else {
+        auto fragment = TRY(parse_fragment(target, html, HTML::ParserScriptingMode::Inert, HTML::FragmentFastPath::Skip));
+
+        // 5. Replace all with fragment within target.
+        target.visit([&](auto node) {
+            node->replace_all(fragment);
+        });
+    }
 
     // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
     if (!template_element) {
@@ -3934,7 +3942,7 @@ bool Element::is_actually_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode scripting_mode)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode scripting_mode, HTML::FragmentFastPath fast_path)
 {
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
@@ -3945,7 +3953,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Vari
         return XMLFragmentParser::parse_xml_fragment(target, markup);
 
     // 3. If context's node document is an XML document, then set newChildren to the result of invoking the XML fragment parsing algorithm given context and markup.
-    return HTML::HTMLParser::parse_html_fragment(target, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No, scripting_mode);
+    return HTML::HTMLParser::parse_html_fragment(target, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No, scripting_mode, fast_path);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml

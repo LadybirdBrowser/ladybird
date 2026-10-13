@@ -62,7 +62,12 @@ public:
     };
 
     static WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View markup,
-        AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert);
+        AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert, FragmentFastPath = FragmentFastPath::Allow);
+
+    // Parses a restricted subset of in-body markup in context. On success, appends the parsed top-level nodes to
+    // top_level_nodes. Their subtrees are linked without running the insertion steps, which inserting each top-level
+    // node into a parent runs for the whole subtree.
+    static bool try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& context, Utf16View, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes);
 
     enum class SerializableShadowRoots {
         No,

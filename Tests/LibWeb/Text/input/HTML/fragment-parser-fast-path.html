@@ -108,6 +108,16 @@ test(() => {
     host.innerHTML = '<div>before</div><fragment-parser-custom data-value="test"></fragment-parser-custom>';
     println(`Custom: ${reactions.join(', ')}`);
 
+    const spans = host.getElementsByTagName('span');
+    println(`Collection before: ${spans.length}`);
+    host.innerHTML = '<ul><li><div><span style="color: rgb(0, 128, 0)">deep</span></div></li></ul><span>top</span>';
+    const deep = host.querySelector('div > span');
+    println(`Collection after: ${spans.length}, ${deep.isConnected}, ${deep.parentNode.parentNode.parentNode.parentNode === host}, ${getComputedStyle(deep).color}`);
+    const range = document.createRange();
+    range.selectNodeContents(host);
+    const contextual = range.createContextualFragment('<div><span>in fragment</span></div>text');
+    println(`Contextual: ${contextual.childNodes.length}, ${contextual.firstChild.firstChild.parentNode === contextual.firstChild}, ${contextual.firstChild.isConnected}`);
+
     class CustomInput extends HTMLInputElement {}
     customElements.define('fragment-parser-input', CustomInput, { extends: 'input' });
     host.innerHTML = '<input is="fragment-parser-input" value="custom">';
