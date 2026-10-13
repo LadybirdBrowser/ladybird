@@ -35,6 +35,7 @@ pub mod bytecode_cache;
 pub mod class_blueprint;
 pub mod codegen;
 pub mod constant;
+#[cfg(not(test))]
 pub mod dump;
 pub mod encoded_value;
 #[cfg(not(test))]

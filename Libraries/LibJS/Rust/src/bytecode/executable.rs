@@ -15,6 +15,7 @@ use crate::breakpoint::BreakpointID;
 use crate::bytecode::basic_block::SourceMapEntry;
 use crate::bytecode::class_blueprint::ClassBlueprint;
 use crate::bytecode::constant::{AbstractOperationKind, WellKnownSymbolKind};
+use crate::bytecode::dump::{count_basic_blocks, dump_bytecode};
 use crate::bytecode::encoding::{IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex};
 use crate::bytecode::executable_data::ExecutableCacheCounts as FrontendExecutableCacheCounts;
 use crate::bytecode::executable_data::ExecutableData;
@@ -22,7 +23,7 @@ use crate::bytecode::feedback::{ExecutableFeedback, FeedbackSlotCounts};
 use crate::bytecode::generator::{ConstantValue, ExceptionHandler};
 use crate::bytecode::generator::{LocalVariable, PendingClassBlueprint};
 use crate::bytecode_cache::{DecodedBytecodeBytes, DecodedExecutableRecord};
-use crate::frontend_host::{count_bytecode_basic_blocks, dump_bytecode, rust_free_compiled_regex};
+use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
@@ -2112,11 +2113,7 @@ fn dump_metadata(output: &mut Vec<u8>, executable: &Executable) {
     const RESET: &str = "\x1b[0m";
 
     let _ = writeln!(output, "  {GREEN}Registers{RESET}: {}", executable.number_of_registers);
-    let _ = writeln!(
-        output,
-        "  {GREEN}Blocks{RESET}:    {}",
-        count_bytecode_basic_blocks(executable)
-    );
+    let _ = writeln!(output, "  {GREEN}Blocks{RESET}:    {}", count_basic_blocks(executable));
 
     if !executable.local_variable_names.is_empty() {
         let _ = write!(output, "  {GREEN}Locals{RESET}:    ");

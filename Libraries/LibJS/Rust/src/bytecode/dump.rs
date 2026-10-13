@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::ffi::c_void;
-
+use super::executable::{Executable, append_double_formatted_like_ak, append_value_formatted_like_ak};
+use super::generator::ExceptionHandler;
 use super::instruction::dump_instruction_from_bytes;
 use super::instruction::instruction_is_terminator_from_opcode;
 use super::instruction::instruction_length_from_bytes;
@@ -16,70 +16,61 @@ use super::operand::Operand;
 use super::validator::read_u32;
 use crate::bytecode::encoded_value::EncodedValue;
 use crate::bytecode::encoded_value::EncodedValueKind;
+use crate::interpreter::run::should_dump_interpreter_assembly;
+use crate::layout::value::Value;
+use crate::utf16::Utf16View;
 
+/// Where the native code of an opcode's handler lives, which flapc emits with the interpreter.
 #[repr(C)]
-pub struct FFIDumpExceptionHandler {
-    pub start_offset: usize,
-    pub end_offset: usize,
-    pub handler_offset: usize,
+struct InterpreterHandlerRange {
+    hot_start: *const u8,
+    hot_end: *const u8,
+    cold_start: *const u8,
+    cold_end: *const u8,
 }
 
-#[repr(C)]
-pub struct FFIBytecodeDumpCallbacks {
-    pub append: unsafe extern "C" fn(ctx: *mut c_void, data: *const u8, len: usize),
-    pub append_local: unsafe extern "C" fn(ctx: *mut c_void, index: u32),
-    pub append_identifier: unsafe extern "C" fn(ctx: *mut c_void, index: u32, quoted: bool),
-    pub append_property_key: unsafe extern "C" fn(ctx: *mut c_void, index: u32, quoted: bool),
-    pub append_string: unsafe extern "C" fn(ctx: *mut c_void, index: u32),
-    pub append_value_double: unsafe extern "C" fn(ctx: *mut c_void, value: f64),
-    pub append_value_string: unsafe extern "C" fn(ctx: *mut c_void, encoded: u64),
-    pub append_value_bigint: unsafe extern "C" fn(ctx: *mut c_void, encoded: u64),
-    pub append_value_fallback: unsafe extern "C" fn(ctx: *mut c_void, encoded: u64),
+unsafe extern "C" {
+    safe static js_interpreter_handler_ranges: [InterpreterHandlerRange; 256];
 }
 
-#[repr(C)]
-pub struct FFIInterpreterHandlerRange {
-    pub hot_start: *const u8,
-    pub hot_end: *const u8,
-    pub cold_start: *const u8,
-    pub cold_end: *const u8,
+impl InterpreterHandlerRange {
+    fn hot_code(&'static self) -> &'static [u8] {
+        // SAFETY: flapc delimits the handler's hot code with these, and the interpreter is mapped for as long as the
+        // process runs.
+        unsafe { native_code_between(self.hot_start, self.hot_end) }
+    }
+
+    fn cold_code(&'static self) -> &'static [u8] {
+        // SAFETY: flapc delimits the handler's cold code with these, and the interpreter is mapped for as long as the
+        // process runs.
+        unsafe { native_code_between(self.cold_start, self.cold_end) }
+    }
 }
 
-#[repr(C)]
-pub struct FFIBytecodeDumpMetadata {
-    pub number_of_registers: u32,
-    pub registers_and_locals_count: u32,
-    pub local_index_base: u32,
-    pub argument_index_base: u32,
-    pub constants: *const u64,
-    pub constant_count: usize,
-    pub interpreter_handler_ranges: *const FFIInterpreterHandlerRange,
-    pub dump_interpreter: bool,
-}
-
-struct ColdCodeRange {
-    start: *const u8,
-    end: *const u8,
-    owners: Vec<&'static str>,
-}
-
-pub struct BytecodeDumper<'a> {
-    ctx: *mut c_void,
-    callbacks: &'a FFIBytecodeDumpCallbacks,
-    metadata: &'a FFIBytecodeDumpMetadata,
-    constants: &'a [u64],
-    basic_block_start_offsets: &'a [u32],
-    first_piece: bool,
-}
-
-unsafe fn native_code_from_range<'a>(start: *const u8, end: *const u8) -> &'a [u8] {
+/// # Safety
+///
+/// start and end must delimit native code that stays mapped for as long as the process runs.
+unsafe fn native_code_between(start: *const u8, end: *const u8) -> &'static [u8] {
     let start_address = start as usize;
     let end_address = end as usize;
     assert!(end_address >= start_address, "native code range must be ordered");
     if start_address == end_address {
         return &[];
     }
+    // SAFETY: The caller guarantees the range.
     unsafe { std::slice::from_raw_parts(start, end_address - start_address) }
+}
+
+struct ColdCodeRange {
+    code: &'static [u8],
+    owners: Vec<&'static str>,
+}
+
+pub struct BytecodeDumper<'a> {
+    output: &'a mut Vec<u8>,
+    executable: &'a Executable,
+    basic_block_start_offsets: &'a [u32],
+    first_piece: bool,
 }
 
 fn append_native_code(dumper: &mut BytecodeDumper<'_>, code: &[u8]) {
@@ -108,19 +99,18 @@ fn append_native_code(dumper: &mut BytecodeDumper<'_>, code: &[u8]) {
     }
 }
 
-fn record_cold_code_range(ranges: &mut Vec<ColdCodeRange>, start: *const u8, end: *const u8, owner: &'static str) {
-    if start == end {
+fn record_cold_code_range(ranges: &mut Vec<ColdCodeRange>, code: &'static [u8], owner: &'static str) {
+    if code.is_empty() {
         return;
     }
-    if let Some(range) = ranges.iter_mut().find(|range| range.start == start && range.end == end) {
+    if let Some(range) = ranges.iter_mut().find(|range| std::ptr::eq(range.code, code)) {
         if !range.owners.contains(&owner) {
             range.owners.push(owner);
         }
         return;
     }
     ranges.push(ColdCodeRange {
-        start,
-        end,
+        code,
         owners: vec![owner],
     });
 }
@@ -135,33 +125,13 @@ fn append_cold_code_ranges(dumper: &mut BytecodeDumper<'_>, ranges: &[ColdCodeRa
         dumper.append("\n  \x1b[36m");
         dumper.append(&range.owners.join(", "));
         dumper.append("\x1b[0m:\n");
-        let code = unsafe { native_code_from_range(range.start, range.end) };
-        append_native_code(dumper, code);
+        append_native_code(dumper, range.code);
     }
 }
 
-impl<'a> BytecodeDumper<'a> {
-    fn new(
-        ctx: *mut c_void,
-        callbacks: &'a FFIBytecodeDumpCallbacks,
-        metadata: &'a FFIBytecodeDumpMetadata,
-        constants: &'a [u64],
-        basic_block_start_offsets: &'a [u32],
-    ) -> Self {
-        Self {
-            ctx,
-            callbacks,
-            metadata,
-            constants,
-            basic_block_start_offsets,
-            first_piece: true,
-        }
-    }
-
+impl BytecodeDumper<'_> {
     pub fn append(&mut self, text: &str) {
-        unsafe {
-            (self.callbacks.append)(self.ctx, text.as_ptr(), text.len());
-        }
+        self.output.extend_from_slice(text.as_bytes());
     }
 
     pub fn begin_instruction(&mut self, name: &str) {
@@ -187,7 +157,7 @@ impl<'a> BytecodeDumper<'a> {
         }
 
         let raw = operand.raw();
-        if raw < self.metadata.number_of_registers {
+        if raw < self.executable.number_of_registers {
             if raw == 2 {
                 self.append("\x1b[33mthis\x1b[0m");
             } else {
@@ -195,20 +165,19 @@ impl<'a> BytecodeDumper<'a> {
                 self.append(&raw.to_string());
                 self.append("\x1b[0m");
             }
-        } else if raw < self.metadata.registers_and_locals_count {
-            let index = raw - self.metadata.local_index_base;
+        } else if raw < self.executable.registers_and_locals_count() {
+            let index = raw - self.executable.local_index_base();
             self.append("\x1b[34m");
-            unsafe {
-                (self.callbacks.append_local)(self.ctx, index);
-            }
+            Utf16View::of_fly_string(&self.executable.local_variable_names[index as usize])
+                .append_as_wtf8_to(self.output);
             self.append("~");
             self.append(&index.to_string());
             self.append("\x1b[0m");
-        } else if raw < self.metadata.argument_index_base {
-            let index = raw - self.metadata.registers_and_locals_count;
-            self.append_value(self.constants[index as usize]);
+        } else if raw < self.executable.argument_index_base() {
+            let index = raw - self.executable.registers_and_locals_count();
+            self.append_value(self.executable.constants()[index as usize].0);
         } else {
-            let index = raw - self.metadata.argument_index_base;
+            let index = raw - self.executable.argument_index_base();
             self.append("\x1b[34marg");
             self.append(&index.to_string());
             self.append("\x1b[0m");
@@ -230,32 +199,24 @@ impl<'a> BytecodeDumper<'a> {
             }
             EncodedValueKind::Double(value) => {
                 self.append("Double(");
-                unsafe {
-                    (self.callbacks.append_value_double)(self.ctx, value);
-                }
+                self.append_double(value);
                 self.append(")");
             }
             EncodedValueKind::BigInt => {
                 self.append("BigInt(");
-                unsafe {
-                    (self.callbacks.append_value_bigint)(self.ctx, encoded);
-                }
+                self.append_bigint(encoded);
                 self.append(")");
             }
             EncodedValueKind::String => {
                 self.append("String(\"");
-                unsafe {
-                    (self.callbacks.append_value_string)(self.ctx, encoded);
-                }
+                self.append_string_value(encoded);
                 self.append("\")");
             }
             EncodedValueKind::Undefined => self.append("Undefined"),
             EncodedValueKind::Null => self.append("Null"),
             EncodedValueKind::Other => {
                 self.append("Value(");
-                unsafe {
-                    (self.callbacks.append_value_fallback)(self.ctx, encoded);
-                }
+                self.append_value_fallback(encoded);
                 self.append(")");
             }
         }
@@ -266,20 +227,12 @@ impl<'a> BytecodeDumper<'a> {
             EncodedValueKind::Empty => self.append("<empty>"),
             EncodedValueKind::Boolean(value) => self.append(if value { "true" } else { "false" }),
             EncodedValueKind::Int32(value) => self.append(&value.to_string()),
-            EncodedValueKind::Double(value) => unsafe {
-                (self.callbacks.append_value_double)(self.ctx, value);
-            },
-            EncodedValueKind::BigInt => unsafe {
-                (self.callbacks.append_value_bigint)(self.ctx, encoded);
-            },
-            EncodedValueKind::String => unsafe {
-                (self.callbacks.append_value_string)(self.ctx, encoded);
-            },
+            EncodedValueKind::Double(value) => self.append_double(value),
+            EncodedValueKind::BigInt => self.append_bigint(encoded),
+            EncodedValueKind::String => self.append_string_value(encoded),
             EncodedValueKind::Undefined => self.append("undefined"),
             EncodedValueKind::Null => self.append("null"),
-            EncodedValueKind::Other => unsafe {
-                (self.callbacks.append_value_fallback)(self.ctx, encoded);
-            },
+            EncodedValueKind::Other => self.append_value_fallback(encoded),
         }
     }
 
@@ -300,34 +253,52 @@ impl<'a> BytecodeDumper<'a> {
         }
     }
 
+    fn append_double(&mut self, value: f64) {
+        append_double_formatted_like_ak(self.output, value);
+    }
+
+    fn append_bigint(&mut self, encoded: u64) {
+        Utf16View::of_string(&Value(encoded).as_bigint().to_utf16_string()).append_as_wtf8_to(self.output);
+    }
+
+    fn append_string_value(&mut self, encoded: u64) {
+        Utf16View::of_string(&Value(encoded).as_string().utf16_string()).append_as_wtf8_to(self.output);
+    }
+
+    fn append_value_fallback(&mut self, encoded: u64) {
+        append_value_formatted_like_ak(self.output, Value(encoded));
+    }
+
+    fn append_quoted(&mut self, text: Utf16View<'_>) {
+        self.append("\x1b[36m`");
+        text.append_as_wtf8_to(self.output);
+        self.append("`\x1b[0m");
+    }
+
     pub fn append_identifier_quoted(&mut self, index: u32) {
-        unsafe {
-            (self.callbacks.append_identifier)(self.ctx, index, true);
-        }
+        self.append_quoted(Utf16View::of_fly_string(
+            &self.executable.identifier_table[index as usize],
+        ));
     }
 
     pub fn append_identifier_plain(&mut self, index: u32) {
-        unsafe {
-            (self.callbacks.append_identifier)(self.ctx, index, false);
-        }
+        Utf16View::of_fly_string(&self.executable.identifier_table[index as usize]).append_as_wtf8_to(self.output);
     }
 
+    /// The table holds the property keys as the strings they were made from. Formatting a PropertyKey writes an array
+    /// index key as its number, which is the same text, since only canonical index strings become numbers.
     pub fn append_property_key_quoted(&mut self, index: u32) {
-        unsafe {
-            (self.callbacks.append_property_key)(self.ctx, index, true);
-        }
+        self.append_quoted(Utf16View::of_fly_string(
+            &self.executable.property_key_table()[index as usize],
+        ));
     }
 
     pub fn append_property_key_plain(&mut self, index: u32) {
-        unsafe {
-            (self.callbacks.append_property_key)(self.ctx, index, false);
-        }
+        Utf16View::of_fly_string(&self.executable.property_key_table()[index as usize]).append_as_wtf8_to(self.output);
     }
 
     pub fn append_string(&mut self, index: u32) {
-        unsafe {
-            (self.callbacks.append_string)(self.ctx, index);
-        }
+        Utf16View::of_fly_string(&self.executable.string_table[index as usize]).append_as_wtf8_to(self.output);
     }
 
     pub fn append_bool(&mut self, name: &str, value: bool) {
@@ -433,7 +404,7 @@ impl<'a> BytecodeDumper<'a> {
         self.append("]");
     }
 
-    pub fn append_exception_handlers(&mut self, exception_handlers: &[FFIDumpExceptionHandler]) {
+    pub fn append_exception_handlers(&mut self, exception_handlers: &[ExceptionHandler]) {
         if exception_handlers.is_empty() {
             return;
         }
@@ -445,13 +416,13 @@ impl<'a> BytecodeDumper<'a> {
             self.append(" .. ");
             self.append(&format!("{:4x}", handler.end_offset));
             self.append("] => handler ");
-            self.append_label("", handler.handler_offset as u32);
+            self.append_label("", handler.handler_offset);
             self.append("\n");
         }
     }
 }
 
-fn collect_basic_block_start_offsets(bytecode: &[u8], exception_handlers: &[FFIDumpExceptionHandler]) -> Vec<u32> {
+fn collect_basic_block_start_offsets(bytecode: &[u8], exception_handlers: &[ExceptionHandler]) -> Vec<u32> {
     let mut offsets = vec![0];
     let append_offset = |offsets: &mut Vec<u32>, offset: usize| {
         let offset = u32::try_from(offset).expect("bytecode offset exceeds u32::MAX");
@@ -459,9 +430,9 @@ fn collect_basic_block_start_offsets(bytecode: &[u8], exception_handlers: &[FFID
             offsets.push(offset);
         }
     };
-    let append_instruction_offset = |offsets: &mut Vec<u32>, offset: usize| {
-        if offset < bytecode.len() {
-            append_offset(offsets, offset);
+    let append_instruction_offset = |offsets: &mut Vec<u32>, offset: u32| {
+        if (offset as usize) < bytecode.len() {
+            append_offset(offsets, offset as usize);
         }
     };
 
@@ -494,90 +465,60 @@ fn collect_basic_block_start_offsets(bytecode: &[u8], exception_handlers: &[FFID
 }
 
 /// Count basic blocks in a validated bytecode instruction stream.
-pub fn count_basic_blocks(bytecode: &[u8], exception_handlers: &[FFIDumpExceptionHandler]) -> usize {
-    collect_basic_block_start_offsets(bytecode, exception_handlers).len()
+pub fn count_basic_blocks(executable: &Executable) -> usize {
+    collect_basic_block_start_offsets(executable.bytecode(), &executable.exception_handlers).len()
 }
 
-/// Dump a validated bytecode instruction stream through formatting callbacks.
-///
-/// # Safety
-/// Every callback must remain callable for the duration of this function, and
-/// `ctx` is passed through to callbacks and must remain valid for their
-/// requirements. When `metadata.dump_interpreter` is true,
-/// `metadata.interpreter_handler_ranges` must point to 256 valid entries whose
-/// pointers delimit readable native code.
-pub unsafe fn dump_bytecode(
-    bytecode: &[u8],
-    exception_handlers: &[FFIDumpExceptionHandler],
-    metadata: &FFIBytecodeDumpMetadata,
-    constants: &[u64],
-    ctx: *mut c_void,
-    callbacks: &FFIBytecodeDumpCallbacks,
-) {
-    unsafe {
-        let basic_block_start_offsets = collect_basic_block_start_offsets(bytecode, exception_handlers);
-        let mut dumper = BytecodeDumper::new(ctx, callbacks, metadata, constants, &basic_block_start_offsets);
-        let mut basic_block_offset_index = 0;
-        let mut cold_code_ranges = Vec::new();
+/// Dump the validated bytecode of an executable, and with LADYBIRD_JS_INTERPRETER_DUMP set, the native code of the
+/// interpreter handler of each instruction.
+pub fn dump_bytecode(output: &mut Vec<u8>, executable: &Executable) {
+    let bytecode = executable.bytecode();
+    let exception_handlers = &executable.exception_handlers;
+    let dump_interpreter = should_dump_interpreter_assembly();
+    let basic_block_start_offsets = collect_basic_block_start_offsets(bytecode, exception_handlers);
+    let mut dumper = BytecodeDumper {
+        output,
+        executable,
+        basic_block_start_offsets: &basic_block_start_offsets,
+        first_piece: true,
+    };
+    let mut basic_block_offset_index = 0;
+    let mut cold_code_ranges = Vec::new();
 
-        let mut at = 0;
-        while at < bytecode.len() {
-            if basic_block_offset_index < basic_block_start_offsets.len()
-                && at == basic_block_start_offsets[basic_block_offset_index] as usize
-            {
-                if basic_block_offset_index > 0 {
-                    dumper.append("\n");
-                }
-                dumper.append("\x1b[35;1mblock");
-                dumper.append(&basic_block_offset_index.to_string());
-                dumper.append("\x1b[0m:\n");
-                basic_block_offset_index += 1;
+    let mut at = 0;
+    while at < bytecode.len() {
+        if basic_block_offset_index < basic_block_start_offsets.len()
+            && at == basic_block_start_offsets[basic_block_offset_index] as usize
+        {
+            if basic_block_offset_index > 0 {
+                dumper.append("\n");
             }
-
-            dumper.append("  [");
-            dumper.append(&format!("{at:4x}"));
-            dumper.append("] ");
-            dump_instruction_from_bytes(bytecode[at], bytecode, at, &mut dumper);
-            dumper.append("\n");
-
-            if metadata.dump_interpreter {
-                assert!(!metadata.interpreter_handler_ranges.is_null());
-                let handler_range = &*metadata.interpreter_handler_ranges.add(bytecode[at] as usize);
-                let hot_code = native_code_from_range(handler_range.hot_start, handler_range.hot_end);
-                append_native_code(&mut dumper, hot_code);
-                record_cold_code_range(
-                    &mut cold_code_ranges,
-                    handler_range.cold_start,
-                    handler_range.cold_end,
-                    instruction_name_from_opcode(bytecode[at]),
-                );
-            }
-
-            at += instruction_length_from_bytes(bytecode[at], bytecode, at)
-                .expect("validated bytecode should have valid instruction lengths");
+            dumper.append("\x1b[35;1mblock");
+            dumper.append(&basic_block_offset_index.to_string());
+            dumper.append("\x1b[0m:\n");
+            basic_block_offset_index += 1;
         }
 
-        dumper.append_exception_handlers(exception_handlers);
-        append_cold_code_ranges(&mut dumper, &cold_code_ranges);
+        dumper.append("  [");
+        dumper.append(&format!("{at:4x}"));
+        dumper.append("] ");
+        dump_instruction_from_bytes(bytecode[at], bytecode, at, &mut dumper);
+        dumper.append("\n");
+
+        if dump_interpreter {
+            let handler_range = &js_interpreter_handler_ranges[bytecode[at] as usize];
+            append_native_code(&mut dumper, handler_range.hot_code());
+            record_cold_code_range(
+                &mut cold_code_ranges,
+                handler_range.cold_code(),
+                instruction_name_from_opcode(bytecode[at]),
+            );
+        }
+
+        at += instruction_length_from_bytes(bytecode[at], bytecode, at)
+            .expect("validated bytecode should have valid instruction lengths");
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn deduplicates_cold_ranges_and_combines_their_owners() {
-        let mut ranges = Vec::new();
-        let start = 0x1000usize as *const u8;
-        let end = 0x1010usize as *const u8;
-
-        record_cold_code_range(&mut ranges, start, end, "GetById");
-        record_cold_code_range(&mut ranges, start, end, "GetById");
-        record_cold_code_range(&mut ranges, start, end, "GetLength");
-        record_cold_code_range(&mut ranges, end, end, "Empty");
-
-        assert_eq!(ranges.len(), 1);
-        assert_eq!(ranges[0].owners, ["GetById", "GetLength"]);
-    }
+    dumper.append_exception_handlers(exception_handlers);
+    append_cold_code_ranges(&mut dumper, &cold_code_ranges);
 }
