@@ -12,7 +12,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
-#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Promise.h>
@@ -65,9 +64,6 @@ struct WEBVIEW_API ChangingNavigable {
 
     // Nothing more comes from the process running the job, and it counts towards completedChangeJobs.
     bool job_ended { false };
-    // AD-HOC: What a same-document traversal yields to, with the admitted navigation it canceled.
-    Web::HTML::TraversalYieldsTo traversal_yields_to { Web::HTML::TraversalYieldsTo::Nothing };
-    Optional<Utf16String> canceled_navigation_id {};
     // The run's part of the continuation, which the process running the job applies with the rest.
     struct Continuation {
         Web::HTML::HistoryObjectLengthAndIndex history_object_length_and_index;
@@ -157,7 +153,7 @@ private:
     void set_current_session_history_step();
     CanonicalSessionHistoryEntry* append_the_claimed_target_entry_again(CanonicalNavigable&, CanonicalSessionHistoryEntry& claimed_target_entry);
 
-    void set_ongoing_navigation_to_traversal(ChangingNavigable&, CanonicalNavigable&, CanonicalSessionHistoryEntry const&);
+    void set_ongoing_navigation_to_traversal(CanonicalNavigable&, CanonicalSessionHistoryEntry const&);
     void return_result(Web::HTML::HistoryStepResult);
 
     CanonicalTraversable& m_traversable;

@@ -1158,7 +1158,7 @@ bool CanonicalNavigable::active_document_is(CanonicalSessionHistoryEntry const& 
 
 void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, RefPtr<WebContentPage> host)
 {
-    // A navigation admitted after the operation, such as one a same-document traversal yields to, is newer than it.
+    // A navigation admitted after the operation, such as one admitted during a same-document traversal, is newer than it.
     auto ongoing_navigation_id = this->ongoing_navigation_id();
     auto ongoing_navigation = ongoing_navigation_id.has_value() ? navigation_with_id(*ongoing_navigation_id) : nullptr;
     auto commits_ongoing_navigation = !ongoing_navigation

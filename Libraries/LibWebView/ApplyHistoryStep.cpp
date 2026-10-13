@@ -158,7 +158,7 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
             m_traversable.queue_navigation_api_state_clear_task(*this, changing_navigable);
 
         // 4. Set navigable's ongoing navigation to "traversal".
-        set_ongoing_navigation_to_traversal(changing_navigable, navigable, *target_entry);
+        set_ongoing_navigation_to_traversal(navigable, *target_entry);
     }
 
     run_changing_navigable_jobs();
@@ -468,47 +468,33 @@ Web::HTML::SessionHistoryEntryDescriptor ChangingNavigable::target_entry_descrip
     return descriptor;
 }
 
-void ApplyHistoryStep::set_ongoing_navigation_to_traversal(ChangingNavigable& changing_navigable, CanonicalNavigable& navigable, CanonicalSessionHistoryEntry const& target_entry)
+void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& navigable, CanonicalSessionHistoryEntry const& target_entry)
 {
     // AD-HOC: As in browsers, a push or replace leaves the ongoing navigation alone: a newer navigation goes on, and
-    //         commits after it. See https://github.com/whatwg/html/issues/12581.
+    //         commits after it. So does a same-document traversal, where the spec sets "traversal" and so drops the
+    //         navigation. See https://github.com/whatwg/html/issues/12581.
     // NB: An update for a navigable's creation or destruction changes the document of no navigable but one its creation
     //     already marked as traversing.
     if (m_navigation_type != Web::Bindings::NavigationType::Traverse && m_navigation_type != Web::Bindings::NavigationType::Reload)
         return;
+    if (navigable.active_document_is(target_entry) && !target_entry.document_state->reload_pending)
+        return;
 
-    // AD-HOC: A navigation admitted after the operation goes on, as the newest, and the operation leaves the navigable
-    //         to it. That leaves the navigable's current entry with its document: a reload's target entry was current
-    //         already, and a same-document traversal's has the active document. A traversal that crosses documents
-    //         has made current an entry whose document only it activates, and aborts the navigation, as specified.
-    //         The specification's traversal queue does not model Ladybird's independently admitted UI-process
-    //         navigations. See https://github.com/whatwg/html/issues/12581.
-    auto ongoing_navigation_id = navigable.ongoing_navigation_id();
-    auto ongoing_navigation = ongoing_navigation_id.has_value() ? navigable.navigation_with_id(*ongoing_navigation_id) : nullptr;
-    auto newer_navigation_was_admitted = ongoing_navigation && ongoing_navigation->sequence_number > m_operation_sequence_number;
+    // AD-HOC: A navigation admitted after a reload goes on, as the newest, and the reload leaves the navigable to it,
+    //         its target entry being current already. A traversal that crosses documents has made current an entry
+    //         whose document only it activates, and aborts the navigation, as specified. The specification's traversal
+    //         queue does not model Ladybird's independently admitted UI-process navigations.
+    //         See https://github.com/whatwg/html/issues/12581.
+    if (m_navigation_type == Web::Bindings::NavigationType::Reload) {
+        auto ongoing_navigation_id = navigable.ongoing_navigation_id();
+        auto ongoing_navigation = ongoing_navigation_id.has_value() ? navigable.navigation_with_id(*ongoing_navigation_id) : nullptr;
+        if (ongoing_navigation && ongoing_navigation->sequence_number > m_operation_sequence_number)
+            return;
+    }
 
     // The marker cancels navigation-start requests that arrive while this operation is on the traversal queue, matching
     // navigate()'s "if navigable's ongoing navigation is 'traversal', then return".
-    if (!navigable.active_document_is(target_entry) || target_entry.document_state->reload_pending) {
-        if (m_navigation_type == Web::Bindings::NavigationType::Reload && newer_navigation_was_admitted)
-            return;
-        navigable.set_ongoing_navigation_to_traversal(m_operation_id);
-        return;
-    }
-
-    if (m_navigation_type != Web::Bindings::NavigationType::Traverse)
-        return;
-
-    // AD-HOC: A same-document traversal does not install the marker. A navigation racing one genuinely started before
-    //         this step ran in its own process. Its navigate() saw no traversal, and the admission recheck must not
-    //         misattribute that ordering and drop the navigation the step has to yield to.
-    if (newer_navigation_was_admitted) {
-        changing_navigable.traversal_yields_to = Web::HTML::TraversalYieldsTo::AdmittedNavigation;
-        return;
-    }
-    changing_navigable.traversal_yields_to = Web::HTML::TraversalYieldsTo::UnadmittedNavigation;
-    changing_navigable.canceled_navigation_id = ongoing_navigation_id.copy();
-    navigable.clear_ongoing_navigation();
+    navigable.set_ongoing_navigation_to_traversal(m_operation_id);
 }
 
 ChangingNavigable* ApplyHistoryStep::changing_navigable(Web::HTML::CrossProcessId navigable_id) const
