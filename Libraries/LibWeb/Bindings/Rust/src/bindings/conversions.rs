@@ -11,13 +11,14 @@ use core::mem::MaybeUninit;
 
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, Gc, Object, PrimitiveString, PropertyKey,
+    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, Gc, Object, PrimitiveString, PropertyKey,
     ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, get_view_byte_length, is_typed_array_out_of_bounds,
     is_view_out_of_bounds, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
     to_well_formed, typed_array_byte_length,
 };
 
 use crate::bindings::CallContext;
+use crate::bindings::interface::create_dictionary_object;
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
 pub(crate) struct UsvString(Utf16String);
@@ -70,6 +71,12 @@ impl UsvString {
     /// The string of the code units, with U+FFFD in place of every surrogate that is not part of a pair.
     pub(crate) fn from_utf16_replacing_lone_surrogates(code_units: &[u16]) -> Self {
         Self(Utf16String::well_formed_from_utf16(code_units))
+    }
+}
+
+impl From<UsvString> for Utf16String {
+    fn from(string: UsvString) -> Self {
+        string.0
     }
 }
 
@@ -376,4 +383,60 @@ impl ToJs for Gc<TypedArrayBase> {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_object(self))
     }
+}
+
+/// An IDL sequence converted to a JS value, https://webidl.spec.whatwg.org/#js-sequence, with the conversion of its
+/// elements.
+pub(crate) fn sequence_to_js<T>(
+    cx: &CallContext,
+    sequence: Vec<T>,
+    mut element_to_js: impl FnMut(T) -> ThrowCompletionOr<Value>,
+) -> ThrowCompletionOr<Value> {
+    // 1. Let n be the length of S.
+    // 2. Let A be a new Array object created as if by the expression [].
+    let array = Array::create(cx.vm(), cx.realm(), sequence.len() as u64, None)?;
+
+    // 3. Initialize i to be 0.
+    // 4. While i < n:
+    for (index, element) in sequence.into_iter().enumerate() {
+        // 1. Let V be the value in S at index i.
+        // 2. Let E be the result of converting V to a JavaScript value.
+        let element = element_to_js(element)?;
+
+        // 3. Let P be the result of calling ! ToString(i).
+        // 4. Perform ! CreateDataPropertyOrThrow(A, P, E).
+        // 5. Set i to i + 1.
+        let index = u32::try_from(index).expect("an array of the length of the sequence was created");
+        array.create_data_property(cx.vm(), &PropertyKey::from(index), element, None, None)?;
+    }
+
+    // 5. Return A.
+    Ok(Value::from_object(array))
+}
+
+/// An IDL record converted to a JS value, https://webidl.spec.whatwg.org/#js-record, with the conversion of its
+/// values. The entries of the record are in the order of the Vec.
+pub(crate) fn record_to_js<K: Into<Utf16String>, V>(
+    cx: &CallContext,
+    record: Vec<(K, V)>,
+    mut value_to_js: impl FnMut(V) -> ThrowCompletionOr<Value>,
+) -> ThrowCompletionOr<Value> {
+    // 1. Let result be OrdinaryObjectCreate(%Object.prototype%).
+    let result = create_dictionary_object(cx);
+
+    // 2. For each key → value of D:
+    for (key, value) in record {
+        // 1. Let jsKey be key converted to a JavaScript value.
+        let key = PropertyKey::from_utf16_string(&key.into());
+
+        // 2. Let jsValue be value converted to a JavaScript value.
+        let value = value_to_js(value)?;
+
+        // 3. Let created be ! CreateDataProperty(result, jsKey, jsValue).
+        // 4. Assert: created is true.
+        result.create_data_property(cx.vm(), &key, value, None, None)?;
+    }
+
+    // 3. Return result.
+    Ok(Value::from_object(result))
 }

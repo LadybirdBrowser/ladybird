@@ -21,6 +21,7 @@ pub use crate::layout::value::Value;
 pub use crate::layout_forward::{RawNativeFunctionPointer, RawNativeFunctionResult};
 pub use crate::raw_native;
 pub use crate::runtime::abstract_operations::get_function_realm;
+pub use crate::runtime::array::Array;
 pub use crate::runtime::array_buffer::{
     ArrayBuffer, DataBlock, Order as ArrayBufferOrder, Shared as ArrayBufferShared,
 };

@@ -29,8 +29,10 @@ from Generators.libweb_bindings.rust_names import rust_local_name
 from Generators.libweb_bindings.rust_to_idl_value import rust_default_value
 from Generators.libweb_bindings.rust_to_idl_value import rust_to_idl_value
 from Generators.libweb_bindings.rust_to_idl_value import write_dictionary_from_js
+from Generators.libweb_bindings.rust_to_idl_value import write_union_from_js
 from Generators.libweb_bindings.rust_to_js_value import rust_to_js_value
 from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
+from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import rust_module_path
 from Generators.libweb_bindings.rust_types import rust_parameter_type
@@ -394,8 +396,8 @@ def write_rust_interface(
     }};
 
     use crate::bindings::conversions::{{
-        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, to_boolean, to_buffer_source,
-        to_dom_string, to_float, to_typed_array, to_usv_string,
+        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, record_to_js, sequence_to_js,
+        to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array, to_usv_string,
     }};
     use crate::bindings::interface::{{
         construct_arguments, create_wrapper, define_attribute, define_interface_object_properties, define_operation,
@@ -578,9 +580,9 @@ def constructor_length(interface: Interface) -> int:
 
 
 def write_rust_definitions(out: TextIO, context: GenerationContext, usage: DefinitionUsage) -> None:
-    """The conversions of the dictionaries that the interfaces implemented in Rust name, each written once, whichever
-    interfaces name it."""
-    if not usage.rust_dictionaries:
+    """The conversions of the dictionaries and unions that the interfaces implemented in Rust name, each written once,
+    whichever interfaces name it."""
+    if not usage.rust_dictionaries and not usage.rust_unions:
         return
     out.write(
         """
@@ -599,7 +601,8 @@ pub(crate) mod definitions {
     use crate::bindings::CallContext;
     use crate::bindings::conversions::{
         BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, dictionary_member,
-        dictionary_object, to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array, to_usv_string,
+        dictionary_object, record_to_js, sequence_to_js, to_boolean, to_buffer_source, to_dom_string, to_float,
+        to_typed_array, to_usv_string,
     };
     use crate::bindings::interface::{create_dictionary_object, set_dictionary_member};
 """
@@ -614,6 +617,11 @@ pub(crate) mod definitions {
             write_dictionary_from_js(out, context, dictionary)
         if directions.to_js:
             write_dictionary_to_js(out, context, dictionary)
+    for union_type, directions in usage.rust_unions.items():
+        if directions.from_js:
+            write_union_from_js(out, context, union_type)
+        if directions.to_js:
+            write_union_to_js(out, context, union_type)
     out.write("}\n")
 
 

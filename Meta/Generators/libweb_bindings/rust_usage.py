@@ -14,8 +14,11 @@ from typing import Optional
 from typing import Set
 
 from Generators.libweb_bindings.context import GenerationContext
+from Generators.libweb_bindings.rust_types import is_named_union
+from Generators.libweb_bindings.rust_types import runtime_union_type
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import IDLType
+from Utils.webidl_parser import IDLUnionType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
 
@@ -71,6 +74,8 @@ class DefinitionUsage:
         self.context = context
         # The dictionaries that the interfaces implemented in Rust name, in the order of their first use.
         self.rust_dictionaries: Dict[str, ConversionDirections] = {}
+        # The unions that the interfaces implemented in Rust name and that have an enum of their own, by their type.
+        self.rust_unions: Dict[IDLUnionType, ConversionDirections] = {}
         # The dictionaries that have a C++ representation.
         self.cpp_dictionary_names: Set[str] = set()
         self._collect_rust_dictionaries()
@@ -96,17 +101,31 @@ class DefinitionUsage:
                     self._name_for_rust(parameter.type, from_js=True, to_js=False)
 
     def _name_for_rust(self, idl_type: IDLType, from_js: bool, to_js: bool) -> None:
-        for nested_type in idl_type.nested_types():
-            dictionary = self.context.dictionaries.get(nested_type.name)
-            if dictionary is None:
-                continue
-            directions = self.rust_dictionaries.setdefault(dictionary.name, ConversionDirections())
-            if (directions.from_js or not from_js) and (directions.to_js or not to_js):
-                continue
-            directions.from_js = directions.from_js or from_js
-            directions.to_js = directions.to_js or to_js
-            for member in self._members_with_inherited(dictionary):
-                self._name_for_rust(member.type, from_js, to_js)
+        if isinstance(idl_type, IDLUnionType):
+            # NB: The bindings runtime converts the unions that it has a type for as a whole.
+            if runtime_union_type(idl_type, self.context) is not None:
+                return
+            if is_named_union(idl_type, self.context):
+                union_type = idl_type.without_nullable()
+                assert isinstance(union_type, IDLUnionType)
+                directions = self.rust_unions.setdefault(union_type, ConversionDirections())
+                directions.from_js = directions.from_js or from_js
+                directions.to_js = directions.to_js or to_js
+            for member_type in idl_type.flattened_member_types():
+                self._name_for_rust(member_type, from_js, to_js)
+            return
+        for child_type in idl_type.child_types():
+            self._name_for_rust(child_type, from_js, to_js)
+        dictionary = self.context.dictionaries.get(idl_type.name)
+        if dictionary is None:
+            return
+        directions = self.rust_dictionaries.setdefault(dictionary.name, ConversionDirections())
+        if (directions.from_js or not from_js) and (directions.to_js or not to_js):
+            return
+        directions.from_js = directions.from_js or from_js
+        directions.to_js = directions.to_js or to_js
+        for member in self._members_with_inherited(dictionary):
+            self._name_for_rust(member.type, from_js, to_js)
 
     def _members_with_inherited(self, dictionary: Dictionary):
         members = list(dictionary.members)

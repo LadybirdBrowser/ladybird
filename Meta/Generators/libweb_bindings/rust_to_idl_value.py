@@ -16,14 +16,21 @@ from Generators.libweb_bindings.rust_types import DECIMAL_LITERAL
 from Generators.libweb_bindings.rust_types import FLOATING_POINT_TYPES
 from Generators.libweb_bindings.rust_types import TYPED_ARRAY_NAMES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
+from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import resolved_dictionary
 from Generators.libweb_bindings.rust_types import runtime_union_type
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
 from Generators.libweb_bindings.rust_types import rust_type
+from Generators.libweb_bindings.rust_types import rust_union_path
+from Generators.libweb_bindings.rust_types import rust_union_variant
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import DictionaryMember
+from Utils.webidl_parser import IDLParameterizedType
 from Utils.webidl_parser import IDLType
+from Utils.webidl_parser import IDLUnionType
 from Utils.webidl_parser import OperationParameter
+
+STRING_TYPES = ("DOMString", "USVString")
 
 
 def buffer_source_rules(idl_type: IDLType, parameter_attributes: dict[str, str]) -> str:
@@ -45,6 +52,10 @@ def rust_to_idl_value(
     name of the parameter or member that the value is of, which the errors of some conversions name."""
     rust_type(idl_type, context, what)
     name = idl_type.name
+    if idl_type.nullable or isinstance(idl_type, IDLParameterizedType):
+        raise UnsupportedByRustBindings(
+            f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet"
+        )
     if name == "DOMString":
         return f"to_dom_string(vm, {value})"
     if name == "USVString":
@@ -61,7 +72,28 @@ def rust_to_idl_value(
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return f"<{rust_dictionary_path(dictionary, context)}>::from_js(vm, {value})"
+    if isinstance(idl_type, IDLUnionType) and is_named_union(idl_type, context):
+        union_members_by_kind(idl_type, context, what)
+        return f"<{rust_union_path(idl_type, context, what)}>::from_js(vm, {value})"
     raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet")
+
+
+def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, what: str):
+    """The dictionary type and the string type among the members of a union, which are the kinds of member that the
+    Rust bindings distinguish between when they convert a JS value to a union."""
+    dictionary_type = None
+    string_type = None
+    for member_type in union_type.flattened_member_types():
+        if resolved_dictionary(member_type, context) is not None and dictionary_type is None:
+            dictionary_type = member_type
+        elif member_type.name in STRING_TYPES and string_type is None:
+            string_type = member_type
+        else:
+            raise UnsupportedByRustBindings(
+                f"{what} has the union type {union_type}, and the Rust bindings do not convert a JS value to a "
+                f"union with the member {member_type} yet"
+            )
+    return dictionary_type, string_type
 
 
 def rust_default_value(
@@ -86,6 +118,15 @@ def rust_default_value(
         # NB: The C++ bindings do not run the conversion for a missing argument either, so the members of the default
         #     value are not read from a JS object.
         return f"<{rust_dictionary_path(dictionary, context)}>::empty()"
+    if isinstance(member.type, IDLUnionType) and is_named_union(member.type, context) and default_value == "{}":
+        dictionary_type, _ = union_members_by_kind(member.type, context, what)
+        if dictionary_type is not None:
+            dictionary = context.dictionaries[dictionary_type.name]
+            union_path = rust_union_path(member.type, context, what)
+            return (
+                f"{union_path}::{rust_union_variant(dictionary_type)}"
+                f"(<{rust_dictionary_path(dictionary, context)}>::empty())"
+            )
     raise UnsupportedByRustBindings(
         f"{what} has the default value {default_value}, which the Rust bindings do not have"
     )
@@ -157,3 +198,48 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
     }}
 """
         )
+
+
+def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDLUnionType) -> None:
+    """The conversion of a JS value to the enum of a union, with the steps of https://webidl.spec.whatwg.org/#js-union
+    that apply to its members, in the order of the C++ bindings."""
+    what = f"the union {union_type}"
+    path = rust_union_path(union_type, context, what)
+    dictionary_type, string_type = union_members_by_kind(union_type, context, what)
+    steps = []
+    if dictionary_type is not None:
+        dictionary_path = rust_dictionary_path(context.dictionaries[dictionary_type.name], context)
+        steps.append(
+            f"""            // 3. If V is null or undefined, then:
+            //     1. If types includes a dictionary type, then return the result of converting V to that
+            //        dictionary type.
+            // 13. If V is an Object, then:
+            //     4. If types includes a dictionary type, then return the result of converting V to that
+            //        dictionary type.
+            if value.is_nullish() || value.is_object() {{
+                return Ok(Self::{rust_union_variant(dictionary_type)}(<{dictionary_path}>::from_js(vm, value)?));
+            }}
+"""
+        )
+    if string_type is not None:
+        conversion = rust_to_idl_value(string_type, {}, "value", "value", context, what)
+        steps.append(
+            f"""            // 17. If types includes a string type, then return the result of converting V to that type.
+            Ok(Self::{rust_union_variant(string_type)}({conversion}?))
+"""
+        )
+    else:
+        steps.append(
+            """            // 19. Throw a TypeError.
+            vm.throw_completion_with_message(ErrorKind::TypeError, "No union types matched".to_string())
+"""
+        )
+    out.write(
+        f"""
+    /// The conversion of a JS value to the union {union_type}, https://webidl.spec.whatwg.org/#js-union
+    impl FromJs for {path} {{
+        fn from_js(vm: &Vm, value: Value) -> ThrowCompletionOr<Self> {{
+{"".join(steps)}        }}
+    }}
+"""
+    )
