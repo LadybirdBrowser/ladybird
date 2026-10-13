@@ -1623,7 +1623,7 @@ void WebContentPage::request_history_operation(Web::HTML::CrossProcessId operati
         client().did_misbehave("request_history_operation"sv, "resumed traversal to a step before every used step"sv);
         return;
     }
-    view().request_history_operation({}, *this, operation_id, move(parameters));
+    traversable().enqueue_history_operation(operation_id, move(parameters), *this, traversable().next_sequence_number());
 }
 
 void WebContentPage::revoke_history_operation(Web::HTML::CrossProcessId operation_id)

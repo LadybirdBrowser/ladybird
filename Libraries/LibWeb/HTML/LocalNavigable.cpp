@@ -4273,17 +4273,13 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
             .user_involvement = user_involvement,
         },
         {
-            .on_apply_history_step_complete = GC::create_function(heap(), [this, reloading_entry](HistoryStepResult result) {
+            .on_apply_history_step_complete = GC::create_function(heap(), [reloading_entry](HistoryStepResult result) {
                 if (result == HistoryStepResult::Applied)
                     return;
 
                 // AD-HOC: The spec leaves reload pending set when the reload does not apply, so a later history step would
-                //         reload the document anyway.
-                if (reloading_entry->document_state()->reload_pending()) {
-                    reloading_entry->document_state()->set_reload_pending(false);
-                    page().client().page_did_set_session_history_entry_document_state_reload_pending(
-                        id(), reloading_entry->navigation_api_key(), false);
-                }
+                //         reload the document anyway. The UI process clears its own.
+                reloading_entry->document_state()->set_reload_pending(false);
             }),
         });
 }
