@@ -27,9 +27,11 @@ use crate::css::parser::component_value::{
 };
 use crate::css::parser::query_parser::{
     FeatureComparison, FfiMediaEnvironment, MatchResult, StyleFeature, StyleRangeValue as ParsedStyleRangeValue,
-    parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition, parse_style_range_from_source,
+    parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition, parse_style_range,
 };
-use crate::css::parser::syntax::{SyntaxNode, SyntaxType, clone_syntax_handle, parse_syntax, parse_with_syntax};
+use crate::css::parser::syntax::{
+    SyntaxNode, SyntaxType, clone_syntax_handle, parse_syntax_values, parse_with_syntax_component_values,
+};
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex,
 };
@@ -374,7 +376,7 @@ impl CustomPropertyRegistry {
     fn parse_registered_value(
         &self,
         registration: &RegisteredCustomProperty,
-        source: &[u16],
+        values: &[ComponentValue],
     ) -> Option<StyleValueData> {
         let random_function_index = RandomFunctionIndex::default();
         let value_context = FfiValueParsingContext {
@@ -385,7 +387,7 @@ impl CustomPropertyRegistry {
         };
         let mut context = self.parse_context(&random_function_index);
         context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
-        parse_with_syntax(&context, source, &registration.syntax)
+        parse_with_syntax_component_values(&context, values, &registration.syntax, None)
     }
 
     /// A value parsed with a registration's syntax, once per value the registry keeps alive.
@@ -400,8 +402,8 @@ impl CustomPropertyRegistry {
             return parsed.clone();
         }
         let source = crate::css::serialize::serialize_resolved_style_value_to_utf16(value.data());
-        let parsed = self
-            .parse_registered_value(registration, &source)
+        let parsed = parse_substitution_values(&source)
+            .and_then(|values| self.parse_registered_value(registration, &values))
             .map(RetainedStyleValueData::from_owned);
         if parses.len() >= MAX_REGISTERED_VALUE_PARSES {
             parses.clear();
@@ -1399,9 +1401,7 @@ fn registration_accepts_tokens(
     tokens: &[ComponentValue],
 ) -> bool {
     matches!(registration.syntax, SyntaxNode::Universal)
-        || registry
-            .parse_registered_value(registration, &serialize_tokens(tokens))
-            .is_some()
+        || registry.parse_registered_value(registration, tokens).is_some()
 }
 
 fn registered_property_fallback(
@@ -1482,10 +1482,9 @@ fn normalize_function_tokens(
     let Some(registry) = registry else {
         return TokenResolution::NotHandled;
     };
-    let source = serialize_tokens(tokens);
     let random_function_index = RandomFunctionIndex::default();
     let context = registry.parse_context(&random_function_index);
-    let Some(parsed) = parse_with_syntax(&context, &source, syntax) else {
+    let Some(parsed) = parse_with_syntax_component_values(&context, tokens, syntax, None) else {
         return TokenResolution::Invalid;
     };
     let computed = if matches!(parsed, StyleValueData::Calculated { .. }) {
@@ -2008,10 +2007,10 @@ fn registered_style_query_values_are_equal(
 ) -> bool {
     let random_function_index = RandomFunctionIndex::default();
     let context = registry.parse_context(&random_function_index);
-    let Some(computed) = parse_with_syntax(&context, &serialize_tokens(computed_tokens), syntax) else {
+    let Some(computed) = parse_with_syntax_component_values(&context, computed_tokens, syntax, None) else {
         return false;
     };
-    let Some(query) = parse_with_syntax(&context, &serialize_tokens(query_tokens), syntax) else {
+    let Some(query) = parse_with_syntax_component_values(&context, query_tokens, syntax, None) else {
         return false;
     };
     let color_resolution_input = resolution_context
@@ -2158,7 +2157,6 @@ fn evaluate_style_range_value(
         TokenResolution::Cyclic => return Err(ConditionEvaluation::Cyclic),
         TokenResolution::NotHandled => return Err(ConditionEvaluation::NotHandled),
     };
-    let source = serialize_tokens(&resolved);
     let random_function_index = RandomFunctionIndex::default();
     let registry_parse_context;
     let parse_context = match (context.parse_context, registry) {
@@ -2171,7 +2169,9 @@ fn evaluate_style_range_value(
     };
     Ok(StyleRangeValue::SYNTAX_TYPES
         .iter()
-        .find_map(|&syntax_type| parse_with_syntax(parse_context, &source, &SyntaxNode::Type(syntax_type)))
+        .find_map(|&syntax_type| {
+            parse_with_syntax_component_values(parse_context, &resolved, &SyntaxNode::Type(syntax_type), None)
+        })
         .and_then(|value| StyleRangeValue::of(&value, context)))
 }
 
@@ -2253,7 +2253,7 @@ fn evaluate_style_feature(
     let tokens = trim_whitespace(tokens);
     if has_comparison(tokens) {
         // A range parses as the query parser has it, as it did when C++ evaluated it.
-        let Some(range) = parse_style_range_from_source(&serialize_tokens(tokens)) else {
+        let Some(range) = parse_style_range(tokens) else {
             return ConditionEvaluation::Invalid;
         };
         return evaluate_style_range(store, registry, &range, context, recursion_depth + 1);
@@ -2946,7 +2946,7 @@ fn parse_attr_syntax(tokens: &[ComponentValue]) -> Result<(Vec<u16>, AttrSyntax)
     if let Some((function, values)) = rest[0].function()
         && function.eq_ignore_ascii_case("type")
     {
-        let Some(syntax) = parse_syntax(&serialize_tokens(values), false) else {
+        let Some(syntax) = parse_syntax_values(values, false) else {
             return Err(AttrSyntaxParseFailure::SyntaxOmitted);
         };
         if rest.len() != 1 {
@@ -2959,12 +2959,20 @@ fn parse_attr_syntax(tokens: &[ComponentValue]) -> Result<(Vec<u16>, AttrSyntax)
 
 fn parse_attr_value_with_syntax(
     registry: Option<&CustomPropertyRegistry>,
-    source: &[u16],
+    values: &[ComponentValue],
     syntax: &SyntaxNode,
 ) -> Option<Vec<ComponentValue>> {
     let registry = registry?;
     let random_function_index = RandomFunctionIndex::default();
-    let parsed = parse_with_syntax(&registry.parse_context(&random_function_index), source, syntax)?;
+    let parsed = parse_with_syntax_component_values(
+        &registry.parse_context(&random_function_index),
+        values,
+        syntax,
+        None,
+    )?;
+    if let StyleValueData::Unresolved { components, .. } = parsed {
+        return Some(components.as_slice().to_vec());
+    }
     let serialized = crate::css::serialize::serialize_style_value_to_utf16(&parsed);
     parse_substitution_values(&serialized)
 }
@@ -3047,27 +3055,29 @@ fn replace_attr_function(
         ))
         .expect("serialized string tokenizes correctly"),
         AttrSyntax::Number => {
+            let values = parse_substitution_values(attribute_value).unwrap_or_default();
             if !matches!(
-                trim_whitespace(&parse_substitution_values(attribute_value).unwrap_or_default()),
+                trim_whitespace(&values),
                 [value] if matches!(value.kind, ComponentKind::Token(ParserTokenKind::Number { .. }))
             ) {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             }
             let syntax = SyntaxNode::Type(crate::css::parser::syntax::SyntaxType::Number);
-            let Some(tokens) = parse_attr_value_with_syntax(registry, attribute_value, &syntax) else {
+            let Some(tokens) = parse_attr_value_with_syntax(registry, &values, &syntax) else {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             };
             tokens
         }
         AttrSyntax::Unit(unit) => {
+            let values = parse_substitution_values(attribute_value).unwrap_or_default();
             if !matches!(
-                trim_whitespace(&parse_substitution_values(attribute_value).unwrap_or_default()),
+                trim_whitespace(&values),
                 [value] if matches!(value.kind, ComponentKind::Token(ParserTokenKind::Number { .. }))
             ) {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             }
             let number_syntax = SyntaxNode::Type(crate::css::parser::syntax::SyntaxType::Number);
-            let Some(number) = parse_attr_value_with_syntax(registry, attribute_value, &number_syntax) else {
+            let Some(number) = parse_attr_value_with_syntax(registry, &values, &number_syntax) else {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             };
             let mut source = serialize_tokens(&number);
@@ -3086,7 +3096,7 @@ fn replace_attr_function(
                 recursion_depth + 1,
                 Some(SubstitutionContextDependency::Attribute(attribute_name.clone())),
             ) {
-                TokenResolution::Resolved(tokens) => Some(serialize_tokens(&tokens)),
+                TokenResolution::Resolved(tokens) => Some(tokens),
                 TokenResolution::Invalid | TokenResolution::Cyclic => None,
                 TokenResolution::NotHandled => return TokenResolution::NotHandled,
             };
@@ -3392,6 +3402,7 @@ pub(crate) fn resolve_vars(
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
+    use crate::css::parser::syntax::parse_with_syntax;
 
     #[test]
     fn style_queries_only_report_sibling_dependencies_for_tree_counting() {
