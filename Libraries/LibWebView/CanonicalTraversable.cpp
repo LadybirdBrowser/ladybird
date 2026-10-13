@@ -2451,13 +2451,6 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
 {
     operation.parameters.visit(
         [&](Web::ReloadHistoryOperationParameters const& parameters) {
-            // NB: A navigable that is gone has no entry to reload. Applying the reload history step then changes nothing.
-            if (auto navigable = find(parameters.navigable_id); navigable.has_value()) {
-                if (auto* target_entry = m_session_history.get_the_target_history_entry(*navigable, m_session_history.current_step())) {
-                    target_entry->document_state->reload_pending = true;
-                    session_history_changed();
-                }
-            }
             apply_the_reload_history_step(operation, parameters.user_involvement);
         },
         [&](Web::TraverseByDeltaHistoryOperationParameters const& request) {
