@@ -12,7 +12,8 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 
-use super::intl::{Style, UnicodeIntlText, UnicodeTextMappingOutput, text_output};
+use super::UnicodeTextMappingOutput;
+use super::intl::{Style, UnicodeIntlText, text_output};
 use crate::utf16::Utf16View;
 
 type UnicodeAppendRelativeTimeFormatPart = unsafe extern "C" fn(

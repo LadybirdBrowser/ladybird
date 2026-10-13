@@ -12,7 +12,8 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 
-use super::intl::{UnicodeIntlText, UnicodeTextMappingOutput, text_output};
+use super::UnicodeTextMappingOutput;
+use super::intl::{UnicodeIntlText, text_output};
 use crate::utf16::Utf16View;
 
 /// UNICODE_CALENDAR_PATTERN_FIELD_ABSENT.

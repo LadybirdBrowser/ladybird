@@ -12,6 +12,7 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 
+use super::{UnicodeTextMappingOutput, collect_text};
 use crate::utf16::{Utf16StringBuilder, Utf16View};
 
 /// UnicodeIntlText: a borrowed string in either of AK::Utf16View's storages.
@@ -38,19 +39,6 @@ impl UnicodeIntlText {
             },
         }
     }
-}
-
-#[repr(C)]
-pub(crate) struct UnicodeTextMappingOutput {
-    context: *mut c_void,
-    allocate_text: unsafe extern "C" fn(context: *mut c_void, length: usize) -> *mut u16,
-    append_edit: unsafe extern "C" fn(
-        context: *mut c_void,
-        source_start: usize,
-        source_length: usize,
-        destination_start: usize,
-        destination_length: usize,
-    ),
 }
 
 type UnicodeAppendString = unsafe extern "C" fn(context: *mut c_void, text: *const u16, length: usize);
@@ -217,24 +205,10 @@ unsafe extern "C" {
     fn unicode_segmenter_destroy(segmenter: *mut c_void);
 }
 
-unsafe extern "C" fn allocate_text(context: *mut c_void, length: usize) -> *mut u16 {
-    // SAFETY: The context is the output buffer the caller passed, which outlives the call.
-    let output = unsafe { &mut *context.cast::<Vec<u16>>() };
-    output.resize(length, 0);
-    output.as_mut_ptr()
-}
-
-unsafe extern "C" fn ignore_edit(_: *mut c_void, _: usize, _: usize, _: usize, _: usize) {}
-
 /// Calls an export that writes one string through a UnicodeTextMappingOutput, and returns what it returns with the
 /// string it wrote.
 fn with_text_output<R>(write: impl FnOnce(UnicodeTextMappingOutput) -> R) -> (R, Utf16String) {
-    let mut output: Vec<u16> = Vec::new();
-    let result = write(UnicodeTextMappingOutput {
-        context: (&raw mut output).cast(),
-        allocate_text,
-        append_edit: ignore_edit,
-    });
+    let (result, output) = collect_text(write);
     (result, Utf16String::from_utf16(&output))
 }
 

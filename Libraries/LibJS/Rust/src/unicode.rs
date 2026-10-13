@@ -22,7 +22,7 @@ pub mod relative_time_format;
 pub mod time_zone;
 
 #[repr(C)]
-struct UnicodeTextMappingOutput {
+pub(crate) struct UnicodeTextMappingOutput {
     context: *mut c_void,
     allocate_text: unsafe extern "C" fn(context: *mut c_void, length: usize) -> *mut u16,
     append_edit: unsafe extern "C" fn(
@@ -77,7 +77,7 @@ unsafe extern "C" fn ignore_edit(_: *mut c_void, _: usize, _: usize, _: usize, _
 
 /// Calls a LibUnicode export that writes text through a UnicodeTextMappingOutput, and collects the text it writes,
 /// along with what the export returns.
-fn collect_text<R>(write: impl FnOnce(UnicodeTextMappingOutput) -> R) -> (R, Vec<u16>) {
+pub(crate) fn collect_text<R>(write: impl FnOnce(UnicodeTextMappingOutput) -> R) -> (R, Vec<u16>) {
     let mut output: Vec<u16> = Vec::new();
     let result = write(UnicodeTextMappingOutput {
         context: (&raw mut output).cast(),
@@ -90,15 +90,7 @@ fn collect_text<R>(write: impl FnOnce(UnicodeTextMappingOutput) -> R) -> (R, Vec
 /// Calls a LibUnicode text mapping with `text` and collects the text it writes.
 fn map_text(text: Utf16View<'_>, map: impl FnOnce(&[u16], UnicodeTextMappingOutput)) -> Utf16String {
     let code_units: Vec<u16> = text.code_units().collect();
-    let mut output: Vec<u16> = Vec::new();
-    map(
-        &code_units,
-        UnicodeTextMappingOutput {
-            context: (&raw mut output).cast(),
-            allocate_text,
-            append_edit: ignore_edit,
-        },
-    );
+    let ((), output) = collect_text(|output| map(&code_units, output));
     Utf16String::from_utf16(&output)
 }
 
