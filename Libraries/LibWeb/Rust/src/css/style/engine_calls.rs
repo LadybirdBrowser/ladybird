@@ -850,28 +850,6 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
     environment
 }
 
-/// The style record the engine assigns the element `node` names, or 0.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_assigned_style_record(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-    node: u32,
-) -> u64 {
-    let Some(node) = super::StyleNodeID::from_raw(node) else {
-        return 0;
-    };
-    with_engine(read, host, |engine| {
-        engine
-            .computed_group_sets
-            .assigned_style_record(node)
-            .map_or(0, |record| record.raw())
-    })
-}
-
 /// What the host knows of its document's style engine, which answers the host's reads without asking the render owner.
 pub(crate) struct EngineMemo {
     /// The view of each style record the host asked about, the custom-property environment it was computed in, and

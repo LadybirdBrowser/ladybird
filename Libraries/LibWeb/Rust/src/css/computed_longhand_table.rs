@@ -1510,53 +1510,6 @@ pub unsafe extern "C" fn rust_computed_longhand_table_freeze(table: *mut Compute
     unsafe { &mut *table }.freeze();
 }
 
-/// Returns the retained raw cascaded font-size data, or null when none won.
-///
-/// # Safety
-/// `table` must be a valid table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_raw_cascaded_font_size(
-    table: *const ComputedLonghandTable,
-) -> *const c_void {
-    unsafe { &*table }.raw_cascaded_font_size()
-}
-
-/// Marks a longhand's stored value `!important` (or not).
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_set_important(
-    table: *mut ComputedLonghandTable,
-    property_id: u16,
-    important: bool,
-) {
-    unsafe { &mut *table }.set_important(property_id, important);
-}
-
-/// Marks a longhand's computed value as taken by inheritance (or not).
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_set_inherited(
-    table: *mut ComputedLonghandTable,
-    property_id: u16,
-    inherited: bool,
-) {
-    unsafe { &mut *table }.set_inherited(property_id, inherited);
-}
-
-/// # Safety
-/// `table` must be a valid table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_is_important(
-    table: *const ComputedLonghandTable,
-    property_id: u16,
-) -> bool {
-    unsafe { &*table }.is_important(property_id)
-}
-
 /// The importance bitmap, in the C++ `FixedBitmap` byte layout. The pointer
 /// stays valid while the caller's table reference is live.
 ///
