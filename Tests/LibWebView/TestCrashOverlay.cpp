@@ -86,7 +86,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(view->url() == failed_url);
         VERIFY(view->title() == "Failed page"_utf16);
         VERIFY(view->traversable().session_history().current_step() == history_step);
-        VERIFY(view->traversable().session_history().current_entry()->url == failed_url);
+        VERIFY(view->traversable().session_history().current_entry().url == failed_url);
         VERIFY(view->crash_overlay_failed_url() == failed_url.serialize());
     };
 

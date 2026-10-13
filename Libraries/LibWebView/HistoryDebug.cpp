@@ -173,7 +173,7 @@ ByteString history_log_entries(TraversableSessionHistory const& history)
 
         auto const* entry = history.entry_at(i);
         VERIFY(entry);
-        if (auto const* current_entry = history.current_entry(); current_entry == entry)
+        if (&history.current_entry() == entry)
             builder.append("*"sv);
         builder.appendff("{}:", i);
         append_history_log_entry(builder, entry->descriptor());

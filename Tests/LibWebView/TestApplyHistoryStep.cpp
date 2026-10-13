@@ -224,8 +224,7 @@ struct TestTraversable {
         VERIFY(history.initialize_for_testing({ initial_entry }, { 0 }, 0));
         initialize_navigable_entry_identities();
 
-        auto* current_entry = history.current_entry();
-        VERIFY(current_entry);
+        auto* current_entry = &history.current_entry();
         VERIFY(history.replace_session_history_entry(traversable, *current_entry, MUST(WebView::CanonicalSessionHistoryEntry::create_from_descriptor(entry(0, "https://b.example/"sv)))));
     }
 
@@ -246,9 +245,7 @@ struct TestTraversable {
 
     Optional<i32> current_step() const
     {
-        if (!history.current_used_step_index().has_value())
-            return {};
-        return history.step_at(*history.current_used_step_index());
+        return history.step_at(history.current_used_step_index());
     }
 
     void initialize_navigable_entry_identities()
@@ -798,7 +795,7 @@ TEST_CASE(a_paused_traversal_is_abandoned_once_a_jumping_push_removes_its_target
     EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
     EXPECT(!test.operation->committed_step().has_value());
     EXPECT_EQ(test.current_step(), 2);
-    EXPECT_EQ(test.history.current_entry()->url, parse_url("https://b.example/pushed"sv));
+    EXPECT_EQ(test.history.current_entry().url, parse_url("https://b.example/pushed"sv));
     EXPECT(!test.traversable.ongoing_navigation().has<WebView::CanonicalNavigable::Traversal>());
 }
 
@@ -858,7 +855,7 @@ TEST_CASE(a_paused_push_appends_its_entry_again_once_a_jumping_push_clears_it)
     EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
     EXPECT_EQ(test.operation->committed_step(), 3);
     EXPECT_EQ(test.current_step(), 3);
-    EXPECT_EQ(test.history.current_entry()->url, navigation_entry->url);
+    EXPECT_EQ(test.history.current_entry().url, navigation_entry->url);
     auto entries = test.history.get_session_history_entries(test.traversable);
     VERIFY(entries.has_value());
     EXPECT_EQ(entries->size(), 4u);
@@ -870,7 +867,7 @@ TEST_CASE(a_paused_reload_continues_with_the_entry_that_a_jumping_replace_put_in
     Core::EventLoop event_loop;
     TestTraversable test;
     test.with_two_top_level_entries();
-    test.history.current_entry()->document_state->reload_pending = true;
+    test.history.current_entry().document_state->reload_pending = true;
 
     // A same-document replace from the page being reloaded is queued behind the reload, and jumps the queue while the
     // reload waits on its changing job. It replaces the entry that the reload has claimed, keeping its navigation API

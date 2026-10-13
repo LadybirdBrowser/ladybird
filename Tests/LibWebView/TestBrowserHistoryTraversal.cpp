@@ -130,8 +130,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     });
     auto spare_view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
     VERIFY(spare_view->traversable().session_history().current_step() == 0);
-    VERIFY(spare_view->traversable().session_history().current_entry());
-    VERIFY(spare_view->traversable().session_history().current_entry()->url == URL::about_blank());
+    VERIFY(spare_view->traversable().session_history().current_entry().url == URL::about_blank());
 
     size_t spare_view_loads_finished = 0;
     spare_view->on_load_finish = [&](auto const&) { ++spare_view_loads_finished; };
@@ -232,7 +231,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // Reopening a closed tab restores its history into a view whose process is still starting up.
     auto closed_tab_history = view->session_history_snapshot();
-    VERIFY(closed_tab_history.has_value());
     auto closed_tab_url = view->url();
 
     // Closing a view may synchronously cause the UI to generate input, geometry, and visibility events while removing
@@ -265,13 +263,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool restored_view_traversal_completed = false;
     restored_view->on_load_finish = [&](auto const&) { ++restored_view_loads_finished; };
     restored_view->on_browser_history_traversal_complete = [&] { restored_view_traversal_completed = true; };
-    MUST(restored_view->restore_session_history_from_snapshot(closed_tab_history.release_value()));
+    MUST(restored_view->restore_session_history_from_snapshot(move(closed_tab_history)));
     Core::EventLoop::current().spin_until([&] {
         return restored_view_loads_finished >= 1
             && restored_view->url() == closed_tab_url
             && restored_view_traversal_completed;
     });
-    VERIFY(restored_view->traversable().session_history().current_entry()->url == closed_tab_url);
+    VERIFY(restored_view->traversable().session_history().current_entry().url == closed_tab_url);
 
     // Exercise the record of pages the client was given across popup detachment and close
     // acknowledgement, without pumping the event loop between those transitions.

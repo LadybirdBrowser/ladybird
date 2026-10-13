@@ -351,17 +351,14 @@ bool TraversableSessionHistory::replace_session_history_entry(CanonicalNavigable
     return true;
 }
 
-Optional<size_t> TraversableSessionHistory::current_top_level_entry_index() const
+size_t TraversableSessionHistory::current_top_level_entry_index() const
 {
-    return top_level_entry_index_for_step(m_entries, m_current_session_history_step);
+    return top_level_entry_index_for_step(m_entries, m_current_session_history_step).value();
 }
 
-Optional<size_t> TraversableSessionHistory::current_used_step_index() const
+size_t TraversableSessionHistory::current_used_step_index() const
 {
-    auto used_step = get_the_used_step(m_current_session_history_step);
-    if (!used_step.has_value())
-        return {};
-    return used_steps().find_first_index(*used_step);
+    return used_steps().find_first_index(get_the_used_step(m_current_session_history_step).value()).value();
 }
 
 Vector<Web::HTML::SessionHistoryEntryDescriptor> TraversableSessionHistory::entries() const
@@ -381,14 +378,12 @@ Vector<i32> TraversableSessionHistory::used_steps() const
 
 bool TraversableSessionHistory::can_go_back() const
 {
-    auto current_used_step_index = this->current_used_step_index();
-    return current_used_step_index.has_value() && *current_used_step_index > 0;
+    return current_used_step_index() > 0;
 }
 
 bool TraversableSessionHistory::can_go_forward() const
 {
-    auto current_used_step_index = this->current_used_step_index();
-    return current_used_step_index.has_value() && *current_used_step_index + 1 < used_step_count();
+    return current_used_step_index() + 1 < used_step_count();
 }
 
 bool TraversableSessionHistory::has_only_top_level_used_steps() const
@@ -436,8 +431,7 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
     auto target_top_level_entry_index = top_level_entry_index_for_step(m_entries, step);
     VERIFY(target_top_level_entry_index.has_value());
     auto const* target_top_level_entry = m_entries[*target_top_level_entry_index].ptr();
-    auto const* current_top_level_entry = current_entry();
-    VERIFY(current_top_level_entry);
+    auto const* current_top_level_entry = &current_entry();
 
     return TraversalTarget {
         .target_step_index = *target_step_index,
@@ -513,17 +507,17 @@ Optional<size_t> TraversableSessionHistory::target_step_index_for_delta(int delt
     // targetStepIndex be currentStepIndex plus delta. If allSteps[targetStepIndex]
     // does not exist, then abort these steps.
     auto current_used_step_index = this->current_used_step_index();
-    if (!current_used_step_index.has_value() || delta == 0)
+    if (delta == 0)
         return {};
 
     if (delta < 0) {
         auto magnitude = static_cast<size_t>(-static_cast<i64>(delta));
-        if (magnitude > *current_used_step_index)
+        if (magnitude > current_used_step_index)
             return {};
-        return *current_used_step_index - magnitude;
+        return current_used_step_index - magnitude;
     }
 
-    auto target_index = *current_used_step_index + static_cast<size_t>(delta);
+    auto target_index = current_used_step_index + static_cast<size_t>(delta);
     if (target_index >= used_step_count())
         return {};
     return target_index;
@@ -537,9 +531,9 @@ Optional<i32> TraversableSessionHistory::step_at(size_t index) const
     return used_steps[index];
 }
 
-CanonicalSessionHistoryEntry* TraversableSessionHistory::current_entry() const
+CanonicalSessionHistoryEntry& TraversableSessionHistory::current_entry() const
 {
-    return top_level_entry_for_step(m_current_session_history_step);
+    return *m_entries[current_top_level_entry_index()];
 }
 
 CanonicalSessionHistoryEntry* TraversableSessionHistory::entry_at(size_t index) const

@@ -505,7 +505,7 @@ void BrowserWindow::duplicate_tab(Tab& source_tab)
     auto source_url = source_tab.view().url();
     auto& duplicate = create_new_tab(Web::HTML::ActivateTab::Yes, TabLocation::after_tab(source_tab));
 
-    if (!history.has_value() || duplicate.view().restore_session_history_from_snapshot(history.release_value()).is_error())
+    if (duplicate.view().restore_session_history_from_snapshot(AK::move(history)).is_error())
         duplicate.navigate(source_url);
 }
 
