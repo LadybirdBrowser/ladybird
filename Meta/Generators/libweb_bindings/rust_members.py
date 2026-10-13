@@ -69,6 +69,12 @@ class RustOperation:
     def length(self) -> int:
         return operation_length(self.operation)
 
+    @property
+    def steps_function(self) -> str:
+        """The generated function of the steps of the operation, when the operation is one of several overloads that
+        the function of the prototype chooses between."""
+        return f"{generated_function_stem(self.method)}_steps"
+
 
 @dataclass
 class RustOperationSet:
@@ -224,7 +230,14 @@ def rust_members(interface: Interface) -> RustMembers:
     overload_sets = operation_overload_sets(interface)
     for name, operations in overload_sets.items():
         if len(operations) > 1:
-            fail(f"its operation {name} is overloaded")
+            # NB: As for constructors, the IDL names the Rust method of every overload.
+            if not all("ImplementedAs" in operation.extended_attributes for operation in operations):
+                fail(
+                    f"its operation {name} is overloaded, and not all of the overloads name their Rust method with "
+                    "[ImplementedAs]"
+                )
+            if any(operation.return_type_is_promise() for operation in operations):
+                fail(f"its operation {name} is overloaded and returns a promise type")
         overloads = [
             RustOperation(operation, method_of(name, operation.extended_attributes)) for operation in operations
         ]

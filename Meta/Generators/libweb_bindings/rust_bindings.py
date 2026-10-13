@@ -31,6 +31,7 @@ from Generators.libweb_bindings.rust_members import rust_members
 from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
 from Generators.libweb_bindings.rust_overloads import write_constructor_overload_resolution
+from Generators.libweb_bindings.rust_overloads import write_operation_overload_resolution
 from Generators.libweb_bindings.rust_to_idl_value import rust_default_value
 from Generators.libweb_bindings.rust_to_idl_value import rust_to_idl_value
 from Generators.libweb_bindings.rust_to_idl_value import write_dictionary_from_js
@@ -404,15 +405,17 @@ def write_rust_interface(
 
     use ak::Utf16String;
     use libjs_rust::api::{{
-        EmbedderClass, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, Object, RawNativeFunctionResult,
-        ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, raw_native,
+        ArrayBuffer, DataView, EmbedderClass, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, Object,
+        RawNativeFunctionResult, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, is_host_instance_of,
+        raw_native,
     }};
 
     use crate::bindings::conversions::{{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
-        record_to_js, rooted_sequence_to_js, sequence_from_js, sequence_to_js, to_array_buffer_view, to_boolean,
-        to_buffer_source, to_cpp_interface, to_dom_string, to_float, to_long, to_long_long, to_typed_array,
-        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
+        implements_cpp_interface, record_to_js, rooted_sequence_to_js, sequence_from_js, sequence_to_js,
+        to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface, to_dom_string, to_float, to_long,
+        to_long_long, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
+        to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
         Inherits, Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
@@ -480,8 +483,20 @@ def write_rust_interface(
             write_rust_attribute_setter(out, context, interface, attribute)
 
     for operation_set in members.operation_sets:
-        write_rust_operation(
-            out, context, interface, operation_set.name, operation_set.function, operation_set.overloads[0]
+        name = operation_set.name
+        if len(operation_set.overloads) == 1:
+            write_rust_operation(out, context, interface, name, operation_set.function, operation_set.overloads[0])
+            continue
+        for overload in operation_set.overloads:
+            write_rust_operation(out, context, interface, name, overload.steps_function, overload)
+        write_operation_overload_resolution(
+            out,
+            context,
+            interface,
+            name,
+            operation_set.function,
+            [overload.operation for overload in operation_set.overloads],
+            [overload.steps_function for overload in operation_set.overloads],
         )
 
     out.write(
