@@ -17,7 +17,6 @@
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
-#include <link.h>
 #include <string.h>
 
 namespace Compositor {
@@ -128,28 +127,6 @@ static ErrorOr<void> add_loader_manifest_paths(Vector<Sandbox::LandlockPath>& pa
     return {};
 }
 
-// The driver loads more libraries after Landlock is in place, and they must come from where the libraries that we
-// already use came from. Otherwise the dynamic loader skips to another copy, such as the system's instead of our own.
-static ErrorOr<void> add_loaded_library_directories(Vector<Sandbox::LandlockPath>& paths)
-{
-    Vector<ByteString> directories;
-    dl_iterate_phdr([](dl_phdr_info* info, size_t, void* data) {
-        auto& directories = *static_cast<Vector<ByteString>*>(data);
-        StringView name { info->dlpi_name, strlen(info->dlpi_name) };
-        if (name.starts_with('/')) {
-            auto directory = LexicalPath::dirname(name);
-            if (!directories.contains_slow(directory))
-                directories.append(move(directory));
-        }
-        return 0;
-    },
-        &directories);
-
-    for (auto const& directory : directories)
-        TRY(Sandbox::add_landlock_path_if_exists(paths, directory, Sandbox::LandlockPath::Access::ReadOnly));
-    return {};
-}
-
 ErrorOr<void> restrict_filesystem(StringView resource_root)
 {
     TRY(Sandbox::install_no_new_privileges());
@@ -161,7 +138,9 @@ ErrorOr<void> restrict_filesystem(StringView resource_root)
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib64"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/local/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(add_loaded_library_directories(paths));
+    // The driver loads more libraries after Landlock is in place, and they must come from where the libraries that we
+    // already use came from. Otherwise the dynamic loader skips to another copy, such as the system's instead of our own.
+    TRY(Sandbox::add_loaded_library_directories(paths));
     // cpptrace opens loaded ELF objects when symbolizing in-process stack traces, and drivers read it too.
     TRY(Sandbox::add_landlock_path_if_exists(paths, TRY(Core::System::current_executable_path()), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/glvnd"sv, Sandbox::LandlockPath::Access::ReadOnly));

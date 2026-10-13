@@ -26,6 +26,7 @@ ErrorOr<void> apply_sandbox(StringView)
     // cpptrace opens loaded ELF objects when symbolizing in-process stack traces.
     TRY(Sandbox::add_landlock_path_if_exists(paths, executable_path, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_loaded_library_directories(paths, build_root));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/self"sv, Sandbox::LandlockPath::Access::ReadOnly));
 
     // libpulse still keeps its cookie and runtime files in these, so they stay readable.

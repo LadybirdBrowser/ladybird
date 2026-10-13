@@ -13,6 +13,7 @@
 #    include <dirent.h>
 #    include <errno.h>
 #    include <fcntl.h>
+#    include <link.h>
 #    include <linux/landlock.h>
 #    include <stdlib.h>
 #    include <string.h>
@@ -81,6 +82,28 @@ ErrorOr<void> add_landlock_path_if_exists(Vector<LandlockPath>& paths, StringVie
     }
 
     TRY(paths.try_append({ move(path_bytes), access, is_directory }));
+    return {};
+}
+
+ErrorOr<void> add_loaded_library_directories(Vector<LandlockPath>& paths, Optional<StringView> root)
+{
+    Vector<ByteString> directories;
+    dl_iterate_phdr([](dl_phdr_info* info, size_t, void* data) {
+        auto& directories = *static_cast<Vector<ByteString>*>(data);
+        StringView name { info->dlpi_name, strlen(info->dlpi_name) };
+        if (name.starts_with('/')) {
+            auto directory = LexicalPath::dirname(name);
+            if (!directories.contains_slow(directory))
+                directories.append(move(directory));
+        }
+        return 0;
+    },
+        &directories);
+
+    for (auto const& directory : directories) {
+        if (!root.has_value() || LexicalPath { directory }.is_child_of(LexicalPath { root->to_byte_string() }))
+            TRY(add_landlock_path_if_exists(paths, directory, LandlockPath::Access::ReadOnly));
+    }
     return {};
 }
 #endif

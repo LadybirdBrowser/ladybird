@@ -83,6 +83,7 @@ struct SeatbeltProfile {
 
 #if defined(AK_OS_LINUX)
 [[nodiscard]] ErrorOr<void> add_landlock_path_if_exists(Vector<LandlockPath>& paths, StringView path, LandlockPath::Access);
+[[nodiscard]] ErrorOr<void> add_loaded_library_directories(Vector<LandlockPath>& paths, Optional<StringView> root = {});
 [[nodiscard]] ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> = {});
 #endif
 
