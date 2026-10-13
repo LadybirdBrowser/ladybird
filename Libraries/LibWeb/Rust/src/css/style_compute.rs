@@ -2560,7 +2560,11 @@ pub(crate) fn initial_value(property_id: u16) -> Option<&'static crate::css::sty
 }
 
 pub(crate) fn initial_value_data(property_id: u16) -> *const crate::css::style_value::StyleValueData {
-    initial_value_table().values[longhand_index(property_id)].pointer()
+    initial_value_handle(property_id).pointer()
+}
+
+pub(crate) fn initial_value_handle(property_id: u16) -> &'static crate::css::style_value::RetainedStyleValueData {
+    &initial_value_table().values[longhand_index(property_id)]
 }
 
 fn initial_value_dependencies(property_id: u16) -> ExternalValueDependencies {

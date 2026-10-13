@@ -1911,7 +1911,7 @@ pub(crate) unsafe fn intern_document_style(
     use crate::css::table_group_builder::{assemble_group_from_table, assembly_color_inputs, group_index};
     let color_inputs = assembly_color_inputs(table, length);
     let payloads: [*const c_void; group_index::COUNT] = std::array::from_fn(|group| unsafe {
-        assemble_group_from_table(table, group, Some(font), std::ptr::null(), color_inputs, length)
+        assemble_group_from_table(table, group, Some(font), None, color_inputs, length)
     });
     let delta = unsafe {
         publish_computed_groups(

@@ -2344,7 +2344,7 @@ impl RetainedState {
                         &*table,
                         group,
                         Some(font),
-                        parent_payload.as_ptr(),
+                        crate::css::computed_values::GroupPayloadRef::new(group, parent_payload.as_ptr()),
                         color_inputs,
                         length,
                     )

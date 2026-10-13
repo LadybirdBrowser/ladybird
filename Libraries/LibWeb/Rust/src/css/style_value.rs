@@ -464,6 +464,13 @@ impl RetainedStyleValueData {
         unsafe { Self::from_retained_optional_pointer(pointer) }
     }
 
+    /// Releases the handle's reference to the caller as a raw pointer, null for an empty handle.
+    pub(crate) fn into_pointer(self) -> *const StyleValueData {
+        let pointer = self.pointer();
+        std::mem::forget(self);
+        pointer
+    }
+
     /// Converts the retained reference into an Arc, transferring the strong reference.
     pub(crate) fn into_arc(self) -> std::sync::Arc<StyleValueData> {
         let pointer = self.pointer();
@@ -3286,13 +3293,21 @@ pub unsafe extern "C" fn rust_style_value_release(value: *const StyleValueData) 
 /// `first` and `second` must be null or point at live `StyleValueData` allocated by this module.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_equals(first: *const StyleValueData, second: *const StyleValueData) -> bool {
-    if std::ptr::eq(first, second) {
-        return true;
+    optional_style_values_equal(unsafe { first.as_ref() }, unsafe { second.as_ref() })
+}
+
+/// `rust_style_value_equals` for two handles.
+pub(crate) fn retained_style_values_equal(first: &RetainedStyleValueData, second: &RetainedStyleValueData) -> bool {
+    optional_style_values_equal(first.optional_data(), second.optional_data())
+}
+
+/// Two absent values are equal, and an absent value equals no present one.
+fn optional_style_values_equal(first: Option<&StyleValueData>, second: Option<&StyleValueData>) -> bool {
+    match (first, second) {
+        (None, None) => true,
+        (Some(first), Some(second)) => style_values_equal(first, second),
+        _ => false,
     }
-    if first.is_null() || second.is_null() {
-        return false;
-    }
-    style_values_equal(unsafe { &*first }, unsafe { &*second })
 }
 
 fn style_values_equal(first: &StyleValueData, second: &StyleValueData) -> bool {

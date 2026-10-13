@@ -1315,29 +1315,37 @@ impl ComputedLonghandTable {
         property_id: u16,
         with_animations: bool,
     ) -> FfiEffectiveLonghandValue {
+        let (value, source) = self.effective_value_handle(overlay, property_id, with_animations);
+        FfiEffectiveLonghandValue {
+            value: value.pointer().cast(),
+            source,
+        }
+    }
+
+    /// The handle `effective_value` reads the longhand's value from, and which source it is.
+    pub(crate) fn effective_value_handle<'a>(
+        &'a self,
+        overlay: Option<&'a AnimatedOverlay>,
+        property_id: u16,
+        with_animations: bool,
+    ) -> (&'a RetainedStyleValueData, u8) {
         if with_animations
             && let Some(overlay) = overlay
             && let Some(entry) = overlay.get(property_id)
             && overlay_wins(entry, self.is_important(property_id))
         {
-            return FfiEffectiveLonghandValue {
-                value: entry.value,
-                source: EFFECTIVE_LONGHAND_SOURCE_OVERLAY,
-            };
+            return (entry.value_handle(), EFFECTIVE_LONGHAND_SOURCE_OVERLAY);
         }
         if !self.is_evaluated(property_id)
             && let Some(value) = self.inheritance_dependent_value(property_id)
             && retained_value_depends_on_current_color(value)
         {
-            return FfiEffectiveLonghandValue {
-                value: value.pointer().cast(),
-                source: EFFECTIVE_LONGHAND_SOURCE_SPECIFIED,
-            };
+            return (value, EFFECTIVE_LONGHAND_SOURCE_SPECIFIED);
         }
-        FfiEffectiveLonghandValue {
-            value: self.storage.slot(Self::slot_index(property_id)).0.pointer().cast(),
-            source: EFFECTIVE_LONGHAND_SOURCE_TABLE,
-        }
+        (
+            self.storage.slot(Self::slot_index(property_id)).0,
+            EFFECTIVE_LONGHAND_SOURCE_TABLE,
+        )
     }
 
     pub(crate) fn freeze(&mut self) {

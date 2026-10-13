@@ -1649,7 +1649,7 @@ impl ComputedGroupSets {
                         crate::css::table_group_builder::rebuild_group_for_inherited_current_color(
                             table,
                             group,
-                            old_payload.as_ptr(),
+                            crate::css::computed_values::GroupPayloadRef::new(group, old_payload.as_ptr()),
                             inherited_text.color,
                             inherited_ui.color_scheme,
                         )
@@ -1799,7 +1799,7 @@ impl ComputedGroupSets {
                     &table,
                     group,
                     font,
-                    old_payload.as_ptr(),
+                    crate::css::computed_values::GroupPayloadRef::new(group, old_payload.as_ptr()),
                     color_inputs,
                     length,
                 )

@@ -23,7 +23,6 @@
 //! reference counted or freed.
 
 use std::alloc::{Layout, alloc, dealloc};
-use std::any::TypeId;
 use std::ffi::c_void;
 use std::hash::Hasher;
 use std::sync::OnceLock;
@@ -48,7 +47,7 @@ pub use crate::css::computed_value_types::{
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style::fast_hash::{FastHasher, fast_hasher};
-use crate::css::style_value::StyleValueData;
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 use crate::css::table_group_builder::group_index;
 
@@ -78,9 +77,10 @@ impl ComputedStyleValueHandle {
         }
     }
 
-    pub(crate) fn retained(data: *const crate::css::style_value::StyleValueData) -> Self {
+    /// Another reference to the value `handle` holds, empty for an empty handle.
+    pub(crate) fn from_retained(handle: &RetainedStyleValueData) -> Self {
         Self {
-            pointer: unsafe { crate::css::style_value::retain_style_value(data) }.cast(),
+            pointer: handle.clone().into_pointer().cast(),
         }
     }
 
@@ -1672,39 +1672,198 @@ fn allocate_payload(group: StyleGroup, initial_refcount: usize) -> *mut c_void {
     }
 }
 
-/// Verifies that `T` is the payload type of `group_index`, so typed payload views of the group's
-/// default and freshly allocated payloads are sound.
-fn assert_group_payload_type<T: 'static>(group_index: usize) {
-    let payload_type = with_style_group_type!(style_group(group_index), Payload => TypeId::of::<Payload>());
-    assert!(payload_type == TypeId::of::<T>(), "style group payload type mismatch");
+/// A style group's payload type, which knows the index of its group.
+pub(crate) trait StyleGroupPayload: 'static {
+    const GROUP_INDEX: usize;
 }
 
-/// The payload a built group value can share instead of allocating its own: the parent's payload,
-/// retained for the caller, or the group's default payload, when either holds the same values.
-///
-/// # Safety
-/// `parent_payload` must be null or a live payload of the group at `group_index`.
-unsafe fn share_group_payload<T: PartialEq + 'static>(
+macro_rules! impl_style_group_payload {
+    ($($type:ty => $index:ident),+ $(,)?) => {
+        $(impl StyleGroupPayload for $type {
+            const GROUP_INDEX: usize = group_index::$index;
+        })+
+    };
+}
+
+impl_style_group_payload!(
+    InheritedTableValues => INHERITED_TABLE,
+    InheritedListValues => INHERITED_LIST,
+    InheritedUIValues => INHERITED_UI,
+    InheritedSVGValues => INHERITED_SVG,
+    InheritedTextValues => INHERITED_TEXT,
+    InheritedBoxValues => INHERITED_BOX,
+    FontValues => FONT,
+    AnimationValues => ANIMATION,
+    SVGResetValues => SVG_RESET,
+    GridValues => GRID,
+    AnchorValues => ANCHOR,
+    EffectsValues => EFFECTS,
+    MaskValues => MASK,
+    TextResetValues => TEXT_RESET,
+    ContentValues => CONTENT,
+    TransformValues => TRANSFORM,
+    BackgroundValues => BACKGROUND,
+    BorderValues => BORDER,
+    AlignmentValues => ALIGNMENT,
+    MiscResetValues => MISC_RESET,
+    SizingValues => SIZING,
+    SurroundValues => SURROUND,
+    BoxValues => BOX,
+);
+
+/// Verifies that `T` is the payload type of `group_index`, so typed payload views of the group's
+/// default and freshly allocated payloads are sound.
+fn assert_group_payload_type<T: StyleGroupPayload>(group_index: usize) {
+    assert_eq!(group_index, T::GROUP_INDEX, "style group payload type mismatch");
+}
+
+/// A live payload of the style group at `group_index`, borrowed for `'a`.
+#[derive(Clone, Copy)]
+pub(crate) struct GroupPayloadRef<'a> {
+    group_index: usize,
+    pointer: std::ptr::NonNull<c_void>,
+    payload: std::marker::PhantomData<&'a c_void>,
+}
+
+impl<'a> GroupPayloadRef<'a> {
+    /// The payload `pointer` names, or `None` for a null pointer.
+    ///
+    /// # Safety
+    /// A non-null `pointer` must be a payload of the group at `group_index` that stays live and
+    /// unmodified for `'a`.
+    pub(crate) unsafe fn new(group_index: usize, pointer: *const c_void) -> Option<Self> {
+        assert!(group_index < group_index::COUNT);
+        Some(Self {
+            group_index,
+            pointer: std::ptr::NonNull::new(pointer.cast_mut())?,
+            payload: std::marker::PhantomData,
+        })
+    }
+
+    /// The group's immortal default payload.
+    pub(crate) fn default_payload(group_index: usize) -> GroupPayloadRef<'static> {
+        // SAFETY: Default payloads are leaked, so they stay live and unmodified forever.
+        unsafe { GroupPayloadRef::new(group_index, default_group_payload(group_index)) }
+            .expect("a style group has a default payload")
+    }
+
+    pub(crate) fn as_ptr(self) -> *const c_void {
+        self.pointer.as_ptr().cast_const()
+    }
+
+    /// The payload as its group's type, which must be `T`.
+    fn values<T: StyleGroupPayload>(self) -> &'a T {
+        assert_group_payload_type::<T>(self.group_index);
+        // SAFETY: The payload is live for 'a and its group's type is `T`.
+        unsafe { payload_ref::<T>(self.as_ptr()) }
+    }
+
+    /// Whether `other`, a payload of the same group, holds the same values.
+    fn equals(self, other: GroupPayloadRef<'_>) -> bool {
+        assert_eq!(self.group_index, other.group_index);
+        // SAFETY: Both payloads are live payloads of the group.
+        unsafe { payloads_equal(style_group(self.group_index), self.as_ptr(), other.as_ptr()) }
+    }
+
+    /// The payload, with one more reference for the caller.
+    fn retained(self) -> *const c_void {
+        retain_group_payload(self.group_index, self.as_ptr());
+        self.as_ptr()
+    }
+}
+
+/// A freshly allocated payload of one group, which holds the payload's one reference and frees it unless published.
+struct ScratchPayload {
+    group_index: usize,
+    pointer: *mut c_void,
+}
+
+impl ScratchPayload {
+    fn new_default(group_index: usize) -> Self {
+        let group = style_group(group_index);
+        let pointer = allocate_payload(group, 1);
+        // SAFETY: The payload was just allocated with the layout of the group's type.
+        unsafe { default_construct(group, pointer) };
+        Self { group_index, pointer }
+    }
+
+    fn apply_pokes(&mut self, pokes: &[GroupFieldPoke<'_>]) {
+        // SAFETY: The pokes come from the group's registered descriptors, whose offsets name fields of the right
+        //         type in the group's payload, and nothing else references the scratch payload yet.
+        unsafe { apply_group_field_pokes(self.pointer, pokes) };
+    }
+
+    /// The payload as its group's type, which must be `T`.
+    fn values_mut<T: StyleGroupPayload>(&mut self) -> &mut T {
+        assert_group_payload_type::<T>(self.group_index);
+        // SAFETY: The scratch payload is a live payload of type `T` that only this guard references.
+        unsafe { &mut *self.pointer.cast::<T>() }
+    }
+
+    fn as_ref(&self) -> GroupPayloadRef<'_> {
+        // SAFETY: The scratch payload is live while the guard is, and nothing modifies it while borrowed.
+        unsafe { GroupPayloadRef::new(self.group_index, self.pointer) }.expect("allocation never returns null")
+    }
+
+    /// Hands the payload and its one reference to the caller.
+    fn publish(self) -> *const c_void {
+        let pointer = self.pointer.cast_const();
+        std::mem::forget(self);
+        pointer
+    }
+}
+
+impl Drop for ScratchPayload {
+    fn drop(&mut self) {
+        // SAFETY: The scratch payload was never published, so this guard holds its only reference.
+        unsafe { free_scratch_payload(style_group(self.group_index), self.pointer) };
+    }
+}
+
+/// The payload a build of the group at `group_index` can share instead of publishing its own: the parent's payload,
+/// retained for the caller, or the group's default payload, whichever `matches` first.
+fn share_matching_group_payload(
+    group_index: usize,
+    parent: Option<GroupPayloadRef<'_>>,
+    matches: impl Fn(GroupPayloadRef<'_>) -> bool,
+) -> Option<*const c_void> {
+    if let Some(parent) = parent {
+        assert_eq!(parent.group_index, group_index);
+        if matches(parent) {
+            return Some(parent.retained());
+        }
+    }
+    let default_payload = GroupPayloadRef::default_payload(group_index);
+    matches(default_payload).then(|| default_payload.as_ptr())
+}
+
+/// The payload `built` can share instead of being published.
+fn share_equal_group_payload(built: GroupPayloadRef<'_>, parent: Option<GroupPayloadRef<'_>>) -> Option<*const c_void> {
+    share_matching_group_payload(built.group_index, parent, |candidate| built.equals(candidate))
+}
+
+/// The payload a built group value can share instead of allocating its own.
+fn share_group_payload<T: StyleGroupPayload + PartialEq>(
     group_index: usize,
     built: &T,
-    parent_payload: *const c_void,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> Option<*const c_void> {
     assert_group_payload_type::<T>(group_index);
-    // SAFETY: The caller guarantees that a non-null parent payload is live, and its type is `T`.
-    if !parent_payload.is_null() && built == unsafe { payload_ref::<T>(parent_payload) } {
-        retain_group_payload(group_index, parent_payload);
-        return Some(parent_payload);
-    }
-    let default_payload = default_group_payload(group_index);
-    // SAFETY: The default payload is immortal and immutable, and its type is `T`.
-    if built == unsafe { payload_ref::<T>(default_payload) } {
-        return Some(default_payload);
-    }
-    None
+    share_matching_group_payload(group_index, parent, |candidate| built == candidate.values::<T>())
+}
+
+/// The payload a built group value shares, or else a fresh payload holding it. Either carries one reference for the
+/// caller.
+fn share_or_publish_group_payload<T: StyleGroupPayload + PartialEq>(
+    group_index: usize,
+    built: T,
+    parent: Option<GroupPayloadRef<'_>>,
+) -> *const c_void {
+    share_group_payload(group_index, &built, parent).unwrap_or_else(|| publish_group_payload(group_index, built))
 }
 
 /// Moves a built group value into a fresh payload that carries one reference for the caller.
-fn publish_group_payload<T: 'static>(group_index: usize, built: T) -> *const c_void {
+fn publish_group_payload<T: StyleGroupPayload>(group_index: usize, built: T) -> *const c_void {
     assert_group_payload_type::<T>(group_index);
     let payload = allocate_payload(style_group(group_index), 1);
     // SAFETY: The payload was just allocated with the layout of the group's type, which is `T`.
@@ -2179,8 +2338,8 @@ pub(crate) fn computed_group_output_mask(property: u16) -> Option<u32> {
 
 /// One gathered value for the generic group builder: the computed value's
 /// data, plus the resolved raw color for color-kind fields.
-pub(crate) struct GroupValueEntry {
-    pub(crate) data: *const c_void,
+pub(crate) struct GroupValueEntry<'a> {
+    pub(crate) data: &'a RetainedStyleValueData,
     pub(crate) resolved_color: u32,
     pub(crate) has_resolved_color: bool,
     pub(crate) resolved_number: f64,
@@ -2188,59 +2347,31 @@ pub(crate) struct GroupValueEntry {
 }
 
 /// One decoded write into a scratch payload, at an offset into it.
-enum GroupFieldPoke {
+#[derive(Clone, Copy)]
+enum GroupFieldPoke<'a> {
     U8(usize, u8),
     F32(usize, f32),
     F64(usize, f64),
     I32(usize, i32),
     U64(usize, u64),
     U32(usize, u32),
-    Data(usize, *const crate::css::style_value::StyleValueData),
+    Data(usize, &'a RetainedStyleValueData),
 }
 
 pub(crate) const MAX_GROUP_FIELD_COUNT: usize = 48;
 
-struct GroupFieldPokes {
-    entries: [std::mem::MaybeUninit<GroupFieldPoke>; MAX_GROUP_FIELD_COUNT],
-    len: usize,
-}
-
-impl GroupFieldPokes {
-    fn new() -> Self {
-        Self {
-            entries: [const { std::mem::MaybeUninit::uninit() }; MAX_GROUP_FIELD_COUNT],
-            len: 0,
-        }
-    }
-
-    fn push(&mut self, poke: GroupFieldPoke) {
-        assert!(
-            self.len < self.entries.len(),
-            "a computed style group has too many fields"
-        );
-        self.entries[self.len].write(poke);
-        self.len += 1;
-    }
-}
-
-impl std::ops::Deref for GroupFieldPokes {
-    type Target = [GroupFieldPoke];
-
-    fn deref(&self) -> &Self::Target {
-        // SAFETY: push initializes every entry below len and GroupFieldPoke has no drop glue.
-        unsafe { std::slice::from_raw_parts(self.entries.as_ptr().cast(), self.len) }
-    }
-}
+/// The pokes of one group, which has at most `MAX_GROUP_FIELD_COUNT` fields.
+type GroupFieldPokes<'a> = smallvec::SmallVec<[GroupFieldPoke<'a>; MAX_GROUP_FIELD_COUNT]>;
 
 /// Decodes one group's gathered values against its descriptors into scratch
 /// pokes. Constraint descriptors (the Require kinds) fail the decode when the
 /// value diverges and constraints are enforced. A Rust group builder that
 /// completes complex members itself skips those constraints.
-fn decode_group_field_pokes(
+fn decode_group_field_pokes<'a>(
     descriptors: &[GroupFieldDescriptor],
-    values: &[GroupValueEntry],
+    values: &[GroupValueEntry<'a>],
     enforce_constraints: bool,
-) -> Option<GroupFieldPokes> {
+) -> Option<GroupFieldPokes<'a>> {
     use crate::css::style_compute::px_length_unit;
     use crate::css::style_value::StyleValueData;
     use GroupFieldKind as Kind;
@@ -2249,7 +2380,7 @@ fn decode_group_field_pokes(
     assert!(values.len() <= MAX_GROUP_FIELD_COUNT);
     let mut pokes = GroupFieldPokes::new();
     for (descriptor, value) in descriptors.iter().zip(values) {
-        let data = unsafe { (value.data as *const StyleValueData).as_ref() }?;
+        let data = value.data.optional_data()?;
         let offset = descriptor.offset;
         let resolved_number = || value.has_resolved_number.then_some(value.resolved_number);
         match descriptor.kind {
@@ -2326,7 +2457,7 @@ fn decode_group_field_pokes(
             Kind::ResolvedF32 => pokes.push(Poke::F32(offset, resolved_number()? as f32)),
             Kind::ResolvedF64 => pokes.push(Poke::F64(offset, resolved_number()?)),
             Kind::ResolvedU8 => pokes.push(Poke::U8(offset, resolved_number()? as u8)),
-            Kind::RetainedData => pokes.push(Poke::Data(offset, value.data.cast())),
+            Kind::RetainedData => pokes.push(Poke::Data(offset, value.data)),
             Kind::KeywordEqualsBool(keyword) => {
                 let is_keyword =
                     matches!(data, StyleValueData::Keyword { keyword: value_keyword } if *value_keyword == keyword);
@@ -2352,7 +2483,8 @@ fn decode_group_field_pokes(
                 }
             }
             Kind::RequireInitialValue => {
-                if value.data != crate::css::style_compute::initial_value_data(descriptor.property_id).cast() {
+                if value.data.pointer() != crate::css::style_compute::initial_value_data(descriptor.property_id).cast()
+                {
                     return None;
                 }
             }
@@ -2382,8 +2514,7 @@ unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]
                 Poke::U32(offset, value) => *(base.add(offset) as *mut u32) = value,
                 Poke::Data(offset, data) => {
                     // The slot's constructor default is null, so nothing is released.
-                    let retained = crate::css::style_value::retain_style_value(data);
-                    *(base.add(offset) as *mut *const StyleValueData) = retained;
+                    *(base.add(offset) as *mut *const StyleValueData) = data.clone().into_pointer();
                 }
             }
         }
@@ -2408,15 +2539,10 @@ unsafe fn free_scratch_payload(group: StyleGroup, scratch: *mut c_void) {
 /// population path when any value cannot be decoded or a constraint fails),
 /// default-constructs a scratch payload, pokes the simple fields, and shares
 /// the parent or default payload when the result compares equal.
-///
-/// # Safety
-/// `values` must hold one valid data entry per registered descriptor
-/// of the group, in registration order; `parent_payload` must be a valid
-/// payload of the group or null.
-pub(crate) unsafe fn build_style_group(
+pub(crate) fn build_style_group(
     group_index: usize,
-    values: &[GroupValueEntry],
-    parent_payload: *const c_void,
+    values: &[GroupValueEntry<'_>],
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     let build_or_reuse_group_payload = || {
         let descriptors = group_field_descriptors(group_index);
@@ -2425,39 +2551,16 @@ pub(crate) unsafe fn build_style_group(
         }
         let pokes = decode_group_field_pokes(descriptors, values, true)?;
 
-        let group = style_group(group_index);
-
         // A group whose descriptors are all satisfied constraints would
         // scratch-build an exact copy of the default payload, so skip the
         // allocation and share directly.
         if pokes.is_empty() {
-            let default_payload = default_group_payload(group_index);
-            if !parent_payload.is_null() && unsafe { payloads_equal(group, parent_payload, default_payload) } {
-                retain_group_payload(group_index, parent_payload);
-                return Some(parent_payload);
-            }
-            return Some(default_payload);
+            return Some(share_default_group_payload(group_index, parent));
         }
 
-        let scratch = allocate_payload(group, 1);
-        // SAFETY: The scratch payload was allocated for this group's layout,
-        // and every poke offset comes from offsetof on the C++ side.
-        unsafe {
-            default_construct(group, scratch);
-            apply_group_field_pokes(scratch, &pokes);
-        }
-
-        if !parent_payload.is_null() && unsafe { payloads_equal(group, scratch, parent_payload) } {
-            unsafe { free_scratch_payload(group, scratch) };
-            retain_group_payload(group_index, parent_payload);
-            return Some(parent_payload);
-        }
-        let default_payload = default_group_payload(group_index);
-        if unsafe { payloads_equal(group, scratch, default_payload) } {
-            unsafe { free_scratch_payload(group, scratch) };
-            return Some(default_payload);
-        }
-        Some(scratch as *const c_void)
+        let mut scratch = ScratchPayload::new_default(group_index);
+        scratch.apply_pokes(&pokes);
+        Some(share_equal_group_payload(scratch.as_ref(), parent).unwrap_or_else(|| scratch.publish()))
     };
     build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
@@ -2465,59 +2568,29 @@ pub(crate) unsafe fn build_style_group(
 /// Shares one group's immortal default payload - or the parent payload when
 /// it equals the default, keeping the identity - for a build whose inputs are
 /// all initial values.
-///
-/// # Safety
-/// `parent_payload` must be a valid payload of the group or null.
-pub(crate) unsafe fn share_default_group_payload(group_index: usize, parent_payload: *const c_void) -> *const c_void {
-    let group = style_group(group_index);
-    let default_payload = default_group_payload(group_index);
-    if !parent_payload.is_null() && unsafe { payloads_equal(group, parent_payload, default_payload) } {
-        retain_group_payload(group_index, parent_payload);
-        return parent_payload;
-    }
-    default_payload
+pub(crate) fn share_default_group_payload(group_index: usize, parent: Option<GroupPayloadRef<'_>>) -> *const c_void {
+    let default_payload = GroupPayloadRef::default_payload(group_index);
+    share_matching_group_payload(group_index, parent, |candidate| candidate.equals(default_payload))
+        .expect("the default payload equals itself")
 }
 
 /// Builds a Rust-native group whose descriptor-backed fields are completed by
 /// a Rust closure before the normal parent/default sharing checks.
-///
-/// # Safety
-/// `values` must hold one valid data entry per registered descriptor of the
-/// group in registration order, and `parent_payload` must be a valid payload
-/// of the group or null. The closure must cast the payload to the registered
-/// Rust-native type only.
-pub(crate) unsafe fn build_group_payload_with_rust_fill(
+pub(crate) fn build_group_payload_with_rust_fill<T: StyleGroupPayload>(
     group_index: usize,
-    values: &[GroupValueEntry],
-    fill: impl FnOnce(*mut c_void),
-    parent_payload: *const c_void,
+    values: &[GroupValueEntry<'_>],
+    fill: impl FnOnce(&mut T),
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     let descriptors = group_field_descriptors(group_index);
     assert_eq!(descriptors.len(), values.len());
     let pokes = decode_group_field_pokes(descriptors, values, false)
         .expect("computed values decode for every non-constraint descriptor");
 
-    let group = style_group(group_index);
-    let scratch = allocate_payload(group, 1);
-    // SAFETY: The scratch payload was allocated for this group's Rust-native
-    // layout, and every poke offset comes from offsetof on the C++ mirror.
-    unsafe {
-        default_construct(group, scratch);
-        apply_group_field_pokes(scratch, &pokes);
-    }
-    fill(scratch);
-
-    if !parent_payload.is_null() && unsafe { payloads_equal(group, scratch, parent_payload) } {
-        unsafe { free_scratch_payload(group, scratch) };
-        retain_group_payload(group_index, parent_payload);
-        return parent_payload;
-    }
-    let default_payload = default_group_payload(group_index);
-    if unsafe { payloads_equal(group, scratch, default_payload) } {
-        unsafe { free_scratch_payload(group, scratch) };
-        return default_payload;
-    }
-    scratch as *const c_void
+    let mut scratch = ScratchPayload::new_default(group_index);
+    scratch.apply_pokes(&pokes);
+    fill(scratch.values_mut::<T>());
+    share_equal_group_payload(scratch.as_ref(), parent).unwrap_or_else(|| scratch.publish())
 }
 
 /// Builds an inherited box group payload from the five computed keyword
@@ -2529,23 +2602,19 @@ pub(crate) unsafe fn build_group_payload_with_rust_fill(
 /// The returned payload carries one reference for the caller; fresh payloads
 /// start at one, shared payloads are retained, and default payloads are
 /// intentionally leaked and never counted.
-///
-/// # Safety
-/// The value pointers must be valid StyleValueData or null, and
-/// `parent_payload` a valid inherited box payload or null.
-pub(crate) unsafe fn build_inherited_box_group(
+pub(crate) fn build_inherited_box_group(
     group_index: usize,
-    visibility: *const c_void,
-    direction: *const c_void,
-    writing_mode: *const c_void,
-    content_visibility: *const c_void,
-    image_rendering: *const c_void,
-    parent_payload: *const c_void,
+    visibility: &RetainedStyleValueData,
+    direction: &RetainedStyleValueData,
+    writing_mode: &RetainedStyleValueData,
+    content_visibility: &RetainedStyleValueData,
+    image_rendering: &RetainedStyleValueData,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
-    let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
-        match unsafe { (data as *const StyleValueData).as_ref() } {
+    let keyword_code = |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>| -> u8 {
+        match data.optional_data() {
             Some(StyleValueData::Keyword { keyword }) => map(*keyword).expect("computed keyword has a supported value"),
             _ => panic!("computed inherited box value is not a keyword"),
         }
@@ -2561,9 +2630,7 @@ pub(crate) unsafe fn build_inherited_box_group(
         image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
     };
 
-    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-    unsafe { share_group_payload::<InheritedBoxValues>(group_index, &built, parent_payload) }
-        .unwrap_or_else(|| publish_group_payload(group_index, built))
+    share_or_publish_group_payload::<InheritedBoxValues>(group_index, built, parent)
 }
 
 impl ComputedSize {
@@ -2574,19 +2641,18 @@ impl ComputedSize {
         }
     }
 
-    fn retained(kind: ComputedSizeKind, data: *const crate::css::style_value::StyleValueData) -> Self {
+    fn retained(kind: ComputedSizeKind, data: &RetainedStyleValueData) -> Self {
         Self {
             kind,
-            value: ComputedStyleValueHandle::retained(data),
+            value: ComputedStyleValueHandle::from_retained(data),
         }
     }
 
-    pub(crate) fn from_data(data: *const c_void) -> Self {
+    pub(crate) fn from_data(data: &RetainedStyleValueData) -> Self {
         use crate::css::css_enums::keyword;
         use crate::css::style_value::StyleValueData;
 
-        let data = data.cast::<StyleValueData>();
-        match unsafe { data.as_ref() } {
+        match data.optional_data() {
             Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::AUTO => {
                 Self::keyword(ComputedSizeKind::Auto)
             }
@@ -2602,9 +2668,7 @@ impl ComputedSize {
             Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::NONE => {
                 Self::keyword(ComputedSizeKind::None)
             }
-            Some(StyleValueData::Function { value, .. }) => {
-                Self::retained(ComputedSizeKind::FitContent, value.pointer())
-            }
+            Some(StyleValueData::Function { value, .. }) => Self::retained(ComputedSizeKind::FitContent, value),
             Some(StyleValueData::Calculated { .. }) => Self::retained(ComputedSizeKind::Calculated, data),
             Some(StyleValueData::Percentage { .. }) => Self::retained(ComputedSizeKind::Percentage, data),
             Some(StyleValueData::Length { .. }) => Self::retained(ComputedSizeKind::Length, data),
@@ -2629,12 +2693,12 @@ impl SizingValues {
 }
 
 impl ComputedFlexBasis {
-    fn from_data(data: *const c_void) -> Self {
+    fn from_data(data: &RetainedStyleValueData) -> Self {
         use crate::css::css_enums::keyword;
         use crate::css::style_value::StyleValueData;
 
         let is_content = matches!(
-            unsafe { data.cast::<StyleValueData>().as_ref() },
+            data.optional_data(),
             Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::CONTENT
         );
         Self {
@@ -2649,13 +2713,12 @@ impl ComputedFlexBasis {
 }
 
 impl ComputedGap {
-    fn from_data(data: *const c_void) -> Self {
+    fn from_data(data: &RetainedStyleValueData) -> Self {
         use crate::css::css_enums::keyword;
         use crate::css::style_value::StyleValueData;
 
-        let data = data.cast::<StyleValueData>();
         let is_normal = matches!(
-            unsafe { data.as_ref() },
+            data.optional_data(),
             Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL
         );
         Self {
@@ -2663,7 +2726,7 @@ impl ComputedGap {
             value: if is_normal {
                 ComputedStyleValueHandle::empty()
             } else {
-                ComputedStyleValueHandle::retained(data)
+                ComputedStyleValueHandle::from_retained(data)
             },
         }
     }
@@ -2720,13 +2783,12 @@ impl ComputedLengthPercentageOrAuto {
         }
     }
 
-    pub(crate) fn from_data(data: *const c_void) -> Self {
+    pub(crate) fn from_data(data: &RetainedStyleValueData) -> Self {
         use crate::css::css_enums::keyword;
         use crate::css::style_value::StyleValueData;
 
-        let data = data.cast::<StyleValueData>();
         let is_auto = matches!(
-            unsafe { data.as_ref() },
+            data.optional_data(),
             Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::AUTO
         );
         Self {
@@ -2734,23 +2796,22 @@ impl ComputedLengthPercentageOrAuto {
             value: if is_auto {
                 ComputedStyleValueHandle::empty()
             } else {
-                ComputedStyleValueHandle::retained(data)
+                ComputedStyleValueHandle::from_retained(data)
             },
         }
     }
 
-    fn from_length_box_data(data: *const c_void, default_is_auto: bool) -> Self {
+    fn from_length_box_data(data: &RetainedStyleValueData, default_is_auto: bool) -> Self {
         use crate::css::css_enums::keyword;
         use crate::css::style_value::StyleValueData;
 
-        let data = data.cast::<StyleValueData>();
-        match unsafe { data.as_ref() } {
+        match data.optional_data() {
             Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::AUTO => Self::auto(),
             Some(
                 StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated { .. },
             ) => Self {
                 is_auto: false,
-                value: ComputedStyleValueHandle::retained(data),
+                value: ComputedStyleValueHandle::from_retained(data),
             },
             _ if default_is_auto => Self::auto(),
             _ => Self::zero(),
@@ -2783,10 +2844,10 @@ impl ComputedLengthBox {
     }
 
     pub(crate) fn from_data(
-        top: *const c_void,
-        right: *const c_void,
-        bottom: *const c_void,
-        left: *const c_void,
+        top: &RetainedStyleValueData,
+        right: &RetainedStyleValueData,
+        bottom: &RetainedStyleValueData,
+        left: &RetainedStyleValueData,
         default_is_auto: bool,
     ) -> Self {
         Self {
@@ -2968,8 +3029,9 @@ impl EffectsValues {
     fn initial() -> Self {
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         let auto_edge = ComputedClipEdge {
             is_auto: true,
             value: 0.0,
@@ -3063,8 +3125,9 @@ impl InheritedSVGValues {
         use crate::css::css_enums;
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         let color_interpolation = |keyword| {
             css_enums::keyword_to_color_interpolation(keyword)
                 .expect("an initial color-interpolation keyword maps to its enum")
@@ -3151,8 +3214,9 @@ impl AnimationValues {
     fn initial() -> Self {
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             animation_name: initial(property_id::ANIMATION_NAME),
             animation_composition: initial(property_id::ANIMATION_COMPOSITION),
@@ -3184,8 +3248,9 @@ impl MaskValues {
     fn initial() -> Self {
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             mask_image: initial(property_id::MASK_IMAGE),
             mask_type: initial(property_id::MASK_TYPE),
@@ -3205,8 +3270,9 @@ impl BackgroundValues {
     fn initial() -> Self {
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             background_color: 0,
             background_color_style_value: initial(property_id::BACKGROUND_COLOR),
@@ -3231,8 +3297,9 @@ impl BorderValues {
         use crate::css::css_pixels::CssPixels;
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         let side = || ComputedBorderSide {
             color: 0,
             line_style: 0,
@@ -3273,8 +3340,9 @@ impl ContentValues {
     fn initial() -> Self {
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             content: initial(property_id::CONTENT),
             counter_increment: initial(property_id::COUNTER_INCREMENT),
@@ -3351,8 +3419,9 @@ impl InheritedListValues {
     fn initial() -> Self {
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             list_style_type: initial(property_id::LIST_STYLE_TYPE),
             list_style_position: 1,
@@ -3388,8 +3457,9 @@ impl MiscResetValues {
         use crate::css::css_pixels::CssPixels;
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             outline_offset_style_value: initial(property_id::OUTLINE_OFFSET),
             scroll_margin: ComputedLengthBox::zero(),
@@ -3440,8 +3510,9 @@ impl FontValues {
         use crate::css::css_pixels::CssPixels;
         use crate::css::property_metadata::property_id;
 
-        let initial =
-            |property| ComputedStyleValueHandle::retained(crate::css::style_compute::initial_value_data(property));
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             font_size: CssPixels::from_integer(16),
             line_height_used: CssPixels::from_raw(0),
@@ -3486,35 +3557,31 @@ impl FontValues {
 /// The returned payload carries one reference for the caller; fresh payloads
 /// start at one, shared payloads are retained, and default payloads are
 /// intentionally leaked and never counted.
-///
-/// # Safety
-/// The value pointers must identify valid StyleValueData, and
-/// `parent_payload` must identify an alignment payload or be null.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn rust_build_alignment_group(
+pub(crate) fn rust_build_alignment_group(
     group_index: usize,
-    webkit_box_orient: *const c_void,
-    flex_direction: *const c_void,
-    flex_wrap: *const c_void,
-    flex_basis: *const c_void,
+    webkit_box_orient: &RetainedStyleValueData,
+    flex_direction: &RetainedStyleValueData,
+    flex_wrap: &RetainedStyleValueData,
+    flex_basis: &RetainedStyleValueData,
     flex_grow: f64,
     flex_shrink: f64,
     order: i32,
-    align_content: *const c_void,
-    align_items: *const c_void,
-    align_self: *const c_void,
-    justify_content: *const c_void,
-    justify_items: *const c_void,
-    justify_self: *const c_void,
-    column_gap: *const c_void,
-    row_gap: *const c_void,
-    parent_payload: *const c_void,
+    align_content: &RetainedStyleValueData,
+    align_items: &RetainedStyleValueData,
+    align_self: &RetainedStyleValueData,
+    justify_content: &RetainedStyleValueData,
+    justify_items: &RetainedStyleValueData,
+    justify_self: &RetainedStyleValueData,
+    column_gap: &RetainedStyleValueData,
+    row_gap: &RetainedStyleValueData,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
     let build_or_reuse_group_payload = || {
-        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
-            match unsafe { data.cast::<StyleValueData>().as_ref() } {
+        let keyword_code = |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>| -> Option<u8> {
+            match data.optional_data() {
                 Some(StyleValueData::Keyword { keyword }) => map(*keyword),
                 _ => None,
             }
@@ -3537,11 +3604,11 @@ pub(crate) unsafe fn rust_build_alignment_group(
             row_gap: ComputedGap::from_data(row_gap),
         };
 
-        // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-        Some(
-            unsafe { share_group_payload::<AlignmentValues>(group_index, &built, parent_payload) }
-                .unwrap_or_else(|| publish_group_payload(group_index, built)),
-        )
+        Some(share_or_publish_group_payload::<AlignmentValues>(
+            group_index,
+            built,
+            parent,
+        ))
     };
     build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
@@ -3551,51 +3618,33 @@ pub(crate) unsafe fn rust_build_alignment_group(
 /// The returned payload carries one reference for the caller; fresh payloads
 /// start at one, shared payloads are retained, and default payloads are
 /// intentionally leaked and never counted.
-///
-/// # Safety
-/// `parent_payload` must identify an SVG reset payload or be null.
-pub(crate) unsafe fn build_svg_reset_group_payload(
+pub(crate) fn build_svg_reset_group_payload(
     group_index: usize,
     built: SVGResetValues,
-    parent_payload: *const c_void,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
-    abort_on_panic(|| {
-        // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-        unsafe { share_group_payload::<SVGResetValues>(group_index, &built, parent_payload) }
-            .unwrap_or_else(|| publish_group_payload(group_index, built))
-    })
+    abort_on_panic(|| share_or_publish_group_payload::<SVGResetValues>(group_index, built, parent))
 }
 
 /// Builds the complete text-decoration reset group from its lowered values.
-///
-/// # Safety
-/// `text_decoration_lines` must address `text_decoration_line_count` valid
-/// enum codes, a non-null thickness must identify valid StyleValueData, and
-/// `parent_payload` must identify a text reset payload or be null.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn rust_build_text_reset_group(
+pub(crate) fn rust_build_text_reset_group(
     group_index: usize,
-    text_decoration_lines: *const u8,
-    text_decoration_line_count: usize,
+    lines: &[u8],
     text_decoration_thickness_kind: u8,
-    text_decoration_thickness: *const c_void,
+    text_decoration_thickness: &RetainedStyleValueData,
     text_decoration_style: u8,
     text_decoration_color: u32,
     white_space_trim_discard_before: bool,
     white_space_trim_discard_after: bool,
     white_space_trim_discard_inner: bool,
-    parent_payload: *const c_void,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
-    let lines = if text_decoration_line_count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(text_decoration_lines, text_decoration_line_count) }
-    };
     let built = TextResetValues {
         text_decoration_lines: RetainedTextDecorationLineList::from_vec(lines.to_vec()),
         text_decoration_thickness_kind,
         text_decoration_thickness: if text_decoration_thickness_kind == 2 {
-            ComputedStyleValueHandle::retained(text_decoration_thickness.cast())
+            ComputedStyleValueHandle::from_retained(text_decoration_thickness)
         } else {
             ComputedStyleValueHandle::empty()
         },
@@ -3606,44 +3655,37 @@ pub(crate) unsafe fn rust_build_text_reset_group(
         white_space_trim_discard_inner,
     };
 
-    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-    unsafe { share_group_payload::<TextResetValues>(group_index, &built, parent_payload) }
-        .unwrap_or_else(|| publish_group_payload(group_index, built))
+    share_or_publish_group_payload::<TextResetValues>(group_index, built, parent)
 }
 
 /// Builds the complete surround group from the physical inset, margin, and
 /// padding properties. Anchor insets retain their original value separately
 /// while exposing auto through the length-box facade, matching layout's
 /// existing representation.
-///
-/// # Safety
-/// Each value pointer must address valid StyleValueData, and `parent_payload`
-/// must be a valid surround payload or null.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn rust_build_surround_group(
+pub(crate) fn rust_build_surround_group(
     group_index: usize,
-    top: *const c_void,
-    right: *const c_void,
-    bottom: *const c_void,
-    left: *const c_void,
-    margin_top: *const c_void,
-    margin_right: *const c_void,
-    margin_bottom: *const c_void,
-    margin_left: *const c_void,
-    padding_top: *const c_void,
-    padding_right: *const c_void,
-    padding_bottom: *const c_void,
-    padding_left: *const c_void,
-    position_anchor: *const c_void,
-    parent_payload: *const c_void,
+    top: &RetainedStyleValueData,
+    right: &RetainedStyleValueData,
+    bottom: &RetainedStyleValueData,
+    left: &RetainedStyleValueData,
+    margin_top: &RetainedStyleValueData,
+    margin_right: &RetainedStyleValueData,
+    margin_bottom: &RetainedStyleValueData,
+    margin_left: &RetainedStyleValueData,
+    padding_top: &RetainedStyleValueData,
+    padding_right: &RetainedStyleValueData,
+    padding_bottom: &RetainedStyleValueData,
+    padding_left: &RetainedStyleValueData,
+    position_anchor: Option<&RetainedStyleValueData>,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
     let build_or_reuse_group_payload = || {
-        let anchor = |data: *const c_void| {
-            let data = data.cast::<StyleValueData>();
-            if matches!(unsafe { data.as_ref() }, Some(StyleValueData::Anchor { .. })) {
-                ComputedStyleValueHandle::retained(data)
+        let anchor = |data: &RetainedStyleValueData| {
+            if matches!(data.optional_data(), Some(StyleValueData::Anchor { .. })) {
+                ComputedStyleValueHandle::from_retained(data)
             } else {
                 ComputedStyleValueHandle::empty()
             }
@@ -3658,17 +3700,13 @@ pub(crate) unsafe fn rust_build_surround_group(
             right_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
             bottom_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
             left_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
-            position_anchor: if position_anchor.is_null() {
-                ComputedStyleValueHandle::empty()
-            } else {
-                ComputedStyleValueHandle::retained(position_anchor.cast())
-            },
+            position_anchor: position_anchor
+                .map_or_else(ComputedStyleValueHandle::empty, ComputedStyleValueHandle::from_retained),
             margin: ComputedLengthBox::from_data(margin_top, margin_right, margin_bottom, margin_left, false),
             padding: ComputedLengthBox::from_data(padding_top, padding_right, padding_bottom, padding_left, false),
         };
 
-        // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-        if let Some(shared) = unsafe { share_group_payload::<SurroundValues>(group_index, &built, parent_payload) } {
+        if let Some(shared) = share_group_payload::<SurroundValues>(group_index, &built, parent) {
             return Some(shared);
         }
 
@@ -3703,39 +3741,22 @@ pub(crate) unsafe fn rust_build_surround_group(
 /// The returned payload carries one reference for the caller; fresh payloads
 /// start at one, shared payloads are retained, and default payloads are
 /// intentionally leaked and never counted.
-///
-/// # Safety
-/// `values` must point at a fully initialized box payload whose ownership
-/// transfers to this call, and `parent_payload` must be a valid box payload
-/// or null.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn rust_build_box_group(
+pub(crate) fn rust_build_box_group(
     group_index: usize,
-    values: *const BoxValues,
-    parent_payload: *const c_void,
+    built: BoxValues,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
-    let built = unsafe { values.read() };
-
-    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-    unsafe { share_group_payload::<BoxValues>(group_index, &built, parent_payload) }
-        .unwrap_or_else(|| publish_group_payload(group_index, built))
+    share_or_publish_group_payload::<BoxValues>(group_index, built, parent)
 }
 
-/// # Safety
-/// `values` must point at a fully initialized grid payload whose ownership
-/// transfers to this call, and `parent_payload` must be a valid grid payload
-/// or null.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn rust_build_grid_group(
+pub(crate) fn rust_build_grid_group(
     group_index: usize,
-    values: *const GridValues,
-    parent_payload: *const c_void,
+    built: GridValues,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
-    let built = unsafe { values.read() };
-
-    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-    unsafe { share_group_payload::<GridValues>(group_index, &built, parent_payload) }
-        .unwrap_or_else(|| publish_group_payload(group_index, built))
+    share_or_publish_group_payload::<GridValues>(group_index, built, parent)
 }
 
 pub(crate) fn copy_grid_placements(source: &GridValues, target: &mut GridValues) {
@@ -3771,20 +3792,16 @@ pub(crate) fn copy_grid_placements(source: &GridValues, target: &mut GridValues)
 /// sizing functions are already constrained to fit-content() by parsing, so
 /// the function payload can be consumed without inspecting or copying its
 /// interned name.
-///
-/// # Safety
-/// Each value pointer must address valid StyleValueData, and `parent_payload`
-/// must be a valid sizing payload or null.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn build_sizing_group(
+pub(crate) fn build_sizing_group(
     group_index: usize,
-    width: *const c_void,
-    min_width: *const c_void,
-    max_width: *const c_void,
-    height: *const c_void,
-    min_height: *const c_void,
-    max_height: *const c_void,
-    parent_payload: *const c_void,
+    width: &RetainedStyleValueData,
+    min_width: &RetainedStyleValueData,
+    max_width: &RetainedStyleValueData,
+    height: &RetainedStyleValueData,
+    min_height: &RetainedStyleValueData,
+    max_height: &RetainedStyleValueData,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     let built = SizingValues {
         width: ComputedSize::from_data(width),
@@ -3795,30 +3812,24 @@ pub(crate) unsafe fn build_sizing_group(
         max_height: ComputedSize::from_data(max_height),
     };
 
-    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-    unsafe { share_group_payload::<SizingValues>(group_index, &built, parent_payload) }
-        .unwrap_or_else(|| publish_group_payload(group_index, built))
+    share_or_publish_group_payload::<SizingValues>(group_index, built, parent)
 }
 
 /// Builds an inherited table group payload from the computed values, with the
 /// same sharing rules as the inherited box builder. Computed border-spacing
 /// is a pair of absolute pixel lengths.
-///
-/// # Safety
-/// The value pointers must be valid StyleValueData or null, and
-/// `parent_payload` a valid inherited table payload or null.
-pub(crate) unsafe fn build_inherited_table_group(
+pub(crate) fn build_inherited_table_group(
     group_index: usize,
-    border_collapse: *const c_void,
-    caption_side: *const c_void,
-    empty_cells: *const c_void,
-    border_spacing: *const c_void,
-    parent_payload: *const c_void,
+    border_collapse: &RetainedStyleValueData,
+    caption_side: &RetainedStyleValueData,
+    empty_cells: &RetainedStyleValueData,
+    border_spacing: &RetainedStyleValueData,
+    parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
-    let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
-        match unsafe { (data as *const StyleValueData).as_ref() } {
+    let keyword_code = |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>| -> u8 {
+        match data.optional_data() {
             Some(StyleValueData::Keyword { keyword }) => map(*keyword).expect("computed keyword has a supported value"),
             _ => panic!("computed inherited table value is not a keyword"),
         }
@@ -3831,7 +3842,7 @@ pub(crate) unsafe fn build_inherited_table_group(
             _ => panic!("computed border-spacing component is not an absolute pixel length"),
         }
     };
-    let components = match unsafe { (border_spacing as *const StyleValueData).as_ref() } {
+    let components = match border_spacing.optional_data() {
         Some(StyleValueData::ValueList { values, .. }) if values.as_slice().len() == 2 => values.as_slice(),
         _ => panic!("computed border-spacing is not a pair"),
     };
@@ -3843,9 +3854,7 @@ pub(crate) unsafe fn build_inherited_table_group(
         border_spacing_vertical: spacing_component(components[1].data()),
     };
 
-    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
-    unsafe { share_group_payload::<InheritedTableValues>(group_index, &built, parent_payload) }
-        .unwrap_or_else(|| publish_group_payload(group_index, built))
+    share_or_publish_group_payload::<InheritedTableValues>(group_index, built, parent)
 }
 
 /// Layout of the inherited table style value group.
@@ -3893,6 +3902,13 @@ impl InheritedBoxValues {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_payload_type_names_the_group_it_is_dispatched_for() {
+        for (group_index, &group) in STYLE_GROUPS.iter().enumerate() {
+            with_style_group_type!(group, Payload => assert_eq!(Payload::GROUP_INDEX, group_index));
+        }
+    }
 
     #[test]
     fn field_descriptors_belong_to_the_group_properties_json_declares() {
