@@ -1079,7 +1079,6 @@ class SpeechGrammarList;
 class SpeechRecognition;
 class SpeechRecognitionAlternative;
 class SpeechRecognitionEvent;
-class SpeechRecognitionPhrase;
 class SpeechRecognitionResult;
 class SpeechRecognitionResultList;
 class SpeechSynthesis;
