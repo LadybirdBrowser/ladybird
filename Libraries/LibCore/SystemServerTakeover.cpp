@@ -44,22 +44,25 @@ static void parse_sockets_from_system_server()
     MUST(Environment::unset(socket_takeover));
 }
 
-ErrorOr<NonnullOwnPtr<Core::LocalSocket>> take_over_socket_from_system_server(ByteString const& socket_path)
+ErrorOr<int> take_over_descriptor_from_system_server(ByteString const& name)
 {
     if (!s_overtaken_sockets_parsed)
         parse_sockets_from_system_server();
 
-    int fd;
-    if (socket_path.is_empty()) {
+    if (name.is_empty()) {
         // We want the first (and only) socket.
         VERIFY(overtaken_sockets().size() == 1);
-        fd = overtaken_sockets().begin()->value;
-    } else {
-        auto it = overtaken_sockets().find(socket_path);
-        if (it == overtaken_sockets().end())
-            return Error::from_string_literal("Non-existent socket requested");
-        fd = it->value;
+        return overtaken_sockets().begin()->value;
     }
+    auto it = overtaken_sockets().find(name);
+    if (it == overtaken_sockets().end())
+        return Error::from_string_literal("Non-existent socket requested");
+    return it->value;
+}
+
+ErrorOr<NonnullOwnPtr<Core::LocalSocket>> take_over_socket_from_system_server(ByteString const& socket_path)
+{
+    auto fd = TRY(take_over_descriptor_from_system_server(socket_path));
 
     // Sanity check: it has to be a socket.
     if (!System::is_socket(fd))

@@ -11,6 +11,7 @@
 
 namespace Core {
 
+CORE_API ErrorOr<int> take_over_descriptor_from_system_server(ByteString const& name);
 CORE_API ErrorOr<NonnullOwnPtr<Core::LocalSocket>> take_over_socket_from_system_server(ByteString const& socket_path = {});
 
 }

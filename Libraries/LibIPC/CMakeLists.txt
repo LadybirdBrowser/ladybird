@@ -28,7 +28,7 @@ else()
         Attachment.cpp
         HandleBroker.cpp
         HandleBrokerServer.cpp
-        TransportSocketWindows.cpp)
+        TransportWindows.cpp)
 endif()
 
 ladybird_lib(LibIPC ipc)

@@ -89,6 +89,7 @@ public:
     };
     static ErrorOr<Paired> create_paired();
     static ErrorOr<NonnullOwnPtr<TransportSocket>> from_socket(NonnullOwnPtr<Core::LocalSocket> socket);
+    static ErrorOr<NonnullOwnPtr<TransportSocket>> adopt_fd(int fd);
 
     explicit TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket);
     ~TransportSocket();

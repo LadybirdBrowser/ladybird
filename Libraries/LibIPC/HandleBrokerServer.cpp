@@ -6,7 +6,6 @@
 
 #include <AK/MemoryStream.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -210,12 +209,12 @@ void HandleBrokerServer::remove_child(HandleBrokerChildConnection& child)
     m_children.remove_first_matching([&](auto const& entry) { return entry.ptr() == &child; });
 }
 
-void HandleBrokerServer::add_child(pid_t pid, int socket_fd)
+void HandleBrokerServer::add_child(pid_t pid, int channel_handle)
 {
     HANDLE process_handle = OpenProcess(PROCESS_DUP_HANDLE, FALSE, pid);
     if (!process_handle) {
         dbgln("HandleBrokerServer: Could not open process {} to serve it handles: {}", pid, Error::from_windows_error());
-        (void)Core::System::close(socket_fd);
+        (void)Core::System::close(channel_handle);
         return;
     }
 
@@ -224,17 +223,15 @@ void HandleBrokerServer::add_child(pid_t pid, int socket_fd)
 
     // A transport is read on the thread that constructs it, so the broker thread constructs this one.
     event_loop->deferred_invoke([=, this] {
-        auto socket = Core::LocalSocket::adopt_fd(socket_fd);
-        if (!socket.is_error() && socket.value()->set_blocking(false).is_error())
-            socket = Error::from_string_literal("Could not make the socket non-blocking");
-        if (socket.is_error()) {
-            dbgln("HandleBrokerServer: Could not adopt the handle broker socket of process {}: {}", pid, socket.error());
-            (void)Core::System::close(socket_fd);
+        auto transport_or_error = Transport::adopt_fd(channel_handle);
+        if (transport_or_error.is_error()) {
+            dbgln("HandleBrokerServer: Could not adopt the handle broker channel of process {}: {}", pid, transport_or_error.error());
+            (void)Core::System::close(channel_handle);
             CloseHandle(process_handle);
             return;
         }
 
-        auto transport = make<Transport>(socket.release_value());
+        auto transport = transport_or_error.release_value();
         // Every other process waits on this thread, so one that stops reading its answers is dropped, not waited for.
         transport->set_disconnects_when_peer_stops_reading(true);
         auto child = make<HandleBrokerChildConnection>(*this, pid, move(transport), process_handle);

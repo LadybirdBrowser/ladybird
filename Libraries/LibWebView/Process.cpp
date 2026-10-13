@@ -217,13 +217,30 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
     Application::transport_bootstrap_server().register_child_transport(process.pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
 
     auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
+#elif defined(AK_OS_WINDOWS)
+    // A Windows pipe cannot carry a handle, so the helper also gets a line to the Browser's handle broker.
+    auto channel = TRY(Core::System::duplex_pipe());
+    ArmedScopeGuard guard_channel_0 { [&] { MUST(Core::System::close(channel[0])); } };
+    ArmedScopeGuard guard_channel_1 { [&] { MUST(Core::System::close(channel[1])); } };
+    auto broker_channel = TRY(Core::System::duplex_pipe());
+    ArmedScopeGuard guard_broker_channel_0 { [&] { MUST(Core::System::close(broker_channel[0])); } };
+    ArmedScopeGuard guard_broker_channel_1 { [&] { MUST(Core::System::close(broker_channel[1])); } };
+
+    // Only the helper's ends reach the helper, and only this helper.
+    spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = channel[1], .fd = channel[1] });
+    spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = broker_channel[1], .fd = broker_channel[1] });
+    TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, ByteString::formatted("ipc:{};handle-broker:{}", channel[1], broker_channel[1]), Core::Environment::Overwrite::Yes));
+
+    auto process = TRY(Core::Process::spawn(spawn_options));
+
+    auto transport = TRY(IPC::Transport::adopt_fd(channel[0]));
+    guard_channel_0.disarm();
+
+    guard_broker_channel_0.disarm();
+    Application::handle_broker_server().add_child(process.pid(), broker_channel[0]);
 #else
     int socket_fds[2] {};
-#    if defined(AK_OS_WINDOWS)
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
-#    else
     TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));
-#    endif
 
     ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(socket_fds[0])); } };
     ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(socket_fds[1])); } };
@@ -233,17 +250,6 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
 
     // NB: Only the helper gets to see this, if it has an environment of its own.
     auto takeover_string = ByteString::formatted("ipc:{}", socket_fds[1]);
-
-#    if defined(AK_OS_WINDOWS)
-    // A Windows socket cannot carry a handle, so the helper also gets a line to the Browser's handle broker.
-    int broker_socket_fds[2] {};
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, broker_socket_fds));
-    ArmedScopeGuard guard_broker_fd_0 { [&] { MUST(Core::System::close(broker_socket_fds[0])); } };
-    ArmedScopeGuard guard_broker_fd_1 { [&] { MUST(Core::System::close(broker_socket_fds[1])); } };
-    spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = broker_socket_fds[1], .fd = broker_socket_fds[1] });
-    takeover_string = ByteString::formatted("{};handle-broker:{}", takeover_string, broker_socket_fds[1]);
-#    endif
-
     if (spawn_options.environment.has_value())
         spawn_options.environment->append(ByteString::formatted("SOCKET_TAKEOVER={}", takeover_string));
     else
@@ -256,11 +262,6 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
     TRY(ipc_socket->set_blocking(true));
 
     auto transport = make<IPC::Transport>(move(ipc_socket));
-
-#    if defined(AK_OS_WINDOWS)
-    guard_broker_fd_0.disarm();
-    Application::handle_broker_server().add_child(process.pid(), broker_socket_fds[0]);
-#    endif
 #endif
 
     if (capture_output) {

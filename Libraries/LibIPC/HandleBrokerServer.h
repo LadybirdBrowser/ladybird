@@ -38,7 +38,7 @@ public:
     ~HandleBrokerServer();
 
     // The caller keeps the child's process alive until this returns, so its process ID cannot name another by then.
-    void add_child(pid_t, int socket_fd);
+    void add_child(pid_t, int channel_handle);
 
 private:
     friend class HandleBrokerChildConnection;

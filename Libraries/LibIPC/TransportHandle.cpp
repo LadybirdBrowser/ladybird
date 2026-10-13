@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Decoder.h>
@@ -12,9 +11,7 @@
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
 
-#if defined(AK_OS_WINDOWS)
-#    include <AK/Windows.h>
-#else
+#if !defined(AK_OS_WINDOWS)
 #    include <sys/socket.h>
 #endif
 
@@ -95,25 +92,19 @@ TransportHandle::TransportHandle(File file)
 
 ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
 {
-    auto socket = TRY(Core::LocalSocket::adopt_fd(m_file.take_fd()));
-    TRY(socket->set_blocking(false));
-    return make<Transport>(move(socket));
+    return Transport::adopt_fd(m_file.take_fd());
 }
 
 ErrorOr<TransportHandlePair> TransportHandle::create_pair()
 {
-    int fds[2] {};
 #    if defined(AK_OS_WINDOWS)
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+    auto handles = TRY(Core::System::duplex_pipe());
+    return TransportHandlePair { TransportHandle { File::adopt_fd(handles[0]) }, TransportHandle { File::adopt_fd(handles[1]) } };
 #    else
+    int fds[2] {};
     TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, fds));
+    return TransportHandlePair { TransportHandle { File::adopt_fd(fds[0]) }, TransportHandle { File::adopt_fd(fds[1]) } };
 #    endif
-    TransportHandlePair pair { TransportHandle { File::adopt_fd(fds[0]) }, TransportHandle { File::adopt_fd(fds[1]) } };
-#    if defined(AK_OS_WINDOWS)
-    TRY(Core::System::set_close_on_exec(fds[0], true));
-    TRY(Core::System::set_close_on_exec(fds[1], true));
-#    endif
-    return pair;
 }
 
 template<>
