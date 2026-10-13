@@ -1263,6 +1263,7 @@ impl RetainedState {
         let mut shared_prefix_caches = shared_prefix_caches.map(|caches| caches.borrow_mut());
         let mut shared_prefix_states = None;
         let mut shared_prefix_states_bytes = 0;
+        let mut shared_prefix_context_bytes = None;
         let prefix_states = if self.tree.tree_scope(node) != scope || dispatch.prefixes().is_empty() {
             None
         } else if let Some(caches) = shared_prefix_caches.as_deref_mut() {
@@ -1273,6 +1274,7 @@ impl RetainedState {
                 .expect("prefix rows are prepared before matching");
             shared_prefix_states_bytes = prefix_states_bytes(states);
             shared_prefix_states = Some(states);
+            shared_prefix_context_bytes = Some(prefix_contexts.program_and_column_capacity_bytes(scope_program));
             shared_prefix_states.as_deref_mut().map(|states| {
                 prefix_contexts.rebind(scope_program, &mut *states, facts);
                 (states, prefix_contexts.get_mut(scope_program))
@@ -1311,7 +1313,11 @@ impl RetainedState {
         if shared_prefix_states_resized && let Some(caches) = shared_prefix_caches.as_deref_mut() {
             caches.states.settle_memory(&mut self.memory);
         }
-        prefix_contexts.settle_memory(&mut self.memory);
+        if shared_prefix_context_bytes
+            .is_some_and(|bytes| prefix_contexts.program_and_column_capacity_bytes(scope_program) != bytes)
+        {
+            prefix_contexts.settle_memory(&mut self.memory);
+        }
         if let Some(prefix_states) = local_prefix_states {
             let bytes = prefix_states.capacity_bytes() + local_prefix_context.as_ref().unwrap().capacity_bytes();
             self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);

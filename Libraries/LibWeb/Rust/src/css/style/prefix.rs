@@ -1391,6 +1391,15 @@ impl PrefixTransitionContexts {
                 .map(PrefixTransitionContext::capacity_bytes)
                 .sum::<u64>()
     }
+
+    pub(super) fn program_and_column_capacity_bytes(&self, program: ScopeProgramID) -> u64 {
+        (self.by_program.capacity() * size_of::<Option<PrefixTransitionContext>>()) as u64
+            + self
+                .by_program
+                .get(program.0 as usize)
+                .and_then(Option::as_ref)
+                .map_or(0, PrefixTransitionContext::capacity_bytes)
+    }
 }
 
 struct PrefixTransitionSurface<'a> {
