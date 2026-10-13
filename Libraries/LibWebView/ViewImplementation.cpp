@@ -430,11 +430,7 @@ void ViewImplementation::reload()
         return;
     }
 
-    traversable().reload([this](Web::HTML::HistoryStepResult result, Optional<i32>) {
-        if (result != Web::HTML::HistoryStepResult::Applied)
-            did_not_apply_reload();
-        dump_session_history("reload-complete"sv);
-    });
+    traversable().reload();
     update_navigation_action_state();
     dump_session_history("reload-mark-current-entry-reload-pending"sv);
 }
@@ -2970,13 +2966,23 @@ void ViewImplementation::complete_webdriver_navigation(u64 navigation_id)
 
 void ViewImplementation::complete_webdriver_history_traversal(Web::HTML::CrossProcessId operation_id)
 {
-    if (!m_webdriver_navigation_observation.has_value()
-        || m_webdriver_navigation_observation->completion_source != WebDriverNavigationCompletionSource::HistoryTraversal
-        || m_webdriver_navigation_observation->history_operation_id != operation_id) {
+    if (!m_webdriver_navigation_observation.has_value() || m_webdriver_navigation_observation->history_operation_id != operation_id)
         return;
-    }
 
-    complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
+    auto& observation = *m_webdriver_navigation_observation;
+    switch (observation.completion_source) {
+    case WebDriverNavigationCompletionSource::HistoryTraversal:
+        complete_webdriver_navigation(observation.navigation_id);
+        break;
+    // A crash recovery is over once both its traversal and the load it starts are.
+    case WebDriverNavigationCompletionSource::CrashRecovery:
+        observation.history_operation_completed = true;
+        if (observation.load_completed)
+            complete_webdriver_navigation(observation.navigation_id);
+        break;
+    case WebDriverNavigationCompletionSource::Load:
+        break;
+    }
 }
 
 JsonValue ViewImplementation::webdriver_session_history() const
@@ -3023,17 +3029,8 @@ void ViewImplementation::recover_current_session_history_entry_with_history_oper
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
     set_url(traversable().session_history().current_entry().url);
-    auto navigation_id = begin_webdriver_navigation(WebDriverNavigationCompletionSource::CrashRecovery);
-    traversable().recover_from_web_content_process_crash([this, navigation_id](Web::HTML::HistoryStepResult, Optional<i32>) {
-        if (m_webdriver_navigation_observation.has_value()
-            && m_webdriver_navigation_observation->navigation_id == navigation_id
-            && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
-            m_webdriver_navigation_observation->history_operation_completed = true;
-            if (m_webdriver_navigation_observation->load_completed)
-                complete_webdriver_navigation(navigation_id);
-        }
-        dump_session_history("recovered-web-content-process-with-history-operation"sv);
-    });
+    begin_webdriver_navigation(WebDriverNavigationCompletionSource::CrashRecovery);
+    traversable().recover_from_web_content_process_crash();
 }
 
 void ViewImplementation::reconstruct_current_session_history_entry_with_history_operation(StringView reason)
@@ -3152,24 +3149,6 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
         page().reset_session_history_for_testing();
     });
     return *m_pending_session_history_reset_for_testing;
-}
-
-void ViewImplementation::request_history_operation(Badge<WebContentPage>, WebContentPage& requesting_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
-{
-    auto sequence_number = traversable().next_sequence_number();
-
-    auto reloads_top_level = parameters.visit(
-        [this](Web::ReloadHistoryOperationParameters const& parameters) {
-            return parameters.navigable_id == traversable().id();
-        },
-        [](auto const&) { return false; });
-    auto on_history_step_applied = [this, reloads_top_level](Web::HTML::HistoryStepResult result, Optional<i32>) {
-        if (reloads_top_level && result != Web::HTML::HistoryStepResult::Applied)
-            did_not_apply_reload();
-        dump_session_history("requested-history-operation-complete"sv);
-    };
-
-    traversable().enqueue_history_operation(operation_id, move(parameters), requesting_page, sequence_number, move(on_history_step_applied));
 }
 
 void ViewImplementation::did_reset_session_history_for_testing(

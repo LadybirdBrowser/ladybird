@@ -247,13 +247,7 @@ static Web::HTML::SameDocumentNavigationEntry same_document_entry(Web::HTML::Ses
     };
 }
 
-struct HistoryOperationResult {
-    Web::HTML::HistoryStepResult result;
-    Optional<i32> committed_step;
-};
-
-// The result of the operation's apply the history step, if its steps applied one.
-static Optional<HistoryOperationResult> run_canonical_history_operation(WebView::CanonicalTraversable& traversable, Web::HistoryOperationParameters request)
+static void run_canonical_history_operation(WebView::CanonicalTraversable& traversable, Web::HistoryOperationParameters request)
 {
     auto operation_id = Web::HTML::CrossProcessId { 8, 1 };
     RefPtr<WebView::CanonicalSessionHistoryEntry> target_entry;
@@ -264,16 +258,9 @@ static Optional<HistoryOperationResult> run_canonical_history_operation(WebView:
             target_entry = traversable.session_history_entry_for(*navigable, parameters.target_entry);
     }
 
-    Optional<HistoryOperationResult> result;
     auto queue_promise = Core::Promise<Empty>::construct();
-    traversable.run_history_operation_at_queue_position(
-        operation_id, move(request), {}, {}, move(target_entry),
-        [&](auto operation_result, auto committed_step) {
-            result = HistoryOperationResult { operation_result, committed_step };
-        },
-        queue_promise);
+    traversable.run_history_operation_at_queue_position(operation_id, move(request), {}, {}, move(target_entry), queue_promise);
     VERIFY(queue_promise->is_resolved());
-    return result;
 }
 
 static void expect_entry(WebView::TraversableSessionHistory const& history, size_t index, i32 expected_step, StringView expected_url)
@@ -1047,11 +1034,8 @@ TEST_CASE(same_document_push_clears_forward_history_at_queue_position)
         .history_handling = Web::HTML::HistoryHandlingBehavior::Push,
         .user_involvement = Web::HTML::UserNavigationInvolvement::None,
     };
-    auto operation_result = run_canonical_history_operation(traversable, move(request));
+    run_canonical_history_operation(traversable, move(request));
 
-    VERIFY(operation_result.has_value());
-    EXPECT_EQ(operation_result->result, Web::HTML::HistoryStepResult::Applied);
-    EXPECT_EQ(operation_result->committed_step, 1);
     auto const& history = traversable.session_history();
     EXPECT_EQ(history.current_step(), 1);
     EXPECT_EQ(history.size(), 2uz);
@@ -1088,9 +1072,8 @@ TEST_CASE(failed_nested_same_document_push_preserves_forward_history)
         .history_handling = Web::HTML::HistoryHandlingBehavior::Push,
         .user_involvement = Web::HTML::UserNavigationInvolvement::None,
     };
-    auto operation_result = run_canonical_history_operation(traversable, move(request));
+    run_canonical_history_operation(traversable, move(request));
 
-    EXPECT(!operation_result.has_value());
     auto const& history = traversable.session_history();
     EXPECT_EQ(history.current_step(), 0);
     EXPECT_EQ(history.size(), 2uz);
@@ -1158,11 +1141,8 @@ TEST_CASE(same_document_replacement_replaces_the_active_entry)
         .history_handling = Web::HTML::HistoryHandlingBehavior::Replace,
         .user_involvement = Web::HTML::UserNavigationInvolvement::None,
     };
-    auto operation_result = run_canonical_history_operation(traversable, move(request));
+    run_canonical_history_operation(traversable, move(request));
 
-    VERIFY(operation_result.has_value());
-    EXPECT_EQ(operation_result->result, Web::HTML::HistoryStepResult::Applied);
-    EXPECT_EQ(operation_result->committed_step, 0);
     auto const& history = traversable.session_history();
     EXPECT_EQ(history.current_step(), 0);
     EXPECT_EQ(history.size(), 2uz);
