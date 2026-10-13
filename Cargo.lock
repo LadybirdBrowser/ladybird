@@ -977,6 +977,7 @@ dependencies = [
  "encoding_rs",
  "ladybird_allocator",
  "libjs_rust",
+ "liburl_rust",
  "libweb_rust",
  "rustc-demangle",
 ]

@@ -38,6 +38,11 @@ pub(crate) mod encoding;
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
 pub(crate) mod speech;
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
+pub(crate) mod url_pattern;
 
 // NB: Only C++ calls into libweb_rust, so nothing in this crate names it. Linking it keeps its extern "C" functions in
 //     the static library.

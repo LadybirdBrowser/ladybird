@@ -1,10 +1,10 @@
 typedef (USVString or URLPatternInit) URLPatternInput;
 
 // https://urlpattern.spec.whatwg.org/#urlpattern
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface URLPattern {
-    constructor(URLPatternInput input, USVString baseURL, optional URLPatternOptions options = {});
-    constructor(optional URLPatternInput input = {}, optional URLPatternOptions options = {});
+    [ImplementedAs=construct_with_base_url] constructor(URLPatternInput input, USVString baseURL, optional URLPatternOptions options = {});
+    [ImplementedAs=construct] constructor(optional URLPatternInput input = {}, optional URLPatternOptions options = {});
 
     boolean test(optional URLPatternInput input = {}, optional USVString baseURL);
 
