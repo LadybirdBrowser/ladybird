@@ -239,8 +239,7 @@ fn current_executable(vm: &Vm) -> Gc<Executable> {
         .executable
         .get()
         .expect("a running frame has an executable");
-    // SAFETY: An executable starts with its head, which is all the frame points to.
-    unsafe { Gc::from_non_null(executable.as_non_null().cast()) }
+    Executable::from_head(executable)
 }
 
 /// VM::get_identifier(), copied out of the executable's identifier table.
