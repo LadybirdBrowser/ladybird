@@ -866,6 +866,7 @@ fn overflow_checks_removed_by_bounds_checks_check_the_counters_of_their_counts()
             in_frame: Vec::new(),
             parent: None,
             passed_argument_count: None,
+            legacy_arguments: 0..0,
         });
         if failed_before {
             graph.exit_sites.push((0, 7, ExitKind::OutOfBounds));
