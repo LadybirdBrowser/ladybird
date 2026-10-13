@@ -25,11 +25,20 @@ from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
 
 
-def types_named_by_interface(interface: Interface) -> List[IDLType]:
-    """Every type that the members of the interface name, which the bindings of the interface convert."""
+def types_named_by_interface(interface: Interface, with_unimplemented_members: bool = True) -> List[IDLType]:
+    """Every type that the members of the interface name. The bindings of the interface convert them, except those of
+    the members marked [FIXME], which they only record as not implemented."""
+
+    def is_wanted(extended_attributes: Dict[str, str]) -> bool:
+        return with_unimplemented_members or "FIXME" not in extended_attributes
+
     types = []
-    types.extend(attribute.type for attribute in interface.regular_attributes + interface.static_attributes)
+    for attribute in interface.regular_attributes + interface.static_attributes:
+        if is_wanted(attribute.extended_attributes):
+            types.append(attribute.type)
     for operation in interface.regular_operations + interface.static_operations:
+        if not is_wanted(operation.extended_attributes):
+            continue
         types.append(operation.return_type)
         types.extend(parameter.type for parameter in operation.parameters)
     for constructor in interface.constructors:
@@ -82,8 +91,11 @@ class DefinitionUsage:
         self.cpp_interfaces_named_by_rust: Dict[str, Interface] = {}
         # The dictionaries that have a C++ representation.
         self.cpp_dictionary_names: Set[str] = set()
+        # The interfaces implemented in Rust that the C++ bindings convert objects of, and so need a C++ class for.
+        self.rust_interfaces_named_by_cpp: Dict[str, Interface] = {}
         self._collect_rust_dictionaries()
         self._collect_cpp_dictionaries()
+        self._collect_rust_interfaces_named_by_cpp()
 
     def cpp_dictionaries(self, module: Module) -> List[Dictionary]:
         """The dictionaries of the module that the C++ bindings declare and convert."""
@@ -161,11 +173,26 @@ class DefinitionUsage:
                     self._name_for_cpp(dictionary.name)
             self._name_types_for_cpp(self.types_named_by_cpp_module(module))
 
-    def types_named_by_cpp_module(self, module: Module) -> List[IDLType]:
+    def _collect_rust_interfaces_named_by_cpp(self) -> None:
+        def name(types: Iterable[IDLType]) -> None:
+            for idl_type in types:
+                for nested_type in idl_type.nested_types():
+                    interface = self.context.interfaces.get(nested_type.name)
+                    if is_implemented_in_rust(interface):
+                        assert interface is not None
+                        self.rust_interfaces_named_by_cpp[interface.name] = interface
+
+        for module in self.context.modules:
+            if not is_implemented_in_rust(module.interface):
+                name(self.types_named_by_cpp_module(module, with_unimplemented_members=False))
+            for dictionary in self.cpp_dictionaries(module):
+                name(member.type for member in dictionary.members)
+
+    def types_named_by_cpp_module(self, module: Module, with_unimplemented_members: bool = True) -> List[IDLType]:
         """The types that the interface, typedefs and callback functions of a module of the C++ bindings name."""
         types = []
         if module.interface is not None:
-            types.extend(types_named_by_interface(module.interface))
+            types.extend(types_named_by_interface(module.interface, with_unimplemented_members))
         types.extend(typedef.type for typedef in module.typedefs)
         for callback_function in module.callback_functions:
             types.append(callback_function.return_type)

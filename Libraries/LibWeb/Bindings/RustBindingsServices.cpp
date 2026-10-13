@@ -14,7 +14,19 @@
 // What the Rust bindings of the interfaces implemented in Rust ask of LibWeb's C++ bindings, declared on the Rust
 // side in Libraries/LibWeb/Bindings/Rust/src/bindings/services.rs.
 
+// The wrapper of an object of an interface implemented in Rust that the C++ bindings name, in the wrapper world of
+// the realm, which the Rust bindings generated for those interfaces define.
+extern "C" JSObject* web_rust_bindings_wrap(JSVM*, void* realm, u16 interface_name, void* cell);
+
 namespace Web::Bindings {
+
+GC::Ref<JS::HostObject> wrap_rust_interface_object(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, InterfaceName interface_name, RustInterfaceCell& cell)
+{
+    // NB: The Rust bindings find the wrapper world of an object through the realm that asks for its wrapper.
+    VERIFY(&wrapper_world == &host_defined_wrapper_world(preferred_realm));
+    auto* wrapper = web_rust_bindings_wrap(JS::HostABI::vm_to_abi(preferred_realm.vm()), &preferred_realm, to_underlying(interface_name), &cell);
+    return as<JS::HostObject>(*JS::HostABI::object_from_abi(wrapper));
+}
 
 constexpr JSHostClass web_bindings_rust_interface_wrapper_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "RustInterface"sv,
     nullptr, nullptr, nullptr, JS_HOST_CLASS_IS_PLATFORM_OBJECT);
