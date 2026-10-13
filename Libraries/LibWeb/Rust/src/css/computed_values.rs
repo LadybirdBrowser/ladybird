@@ -23,6 +23,7 @@
 //! reference counted or freed.
 
 use std::alloc::{Layout, alloc, dealloc};
+use std::any::TypeId;
 use std::ffi::c_void;
 use std::hash::Hasher;
 use std::sync::OnceLock;
@@ -1671,6 +1672,46 @@ fn allocate_payload(group: StyleGroup, initial_refcount: usize) -> *mut c_void {
     }
 }
 
+/// Verifies that `T` is the payload type of `group_index`, so typed payload views of the group's
+/// default and freshly allocated payloads are sound.
+fn assert_group_payload_type<T: 'static>(group_index: usize) {
+    let payload_type = with_style_group_type!(style_group(group_index), Payload => TypeId::of::<Payload>());
+    assert!(payload_type == TypeId::of::<T>(), "style group payload type mismatch");
+}
+
+/// The payload a built group value can share instead of allocating its own: the parent's payload,
+/// retained for the caller, or the group's default payload, when either holds the same values.
+///
+/// # Safety
+/// `parent_payload` must be null or a live payload of the group at `group_index`.
+unsafe fn share_group_payload<T: PartialEq + 'static>(
+    group_index: usize,
+    built: &T,
+    parent_payload: *const c_void,
+) -> Option<*const c_void> {
+    assert_group_payload_type::<T>(group_index);
+    // SAFETY: The caller guarantees that a non-null parent payload is live, and its type is `T`.
+    if !parent_payload.is_null() && built == unsafe { payload_ref::<T>(parent_payload) } {
+        retain_group_payload(group_index, parent_payload);
+        return Some(parent_payload);
+    }
+    let default_payload = default_group_payload(group_index);
+    // SAFETY: The default payload is immortal and immutable, and its type is `T`.
+    if built == unsafe { payload_ref::<T>(default_payload) } {
+        return Some(default_payload);
+    }
+    None
+}
+
+/// Moves a built group value into a fresh payload that carries one reference for the caller.
+fn publish_group_payload<T: 'static>(group_index: usize, built: T) -> *const c_void {
+    assert_group_payload_type::<T>(group_index);
+    let payload = allocate_payload(style_group(group_index), 1);
+    // SAFETY: The payload was just allocated with the layout of the group's type, which is `T`.
+    unsafe { payload.cast::<T>().write(built) };
+    payload.cast_const()
+}
+
 /// Allocates a new payload for `group_index` with a reference count of one,
 /// copy-constructed from `source`.
 ///
@@ -2520,24 +2561,9 @@ pub(crate) unsafe fn build_inherited_box_group(
         image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
     };
 
-    if !parent_payload.is_null() {
-        // SAFETY: The caller guarantees a valid inherited box payload.
-        if built == unsafe { *(parent_payload as *const InheritedBoxValues) } {
-            retain_group_payload(group_index, parent_payload);
-            return parent_payload;
-        }
-    }
-
-    let default_payload = default_group_payload(group_index);
-    // SAFETY: The default payload is a valid inherited box payload.
-    if built == unsafe { *(default_payload as *const InheritedBoxValues) } {
-        return default_payload;
-    }
-
-    let payload = allocate_payload(style_group(group_index), 1);
-    // SAFETY: The payload was allocated for this group's layout.
-    unsafe { *(payload as *mut InheritedBoxValues) = built };
-    payload as *const c_void
+    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+    unsafe { share_group_payload::<InheritedBoxValues>(group_index, &built, parent_payload) }
+        .unwrap_or_else(|| publish_group_payload(group_index, built))
 }
 
 impl ComputedSize {
@@ -3511,18 +3537,11 @@ pub(crate) unsafe fn rust_build_alignment_group(
             row_gap: ComputedGap::from_data(row_gap),
         };
 
-        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<AlignmentValues>() }) {
-            retain_group_payload(group_index, parent_payload);
-            return Some(parent_payload);
-        }
-        let default_payload = default_group_payload(group_index);
-        if built.eq(unsafe { &*default_payload.cast::<AlignmentValues>() }) {
-            return Some(default_payload);
-        }
-
-        let payload = allocate_payload(style_group(group_index), 1);
-        unsafe { payload.cast::<AlignmentValues>().write(built) };
-        Some(payload.cast_const())
+        // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+        Some(
+            unsafe { share_group_payload::<AlignmentValues>(group_index, &built, parent_payload) }
+                .unwrap_or_else(|| publish_group_payload(group_index, built)),
+        )
     };
     build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
@@ -3541,18 +3560,9 @@ pub(crate) unsafe fn build_svg_reset_group_payload(
     parent_payload: *const c_void,
 ) -> *const c_void {
     abort_on_panic(|| {
-        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<SVGResetValues>() }) {
-            retain_group_payload(group_index, parent_payload);
-            return parent_payload;
-        }
-        let default_payload = default_group_payload(group_index);
-        if built.eq(unsafe { &*default_payload.cast::<SVGResetValues>() }) {
-            return default_payload;
-        }
-
-        let payload = allocate_payload(style_group(group_index), 1);
-        unsafe { payload.cast::<SVGResetValues>().write(built) };
-        payload.cast_const()
+        // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+        unsafe { share_group_payload::<SVGResetValues>(group_index, &built, parent_payload) }
+            .unwrap_or_else(|| publish_group_payload(group_index, built))
     })
 }
 
@@ -3596,18 +3606,9 @@ pub(crate) unsafe fn rust_build_text_reset_group(
         white_space_trim_discard_inner,
     };
 
-    if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<TextResetValues>() }) {
-        retain_group_payload(group_index, parent_payload);
-        return parent_payload;
-    }
-    let default_payload = default_group_payload(group_index);
-    if built.eq(unsafe { &*default_payload.cast::<TextResetValues>() }) {
-        return default_payload;
-    }
-
-    let payload = allocate_payload(style_group(group_index), 1);
-    unsafe { payload.cast::<TextResetValues>().write(built) };
-    payload.cast_const()
+    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+    unsafe { share_group_payload::<TextResetValues>(group_index, &built, parent_payload) }
+        .unwrap_or_else(|| publish_group_payload(group_index, built))
 }
 
 /// Builds the complete surround group from the physical inset, margin, and
@@ -3666,13 +3667,9 @@ pub(crate) unsafe fn rust_build_surround_group(
             padding: ComputedLengthBox::from_data(padding_top, padding_right, padding_bottom, padding_left, false),
         };
 
-        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<SurroundValues>() }) {
-            retain_group_payload(group_index, parent_payload);
-            return Some(parent_payload);
-        }
-        let default_payload = default_group_payload(group_index);
-        if built.eq(unsafe { &*default_payload.cast::<SurroundValues>() }) {
-            return Some(default_payload);
+        // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+        if let Some(shared) = unsafe { share_group_payload::<SurroundValues>(group_index, &built, parent_payload) } {
+            return Some(shared);
         }
 
         // Only a fresh payload builds wrappers: equality excludes them, and a
@@ -3692,9 +3689,7 @@ pub(crate) unsafe fn rust_build_surround_group(
         built.bottom_anchor_inset_wrapper = wrapper(&built.bottom_anchor_inset);
         built.left_anchor_inset_wrapper = wrapper(&built.left_anchor_inset);
 
-        let payload = allocate_payload(style_group(group_index), 1);
-        unsafe { payload.cast::<SurroundValues>().write(built) };
-        Some(payload.cast_const())
+        Some(publish_group_payload(group_index, built))
     };
     build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
@@ -3721,18 +3716,9 @@ pub(crate) unsafe fn rust_build_box_group(
 ) -> *const c_void {
     let built = unsafe { values.read() };
 
-    if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<BoxValues>() }) {
-        retain_group_payload(group_index, parent_payload);
-        return parent_payload;
-    }
-    let default_payload = default_group_payload(group_index);
-    if built.eq(unsafe { &*default_payload.cast::<BoxValues>() }) {
-        return default_payload;
-    }
-
-    let payload = allocate_payload(style_group(group_index), 1);
-    unsafe { payload.cast::<BoxValues>().write(built) };
-    payload.cast_const()
+    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+    unsafe { share_group_payload::<BoxValues>(group_index, &built, parent_payload) }
+        .unwrap_or_else(|| publish_group_payload(group_index, built))
 }
 
 /// # Safety
@@ -3747,18 +3733,9 @@ pub(crate) unsafe fn rust_build_grid_group(
 ) -> *const c_void {
     let built = unsafe { values.read() };
 
-    if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<GridValues>() }) {
-        retain_group_payload(group_index, parent_payload);
-        return parent_payload;
-    }
-    let default_payload = default_group_payload(group_index);
-    if built.eq(unsafe { &*default_payload.cast::<GridValues>() }) {
-        return default_payload;
-    }
-
-    let payload = allocate_payload(style_group(group_index), 1);
-    unsafe { payload.cast::<GridValues>().write(built) };
-    payload.cast_const()
+    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+    unsafe { share_group_payload::<GridValues>(group_index, &built, parent_payload) }
+        .unwrap_or_else(|| publish_group_payload(group_index, built))
 }
 
 pub(crate) fn copy_grid_placements(source: &GridValues, target: &mut GridValues) {
@@ -3818,19 +3795,9 @@ pub(crate) unsafe fn build_sizing_group(
         max_height: ComputedSize::from_data(max_height),
     };
 
-    if !parent_payload.is_null() && built.eq(unsafe { &*(parent_payload as *const SizingValues) }) {
-        retain_group_payload(group_index, parent_payload);
-        return parent_payload;
-    }
-
-    let default_payload = default_group_payload(group_index);
-    if built.eq(unsafe { &*(default_payload as *const SizingValues) }) {
-        return default_payload;
-    }
-
-    let payload = allocate_payload(style_group(group_index), 1);
-    unsafe { (payload as *mut SizingValues).write(built) };
-    payload
+    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+    unsafe { share_group_payload::<SizingValues>(group_index, &built, parent_payload) }
+        .unwrap_or_else(|| publish_group_payload(group_index, built))
 }
 
 /// Builds an inherited table group payload from the computed values, with the
@@ -3876,24 +3843,9 @@ pub(crate) unsafe fn build_inherited_table_group(
         border_spacing_vertical: spacing_component(components[1].data()),
     };
 
-    if !parent_payload.is_null() {
-        // SAFETY: The caller guarantees a valid inherited table payload.
-        if built == unsafe { *(parent_payload as *const InheritedTableValues) } {
-            retain_group_payload(group_index, parent_payload);
-            return parent_payload;
-        }
-    }
-
-    let default_payload = default_group_payload(group_index);
-    // SAFETY: The default payload is a valid inherited table payload.
-    if built == unsafe { *(default_payload as *const InheritedTableValues) } {
-        return default_payload;
-    }
-
-    let payload = allocate_payload(style_group(group_index), 1);
-    // SAFETY: The payload was allocated for this group's layout.
-    unsafe { *(payload as *mut InheritedTableValues) = built };
-    payload as *const c_void
+    // SAFETY: The caller guarantees that `parent_payload` is null or a live payload of this group.
+    unsafe { share_group_payload::<InheritedTableValues>(group_index, &built, parent_payload) }
+        .unwrap_or_else(|| publish_group_payload(group_index, built))
 }
 
 /// Layout of the inherited table style value group.
