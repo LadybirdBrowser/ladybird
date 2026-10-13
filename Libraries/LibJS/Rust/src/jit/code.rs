@@ -229,6 +229,11 @@ impl JitCode {
         &self.sites[index as usize]
     }
 
+    /// Takes the sites of code that died, so that they can be dropped elsewhere.
+    pub fn take_sites(&mut self) -> Vec<Site> {
+        core::mem::take(&mut self.sites)
+    }
+
     pub fn snapshot_executable(&self, index: u32) -> SnapshotExecutable {
         self.snapshot_executables[index as usize]
     }
@@ -349,9 +354,18 @@ impl Executable {
 
     /// Frees the slot of the executable, which died, and drops its JIT code.
     pub fn free_jit_entry_slot(&self, vm: &Vm) {
-        if let Some(table) = vm.jit.entry_table.as_ref() {
-            table.free(self.head.jit_entry_slot.get(), core::ptr::from_ref(&self.head) as u64);
+        let Some(table) = vm.jit.entry_table.as_ref() else {
+            return;
+        };
+        let Some(mut code) = table.free(self.head.jit_entry_slot.get(), core::ptr::from_ref(&self.head) as u64) else {
+            return;
+        };
+        // OPTIMIZATION: The compile threads allocated the sites, so one of them frees them, outside the collection
+        //               this runs in.
+        if let Some(queue) = vm.jit.started_compile_queue() {
+            queue.drop_sites(code.take_sites());
         }
+        drop(code);
     }
 
     /// The executable's attached JIT code, if any.
