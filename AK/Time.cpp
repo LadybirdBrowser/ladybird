@@ -435,7 +435,7 @@ namespace {
 Duration now_time_from_filetime()
 {
     FILETIME ft {};
-    GetSystemTimeAsFileTime(&ft);
+    GetSystemTimePreciseAsFileTime(&ft);
 
     // Units: 1 LSB == 100 ns
     ULARGE_INTEGER hundreds_of_nanos {
