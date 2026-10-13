@@ -399,11 +399,8 @@ fn queue_element_paint_facts(host: &DocumentHost, element: u32, facts: ReplacedP
     }
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_form_control_paint_facts(
+pub extern "C" fn render_state_set_form_control_paint_facts(
     host: &DocumentHost,
     element: u32,
     facts: FfiFormControlPaintFacts,
@@ -414,28 +411,16 @@ pub unsafe extern "C" fn render_state_set_form_control_paint_facts(
 
 /// The canvas paints its surface's content of this size and generation now: where that changed, so does what its box
 /// paints.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_canvas_paint_facts(
-    host: &DocumentHost,
-    element: u32,
-    facts: FfiCanvasPaintFacts,
-) {
+pub extern "C" fn render_state_set_canvas_paint_facts(host: &DocumentHost, element: u32, facts: FfiCanvasPaintFacts) {
     // SAFETY: Guaranteed by the caller.
     queue_element_paint_facts(host, element, ReplacedPaintFacts::Canvas(facts));
 }
 
 /// The navigable container paints the compositor context of its content, if it has one: where that changed, so does
 /// what its row paints.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_navigable_container_paint_facts(
+pub extern "C" fn render_state_set_navigable_container_paint_facts(
     host: &DocumentHost,
     node: NodeSlotId,
     facts: FfiNavigableContainerPaintFacts,

@@ -40,11 +40,8 @@ pub extern "C" fn layout_row_paintable_physical_resize_axes(
     }
 }
 
-/// # Safety
-///
-/// As for [`layout_row_paintable_physical_resize_axes`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
+pub extern "C" fn layout_row_paintable_compute_scrollbar_data(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,
     direction: ScrollDirection,
@@ -148,11 +145,8 @@ pub unsafe extern "C" fn layout_row_snap_container_geometry(
     true
 }
 
-/// # Safety
-///
-/// As for [`layout_row_paintable_physical_resize_axes`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_scroll_snapport_rect(
+pub extern "C" fn layout_row_scroll_snapport_rect(
     host: &crate::render_state::DocumentHost,
     snap_container: NodeSlotId,
     scrollport: FfiCssPixelRect,
@@ -349,11 +343,8 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
     prepared.outcome
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_update_accumulated_visual_contexts(
+pub extern "C" fn render_state_update_accumulated_visual_contexts(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     viewport: NodeSlotId,
@@ -364,11 +355,8 @@ pub unsafe extern "C" fn render_state_update_accumulated_visual_contexts(
     })
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_update_visual_viewport_transform(
+pub extern "C" fn render_state_update_visual_viewport_transform(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     inputs: FfiVisualContextTreeInputs,

@@ -468,11 +468,8 @@ pub unsafe extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, node
 }
 
 /// Stages the tree delta `delta` for the input the host submits next.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_stage_tree_delta(host: &DocumentHost, delta: &FfiTreeDelta) {
+pub extern "C" fn style_engine_stage_tree_delta(host: &DocumentHost, delta: &FfiTreeDelta) {
     host.engine_memo().staged_input.borrow_mut().tree.push(*delta);
 }
 
@@ -502,29 +499,20 @@ pub unsafe extern "C" fn style_engine_stage_element_arrival(
 }
 
 /// Stages the local feature delta `delta` for the input the host submits next.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_stage_local_feature_delta(host: &DocumentHost, delta: &FfiLocalFeatureDelta) {
+pub extern "C" fn style_engine_stage_local_feature_delta(host: &DocumentHost, delta: &FfiLocalFeatureDelta) {
     host.engine_memo().staged_input.borrow_mut().features.push(*delta);
 }
 
 /// Stages the state delta `delta` for the input the host submits next.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_stage_state_delta(host: &DocumentHost, delta: &FfiStateDelta) {
+pub extern "C" fn style_engine_stage_state_delta(host: &DocumentHost, delta: &FfiStateDelta) {
     host.engine_memo().staged_input.borrow_mut().states.push(*delta);
 }
 
 /// Stages the element declaration delta `delta` for the input the host submits next.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_stage_element_declaration_delta(
+pub extern "C" fn style_engine_stage_element_declaration_delta(
     host: &DocumentHost,
     delta: &FfiElementDeclarationDelta,
 ) {
