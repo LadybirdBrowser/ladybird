@@ -124,13 +124,9 @@ fn as_ecmascript_function(object: &Object) -> &EcmascriptFunctionObject {
     cast_ref(object)
 }
 
-/// The object as an ECMAScript function object, if its flag says that it is one.
+/// The object as an ECMAScript function object, if it is one.
 pub fn as_ecmascript_function_object<T: Extends<Object>>(cell: Gc<T>) -> Option<Gc<EcmascriptFunctionObject>> {
-    let object = cell.upcast::<Object>();
-    object
-        .is_ecmascript_function_object()
-        // SAFETY: Only ECMAScript function objects have the flag.
-        .then(|| unsafe { Gc::from_non_null(object.as_non_null().cast()) })
+    cell.upcast::<Object>().downcast()
 }
 
 /// Value::as_if<ECMAScriptFunctionObject>().
