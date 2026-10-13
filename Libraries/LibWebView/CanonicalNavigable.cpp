@@ -732,10 +732,8 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host_i
 
     // A page beginning to host the navigable starts from a document standing in for the current entry's.
     auto current_entry_descriptor = [&] {
-        auto current_step = traversable.session_history().current_step();
-        VERIFY(current_step.has_value());
         // NB: Until the update for its creation, the navigable's entry is the one initializing it created.
-        if (auto const* current_entry = traversable.session_history().get_the_target_history_entry(*this, *current_step))
+        if (auto const* current_entry = traversable.session_history().get_the_target_history_entry(*this, traversable.session_history().current_step()))
             return current_entry->descriptor();
         return active_session_history_entry()->descriptor();
     };
