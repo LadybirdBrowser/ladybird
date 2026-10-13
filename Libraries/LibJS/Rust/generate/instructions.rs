@@ -271,6 +271,7 @@ fn generate_instruction_dump_from_bytes(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let layouts = compute_layouts(ops);
 
+    writeln!(w, "#[cfg(not(test))]")?;
     writeln!(w, "#[allow(unused_variables)]")?;
     writeln!(
         w,
