@@ -46,8 +46,8 @@
 
 namespace GC {
 
-static constexpr size_t GC_MIN_BYTES_THRESHOLD { 8 * 1024 * 1024 };
-static constexpr size_t GC_HEAP_GROWTH_FACTOR_NUMERATOR { 7 };
+static constexpr size_t GC_MIN_BYTES_THRESHOLD { 32 * 1024 * 1024 };
+static constexpr size_t GC_HEAP_GROWTH_FACTOR_NUMERATOR { 16 };
 static constexpr size_t GC_HEAP_GROWTH_FACTOR_DENOMINATOR { 4 };
 
 static constexpr int GC_INCREMENTAL_SWEEP_INTERVAL_MS = 16;
