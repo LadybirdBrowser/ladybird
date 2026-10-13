@@ -2457,10 +2457,8 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
 
         // 5.1. Replace entryToReplace with targetEntry in targetEntries.
         // 5.2. Set targetEntry's step to entryToReplace's step.
-        if (!m_session_history.replace_session_history_entry(*target_navigable, **entry_to_replace, *target_entry)) {
-            end_history_operation(operation.operation_id);
-            return;
-        }
+        auto replaced = m_session_history.replace_session_history_entry(*target_navigable, **entry_to_replace, *target_entry);
+        VERIFY(replaced);
 
         // 5.3. Set targetStep to traversable's current session history step.
         target_step = current_step;
