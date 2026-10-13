@@ -45,6 +45,7 @@ public:
 
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void post_connection() override;
+    virtual bool has_post_connection_steps() const override { return true; }
 
     // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-supports
     static bool supports(Utf16String const& type)

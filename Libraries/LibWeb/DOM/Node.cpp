@@ -1056,6 +1056,11 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
     else
         previous_sibling = last_child();
 
+    // NB: Set by the insertion steps loop below. Any later change to the tree, such as by script run from the
+    //     children changed steps, can add other nodes to the ones the post-connection steps are collected from.
+    auto any_node_has_post_connection_steps = false;
+    auto tree_version_before_insertion_steps = s_last_tree_version;
+
     // 7. For each node in nodes, in tree order:
     // FIXME: In tree order
     for (auto& node_to_insert : nodes) {
@@ -1073,6 +1078,8 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
         node_to_insert->for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
             // 1. Run the insertion steps with inclusiveDescendant.
             inclusive_descendant.inserted();
+            if (!any_node_has_post_connection_steps)
+                any_node_has_post_connection_steps = inclusive_descendant.has_post_connection_steps();
 
             // 2. If inclusiveDescendant is not connected, then continue.
             if (!inclusive_descendant.is_connected())
@@ -1123,7 +1130,11 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
 
     // OPTIMIZATION: Disconnected subtrees cannot have post-connection steps to run. If any root is connected,
     //               collect all nodes, since a callback could connect one of the initially detached subtrees.
-    if (any_of(nodes, [](auto const& node) { return node->is_connected(); }))
+    //               Unless some tree changed since the insertion steps began, the nodes to collect are the ones those
+    //               steps ran for, so without one that has post-connection steps there is nothing to run.
+    auto tree_changed_since_insertion_steps = s_last_tree_version != tree_version_before_insertion_steps;
+    if ((any_node_has_post_connection_steps || tree_changed_since_insertion_steps)
+        && any_of(nodes, [](auto const& node) { return node->is_connected(); }))
         run_post_connection_steps(nodes);
 
     auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !has_layout_box();
