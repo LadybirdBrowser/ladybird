@@ -174,6 +174,10 @@ class TestHTTPServer(socketserver.ThreadingTCPServer):
     static_file_handler: Callable[[Any, Any], Any]
 
 
+class TestHTTPServerIPv6(TestHTTPServer):
+    address_family = socket.AF_INET6
+
+
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     static_directory: str
     wpt_directory: str
@@ -914,6 +918,18 @@ def _setup_aia_test_servers(http_port, ca_cert_output):
     logging.info("AIA test servers ready: %s (root CA at %s)", config, ca_cert_output)
 
 
+def start_mirror_server(server, server_class, address):
+    mirror = server_class(address, TestHTTPRequestHandler)
+    mirror.daemon_threads = True
+    mirror.scheme = server.scheme
+    mirror.router = server.router
+    mirror.wpt = server.wpt
+    mirror.wpt_file_handler = server.wpt_file_handler
+    mirror.static_file_handler = server.static_file_handler
+    threading.Thread(target=mirror.serve_forever, daemon=True).start()
+    return mirror
+
+
 def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_closes=False):
     TestHTTPRequestHandler.static_directory = os.path.abspath(static_directory)
     TestHTTPRequestHandler.wpt_directory = os.path.join(
@@ -931,14 +947,15 @@ def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_cl
     )
 
     # WPT tests reach a second HTTP origin through {{ports[http][1]}}, so serve the same content on another port.
-    alternate_httpd = TestHTTPServer(("127.0.0.1", 0), TestHTTPRequestHandler)
-    alternate_httpd.daemon_threads = True
-    alternate_httpd.scheme = httpd.scheme
-    alternate_httpd.router = httpd.router
-    alternate_httpd.wpt = httpd.wpt
-    alternate_httpd.wpt_file_handler = httpd.wpt_file_handler
-    alternate_httpd.static_file_handler = httpd.static_file_handler
-    threading.Thread(target=alternate_httpd.serve_forever, daemon=True).start()
+    alternate_httpd = start_mirror_server(httpd, TestHTTPServer, ("127.0.0.1", 0))
+
+    # A localhost name resolves to ::1 first, which Windows is slow to refuse, so serve there too.
+    ipv6_servers = []
+    for server in (httpd, alternate_httpd):
+        try:
+            ipv6_servers.append(start_mirror_server(server, TestHTTPServerIPv6, ("::1", server.server_address[1])))
+        except OSError as error:
+            logging.warning("Not serving on ::1: %s", error)
 
     httpd.wpt.configure_server([httpd.socket.getsockname()[1], alternate_httpd.socket.getsockname()[1]])
 
@@ -968,6 +985,8 @@ def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_cl
         pass
     finally:
         httpd.wpt.close()
+        for server in ipv6_servers:
+            server.server_close()
         alternate_httpd.server_close()
         httpd.server_close()
 
