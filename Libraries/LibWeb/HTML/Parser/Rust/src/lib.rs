@@ -183,22 +183,19 @@ fn make_handle(tokenizer: HtmlTokenizer) -> *mut RustFfiTokenizerHandle {
 
 /// Get the next token from the tokenizer.
 /// Returns true if a token was produced, false if no more tokens.
-///
-/// # Safety
-/// `handle` must be a valid pointer from `rust_html_tokenizer_create`.
-/// `out` must be a valid pointer to an RustFfiToken.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_next_token(
-    handle: *mut RustFfiTokenizerHandle,
-    out: *mut RustFfiToken,
+pub extern "C" fn rust_html_tokenizer_next_token(
+    handle: Option<&mut RustFfiTokenizerHandle>,
+    out: Option<&mut RustFfiToken>,
     stop_at_insertion_point: bool,
     cdata_allowed: bool,
 ) -> bool {
-    if handle.is_null() || out.is_null() {
+    let Some(handle) = handle else {
         return false;
-    }
-    let handle = unsafe { &mut *handle };
-    let out = unsafe { &mut *out };
+    };
+    let Some(out) = out else {
+        return false;
+    };
 
     // Fast-path text character in the Data state. For ASCII text runs
     // this skips the whole state-machine function call plus Token
@@ -336,15 +333,11 @@ fn next_token_slow(
 }
 
 /// Switch the tokenizer to a new state.
-///
-/// # Safety
-/// `handle` must be a valid pointer from `rust_html_tokenizer_create`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_switch_state(handle: *mut RustFfiTokenizerHandle, state: u8) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_switch_state(handle: Option<&mut RustFfiTokenizerHandle>, state: u8) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     let Some(state) = State::from_ffi(state) else {
         return;
     };
@@ -357,21 +350,19 @@ pub unsafe extern "C" fn rust_html_tokenizer_switch_state(handle: *mut RustFfiTo
 /// `handle` must be valid. `input` must point to `len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_tokenizer_insert_utf16_input(
-    handle: *mut RustFfiTokenizerHandle,
+    handle: Option<&mut RustFfiTokenizerHandle>,
     input: *const u16,
     len: usize,
 ) {
-    if handle.is_null() {
+    let Some(handle) = handle else {
         return;
-    }
+    };
     let code_units = if input.is_null() || len == 0 {
         &[]
     } else {
         unsafe { std::slice::from_raw_parts(input, len) }
     };
-    unsafe { &mut *handle }
-        .tokenizer
-        .insert_input_at_insertion_point(code_units);
+    handle.tokenizer.insert_input_at_insertion_point(code_units);
 }
 
 /// Insert ASCII input at the current insertion point.
@@ -380,21 +371,19 @@ pub unsafe extern "C" fn rust_html_tokenizer_insert_utf16_input(
 /// `handle` must be valid. `input` must point to `len` ASCII bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_tokenizer_insert_ascii_input(
-    handle: *mut RustFfiTokenizerHandle,
+    handle: Option<&mut RustFfiTokenizerHandle>,
     input: *const u8,
     len: usize,
 ) {
-    if handle.is_null() {
+    let Some(handle) = handle else {
         return;
-    }
+    };
     let input = if input.is_null() || len == 0 {
         &[]
     } else {
         unsafe { std::slice::from_raw_parts(input, len) }
     };
-    unsafe { &mut *handle }
-        .tokenizer
-        .insert_ascii_input_at_insertion_point(input);
+    handle.tokenizer.insert_ascii_input_at_insertion_point(input);
 }
 
 /// Append UTF-16 input to the tokenizer input stream.
@@ -403,19 +392,19 @@ pub unsafe extern "C" fn rust_html_tokenizer_insert_ascii_input(
 /// `handle` must be valid. `input` must point to `len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_tokenizer_append_utf16_input(
-    handle: *mut RustFfiTokenizerHandle,
+    handle: Option<&mut RustFfiTokenizerHandle>,
     input: *const u16,
     len: usize,
 ) {
-    if handle.is_null() {
+    let Some(handle) = handle else {
         return;
-    }
+    };
     let code_units = if input.is_null() || len == 0 {
         &[]
     } else {
         unsafe { std::slice::from_raw_parts(input, len) }
     };
-    unsafe { &mut *handle }.tokenizer.append_input(code_units);
+    handle.tokenizer.append_input(code_units);
 }
 
 /// Append ASCII input to the tokenizer input stream.
@@ -424,19 +413,19 @@ pub unsafe extern "C" fn rust_html_tokenizer_append_utf16_input(
 /// `handle` must be valid. `input` must point to `len` ASCII bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_tokenizer_append_ascii_input(
-    handle: *mut RustFfiTokenizerHandle,
+    handle: Option<&mut RustFfiTokenizerHandle>,
     input: *const u8,
     len: usize,
 ) {
-    if handle.is_null() {
+    let Some(handle) = handle else {
         return;
-    }
+    };
     let input = if input.is_null() || len == 0 {
         &[]
     } else {
         unsafe { std::slice::from_raw_parts(input, len) }
     };
-    unsafe { &mut *handle }.tokenizer.append_ascii_input(input);
+    handle.tokenizer.append_ascii_input(input);
 }
 
 /// Get the tokenizer input that has not been consumed yet.
@@ -445,14 +434,16 @@ pub unsafe extern "C" fn rust_html_tokenizer_append_ascii_input(
 /// `handle`, `out_ptr`, and `out_len` must be valid pointers.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_tokenizer_unparsed_input(
-    handle: *mut RustFfiTokenizerHandle,
+    handle: Option<&mut RustFfiTokenizerHandle>,
     out_ptr: *mut *const u16,
     out_len: *mut usize,
 ) {
-    if handle.is_null() || out_ptr.is_null() || out_len.is_null() {
+    let Some(handle) = handle else {
+        return;
+    };
+    if out_ptr.is_null() || out_len.is_null() {
         return;
     }
-    let handle = unsafe { &mut *handle };
     handle.last_unparsed_input = handle.tokenizer.unparsed_input().encode_utf16().collect();
     unsafe {
         *out_ptr = handle.last_unparsed_input.as_ptr();
@@ -461,117 +452,86 @@ pub unsafe extern "C" fn rust_html_tokenizer_unparsed_input(
 }
 
 /// Compact already-tokenized input after the parser has consumed a chunk.
-///
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_parser_did_run(handle: *mut RustFfiTokenizerHandle) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_parser_did_run(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.parser_did_run();
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_store_insertion_point(handle: *mut RustFfiTokenizerHandle) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_store_insertion_point(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.store_insertion_point();
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_restore_insertion_point(handle: *mut RustFfiTokenizerHandle) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_restore_insertion_point(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.restore_insertion_point();
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_update_insertion_point(handle: *mut RustFfiTokenizerHandle) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_update_insertion_point(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.update_insertion_point();
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_undefine_insertion_point(handle: *mut RustFfiTokenizerHandle) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_undefine_insertion_point(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.undefine_insertion_point();
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_is_insertion_point_defined(handle: *mut RustFfiTokenizerHandle) -> bool {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_is_insertion_point_defined(handle: Option<&mut RustFfiTokenizerHandle>) -> bool {
+    let Some(handle) = handle else {
         return false;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.is_insertion_point_defined()
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_is_insertion_point_reached(handle: *mut RustFfiTokenizerHandle) -> bool {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_is_insertion_point_reached(handle: Option<&mut RustFfiTokenizerHandle>) -> bool {
+    let Some(handle) = handle else {
         return false;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.is_insertion_point_reached()
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_set_input_stream_closed(
-    handle: *mut RustFfiTokenizerHandle,
+pub extern "C" fn rust_html_tokenizer_set_input_stream_closed(
+    handle: Option<&mut RustFfiTokenizerHandle>,
     closed: bool,
 ) {
-    if handle.is_null() {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.set_input_stream_closed(closed);
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_insert_eof(handle: *mut RustFfiTokenizerHandle) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_insert_eof(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.insert_eof();
 }
 
-/// # Safety
-/// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_abort(handle: *mut RustFfiTokenizerHandle) {
-    if handle.is_null() {
+pub extern "C" fn rust_html_tokenizer_abort(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
         return;
-    }
-    let handle = unsafe { &mut *handle };
+    };
     handle.tokenizer.abort();
 }
 

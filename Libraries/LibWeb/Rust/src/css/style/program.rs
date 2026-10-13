@@ -333,8 +333,7 @@ fn share_rule_declarations(
     for values in [&data.written_values, &data.custom_written_values] {
         values.len().hash(&mut hasher);
         for value in values {
-            // SAFETY: The handle retains a live value.
-            let hash = unsafe { crate::css::style_value::style_value_content_hash(value.pointer()) };
+            let hash = crate::css::style_value::style_value_content_hash(value.optional_data());
             hash.hash(&mut hasher);
         }
     }

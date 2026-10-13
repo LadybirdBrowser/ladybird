@@ -4021,8 +4021,7 @@ fn longhand_table_hash(table: &ComputedLonghandTable) -> u64 {
     table.publication_sidecars().hash(&mut hasher);
     table.publication_dependency_flags().hash(&mut hasher);
     table.pseudo_element_styles().hash(&mut hasher);
-    unsafe { crate::css::style_value::style_value_content_hash(table.raw_cascaded_font_size().cast()) }
-        .hash(&mut hasher);
+    crate::css::style_value::style_value_content_hash(table.raw_cascaded_font_size_value()).hash(&mut hasher);
     // NB: Inheritance-dependent values compare independently of insertion order. Sum the
     //     property-mixed hashes, as for longhand slots, without copying and sorting the values.
     let mut inheritance_dependent_hash_sum = 0_u64;

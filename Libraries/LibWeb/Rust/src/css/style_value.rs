@@ -335,13 +335,11 @@ impl Drop for RetainedComponentValueList {
     }
 }
 
-/// # Safety
-/// `value` must be null or point to a live `StyleValueData`.
-pub(crate) unsafe fn style_value_content_hash(value: *const StyleValueData) -> u64 {
-    if value.is_null() {
+pub(crate) fn style_value_content_hash(value: Option<&StyleValueData>) -> u64 {
+    let Some(value) = value else {
         return 0;
-    }
-    unsafe { &*value }.content_hash()
+    };
+    value.content_hash()
 }
 
 /// A strong reference to immutable Rust-owned style value data.

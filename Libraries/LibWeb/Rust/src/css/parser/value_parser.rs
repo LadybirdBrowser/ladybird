@@ -5859,7 +5859,7 @@ pub(crate) enum FontDescriptorKind {
 /// pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_css_value(
-    context: *const ParseContext,
+    context: Option<&ParseContext>,
     property_id: u16,
     source: FfiUtf16View,
     out_status: *mut FfiParseStatus,
@@ -5871,7 +5871,11 @@ pub unsafe extern "C" fn rust_parse_css_value(
         std::ptr::null()
     };
 
-    if context.is_null() || out_status.is_null() {
+    let Some(context) = context else {
+        return invalid_ffi_result();
+    };
+
+    if out_status.is_null() {
         return invalid_ffi_result();
     }
     let Some(source) = (unsafe { source.units() }) else {
@@ -5879,7 +5883,6 @@ pub unsafe extern "C" fn rust_parse_css_value(
     };
     let mut source_utf16 = Vec::with_capacity(source.len());
     source.append_to(&mut source_utf16);
-    let context = unsafe { &*context };
     let outcome = match component_values_from_source(source) {
         Ok(values) => {
             let mut substitution_presence = SubstitutionFunctionsPresence::default();
@@ -6092,23 +6095,22 @@ fn parse_css_primitive_values(
 /// All pointers must be valid for their accompanying lengths.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_entire_css_primitive_from_source(
-    context: *const ParseContext,
+    context: Option<&ParseContext>,
     value_type: u8,
     source: FfiUtf16View,
     range_min: f64,
     range_max: f64,
 ) -> *const c_void {
-    if context.is_null() {
+    let Some(context) = context else {
         return std::ptr::null();
-    }
+    };
     let Some(source) = (unsafe { source.units() }) else {
         return std::ptr::null();
     };
     let Ok(values) = component_values_from_source(source) else {
         return std::ptr::null();
     };
-    let Some((parsed, consumed)) =
-        parse_css_primitive_values(unsafe { &*context }, value_type, &values, range_min, range_max)
+    let Some((parsed, consumed)) = parse_css_primitive_values(context, value_type, &values, range_min, range_max)
     else {
         return std::ptr::null();
     };

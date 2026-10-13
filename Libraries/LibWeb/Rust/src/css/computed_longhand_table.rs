@@ -57,7 +57,8 @@ pub(crate) fn longhand_slot_hash(slot: usize, value: *const c_void) -> u64 {
     if value.is_null() {
         return mix_slot_hash(slot, 0);
     }
-    let content = unsafe { crate::css::style_value::style_value_content_hash(value.cast()) };
+    // SAFETY: A non-null slot value is live style value data.
+    let content = crate::css::style_value::style_value_content_hash(unsafe { value.cast::<StyleValueData>().as_ref() });
     mix_slot_hash(slot, content)
 }
 
@@ -891,6 +892,10 @@ impl ComputedLonghandTable {
         self.inheritance_dependent
             .iter()
             .map(|(property, value)| (*property, value))
+    }
+
+    pub(crate) fn raw_cascaded_font_size_value(&self) -> Option<&StyleValueData> {
+        self.raw_cascaded_font_size.as_ref().map(RetainedStyleValueData::data)
     }
 
     pub(crate) fn raw_cascaded_font_size(&self) -> *const c_void {

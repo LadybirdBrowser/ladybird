@@ -511,20 +511,22 @@ pub unsafe extern "C" fn rust_syntax_serialize(syntax: *const c_void) -> usize {
 /// All non-null pointers must remain readable for their accompanying lengths during this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_with_syntax(
-    context: *const ParseContext,
+    context: Option<&ParseContext>,
     source: FfiUtf16View,
     syntax: *const c_void,
     out_status: *mut FfiParseStatus,
 ) -> *const c_void {
-    if context.is_null() || syntax.is_null() || out_status.is_null() {
+    let Some(context) = context else {
+        return std::ptr::null();
+    };
+    if syntax.is_null() || out_status.is_null() {
         return std::ptr::null();
     }
     let Some(source) = (unsafe { source.to_utf16() }) else {
         unsafe { *out_status = FfiParseStatus::Invalid };
         return std::ptr::null();
     };
-    let Some(parsed) = parse_with_syntax(unsafe { &*context }, &source, unsafe { &*syntax.cast::<SyntaxNode>() })
-    else {
+    let Some(parsed) = parse_with_syntax(context, &source, unsafe { &*syntax.cast::<SyntaxNode>() }) else {
         unsafe { *out_status = FfiParseStatus::Invalid };
         return std::ptr::null();
     };
