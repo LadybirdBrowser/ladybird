@@ -9,7 +9,7 @@
 //! the runtime only through this module (Meta/Linters/check_libjs_rust_api.py), so the rest of the crate stays the
 //! runtime's own business.
 
-pub use crate::embedding::host::host_object::{HostObject, host_class_of, host_data_of};
+pub use crate::embedding::host::host_object::{HostObject, host_class_of, host_data_of, is_host_instance_of};
 pub use crate::gc::embedder_cell::{EmbedderCell, EmbedderClass, EmbedderValue};
 pub use crate::gc::root::{MarkedVec, Root};
 pub use crate::gc::visitor::{Trace, Visitor};

@@ -9,6 +9,7 @@
 use ak::Utf16String;
 use libjs_rust::api::Trace;
 
+use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
@@ -17,6 +18,8 @@ pub(crate) struct SpeechRecognitionPhrase {
     phrase: Utf16String,
     boost: f32,
 }
+
+impl Wrappable for SpeechRecognitionPhrase {}
 
 #[expect(
     clippy::unnecessary_wraps,

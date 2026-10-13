@@ -7,24 +7,111 @@
 //! What the generated bindings of an interface do with its wrappers, its interface object and its interface prototype
 //! object, https://webidl.spec.whatwg.org/#es-interfaces
 //!
-//! A wrapper of an interface implemented in Rust is a platform object of the interface's wrapper class, which LibWeb's
-//! C++ bindings define. Its host data holds the cell of its implementation, and its wrappable slot stays empty, so the
-//! C++ bindings treat it like a platform object without a wrappable.
+//! An object of an interface implemented in Rust is a cell that holds the implementation, a `Ref<T>`, which is what
+//! implementations hold and pass each other. A wrapper of such an object is a platform object of the interface's
+//! wrapper class, which LibWeb's C++ bindings define. Its host data is the cell, and its wrappable slot stays empty,
+//! so the C++ bindings treat it like a platform object without a wrappable.
+//!
+//! An object has one wrapper per wrapper world, as an implementation object of the C++ bindings has
+//! (Documentation/WrapperArchitecture.md), and wrap() finds or creates it.
 
+use core::cell::Cell;
 use core::ffi::c_void;
+use core::ops::Deref;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{
     Attribute, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject, Gc, HostObject,
     JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunctionPointer, Realm,
-    ThrowCompletionOr, Value, Vm, get_function_realm, host_class_of, host_data_of,
+    ThrowCompletionOr, Trace, Value, Vm, get_function_realm, host_data_of, is_host_instance_of,
 };
 
 use crate::bindings::CallContext;
-use crate::bindings::services::web_bindings_ensure_web_prototype;
+use crate::bindings::realm_data::wrapper_world_of;
+use crate::bindings::services::{
+    web_bindings_ensure_web_prototype, web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
+};
 
-/// The object an attribute or an operation of an interface runs on, if it is a wrapper of the interface, with the
-/// object's realm. A nullish this value stands for the global object of the current realm.
+/// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
+/// the virtual functions of Web::Bindings::Wrappable.
+pub(crate) trait Wrappable {
+    /// The realm of the relevant global object of the object, which the wrapper of the object in the main world is
+    /// created in, as Wrappable::relevant_global_impl() decides for a C++ implementation object. Without one, the
+    /// wrapper is created in the realm that first asks for it.
+    fn relevant_realm(&self, _vm: &Vm) -> Option<Gc<Realm>> {
+        None
+    }
+}
+
+/// The value of the cell of an object of an interface: its implementation, and its wrapper in the main world.
+///
+/// The cell keeps that wrapper alive, and the wrapper keeps the cell alive through its host data, so the two live and
+/// die together: the object has the same wrapper in the main world for as long as it lives. A C++ implementation
+/// object holds its wrapper weakly until script makes the wrapper observable, which the wrapper of an interface
+/// implemented in Rust has no hooks to tell.
+#[derive(Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Wrapped<T: Trace> {
+    main_world_wrapper: Cell<Option<Gc<HostObject>>>,
+    implementation: T,
+}
+
+impl<T: Trace> Deref for Wrapped<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.implementation
+    }
+}
+
+/// An object of the interface that `T` implements.
+pub(crate) type Ref<T> = Gc<EmbedderCell<Wrapped<T>>>;
+
+/// An implementation of an interface, as the generated bindings of the interface describe it.
+pub(crate) trait Interface: Wrappable + Trace + Sized + 'static {
+    /// The class of the cells of the objects of the interface.
+    const CELL_CLASS: &'static EmbedderClass<Wrapped<Self>>;
+    /// Web::Bindings::InterfaceName of the interface.
+    const INTERFACE_NAME: u16;
+    /// The name that errors call the interface.
+    const NAME: &'static str;
+
+    /// The class of the wrappers of the objects of the interface.
+    fn wrapper_class() -> &'static JSHostClass;
+}
+
+impl<T: Interface> EmbedderValue for Wrapped<T> {
+    const CLASS: &'static EmbedderClass<Self> = T::CELL_CLASS;
+}
+
+/// Without the generated bindings, which a build of the crate on its own leaves out, nothing creates or wraps an
+/// object, but the implementations still name each other's objects. This stands in for the bindings of every
+/// interface so that they compile.
+#[cfg(not(web_idl_bindings))]
+impl<T: Wrappable + Trace + Sized + 'static> Interface for T {
+    const CELL_CLASS: &'static EmbedderClass<Wrapped<Self>> = &EmbedderClass::new("");
+    const INTERFACE_NAME: u16 = 0;
+    const NAME: &'static str = "";
+
+    fn wrapper_class() -> &'static JSHostClass {
+        unreachable!("an interface has no wrappers without its bindings")
+    }
+}
+
+/// A new object of the interface, which has no wrapper until something asks for one.
+pub(crate) fn allocate<T: Interface>(vm: &Vm, implementation: T) -> Ref<T> {
+    T::CELL_CLASS.allocate(
+        vm,
+        Wrapped {
+            main_world_wrapper: Cell::new(None),
+            implementation,
+        },
+    )
+}
+
+/// The object an attribute or an operation of an interface runs on, if it is a wrapper of the interface or of an
+/// interface that inherits from it, with the object's realm. A nullish this value stands for the global object of
+/// the current realm.
 pub(crate) fn this_object(
     vm: &Vm,
     wrapper_class: &'static JSHostClass,
@@ -37,21 +124,120 @@ pub(crate) fn this_object(
     }
     if this_value.is_object() {
         let object = this_value.as_object();
-        if host_class_of(&object).is_some_and(|host_class| core::ptr::eq(host_class, wrapper_class)) {
+        if is_host_instance_of(&object, wrapper_class) {
             return Ok((object, object.shape().realm()));
         }
     }
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&interface_name])
 }
 
-pub(crate) fn implementation_of<T: EmbedderValue>(
-    wrapper: Gc<Object>,
-    cell_class: &'static EmbedderClass<T>,
-) -> Gc<EmbedderCell<T>> {
-    let host_data = host_data_of(&wrapper).expect("a wrapper holds the cell of its implementation");
+/// The object that a wrapper of exactly the interface wraps.
+pub(crate) fn implementation_of<T: Interface>(wrapper: Gc<Object>) -> Ref<T> {
+    let host_data = host_data_of(&wrapper).expect("a wrapper holds the cell of its object");
     // SAFETY: The wrapper is a host object of the interface's wrapper class, whose host data the bindings set to a
-    //         cell of the interface's implementation.
-    unsafe { cell_class.downcast(host_data) }.expect("a wrapper holds the cell of its implementation")
+    //         cell of the interface.
+    unsafe { T::CELL_CLASS.downcast(host_data) }.expect("a wrapper holds the cell of its object")
+}
+
+/// An object of the interface converted from a JS value, https://webidl.spec.whatwg.org/#js-interface
+pub(crate) fn to_interface<T: Interface>(vm: &Vm, value: Value) -> ThrowCompletionOr<Ref<T>> {
+    // 1. If V implements I, then return the IDL interface type value that represents a reference to that platform
+    //    object.
+    if value.is_object() {
+        let object = value.as_object();
+        if is_host_instance_of(&object, T::wrapper_class()) {
+            return Ok(implementation_of(object));
+        }
+    }
+    // 2. Throw a TypeError.
+    vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&T::NAME])
+}
+
+/// The wrapper of the object in the wrapper world of the realm of the call context, which the first call for that
+/// world creates, as Web::Bindings::wrap() does for a C++ implementation object.
+pub(crate) fn wrap<T: Interface>(cx: &CallContext, object: Ref<T>) -> Gc<Object> {
+    let vm = cx.vm();
+    let realm = cx.realm();
+    let main_world_wrapper = object.main_world_wrapper.get();
+    if let Some(wrapper) = main_world_wrapper
+        && wrapper.shape().realm() == realm
+    {
+        return wrapper.upcast();
+    }
+
+    let wrapper_world = wrapper_world_of(vm, realm);
+    if wrapper_world.is_main_world() {
+        if let Some(wrapper) = main_world_wrapper {
+            // NB: An agent has one main world, which the realms of the agent share, and objects do not cross agents.
+            assert!(
+                wrapper_world_of(vm, wrapper.shape().realm()) == wrapper_world,
+                "an object has a wrapper in the main world of another agent"
+            );
+            return wrapper.upcast();
+        }
+        let wrapper_realm = object
+            .relevant_realm(vm)
+            .filter(|relevant_realm| wrapper_world_of(vm, *relevant_realm) == wrapper_world)
+            .unwrap_or(realm);
+        let wrapper = create_wrapper(
+            vm,
+            wrapper_realm,
+            interface_prototype_object(wrapper_realm, T::INTERFACE_NAME),
+            object,
+        );
+        object.main_world_wrapper.set(Some(wrapper));
+        return wrapper.upcast();
+    }
+
+    // SAFETY: The realm and the cell are live.
+    let wrapper = unsafe { web_bindings_rust_wrapper_for(realm.as_ptr().cast(), object.as_ptr().cast()) };
+    if let Some(wrapper) = NonNull::new(wrapper.cast::<Object>()) {
+        // SAFETY: LibWeb returns a live wrapper.
+        return unsafe { Gc::from_non_null(wrapper) };
+    }
+    let wrapper = create_wrapper(vm, realm, interface_prototype_object(realm, T::INTERFACE_NAME), object);
+    register_wrapper_outside_main_world(realm, object, wrapper);
+    wrapper.upcast()
+}
+
+/// The wrapper that a construction creates for the new object of the interface, with the prototype that the new
+/// target of the construction decides.
+pub(crate) fn construct_wrapper<T: Interface>(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    prototype: Gc<Object>,
+    implementation: T,
+) -> Gc<HostObject> {
+    let object = allocate(vm, implementation);
+    let wrapper = create_wrapper(vm, realm, prototype, object);
+    if wrapper_world_of(vm, realm).is_main_world() {
+        object.main_world_wrapper.set(Some(wrapper));
+    } else {
+        register_wrapper_outside_main_world(realm, object, wrapper);
+    }
+    wrapper
+}
+
+fn register_wrapper_outside_main_world<T: Interface>(realm: Gc<Realm>, object: Ref<T>, wrapper: Gc<HostObject>) {
+    // SAFETY: The realm, the cell and the wrapper are live, and the wrapper is in the realm.
+    unsafe {
+        web_bindings_set_rust_wrapper(realm.as_ptr().cast(), object.as_ptr().cast(), wrapper.as_ptr().cast());
+    }
+}
+
+/// A new wrapper of the object in the realm, whose host data is the cell of the object.
+fn create_wrapper<T: Interface>(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>, object: Ref<T>) -> Gc<HostObject> {
+    // SAFETY: The wrapper class's hooks expect no wrappable, and the host data is a live cell.
+    unsafe {
+        HostObject::create(
+            vm,
+            realm,
+            T::wrapper_class(),
+            Some(prototype),
+            None,
+            Some(object.as_non_null().cast()),
+        )
+    }
 }
 
 /// The interface prototype object of the interface in the realm.
@@ -84,27 +270,6 @@ pub(crate) fn prototype_from_new_target(
     let target_realm = get_function_realm(vm, new_target)?;
     // 2. Set prototype to the interface prototype object for interface in targetRealm.
     Ok(interface_prototype_object(target_realm, interface_name))
-}
-
-/// A new wrapper of the interface in the realm, whose host data holds the implementation.
-pub(crate) fn create_wrapper<T: EmbedderValue>(
-    vm: &Vm,
-    realm: Gc<Realm>,
-    wrapper_class: &'static JSHostClass,
-    prototype: Gc<Object>,
-    implementation: Gc<EmbedderCell<T>>,
-) -> Gc<HostObject> {
-    // SAFETY: The wrapper class's hooks expect no wrappable, and the host data is a live cell.
-    unsafe {
-        HostObject::create(
-            vm,
-            realm,
-            wrapper_class,
-            Some(prototype),
-            None,
-            Some(implementation.as_non_null().cast()),
-        )
-    }
 }
 
 /// Unwraps the raw arguments that LibWeb's C++ bindings pass the entry points that initialize the interface object and

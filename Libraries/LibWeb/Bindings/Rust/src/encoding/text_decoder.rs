@@ -12,6 +12,7 @@ use ak::Utf16String;
 use libjs_rust::api::Trace;
 
 use crate::bindings::conversions::{BufferSource, UsvString};
+use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::encoding::decoding::{DecodingFailed, StreamingDecoder, encoding_for_label};
 
@@ -34,6 +35,8 @@ pub(crate) struct TextDecoder {
     #[gc(untraced)]
     decoder: RefCell<StreamingDecoder>,
 }
+
+impl Wrappable for TextDecoder {}
 
 #[expect(
     clippy::unnecessary_wraps,

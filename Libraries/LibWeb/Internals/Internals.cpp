@@ -453,9 +453,10 @@ WebIDL::ExceptionOr<Utf16String> Internals::set_time_zone(Utf16String const& tim
 
 bool Internals::wrapper_is_preserved(JS::Object& object)
 {
-    if (!Bindings::wrappable_impl_from(&object))
+    auto* platform_object = Bindings::as_platform_object(object);
+    if (!platform_object)
         return false;
-    return Bindings::wrapper_is_preserved(*Bindings::as_platform_object(object));
+    return Bindings::wrapper_is_preserved(*platform_object);
 }
 
 bool Internals::has_activity_root(JS::Object& object)

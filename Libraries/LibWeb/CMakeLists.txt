@@ -25,6 +25,7 @@ set(SOURCES
     Bindings/MainThreadVM.cpp
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
+    Bindings/RustBindingsServices.cpp
     Bindings/PrincipalHostDefined.cpp
     Bindings/Wrappable.cpp
     Bindings/WrapperWorld.cpp

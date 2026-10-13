@@ -10,11 +10,11 @@ from dataclasses import dataclass
 from typing import Dict
 from typing import Iterable
 from typing import List
-from typing import Optional
 from typing import Set
 
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.rust_members import rust_members
+from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import runtime_union_type
 from Utils.webidl_parser import Dictionary
@@ -22,10 +22,6 @@ from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import IDLUnionType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
-
-
-def is_implemented_in_rust(interface: Optional[Interface]) -> bool:
-    return interface is not None and interface.extended_attributes.get("ImplementedIn") == "Rust"
 
 
 def types_named_by_interface(interface: Interface) -> List[IDLType]:

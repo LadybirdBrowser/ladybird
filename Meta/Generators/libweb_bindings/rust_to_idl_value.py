@@ -17,9 +17,12 @@ from Generators.libweb_bindings.rust_types import FLOATING_POINT_TYPES
 from Generators.libweb_bindings.rust_types import TYPED_ARRAY_NAMES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import is_named_union
+from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import resolved_dictionary
 from Generators.libweb_bindings.rust_types import runtime_union_type
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
+from Generators.libweb_bindings.rust_types import rust_interface
+from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_types import rust_union_path
 from Generators.libweb_bindings.rust_types import rust_union_variant
@@ -52,7 +55,17 @@ def rust_to_idl_value(
     name of the parameter or member that the value is of, which the errors of some conversions name."""
     rust_type(idl_type, context, what)
     name = idl_type.name
-    if idl_type.nullable or isinstance(idl_type, IDLParameterizedType):
+    # https://webidl.spec.whatwg.org/#js-nullable-type
+    if idl_type.nullable:
+        inner_type = idl_type.without_nullable()
+        if member_other_than_undefined(inner_type) is not None:
+            raise UnsupportedByRustBindings(
+                f"{what} has the type {idl_type}, whose inner type includes undefined, which the Rust bindings do "
+                "not convert to yet"
+            )
+        inner = rust_to_idl_value(inner_type, parameter_attributes, value, identifier, context, what)
+        return f"if {value}.is_nullish() {{ Ok(None) }} else {{ {inner}.map(Some) }}"
+    if isinstance(idl_type, IDLParameterizedType):
         raise UnsupportedByRustBindings(
             f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet"
         )
@@ -71,6 +84,9 @@ def rust_to_idl_value(
         return f'to_typed_array(vm, {value}, TypedArrayKind::{name}, "{name}", {rules})'
     if runtime_union_type(idl_type, context) == "BufferSource":
         return f"to_buffer_source(vm, {value}, {buffer_source_rules(idl_type, parameter_attributes)})"
+    interface = rust_interface(idl_type, context)
+    if interface is not None:
+        return f"to_interface::<{rust_interface_path(interface)}>(vm, {value})"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return f"<{rust_dictionary_path(dictionary, context)}>::from_js(vm, {value})"

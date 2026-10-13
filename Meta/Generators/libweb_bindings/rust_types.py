@@ -16,6 +16,7 @@ from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import IDLParameterizedType
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import IDLUnionType
+from Utils.webidl_parser import Interface
 from Utils.webidl_parser import OperationParameter
 
 # The typed arrays, whose names are the variants of the runtime's TypedArrayKind.
@@ -50,8 +51,20 @@ class UnsupportedByRustBindings(Exception):
     pass
 
 
+def is_implemented_in_rust(interface: Optional[Interface]) -> bool:
+    return interface is not None and interface.extended_attributes.get("ImplementedIn") == "Rust"
+
+
 def resolved_dictionary(idl_type: IDLType, context: GenerationContext) -> Optional[Dictionary]:
     return context.dictionaries.get(idl_type.name)
+
+
+def rust_interface(idl_type: IDLType, context: GenerationContext) -> Optional[Interface]:
+    """The interface that the type names, if it is implemented in Rust."""
+    if isinstance(idl_type, (IDLParameterizedType, IDLUnionType)):
+        return None
+    interface = context.interfaces.get(idl_type.name)
+    return interface if is_implemented_in_rust(interface) else None
 
 
 def rust_module_path(idl_path: Path) -> str:
@@ -60,6 +73,12 @@ def rust_module_path(idl_path: Path) -> str:
     parts = idl_path.parts
     namespace = parts[parts.index("LibWeb") + 1]
     return f"crate::{title_case_to_snake_case(namespace)}::{title_case_to_snake_case(idl_path.stem)}"
+
+
+def rust_interface_path(interface: Interface) -> str:
+    """The Rust path of the implementation of an interface: crate::encoding::text_encoder::TextEncoder for
+    Encoding/TextEncoder.idl."""
+    return f"{rust_module_path(interface.path)}::{interface.name}"
 
 
 def rust_dictionary_path(dictionary: Dictionary, context: GenerationContext) -> str:
@@ -162,6 +181,9 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
         return "Gc<TypedArrayBase>"
     if context.callback_function(idl_type) is not None:
         return "Gc<FunctionObject>"
+    interface = rust_interface(idl_type, context)
+    if interface is not None:
+        return f"Ref<{rust_interface_path(interface)}>"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return rust_dictionary_path(dictionary, context)

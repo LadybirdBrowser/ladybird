@@ -46,6 +46,7 @@ void WrapperWorld::detach()
         wrappable.clear_preserved_wrappers(*this);
     m_preserved_wrappables.clear();
     m_wrappers.clear();
+    m_rust_wrappers.clear();
 }
 
 void WrapperWorld::register_preserved_wrappable(GCAllocatedWrappable& wrappable)
@@ -101,6 +102,29 @@ void WrapperWorld::clear_wrapper(Wrappable& wrappable, JS::HostObject const& wra
         VERIFY(existing == &wrapper);
         m_wrappers.remove(wrappable);
     }
+}
+
+GC::Ptr<JS::HostObject> WrapperWorld::rust_wrapper_for(RustInterfaceCell const& cell, JS::Realm& realm) const
+{
+    VERIFY(!is_main_world());
+    auto* wrapper = m_rust_wrappers.get(cell);
+    if (!wrapper)
+        return nullptr;
+    VERIFY(&wrapper->shape().realm() == &realm);
+    return const_cast<JS::HostObject*>(wrapper);
+}
+
+void WrapperWorld::set_rust_wrapper(RustInterfaceCell& cell, JS::HostObject& wrapper)
+{
+    VERIFY(!is_main_world());
+    VERIFY(!is_detached());
+    VERIFY(wrapper.shape().realm().host_defined());
+    VERIFY(&host_defined_wrapper_world(wrapper.shape().realm()) == this);
+    VERIFY(JS::host_data_of(wrapper).ptr() == GC::as_cell(&cell));
+    // NB: The entry of a wrapper that was collected stays in the map until the map prunes it. get() does not return
+    //     the wrapper of such an entry, and set() replaces it.
+    VERIFY(!m_rust_wrappers.get(cell));
+    m_rust_wrappers.set(cell, wrapper);
 }
 
 WrapperWorld& host_defined_wrapper_world(JS::Realm& realm)
