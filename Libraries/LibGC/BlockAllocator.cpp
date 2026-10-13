@@ -6,6 +6,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/Atomic.h>
 #include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
@@ -84,11 +85,49 @@ public:
         js_heap_region_base = reinterpret_cast<FlatPtr>(m_base);
     }
 
+    // This process-global region is shared by every Heap. GC block allocation is single-threaded per process, but the
+    // decommit worker prepares the next chunk ahead of time, so the chunk bookkeeping is under a lock.
     void* allocate_chunk()
     {
-        // This process-global region is shared by every Heap. GC block allocation is single-threaded
-        // per process, so m_next_chunk_offset intentionally needs no lock. Supporting another allocating
-        // thread would require synchronization here or per-thread regions.
+        u8* chunk = nullptr;
+        {
+            MutexLocker locker(m_mutex);
+            chunk = exchange(m_prepared_chunk, nullptr);
+            if (!chunk)
+                chunk = commit_next_chunk();
+        }
+        request_prepared_chunk();
+        return chunk;
+    }
+
+    // Commits the next chunk and faults its pages in, so that the first touches of its blocks take no page faults
+    // on the thread that allocates them. Runs on the decommit worker.
+    void prepare_chunk()
+    {
+        u8* chunk = nullptr;
+        {
+            MutexLocker locker(m_mutex);
+            // NB: Running out of the region is left to allocate_chunk(), on the thread that needs another chunk.
+            if (m_prepared_chunk || m_next_chunk_offset > size - CHUNK_SIZE)
+                return;
+            chunk = commit_next_chunk();
+        }
+#if defined(MADV_POPULATE_WRITE)
+        // NB: This only fails if the kernel is too old to know it, which leaves the faults to the first touches.
+        (void)madvise(chunk, CHUNK_SIZE, MADV_POPULATE_WRITE);
+#endif
+        MutexLocker locker(m_mutex);
+        m_prepared_chunk = chunk;
+    }
+
+    FlatPtr start() const { return reinterpret_cast<FlatPtr>(m_base); }
+    FlatPtr end() const { return start() + size; }
+
+private:
+    static void request_prepared_chunk();
+
+    u8* commit_next_chunk()
+    {
         VERIFY(m_next_chunk_offset <= size - CHUNK_SIZE);
         auto* chunk = m_base + m_next_chunk_offset;
         MUST(Core::System::commit_memory(chunk, CHUNK_SIZE, Core::System::MemoryTag::GarbageCollector));
@@ -96,12 +135,11 @@ public:
         return chunk;
     }
 
-    FlatPtr start() const { return reinterpret_cast<FlatPtr>(m_base); }
-    FlatPtr end() const { return start() + size; }
-
-private:
     u8* m_base { nullptr };
+    Mutex m_mutex;
     size_t m_next_chunk_offset { 0 };
+    // A committed chunk whose pages are faulted in already, which the next allocate_chunk() takes.
+    u8* m_prepared_chunk { nullptr };
 };
 
 static HeapRegion& heap_region()
@@ -160,10 +198,12 @@ static void yield_during_decommit()
 class DecommitWorker {
 public:
     static DecommitWorker& the();
+    static DecommitWorker* the_if_started() { return s_the.load(AK::MemoryOrder::memory_order_acquire); }
 
     void register_pending(BlockAllocator&);
     void deregister(BlockAllocator&);
     void kick();
+    void request_prepared_chunk();
 
     DecommitWorker();
 
@@ -176,7 +216,23 @@ private:
     RefPtr<Threading::Thread> m_thread;
     Vector<BlockAllocator*> m_pending;
     bool m_kicked { false };
+    bool m_chunk_requested { false };
+
+    static Atomic<DecommitWorker*> s_the;
 };
+
+Atomic<DecommitWorker*> DecommitWorker::s_the { nullptr };
+
+void HeapRegion::request_prepared_chunk()
+{
+    // NB: Preparing a chunk only pays off where its pages can be faulted in ahead of time. And only a worker that is
+    //     already running prepares chunks: starting it here could start a second thread before the process is
+    //     sandboxed, which some sandboxes do not allow.
+#if defined(MADV_POPULATE_WRITE)
+    if (auto* worker = DecommitWorker::the_if_started())
+        worker->request_prepared_chunk();
+#endif
+}
 
 DecommitWorker& DecommitWorker::the()
 {
@@ -192,6 +248,7 @@ DecommitWorker::DecommitWorker()
     });
     m_thread->start();
     m_thread->detach();
+    s_the.store(this, AK::MemoryOrder::memory_order_release);
 }
 
 void DecommitWorker::register_pending(BlockAllocator& a)
@@ -215,21 +272,37 @@ void DecommitWorker::kick()
     m_cv.signal();
 }
 
+void DecommitWorker::request_prepared_chunk()
+{
+    {
+        MutexLocker locker(m_mutex);
+        m_chunk_requested = true;
+    }
+    m_cv.signal();
+}
+
 void DecommitWorker::run()
 {
     while (true) {
         Vector<BlockAllocator*> snapshot;
+        bool chunk_requested = false;
         {
             MutexLocker locker(m_mutex);
-            while (!m_kicked)
+            while (!m_kicked && !m_chunk_requested)
                 m_cv.wait();
-            m_kicked = false;
-            snapshot = move(m_pending);
-            // Pin every allocator we're about to process so destructors
-            // block until we drop our reference.
-            for (auto* a : snapshot)
-                a->m_worker_refcount.fetch_add(1);
+            chunk_requested = exchange(m_chunk_requested, false);
+            if (m_kicked) {
+                m_kicked = false;
+                snapshot = move(m_pending);
+                // Pin every allocator we're about to process so destructors
+                // block until we drop our reference.
+                for (auto* a : snapshot)
+                    a->m_worker_refcount.fetch_add(1);
+            }
         }
+
+        if (chunk_requested)
+            heap_region().prepare_chunk();
 
         if (snapshot.is_empty())
             continue;
