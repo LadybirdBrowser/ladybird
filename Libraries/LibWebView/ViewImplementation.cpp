@@ -3032,23 +3032,19 @@ void ViewImplementation::recover_current_session_history_entry_with_history_oper
     auto current_url = current_entry ? current_entry->url : m_url;
     set_url(current_url);
     auto navigation_id = begin_webdriver_navigation(WebDriverNavigationCompletionSource::CrashRecovery);
-    traversable().recover_from_web_content_process_crash([this, navigation_id](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
-        if (result == Web::HTML::HistoryStepResult::Applied) {
-            if (committed_step.has_value())
-                update_navigation_action_state();
-            auto const* current_entry = traversable().session_history().current_entry();
-            if (current_entry)
-                set_url(current_entry->url);
+    traversable().recover_from_web_content_process_crash([this, navigation_id](Web::HTML::HistoryStepResult, Optional<i32> committed_step) {
+        if (committed_step.has_value())
+            update_navigation_action_state();
+        auto const* current_entry = traversable().session_history().current_entry();
+        if (current_entry)
+            set_url(current_entry->url);
 
-            if (m_webdriver_navigation_observation.has_value()
-                && m_webdriver_navigation_observation->navigation_id == navigation_id
-                && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
-                m_webdriver_navigation_observation->history_operation_completed = true;
-                if (m_webdriver_navigation_observation->load_completed)
-                    complete_webdriver_navigation(navigation_id);
-            }
-        } else {
-            complete_webdriver_navigation(navigation_id);
+        if (m_webdriver_navigation_observation.has_value()
+            && m_webdriver_navigation_observation->navigation_id == navigation_id
+            && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
+            m_webdriver_navigation_observation->history_operation_completed = true;
+            if (m_webdriver_navigation_observation->load_completed)
+                complete_webdriver_navigation(navigation_id);
         }
         dump_session_history("recovered-web-content-process-with-history-operation"sv);
     });

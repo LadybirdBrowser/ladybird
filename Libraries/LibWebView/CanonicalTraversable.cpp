@@ -1224,20 +1224,11 @@ void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryStepA
     abandon_history_operations();
 
     // The tab's document is reloaded, the crashed process having destroyed the one its entry holds.
-    NonnullRefPtr reloading_entry = *m_session_history.get_the_target_history_entry(*this, target_step);
+    auto* reloading_entry = m_session_history.get_the_target_history_entry(*this, target_step);
+    VERIFY(reloading_entry);
     reloading_entry->document_state->reload_pending = true;
     session_history_changed();
-    enqueue_browser_history_traversal(
-        target_step,
-        false,
-        [this, reloading_entry, on_complete = move(on_complete)](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
-            if (result != Web::HTML::HistoryStepResult::Applied && reloading_entry->document_state->reload_pending) {
-                reloading_entry->document_state->reload_pending = false;
-                session_history_changed();
-            }
-            if (on_complete)
-                on_complete(result, committed_step);
-        });
+    enqueue_browser_history_traversal(target_step, false, move(on_complete));
 }
 
 RefPtr<WebContentPage> CanonicalTraversable::page_hosting(CanonicalNavigable const& navigable) const
