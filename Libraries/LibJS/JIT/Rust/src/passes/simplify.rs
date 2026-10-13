@@ -172,6 +172,22 @@ fn checked_double(graph: &Graph, value: NodeId) -> Option<NodeId> {
     (boxed.op == Op::BoxFloat64).then(|| boxed.inputs[0])
 }
 
+/// Whether a fold may replace an operation with `value`, which leaves
+/// `value` standing for the operation's result. An int32 check of a boxed
+/// double may not, nor one of what may become a boxed double (a phi that
+/// representation selection unboxes, or a boxing of a check that goes): only
+/// the check's exit makes the double the result (like ToInt32 of a double
+/// for `x | 0`, and +0 for `-0 + 0`), while the check goes where its users
+/// all take the double (see `dissolvable_checks()`).
+fn may_stand_for_result(graph: &Graph, value: NodeId) -> bool {
+    let check = graph.node(graph.unrefined(value));
+    check.op != Op::CheckInt32
+        || !matches!(
+            graph.node(graph.unrefined(check.inputs[0])).op,
+            Op::BoxFloat64 | Op::Phi | Op::BoxInt32
+        )
+}
+
 /// The checks of doubles to be int32 values whose users all take the
 /// double instead (see `checked_double()`): comparisons, conversions to
 /// doubles, boxings and frame states. The values of doubles are numbers,
@@ -381,7 +397,9 @@ pub fn run(graph: &mut Graph) {
                 // NB: Both signed and unsigned int32 values are exactly
                 //     representable as doubles. ToInt32 recovers their bits.
                 Op::Float64ToInt32 => match graph.node(inputs[0]).op {
-                    Op::Int32ToFloat64 | Op::Uint32ToFloat64 => Some(graph.node(inputs[0]).inputs[0]),
+                    Op::Int32ToFloat64 | Op::Uint32ToFloat64 => {
+                        Some(graph.node(inputs[0]).inputs[0]).filter(|integer| may_stand_for_result(graph, *integer))
+                    }
                     _ => None,
                 },
                 // NB: A boxed double checked to be an int32 is the boxing of the
@@ -399,7 +417,11 @@ pub fn run(graph: &mut Graph) {
                 Op::Int32Binary { op } => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
                     (Some(lhs), Some(rhs)) => fold_int32_binary(op, lhs, rhs)
                         .map(|result| constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32)),
-                    (None, Some(rhs)) if is_int32_identity(op, rhs, false) => Some(inputs[0]),
+                    (None, Some(rhs))
+                        if is_int32_identity(op, rhs, false) && may_stand_for_result(graph, inputs[0]) =>
+                    {
+                        Some(inputs[0])
+                    }
                     _ => None,
                 },
                 Op::Int32WrappingBinary { op } => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
@@ -407,7 +429,9 @@ pub fn run(graph: &mut Graph) {
                         let result = fold_int32_wrapping_binary(op, lhs, rhs);
                         Some(constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32))
                     }
-                    (None, Some(rhs)) if is_int32_identity(op, rhs, true) => Some(inputs[0]),
+                    (None, Some(rhs)) if is_int32_identity(op, rhs, true) && may_stand_for_result(graph, inputs[0]) => {
+                        Some(inputs[0])
+                    }
                     _ => None,
                 },
                 Op::Int32Min | Op::Int32Max | Op::Uint32Min if inputs[0] == inputs[1] => Some(inputs[0]),

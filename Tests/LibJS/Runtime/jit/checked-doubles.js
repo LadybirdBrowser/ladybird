@@ -72,3 +72,28 @@ test("doubles that are both compared and used as indices keep their checks", () 
     expect(lookup(keys, table, 2)).toBe(40);
     expect(lookup(keys, table, 4)).toBeNaN();
 });
+
+test("compiled identities of doubles that held int32 values convert them", () => {
+    const midpoint = new Function("low", "high", "return ((low + high) / 2) | 0;");
+    const plusZero = new Function("values", "return values[0] + 0;");
+    const shifted = new Function("values", "return (values[0] << 0) + (values[0] >> 0) + (values[0] ^ 0);");
+    const values = new Float64Array([4]);
+    for (const f of [midpoint, plusZero, shifted]) jit.prepare(f);
+    for (let k = 0; k < 10; ++k) {
+        midpoint(k, k + 2);
+        plusZero(values);
+        shifted(values);
+    }
+    for (const f of [midpoint, plusZero, shifted]) expect(jit.compile(f)).toBe(jit.enabled);
+    expect(midpoint(1, 2)).toBe(1);
+    expect(midpoint(-1, -2)).toBe(-1);
+    expect(midpoint(0, NaN)).toBe(0);
+    expect(midpoint(2 ** 32, 2 ** 32 + 6)).toBe(3);
+    values[0] = -0;
+    expect(Object.is(plusZero(values), 0)).toBeTrue();
+    values[0] = 2.5;
+    expect(plusZero(values)).toBe(2.5);
+    expect(shifted(values)).toBe(6);
+    values[0] = -(2 ** 31) - 1.5;
+    expect(shifted(values)).toBe(3 * (2 ** 31 - 1));
+});
