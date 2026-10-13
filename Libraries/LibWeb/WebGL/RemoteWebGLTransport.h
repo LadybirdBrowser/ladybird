@@ -38,7 +38,7 @@ public:
     virtual void send_commands_from_shared_buffer(u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps) = 0;
     virtual bool wait_until_published_commands_executed() = 0;
 
-    virtual void send_commands(ByteBuffer const&, Vector<Gfx::DecodedImageFrame> const& bitmaps) = 0;
+    virtual void send_commands(ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps) = 0;
     virtual void present_canvas(bool preserve_drawing_buffer) = 0;
     virtual void clear_drawing_buffer() = 0;
     virtual ByteBuffer sync_call(ByteBuffer request) = 0;

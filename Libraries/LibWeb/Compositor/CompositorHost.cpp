@@ -187,7 +187,7 @@ private:
         return m_connection->drain_webgl_command_buffer(*m_canvas_id);
     }
 
-    virtual void send_commands(ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
+    virtual void send_commands(ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
     {
         if (!m_canvas_id.has_value())
             return;
