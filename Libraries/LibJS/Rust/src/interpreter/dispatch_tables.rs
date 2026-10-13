@@ -16,11 +16,12 @@ pub const DISPATCH_TABLE_SIZE: usize = 256;
 
 pub type DispatchTable = [*const c_void; DISPATCH_TABLE_SIZE];
 
+// NB: The tables are immutable data in the assembled interpreter.
 unsafe extern "C" {
     /// The handlers of the interpreter, indexed by opcode.
-    static js_interpreter_dispatch_table: DispatchTable;
+    safe static js_interpreter_dispatch_table: DispatchTable;
     /// Every entry checks for breakpoints before running the instruction's handler.
-    static js_interpreter_debug_dispatch_table: DispatchTable;
+    safe static js_interpreter_debug_dispatch_table: DispatchTable;
 }
 
 fn table_address(table: &'static DispatchTable) -> *const c_void {
@@ -29,8 +30,7 @@ fn table_address(table: &'static DispatchTable) -> *const c_void {
 
 /// The handlers of the interpreter, indexed by opcode.
 pub fn plain_handlers() -> &'static DispatchTable {
-    // SAFETY: The table is immutable data in the assembled interpreter.
-    unsafe { &js_interpreter_dispatch_table }
+    &js_interpreter_dispatch_table
 }
 
 /// The handlers of the interpreter.
@@ -40,8 +40,7 @@ pub fn plain_dispatch_table() -> *const c_void {
 
 /// The handlers that check for breakpoints, which every executable runs with while the VM is debugging.
 pub fn debug_dispatch_table() -> *const c_void {
-    // SAFETY: The table is immutable data in the assembled interpreter.
-    table_address(unsafe { &js_interpreter_debug_dispatch_table })
+    table_address(&js_interpreter_debug_dispatch_table)
 }
 
 impl Vm {

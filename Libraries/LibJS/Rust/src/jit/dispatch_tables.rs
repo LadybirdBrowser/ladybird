@@ -13,15 +13,15 @@ use super::{InterpreterTier, JitState};
 use crate::bytecode::instruction::{NUM_OPCODES, instruction_name_from_opcode};
 use crate::interpreter::dispatch_tables::{DispatchTable, plain_dispatch_table, plain_handlers};
 
+// NB: The table is immutable data in the assembled interpreter.
 unsafe extern "C" {
     /// The handlers of the profiling build of the interpreter, which collect feedback for the optimizing JIT.
-    static js_interpreter_dispatch_table_profiling: DispatchTable;
+    safe static js_interpreter_dispatch_table_profiling: DispatchTable;
 }
 
 /// The handlers of the profiling build of the interpreter.
 fn profiling_dispatch_table() -> *const c_void {
-    // SAFETY: The table is immutable data in the assembled interpreter.
-    unsafe { js_interpreter_dispatch_table_profiling.as_ptr().cast() }
+    js_interpreter_dispatch_table_profiling.as_ptr().cast()
 }
 
 /// The plain handlers, with the profiling build's handlers for the instructions that count the tier-up budget
@@ -40,8 +40,7 @@ pub fn unprofiled_dispatch_table() -> Box<DispatchTable> {
 
 /// The plain handlers, with the profiling build's handlers for the instructions whose names `use_profiling` selects.
 fn mixed_dispatch_table(use_profiling: impl Fn(&str) -> bool) -> Box<DispatchTable> {
-    // SAFETY: The table is immutable data in the assembled interpreter.
-    let profiling = unsafe { &js_interpreter_dispatch_table_profiling };
+    let profiling = &js_interpreter_dispatch_table_profiling;
     let mut table = Box::new(*plain_handlers());
     for opcode in 0..NUM_OPCODES as usize {
         if use_profiling(instruction_name_from_opcode(opcode as u8)) {
