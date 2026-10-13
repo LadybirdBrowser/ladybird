@@ -1686,9 +1686,7 @@ fn collect_native_custom_declarations(
             // Custom properties retain their authored values, without normal-property
             // canonicalization. Their token spelling is observable after substitution.
             let value = unsafe { engine.intern_specified_value(std::sync::Arc::as_ptr(&declaration.value)) };
-            let written = unsafe {
-                RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(declaration.value.clone()))
-            };
+            let written = RetainedStyleValueData::from_arc(declaration.value.clone());
             let declared = CustomDeclaration {
                 name: atom,
                 important: declaration.important,
@@ -2464,9 +2462,7 @@ pub(crate) fn publish_rule_declarations(
     let written_values: Vec<_> = data
         .properties
         .iter()
-        .map(|declaration| unsafe {
-            RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(declaration.value.clone()))
-        })
+        .map(|declaration| RetainedStyleValueData::from_arc(declaration.value.clone()))
         .collect();
     let (custom_declarations, custom_written_values) =
         collect_native_custom_declarations(engine, &data.custom_properties)

@@ -218,8 +218,7 @@ fn mark_powerless_hue_after_conversion(
 }
 
 fn retained_number(value: f32) -> RetainedStyleValueData {
-    let value = Arc::into_raw(Arc::new(StyleValueData::Number { value: value as f64 }));
-    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: value as f64 }))
 }
 
 fn retained_none() -> RetainedStyleValueData {

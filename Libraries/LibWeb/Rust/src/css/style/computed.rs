@@ -1774,11 +1774,9 @@ impl ComputedGroupSets {
                 debug_assert!(false, "a currentcolor-relative color does not resolve");
                 continue;
             };
-            let resolved = unsafe {
-                RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(std::sync::Arc::new(
-                    crate::css::color_resolution::resolved_srgb_style_value(resolved),
-                )))
-            };
+            let resolved = RetainedStyleValueData::from_arc(std::sync::Arc::new(
+                crate::css::color_resolution::resolved_srgb_style_value(resolved),
+            ));
             let source_slot = table.source_slot(property).map_or(-1, i64::from);
             table.set(property, resolved, source_slot);
         }

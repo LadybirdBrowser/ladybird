@@ -1630,10 +1630,10 @@ mod tests {
     #[test]
     fn equal_nested_values_do_not_start_a_transition() {
         let nested_value = || {
-            let number = std::sync::Arc::into_raw(std::sync::Arc::new(StyleValueData::Number { value: 0.5 }));
-            StyleValueData::OpacityValue {
-                value: unsafe { crate::css::style_value::RetainedStyleValueData::from_retained_pointer(number) },
-            }
+            let number = crate::css::style_value::RetainedStyleValueData::from_arc(std::sync::Arc::new(
+                StyleValueData::Number { value: 0.5 },
+            ));
+            StyleValueData::OpacityValue { value: number }
         };
         let before = nested_value();
         let after = nested_value();
