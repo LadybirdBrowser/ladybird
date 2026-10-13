@@ -23,6 +23,7 @@ CellAllocator::CellAllocator(CellAllocatorDescriptorBase& descriptor)
     : m_descriptor(descriptor)
     , m_block_allocator(shared_block_allocator())
 {
+    m_local.cell_size = cell_size();
 }
 
 CellAllocator::~CellAllocator()
@@ -51,8 +52,12 @@ CellAllocator& CellAllocatorDescriptorBase::for_heap(Heap& heap)
 
 Cell* CellAllocator::allocate_cell_slow(Heap& heap)
 {
-    VERIFY(HeapBlock::is_end_of_freelist(m_local_free_list.ptr()));
-    m_local_free_list = nullptr;
+    // NB: The local block has no free cells left, and take_free_cells() left it full.
+    VERIFY(HeapBlock::is_end_of_freelist(m_local.free_list.ptr()));
+    VERIFY(m_local.cursor == m_local.end);
+    m_local.free_list = nullptr;
+    m_local.cursor = 0;
+    m_local.end = 0;
     m_local_block = nullptr;
 
     if (!m_list_node.is_in_list())
@@ -92,8 +97,11 @@ Cell* CellAllocator::allocate_cell_slow(Heap& heap)
             return cell;
         }
 
-        m_local_free_list = block.take_free_cells();
-        VERIFY(!HeapBlock::is_end_of_freelist(m_local_free_list.ptr()));
+        auto free_cells = block.take_free_cells();
+        VERIFY(!HeapBlock::is_end_of_freelist(free_cells.free_list.ptr()) || free_cells.lazy_start < free_cells.lazy_end);
+        m_local.free_list = free_cells.free_list;
+        m_local.cursor = free_cells.lazy_start;
+        m_local.end = free_cells.lazy_end;
         m_full_blocks.append(block);
         m_local_block = &block;
         return allocate_cell(heap);
@@ -104,11 +112,13 @@ void CellAllocator::give_back_local_free_list(Badge<Heap>)
 {
     if (!m_local_block)
         return;
-    if (!HeapBlock::is_end_of_freelist(m_local_free_list.ptr())) {
-        m_local_block->give_back_free_cells(m_local_free_list.ptr());
+    if (!HeapBlock::is_end_of_freelist(m_local.free_list.ptr()) || m_local.cursor < m_local.end) {
+        m_local_block->give_back_free_cells(m_local.free_list.ptr(), m_local.cursor);
         m_usable_blocks.append(*m_local_block);
     }
-    m_local_free_list = nullptr;
+    m_local.free_list = nullptr;
+    m_local.cursor = 0;
+    m_local.end = 0;
     m_local_block = nullptr;
 }
 

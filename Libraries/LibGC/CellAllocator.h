@@ -74,34 +74,51 @@ public:
     size_t cell_size() const { return m_descriptor.cell_size(); }
     CellTypeInfo const& type_info() const { return m_descriptor.type_info(); }
 
-    // Cells come from a list of free cells that the allocator took from one
-    // of its blocks (the local block) at once, so allocating is usually just
-    // popping that list.
+    // Cells come from the free cells that the allocator took from one of its
+    // blocks (the local block) at once, so allocating is usually just popping
+    // a list of freed cells, or bumping a cursor over cells that were never
+    // allocated.
     //
-    // Invariants of the local free list:
-    // - Its cells are dead and belong to the local block, which is in the
-    //   full block list while it has a local free list.
-    // - The local block is never pending incremental sweep: the list is filled
-    //   from swept or new blocks only, and handed back to its block whenever a
-    //   collection starts. So cells from it never need marking.
+    // Invariants of the local free cells:
+    // - They are dead and belong to the local block, which is in the full
+    //   block list while it has local free cells.
+    // - The local block is never pending incremental sweep: they come from
+    //   swept or new blocks only, and are handed back to their block whenever
+    //   a collection starts. So cells from them never need marking.
     // - The list is empty when its head is at the start of a block (or null),
     //   which is where following the link of the last cell leads (see
     //   HeapBlock::follow_freelist_link()).
+    // - The cells from the cursor up to the end are cells of the local block
+    //   that were never allocated, and cell_size apart. There are none when the
+    //   cursor is at the end.
+    struct LocalFreeCells {
+        RawPtr<Cell> free_list;
+        FlatPtr cursor { 0 };
+        FlatPtr end { 0 };
+        FlatPtr cell_size { 0 };
+    };
+
     ALWAYS_INLINE Cell* allocate_cell(Heap& heap)
     {
-        if (auto* cell = m_local_free_list.ptr(); !HeapBlock::is_end_of_freelist(cell)) [[likely]] {
-            m_local_free_list = HeapBlock::next_free_cell(cell);
+        if (auto* cell = m_local.free_list.ptr(); !HeapBlock::is_end_of_freelist(cell)) [[likely]] {
+            m_local.free_list = HeapBlock::next_free_cell(cell);
+            ASAN_UNPOISON_MEMORY_REGION(cell, cell_size());
+            return cell;
+        }
+        if (m_local.cursor < m_local.end) [[likely]] {
+            auto* cell = bit_cast<Cell*>(m_local.cursor);
+            m_local.cursor += m_local.cell_size;
             ASAN_UNPOISON_MEMORY_REGION(cell, cell_size());
             return cell;
         }
         return allocate_cell_slow(heap);
     }
 
-    // Hands the local free list back to the local block.
+    // Hands the local free cells back to the local block.
     void give_back_local_free_list(Badge<Heap>);
 
-    // For code that pops the local free list itself, see gc_heap_allocator_local_free_list().
-    RawPtr<Cell>* local_free_list(Badge<CAPI>) { return &m_local_free_list; }
+    // For code that allocates from the local free cells itself, see gc_heap_allocator_local_free_list().
+    LocalFreeCells* local_free_cells(Badge<CAPI>) { return &m_local; }
 
     template<typename Callback>
     IterationDecision for_each_block(Callback callback)
@@ -136,7 +153,7 @@ private:
     Cell* allocate_cell_slow(Heap&);
 
     CellAllocatorDescriptorBase& m_descriptor;
-    RawPtr<Cell> m_local_free_list;
+    LocalFreeCells m_local;
     HeapBlock* m_local_block { nullptr };
 
     BlockAllocator& m_block_allocator;

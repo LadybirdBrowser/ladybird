@@ -3388,17 +3388,32 @@ mod direct_calls {
             assert_eq!(machine.vm[3], callee.interpreter_stack.as_ptr() as u64);
         }
 
+        /// Where a test's local free cell is, if it has one.
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum FreeCell {
+            InList,
+            NeverAllocated,
+            None,
+        }
+
         #[test]
         fn direct_calls_allocate_the_function_environments_of_their_callees() {
             // A fake heap (allocated, threshold and total bytes), and the
-            // local free list of one cell, which has room for 12 words and
-            // two binding values, and links to the next cell with `link`.
-            let run = |threshold: u64, free_cell: bool, link: u64| {
+            // local free cells: a list of one cell, which has room for 12
+            // words and two binding values, and links to the next cell with
+            // `link`, or else that cell as the only never-allocated cell.
+            let run = |threshold: u64, free_cell: FreeCell, link: u64| {
                 let mut callee = Callee::new();
                 let mut heap = vec![100u64, threshold, 1000];
                 let mut block = FakeBlock::new(14, 0x5a5a_5a5a_5a5a_5a5a);
                 block.0[FakeBlock::CELL] = link;
-                let mut free_list = vec![if free_cell { block.cell().as_ptr() as u64 } else { 0 }];
+                // NB: The head of the free list, then the cursor, the end and the cell size of the never-allocated cells.
+                let address = block.cell().as_ptr() as u64;
+                let mut free_list = match free_cell {
+                    FreeCell::InList => vec![address, 0, 0, 14 * 8],
+                    FreeCell::NeverAllocated => vec![0, address, address + 14 * 8, 14 * 8],
+                    FreeCell::None => vec![0, 0, 0, 14 * 8],
+                };
                 let template = crate::snapshot::EnvironmentTemplateSnapshot {
                     allocator: free_list.as_mut_ptr() as u64,
                     cell_size: 14 * 8,
@@ -3428,6 +3443,9 @@ mod direct_calls {
                     allocation.local_free_list_offset = 0;
                     allocation.freelist_next_offset = 0;
                     allocation.freelist_link_mask = FakeBlock::LINK_MASK;
+                    allocation.local_cursor_offset = 8;
+                    allocation.local_end_offset = 16;
+                    allocation.local_cell_size_offset = 24;
                 });
                 assert!(compiled.embedded_cells.contains(&CellId(0xcafe)));
                 let mut machine = Machine::new(
@@ -3454,29 +3472,39 @@ mod direct_calls {
                 )
             };
 
-            let (result, frames, generic_calls, heap, block, free_list, popped) = run(10_000, true, 0);
-            assert_eq!((result, generic_calls), (returned(value::int32(99)), 0));
-            let cell = block.cell();
-            let address = cell.as_ptr() as u64;
-            let mut expected = (0..12).map(|index| 0x1000 + index).collect::<Vec<u64>>();
-            expected[6] = address + 96;
-            expected[9] = value::TRUE;
-            assert_eq!(cell[..12], expected[..]);
-            assert_eq!(heap, [100 + 112, 10_000, 1000 + 112]);
-            assert_eq!(free_list[0], block.address(), "the end of the free list");
-            // The callee's lexical and variable environments, and its `this`.
-            let frame = &frames[0];
-            assert_eq!((frame[1], frame[12], frame[15]), (address, address, value::TRUE));
-            assert!(popped);
+            for free_cell in [FreeCell::InList, FreeCell::NeverAllocated] {
+                let (result, frames, generic_calls, heap, block, free_list, popped) = run(10_000, free_cell, 0);
+                assert_eq!((result, generic_calls), (returned(value::int32(99)), 0));
+                let cell = block.cell();
+                let address = cell.as_ptr() as u64;
+                let mut expected = (0..12).map(|index| 0x1000 + index).collect::<Vec<u64>>();
+                expected[6] = address + 96;
+                expected[9] = value::TRUE;
+                assert_eq!(cell[..12], expected[..]);
+                assert_eq!(heap, [100 + 112, 10_000, 1000 + 112]);
+                if free_cell == FreeCell::InList {
+                    assert_eq!(free_list[0], block.address(), "the end of the free list");
+                } else {
+                    assert_eq!(free_list[..3], [0, address + 112, address + 112], "the advanced cursor");
+                }
+                // The callee's lexical and variable environments, and its `this`.
+                let frame = &frames[0];
+                assert_eq!((frame[1], frame[12], frame[15]), (address, address, value::TRUE));
+                assert!(popped);
+            }
 
             // Whatever a free cell's link was overwritten with, the next cell
             // is in the cell's block.
-            let (_, _, _, _, block, free_list, _) = run(10_000, true, 0x7f12_3456_0000_0040);
+            let (_, _, _, _, block, free_list, _) = run(10_000, FreeCell::InList, 0x7f12_3456_0000_0040);
             assert_eq!(free_list[0], block.address() + 0x40, "the next cell");
 
             // Without room before the next collection, or without free
             // cells, the call takes the generic path and frees its frame.
-            for (threshold, free_cell) in [(150, true), (10_000, false)] {
+            for (threshold, free_cell) in [
+                (150, FreeCell::InList),
+                (150, FreeCell::NeverAllocated),
+                (10_000, FreeCell::None),
+            ] {
                 let (result, frames, generic_calls, heap, _, _, popped) = run(threshold, free_cell, 0);
                 assert_eq!(result.status, RETURNED);
                 assert_eq!((frames.len(), generic_calls, heap[0]), (0, 1, 100));
@@ -3817,11 +3845,17 @@ mod direct_calls {
                 let mut callee = DynamicCallee::new(1, flags);
                 let mut heap = vec![100u64, 10_000, 1000];
                 let block = FakeBlock::new(8, 0x5a5a);
-                let mut free_list = vec![if case.free_cell {
-                    block.cell().as_ptr() as u64
-                } else {
-                    0
-                }];
+                // NB: The head of the free list, then an empty range of never-allocated cells.
+                let mut free_list = vec![
+                    if case.free_cell {
+                        block.cell().as_ptr() as u64
+                    } else {
+                        0
+                    },
+                    0,
+                    0,
+                    64,
+                ];
                 // The free lists of size classes 0 to 3: the template's size
                 // class 6 masks to 2.
                 let free_lists = vec![0, 0, free_list.as_mut_ptr() as u64, 0];
@@ -3860,6 +3894,9 @@ mod direct_calls {
                     allocation.heap_threshold_offset = 8;
                     allocation.heap_total_allocated_bytes_offset = 16;
                     allocation.freelist_link_mask = FakeBlock::LINK_MASK;
+                    allocation.local_cursor_offset = 8;
+                    allocation.local_end_offset = 16;
+                    allocation.local_cell_size_offset = 24;
                     install_call_stub(&mut snapshot.runtime);
                     snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
                         target: Some(CellId(CALL_FUNCTION)),

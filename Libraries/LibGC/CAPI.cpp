@@ -121,6 +121,9 @@ struct CAPI {
             .weak_impl_pointer_offset = WeakImpl::value_offset(),
             .free_cell_next_offset = HeapBlock::freelist_next_offset(),
             .free_cell_link_mask = HeapBlock::freelist_link_mask,
+            .local_cursor_offset = offsetof(CellAllocator::LocalFreeCells, cursor),
+            .local_end_offset = offsetof(CellAllocator::LocalFreeCells, end),
+            .local_cell_size_offset = offsetof(CellAllocator::LocalFreeCells, cell_size),
             .heap_allocated_bytes_since_last_gc_offset = offsetof(Heap, m_allocated_bytes_since_last_gc),
             .heap_gc_bytes_threshold_offset = offsetof(Heap, m_gc_bytes_threshold),
             .heap_total_allocated_bytes_offset = offsetof(Heap, m_total_allocated_bytes),
@@ -147,9 +150,11 @@ struct CAPI {
     static_assert(sizeof(Heap::m_gc_bytes_threshold) == sizeof(size_t));
     static_assert(sizeof(Heap::m_total_allocated_bytes) == sizeof(size_t));
 
-    // Foreign code reads and writes the head of the list as a plain pointer.
+    // Foreign code reads and writes the head of the list, the cursor and the end as plain pointers.
     static_assert(sizeof(RawPtr<Cell>) == sizeof(Cell*));
-    static RawPtr<Cell>* local_free_list(Heap& heap, CellAllocatorDescriptorBase& descriptor) { return descriptor.for_heap(heap).local_free_list({}); }
+    static_assert(offsetof(CellAllocator::LocalFreeCells, free_list) == 0);
+    static_assert(sizeof(FlatPtr) == sizeof(void*));
+    static CellAllocator::LocalFreeCells* local_free_cells(Heap& heap, CellAllocatorDescriptorBase& descriptor) { return descriptor.for_heap(heap).local_free_cells({}); }
     static void set_foreign_context(Heap& heap, void* context) { heap.m_foreign_context = context; }
     static void* foreign_context(Heap& heap) { return heap.m_foreign_context; }
     static void defer_gc(Heap& heap) { heap.defer_gc(); }
@@ -336,7 +341,7 @@ GCCell** gc_heap_allocator_local_free_list(GCHeap* heap, GCAllocator* allocator)
     return nullptr;
 #else
     auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
-    return reinterpret_cast<GCCell**>(CAPI::local_free_list(as_heap(heap), descriptor));
+    return reinterpret_cast<GCCell**>(CAPI::local_free_cells(as_heap(heap), descriptor));
 #endif
 }
 
