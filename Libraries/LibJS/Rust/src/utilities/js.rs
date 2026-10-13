@@ -1731,31 +1731,12 @@ fn canonicalized_path_of_bytes(path: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-/// Core::StandardPaths::home_directory() without HOME: the home directory of the user in the user database.
-#[cfg(unix)]
-fn home_directory_of_user() -> Vec<u8> {
-    // SAFETY: getpwuid() returns NULL or an entry whose home directory is NUL-terminated, which is copied before
-    // endpwent() releases the entry.
-    unsafe {
-        let entry = libc::getpwuid(libc::getuid());
-        let home_directory = if entry.is_null() {
-            b"/".to_vec()
-        } else {
-            CStr::from_ptr((*entry).pw_dir).to_bytes().to_vec()
-        };
-        libc::endpwent();
-        home_directory
-    }
-}
-
 /// The path of the REPL's history: .js-history in Core::StandardPaths::home_directory(), which String::formatted()
 /// fails to make if the home directory is not UTF-8.
 fn history_path() -> Result<CString, String> {
+    // NB: HOME, or else the home directory of the user in the user database.
     #[cfg(unix)]
-    let home_directory = match std::env::var_os("HOME") {
-        Some(home_directory) => home_directory.into_vec(),
-        None => home_directory_of_user(),
-    };
+    let home_directory = std::env::home_dir().map_or_else(|| b"/".to_vec(), |path| path.into_os_string().into_vec());
     // Core::StandardPaths::home_directory() on Windows.
     #[cfg(windows)]
     let home_directory = std::env::var_os("USERPROFILE")
