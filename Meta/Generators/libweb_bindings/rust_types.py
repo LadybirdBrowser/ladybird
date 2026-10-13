@@ -7,9 +7,11 @@
 
 import re
 
+from pathlib import Path
 from typing import Optional
 
 from Generators.libweb_bindings.context import GenerationContext
+from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import OperationParameter
@@ -47,17 +49,30 @@ def resolved_dictionary(idl_type: IDLType, context: GenerationContext) -> Option
     return context.dictionaries.get(idl_type.name)
 
 
-def check_type_is_supported(idl_type: IDLType, context: GenerationContext, what: str) -> None:
+def rust_module_path(idl_path: Path) -> str:
+    """The Rust module of the hand-written definitions of an IDL file, which follows from its path:
+    Encoding/TextEncoder.idl names crate::encoding::text_encoder."""
+    parts = idl_path.parts
+    namespace = parts[parts.index("LibWeb") + 1]
+    return f"crate::{title_case_to_snake_case(namespace)}::{title_case_to_snake_case(idl_path.stem)}"
+
+
+def rust_dictionary_path(dictionary: Dictionary, context: GenerationContext) -> str:
+    """The Rust path of the struct of a dictionary, which is in the module of the IDL file that defines the
+    dictionary: crate::encoding::text_encoder::TextEncoderEncodeIntoResult."""
+    for module in context.modules:
+        if any(defined.name == dictionary.name for defined in module.dictionaries):
+            return f"{rust_module_path(module.path)}::{dictionary.name}"
+    raise RuntimeError(f"No module defines the dictionary {dictionary.name}")
+
+
+def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
+    """The Rust type of the IDL values of the type."""
     unsupported_attributes = set(idl_type.extended_attributes) - SUPPORTED_TYPE_EXTENDED_ATTRIBUTES
     if unsupported_attributes:
         raise UnsupportedByRustBindings(f"{what} has extended attributes {sorted(unsupported_attributes)}")
     if idl_type.nullable:
         raise UnsupportedByRustBindings(f"{what} has the nullable type {idl_type}")
-    rust_type(idl_type, context, what)
-
-
-def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
-    """The Rust type of the IDL values of the type."""
     name = idl_type.name
     if name == "DOMString":
         return "Utf16String"
@@ -73,8 +88,9 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
         return "()"
     if name in TYPED_ARRAY_NAMES:
         return "Gc<TypedArrayBase>"
-    if resolved_dictionary(idl_type, context) is not None:
-        return name
+    dictionary = resolved_dictionary(idl_type, context)
+    if dictionary is not None:
+        return rust_dictionary_path(dictionary, context)
     raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")
 
 

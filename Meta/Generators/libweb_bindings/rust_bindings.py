@@ -14,9 +14,9 @@
 # A wrapper is a platform object whose host data holds a GC cell of the implementation. Its wrappable slot stays
 # empty, so the C++ bindings see a platform object without a C++ implementation object.
 
+from io import StringIO
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import TextIO
 
 from Generators.libweb_bindings.context import GenerationContext
@@ -24,52 +24,28 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.overload_resolution import operation_length
 from Generators.libweb_bindings.overload_resolution import operation_overload_sets
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
+from Generators.libweb_bindings.rust_names import rust_identifier
+from Generators.libweb_bindings.rust_names import rust_local_name
+from Generators.libweb_bindings.rust_to_js_value import rust_to_js_value
+from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
-from Generators.libweb_bindings.rust_types import check_type_is_supported
 from Generators.libweb_bindings.rust_types import rust_conversion_to_idl_value
 from Generators.libweb_bindings.rust_types import rust_default_value
+from Generators.libweb_bindings.rust_types import rust_module_path
 from Generators.libweb_bindings.rust_types import rust_parameter_type
 from Generators.libweb_bindings.rust_types import rust_type
+from Generators.libweb_bindings.rust_usage import DefinitionUsage
+from Generators.libweb_bindings.rust_usage import is_implemented_in_rust
 from Generators.libweb_bindings.wrappers import wrapper_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Constructor
-from Utils.webidl_parser import Dictionary
-from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
 from Utils.webidl_parser import OperationParameter
 
-RUST_KEYWORDS = {
-    "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn", "for",
-    "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "static",
-    "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while", "abstract", "become", "box", "do",
-    "final", "gen", "macro", "override", "priv", "try", "typeof", "unsized", "virtual", "yield",
-}  # fmt: skip
-
 # The extended attributes of an interface and of its members that the Rust bindings handle.
 SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {"Exposed", "ImplementedIn", "SecureContext", "Experimental"}
 SUPPORTED_MEMBER_EXTENDED_ATTRIBUTES = {"NewObject", "SameObject"}
-
-# Names that Rust does not accept as raw identifiers either.
-RUST_RESERVED_NAMES = {"self", "Self", "crate", "super"}
-
-
-def is_implemented_in_rust(interface: Optional[Interface]) -> bool:
-    return interface is not None and interface.extended_attributes.get("ImplementedIn") == "Rust"
-
-
-def rust_identifier(name: str) -> str:
-    identifier = title_case_to_snake_case(name).replace("-", "_")
-    if identifier in RUST_RESERVED_NAMES:
-        return f"{identifier}_"
-    if identifier in RUST_KEYWORDS:
-        return f"r#{identifier}"
-    return identifier
-
-
-def rust_local_name(name: str) -> str:
-    """The local variable that holds the IDL value of a parameter, which never clashes with the generated ones."""
-    return f"idl_{rust_identifier(name).removeprefix('r#')}"
 
 
 def rust_module_name(interface: Interface) -> str:
@@ -84,17 +60,9 @@ def wrapper_host_class_symbol(interface: Interface) -> str:
     return f"web_bindings_{wrapper_name(interface)}_host_class"
 
 
-def implementation_module(interface: Interface) -> str:
-    """The Rust module of the implementation and of the dictionaries of its IDL, which follows from the IDL path:
-    Encoding/TextEncoder.idl names crate::encoding::text_encoder."""
-    parts = interface.path.parts
-    namespace = parts[parts.index("LibWeb") + 1]
-    return f"crate::{title_case_to_snake_case(namespace)}::{rust_module_name(interface)}"
-
-
 def implementation_path(interface: Interface) -> str:
     """The Rust path of the implementation: crate::encoding::text_encoder::TextEncoder for Encoding/TextEncoder.idl."""
-    return f"{implementation_module(interface)}::{interface.name}"
+    return f"{rust_module_path(interface.path)}::{interface.name}"
 
 
 def interface_name_values(intrinsics: List[Interface]) -> Dict[str, int]:
@@ -103,12 +71,9 @@ def interface_name_values(intrinsics: List[Interface]) -> Dict[str, int]:
     return {interface.name: index for index, interface in enumerate(intrinsics, start=1)}
 
 
-def cpp_dictionaries(module: Module) -> List[Dictionary]:
-    return [] if is_implemented_in_rust(module.interface) else list(module.dictionaries)
-
-
 def check_interface_is_supported(interface: Interface, module: Module, context: GenerationContext) -> None:
-    """Raises an error that names what the Rust bindings do not handle yet."""
+    """Raises an error that names what the Rust bindings do not handle yet, for everything that the functions that
+    write the bindings do not reject themselves."""
 
     def fail(message: str) -> None:
         raise UnsupportedByRustBindings(f"{interface.path}: {interface.name} is [ImplementedIn=Rust], but {message}")
@@ -157,123 +122,35 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
     for operation in interface.regular_operations:
         check_member_attributes(operation.name, operation.extended_attributes)
 
-    def check_dictionaries_are_local(idl_type, what: str) -> None:
-        for nested_type in [idl_type, *idl_type.nested_types()]:
-            dictionary = context.dictionaries.get(nested_type.name)
-            if dictionary is not None and dictionary not in module.dictionaries:
-                fail(f"{what} uses {dictionary.name}, a dictionary of another module")
-
     for attribute in interface.regular_attributes:
         check_member_attributes(attribute.name, attribute.extended_attributes)
-        check_dictionaries_are_local(attribute.type, f"{interface.name}.{attribute.name}")
         if not attribute.readonly:
             fail(f"its attribute {attribute.name} is not readonly")
-        check_type_is_supported(attribute.type, context, f"{interface.name}.{attribute.name}")
-
-    def check_parameters(what: str, parameters: List[OperationParameter]) -> None:
-        for parameter in parameters:
-            if parameter.variadic:
-                fail(f"{what} has a variadic parameter")
-            parameter_what = f"the parameter {parameter.name} of {what}"
-            unsupported = set(parameter.extended_attributes) - {"AllowShared", "AllowResizable"}
-            if unsupported:
-                fail(f"{parameter_what} has the extended attributes {sorted(unsupported)}")
-            check_type_is_supported(parameter.type, context, parameter_what)
-            check_dictionaries_are_local(parameter.type, parameter_what)
-            rust_conversion_to_idl_value(
-                parameter.type, parameter.extended_attributes, "value", parameter.name, context, parameter_what
-            )
-            if parameter.optional and parameter.default_value is not None:
-                rust_default_value(parameter, context, parameter_what)
-
-    for constructor in interface.constructors:
-        check_parameters(constructor_description(interface), constructor.parameters)
 
     for name, operations in operation_overload_sets(interface).items():
         if len(operations) > 1:
             fail(f"its operation {name} is overloaded")
-        operation = operations[0]
-        what = f"{interface.name}.{name}()"
-        check_type_is_supported(operation.return_type, context, what)
-        check_dictionaries_are_local(operation.return_type, what)
-        check_parameters(what, operation.parameters)
-
-    for dictionary in module.dictionaries:
-        if dictionary.parent_name:
-            fail(f"its dictionary {dictionary.name} inherits from another dictionary")
-        for member in dictionary.members:
-            check_type_is_supported(member.type, context, f"{dictionary.name}.{member.name}")
-            check_dictionaries_are_local(member.type, f"{dictionary.name}.{member.name}")
 
 
-def types_named_by_interface(interface: Interface) -> List[IDLType]:
-    """Every type that the members of the interface name, which the C++ bindings of the interface convert."""
-    types = []
-    types.extend(attribute.type for attribute in interface.regular_attributes + interface.static_attributes)
-    for operation in interface.regular_operations + interface.static_operations:
-        types.append(operation.return_type)
-        types.extend(parameter.type for parameter in operation.parameters)
-    for constructor in interface.constructors:
-        types.extend(parameter.type for parameter in constructor.parameters)
-    special_operations = [
-        interface.named_property_getter,
-        interface.indexed_property_getter,
-        interface.named_property_setter,
-        interface.indexed_property_setter,
-        interface.named_property_deleter,
-    ]
-    for special_operation in special_operations:
-        if special_operation is not None:
-            types.append(special_operation.return_type)
-            types.extend(parameter.type for parameter in special_operation.parameters)
-    if interface.stringifier is not None and interface.stringifier.attribute is not None:
-        types.append(interface.stringifier.attribute.type)
-    if interface.iterable is not None:
-        types.extend([interface.iterable.key_type, interface.iterable.value_type])
-    if interface.async_iterable is not None:
-        types.extend([interface.async_iterable.key_type, interface.async_iterable.value_type])
-        types.extend(parameter.type for parameter in interface.async_iterable.parameters)
-    if interface.maplike is not None:
-        types.extend([interface.maplike.key_type, interface.maplike.value_type])
-    if interface.setlike is not None:
-        types.append(interface.setlike.value_type)
-    return [idl_type for idl_type in types if idl_type is not None]
-
-
-def check_rust_definitions_are_not_used_by_cpp(modules: List[Module]) -> None:
-    """The interfaces implemented in Rust and their dictionaries only have a Rust representation, so the C++ bindings
-    of other interfaces cannot convert them."""
-    rust_names = set()
-    for module in modules:
-        if module.interface is not None and is_implemented_in_rust(module.interface):
-            rust_names.add(module.interface.name)
-            rust_names.update(dictionary.name for dictionary in module.dictionaries)
-    if not rust_names:
+def check_cpp_does_not_name_rust_interfaces(context: GenerationContext, usage: DefinitionUsage) -> None:
+    """An interface implemented in Rust has no C++ implementation object, so the C++ bindings cannot convert it."""
+    rust_interfaces = {interface.name for interface in context.interfaces.values() if is_implemented_in_rust(interface)}
+    if not rust_interfaces:
         return
-    for module in modules:
-        if is_implemented_in_rust(module.interface):
-            continue
-        definitions = []
-        if module.interface is not None:
-            definitions.extend(types_named_by_interface(module.interface))
-        definitions.extend(typedef.type for typedef in module.typedefs)
-        for dictionary in module.dictionaries:
-            if dictionary.parent_name in rust_names:
-                raise UnsupportedByRustBindings(
-                    f"{module.path}: {dictionary.name} inherits from {dictionary.parent_name}, which is implemented "
-                    "in Rust and has no C++ representation"
-                )
-            definitions.extend(member.type for member in dictionary.members)
-        for callback_function in module.callback_functions:
-            definitions.append(callback_function.return_type)
-            definitions.extend(parameter.type for parameter in callback_function.parameters)
-        for idl_type in definitions:
-            for nested_type in [idl_type, *idl_type.nested_types()]:
-                if nested_type.name in rust_names:
+
+    def check(path, types) -> None:
+        for idl_type in types:
+            for nested_type in idl_type.nested_types():
+                if nested_type.name in rust_interfaces:
                     raise UnsupportedByRustBindings(
-                        f"{module.path}: uses {nested_type.name}, which is implemented in Rust and has no C++ "
-                        "representation"
+                        f"{path}: uses {nested_type.name}, which is implemented in Rust and has no C++ representation"
                     )
+
+    for module in context.modules:
+        if not is_implemented_in_rust(module.interface):
+            check(module.path, usage.types_named_by_cpp_module(module))
+        for dictionary in usage.cpp_dictionaries(module):
+            check(module.path, [member.type for member in dictionary.members])
 
 
 # C++ side
@@ -432,6 +309,11 @@ def write_parameter_conversions(
 ) -> None:
     for index, parameter in enumerate(parameters):
         parameter_what = f"the parameter {parameter.name} of {what}"
+        if parameter.variadic:
+            raise UnsupportedByRustBindings(f"{parameter_what} is variadic")
+        unsupported = set(parameter.extended_attributes) - {"AllowShared", "AllowResizable"}
+        if unsupported:
+            raise UnsupportedByRustBindings(f"{parameter_what} has the extended attributes {sorted(unsupported)}")
         name = rust_local_name(parameter.name)
         conversion = rust_conversion_to_idl_value(
             parameter.type, parameter.extended_attributes, f"argument{index}", parameter.name, context, parameter_what
@@ -493,9 +375,6 @@ def write_rust_interface(
     out: TextIO, context: GenerationContext, module: Module, interface: Interface, interface_name_value: int
 ) -> None:
     implementation = implementation_path(interface)
-    dictionary_imports = "".join(
-        f"    use {implementation_module(interface)}::{dictionary.name};\n" for dictionary in module.dictionaries
-    )
     method_documentation = "".join(
         f"/// - `{signature}`\n" for signature in implementation_method_signatures(context, interface)
     )
@@ -506,11 +385,10 @@ def write_rust_interface(
     #![allow(unused_imports)]
 
     use core::ffi::c_void;
-    use std::sync::LazyLock;
 
     use ak::Utf16String;
     use libjs_rust::api::{{
-        EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, Gc, JSHostClass, Object, PropertyKey,
+        EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, Gc, JSHostClass, Object,
         RawNativeFunctionResult, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, raw_native,
     }};
 
@@ -518,25 +396,17 @@ def write_rust_interface(
         BufferSourceRules, ToJs, UsvString, to_dom_string, to_float, to_typed_array, to_usv_string,
     }};
     use crate::bindings::interface::{{
-        construct_arguments, create_dictionary_object, create_wrapper, define_attribute,
-        define_interface_object_properties, define_operation, define_to_string_tag, entry_point_arguments,
-        implementation_of, prototype_from_new_target, set_dictionary_member,
+        construct_arguments, create_wrapper, define_attribute, define_interface_object_properties, define_operation,
+        define_to_string_tag, entry_point_arguments, implementation_of, prototype_from_new_target,
         set_interface_prototype_object_prototype, this_object,
     }};
     use crate::bindings::{{CallContext, WebIdlResult}};
 
     use {implementation} as Implementation;
-{dictionary_imports}
+
     /// Web::Bindings::InterfaceName::{interface.name}.
     pub(crate) const INTERFACE_NAME: u16 = {interface_name_value};
-"""
-    )
 
-    for dictionary in module.dictionaries:
-        write_rust_dictionary_conversion(out, context, dictionary)
-
-    out.write(
-        f"""
     /// The class of the cells that hold the implementations of the interface.
     static CELL_CLASS: EmbedderClass<Implementation> = EmbedderClass::new("{interface.name}");
 
@@ -563,13 +433,14 @@ def write_rust_interface(
 
     for attribute in interface.regular_attributes:
         getter = f"{rust_identifier(attribute.name).removeprefix('r#')}_getter"
+        conversion = rust_to_js_value(attribute.type, "result", "&cx", context, f"{interface.name}.{attribute.name}")
         out.write(
             f"""
     fn {getter}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let (implementation, mut cx) = this_implementation(vm)?;
         let result = Implementation::{rust_identifier(attribute.name)}(&implementation, &mut cx)
             .map_err(|exception| exception.throw(vm))?;
-        result.to_js(&cx)
+        {conversion}
     }}
 """
         )
@@ -589,10 +460,11 @@ def write_rust_interface(
             write_parameter_conversions(out, f"{interface.name}.{name}()", operation.parameters, context)
             out.write("        drop(type_error_realm_scope);\n")
         arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
+        conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, f"{interface.name}.{name}()")
         out.write(
             f"""        let result = Implementation::{function}(&implementation, &mut cx{arguments})
             .map_err(|exception| exception.throw(vm))?;
-        result.to_js(&cx)
+        {conversion}
     }}
 """
         )
@@ -703,55 +575,67 @@ def constructor_length(interface: Interface) -> int:
     return min(parameter_list_length(constructor.parameters) for constructor in interface.constructors)
 
 
-def write_rust_dictionary_conversion(out: TextIO, context: GenerationContext, dictionary: Dictionary) -> None:
-    """The conversion of the dictionary's struct, which the implementation defines with a field per member: the type
-    of a required member or of one with a default value, and an Option of it otherwise. The fields are bound to locals
-    with names of their own, so that a member can have any name, and the keys of the members are interned once."""
-    fields = []
-    keys = []
-    conversions = []
-    for member in dictionary.members:
-        what = f"{dictionary.name}.{member.name}"
-        member_type = rust_type(member.type, context, what)
-        field = rust_identifier(member.name)
-        local = rust_local_name(member.name)
-        key = f"{rust_identifier(member.name).removeprefix('r#').rstrip('_').upper()}_KEY"
-        keys.append(
-            f'            static {key}: LazyLock<PropertyKey> = LazyLock::new(|| PropertyKey::from_utf8("{member.name}"));\n'
-        )
-        always_present = member.required or member.default_value is not None
-        if always_present:
-            fields.append(f"        //   {field}: {member_type},\n")
-            conversions.append(f"            set_dictionary_member(cx, object, &{key}, {local}.to_js(cx)?)?;\n")
-        else:
-            fields.append(f"        //   {field}: Option<{member_type}>,\n")
-            conversions.append(
-                f"""            if let Some(value) = {local} {{
-                set_dictionary_member(cx, object, &{key}, value.to_js(cx)?)?;
-            }}
-"""
-            )
-    bindings = ", ".join(
-        f"{rust_identifier(member.name)}: {rust_local_name(member.name)}" for member in dictionary.members
-    )
+def write_rust_definitions(out: TextIO, context: GenerationContext, usage: DefinitionUsage) -> None:
+    """The conversions of the dictionaries that the interfaces implemented in Rust name, each written once, whichever
+    interfaces name it."""
+    if not usage.rust_dictionaries:
+        return
     out.write(
-        f"""
-    /// The conversion of the dictionary {dictionary.name}, a struct of the implementation's module with the fields:
-{"".join(fields)}    impl ToJs for {dictionary.name} {{
-        fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {{
-{"".join(keys)}            let {dictionary.name} {{ {bindings} }} = self;
-            let object = create_dictionary_object(cx);
-{"".join(conversions)}            Ok(Value::from_object(object))
-        }}
-    }}
+        """
+/// The conversions of the definitions that the interfaces implemented in Rust name, whose types the modules of their
+/// IDL files define next to the implementations.
+pub(crate) mod definitions {
+    #![allow(unused_imports)]
+
+    use std::sync::LazyLock;
+
+    use ak::Utf16String;
+    use libjs_rust::api::{ErrorKind, ErrorType, Gc, Object, PropertyKey, ThrowCompletionOr, Value, Vm};
+
+    use crate::bindings::CallContext;
+    use crate::bindings::conversions::{ToJs, UsvString};
+    use crate::bindings::interface::{create_dictionary_object, set_dictionary_member};
 """
     )
+    for name, directions in usage.rust_dictionaries.items():
+        dictionary = context.dictionaries[name]
+        if dictionary.parent_name:
+            raise UnsupportedByRustBindings(
+                f"The Rust bindings convert the dictionary {name}, which inherits from another dictionary"
+            )
+        if directions.from_js:
+            raise UnsupportedByRustBindings(
+                f"The Rust bindings do not convert the dictionary {name} from a JS value yet"
+            )
+        if directions.to_js:
+            write_dictionary_to_js(out, context, dictionary)
+    out.write("}\n")
 
 
-def check_rust_bindings(context: GenerationContext, modules: List[Module]) -> None:
-    """Raises an error for every use of [ImplementedIn] that the bindings do not handle, before anything is written."""
-    check_rust_definitions_are_not_used_by_cpp(modules)
-    for module in modules:
+def write_rust_bindings(
+    out: TextIO, context: GenerationContext, usage: DefinitionUsage, intrinsics: List[Interface]
+) -> None:
+    out.write(
+        """// Generated by Meta/Generators/generate_libweb_bindings.py -- DO NOT EDIT
+//
+// The bindings of the interfaces that are implemented in Rust.
+"""
+    )
+    write_rust_definitions(out, context, usage)
+    values = interface_name_values(intrinsics)
+    for module in context.modules:
+        interface = module.interface
+        if interface is None or not is_implemented_in_rust(interface):
+            continue
+        write_rust_interface(out, context, module, interface, values[interface.name])
+
+
+def check_rust_bindings(context: GenerationContext, usage: DefinitionUsage, intrinsics: List[Interface]) -> None:
+    """Raises an error for every use of [ImplementedIn] that the bindings do not handle, before anything is written.
+    The functions that write the Rust bindings reject the types and the definitions that they do not handle
+    themselves, so the bindings are written once to find those."""
+    check_cpp_does_not_name_rust_interfaces(context, usage)
+    for module in context.modules:
         interface = module.interface
         if interface is None:
             continue
@@ -762,18 +646,4 @@ def check_rust_bindings(context: GenerationContext, modules: List[Module]) -> No
             )
         if is_implemented_in_rust(interface):
             check_interface_is_supported(interface, module, context)
-
-
-def write_rust_bindings(out: TextIO, context: GenerationContext, modules: List[Module], intrinsics) -> None:
-    out.write(
-        """// Generated by Meta/Generators/generate_libweb_bindings.py -- DO NOT EDIT
-//
-// The bindings of the interfaces that are implemented in Rust.
-"""
-    )
-    values = interface_name_values(intrinsics)
-    for module in modules:
-        interface = module.interface
-        if interface is None or not is_implemented_in_rust(interface):
-            continue
-        write_rust_interface(out, context, module, interface, values[interface.name])
+    write_rust_bindings(StringIO(), context, usage, intrinsics)
