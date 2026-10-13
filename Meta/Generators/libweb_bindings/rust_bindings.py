@@ -14,6 +14,8 @@
 # A wrapper is a platform object whose host data holds a GC cell of the implementation. Its wrappable slot stays
 # empty, so the C++ bindings see a platform object without a C++ implementation object.
 
+import re
+
 from io import StringIO
 from typing import Dict
 from typing import List
@@ -26,6 +28,7 @@ from Generators.libweb_bindings.overload_resolution import operation_overload_se
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
 from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
+from Generators.libweb_bindings.rust_overloads import write_constructor_overload_resolution
 from Generators.libweb_bindings.rust_to_idl_value import rust_default_value
 from Generators.libweb_bindings.rust_to_idl_value import rust_to_idl_value
 from Generators.libweb_bindings.rust_to_idl_value import write_dictionary_from_js
@@ -45,6 +48,8 @@ from Utils.webidl_parser import Constructor
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
 from Utils.webidl_parser import OperationParameter
+
+RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
 # The extended attributes of an interface and of its members that the Rust bindings handle.
 SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {"Exposed", "ImplementedIn", "SecureContext", "Experimental"}
@@ -101,14 +106,22 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
         fail("it is iterable or a maplike or setlike")
     if interface.static_attributes or interface.static_operations or interface.constants:
         fail("it has static members or constants")
-    if len(interface.constructors) > 1:
-        fail("it has more than one constructor")
+    constructor_attributes = {"ImplementedAs"} if len(interface.constructors) > 1 else set()
     for constructor in interface.constructors:
-        if constructor.extended_attributes:
+        unsupported_attributes = set(constructor.extended_attributes) - constructor_attributes
+        if unsupported_attributes:
             fail(
                 "the Rust bindings do not handle the extended attributes "
-                f"{sorted(constructor.extended_attributes)} of its constructor"
+                f"{sorted(unsupported_attributes)} of its constructor"
             )
+    if len(interface.constructors) > 1:
+        # NB: Rust has no overloading, and a name made up from the position of a constructor in the IDL would swap
+        #     two overloads silently when the IDL is reordered, so the IDL names the method of every overload.
+        methods = [constructor.extended_attributes.get("ImplementedAs") for constructor in interface.constructors]
+        if not all(method is not None and RUST_METHOD_NAME.fullmatch(method) for method in methods):
+            fail("its constructors are overloaded, and not all of them name their Rust method with [ImplementedAs]")
+        if len(set(methods)) != len(methods):
+            fail(f"its constructors name the same Rust method with [ImplementedAs] more than once: {methods}")
     if module.enumerations or module.callback_functions:
         fail("its module defines enumerations or callback functions")
 
@@ -284,6 +297,22 @@ def constructor_description(interface: Interface) -> str:
     return f"the constructor of {interface.name}"
 
 
+def constructor_method_name(interface: Interface, constructor: Constructor) -> str:
+    """The method of the implementation that the steps of the constructor call. The constructors of an overloaded set
+    name theirs in the IDL."""
+    if len(interface.constructors) > 1:
+        return constructor.extended_attributes["ImplementedAs"]
+    return "construct"
+
+
+def constructor_steps_function(interface: Interface, constructor: Constructor) -> str:
+    """The generated function of the steps of the constructor. The function `construct` is what the entry point of
+    a construction calls: the steps of the only constructor, or the choice between the overloads."""
+    if len(interface.constructors) > 1:
+        return f"{constructor_method_name(interface, constructor)}_steps"
+    return "construct"
+
+
 def write_argument_count_check(out: TextIO, function_name: str, required_argument_count: int) -> None:
     """Throws the errors of the C++ bindings for a call with too few arguments, which name the operation, or the
     interface for a constructor."""
@@ -356,7 +385,8 @@ def implementation_method_signatures(context: GenerationContext, interface: Inte
     signatures = []
     for constructor in interface.constructors:
         parameters = parameter_list(constructor_description(interface), constructor.parameters)
-        signatures.append(f"fn construct(cx: &mut CallContext{parameters}) -> WebIdlResult<Self>")
+        method = constructor_method_name(interface, constructor)
+        signatures.append(f"fn {method}(cx: &mut CallContext{parameters}) -> WebIdlResult<Self>")
     for attribute in interface.regular_attributes:
         what = f"{interface.name}.{attribute.name}"
         signatures.append(
@@ -522,6 +552,9 @@ def write_rust_interface(
 
     for constructor in interface.constructors:
         write_rust_constructor(out, context, interface, constructor)
+    if len(interface.constructors) > 1:
+        steps_functions = [constructor_steps_function(interface, constructor) for constructor in interface.constructors]
+        write_constructor_overload_resolution(out, context, interface, steps_functions)
     if interface.constructors:
         out.write(
             f"""
@@ -550,11 +583,12 @@ def write_rust_constructor(
 ) -> None:
     """The steps of a constructor in the order of the C++ bindings: the prototype of the new object is read from the
     new target before the arguments are counted and converted, and the conversions throw in the current realm."""
+    method = constructor_method_name(interface, constructor)
     out.write(
-        """
+        f"""
     /// The constructor steps of the interface, which internally create a new object implementing the interface,
     /// https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-    fn construct(vm: &Vm, new_target: Gc<Object>) -> ThrowCompletionOr<Value> {
+    fn {constructor_steps_function(interface, constructor)}(vm: &Vm, new_target: Gc<Object>) -> ThrowCompletionOr<Value> {{
         let realm = vm.current_realm().expect("a construction runs in a realm");
         let prototype = prototype_from_new_target(vm, new_target, INTERFACE_NAME)?;
 """
@@ -565,7 +599,7 @@ def write_rust_constructor(
     out.write(
         f"""        let mut cx = CallContext::new(vm, realm);
         let implementation =
-            Implementation::construct(&mut cx{arguments}).map_err(|exception| exception.throw(vm))?;
+            Implementation::{method}(&mut cx{arguments}).map_err(|exception| exception.throw(vm))?;
         let implementation = CELL_CLASS.allocate(vm, implementation);
         Ok(Value::from_object(create_wrapper(vm, realm, wrapper_class(), prototype, implementation)))
     }}
