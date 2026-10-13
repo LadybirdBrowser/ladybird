@@ -72,11 +72,8 @@ fn optional_identifier(vm: &Vm, index: &OptionalIndex<IdentifierTableIndex>) -> 
 }
 
 fn running_private_environment(vm: &Vm) -> Gc<PrivateEnvironment> {
-    let context = vm
-        .running_execution_context()
-        .expect("private names are used in an execution context");
-    // SAFETY: The running execution context is live.
-    unsafe { context.as_ref() }
+    vm.running_execution_context_if_any()
+        .expect("private names are used in an execution context")
         .private_environment
         .get()
         .expect("private names are used where a private environment is active")

@@ -155,9 +155,7 @@ impl Vm {
     /// Runs the running execution context in the interpreter from its program counter, until it returns to a caller
     /// waiting in native code or leaves the interpreter.
     pub fn run_running_frame_in_interpreter(&self) {
-        let context = self.running_execution_context().expect("a frame is running");
-        // SAFETY: The running context is live.
-        let context = unsafe { context.as_ref() };
+        let context = self.running_execution_context_if_any().expect("a frame is running");
         let executable = Executable::from_head(context.executable.get().expect("the running frame runs an executable"));
         // SAFETY: The interpreter runs the executable in the context, whose slots follow it.
         unsafe {

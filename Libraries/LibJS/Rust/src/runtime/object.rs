@@ -841,9 +841,8 @@ impl Object {
         cache: &PropertyLookupCache,
     ) -> ThrowCompletionOr<()> {
         let mut strict = Strict::No;
-        if let Some(context) = vm.running_execution_context()
-            // SAFETY: The running execution context is live.
-            && let Some(function) = unsafe { context.as_ref() }.function.get()
+        if let Some(context) = vm.running_execution_context_if_any()
+            && let Some(function) = context.function.get()
             && function_object_as_object(function).is_strict_mode()
         {
             strict = Strict::Yes;

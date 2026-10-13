@@ -57,12 +57,9 @@ pub(crate) enum CallType {
 }
 
 fn running_execution_context(vm: &Vm) -> &ExecutionContext {
-    let context = vm
-        .running_execution_context()
-        .expect("a slow path runs in a running frame");
-    // SAFETY: The running execution context is live while the slow path runs in it. Callers only use the reference
-    // before anything can unwind the frame.
-    unsafe { context.as_ref() }
+    // NB: Callers only use the reference before anything can unwind the frame.
+    vm.running_execution_context_if_any()
+        .expect("a slow path runs in a running frame")
 }
 
 fn strict_of(header: &InstructionHeader) -> Strict {

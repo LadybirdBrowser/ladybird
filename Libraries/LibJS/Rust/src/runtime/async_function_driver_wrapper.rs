@@ -96,11 +96,10 @@ impl AsyncFunctionDriverWrapper {
 
         // 1. Let asyncContext be the running execution context.
         if this.suspended_execution_context.borrow().is_none() {
-            let running_execution_context = vm
-                .running_execution_context()
-                .expect("an async function awaits in an execution context");
-            // SAFETY: The running execution context is live.
-            let copy = unsafe { running_execution_context.as_ref() }.copy();
+            let copy = vm
+                .running_execution_context_if_any()
+                .expect("an async function awaits in an execution context")
+                .copy();
             *this.suspended_execution_context.borrow_mut() = Some(copy);
         }
 
