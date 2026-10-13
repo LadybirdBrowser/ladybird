@@ -57,20 +57,18 @@ Cell* HeapBlock::take_free_cells()
 
 void HeapBlock::give_back_free_cells(Cell* cells)
 {
-    for (auto* head = cells; !is_end_of_freelist(head);) {
-        VERIFY(is_valid_cell_pointer(head));
-        VERIFY(head->state() == Cell::State::Dead);
-        auto* next = next_free_cell(head);
-        static_cast<FreelistEntry*>(head)->next = m_freelist;
-        m_freelist = bit_cast<FlatPtr>(head);
-        head = next;
-    }
+    // NB: take_free_cells() left the block without free cells of its own, and nothing frees cells in a block while
+    //     its free cells are out, so the list becomes the block's free list as it is. Its links can only lead into
+    //     this block (see follow_freelist_link()).
+    VERIFY(is_end_of_freelist(freelist_head()));
+    VERIFY(is_end_of_freelist(cells) || is_valid_cell_pointer(cells));
+    m_freelist = bit_cast<FlatPtr>(cells);
 }
 
 void HeapBlock::deallocate(Cell* cell)
 {
     // NB: The cell is one of this block's, since for_each_cell() found it, and the free list only ever holds cells
-    //     that this function or give_back_free_cells() put there, which checks them.
+    //     that this function or give_back_free_cells() put there.
     VERIFY(cell->state() == Cell::State::Live);
     VERIFY(!cell->is_marked());
 
