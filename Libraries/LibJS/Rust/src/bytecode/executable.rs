@@ -1961,10 +1961,12 @@ impl Executable {
     }
 
     pub fn environment_shape_cache(&self, index: u32) -> EnvironmentShapeCache {
-        let slot = &self.environment_shape_caches[index as usize];
-        // SAFETY: Executables are only reached through the heap, and the slot is part of this one's caches, which
-        // live as long as it does.
-        unsafe { EnvironmentShapeCache::new(Gc::from_ref(self), slot) }
+        assert!((index as usize) < self.environment_shape_caches.len());
+        EnvironmentShapeCache::Executable(Gc::from_ref(self), index)
+    }
+
+    pub(crate) fn environment_shape_cache_slot(&self, index: u32) -> &Cell<Option<Gc<EnvironmentShape>>> {
+        &self.environment_shape_caches[index as usize]
     }
 
     pub fn name(&self) -> Utf16FlyString {

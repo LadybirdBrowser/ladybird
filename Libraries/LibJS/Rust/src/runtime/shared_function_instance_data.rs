@@ -781,14 +781,20 @@ impl SharedFunctionInstanceData {
 
     /// Where the function environments of calls to the function find their shape.
     pub fn function_environment_shape_cache(&self) -> EnvironmentShapeCache {
-        // SAFETY: The slot is part of this shared data, which only exists as a cell.
-        unsafe { EnvironmentShapeCache::new(Gc::from_ref(self), &self.storage.function_environment_shape) }
+        EnvironmentShapeCache::FunctionEnvironment(Gc::from_ref(self))
     }
 
     /// Where the separate var environments of calls to the function find their shape.
     pub fn var_environment_shape_cache(&self) -> EnvironmentShapeCache {
-        // SAFETY: As above.
-        unsafe { EnvironmentShapeCache::new(Gc::from_ref(self), &self.storage.var_environment_shape) }
+        EnvironmentShapeCache::VarEnvironment(Gc::from_ref(self))
+    }
+
+    pub(crate) fn function_environment_shape_slot(&self) -> &Cell<Option<Gc<EnvironmentShape>>> {
+        &self.storage.function_environment_shape
+    }
+
+    pub(crate) fn var_environment_shape_slot(&self) -> &Cell<Option<Gc<EnvironmentShape>>> {
+        &self.storage.var_environment_shape
     }
 
     /// RustIntegration::compile_function(): the function's executable, from the bytecode compiled ahead of time if
