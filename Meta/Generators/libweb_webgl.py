@@ -9,7 +9,10 @@ import argparse
 import json
 import sys
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import List
+from typing import Tuple
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
@@ -152,3 +155,99 @@ def command_struct_fields(function: dict) -> list:
             assert not is_pointer(arg), f"unhandled pointer arg {function['name']}.{arg['name']}"
             fields.append((arg["type"], field_name, arg))
     return fields
+
+
+# Returns the ordered (cpp_type, field_name) pairs of the struct that a command stream entry serializes to.
+def command_wire_fields(function: dict) -> list:
+    if is_wire_command(function):
+        return [(field["type"], field["name"]) for field in function["wire_command"]]
+    return [(cpp_type, field_name) for cpp_type, field_name, _ in command_struct_fields(function)]
+
+
+# Returns the ordered (cpp_type, field_name) pairs of the request struct of a synchronous call.
+def sync_request_wire_fields(function: dict) -> list:
+    if is_wire_sync(function):
+        return [(field["type"], field["name"]) for field in function["wire_request"]]
+    return [(cpp_type, field_name) for cpp_type, field_name, _ in sync_request_fields(function)]
+
+
+# Returns the ordered (cpp_type, field_name) pairs of the reply struct of a synchronous call.
+def sync_reply_wire_fields(function: dict) -> list:
+    if is_wire_sync(function):
+        return [(field["type"], field["name"]) for field in function["wire_reply"]]
+    return [(cpp_type, field_name) for cpp_type, field_name, _ in sync_reply_fields(function)]
+
+
+# The (size, alignment) in bytes of every type that a field of a wire struct can have. Both sides of the command
+# stream are 64-bit, and the generated structs assert that the compiler lays them out as computed from this table.
+WIRE_TYPE_LAYOUTS = {
+    "GLenum": (4, 4),
+    "GLuint": (4, 4),
+    "GLbitfield": (4, 4),
+    "GLint": (4, 4),
+    "GLsizei": (4, 4),
+    "GLfloat": (4, 4),
+    "GLboolean": (1, 1),
+    "GLintptr": (8, 8),
+    "GLsizeiptr": (8, 8),
+    "GLuint64": (8, 8),
+    "WebGLObjectId": (4, 4),
+    "WebGLDataSpan": (8, 4),
+    "bool": (1, 1),
+    "int": (4, 4),
+    "u32": (4, 4),
+}
+
+
+@dataclass
+class WireField:
+    cpp_type: str
+    name: str
+    offset: int
+    size: int
+
+
+@dataclass
+class WireStruct:
+    # The name of the struct inside the namespace Compositing::WebGL.
+    name: str
+    fields: List[WireField]
+    size: int
+    alignment: int
+
+
+def wire_struct(name: str, fields: List[Tuple[str, str]]) -> WireStruct:
+    placed_fields = []
+    end_of_fields = 0
+    alignment = 1
+    for cpp_type, field_name in fields:
+        if cpp_type not in WIRE_TYPE_LAYOUTS:
+            raise ValueError(f"{name}.{field_name} has the type {cpp_type}, which has no entry in WIRE_TYPE_LAYOUTS")
+        field_size, field_alignment = WIRE_TYPE_LAYOUTS[cpp_type]
+        offset = -(-end_of_fields // field_alignment) * field_alignment
+        placed_fields.append(WireField(cpp_type, field_name, offset, field_size))
+        end_of_fields = offset + field_size
+        alignment = max(alignment, field_alignment)
+    # NB: A struct without fields has the size 1 in C++.
+    size = max(1, -(-end_of_fields // alignment) * alignment)
+    return WireStruct(name, placed_fields, size, alignment)
+
+
+# Every struct that crosses the command stream, in the order of their definition in WebGLCommands.h.
+def wire_structs(functions: list) -> List[WireStruct]:
+    structs = []
+    for function in command_stream_entries(functions):
+        structs.append(wire_struct(f"Commands::{command_name(function)}", command_wire_fields(function)))
+    for function in sync_call_entries(functions):
+        name = command_name(function)
+        structs.append(wire_struct(f"SyncCalls::{name}::Request", sync_request_wire_fields(function)))
+        structs.append(wire_struct(f"SyncCalls::{name}::Reply", sync_reply_wire_fields(function)))
+    return structs
+
+
+# The 32-bit FNV-1a hash that stands for the name of a struct, a field or a type in the table of layout words.
+def wire_layout_name_hash(name: str) -> int:
+    hash_value = 0x811C9DC5
+    for byte in name.encode("utf-8"):
+        hash_value = ((hash_value ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return hash_value
