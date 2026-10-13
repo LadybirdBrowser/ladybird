@@ -10066,6 +10066,10 @@ void Document::parse_html_from_a_string(Utf16View html)
     // 1. Set document's type to "html".
     set_document_type(DOM::Document::Type::HTML);
 
+    // OPTIMIZATION: Simple markup builds the document directly, without a parser.
+    if (HTML::HTMLParser::try_parse_document_fast(*this, html))
+        return;
+
     // 2. Let parser be a new HTML parser whose allow declarative shadow roots is document's allow declarative shadow roots,
     //    associated with document.
     // 3. Place html into the input stream for parser. The encoding confidence is irrelevant.

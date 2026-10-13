@@ -69,6 +69,10 @@ public:
     // node into a parent runs for the whole subtree.
     static bool try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& context, Utf16View, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes);
 
+    // Parses a document from markup whose content is in the same subset of in-body markup without a parser, then runs
+    // "the end". Returns false without changing anything when the markup is not in that subset.
+    static bool try_parse_document_fast(DOM::Document&, Utf16View);
+
     enum class SerializableShadowRoots {
         No,
         Yes,
