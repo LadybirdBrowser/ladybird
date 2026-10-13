@@ -26,11 +26,12 @@ from Generators.libweb_bindings.overload_resolution import operation_overload_se
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
 from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
+from Generators.libweb_bindings.rust_to_idl_value import rust_default_value
+from Generators.libweb_bindings.rust_to_idl_value import rust_to_idl_value
+from Generators.libweb_bindings.rust_to_idl_value import write_dictionary_from_js
 from Generators.libweb_bindings.rust_to_js_value import rust_to_js_value
 from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
-from Generators.libweb_bindings.rust_types import rust_conversion_to_idl_value
-from Generators.libweb_bindings.rust_types import rust_default_value
 from Generators.libweb_bindings.rust_types import rust_module_path
 from Generators.libweb_bindings.rust_types import rust_parameter_type
 from Generators.libweb_bindings.rust_types import rust_type
@@ -315,7 +316,7 @@ def write_parameter_conversions(
         if unsupported:
             raise UnsupportedByRustBindings(f"{parameter_what} has the extended attributes {sorted(unsupported)}")
         name = rust_local_name(parameter.name)
-        conversion = rust_conversion_to_idl_value(
+        conversion = rust_to_idl_value(
             parameter.type, parameter.extended_attributes, f"argument{index}", parameter.name, context, parameter_what
         )
         out.write(f"        let argument{index} = vm.argument({index});\n")
@@ -393,7 +394,8 @@ def write_rust_interface(
     }};
 
     use crate::bindings::conversions::{{
-        BufferSourceRules, ToJs, UsvString, to_dom_string, to_float, to_typed_array, to_usv_string,
+        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, to_boolean, to_buffer_source,
+        to_dom_string, to_float, to_typed_array, to_usv_string,
     }};
     use crate::bindings::interface::{{
         construct_arguments, create_wrapper, define_attribute, define_interface_object_properties, define_operation,
@@ -590,10 +592,15 @@ pub(crate) mod definitions {
     use std::sync::LazyLock;
 
     use ak::Utf16String;
-    use libjs_rust::api::{ErrorKind, ErrorType, Gc, Object, PropertyKey, ThrowCompletionOr, Value, Vm};
+    use libjs_rust::api::{
+        ErrorKind, ErrorType, Gc, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
+    };
 
     use crate::bindings::CallContext;
-    use crate::bindings::conversions::{ToJs, UsvString};
+    use crate::bindings::conversions::{
+        BufferSource, BufferSourceRules, EmptyDictionary, FromJs, ToJs, UsvString, dictionary_member,
+        dictionary_object, to_boolean, to_buffer_source, to_dom_string, to_float, to_typed_array, to_usv_string,
+    };
     use crate::bindings::interface::{create_dictionary_object, set_dictionary_member};
 """
     )
@@ -604,9 +611,7 @@ pub(crate) mod definitions {
                 f"The Rust bindings convert the dictionary {name}, which inherits from another dictionary"
             )
         if directions.from_js:
-            raise UnsupportedByRustBindings(
-                f"The Rust bindings do not convert the dictionary {name} from a JS value yet"
-            )
+            write_dictionary_from_js(out, context, dictionary)
         if directions.to_js:
             write_dictionary_to_js(out, context, dictionary)
     out.write("}\n")

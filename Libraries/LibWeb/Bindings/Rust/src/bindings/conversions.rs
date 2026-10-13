@@ -11,8 +11,10 @@ use core::mem::MaybeUninit;
 
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
-    ErrorKind, ErrorType, Gc, PrimitiveString, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
-    to_well_formed,
+    ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, Gc, Object, PrimitiveString, PropertyKey,
+    ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm, get_view_byte_length, is_typed_array_out_of_bounds,
+    is_view_out_of_bounds, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
+    to_well_formed, typed_array_byte_length,
 };
 
 use crate::bindings::CallContext;
@@ -80,6 +82,18 @@ pub(crate) fn to_usv_string(vm: &Vm, value: Value) -> ThrowCompletionOr<UsvStrin
     Ok(UsvString(to_well_formed(&string)))
 }
 
+/// A JS value converted to a boolean, https://webidl.spec.whatwg.org/#js-boolean
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the generated bindings convert every type with an expression that can throw"
+)]
+pub(crate) fn to_boolean(value: Value) -> ThrowCompletionOr<bool> {
+    // 1. Let x be the result of computing ToBoolean(V).
+    // 2. Return the IDL boolean value that is the one that represents the same truth value as the JavaScript Boolean
+    //    value x.
+    Ok(value.to_boolean())
+}
+
 /// A JS value converted to a float, https://webidl.spec.whatwg.org/#js-float
 ///
 /// The identifier is the name of the parameter or member that the value is of, which the error names.
@@ -134,26 +148,179 @@ pub(crate) fn to_typed_array(
     let Some(typed_array) = typed_array else {
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&name]);
     };
-    let buffer = typed_array.viewed_array_buffer();
+    check_buffer_of_buffer_source(vm, &typed_array.viewed_array_buffer(), name, rules)?;
 
-    // 3. If the conversion is not to an IDL type associated with the [AllowShared] extended attribute, and
-    //    IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is true, then throw a TypeError.
+    // 5. Return the IDL value of type T that is a reference to the same object as V.
+    Ok(typed_array)
+}
+
+/// The steps that the conversions to the buffer source types share, which check the buffer of the value against the
+/// extended attributes of the type whose name is given.
+fn check_buffer_of_buffer_source(
+    vm: &Vm,
+    buffer: &ArrayBuffer,
+    type_name: &str,
+    rules: &BufferSourceRules,
+) -> ThrowCompletionOr<()> {
+    // If the conversion is not to an IDL type associated with the [AllowShared] extended attribute, and
+    // IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is true, then throw a TypeError.
     if !rules.allow_shared && buffer.is_shared_array_buffer() {
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::SharedArrayBuffer, &[]);
     }
 
-    // 4. If the conversion is not to an IDL type associated with the [AllowResizable] extended attribute, and
-    //    IsFixedLengthArrayBuffer(V.[[ViewedArrayBuffer]]) is false, then throw a TypeError.
+    // If the conversion is not to an IDL type associated with the [AllowResizable] extended attribute, and
+    // IsFixedLengthArrayBuffer(V.[[ViewedArrayBuffer]]) is false, then throw a TypeError.
     if !rules.allow_resizable && !buffer.is_fixed_length() {
         return vm.throw_completion(
             ErrorKind::TypeError,
             ErrorType::NotAnObjectOfType,
-            &[&format!("fixed-length {name}")],
+            &[&format!("fixed-length {type_name}")],
         );
     }
+    Ok(())
+}
 
-    // 5. Return the IDL value of type T that is a reference to the same object as V.
-    Ok(typed_array)
+/// An IDL BufferSource value, https://webidl.spec.whatwg.org/#BufferSource
+pub(crate) enum BufferSource {
+    ArrayBuffer(Gc<ArrayBuffer>),
+    DataView(Gc<DataView>),
+    TypedArray(Gc<TypedArrayBase>),
+}
+
+impl BufferSource {
+    /// Calls the function with the bytes that the buffer source holds, https://webidl.spec.whatwg.org/#dfn-get-buffer-source-copy,
+    /// without copying them unless their buffer is shared. A detached buffer and a view that is out of bounds hold
+    /// no bytes.
+    ///
+    /// # Safety
+    ///
+    /// The function must not run script or allocate a cell, either of which could detach, resize or free the buffer
+    /// that the bytes are in.
+    pub(crate) unsafe fn with_bytes<R>(&self, function: impl FnOnce(&[u8]) -> R) -> R {
+        let (buffer, offset, length) = match self {
+            Self::TypedArray(typed_array) => {
+                let record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBufferOrder::SeqCst);
+                // AD-HOC: The WebIDL spec has not been updated for resizable ArrayBuffer objects. This check follows
+                //         the behavior of step 7 of the TypedArray.prototype.buffer getter.
+                if is_typed_array_out_of_bounds(&record) {
+                    return function(&[]);
+                }
+                let length = typed_array_byte_length(&record) as usize;
+                (
+                    typed_array.viewed_array_buffer(),
+                    typed_array.byte_offset() as usize,
+                    length,
+                )
+            }
+            Self::DataView(view) => {
+                let record = make_data_view_with_buffer_witness_record(*view, ArrayBufferOrder::SeqCst);
+                // AD-HOC: The WebIDL spec has not been updated for resizable ArrayBuffer objects. This check follows
+                //         the behavior of step 7 of the DataView.prototype.buffer getter.
+                if is_view_out_of_bounds(&record) {
+                    return function(&[]);
+                }
+                let length = get_view_byte_length(&record) as usize;
+                (view.viewed_array_buffer(), view.byte_offset() as usize, length)
+            }
+            Self::ArrayBuffer(buffer) => (*buffer, 0, buffer.byte_length()),
+        };
+
+        // 7. If IsDetachedBuffer(jsArrayBuffer) is true, then return the empty byte sequence.
+        if buffer.is_detached() || length == 0 {
+            return function(&[]);
+        }
+
+        // NB: Another thread can write the bytes of a shared buffer at any time, so the function gets a copy of them.
+        if buffer.is_shared_array_buffer() {
+            return function(&buffer.copy_to_byte_buffer(offset, length));
+        }
+        let bytes = buffer.with_data_block(|data_block| data_block.data_at(offset));
+        assert!(!bytes.is_null());
+        // SAFETY: The buffer is not detached and holds `length` bytes from `offset`, which nothing writes while the
+        //         function runs, as the buffer is not shared and the caller keeps script from running.
+        function(unsafe { core::slice::from_raw_parts(bytes, length) })
+    }
+}
+
+/// A JS value converted to a BufferSource, with the steps of the conversion to a union type that apply to the buffer
+/// source types, https://webidl.spec.whatwg.org/#js-union
+pub(crate) fn to_buffer_source(vm: &Vm, value: Value, rules: &BufferSourceRules) -> ThrowCompletionOr<BufferSource> {
+    if value.is_object() {
+        let object = value.as_object();
+
+        // 6. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is false, then:
+        //     1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
+        if let Some(buffer) = object.downcast::<ArrayBuffer>()
+            && !buffer.is_shared_array_buffer()
+        {
+            check_buffer_of_buffer_source(vm, &buffer, "ArrayBuffer", rules)?;
+            return Ok(BufferSource::ArrayBuffer(buffer));
+        }
+
+        // FIXME: 7. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is true,
+        //           then:
+
+        // 8. If V is an Object and V has a [[DataView]] internal slot, then:
+        //     1. If types includes DataView, then return the result of converting V to DataView.
+        if let Some(view) = object.downcast::<DataView>() {
+            check_buffer_of_buffer_source(vm, &view.viewed_array_buffer(), "DataView", rules)?;
+            return Ok(BufferSource::DataView(view));
+        }
+
+        // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
+        //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]] internal slot,
+        //        then return the result of converting V to that type.
+        if let Some(typed_array) = object.downcast::<TypedArrayBase>() {
+            let type_name = format!("{:?}", typed_array.kind());
+            check_buffer_of_buffer_source(vm, &typed_array.viewed_array_buffer(), &type_name, rules)?;
+            return Ok(BufferSource::TypedArray(typed_array));
+        }
+    }
+
+    // 19. Throw a TypeError.
+    vm.throw_completion_with_message(ErrorKind::TypeError, "No union types matched".to_string())
+}
+
+/// The types of the IDL definitions that a JS value converts to, with the conversions that the generated bindings
+/// write for them.
+pub(crate) trait FromJs: Sized {
+    fn from_js(vm: &Vm, value: Value) -> ThrowCompletionOr<Self>;
+}
+
+/// A dictionary without required members, which has a value that no JS value was converted to: the default value
+/// `{}` of a parameter.
+pub(crate) trait EmptyDictionary {
+    fn empty() -> Self;
+}
+
+/// The object that the members of a dictionary are read from, step 1 of https://webidl.spec.whatwg.org/#js-dictionary.
+/// It is None for undefined and null, which convert to a dictionary without reading a member.
+pub(crate) fn dictionary_object(vm: &Vm, value: Value, dictionary_name: &str) -> ThrowCompletionOr<Option<Gc<Object>>> {
+    // 1. If V is not Undefined, Null, or an Object, then throw a TypeError.
+    if value.is_object() {
+        return Ok(Some(value.as_object()));
+    }
+    if value.is_nullish() {
+        return Ok(None);
+    }
+    vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&dictionary_name])
+}
+
+/// The value of a member of a dictionary, if the object it is read from has one that is not undefined, steps 4.1.2
+/// and 4.1.3 of https://webidl.spec.whatwg.org/#js-dictionary
+pub(crate) fn dictionary_member(
+    vm: &Vm,
+    object: Option<Gc<Object>>,
+    key: &PropertyKey,
+) -> ThrowCompletionOr<Option<Value>> {
+    // 2. If V is Undefined or Null, then let jsMemberValue be undefined.
+    let Some(object) = object else {
+        return Ok(None);
+    };
+
+    // 3. Otherwise, let jsMemberValue be ? Get(V, key).
+    let value = object.get(vm, key)?;
+    Ok((!value.is_undefined()).then_some(value))
 }
 
 /// An IDL value converted to a JS value, https://webidl.spec.whatwg.org/#js-type-mapping

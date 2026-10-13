@@ -314,6 +314,7 @@ function (generate_js_bindings target)
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/realms.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_bindings.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_names.py"
+        "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_to_idl_value.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_to_js_value.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_types.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_usage.py"
