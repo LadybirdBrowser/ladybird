@@ -497,7 +497,10 @@ class TreeUpdateDoesNotRefocusDocumentTests(AccessibilityBridgeMacTestCase):
     the AXWebArea, posted AXLoadComplete, and refreshed AppKit's focus cache.
 
     Fix: gate that block on a per-page flag that the load-finish path resets, so only the first tree for a page takes
-    focus and announces the load; later pushes post only AXLayoutChanged."""
+    focus and announces the load; later pushes post nothing.
+
+    And no push posts AXLayoutChanged either: VoiceOver answered each one by moving its cursor back to the AXWebArea,
+    announcing a "frame", and setting AXFocused there — a tree push of its own, so it never stopped."""
 
     FIXTURE = "mutations.html"
 
@@ -524,8 +527,12 @@ class TreeUpdateDoesNotRefocusDocumentTests(AccessibilityBridgeMacTestCase):
             collector.close()
 
         names = collector.names()
-        # Control: the pushes are observable at all. Every tree update posts AXLayoutChanged, gated or not.
-        self.assertIn("AXLayoutChanged", names, f"no AXLayoutChanged seen; notifications received: {names}")
+        self.assertNotIn(
+            "AXLayoutChanged",
+            names,
+            "a DOM-mutation tree update posted AXLayoutChanged, which pulls VoiceOver's cursor back to the AXWebArea. "
+            f"Notifications received: {names}",
+        )
         self.assertNotIn(
             "AXLoadComplete",
             names,
