@@ -23,6 +23,7 @@ from typing import TextIO
 
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.includes import GeneratedIncludes
+from Generators.libweb_bindings.rust_members import RustAttribute
 from Generators.libweb_bindings.rust_members import RustConstructor
 from Generators.libweb_bindings.rust_members import RustMembers
 from Generators.libweb_bindings.rust_members import RustOperation
@@ -52,7 +53,14 @@ from Utils.webidl_parser import Module
 from Utils.webidl_parser import OperationParameter
 
 # The extended attributes of an interface that the Rust bindings handle.
-SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {"Exposed", "ImplementedIn", "SecureContext", "Experimental"}
+SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {
+    "Experimental",
+    "Exposed",
+    "ImplementedIn",
+    # NB: The C++ bindings only leave the interface object of such an interface off the global object.
+    "LegacyNoInterfaceObject",
+    "SecureContext",
+}
 
 
 def rust_module_name(interface: Interface) -> str:
@@ -324,10 +332,15 @@ def implementation_method_signatures(
         signatures.append(f"fn {constructor.method}(cx: &mut CallContext{parameters}) -> WebIdlResult<Self>")
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
+        attribute_type = rust_type(attribute.attribute.type, context, what)
         signatures.append(
-            f"fn {attribute.getter_method}(&self, cx: &mut CallContext) -> "
-            f"WebIdlResult<{rust_type(attribute.attribute.type, context, what)}>"
+            f"fn {attribute.getter_method}(&self, cx: &mut CallContext) -> WebIdlResult<{attribute_type}>"
         )
+        if attribute.setter_method is not None:
+            signatures.append(
+                f"fn {attribute.setter_method}(&self, cx: &mut CallContext, value: {attribute_type}) -> "
+                "WebIdlResult<()>"
+            )
     for operation_set in members.operation_sets:
         for overload in operation_set.overloads:
             what = f"{interface.name}.{operation_set.name}()"
@@ -368,10 +381,10 @@ def write_rust_interface(
         to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
-        Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
-        define_interface_object_properties, define_operation, define_to_string_tag, entry_point_arguments,
-        implementation_of, prototype_from_new_target, rejected_promise, set_interface_prototype_object_prototype,
-        this_object, to_interface,
+        Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute, define_constants,
+        define_interface_object_properties, define_operation, define_to_string_tag, define_unimplemented_property,
+        entry_point_arguments, implementation_of, prototype_from_new_target, rejected_promise,
+        set_interface_prototype_object_prototype, this_object, to_interface,
     }};
     use crate::bindings::{{CallContext, WebIdlResult}};
 
@@ -407,6 +420,17 @@ def write_rust_interface(
     )
 
     defined_property_names: List[str] = []
+    recorded_unimplemented_names: List[str] = []
+
+    if members.constants:
+        constants = "".join(f'        ("{constant.name}", {constant.value}.0),\n' for constant in members.constants)
+        out.write(
+            f"""
+    /// The constants of the interface, which its interface object and its interface prototype object both have.
+    static CONSTANTS: [(&str, f64); {len(members.constants)}] = [
+{constants}    ];
+"""
+        )
 
     for attribute in members.attributes:
         name = attribute.attribute.name
@@ -421,6 +445,8 @@ def write_rust_interface(
     }}
 """
         )
+        if attribute.setter_method is not None:
+            write_rust_attribute_setter(out, context, interface, attribute)
 
     for operation_set in members.operation_sets:
         write_rust_operation(
@@ -445,10 +471,17 @@ def write_rust_interface(
         set_interface_prototype_object_prototype(vm, realm, prototype);
 """
     )
-    for attribute in members.attributes:
+    # NB: The properties are defined in the order of the C++ bindings: the attributes, the operations, the operations
+    #     that are not implemented, then the constants.
+    for attribute in members.attributes_in_order:
+        if isinstance(attribute, str):
+            out.write(f'        define_unimplemented_property(vm, prototype, "{attribute}");\n')
+            recorded_unimplemented_names.append(attribute)
+            continue
         name = attribute.attribute.name
-        getter = attribute.getter_function
-        out.write(f'        define_attribute(vm, realm, prototype, "{name}", raw_native!({getter}), None);\n')
+        getter = f"raw_native!({attribute.getter_function})"
+        setter = "None" if attribute.setter_method is None else f"raw_native!({attribute.setter_function})"
+        out.write(f'        define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});\n')
         defined_property_names.append(name)
     for operation_set in members.operation_sets:
         name = operation_set.name
@@ -456,11 +489,18 @@ def write_rust_interface(
         length = operation_set.length
         out.write(f'        define_operation(vm, realm, prototype, "{name}", raw_native!({function}), {length});\n')
         defined_property_names.append(name)
+    for name in members.unimplemented_operation_names:
+        out.write(f'        define_unimplemented_property(vm, prototype, "{name}");\n')
+        recorded_unimplemented_names.append(name)
+    if members.constants:
+        out.write("        define_constants(vm, prototype, &CONSTANTS);\n")
+        defined_property_names.extend(constant.name for constant in members.constants)
     # NB: A member that rust_members() accepts and nothing above defines would be missing from the prototype without
     #     any error, so the two are compared.
     assert defined_property_names == members.property_names(), (
         f"{interface.name}: the bindings define {defined_property_names}, its members are {members.property_names()}"
     )
+    assert recorded_unimplemented_names == members.unimplemented_property_names()
     out.write(
         f"""        define_to_string_tag(vm, prototype, "{interface.namespaced_name}");
     }}
@@ -479,9 +519,11 @@ def write_rust_interface(
         // SAFETY: The caller passes live pointers.
         let (vm, realm, constructor) = unsafe {{ entry_point_arguments(vm, realm, constructor) }};
         define_interface_object_properties(vm, realm, constructor, "{interface.name}", {members.constructor_length}, INTERFACE_NAME);
-    }}
 """
     )
+    if members.constants:
+        out.write("        define_constants(vm, constructor, &CONSTANTS);\n")
+    out.write("    }\n")
 
     for constructor in members.constructors:
         write_rust_constructor(out, context, interface, constructor)
@@ -509,6 +551,32 @@ def write_rust_interface(
 """
         )
     out.write("}\n")
+
+
+def write_rust_attribute_setter(
+    out: TextIO, context: GenerationContext, interface: Interface, attribute: RustAttribute
+) -> None:
+    """The native function of the setter of an attribute, in the order of the C++ bindings: the value is read before
+    the this value is checked, and a missing value is undefined instead of an error."""
+    name = attribute.attribute.name
+    what = f"{interface.name}.{name}"
+    conversion = rust_to_idl_value(
+        attribute.attribute.type, attribute.attribute.extended_attributes, "value", name, context, what
+    )
+    out.write(
+        f"""
+    fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        let value = vm.argument(0);
+        let (implementation, mut cx) = this_implementation(vm)?;
+        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
+        let idl_value = {conversion}?;
+        drop(type_error_realm_scope);
+        Implementation::{attribute.setter_method}(&implementation, &mut cx, idl_value)
+            .map_err(|exception| exception.throw(vm))?;
+        Ok(Value::UNDEFINED)
+    }}
+"""
+    )
 
 
 def write_rust_operation(

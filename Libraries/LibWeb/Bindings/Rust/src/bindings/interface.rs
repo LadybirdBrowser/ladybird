@@ -20,6 +20,7 @@ use core::ffi::c_void;
 use core::ops::Deref;
 use core::ptr::NonNull;
 
+use ak::Utf16FlyString;
 use libjs_rust::api::{
     Attribute, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject, Gc, HostObject,
     JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunctionPointer, Realm, Throw,
@@ -357,6 +358,31 @@ pub(crate) fn define_operation(
         PropertyAttributes::new(Attribute::WRITABLE | Attribute::ENUMERABLE | Attribute::CONFIGURABLE),
         None,
     );
+}
+
+/// Records a regular attribute or operation that the interface does not implement on the interface prototype object,
+/// so that a read of it is reported, without the property being there for script.
+pub(crate) fn define_unimplemented_property(vm: &Vm, prototype: Gc<Object>, name: &str) {
+    prototype.define_unimplemented_property(vm, Utf16FlyString::from_utf8(name));
+}
+
+/// Defines the constants of an interface on its interface object or its interface prototype object,
+/// https://webidl.spec.whatwg.org/#define-the-constants
+pub(crate) fn define_constants(vm: &Vm, target: Gc<Object>, constants: &[(&str, f64)]) {
+    // 1. For each constant const that is a member of definition:
+    for (identifier, value) in constants {
+        // 2. Let value be the result of converting const's IDL value to a JavaScript value.
+        // 3. Let desc be the PropertyDescriptor{[[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false,
+        //    [[Value]]: value}.
+        // 4. Let id be const's identifier.
+        // 5. Perform ! DefinePropertyOrThrow(target, id, desc).
+        target.define_direct_property(
+            vm,
+            &PropertyKey::from_utf8(identifier),
+            Value::from_f64(*value),
+            PropertyAttributes::new(Attribute::ENUMERABLE),
+        );
+    }
 }
 
 /// Defines @@toStringTag on the interface prototype object, https://webidl.spec.whatwg.org/#es-interface-prototype-object
