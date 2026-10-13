@@ -264,6 +264,15 @@ void CompositorState::add_video_sink(CompositorStateWebContentClient& client, Me
     client.create_video_edge(handle);
 }
 
+void CompositorState::create_video_edges(CompositorStateWebContentClient& client)
+{
+    auto client_sinks = m_video_sink_states.get(&client);
+    if (!client_sinks.has_value())
+        return;
+    for (auto& sink_entry : *client_sinks)
+        client.create_video_edge(sink_entry.key);
+}
+
 void CompositorState::remove_video_sink(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
 {
     if (auto client_sinks = m_video_sink_states.get(&client); client_sinks.has_value())

@@ -768,12 +768,30 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
 
 Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClient::request_media_server_connection()
 {
-    auto handle = connect_new_media_server_client(m_media_server_client, [this] { return connect_audio_server_client(); });
-    if (handle.is_error()) {
-        warnln("Unable to connect a MediaServer client: {}", handle.error());
+    auto connection = connect_new_media_server_client(m_media_server_client, [this] { return connect_audio_server_client(); });
+    if (connection.is_error()) {
+        warnln("Unable to connect a MediaServer client: {}", connection.error());
         return OptionalNone {};
     }
-    return handle.release_value();
+    m_media_server_client_id = connection.value().client_id;
+    return move(connection.value().handle);
+}
+
+void WebContentClient::request_video_presentation_channel()
+{
+    if (!m_media_server_client || !m_media_server_client->is_open() || !m_media_server_client_id.has_value()) {
+        dbgln("WebContentClient: Process {} asked for a video presentation channel before connecting a media server", pid());
+        return;
+    }
+
+    auto channel = IPC::TransportHandle::create_pair();
+    if (channel.is_error()) {
+        warnln("Unable to create a video presentation channel: {}", channel.error());
+        return;
+    }
+    if (!Application::the().connect_video_presentation_to_compositor(*this, move(channel.value().first)))
+        return;
+    m_media_server_client->async_connect_video_presentation_channel(*m_media_server_client_id, move(channel.value().second));
 }
 
 ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()

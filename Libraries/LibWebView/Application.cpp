@@ -1325,9 +1325,22 @@ ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& w
         return Error::from_string_literal("Compositor process disconnected while connecting WebContent");
     auto response = response_or_error.release_value();
 
+    // The render clock channel is made here, so neither process is handed an end of the other's choosing.
+    auto render_clock_channel = TRY(IPC::TransportHandle::create_pair());
+
     web_content_client.set_compositor_connection_id({}, response.web_content_connection_id());
-    web_content_client.async_connect_to_compositor_process(response.take_handle());
+    m_compositor_client->async_connect_render_clock(response.web_content_connection_id(), move(render_clock_channel.first));
+    web_content_client.async_connect_to_compositor_process(response.take_handle(), move(render_clock_channel.second));
     return {};
+}
+
+bool Application::connect_video_presentation_to_compositor(WebContentClient& web_content_client, IPC::TransportHandle compositor_end)
+{
+    auto compositor_connection_id = web_content_client.compositor_connection_id({});
+    if (!compositor_connection_id.has_value() || !can_send_compositor_process_ipc(m_compositor_client))
+        return false;
+    m_compositor_client->async_connect_video_presentation(*compositor_connection_id, move(compositor_end));
+    return true;
 }
 
 ErrorOr<IPC::TransportHandle> Application::connect_new_compositor_canvas_client()

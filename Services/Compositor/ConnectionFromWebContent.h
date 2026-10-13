@@ -33,13 +33,15 @@ public:
     void notify_compositor_lost();
     void set_on_death(Function<void(ConnectionFromWebContent&)> handler) { m_on_death = move(handler); }
 
+    // The Browser makes these channels and hands each end to the process it belongs to.
+    void install_video_presentation_channel(IPC::TransportHandle);
+    void install_render_clock_channel(IPC::TransportHandle);
+
 private:
     explicit ConnectionFromWebContent(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<CompositorState>, int client_id);
 
     virtual void die() override;
 
-    virtual void offer_video_presentation_channel(IPC::TransportHandle handle) override;
-    virtual void offer_render_clock_channel(IPC::TransportHandle handle) override;
     virtual void add_video_sink(Media::VideoSinkHandle) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) override;

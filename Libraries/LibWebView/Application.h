@@ -228,6 +228,9 @@ public:
 
     Web::CompositorContextId allocate_compositor_context_id();
     ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);
+    // Hands the Compositor its end of a video presentation channel for the renderer. False if the renderer has no
+    // Compositor connection to pair it with.
+    bool connect_video_presentation_to_compositor(WebContentClient&, IPC::TransportHandle compositor_end);
     ErrorOr<IPC::TransportHandle> connect_new_compositor_canvas_client();
     void register_compositor_context(WebContentClient&, Web::CompositorContextId, Optional<Web::PageId> page_id);
     ErrorOr<void> try_register_compositor_context(WebContentClient&, Web::CompositorContextId, Optional<Web::PageId> page_id);

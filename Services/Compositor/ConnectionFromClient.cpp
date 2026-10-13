@@ -80,6 +80,18 @@ Messages::CompositorControlServer::ConnectWebContentResponse ConnectionFromClien
     return { move(paired_transport.remote_handle), web_content_connection_id };
 }
 
+void ConnectionFromClient::connect_render_clock(i32 web_content_connection_id, IPC::TransportHandle handle)
+{
+    if (auto connection = m_web_content_connections.get(web_content_connection_id); connection.has_value())
+        (*connection)->install_render_clock_channel(move(handle));
+}
+
+void ConnectionFromClient::connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle handle)
+{
+    if (auto connection = m_web_content_connections.get(web_content_connection_id); connection.has_value())
+        (*connection)->install_video_presentation_channel(move(handle));
+}
+
 void ConnectionFromClient::create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id)
 {
     auto* connection = web_content_connection(web_content_connection_id);
