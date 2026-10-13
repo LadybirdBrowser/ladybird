@@ -3580,7 +3580,7 @@ pub(crate) unsafe fn parse_shared_stylesheet(
     parse_context: *const ParseContext,
 ) -> Arc<ParsedStyleSheet> {
     unsafe {
-        parse_with_cache(source, parse_context, || {
+        parse_with_cache(source, parse_context.as_ref(), || {
             let mut parser = Parser::streaming(source);
             let mut parse = SyntaxParseBuilder::new(parse_context, false);
             while let Some(rule) = parser.consume_next_stylesheet_rule() {
@@ -3918,7 +3918,7 @@ mod tests {
                 let context = parse_context();
                 let input = crate::css::css_tokenizer::TokenizerInput::Utf16(&source);
                 unsafe {
-                    super::super::stylesheet_cache::parse_with_cache(input, &raw const context, || {
+                    super::super::stylesheet_cache::parse_with_cache(input, Some(&context), || {
                         parses.fetch_add(1, Ordering::SeqCst);
                         if let Some((started, may_finish)) = &held {
                             started.wait();

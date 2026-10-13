@@ -7292,9 +7292,8 @@ pub(crate) fn animation_preparation_matches(
 /// `computed` must point to a live batch. Its range of sampled effects must be readable. On a cache miss both storage pointers must be live, unconsumed results from their
 /// producing calls. `underlying_longhand_table` and `overlay` must point at live values, and the
 /// overlay must be uniquely owned for the duration of the call.
-pub(crate) unsafe fn evaluate_animations(computed: *const FfiComputedAnimationBatch) -> usize {
+pub(crate) unsafe fn evaluate_animations(computed: &FfiComputedAnimationBatch) -> usize {
     crate::css::ffi_stats::note_animation_evaluation();
-    let computed = unsafe { &*computed };
     assert!(!computed.underlying_longhand_table.is_null());
     assert!(!computed.overlay.is_null());
     let sampled = unsafe { std::slice::from_raw_parts(computed.sampled_effects, computed.sampled_effect_count) };

@@ -34,8 +34,7 @@ pub unsafe extern "C" fn rust_layer_names_at(names: *const LayerNames, index: us
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layer_names_external_memory_size(names: *const LayerNames) -> usize {
-    let names = unsafe { &*names };
+pub extern "C" fn rust_layer_names_external_memory_size(names: &LayerNames) -> usize {
     names.names.iter().fold(
         size_of::<LayerNames>().saturating_add(size_of_val(&*names.names)),
         |size, name| size.saturating_add(size_of_val(name.units())),

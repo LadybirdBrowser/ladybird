@@ -5010,9 +5010,8 @@ pub(crate) fn effective_display(table: &ComputedLonghandTable, overlay: Option<&
 /// returned pointer transfers one strong reference to the caller.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_create_document_longhand_table(
-    input: *const FfiDocumentLonghandInput,
+    input: &FfiDocumentLonghandInput,
 ) -> *mut ComputedLonghandTable {
-    let input = unsafe { &*input };
     let mut longhand_table = ComputedLonghandTable::new();
     let store = CascadedPropertyStore::new();
     let environment = FfiStyleComputationEnvironment {
@@ -5148,14 +5147,13 @@ pub unsafe extern "C" fn rust_intern_document_style(
 /// duration of the call. Every returned value transfers one strong reference
 /// to the caller.
 pub(crate) unsafe fn compute_animation_keyframe_longhands(
-    input: *const FfiAnimationKeyframeLonghandInput,
+    input: &FfiAnimationKeyframeLonghandInput,
 ) -> FfiAnimationKeyframeLonghandResult {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationKeyframeLonghandEntry);
     use crate::css::property_metadata::{
         FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
     };
 
-    let input = unsafe { &*input };
     let properties = if input.property_count == 0 {
         &[][..]
     } else {
@@ -5653,13 +5651,12 @@ impl FfiHostAnimationSample {
 /// engine.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_sample_animation_effects(
-    input: *const FfiHostAnimationSample,
+    input: &FfiHostAnimationSample,
     read: &crate::render_state::BegunRead,
 ) -> FfiHostAnimationSampleResult {
     use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
 
     // SAFETY: Guaranteed by the caller.
-    let input = unsafe { &*input };
     // SAFETY: As above.
     let host = unsafe { document_host(input.host) };
     // The first sample of the transitions a step just started rides the style job that decided the step.
@@ -5983,7 +5980,7 @@ unsafe fn begin_animation_sample(
             custom_results: std::ptr::null_mut(),
             custom_result_count: std::ptr::null_mut(),
         };
-        unsafe { anim::evaluate_animations(&raw const batch) };
+        unsafe { anim::evaluate_animations(&batch) };
         return finished(Evaluated);
     }
 
@@ -6147,7 +6144,7 @@ unsafe fn finish_animation_sample(
         remaining_length_resolution_context: &raw const length_contexts.remaining,
         custom_property_values: custom_value_pointers.as_ptr(),
     };
-    let computed_keyframes = unsafe { compute_animation_keyframe_longhands(&raw const keyframe_input) };
+    let computed_keyframes = unsafe { compute_animation_keyframe_longhands(&keyframe_input) };
     result.depends_on_viewport_metrics = computed_keyframes.depends_on_viewport_metrics;
     result.font_metrics_depend_on_viewport_metrics = computed_keyframes.font_metrics_depend_on_viewport_metrics;
     // A custom property's keyframe that asks where the element sits among its siblings makes the
@@ -6192,7 +6189,7 @@ unsafe fn finish_animation_sample(
         custom_results: custom_results.as_mut_ptr(),
         custom_result_count: &raw mut custom_result_count,
     };
-    unsafe { anim::evaluate_animations(&raw const batch) };
+    unsafe { anim::evaluate_animations(&batch) };
     result.outcome = FfiHostAnimationSampleOutcome::Evaluated;
     if custom_result_count != 0 {
         let retained = custom_results[..custom_result_count]
@@ -6967,12 +6964,11 @@ fn resolve_effective_color_scheme(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_resolve_effective_color_scheme(
     value: *const c_void,
-    input: *const FfiEffectiveColorSchemeInput,
+    input: &FfiEffectiveColorSchemeInput,
 ) -> u8 {
     let StyleValueData::ColorScheme { scheme_codes, .. } = (unsafe { &*(value as *const StyleValueData) }) else {
         unreachable!("computed color-scheme must have color-scheme data");
     };
-    let input = unsafe { &*input };
     resolve_effective_color_scheme(scheme_codes.as_slice(), input.preferred_color_scheme, unsafe {
         input.document_supported_schemes()
     })

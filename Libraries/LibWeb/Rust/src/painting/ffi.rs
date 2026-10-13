@@ -655,7 +655,7 @@ pub struct FfiImagePaintRecordInputs {
 /// storage and visual context tree handles.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
-    inputs: *const FfiImagePaintRecordInputs,
+    inputs: &FfiImagePaintRecordInputs,
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, *const c_void, *const c_void),
 ) {
@@ -668,7 +668,6 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     };
     use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextTree};
     use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint};
-    let inputs = unsafe { &*inputs };
     let tree = VisualContextTree::create(TransformData {
         matrix: FloatMatrix4x4::identity(),
         origin: FloatPoint::default(),
