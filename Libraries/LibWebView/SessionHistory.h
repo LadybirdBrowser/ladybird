@@ -42,13 +42,12 @@ public:
     TraversableSessionHistory(TraversableSessionHistory&&) = default;
     TraversableSessionHistory& operator=(TraversableSessionHistory&&) = default;
 
-    bool is_empty() const { return m_entries.is_empty(); }
     size_t size() const { return m_entries.size(); }
     size_t used_step_count() const { return used_steps().size(); }
     i32 current_step() const { return m_current_session_history_step; }
     // The index in the used steps of the used step the current step resolves to.
-    Optional<size_t> current_used_step_index() const;
-    Optional<size_t> current_top_level_entry_index() const;
+    size_t current_used_step_index() const;
+    size_t current_top_level_entry_index() const;
 
     bool initialize_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
     [[nodiscard]] ErrorOr<void> restore_from_ui_snapshot(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id);
@@ -85,7 +84,7 @@ public:
     }
     [[nodiscard]] Optional<size_t> target_step_index_for_delta(int delta) const;
     [[nodiscard]] Optional<i32> step_at(size_t index) const;
-    [[nodiscard]] CanonicalSessionHistoryEntry* current_entry() const;
+    [[nodiscard]] CanonicalSessionHistoryEntry& current_entry() const;
     [[nodiscard]] CanonicalSessionHistoryEntry* entry_at(size_t index) const;
     [[nodiscard]] CanonicalSessionHistoryEntry* entry_for_step(i32 step) const;
     [[nodiscard]] CanonicalSessionHistoryEntry* top_level_entry_for_step(i32 step) const;

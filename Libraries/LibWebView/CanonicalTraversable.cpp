@@ -444,9 +444,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalTraversable::obtain_page_to_host
     if (host && display_page && display_page->is_open() && host == &display_page->client())
         return display_page.release_nonnull();
 
-    auto const* current_entry = m_session_history.get_the_target_history_entry(*this, m_session_history.current_step());
-    VERIFY(current_entry);
-    auto current_entry_descriptor = current_entry->descriptor();
+    auto current_entry_descriptor = m_session_history.current_entry().descriptor();
 
     Web::PageId page_id;
     if (host && host->page_id_for_traversable(*this).has_value()) {
@@ -923,9 +921,7 @@ ErrorOr<URL::URL> CanonicalTraversable::restore_session_history_from_ui_snapshot
     TRY(m_session_history.restore_from_ui_snapshot(move(snapshot.entries), move(snapshot.used_steps), snapshot.current_used_step_index, [] { return Application::the().allocate_ui_process_cross_process_id(); }));
     session_history_changed();
 
-    auto* current_entry = m_session_history.current_entry();
-    VERIFY(current_entry);
-    return current_entry->url;
+    return m_session_history.current_entry().url;
 }
 
 void CanonicalTraversable::reset_session_history_for_testing(
@@ -945,10 +941,9 @@ bool CanonicalTraversable::initialize_session_history_for_testing(Vector<Web::HT
     abandon_history_operations();
     if (!m_session_history.initialize_for_testing(move(entries), move(used_steps), current_used_step_index))
         return false;
-    auto* active_entry = m_session_history.current_entry();
-    VERIFY(active_entry);
+    auto& active_entry = m_session_history.current_entry();
     if (auto const& previous_active_entry = active_session_history_entry())
-        active_entry->document_state->document = previous_active_entry->document_state->document;
+        active_entry.document_state->document = previous_active_entry->document_state->document;
     set_current_session_history_entry(active_entry);
     set_active_session_history_entry(active_entry);
     session_history_changed();
@@ -1056,7 +1051,7 @@ CanonicalTraversable::~CanonicalTraversable()
     });
 }
 
-Optional<size_t> CanonicalTraversable::effective_current_session_history_step_index() const
+size_t CanonicalTraversable::effective_current_session_history_step_index() const
 {
     if (m_browser_history_traversal) {
         if (auto target = m_session_history.traversal_target_for_step(m_browser_history_traversal->browser_traversal().target_step); target.has_value())
@@ -2731,8 +2726,7 @@ void CanonicalTraversable::report_history_operation_completion(HistoryOperation&
 {
     if (committed_step.has_value()) {
         if (auto view = this->view(); view.has_value()) {
-            if (auto* current_entry = m_session_history.current_entry())
-                view->set_url(current_entry->url);
+            view->set_url(m_session_history.current_entry().url);
         }
     }
 
