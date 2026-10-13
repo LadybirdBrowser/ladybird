@@ -1184,7 +1184,7 @@ void CanonicalTraversable::supersede_browser_history_traversal(HistoryOperation&
 
     if (has_uncommitted_navigation())
         stop_loading();
-    finish_history_operation(operation_id, Web::HTML::HistoryStepResult::CanceledByNavigate, {});
+    end_history_operation(operation_id);
     run_browser_history_traversal_at_queue_position(target_step, true, next_sequence_number(), move(on_ready), nullptr, move(promise));
 }
 
