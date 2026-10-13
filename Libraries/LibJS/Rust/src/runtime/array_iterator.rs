@@ -115,25 +115,8 @@ impl ArrayIterator {
         let kind = self.iteration_kind;
 
         // 8. If array has a [[TypedArrayName]] internal slot, then
-        let length = if array.is_typed_array() {
-            let typed_array = typed_array_of_object(&array);
-
-            // a. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(array, SEQ-CST).
-            let typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, Order::SeqCst);
-
-            // b. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
-            if is_typed_array_out_of_bounds(&typed_array_record) {
-                return vm.throw_completion(ErrorKind::TypeError, ErrorType::BufferOutOfBounds, &[&"TypedArray"]);
-            }
-
-            // c. Let len be TypedArrayLength(taRecord).
-            u64::from(typed_array_length(&typed_array_record))
-        }
         // 9. Else,
-        else {
-            // a. Let len be ? LengthOfArrayLike(array).
-            length_of_array_like(vm, &array)?
-        };
+        let length = iterated_array_like_length(vm, &array)?;
 
         // 10. If index ≥ len, then
         if index >= length {
@@ -162,20 +145,7 @@ impl ArrayIterator {
         else {
             // a. Let elementKey be ! ToString(indexNumber).
             // b. Let elementValue be ? Get(array, elementKey).
-            let element_value = 'element_value: {
-                // OPTIMIZATION: For objects that don't interfere with indexed property access, we try looking directly at storage.
-                // NB: The index is passed to the storage as the u32 it takes, which truncates indices past 2^32 - 1.
-                let storage_index = index as u32;
-                if !array.may_interfere_with_indexed_property_access()
-                    && array.indexed_has(storage_index)
-                    && let Some(element) = array.indexed_get(storage_index)
-                    && !element.value.is_accessor()
-                {
-                    break 'element_value element.value;
-                }
-
-                array.get(vm, &PropertyKey::from_number(index))?
-            };
+            let element_value = iterated_array_like_element(vm, &array, index)?;
 
             // c. If kind is VALUE, then
             if kind == PropertyKind::Value {
@@ -197,4 +167,56 @@ impl ArrayIterator {
         *value = result;
         Ok(())
     }
+}
+
+/// Steps 8 and 9 of %ArrayIteratorPrototype%.next ( ): the length of the array-like that an array iterator iterates.
+pub fn iterated_array_like_length(vm: &Vm, array: &Object) -> ThrowCompletionOr<u64> {
+    // 8. If array has a [[TypedArrayName]] internal slot, then
+    if array.is_typed_array() {
+        let typed_array = typed_array_of_object(array);
+
+        // a. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(array, SEQ-CST).
+        let typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, Order::SeqCst);
+
+        // b. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
+        if is_typed_array_out_of_bounds(&typed_array_record) {
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::BufferOutOfBounds, &[&"TypedArray"]);
+        }
+
+        // c. Let len be TypedArrayLength(taRecord).
+        return Ok(u64::from(typed_array_length(&typed_array_record)));
+    }
+
+    // 9. Else,
+    // a. Let len be ? LengthOfArrayLike(array).
+    length_of_array_like(vm, array)
+}
+
+/// Steps 14.a and 14.b of %ArrayIteratorPrototype%.next ( ): the element at `index` of the array-like that an array
+/// iterator iterates.
+pub fn iterated_array_like_element(vm: &Vm, array: &Object, index: u64) -> ThrowCompletionOr<Value> {
+    // a. Let elementKey be ! ToString(indexNumber).
+    // b. Let elementValue be ? Get(array, elementKey).
+    // OPTIMIZATION: For objects that don't interfere with indexed property access, we try looking directly at storage.
+    // NB: The index is passed to the storage as the u32 it takes, which truncates indices past 2^32 - 1.
+    let storage_index = index as u32;
+    if !array.may_interfere_with_indexed_property_access() {
+        if array.indexed_has(storage_index) {
+            if let Some(element) = array.indexed_get(storage_index)
+                && !element.value.is_accessor()
+            {
+                return Ok(element.value);
+            }
+        }
+        // OPTIMIZATION: A hole of an array whose prototype chain has no elements reads as undefined.
+        else if array
+            .as_gc()
+            .downcast::<Array>()
+            .is_some_and(|array| array.default_prototype_chain_intact())
+        {
+            return Ok(Value::UNDEFINED);
+        }
+    }
+
+    array.get(vm, &PropertyKey::from_number(index))
 }

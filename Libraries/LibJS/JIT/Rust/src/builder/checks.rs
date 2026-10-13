@@ -551,7 +551,7 @@ impl GraphBuilder<'_> {
         });
         predecessors.extend(slow.as_ref().map(|(block, _)| *block));
         self.join_blocks(predecessors);
-        debug_assert!(
+        assert!(
             values.is_empty() || values.len() == slow_paths.output_count,
             "the slow path writes the same operands"
         );

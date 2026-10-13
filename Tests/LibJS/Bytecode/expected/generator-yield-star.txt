@@ -25,7 +25,7 @@ block0:
   [   8] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  18] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:arg0
+  [  18] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:arg0, fast_array_mode_allowed:false
   [  38] Mov2 c0_dst:reg6, c0_src:Int32(1), c1_dst:reg7, c1_src:Undefined
 
 block2:

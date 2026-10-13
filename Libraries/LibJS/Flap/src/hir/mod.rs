@@ -3069,6 +3069,7 @@ fn field_width(ty: &Type, allow_pointer: bool) -> Option<FieldWidth> {
         | Type::ObjectPropertyIteratorCacheData
         | Type::ObjectPropertyIteratorCache
         | Type::PrototypeChainValidity
+        | Type::Fuse
         | Type::FunctionObject
         | Type::ECMAScriptFunctionObject
         | Type::RawNativeFunction

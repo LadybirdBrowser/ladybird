@@ -75,8 +75,8 @@ jit.compile(lookup);
 // CHECK: CheckBounds ({{v[0-9]+}}, #i32:256)
 // CHECK: Int32WrappingAdd ({{v[0-9]+}}, #i32:1)
 
-// A branch on an index being in bounds bounds it where it holds, like the array iterator's index, which it then
-// increments.
+// A branch on an index being in bounds bounds it where it holds, like the index of an iteration over an array, which
+// it then increments.
 
 function total(a) {
     let s = 0;
@@ -91,7 +91,7 @@ jit.compile(total);
 // CHECK-PASS: bounds check elimination
 // CHECK: RefineIndexInBounds
 // CHECK: [[NEXT:v[0-9]+]]:int32 = Int32WrappingAdd ({{v[0-9]+}}, #i32:1)
-// CHECK-NEXT: StoreArrayIteratorIndex ({{v[0-9]+}}, [[NEXT]])
+// CHECK-NEXT: {{v[0-9]+}} = BoxInt32 ([[NEXT]])
 
 // An unsigned right shift of any int32 by at least one is a non-negative int32, like the bytes of hashes.
 

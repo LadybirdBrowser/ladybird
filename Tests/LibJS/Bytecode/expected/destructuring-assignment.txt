@@ -31,7 +31,7 @@ block0:
   [  10] MovSrcUndefined dst:x~0
   [  18] NewArray dst:reg5, elements:[Undefined]
   [  30] Mov dst:reg6, src:Bool(false)
-  [  40] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  40] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
   [  60] Jump target:block3
 
 block1:
@@ -142,7 +142,7 @@ block0:
   [  20] InitializeVariableBinding `setValue`, src:Undefined
   [  38] NewPrimitiveArray dst:reg5, elements:[23]
   [  50] Mov dst:reg6, src:Bool(false)
-  [  60] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  60] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
   [  80] Jump target:block3
 
 block1:

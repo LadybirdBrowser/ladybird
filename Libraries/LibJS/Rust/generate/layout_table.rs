@@ -377,6 +377,10 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "REALM_GLOBAL_ENVIRONMENT", "Realm.global_environment", "GlobalEnvironment", Realm, global_environment, 8, "nonnull", "cell");
     field!(w, "REALM_GLOBAL_OBJECT", "Realm.global_object", "Object", Realm, global_object, 8, "nullable", "cell", "global_state");
     field!(w, "REALM_GLOBAL_DECLARATIVE_ENVIRONMENT", "Realm.global_declarative_environment", "DeclarativeEnvironment", Realm, global_declarative_environment, 8, "nullable", "cell", "global_state");
+    field!(w, "REALM_ARRAY_ITERATOR_RETURN_FUSE", "Realm.array_iterator_return_fuse", "Fuse", Realm, array_iterator_return_fuse, 8, "nullable", "cell");
+
+    w.section("Fuse layout");
+    field!(w, "FUSE_INTACT", "Fuse.intact", "bool", Fuse, intact, 1, "nonnull", "scalar");
 
     w.section("VM layout");
     offset!(w, "VM_RUNNING_EXECUTION_CONTEXT", VmHead, running_execution_context);

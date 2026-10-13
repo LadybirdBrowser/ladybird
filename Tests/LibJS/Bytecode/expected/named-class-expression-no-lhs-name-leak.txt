@@ -12,7 +12,7 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] NewArray dst:reg5
   [  20] Mov dst:reg6, src:Bool(false)
-  [  30] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  30] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
   [  50] Jump target:block3
 
 block1:

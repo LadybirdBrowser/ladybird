@@ -15,22 +15,25 @@ use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
+use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
+use crate::runtime::array_iterator::{ArrayIterator, iterated_array_like_element, iterated_array_like_length};
 use crate::runtime::async_from_sync_iterator_prototype::create_async_from_sync_iterator;
 use crate::runtime::async_generator::AsyncGenerator;
-use crate::runtime::completion::{Completion, Must, completion_type_from_bytecode};
+use crate::runtime::completion::{Completion, Must, ThrowCompletionOr, completion_type_from_bytecode};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::iterator::{
-    IteratorRecord, IteratorRecordImpl, get_iterator_from_method_impl, get_iterator_impl_with_cache,
-    get_iterator_values, iterator_close_with_cache, iterator_hint_from_bytecode, iterator_next, iterator_step_value,
+    IteratorHint, IteratorRecord, IteratorRecordImpl, get_iterator_from_method_impl, get_iterator_impl_with_cache,
+    get_iterator_values, get_sync_iterator_method, iterator_close_with_cache, iterator_hint_from_bytecode,
+    iterator_next, iterator_step_value,
 };
 use crate::runtime::map::Map;
 use crate::runtime::map_iterator::map_iteration_is_unobservable;
-use crate::runtime::object::{IndexedStorageKind, IntegrityLevel};
+use crate::runtime::object::{IndexedStorageKind, IntegrityLevel, PropertyKind};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
@@ -70,12 +73,14 @@ fn create_reference_error(vm: &Vm, realm: Gc<Realm>, message: &Utf16FlyString) -
         .upcast()
 }
 
-/// The iterator record a slow path receives as the three registers the bytecode keeps it in.
+/// The iterator record a slow path receives as the three registers the bytecode keeps it in, if they are not in fast
+/// array mode (see get_iterator()).
 fn iterator_record_from_registers(
     iterator_object: Value,
     iterator_next: Value,
     iterator_done: Value,
 ) -> IteratorRecordImpl {
+    assert!(iterator_object.is_object());
     IteratorRecordImpl::new(
         Some(iterator_object.as_object()),
         iterator_next,
@@ -373,6 +378,42 @@ pub fn new_type_error(
     SlowPathControl::continue_at(pc + op::NewTypeError::LENGTH)
 }
 
+// NB: In fast array mode, GetIterator makes no iterator for an array whose iteration nothing can observe. The
+//     iterator register holds the index of the next element as a number, and the next register holds the array.
+//     The done register tells when the iteration is done. IteratorNextUnpack, IteratorClose and IteratorToArray step
+//     it like an array iterator. Other iterator records always hold an object in the iterator register.
+
+/// The index of the next element in fast array mode, if the iterator register is in that mode.
+fn fast_array_mode_index(iterator_object: Value) -> Option<f64> {
+    iterator_object.is_number().then(|| iterator_object.as_f64())
+}
+
+/// The array of an iteration in fast array mode, or `None` if GetIterator must make an iterator for `iterable` whose
+/// iterator method is `method`. The array iterator that the method would make has the builtin next method, and only
+/// that method reads the array.
+fn fast_array_mode_array(vm: &Vm, iterable: Value, method: Gc<FunctionObject>) -> Option<Gc<Object>> {
+    if !iterable.is_object() {
+        return None;
+    }
+    let realm = current_realm(vm);
+    if method != realm.array_prototype_values_function() || !realm_fuses::array_iterators_have_builtin_next(&realm) {
+        return None;
+    }
+    let array = iterable.as_object();
+    array.downcast::<Array>().is_some().then_some(array)
+}
+
+/// The next step of an iteration in fast array mode at `index`, like %ArrayIteratorPrototype%.next ( ): the element
+/// and the index after it, or `None` once the iteration is done.
+fn fast_array_mode_step(vm: &Vm, array: &Object, index: f64) -> ThrowCompletionOr<Option<(Value, Value)>> {
+    let index = index as u64;
+    if index >= iterated_array_like_length(vm, array)? {
+        return Ok(None);
+    }
+    let element = iterated_array_like_element(vm, array, index)?;
+    Ok(Some((element, Value::from_f64((index + 1) as f64))))
+}
+
 pub fn get_iterator(
     vm: &Vm,
     pc: u32,
@@ -381,16 +422,29 @@ pub fn get_iterator(
 ) -> SlowPathControl {
     let executable = vm.current_executable();
     let cache = executable.property_lookup_cache(instruction.cache as usize);
-    let iterator_record = asm_try!(
-        vm,
-        pc,
-        get_iterator_impl_with_cache(
-            vm,
-            values.iterable,
-            iterator_hint_from_bytecode(instruction.hint),
-            cache
-        )
-    );
+    let hint = iterator_hint_from_bytecode(instruction.hint);
+    if hint == IteratorHint::Async {
+        let iterator_record = asm_try!(vm, pc, get_iterator_impl_with_cache(vm, values.iterable, hint, cache));
+        values.dst_iterator_object = Value::from_object(iterator_record.iterator());
+        values.dst_iterator_next = iterator_record.next_method();
+        values.dst_iterator_done = Value::from_bool(iterator_record.done());
+        return SlowPathControl::continue_at(pc + op::GetIterator::LENGTH);
+    }
+
+    let method = asm_try!(vm, pc, get_sync_iterator_method(vm, values.iterable, cache));
+
+    // OPTIMIZATION: Calling %Array.prototype.values% and getting the next method of the array iterator it makes
+    //               cannot be observed, so fast array mode skips both.
+    if instruction.fast_array_mode_allowed
+        && let Some(array) = fast_array_mode_array(vm, values.iterable, method)
+    {
+        values.dst_iterator_object = Value::from_i32(0);
+        values.dst_iterator_next = Value::from_object(array);
+        values.dst_iterator_done = Value::FALSE;
+        return SlowPathControl::continue_at(pc + op::GetIterator::LENGTH);
+    }
+
+    let iterator_record = asm_try!(vm, pc, get_iterator_from_method_impl(vm, values.iterable, method));
     values.dst_iterator_object = Value::from_object(iterator_record.iterator());
     values.dst_iterator_next = iterator_record.next_method();
     values.dst_iterator_done = Value::from_bool(iterator_record.done());
@@ -403,15 +457,37 @@ pub fn iterator_close_slow_path(
     instruction: &op::IteratorClose,
     values: &mut op::IteratorCloseValues,
 ) -> SlowPathControl {
-    let iterator_record =
-        iterator_record_from_registers(values.iterator_object, values.iterator_next, values.iterator_done);
-
     let completion = Completion::new(
         completion_type_from_bytecode(instruction.completion_type),
         values.completion_value,
     );
     let executable = vm.current_executable();
     let cache = executable.property_lookup_cache(instruction.cache as usize);
+
+    let iterator_record = if let Some(index) = fast_array_mode_index(values.iterator_object) {
+        // NB: Without a return method, closing an array iterator does nothing.
+        let realm = current_realm(vm);
+        if realm_fuses::array_iterators_have_no_return(&realm) {
+            return SlowPathControl::continue_at(pc + op::IteratorClose::LENGTH);
+        }
+
+        // A return method appeared during the iteration. It gets the array iterator that GetIterator would have
+        // made, at the same position.
+        let iterator = ArrayIterator::create(vm, realm, values.iterator_next, PropertyKind::Value);
+        if values.iterator_done.as_bool() {
+            iterator.array.set(Value::UNDEFINED);
+        } else {
+            iterator.index.set(index as u64);
+        }
+        IteratorRecordImpl::new(
+            Some(iterator.upcast()),
+            Value::UNDEFINED,
+            values.iterator_done.as_bool(),
+        )
+    } else {
+        iterator_record_from_registers(values.iterator_object, values.iterator_next, values.iterator_done)
+    };
+
     asm_try!(
         vm,
         pc,
@@ -432,6 +508,26 @@ pub fn iterator_next_slow_path(vm: &Vm, pc: u32, values: &mut op::IteratorNextVa
 }
 
 pub fn iterator_next_unpack(vm: &Vm, pc: u32, values: &mut op::IteratorNextUnpackValues) -> SlowPathControl {
+    if let Some(index) = fast_array_mode_index(values.iterator_object) {
+        let step = if values.iterator_done.as_bool() {
+            Ok(None)
+        } else {
+            fast_array_mode_step(vm, &values.iterator_next.as_object(), index)
+        };
+        if !matches!(step, Ok(Some(_))) {
+            values.iterator_done = Value::TRUE;
+        }
+        if let Some((element, next_index)) = asm_try!(vm, pc, step) {
+            values.dst_value = element;
+            values.dst_done = Value::FALSE;
+            values.iterator_object = next_index;
+        } else {
+            values.dst_value = Value::UNDEFINED;
+            values.dst_done = Value::TRUE;
+        }
+        return SlowPathControl::continue_at(pc + op::IteratorNextUnpack::LENGTH);
+    }
+
     let iterator_record =
         iterator_record_from_registers(values.iterator_object, values.iterator_next, values.iterator_done);
     let iteration_result_or_error = iterator_step_value(vm, &iterator_record);
@@ -451,14 +547,34 @@ pub fn iterator_next_unpack(vm: &Vm, pc: u32, values: &mut op::IteratorNextUnpac
 }
 
 pub fn iterator_to_array(vm: &Vm, pc: u32, values: &mut op::IteratorToArrayValues) -> SlowPathControl {
+    let array = Array::create(vm, current_realm(vm), 0, None).must();
+    let mut index: u64 = 0;
+
+    if let Some(mut iterated_index) = fast_array_mode_index(values.iterator_object) {
+        let was_done = values.iterator_done_property.as_bool();
+        // NB: Every step either throws or reaches the end, which both make the iteration done.
+        values.iterator_done_property = Value::TRUE;
+        let iterated_array = values.iterator_next_method.as_object();
+        while !was_done
+            && let Some((element, next_index)) =
+                asm_try!(vm, pc, fast_array_mode_step(vm, &iterated_array, iterated_index))
+        {
+            array
+                .create_data_property_or_throw(vm, &PropertyKey::from_number(index), element)
+                .must();
+            index += 1;
+            iterated_index = next_index.as_f64();
+        }
+        values.dst = Value::from_object(array);
+        return SlowPathControl::continue_at(pc + op::IteratorToArray::LENGTH);
+    }
+
     let iterator_record = iterator_record_from_registers(
         values.iterator_object,
         values.iterator_next_method,
         values.iterator_done_property,
     );
 
-    let array = Array::create(vm, current_realm(vm), 0, None).must();
-    let mut index: u64 = 0;
     loop {
         let value_or_error = iterator_step_value(vm, &iterator_record);
         if iterator_record.done() {
