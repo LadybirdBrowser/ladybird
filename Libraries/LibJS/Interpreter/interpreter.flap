@@ -4555,7 +4555,22 @@ handler IteratorClose(
     completion_type: Completion::Type,
     completion_value: Operand,
     cache: PropertyLookupCacheIndex
-) @cold = call_slow_path(iterator_close);
+) {
+    let slow = || @cold {
+        call_slow_path(iterator_close);
+    };
+
+    # An iterator without a return method closes without doing anything, for every completion type: the
+    # instruction that follows a close for a throw completion throws it again. The cache of the site
+    # tells if the method is missing.
+    let executable = exec_ctx.executable;
+    let caches: u64 = alias(executable.property_lookup_caches);
+    let cache_index: u64 = alias(load(cache));
+    let cache_pointer = caches + cache_index * PROPERTY_LOOKUP_CACHE_SIZE;
+    let return_method: Value = call_helper_with_two_arguments(asm_try_get_by_id_cache, load(iterator_object), cache_pointer);
+    guard return_method is Value<Nullish> else slow;
+    dispatch_next;
+}
 
 handler IteratorNext(
     dst: out Operand,

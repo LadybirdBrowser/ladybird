@@ -6790,6 +6790,28 @@ asm_handler_ObjectPropertyIteratorNext:
 asm_handler_ObjectPropertyIteratorNext_hot_end:
 
 .p2align 4
+asm_handler_IteratorClose:
+    ldr x0, [x28, #88]
+    ldr x1, [x0, #152]
+    cbz x1, .Lasm_IteratorClose.assert_failure_0
+    ldr w2, [x21, #24]
+    ldr w0, [x21, #4]
+    ldr x0, [x27, x0, lsl #3]
+    lsl x2, x2, #3
+    adds x1, x1, x2
+    bl CSYM(asm_try_get_by_id_cache)
+    lsr x0, x0, #48
+    and w0, w0, #0xfffe
+    mov w9, #32766
+    cmp w0, w9
+    b.ne .Lasm_IteratorClose.ssa_block_1
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_IteratorClose_hot_end:
+
+.p2align 4
 asm_handler_IsCallable:
     ldr w0, [x21, #8]
     ldr x0, [x27, x0, lsl #3]
@@ -17101,47 +17123,54 @@ asm_handler_ObjectPropertyIteratorNext_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_ObjectPropertyIteratorNext_cold_end:
-.p2align 4
-asm_handler_IteratorClose:
+asm_handler_IteratorClose_cold:
+// Cold paths for IteratorClose
+.Lasm_IteratorClose.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
     ldr w9, [x21, #4]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_IteratorClose.scalar_value_ready_0:
+.Lasm_IteratorClose.scalar_value_ready_1:
     mov x3, x10
     ldr w9, [x21, #8]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_IteratorClose.scalar_value_ready_1:
+.Lasm_IteratorClose.scalar_value_ready_2:
     mov x4, x10
     ldr w9, [x21, #12]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_IteratorClose.scalar_value_ready_2:
+.Lasm_IteratorClose.scalar_value_ready_3:
     mov x5, x10
     ldr w9, [x21, #20]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_IteratorClose.scalar_value_ready_3:
+.Lasm_IteratorClose.scalar_value_ready_4:
     mov x6, x10
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_close)
-    tbnz x0, #63, .Lasm_IteratorClose.scalar_result_done_4
-    tbz x0, #32, .Lasm_IteratorClose.scalar_result_done_4
+    tbz x0, #63, 1f
+    b .Lasm_IteratorClose.scalar_result_done_5
+1:
+    tbnz x0, #32, 1f
+    b .Lasm_IteratorClose.scalar_result_done_5
+1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_IteratorClose.scalar_result_done_4:
+.Lasm_IteratorClose.scalar_result_done_5:
     tbz x0, #63, 1f
     b .Lexit
 1:
-    tbz x0, #32, .Lasm_IteratorClose.slow_path_transfer_5
+    tbnz x0, #32, 1f
+    b .Lasm_IteratorClose.slow_path_transfer_6
+1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_IteratorClose.slow_path_transfer_5:
+.Lasm_IteratorClose.slow_path_transfer_6:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
@@ -17150,10 +17179,7 @@ asm_handler_IteratorClose:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-asm_handler_IteratorClose_hot_end:
-asm_handler_IteratorClose_cold:
 asm_handler_IteratorClose_cold_end:
-
 .p2align 4
 asm_handler_IteratorNext:
     mov x0, x20
@@ -22207,6 +22233,8 @@ asm_assertion_failure_traps:
 .Lasm_ObjectPropertyIteratorNext.assert_failure_0:
     brk #0
 .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_65:
+    brk #0
+.Lasm_IteratorClose.assert_failure_0:
     brk #0
 .Lasm_LeavePrivateEnvironment.assert_predicate_failure_3:
     brk #0
