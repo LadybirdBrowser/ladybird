@@ -1477,6 +1477,8 @@ fn generate_yield_from(
         dst_iterator_done: iterator_done_property.operand(),
         iterable: value.operand(),
         hint,
+        // NB: yield* passes the iterator to calls of its methods.
+        fast_array_mode_allowed: false,
         cache,
     });
 
@@ -7476,6 +7478,7 @@ fn generate_for_of_statement_inner(
             } else {
                 IteratorHint::Sync
             } as u32,
+            fast_array_mode_allowed: !is_await,
             cache,
         });
 
@@ -8073,6 +8076,7 @@ fn generate_array_binding_pattern(
         dst_iterator_done: iterator_done.operand(),
         iterable: input_array.operand(),
         hint: IteratorHint::Sync as u32,
+        fast_array_mode_allowed: true,
         cache,
     });
 

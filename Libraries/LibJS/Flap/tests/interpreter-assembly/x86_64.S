@@ -6952,13 +6952,27 @@ asm_handler_ObjectPropertyIteratorNext_hot_end:
 
 .p2align 6
 asm_handler_IteratorClose:
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov rcx, QWORD PTR [rbx + rax * 8]
+    mov r11, rcx
+    shr r11, 48
+    cmp r11w, 32762
+    jne .Lasm_IteratorClose.ssa_block_3
+    mov rax, QWORD PTR [rbx - 120]
+    mov rax, QWORD PTR [rax + 64]
+    test rax, rax
+    jz .Lasm_IteratorClose.ssa_block_1
+    cmp BYTE PTR [rax + 11], 0
+    jz .Lasm_IteratorClose.ssa_block_1
+    add r13d, 32
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_IteratorClose.ssa_block_3:
     mov rax, QWORD PTR [rbx - 40]
     mov rdx, QWORD PTR [rax + 152]
     test rdx, rdx
     jz .Lasm_IteratorClose.assert_failure_0
     mov eax, DWORD PTR [r14 + r13 + 24]
-    mov ecx, DWORD PTR [r14 + r13 + 4]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
     shl rax, 3
     add rdx, rax
     mov rdi, rcx
@@ -6972,6 +6986,81 @@ asm_handler_IteratorClose:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_IteratorClose_hot_end:
+
+.p2align 6
+asm_handler_IteratorNextUnpack:
+    mov edx, DWORD PTR [r14 + r13 + 12]
+    mov rax, QWORD PTR [rbx + rdx * 8]
+    mov r11, rax
+    shr r11, 48
+    cmp r11w, 32762
+    jne .Lasm_IteratorNextUnpack.ssa_block_1
+    movsxd rcx, eax
+    test ecx, ecx
+    js .Lasm_IteratorNextUnpack.ssa_block_1
+    mov esi, DWORD PTR [r14 + r13 + 20]
+    mov rax, QWORD PTR [rbx + rsi * 8]
+    test eax, 1
+    jnz .Lasm_IteratorNextUnpack.ssa_block_1
+    mov eax, DWORD PTR [r14 + r13 + 16]
+    mov rax, QWORD PTR [rbx + rax * 8]
+    mov r11, rax
+    shr r11, 48
+    cmp r11w, 65529
+    jne .Lasm_IteratorNextUnpack.ssa_block_1
+    movabs r11, 4398046511103
+    and rax, r11
+    add rax, r15
+    movzx edi, WORD PTR [rax + 12]
+    test edi, 4
+    jz .Lasm_IteratorNextUnpack.ssa_block_1
+    test edi, 16
+    jnz .Lasm_IteratorNextUnpack.ssa_block_1
+    mov edi, DWORD PTR [rax + 16]
+    cmp rcx, rdi
+    jb .Lasm_IteratorNextUnpack.ssa_block_7
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + rax * 8], r11
+    movabs r11, 9221401712017801217
+    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov QWORD PTR [rbx + rax * 8], r11
+    movabs r11, 9221401712017801217
+    mov QWORD PTR [rbx + rsi * 8], r11
+    add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_IteratorNextUnpack.ssa_block_7:
+    movzx esi, BYTE PTR [rax + 14]
+    cmp rsi, 1
+    jb .Lasm_IteratorNextUnpack.ssa_block_1
+    cmp rsi, 3
+    jae .Lasm_IteratorNextUnpack.ssa_block_1
+    mov rax, QWORD PTR [rax + 40]
+    test rax, rax
+    jz .Lasm_IteratorNextUnpack.ssa_block_1
+    mov esi, DWORD PTR [rax - 8]
+    cmp rcx, rsi
+    jae .Lasm_IteratorNextUnpack.ssa_block_1
+    mov rax, QWORD PTR [rax + rcx * 8]
+    mov r11, rax
+    shr r11, 48
+    cmp r11w, 32763
+    je .Lasm_IteratorNextUnpack.ssa_block_1
+    inc ecx
+    jo .Lasm_IteratorNextUnpack.ssa_block_1
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    movabs r11, 9221401712017801216
+    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov QWORD PTR [rbx + rax * 8], r11
+    movabs r11, 9221683186994511872
+    or rcx, r11
+    mov QWORD PTR [rbx + rdx * 8], rcx
+    add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_IteratorNextUnpack_hot_end:
 
 .p2align 6
 asm_handler_IsCallable:
@@ -16861,8 +16950,9 @@ asm_handler_IteratorNext_hot_end:
 asm_handler_IteratorNext_cold:
 asm_handler_IteratorNext_cold_end:
 
-.p2align 4
-asm_handler_IteratorNextUnpack:
+asm_handler_IteratorNextUnpack_cold:
+# Cold paths for IteratorNextUnpack
+.Lasm_IteratorNextUnpack.ssa_block_1:
     mov DWORD PTR [rbx + -64], r13d
     lea rcx, [r14 + r13]
     sub rsp, 64
@@ -16896,10 +16986,14 @@ asm_handler_IteratorNextUnpack:
     mov r11, QWORD PTR [rsp + 24]
     mov QWORD PTR [rbx + r10 * 8], r11
 .Lasm_IteratorNextUnpack.skip_output_value_7:
+    mov r10d, DWORD PTR [rcx + 12]
+    mov r11, QWORD PTR [rsp + 32]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_IteratorNextUnpack.skip_output_value_8:
     mov r10d, DWORD PTR [rcx + 20]
     mov r11, QWORD PTR [rsp + 48]
     mov QWORD PTR [rbx + r10 * 8], r11
-.Lasm_IteratorNextUnpack.skip_output_value_8:
+.Lasm_IteratorNextUnpack.skip_output_value_9:
     add rsp, 64
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
@@ -16911,21 +17005,26 @@ asm_handler_IteratorNextUnpack:
     cmp r10, rbx
     jne .Lasm_IteratorNextUnpack.values_restore_stack_4
     lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 12]
+    mov r11, QWORD PTR [rsp + 32]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_IteratorNextUnpack.skip_exceptional_output_10:
+    lea rcx, [r14 + r13]
     mov r10d, DWORD PTR [rcx + 20]
     mov r11, QWORD PTR [rsp + 48]
     mov QWORD PTR [rbx + r10 * 8], r11
-.Lasm_IteratorNextUnpack.skip_exceptional_output_9:
+.Lasm_IteratorNextUnpack.skip_exceptional_output_11:
 .Lasm_IteratorNextUnpack.values_restore_stack_4:
     add rsp, 64
 .Lasm_IteratorNextUnpack.values_call_done_0:
     test rax, rax
     js .Lexit
     bt rax, 32
-    jnc .Lasm_IteratorNextUnpack.slow_path_transfer_10
+    jnc .Lasm_IteratorNextUnpack.slow_path_transfer_12
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_IteratorNextUnpack.slow_path_transfer_10:
+.Lasm_IteratorNextUnpack.slow_path_transfer_12:
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx]
     add rbx, 128
@@ -16934,10 +17033,7 @@ asm_handler_IteratorNextUnpack:
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-asm_handler_IteratorNextUnpack_hot_end:
-asm_handler_IteratorNextUnpack_cold:
 asm_handler_IteratorNextUnpack_cold_end:
-
 .p2align 4
 asm_handler_IteratorToArray:
     mov DWORD PTR [rbx + -64], r13d

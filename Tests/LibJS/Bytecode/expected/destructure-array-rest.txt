@@ -26,7 +26,7 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] NewPrimitiveArray dst:reg5, elements:[1, 2, 3]
   [  38] Mov dst:reg6, src:Bool(false)
-  [  48] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  48] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
   [  68] Jump target:block3
 
 block1:

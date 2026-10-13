@@ -14,7 +14,7 @@ block0:
   [  20] SetGlobal `x`, src:reg5
   [  30] NewPrimitiveArray dst:reg5, elements:[42]
   [  48] Mov dst:reg6, src:Bool(false)
-  [  58] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  58] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
   [  78] Jump target:block3
 
 block1:

@@ -309,6 +309,28 @@ pub fn get_iterator_impl_with_cache(
     get_iterator_from_method_impl(vm, object, method)
 }
 
+/// Steps 2 and 3 of GetIterator for synchronous iteration: the iterator method of `object`, through the cache
+/// `iterator_method_cache`.
+pub fn get_sync_iterator_method(
+    vm: &Vm,
+    object: Value,
+    iterator_method_cache: &PropertyLookupCache,
+) -> ThrowCompletionOr<Gc<FunctionObject>> {
+    // 2. Else,
+    // a. Let method be ? GetMethod(obj, @@iterator).
+    let method = object.get_method_with_cache(
+        vm,
+        &PropertyKey::from(vm.well_known_symbols().iterator),
+        iterator_method_cache,
+    )?;
+
+    // 3. If method is undefined, throw a TypeError exception.
+    let Some(method) = method else {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotIterable, &[&object]);
+    };
+    Ok(method)
+}
+
 pub fn get_iterator(vm: &Vm, object: Value, kind: IteratorHint) -> ThrowCompletionOr<Gc<IteratorRecord>> {
     let iterator_record_impl = get_iterator_impl(vm, object, kind)?;
     Ok(IteratorRecord::create_from_impl(vm, &iterator_record_impl))

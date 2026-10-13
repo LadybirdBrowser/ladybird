@@ -6791,12 +6791,25 @@ asm_handler_ObjectPropertyIteratorNext_hot_end:
 
 .p2align 4
 asm_handler_IteratorClose:
-    ldr x0, [x28, #88]
-    ldr x1, [x0, #152]
-    cbz x1, .Lasm_IteratorClose.assert_failure_0
-    ldr w2, [x21, #24]
     ldr w0, [x21, #4]
     ldr x0, [x27, x0, lsl #3]
+    lsr x9, x0, #48
+    cmp x9, x22
+    b.ne .Lasm_IteratorClose.ssa_block_3
+    ldr x0, [x28, #8]
+    ldr x0, [x0, #64]
+    cbz x0, .Lasm_IteratorClose.ssa_block_1
+    ldrb w9, [x0, #11]
+    cbz w9, .Lasm_IteratorClose.ssa_block_1
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorClose.ssa_block_3:
+    ldr x1, [x28, #88]
+    ldr x1, [x1, #152]
+    cbz x1, .Lasm_IteratorClose.assert_failure_0
+    ldr w2, [x21, #24]
     lsl x2, x2, #3
     adds x1, x1, x2
     bl CSYM(asm_try_get_by_id_cache)
@@ -6810,6 +6823,84 @@ asm_handler_IteratorClose:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_IteratorClose_hot_end:
+
+.p2align 4
+asm_handler_IteratorNextUnpack:
+    ldr w2, [x21, #12]
+    ldr x0, [x27, x2, lsl #3]
+    lsr x9, x0, #48
+    cmp x9, x22
+    b.ne .Lasm_IteratorNextUnpack.ssa_block_1
+    sxtw x0, w0
+    tbz w0, #31, 1f
+    b .Lasm_IteratorNextUnpack.ssa_block_1
+1:
+    ldr w3, [x21, #20]
+    ldr x1, [x27, x3, lsl #3]
+    tbz x1, #0, 1f
+    b .Lasm_IteratorNextUnpack.ssa_block_1
+1:
+    ldr w1, [x21, #16]
+    ldr x1, [x27, x1, lsl #3]
+    lsr x9, x1, #48
+    mov w10, #65529
+    cmp x9, x10
+    b.ne .Lasm_IteratorNextUnpack.ssa_block_1
+    and x1, x1, #0x3ffffffffff
+    add x1, x1, x24
+    ldrh w4, [x1, #12]
+    tbnz x4, #2, 1f
+    b .Lasm_IteratorNextUnpack.ssa_block_1
+1:
+    tbz x4, #4, 1f
+    b .Lasm_IteratorNextUnpack.ssa_block_1
+1:
+    ldr w4, [x1, #16]
+    cmp x0, x4
+    b.lo .Lasm_IteratorNextUnpack.ssa_block_7
+    ldr w9, [x21, #4]
+    movz x10, #0x7ffe, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldr w9, [x21, #8]
+    movz x10, #0x1, lsl #0
+    movk x10, #0x7ff9, lsl #48
+    str x10, [x27, x9, lsl #3]
+    movz x9, #0x1, lsl #0
+    movk x9, #0x7ff9, lsl #48
+    str x9, [x27, x3, lsl #3]
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorNextUnpack.ssa_block_7:
+    ldrb w3, [x1, #14]
+    cmp x3, #1
+    b.lo .Lasm_IteratorNextUnpack.ssa_block_1
+    cmp x3, #3
+    b.hs .Lasm_IteratorNextUnpack.ssa_block_1
+    ldr x1, [x1, #40]
+    cbz x1, .Lasm_IteratorNextUnpack.ssa_block_1
+    ldur w3, [x1, #-8]
+    cmp x0, x3
+    b.hs .Lasm_IteratorNextUnpack.ssa_block_1
+    ldr x1, [x1, x0, lsl #3]
+    movz x9, #0x7ffb, lsl #48
+    cmp x1, x9
+    b.eq .Lasm_IteratorNextUnpack.ssa_block_1
+    adds w0, w0, #1
+    b.vs .Lasm_IteratorNextUnpack.ssa_block_1
+    ldr w9, [x21, #4]
+    str x1, [x27, x9, lsl #3]
+    ldr w9, [x21, #8]
+    movz x10, #0x7ff9, lsl #48
+    str x10, [x27, x9, lsl #3]
+    movk x0, #0x7ffa, lsl #48
+    str x0, [x27, x2, lsl #3]
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_IteratorNextUnpack_hot_end:
 
 .p2align 4
 asm_handler_IsCallable:
@@ -17250,8 +17341,9 @@ asm_handler_IteratorNext_hot_end:
 asm_handler_IteratorNext_cold:
 asm_handler_IteratorNext_cold_end:
 
-.p2align 4
-asm_handler_IteratorNextUnpack:
+asm_handler_IteratorNextUnpack_cold:
+// Cold paths for IteratorNextUnpack
+.Lasm_IteratorNextUnpack.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
@@ -17273,8 +17365,12 @@ asm_handler_IteratorNextUnpack:
     mov x2, x21
     add x3, sp, #0
     bl CSYM(asm_slow_path_iterator_next_unpack)
-    tbnz x0, #63, .Lasm_IteratorNextUnpack.values_exceptional_outputs_5
-    tbz x0, #32, .Lasm_IteratorNextUnpack.values_exceptional_outputs_5
+    tbz x0, #63, 1f
+    b .Lasm_IteratorNextUnpack.values_exceptional_outputs_5
+1:
+    tbnz x0, #32, 1f
+    b .Lasm_IteratorNextUnpack.values_exceptional_outputs_5
+1:
     ldr w12, [x21, #4]
     ldr x11, [sp]
     str x11, [x27, x12, lsl #3]
@@ -17283,10 +17379,14 @@ asm_handler_IteratorNextUnpack:
     ldr x11, [sp, #8]
     str x11, [x27, x12, lsl #3]
 .Lasm_IteratorNextUnpack.skip_output_value_7:
+    ldr w12, [x21, #12]
+    ldr x11, [sp, #16]
+    str x11, [x27, x12, lsl #3]
+.Lasm_IteratorNextUnpack.skip_output_value_8:
     ldr w12, [x21, #20]
     ldr x11, [sp, #32]
     str x11, [x27, x12, lsl #3]
-.Lasm_IteratorNextUnpack.skip_output_value_8:
+.Lasm_IteratorNextUnpack.skip_output_value_9:
     add sp, sp, #48
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
@@ -17296,22 +17396,28 @@ asm_handler_IteratorNextUnpack:
     ldr x9, [x20]
     cmp x9, x28
     b.ne .Lasm_IteratorNextUnpack.values_restore_stack_4
+    ldr w12, [x21, #12]
+    ldr x11, [sp, #16]
+    str x11, [x27, x12, lsl #3]
+.Lasm_IteratorNextUnpack.skip_exceptional_output_10:
     ldr w12, [x21, #20]
     ldr x11, [sp, #32]
     str x11, [x27, x12, lsl #3]
-.Lasm_IteratorNextUnpack.skip_exceptional_output_9:
+.Lasm_IteratorNextUnpack.skip_exceptional_output_11:
 .Lasm_IteratorNextUnpack.values_restore_stack_4:
     add sp, sp, #48
 .Lasm_IteratorNextUnpack.values_call_done_0:
     tbz x0, #63, 1f
     b .Lexit
 1:
-    tbz x0, #32, .Lasm_IteratorNextUnpack.slow_path_transfer_10
+    tbnz x0, #32, 1f
+    b .Lasm_IteratorNextUnpack.slow_path_transfer_12
+1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_IteratorNextUnpack.slow_path_transfer_10:
+.Lasm_IteratorNextUnpack.slow_path_transfer_12:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
@@ -17320,10 +17426,7 @@ asm_handler_IteratorNextUnpack:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-asm_handler_IteratorNextUnpack_hot_end:
-asm_handler_IteratorNextUnpack_cold:
 asm_handler_IteratorNextUnpack_cold_end:
-
 .p2align 4
 asm_handler_IteratorToArray:
     mov x0, x20
