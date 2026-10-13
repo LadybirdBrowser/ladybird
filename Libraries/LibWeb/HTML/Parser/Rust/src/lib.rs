@@ -164,27 +164,6 @@ pub unsafe extern "C" fn rust_html_tokenizer_create_from_ascii(
     make_handle(HtmlTokenizer::new(code_units))
 }
 
-/// Create a new Rust HTML tokenizer directly from a UTF-8 byte buffer.
-/// Rust converts the bytes directly to the tokenizer's UTF-16 storage.
-///
-/// # Safety
-/// `bytes` must point to `len` valid UTF-8 bytes.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_create_from_utf8(
-    bytes: *const u8,
-    len: usize,
-) -> *mut RustFfiTokenizerHandle {
-    let code_units = if bytes.is_null() || len == 0 {
-        Vec::new()
-    } else {
-        let slice = unsafe { std::slice::from_raw_parts(bytes, len) };
-        // SAFETY: The caller guarantees valid UTF-8.
-        unsafe { std::str::from_utf8_unchecked(slice) }.encode_utf16().collect()
-    };
-
-    make_handle(HtmlTokenizer::new(code_units))
-}
-
 fn make_handle(tokenizer: HtmlTokenizer) -> *mut RustFfiTokenizerHandle {
     let handle = Box::new(RustFfiTokenizerHandle {
         tokenizer,

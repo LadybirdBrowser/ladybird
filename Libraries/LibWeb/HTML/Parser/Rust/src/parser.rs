@@ -172,7 +172,6 @@ unsafe extern "C" {
 
 /// Opaque handle for the Rust HTML parser, passed across the FFI boundary.
 pub struct RustFfiHtmlParserHandle {
-    run_count: u64,
     state: ParserState,
 }
 
@@ -5577,7 +5576,6 @@ impl Token {
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_html_parser_create() -> *mut RustFfiHtmlParserHandle {
     Box::into_raw(Box::new(RustFfiHtmlParserHandle {
-        run_count: 0,
         state: ParserState::new(),
     }))
 }
@@ -5654,7 +5652,6 @@ pub unsafe extern "C" fn rust_html_parser_run_document(
     // synchronously execute script, and script can re-enter this function through document.write() or document.close().
     // TreeBuilder uses raw pointers internally so those nested parser runs do not alias an outer Rust `&mut` borrow.
     unsafe {
-        (*handle).run_count = (*handle).run_count.wrapping_add(1);
         (*handle).state.scripting_enabled = scripting_enabled;
         (*handle).state.allow_declarative_shadow_roots = allow_declarative_shadow_roots;
         (*handle).state.parser_pause_requested = false;
@@ -5726,19 +5723,6 @@ pub unsafe extern "C" fn rust_html_parser_take_pending_svg_script(handle: *mut R
     }
     let handle = unsafe { &mut *handle };
     handle.state.pending_svg_script.take().unwrap_or(0)
-}
-
-/// Return how many times this parser handle has been asked to run.
-///
-/// # Safety
-/// `handle` must be a valid pointer from `rust_html_parser_create`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_parser_run_count(handle: *const RustFfiHtmlParserHandle) -> u64 {
-    if handle.is_null() {
-        return 0;
-    }
-    let handle = unsafe { &*handle };
-    handle.run_count
 }
 
 /// Destroy a Rust HTML parser.

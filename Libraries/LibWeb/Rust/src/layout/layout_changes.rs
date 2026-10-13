@@ -338,8 +338,6 @@ pub(crate) enum LayoutWrite<'a> {
     DetachRemainingRowsForRemoval(&'a [u32]),
     /// The row takes the derived style record `record` its layout node made.
     AdoptDerivedNodeStyle { node: NodeSlotId, record: u64 },
-    /// The row's layout style takes the display `display`.
-    SetLayoutDisplay { node: NodeSlotId, display: u32 },
     /// The anonymous rows below the row inherit its style again.
     ReinheritAnonymousDescendants { node: NodeSlotId },
     /// The viewport and the boxes of the root element and its body take the styles viewport propagation gives them.
@@ -389,12 +387,6 @@ impl LayoutWrite<'_> {
                     crate::css::style::layout_style::DerivedStyleRecord::pin(engine, record)
                 });
                 arena.apply_reinherited_style_record(host_calls, node, derived);
-                false
-            }
-            Self::SetLayoutDisplay { node, display } => {
-                arena.update_layout_style(host_calls, node, |style| {
-                    style.set_display(crate::css::display::FfiDisplay::from_raw(display));
-                });
                 false
             }
             Self::ReinheritAnonymousDescendants { node } => {

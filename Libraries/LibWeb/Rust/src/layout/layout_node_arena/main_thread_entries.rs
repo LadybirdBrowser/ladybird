@@ -124,17 +124,6 @@ pub unsafe extern "C" fn render_state_adopt_derived_node_style(host: &DocumentHo
     unsafe { write_and_pay(host, node_read(), LayoutWrite::AdoptDerivedNodeStyle { node, record }) };
 }
 
-/// The row's layout style takes the display `display`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_layout_display(host: &DocumentHost, node: NodeSlotId, display: u32) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { write_and_pay(host, node_read(), LayoutWrite::SetLayoutDisplay { node, display }) };
-}
-
 /// The anonymous rows below the row inherit its style again, which their layout nodes hear of once the host has its next
 /// job back. A table box, which `is_table_box` says the row's style makes it, may itself take a record the arena derives
 /// as its wrapper inherits its style again, which its layout node hears of before it reads its style again.
