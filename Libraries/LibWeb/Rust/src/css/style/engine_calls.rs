@@ -536,20 +536,14 @@ pub unsafe extern "C" fn style_engine_stage_element_declaration_delta(
 }
 
 /// Whether the host staged deltas it has not submitted yet.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_has_staged_input(host: &DocumentHost) -> bool {
+pub extern "C" fn style_engine_has_staged_input(host: &DocumentHost) -> bool {
     !host.engine_memo().staged_input.borrow().is_empty()
 }
 
 /// Submits the deltas the host staged as one batch, which the engine applies in order with the host's other writes.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_submit_staged_input(host: &DocumentHost) {
+pub extern "C" fn style_engine_submit_staged_input(host: &DocumentHost) {
     let staged = std::mem::take(&mut *host.engine_memo().staged_input.borrow_mut());
     if !staged.is_empty() {
         host.queue_change(ArenaChange::Engine(EngineWrite::ApplyTransaction(Box::new(staged))));
@@ -616,12 +610,8 @@ pub(crate) fn with_engine_and_arena<R>(
 }
 
 /// The custom-property environment an element holds, or null.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_element_custom_property_data(host: &DocumentHost, node: u32) -> *const c_void {
+pub extern "C" fn style_engine_element_custom_property_data(host: &DocumentHost, node: u32) -> *const c_void {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return std::ptr::null();
     };
@@ -629,12 +619,8 @@ pub unsafe extern "C" fn style_engine_element_custom_property_data(host: &Docume
 }
 
 /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
+pub extern "C" fn style_engine_pseudo_element_custom_property_data(
     host: &DocumentHost,
     node: u32,
     pseudo: u8,
@@ -646,12 +632,8 @@ pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
 }
 
 /// Which of an element's synthetic pseudo-elements hold a custom-property environment, as a bit set by kind.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(host: &DocumentHost, node: u32) -> u64 {
+pub extern "C" fn style_engine_pseudo_elements_with_custom_property_data(host: &DocumentHost, node: u32) -> u64 {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
@@ -791,12 +773,8 @@ unsafe fn ask_record_demand(
 }
 
 /// What a style record's values depend on.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
+pub extern "C" fn style_engine_style_record_dependency_flags(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     style_record: u64,
@@ -821,12 +799,8 @@ pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
 }
 
 /// The identity of the custom-property environment a style record was computed in, or 0.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
+pub extern "C" fn style_engine_style_record_custom_property_environment(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     style_record: u64,
@@ -1218,12 +1192,8 @@ pub(crate) fn known_style_record_view(
 /// The before-change style the current style stabilization epoch decides the transitions of `node`'s element, or of
 /// one of its pseudo-elements, against, or 0 before a pass has recorded one. The host knows it without asking: it
 /// follows every baseline it records in the engine.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u32, pseudo_kind: u8) -> u64 {
+pub extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u32, pseudo_kind: u8) -> u64 {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
@@ -1232,12 +1202,8 @@ pub unsafe extern "C" fn style_engine_transition_baseline(host: &DocumentHost, n
 
 /// Whether the engine has a style transaction pending, which the host knows without asking where it wrote nothing
 /// since its last job.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
+pub extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {
         Some(facts) => facts.has_pending_style_transaction,
         None => with_engine(read, host, |engine| engine.has_pending_transaction()),
@@ -1246,12 +1212,8 @@ pub unsafe extern "C" fn style_engine_has_pending_transaction(host: &DocumentHos
 
 /// Whether the engine defers any element style input, which the host knows without asking where it wrote nothing since
 /// its last job.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(host: &DocumentHost, read: &BegunRead) -> bool {
+pub extern "C" fn style_engine_has_deferred_element_style_inputs(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {
         Some(facts) => facts.has_deferred_element_style_inputs,
         None => with_engine(read, host, |engine| engine.has_deferred_element_style_inputs()),
@@ -1273,16 +1235,8 @@ pub(crate) fn has_deferred_element_style_input(host: &DocumentHost, read: &Begun
 /// The synthetic pseudo-elements `node` has rules for, as a C++ record's pseudo-style mask, or no bits when the engine
 /// holds no answer for the node. The host knows it without asking for an element whose row it composes in the
 /// transaction it took last, which answered it beside the row.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_published_pseudo_style_mask(
-    host: &DocumentHost,
-    read: &BegunRead,
-    node: u32,
-) -> u64 {
+pub extern "C" fn style_engine_published_pseudo_style_mask(host: &DocumentHost, read: &BegunRead, node: u32) -> u64 {
     host.transaction_pseudo_styles(node).map_or_else(
         || {
             with_engine(read, host, |engine| {
@@ -1295,23 +1249,15 @@ pub unsafe extern "C" fn style_engine_published_pseudo_style_mask(
 
 /// The synthetic pseudo-elements `node` has rules for that settling its pseudo-elements over the composition of its
 /// record leaves alone, where the style transaction the host drains composes its row on the host, and none otherwise.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_inert_pseudo_kinds(host: &DocumentHost, node: u32) -> u64 {
+pub extern "C" fn style_engine_inert_pseudo_kinds(host: &DocumentHost, node: u32) -> u64 {
     host.transaction_pseudo_styles(node).map_or(0, |styles| styles.inert)
 }
 
 /// Whether a size container waits for layout to be evaluated, which the host knows without asking where it wrote
 /// nothing since its last job.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_after_layout(
+pub extern "C" fn style_engine_has_size_containers_needing_evaluation_after_layout(
     host: &DocumentHost,
     read: &BegunRead,
 ) -> bool {
@@ -1363,12 +1309,8 @@ pub(crate) fn absorb_element_style_input(
 }
 
 /// Notes that the host rewrote the declarations of `node`, which a batch of reactions being applied reads.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_note_element_declarations_changed(host: &DocumentHost, node: u32) {
+pub extern "C" fn style_engine_note_element_declarations_changed(host: &DocumentHost, node: u32) {
     if let Some(node) = StyleNodeID::from_raw(node) {
         host.engine_memo().note_declarations_changed(node);
     }
@@ -1405,12 +1347,8 @@ impl<T: Copy> Memo<T> {
 }
 
 /// The engine's id of the native rule `identity` names, plus one, or 0 for none.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_native_rule_id(
+pub extern "C" fn style_engine_native_rule_id(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     identity: u64,

@@ -172,11 +172,8 @@ pub unsafe extern "C" fn document_host_set_owned_image_provider(
     host.host_tables().set_owned_image_provider(slot, provider);
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_owned_image_provider(host: &DocumentHost, slot: NodeSlotId) -> *mut c_void {
+pub extern "C" fn document_host_owned_image_provider(host: &DocumentHost, slot: NodeSlotId) -> *mut c_void {
     host.host_tables().owned_image_provider(slot)
 }
 
@@ -201,7 +198,7 @@ pub unsafe extern "C" fn document_host_replace_image_observers(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 // SAFETY: Guaranteed by the caller.
-pub unsafe extern "C" fn document_host_image_observers(host: &DocumentHost, slot: NodeSlotId) -> *mut c_void {
+pub extern "C" fn document_host_image_observers(host: &DocumentHost, slot: NodeSlotId) -> *mut c_void {
     host.host_tables().image_observers(slot)
 }
 

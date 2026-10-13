@@ -33,11 +33,11 @@ pub unsafe extern "C" fn rust_scope_selectors_release(selectors: *const ScopeSel
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_scope_selectors_start(selectors: &ScopeSelectors) -> *const c_void {
+pub extern "C" fn rust_scope_selectors_start(selectors: &ScopeSelectors) -> *const c_void {
     selectors.start.as_ref().map_or(std::ptr::null(), Arc::as_ptr).cast()
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_scope_selectors_end(selectors: &ScopeSelectors) -> *const c_void {
+pub extern "C" fn rust_scope_selectors_end(selectors: &ScopeSelectors) -> *const c_void {
     selectors.end.as_ref().map_or(std::ptr::null(), Arc::as_ptr).cast()
 }

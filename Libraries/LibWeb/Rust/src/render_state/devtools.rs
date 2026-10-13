@@ -35,12 +35,8 @@ pub(crate) struct DevtoolsEntry {
 const DEVTOOLS_ENTRY: DevtoolsEntry = DevtoolsEntry { _private: () };
 
 /// Makes the render state of `host`'s document panic answering this call, which waits for it.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_panic_for_testing(host: &DocumentHost) {
+pub extern "C" fn render_state_panic_for_testing(host: &DocumentHost) {
     host.run(ScriptForcedRead::at_script_entry(&DEVTOOLS_ENTRY), false, |_| {
         panic!("the render state panicked for a test")
     });
@@ -54,12 +50,8 @@ fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&LayoutNodeArena) -> R) 
 }
 
 /// How many layout passes, tree builds and measurements the document's layout has run, and how many rows it holds.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCounts {
+pub extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCounts {
     read_arena(host, |arena| {
         let tree_builds = arena.layout_tree_build_stats();
         FfiLayoutCounts {
@@ -78,12 +70,8 @@ pub unsafe extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiL
 }
 
 /// How many rows of the layout subtree `root` heads carry a pre-order label no greater than the row before them.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_pre_order_label_violation_count(host: &DocumentHost, root: NodeSlotId) -> u64 {
+pub extern "C" fn render_state_pre_order_label_violation_count(host: &DocumentHost, root: NodeSlotId) -> u64 {
     read_arena(host, |arena| {
         if !arena.slot_is_live(root) {
             return 0;
@@ -102,12 +90,8 @@ pub unsafe extern "C" fn render_state_pre_order_label_violation_count(host: &Doc
 }
 
 /// How many times paint preparation recalculated scrollable overflow, counting from zero again where `reset`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &DocumentHost, reset: bool) -> u64 {
+pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &DocumentHost, reset: bool) -> u64 {
     read_arena(host, |arena| {
         let recalculations = &arena.scrollable_overflow.recalculations;
         if reset {
@@ -119,12 +103,8 @@ pub unsafe extern "C" fn render_state_scrollable_overflow_recalculation_count(ho
 }
 
 /// How many boxes wait for their visual context to be updated.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_visual_context_pending_dirty_box_count(host: &DocumentHost) -> usize {
+pub extern "C" fn render_state_visual_context_pending_dirty_box_count(host: &DocumentHost) -> usize {
     read_arena(host, |arena| {
         arena.paint_state().borrow().visual_context.dirty_boxes.boxes.len()
     })
@@ -153,11 +133,7 @@ pub unsafe extern "C" fn render_state_stacking_context_structure_verification_re
 }
 
 /// How many layout nodes the host made for the rows of its document.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_shell_count(host: &DocumentHost) -> u32 {
+pub extern "C" fn render_state_shell_count(host: &DocumentHost) -> u32 {
     host.host_tables().shells.borrow().len() as u32
 }

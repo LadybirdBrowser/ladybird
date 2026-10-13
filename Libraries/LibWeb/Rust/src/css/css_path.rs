@@ -92,10 +92,8 @@ impl std::fmt::Debug for CssPath {
     }
 }
 
-/// # Safety
-/// `path` must be a live, nonempty CSS path. The caller owns the returned Gfx::Path.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_css_path_to_gfx_path(path: &CssPath) -> *mut std::ffi::c_void {
+pub extern "C" fn rust_css_path_to_gfx_path(path: &CssPath) -> *mut std::ffi::c_void {
     path.to_gfx_path().into_raw()
 }
 

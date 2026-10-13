@@ -1608,34 +1608,22 @@ pub unsafe extern "C" fn clock_ticks_release(ticks: *const ClockTicks) {
 
 /// A reference to the ticks the render clock hands the lanes of `host`'s document, which the caller releases with
 /// `clock_ticks_release`.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clock_ticks(host: &DocumentHost) -> *const ClockTicks {
+pub extern "C" fn document_host_clock_ticks(host: &DocumentHost) -> *const ClockTicks {
     Arc::into_raw(Arc::clone(host.clock_ticks()))
 }
 
 /// Drops the plan of the lane of the frame `host`'s document presented last, for the rendering update with the serial
 /// number `update`, which leaves it none. The plan is the host's, so this reads nothing of the render state.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_drop_clock_plan(host: &DocumentHost, update: u64) {
+pub extern "C" fn document_host_drop_clock_plan(host: &DocumentHost, update: u64) {
     host.seal_clock_plan(None, update);
 }
 
 /// Notes that script changed an animation of `host`'s document: the animations of the plans sealed before no longer
 /// stand, and the lanes' hover goes on.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_note_animation_change(host: &DocumentHost) {
+pub extern "C" fn document_host_note_animation_change(host: &DocumentHost) {
     host.clock_ticks().note_animation_change();
 }
 
@@ -1646,50 +1634,30 @@ pub unsafe extern "C" fn document_host_note_animation_change(host: &DocumentHost
 /// the update's serial number, which its plan seals with. `outer_input_event` is the input event id of the newest
 /// pointer move the document around a same-process iframe's knows of, or 0: what the iframe's lanes did with an older
 /// move is stale.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_take_clock_lanes_in(
-    host: &DocumentHost,
-    update: u64,
-    outer_input_event: u64,
-) -> bool {
+pub extern "C" fn document_host_take_clock_lanes_in(host: &DocumentHost, update: u64, outer_input_event: u64) -> bool {
     host.take_clock_lanes_in(update, outer_input_event)
 }
 
 /// Whether the lanes of `host`'s document may hover or run transitions beside the tasks: the last plan the host sealed for
 /// them was one.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_may_have_lanes(host: &DocumentHost) -> bool {
+pub extern "C" fn document_host_may_have_lanes(host: &DocumentHost) -> bool {
     host.may_have_lanes()
 }
 
 /// The input event id of the newest pointer move `host`'s document knows of, from a mouse event it handled or from the
 /// compositor.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_newest_pointer_input_event(host: &DocumentHost) -> u64 {
+pub extern "C" fn document_host_newest_pointer_input_event(host: &DocumentHost) -> u64 {
     host.newest_pointer_input_event()
 }
 
 /// Whether the lanes of `host`'s document wait for the rendering update that took them in to seal its plan, presenting
 /// nothing until then, where they would present frames beside a task: they sample running animations, or the pointer
 /// is over the document, which they hover as it moves.
-///
-/// # Safety
-///
-/// `host` must name a live document host.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_lanes_wait_for_the_update(host: &DocumentHost) -> bool {
+pub extern "C" fn document_host_lanes_wait_for_the_update(host: &DocumentHost) -> bool {
     let ticks = host.clock_ticks();
     host.lanes_wait_for_the_update()
         && (ticks.plan_animates() || ticks.newest_pointer().is_some_and(|pointer| pointer.position.is_some()))
@@ -1698,24 +1666,15 @@ pub unsafe extern "C" fn document_host_lanes_wait_for_the_update(host: &Document
 /// Notes whether the event loop of `host`'s document begins a task or goes idle: beside an idle event loop the lanes
 /// sample no animations, which its rendering updates run. Answers whether a task begins whose lanes sample the
 /// animations of the last plan the host sealed, for the caller to tick them at once.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_note_event_loop_task(host: &DocumentHost, runs_task: bool) -> bool {
+pub extern "C" fn document_host_note_event_loop_task(host: &DocumentHost, runs_task: bool) -> bool {
     host.note_event_loop_task(runs_task)
 }
 /// Takes the boundary events a hover kept by a rendering update owes, where the host handled no mouse move since, and
 /// answers whether it owes any: `has_pointer` is set with `pointer_x`, `pointer_y` where the pointer was, in the
 /// context's device pixels, and not where it left the context.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and the pointers
-/// must be valid for writes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_take_hover_events_owed(
+pub extern "C" fn document_host_take_hover_events_owed(
     host: &DocumentHost,
     has_pointer: &mut bool,
     pointer_x: &mut f32,
@@ -1740,12 +1699,8 @@ pub unsafe extern "C" fn document_host_take_hover_events_owed(
 /// id `input_event_id`, as the rendering update handling it took the lanes in, and writes the style node id of the
 /// element the lane hovered there to `target`, or 0 for none: that is the element the screen shows the hover on, which
 /// the host's events hover in place of the one its own layout has under the pointer.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_lane_hover_target_for(
+pub extern "C" fn document_host_lane_hover_target_for(
     host: &DocumentHost,
     input_event_id: u64,
     target: &mut u32,
@@ -1759,45 +1714,29 @@ pub unsafe extern "C" fn document_host_lane_hover_target_for(
 
 /// Holds the lanes of `host`'s document for a recording of the host's own that adds to the resource storage they
 /// present with, until `document_host_release_clock_lane`: they present nothing meanwhile.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_hold_clock_lane(host: &DocumentHost) {
+pub extern "C" fn document_host_hold_clock_lane(host: &DocumentHost) {
     host.clock_ticks().hold();
 }
 
 /// Releases a hold of `document_host_hold_clock_lane`.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_release_clock_lane(host: &DocumentHost) {
+pub extern "C" fn document_host_release_clock_lane(host: &DocumentHost) {
     host.clock_ticks().release();
 }
 
 /// What the lane of the frame `host`'s document presented last does, once the lane of a frame presented by then has
 /// come together. For a test.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clock_lane_state(host: &DocumentHost) -> FfiClockLaneState {
+pub extern "C" fn document_host_clock_lane_state(host: &DocumentHost) -> FfiClockLaneState {
     settle_lanes_for_testing();
     host.clock_ticks().lane_state()
 }
 
 /// Whether the lane of a frame `host`'s document sampled after the one it presented last has yet to come together, once
 /// the lane of a frame presented by then has come together. For a test.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clock_lane_is_coming(host: &DocumentHost) -> bool {
+pub extern "C" fn document_host_clock_lane_is_coming(host: &DocumentHost) -> bool {
     settle_lanes_for_testing();
     host.clock_ticks().published().awaits_lane
 }
@@ -1867,12 +1806,8 @@ pub unsafe extern "C" fn document_host_presented_color(
 /// Whether the mouse event with the input event id `input_event_id` is older than the newest pointer move `host`'s
 /// document knows of, and notes the id of one that is not, which the host handles: an older event moves neither the
 /// hover nor the pointer.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_mouse_event_is_outdated(host: &DocumentHost, input_event_id: u64) -> bool {
+pub extern "C" fn document_host_mouse_event_is_outdated(host: &DocumentHost, input_event_id: u64) -> bool {
     let outdated = host.mouse_event_is_outdated(input_event_id);
     if outdated && hover::logs_hover() {
         eprintln!(

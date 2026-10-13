@@ -1048,18 +1048,18 @@ mod tests {
         };
 
         // SAFETY: The host is live, on this thread.
-        unsafe { document_host_note_paint_preparation_is_current(host) };
+        document_host_note_paint_preparation_is_current(host);
         measure();
         // SAFETY: As above.
-        assert!(!unsafe { document_host_paint_preparation_is_current(host) });
+        assert!(!document_host_paint_preparation_is_current(host));
         assert!(arena.scrollable_overflow.scrollability_changed.get());
 
         // A read that measures nothing leaves the preparation as it is.
         // SAFETY: As above.
-        unsafe { document_host_note_paint_preparation_is_current(host) };
+        document_host_note_paint_preparation_is_current(host);
         measure();
         // SAFETY: As above.
-        assert!(unsafe { document_host_paint_preparation_is_current(host) });
+        assert!(document_host_paint_preparation_is_current(host));
 
         arena
             .free_subtree(viewport)
@@ -1079,7 +1079,7 @@ mod tests {
             document_host_note_paint_preparation_is_current(host);
             render_state_mark_node_box(host, 1, FfiBoxMarks::default());
         }
-        assert!(unsafe { document_host_paint_preparation_is_current(host) });
+        assert!(document_host_paint_preparation_is_current(host));
     }
 
     #[test]

@@ -1139,7 +1139,7 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     let shared = DeclarationBlock::new(original);
     assert_eq!(changed.data().properties.len(), 5);
     assert_eq!(changed.data().custom_properties.len(), 1);
-    unsafe { assert!(rust_declaration_block_remove(&mut changed, property_id::MARGIN_LEFT)) };
+    assert!(rust_declaration_block_remove(&mut changed, property_id::MARGIN_LEFT));
     assert_eq!(shared.data().properties.len(), 5);
 }
 

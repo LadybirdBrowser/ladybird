@@ -960,12 +960,8 @@ impl StyleEngine {
 /// Takes the element the style node `target` names, or none for 0, as the element the hover of `host`'s document
 /// targets, as the events of a mouse move hover it, and stages the move of the engine's hover to it for the input the
 /// host submits next, where it moves. Answers whether it does.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_request_hover(host: &crate::render_state::DocumentHost, target: u32) -> bool {
+pub extern "C" fn style_engine_request_hover(host: &crate::render_state::DocumentHost, target: u32) -> bool {
     let target = StyleNodeID::from_raw(target);
     let moves = host.request_hover(target);
     if moves {

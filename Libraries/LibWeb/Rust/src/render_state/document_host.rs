@@ -1332,23 +1332,15 @@ impl Drop for TestHost {
 /// Whether the paint and hit testing properties of `host`'s document were prepared from its render state as it is, so
 /// that preparing them again would find nothing to do: the host noted them current as it began to prepare them, and
 /// wrote nothing to the render state since, queued, in place or by a job.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_paint_preparation_is_current(host: &DocumentHost) -> bool {
+pub extern "C" fn document_host_paint_preparation_is_current(host: &DocumentHost) -> bool {
     host.paint_preparation_is_current.get()
 }
 
 /// Notes that the paint and hit testing properties of `host`'s document are current, as the host begins to prepare them:
 /// they stay current until the host writes to the render state.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_note_paint_preparation_is_current(host: &DocumentHost) {
+pub extern "C" fn document_host_note_paint_preparation_is_current(host: &DocumentHost) {
     host.paint_preparation_is_current.set(true);
 }
 
@@ -1362,13 +1354,8 @@ pub struct FfiReadScopeView {
 
 /// What a scope of a read of the render state of `host`'s document reads of `host`, which stays where it is for as long
 /// as `host` lives.
-///
-/// # Safety
-///
-/// `host` must come from [`document_host_create`] and not be destroyed yet, and what this answers is read on its
-/// document's thread only, until the host is destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_read_scope_view(host: &DocumentHost) -> FfiReadScopeView {
+pub extern "C" fn document_host_read_scope_view(host: &DocumentHost) -> FfiReadScopeView {
     FfiReadScopeView {
         waits_for_frame: host.waits_for_frame.as_ptr(),
         read: std::ptr::from_ref(&host.begun_read),
@@ -1376,33 +1363,21 @@ pub unsafe extern "C" fn document_host_read_scope_view(host: &DocumentHost) -> F
 }
 
 /// Whether the frame of `host`'s document flies, where the host has not taken it in yet, whether or not it landed.
-///
-/// # Safety
-///
-/// `host` must come from [`document_host_create`] and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_frame_flies(host: &DocumentHost) -> bool {
+pub extern "C" fn document_host_frame_flies(host: &DocumentHost) -> bool {
     host.frame_flies()
 }
 
 /// Sets the writes `host` queued aside, for the host to read its document's render state as the frame that flew last
 /// left it, until document_host_queue_writes_set_aside() queues them behind the writes it queued meanwhile.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, with no writes set aside.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_set_writes_aside(host: &DocumentHost) {
+pub extern "C" fn document_host_set_writes_aside(host: &DocumentHost) {
     host.set_writes_aside();
 }
 
 /// Queues the writes `host` set aside behind the writes it queued meanwhile.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_queue_writes_set_aside(host: &DocumentHost) {
+pub extern "C" fn document_host_queue_writes_set_aside(host: &DocumentHost) {
     host.queue_writes_set_aside();
 }
 

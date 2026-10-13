@@ -5849,7 +5849,7 @@ fn known_layout_is_up_to_date(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, document_style_node: u32) -> bool {
+pub extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, document_style_node: u32) -> bool {
     // A frame in flight, or a round that flew and is not paid yet, brings layout the host waits for. The document's
     // layout tree update marks are the frame's, so they are read only once no frame holds them.
     let Some(here) = host.layout_waits_for_no_frame() else {
@@ -5871,12 +5871,8 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, 
 
 /// Whether the host knows, without asking, that the layout of `host`'s document is not up to date: a frame brings
 /// layout it waits for, or what it knows of the render state says so.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_layout_is_known_stale(host: &DocumentHost, document_style_node: u32) -> bool {
+pub extern "C" fn render_state_layout_is_known_stale(host: &DocumentHost, document_style_node: u32) -> bool {
     let Some(here) = host.layout_waits_for_no_frame() else {
         return true;
     };

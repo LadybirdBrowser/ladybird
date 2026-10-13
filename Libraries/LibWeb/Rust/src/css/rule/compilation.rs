@@ -1273,7 +1273,7 @@ mod tests {
         drop(parsed_child);
         let child = loaded_child.unwrap();
         let host = crate::render_state::TestHost::new();
-        let add_sheet = |host: &crate::render_state::TestHost| unsafe {
+        let add_sheet = |host: &crate::render_state::TestHost| {
             crate::css::style::rule_writes::style_engine_add_sheet(
                 host.host(),
                 1,

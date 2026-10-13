@@ -1281,11 +1281,8 @@ pub unsafe fn note_custom_property_environment(
 
 /// The environment a child inherits from one the engine resolved: itself, unless a registration
 /// keeps some of its custom properties from inheriting.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_inheritable_custom_property_environment(
+pub extern "C" fn style_engine_inheritable_custom_property_environment(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     identity: u64,
@@ -2053,12 +2050,8 @@ pub enum FfiNodeRecordReads {
 /// Computes what moving an element from one final style record to another damages, from the
 /// records and the facts the engine holds of the element. The counter styles its box was built
 /// with are the host's to compare.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and both style records must
-/// remain pinned or assigned.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_element_record_damage(
+pub extern "C" fn style_engine_element_record_damage(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
@@ -2076,12 +2069,8 @@ pub unsafe extern "C" fn style_engine_element_record_damage(
 /// Computes what moving one of an element's pseudo-elements from one final style record to another
 /// damages, where either record can be zero. `counter_styles_changed` is the host's comparison of
 /// the counter styles the pseudo-element's box was built with.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and every nonzero style record
-/// must remain pinned or assigned.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_pseudo_element_record_damage(
+pub extern "C" fn style_engine_pseudo_element_record_damage(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
@@ -2778,11 +2767,8 @@ pub struct FfiNativeRuleTarget {
 }
 
 /// Issue a new identity for changed declaration contents, independently of CSSOM wrappers.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_next_declaration_block_version(host: &DocumentHost) -> u32 {
+pub extern "C" fn style_engine_next_declaration_block_version(host: &DocumentHost) -> u32 {
     host.next_declaration_block_version()
 }
 

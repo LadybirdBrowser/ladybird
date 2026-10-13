@@ -423,12 +423,8 @@ pub unsafe extern "C" fn render_state_update_visual_viewport_transform(
 }
 
 /// Starts an update pass of the compositor animations of `host`'s document, with none published.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_begin_compositor_animation_update(host: &crate::render_state::DocumentHost) {
+pub extern "C" fn render_state_begin_compositor_animation_update(host: &crate::render_state::DocumentHost) {
     host.begin_compositor_animation_update();
 }
 
@@ -453,12 +449,8 @@ pub unsafe extern "C" fn compositor_animation_effect_publish_pending(
 
 /// Ends the current update pass of the compositor animations of `host`'s document, and gives the visual context tree
 /// what its effects published where `publish_pending`, or none.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_publish_compositor_animations(
+pub extern "C" fn render_state_publish_compositor_animations(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     publish_pending: bool,
@@ -1142,11 +1134,8 @@ pub unsafe extern "C" fn layout_hit_test_visit_chrome_widgets(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_list_generation(host: &crate::render_state::DocumentHost) -> u64 {
+pub extern "C" fn layout_hit_test_list_generation(host: &crate::render_state::DocumentHost) -> u64 {
     let mut recording = host.recording();
     recording.hit_test_list().as_ref().map_or(0, |list| list.generation)
 }
@@ -1170,12 +1159,8 @@ pub unsafe extern "C" fn layout_paintable_event_dispatch_target(
     }
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread;
-/// `index` in range.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_item_facts(
+pub extern "C" fn layout_hit_test_item_facts(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     index: usize,
@@ -1203,12 +1188,8 @@ pub unsafe extern "C" fn layout_hit_test_item_facts(
     .expect("no hit-test list");
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread;
-/// `item_index` must be in range for the current hit-test list.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_resolve_hit(
+pub extern "C" fn layout_hit_test_resolve_hit(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     item_index: usize,
@@ -1390,12 +1371,8 @@ pub unsafe extern "C" fn layout_hit_test_caret_line_block_coordinate(
 
 /// The style-tree identity of the first `<area>` of the image's map, in tree order, whose shape
 /// covers the point. Zero when the image has no map, or when no shape covers the point.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_image_map_area_for_point(
+pub extern "C" fn layout_image_map_area_for_point(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,
     x: f32,

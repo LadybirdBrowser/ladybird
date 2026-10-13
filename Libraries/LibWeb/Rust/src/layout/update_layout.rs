@@ -1152,30 +1152,20 @@ pub unsafe extern "C" fn document_host_set_layout_update_host_callbacks(
     host.host_tables().layout_update_host.set(Some(callbacks));
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, with no layout update running. A document runs
-/// one layout update at a time; a nested request is a caller bug.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_begin_update_layout(host: &DocumentHost) {
+pub extern "C" fn document_host_begin_update_layout(host: &DocumentHost) {
     let running = &host.host_tables().update_layout_running;
     assert!(!running.replace(true), "a layout update is already running");
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, with a layout update running.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_end_update_layout(host: &DocumentHost) {
+pub extern "C" fn document_host_end_update_layout(host: &DocumentHost) {
     let running = &host.host_tables().update_layout_running;
     assert!(running.replace(false), "no layout update is running");
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_update_layout_is_running(host: &DocumentHost) -> bool {
+pub extern "C" fn document_host_update_layout_is_running(host: &DocumentHost) -> bool {
     host.host_tables().update_layout_running.get()
 }
 

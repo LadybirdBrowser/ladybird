@@ -1401,11 +1401,8 @@ pub unsafe extern "C" fn render_state_background_color_animation_keyframe_colors
     }
 }
 
-/// # Safety
-///
-/// The returned handle is owned by the caller until `compositor_animation_effect_state_destroy`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_state_create() -> *mut c_void {
+pub extern "C" fn compositor_animation_effect_state_create() -> *mut c_void {
     Box::into_raw(Box::new(
         crate::painting::visual_animation_builder::CompositorAnimationEffectState::default(),
     ))

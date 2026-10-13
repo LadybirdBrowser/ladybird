@@ -388,11 +388,8 @@ pub(crate) fn publish_native_rule_declarations(
 }
 
 /// Adds a sheet to the document's style engine, which cascades in `origin`, and answers the number the host gave it.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_add_sheet(
+pub extern "C" fn style_engine_add_sheet(
     host: &crate::render_state::DocumentHost,
     object: u32,
     origin: FfiCascadeOrigin,
@@ -403,14 +400,8 @@ pub unsafe extern "C" fn style_engine_add_sheet(
 }
 
 /// Begins to replace the rules of the sheet `sheet`, whose rules the host compiles again, or none.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_begin_sheet_rules_replacement(
-    host: &crate::render_state::DocumentHost,
-    sheet: u32,
-) {
+pub extern "C" fn style_engine_begin_sheet_rules_replacement(host: &crate::render_state::DocumentHost, sheet: u32) {
     host.published_rules().forget(sheet);
     host.write_rules(RuleWrite::BeginSheetRulesReplacement(sheet));
 }

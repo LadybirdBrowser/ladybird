@@ -314,12 +314,8 @@ pub unsafe extern "C" fn layout_row_bound_viewport_shell(host: &DocumentHost, re
 }
 
 /// The read of the layout node the host holds, which the host lends the entries it calls about the node's document.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, of a layout node the host holds.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_read_of_held_node(host: &DocumentHost) -> *const BegunRead {
+pub extern "C" fn layout_row_read_of_held_node(host: &DocumentHost) -> *const BegunRead {
     host.begun_read_of_held_node(node_read())
 }
 
@@ -473,12 +469,8 @@ pub unsafe extern "C" fn layout_row_has_css_transform(host: &DocumentHost, id: N
 
 /// The characters the generated text row `id` renders, as a raw `AK::Utf16String` representation for which the caller
 /// takes one reference.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `id` a live generated text row.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_generated_text(host: &DocumentHost, id: NodeSlotId) -> usize {
+pub extern "C" fn layout_row_generated_text(host: &DocumentHost, id: NodeSlotId) -> usize {
     let text = host.ask(node_read(), |state| {
         state
             .arena_mut()

@@ -144,11 +144,8 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_can_compute_client_rects_without_visual_context_update(
+pub extern "C" fn layout_script_can_compute_client_rects_without_visual_context_update(
     host: &DocumentHost,
     layout_node: NodeSlotId,
     viewport_scroll_offset_is_zero: bool,
@@ -220,12 +217,8 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, used on the document
-/// thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_text_caret_rect_in_dom_range(
+pub extern "C" fn layout_script_text_caret_rect_in_dom_range(
     host: &DocumentHost,
     primary: NodeSlotId,
     offset: usize,
@@ -248,12 +241,8 @@ pub unsafe extern "C" fn layout_script_text_caret_rect_in_dom_range(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, used on the document
-/// thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_text_caret_rect_for_position(
+pub extern "C" fn layout_script_text_caret_rect_for_position(
     host: &DocumentHost,
     primary: NodeSlotId,
     offset: usize,
@@ -287,12 +276,8 @@ pub unsafe extern "C" fn layout_script_text_caret_rect_for_position(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, used on the document
-/// thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_atomic_inline_caret_rect_for_position(
+pub extern "C" fn layout_script_atomic_inline_caret_rect_for_position(
     host: &DocumentHost,
     primary: NodeSlotId,
     after: bool,
@@ -321,12 +306,8 @@ pub unsafe extern "C" fn layout_script_atomic_inline_caret_rect_for_position(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, used on the document
-/// thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_paintable_empty_line_caret_rect(
+pub extern "C" fn layout_script_paintable_empty_line_caret_rect(
     host: &DocumentHost,
     block: NodeSlotId,
     primary: NodeSlotId,
@@ -364,11 +345,8 @@ pub unsafe extern "C" fn layout_script_paintable_empty_line_caret_rect(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_paintable_absolute_rect(
+pub extern "C" fn layout_script_paintable_absolute_rect(
     host: &DocumentHost,
     slot: NodeSlotId,
     out: &mut FfiCssPixelRect,
@@ -378,11 +356,8 @@ pub unsafe extern "C" fn layout_script_paintable_absolute_rect(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_paintable_absolute_padding_box_rect(
+pub extern "C" fn layout_script_paintable_absolute_padding_box_rect(
     host: &DocumentHost,
     slot: NodeSlotId,
     out: &mut FfiCssPixelRect,
@@ -396,11 +371,8 @@ pub unsafe extern "C" fn layout_script_paintable_absolute_padding_box_rect(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_paintable_absolute_border_box_rect(
+pub extern "C" fn layout_script_paintable_absolute_border_box_rect(
     host: &DocumentHost,
     slot: NodeSlotId,
     out: &mut FfiCssPixelRect,
@@ -416,11 +388,9 @@ pub unsafe extern "C" fn layout_script_paintable_absolute_border_box_rect(
 
 /// # Safety
 ///
-/// # Safety
-///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_paintable_box_model(
+pub extern "C" fn layout_script_paintable_box_model(
     host: &DocumentHost,
     slot: NodeSlotId,
     out: &mut FfiBoxModelMetrics,
@@ -438,11 +408,8 @@ pub unsafe extern "C" fn layout_script_paintable_box_model(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_paintable_content_size(
+pub extern "C" fn layout_script_paintable_content_size(
     host: &DocumentHost,
     slot: NodeSlotId,
     out: &mut FfiCssPixelSize,
@@ -509,12 +476,8 @@ pub unsafe extern "C" fn layout_script_rendered_text(
 
 /// The text the pseudo-element of kind `generated_for` on the element `style_node` resolved its generated content to
 /// when its box was built, as a raw `AK::Utf16String` representation for which the caller takes one reference.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_generated_content_accessible_text(
+pub extern "C" fn layout_script_generated_content_accessible_text(
     host: &DocumentHost,
     style_node: u32,
     generated_for: u8,

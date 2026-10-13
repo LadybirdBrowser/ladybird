@@ -442,13 +442,8 @@ pub(crate) fn find_matching_text(
 
 /// The DOM range of the word at `dom_offset` in the text the rows of the text node whose primary row is `primary`
 /// render, which input reads in `read` as it selects the word at a point.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and the primary and its fragments live text rows
-/// with styled parents.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_text_word_range(
+pub extern "C" fn layout_text_word_range(
     host: &crate::render_state::DocumentHost,
     primary: NodeSlotId,
     dom_offset: usize,
