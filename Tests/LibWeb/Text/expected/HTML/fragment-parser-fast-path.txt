@@ -8,4 +8,5 @@ Custom: constructor, data-value:test, connected
 Collection before: 0
 Collection after: 2, true, true, rgb(0, 128, 0)
 Contextual: 2, true, false
+Shared whitespace: "\n          x", "\ny        "
 Customized input: true, custom
