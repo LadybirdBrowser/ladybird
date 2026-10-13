@@ -26,5 +26,11 @@ liburl_rust = { path = "../../../LibURL/Rust", default-features = false }
 libweb_rust = { path = "../../Rust" }
 rustc-demangle = "0.1"
 
+[build-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+
 [lints]
 workspace = true

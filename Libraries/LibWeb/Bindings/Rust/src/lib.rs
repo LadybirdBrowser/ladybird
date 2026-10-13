@@ -48,6 +48,17 @@ pub(crate) mod streams;
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
 pub(crate) mod url_pattern;
+#[allow(dead_code, reason = "no interface is implemented with it yet")]
+pub(crate) mod web_gl;
+
+// The generators of the build script, whose tests run with those of the crate.
+#[cfg(test)]
+#[path = "../generate/webgl_constants.rs"]
+mod webgl_constants;
+#[cfg(test)]
+#[allow(dead_code, reason = "the tests do not run the writers that the model is for")]
+#[path = "../generate/webgl_wire_model.rs"]
+mod webgl_wire_model;
 
 // NB: Only C++ calls into libweb_rust, so nothing in this crate names it. Linking it keeps its extern "C" functions in
 //     the static library.
