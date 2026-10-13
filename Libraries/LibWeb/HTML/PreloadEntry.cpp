@@ -129,7 +129,7 @@ bool consume_a_preloaded_resource(
         if (consumer_body_intent == Fetch::Engine::BodyIntent::SyncAccumulate && entry->controller) {
             if (auto fetch_params = entry->controller->fetch_params()) {
                 fetch_params->set_task_destination(ParallelQueue::create());
-                fetch_params->set_algorithms(fetch_params->algorithms()->with_body_intent(consumer_body_intent));
+                fetch_params->set_body_intent(consumer_body_intent);
             }
         }
     }

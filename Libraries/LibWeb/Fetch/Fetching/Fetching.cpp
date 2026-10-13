@@ -386,7 +386,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             request.credentials_mode(),
             request.integrity_metadata(),
             on_preloaded_response_available,
-            fetch_params->algorithms()->body_intent(),
+            fetch_params->body_intent(),
             preload_reports_timing);
         fetch_params->set_preload_reports_timing(preload_reports_timing);
 
@@ -1167,7 +1167,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     auto algorithms = fetch_params.algorithms();
 
-    auto body_intent = algorithms->body_intent();
+    auto body_intent = fetch_params.body_intent();
 
     // AD-HOC: A fetch whose body intent is SyncAccumulate is a sync XHR send()
     //         (https://xhr.spec.whatwg.org/#the-send()-method, step 12) — or a preload fetch that "consume a preloaded
