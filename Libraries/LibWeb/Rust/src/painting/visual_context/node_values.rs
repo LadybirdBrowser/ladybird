@@ -832,14 +832,17 @@ pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId,
 
     let padding_box = paintable_geometry::absolute_padding_box_rect(layout_arena, slot);
     let overflow_clip_edge = overflow_clip_edge_rect(style, layout_arena, slot);
-    let extent_limit = CssPixels::from_integer(crate::css::css_pixels::MAX_INTEGER_VALUE as i64);
+    // NB: An axis that is not clipped must extend into negative coordinates too, since content can be laid out above or
+    //     to the left of the origin (e.g. inside a scroll container with flex-direction: column-reverse). Half the
+    //     range on each side keeps the rect's size from saturating.
+    let extent_limit = CssPixels::from_integer(crate::css::css_pixels::MAX_INTEGER_VALUE as i64 / 2);
     let (left, right) = match overflow_x {
-        overflow::VISIBLE => (CssPixels::from_raw(0), extent_limit),
+        overflow::VISIBLE => (-extent_limit, extent_limit),
         overflow::CLIP => (overflow_clip_edge.x, overflow_clip_edge.x + overflow_clip_edge.width),
         _ => (padding_box.x, padding_box.x + padding_box.width),
     };
     let (top, bottom) = match overflow_y {
-        overflow::VISIBLE => (CssPixels::from_raw(0), extent_limit),
+        overflow::VISIBLE => (-extent_limit, extent_limit),
         overflow::CLIP => (overflow_clip_edge.y, overflow_clip_edge.y + overflow_clip_edge.height),
         _ => (padding_box.y, padding_box.y + padding_box.height),
     };
