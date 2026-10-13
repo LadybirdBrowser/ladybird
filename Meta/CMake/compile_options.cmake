@@ -184,8 +184,8 @@ elseif (MSVC)
     # Compiler options
     # disable exceptions
     add_cxx_compile_options(/EHs-)
-    # disable floating-point expression contraction
-    add_cxx_compile_options(/fp:precise)
+    # disable floating-point expression contraction, which the default /fp:precise allows
+    add_cxx_compile_options(/clang:-ffp-contract=off)
     # reduces object size
     add_cxx_compile_options(/Zc:inline)
     # equivalent of -fvisibility-inlines-hidden
