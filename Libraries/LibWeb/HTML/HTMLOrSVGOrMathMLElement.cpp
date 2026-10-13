@@ -174,7 +174,9 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
     }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#the-autofocus-attribute
-    if (element.has_attribute(HTML::AttributeNames::autofocus)) {
+    // OPTIMIZATION: The subtree attribute name filter rules out the attribute for most elements without a lookup.
+    auto might_have_autofocus = (element.subtree_attribute_name_filter() & DOM::Element::attribute_name_filter_bit(HTML::AttributeNames::autofocus)) != 0;
+    if (might_have_autofocus && element.has_attribute(HTML::AttributeNames::autofocus)) {
         // When an element with the autofocus attribute specified is inserted into a document, run the following steps:
 
         // FIXME: 1. If the user has indicated (for example, by starting to type in a form control) that they do not
