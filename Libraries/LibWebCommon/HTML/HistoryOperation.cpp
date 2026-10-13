@@ -74,23 +74,6 @@ ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> IPC::decode(Decoder& dec
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::TraverseToStepHistoryOperationParameters const& parameters)
-{
-    TRY(encoder.encode(parameters.target_step));
-    TRY(encoder.encode(parameters.user_involvement));
-    return {};
-}
-
-template<>
-ErrorOr<Web::TraverseToStepHistoryOperationParameters> IPC::decode(Decoder& decoder)
-{
-    return Web::TraverseToStepHistoryOperationParameters {
-        .target_step = TRY(decoder.decode<i32>()),
-        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
-    };
-}
-
-template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigationAPITraverseHistoryOperationParameters const& parameters)
 {
     TRY(encoder.encode(parameters.navigable_id));
