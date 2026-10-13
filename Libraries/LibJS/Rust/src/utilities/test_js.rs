@@ -369,8 +369,7 @@ extern "C" fn handle_sigabrt(_: c_int) {
     if !set_abort_action(libc::SIG_DFL) {
         std::process::exit(1);
     }
-    // SAFETY: abort() has no preconditions.
-    unsafe { libc::abort() };
+    std::process::abort();
 }
 
 #[cfg(unix)]
