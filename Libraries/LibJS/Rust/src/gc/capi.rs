@@ -10,9 +10,12 @@ use core::ffi::{c_char, c_int, c_void};
 
 use super::class::CellTypeInfo;
 
+/// LibGC's heap, which Rust only ever refers to. It has no size and is not Unpin, so a reference to it claims nothing
+/// about the memory LibGC changes behind it.
 #[repr(C)]
 pub struct GCHeap {
     _private: [u8; 0],
+    _marker: core::marker::PhantomData<(*mut u8, core::marker::PhantomPinned)>,
 }
 
 #[repr(C)]
@@ -80,7 +83,7 @@ pub type GCCallback = unsafe extern "C" fn(context: *mut c_void);
 pub type GCGatherRootsCallback = unsafe extern "C" fn(context: *mut c_void, root_visitor: *mut GCVisitor);
 
 unsafe extern "C" {
-    pub fn gc_get_layout(layout: *mut GCLayout);
+    pub safe fn gc_get_layout(layout: &mut GCLayout);
     pub safe fn gc_heap_region_base() -> usize;
     pub safe fn gc_primitive_storage_cage_base() -> usize;
 
@@ -90,19 +93,20 @@ unsafe extern "C" {
         become_process_default: bool,
     ) -> *mut GCHeap;
     pub fn gc_heap_destroy(heap: *mut GCHeap);
-    pub fn gc_heap_collect_garbage(heap: *mut GCHeap, collection_type: i32, print_report: bool);
-    pub fn gc_heap_is_collecting_everything(heap: *const GCHeap) -> bool;
-    pub fn gc_heap_defer_gc(heap: *mut GCHeap);
-    pub fn gc_heap_undefer_gc(heap: *mut GCHeap);
-    pub fn gc_heap_should_collect_on_every_allocation(heap: *const GCHeap) -> bool;
-    pub fn gc_heap_set_should_collect_on_every_allocation(heap: *mut GCHeap, should_collect: bool);
-    pub fn gc_heap_set_incremental_sweep_enabled(heap: *mut GCHeap, enabled: bool);
+    // NB: The functions that take a reference to the heap have no other preconditions.
+    pub safe fn gc_heap_collect_garbage(heap: &GCHeap, collection_type: i32, print_report: bool);
+    pub safe fn gc_heap_is_collecting_everything(heap: &GCHeap) -> bool;
+    pub safe fn gc_heap_defer_gc(heap: &GCHeap);
+    pub safe fn gc_heap_undefer_gc(heap: &GCHeap);
+    pub safe fn gc_heap_should_collect_on_every_allocation(heap: &GCHeap) -> bool;
+    pub safe fn gc_heap_set_should_collect_on_every_allocation(heap: &GCHeap, should_collect: bool);
+    pub safe fn gc_heap_set_incremental_sweep_enabled(heap: &GCHeap, enabled: bool);
     pub fn gc_heap_uproot_cell(heap: *mut GCHeap, cell: *mut c_void);
-    pub fn gc_heap_stack_bounds(heap: *const GCHeap, base: *mut usize, top: *mut usize);
+    pub safe fn gc_heap_stack_bounds(heap: &GCHeap, base: &mut usize, top: &mut usize);
     pub fn gc_heap_enqueue_post_gc_task(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
     pub fn gc_heap_register_sweep_callback(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
-    pub fn gc_heap_did_allocate_external_memory(heap: *mut GCHeap, size: usize);
-    pub fn gc_heap_did_free_external_memory(heap: *mut GCHeap, size: usize);
+    pub safe fn gc_heap_did_allocate_external_memory(heap: &GCHeap, size: usize);
+    pub safe fn gc_heap_did_free_external_memory(heap: &GCHeap, size: usize);
 
     pub fn gc_allocator_create(
         type_info: *const CellTypeInfo,
@@ -125,7 +129,7 @@ unsafe extern "C" {
     pub fn gc_root_cell(root: *const GCRoot) -> *mut c_void;
 
     pub fn gc_heap_create_weak_impl(heap: *mut GCHeap, cell: *mut c_void) -> *mut GCWeakImpl;
-    pub fn gc_weak_impl_null() -> *mut GCWeakImpl;
+    pub safe fn gc_weak_impl_null() -> *mut GCWeakImpl;
     pub fn gc_weak_impl_ref(weak_impl: *mut GCWeakImpl);
     pub fn gc_weak_impl_unref(weak_impl: *mut GCWeakImpl);
 

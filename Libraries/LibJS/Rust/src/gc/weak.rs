@@ -33,8 +33,8 @@ impl<T> GcWeak<T> {
     }
 
     pub fn null() -> Self {
-        // SAFETY: Returns the shared null impl with a reference this value owns.
-        let weak_impl = unsafe { capi::gc_weak_impl_null() };
+        // NB: Returns the shared null impl with a reference this value owns.
+        let weak_impl = capi::gc_weak_impl_null();
         Self {
             weak_impl: NonNull::new(weak_impl).expect("LibGC has a null weak impl"),
             _cell: PhantomData,

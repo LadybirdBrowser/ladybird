@@ -460,16 +460,15 @@ pub(crate) struct DeferGc<'vm>(&'vm Vm);
 
 impl<'vm> DeferGc<'vm> {
     pub(crate) fn new(vm: &'vm Vm) -> Self {
-        // SAFETY: The VM's heap is live.
-        unsafe { capi::gc_heap_defer_gc(vm.heap().raw()) };
+        capi::gc_heap_defer_gc(vm.heap().handle());
         Self(vm)
     }
 }
 
 impl Drop for DeferGc<'_> {
     fn drop(&mut self) {
-        // SAFETY: As above; this undoes the deferral of new().
-        unsafe { capi::gc_heap_undefer_gc(self.0.heap().raw()) };
+        // NB: This undoes the deferral of new().
+        capi::gc_heap_undefer_gc(self.0.heap().handle());
     }
 }
 
