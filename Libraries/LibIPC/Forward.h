@@ -34,8 +34,8 @@ using Transport = TransportMachPort;
 class TransportSocket;
 using Transport = TransportSocket;
 #else
-class TransportSocketWindows;
-using Transport = TransportSocketWindows;
+class TransportWindows;
+using Transport = TransportWindows;
 #endif
 
 template<typename T>

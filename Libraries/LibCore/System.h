@@ -155,6 +155,10 @@ enum class PipeReadEnd : u8 {
     ReadExternally,
 };
 CORE_API ErrorOr<Array<int, 2>> pipe2(int flags, PipeReadEnd = PipeReadEnd::ReadInternally);
+#if defined(AK_OS_WINDOWS)
+// Two connected ends of a named pipe, each read and written, as socketpair() gives elsewhere.
+CORE_API ErrorOr<Array<int, 2>> duplex_pipe();
+#endif
 CORE_API ErrorOr<void> set_close_on_exec(int fd, bool enabled);
 CORE_API bool is_socket(int fd);
 

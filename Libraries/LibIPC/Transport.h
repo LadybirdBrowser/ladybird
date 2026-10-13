@@ -14,7 +14,7 @@
 #elif !defined(AK_OS_WINDOWS)
 #    include <LibIPC/TransportSocket.h>
 #else
-#    include <LibIPC/TransportSocketWindows.h>
+#    include <LibIPC/TransportWindows.h>
 #endif
 
 namespace IPC {

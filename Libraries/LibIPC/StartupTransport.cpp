@@ -32,14 +32,13 @@ ErrorOr<NonnullOwnPtr<Transport>> take_over_startup_transport(StringView mach_se
 ErrorOr<NonnullOwnPtr<Transport>> take_over_startup_transport(StringView)
 {
 #    if defined(AK_OS_WINDOWS)
-    auto broker_socket = TRY(Core::take_over_socket_from_system_server("handle-broker"));
-    broker_socket->set_notifications_enabled(false);
-    TRY(broker_socket->set_blocking(false));
-    HandleBroker::install(make<HandleBrokerClient>(make<Transport>(move(broker_socket))));
-#    endif
-
+    auto broker_transport = TRY(Transport::adopt_fd(TRY(Core::take_over_descriptor_from_system_server("handle-broker"))));
+    HandleBroker::install(make<HandleBrokerClient>(move(broker_transport)));
+    return Transport::adopt_fd(TRY(Core::take_over_descriptor_from_system_server("ipc")));
+#    else
     auto socket = TRY(Core::take_over_socket_from_system_server("ipc"));
     return make<Transport>(move(socket));
+#    endif
 }
 
 #endif

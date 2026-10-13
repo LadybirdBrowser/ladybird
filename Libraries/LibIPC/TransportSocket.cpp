@@ -54,6 +54,13 @@ ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::from_socket(NonnullOwnP
     return make<TransportSocket>(move(socket));
 }
 
+ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::adopt_fd(int fd)
+{
+    auto socket = TRY(Core::LocalSocket::adopt_fd(fd));
+    TRY(socket->set_blocking(false));
+    return make<TransportSocket>(move(socket));
+}
+
 ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
 {
     int fds[2] {};
