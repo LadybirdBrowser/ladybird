@@ -1,0 +1,9 @@
+Ladybird stops a fetch’s network request when the fetch is aborted or
+terminated, not only when an element stops it, so an aborted request’s
+callbacks stop rooting the fetch’s realm. Blink does the same:
+FetchManager::Loader::Abort() cancels the loader’s ThreadableLoader, and
+XMLHttpRequest::InternalAbort() cancels the XHR’s loader. So does
+WebKit, where FetchLoader::stop() and XMLHttpRequest::abort() cancel
+their loaders. And Gecko’s FetchDriver::RunAbortAlgorithm() and
+XMLHttpRequestMainThread::CloseRequest() cancel the channel, with
+NS_BINDING_ABORTED as the reason.
