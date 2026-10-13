@@ -1,0 +1,3 @@
+Compared 22 documents
+Body: ul, 0, 2, true
+Adopted: 2, 0

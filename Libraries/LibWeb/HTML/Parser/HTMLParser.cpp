@@ -1340,6 +1340,12 @@ Utf16FlyString const* supported_fragment_tag(ReadonlySpan<CharT> name)
     }
 }
 
+// The whitespace the scanner skips between attributes and the tree builder drops before the html element.
+constexpr bool is_fragment_whitespace(u32 code_unit)
+{
+    return code_unit == ' ' || code_unit == '\t' || code_unit == '\n' || code_unit == '\f';
+}
+
 template<typename CharT>
 class FragmentScanner {
 public:
@@ -1472,7 +1478,7 @@ private:
 
     void skip_whitespace()
     {
-        while (peek() == ' ' || peek() == '\t' || peek() == '\n' || peek() == '\f')
+        while (is_fragment_whitespace(peek()))
             ++m_offset;
     }
 
@@ -1490,12 +1496,18 @@ private:
 
 }
 
-template<typename CharT>
-static bool parse_fast_fragment_into_detached_nodes(DOM::Element& context, ReadonlySpan<CharT> source, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes)
-{
-    if (!FragmentScanner<CharT> { source }.parse([](auto const&, auto, bool) { }, [] { }, [](auto) { }))
-        return false;
+static void insert_node_for_parser(DOM::Node& parent, DOM::Node& node, DOM::Node* child);
 
+template<typename CharT>
+static bool can_parse_fragment_fast(ReadonlySpan<CharT> source)
+{
+    return FragmentScanner<CharT> { source }.parse([](auto const&, auto, bool) { }, [] { }, [](auto) { });
+}
+
+// Builds the nodes of source, which can_parse_fragment_fast() has accepted, for parsing in context.
+template<typename CharT>
+static void build_fast_fragment_into_detached_nodes(DOM::Element& context, ReadonlySpan<CharT> source, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes)
+{
     auto& document = context.document();
     auto registry = look_up_a_custom_element_registry(context);
     GC::RootVector<GC::Ref<DOM::Node>, 32> parents;
@@ -1529,7 +1541,24 @@ static bool parse_fast_fragment_into_detached_nodes(DOM::Element& context, Reado
             append(DOM::Text::create(document, text_node_data_from_span(text)));
         });
     VERIFY(success);
-    return true;
+}
+
+template<typename Callback>
+static decltype(auto) with_code_unit_span(Utf16View input, Callback&& callback)
+{
+    if (input.has_ascii_storage())
+        return callback(ReadonlySpan<char> { input.ascii_span().data(), input.length_in_code_units() });
+    return callback(input.utf16_span());
+}
+
+static bool can_parse_fragment_fast_in_context(DOM::Element const& context)
+{
+    if (context.namespace_uri() != Namespace::HTML || context.document().is_xml_document())
+        return false;
+    if (!context.local_name().is_one_of(TagNames::body, TagNames::div, TagNames::span, TagNames::ul, TagNames::ol,
+            TagNames::li, TagNames::footer, TagNames::button, TagNames::label, TagNames::p))
+        return false;
+    return !context.first_ancestor_of_type<HTMLFormElement>();
 }
 
 bool HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& context, Utf16View input, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes)
@@ -1542,17 +1571,63 @@ bool HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& 
     //               Nothing can observe the skipped steps: the nodes are new, so no script, observer, live range or
     //               collection can reach them, and the children changed steps of a new element have nothing to update.
     VERIFY(top_level_nodes.is_empty());
-    if (context.namespace_uri() != Namespace::HTML || context.document().is_xml_document())
+    if (!can_parse_fragment_fast_in_context(context))
         return false;
-    if (!context.local_name().is_one_of(TagNames::body, TagNames::div, TagNames::span, TagNames::ul, TagNames::ol,
-            TagNames::li, TagNames::footer, TagNames::button, TagNames::label, TagNames::p))
-        return false;
-    if (context.first_ancestor_of_type<HTMLFormElement>())
+    return with_code_unit_span(input, [&](auto source) {
+        if (!can_parse_fragment_fast(source))
+            return false;
+        build_fast_fragment_into_detached_nodes(context, source, top_level_nodes);
+        return true;
+    });
+}
+
+bool HTMLParser::try_parse_document_fast(DOM::Document& document, Utf16View input)
+{
+    // OPTIMIZATION: Markup without a doctype whose content is in the fragment fast path's subset of in-body markup,
+    //               such as a template given to DOMParser, gets the same document as from the tree builder: the
+    //               document is in quirks mode, leading whitespace is dropped, and an html element holds an empty head
+    //               and a body with the content. Like innerHTML's fast path, the nodes below each top-level node of the
+    //               content are linked without the insertion steps, which inserting that node into the body then runs
+    //               for its whole subtree. No parser is created, so the input is not copied into a tokenizer that
+    //               would keep it for as long as the document keeps its parser.
+    //               Nothing can observe the difference, since no script runs while the document is parsed.
+    if (document.has_children() || document.parser_cannot_change_the_mode() || document.is_xml_document())
         return false;
 
-    if (input.has_ascii_storage())
-        return parse_fast_fragment_into_detached_nodes(context, ReadonlySpan<char> { input.ascii_span().data(), input.length_in_code_units() }, top_level_nodes);
-    return parse_fast_fragment_into_detached_nodes(context, input.utf16_span(), top_level_nodes);
+    // NB: The tree builder drops whitespace before the html element, and leaves carriage returns to the scanner,
+    //     which rejects them.
+    size_t content_start = 0;
+    while (content_start < input.length_in_code_units() && is_fragment_whitespace(input.code_unit_at(content_start)))
+        ++content_start;
+    auto content = input.substring_view(content_start);
+
+    auto can_parse_content = with_code_unit_span(content, [](auto source) { return can_parse_fragment_fast(source); });
+    if (!can_parse_content)
+        return false;
+
+    // NB: These are what creating the parser for a decoded string and running it would have set.
+    document.set_encoding("UTF-8"_utf16);
+    document.set_source(Utf16String::from_utf16(input));
+    document.set_quirks_mode(DOM::QuirksMode::Yes);
+
+    auto registry = look_up_a_custom_element_registry(document);
+    auto create_html_element = [&](Utf16FlyString const& local_name) {
+        return MUST(DOM::create_element(document, local_name, Namespace::HTML, {}, {}, false, registry));
+    };
+    auto html = create_html_element(TagNames::html);
+    insert_node_for_parser(document, html, nullptr);
+    insert_node_for_parser(html, create_html_element(TagNames::head), nullptr);
+    auto body = create_html_element(TagNames::body);
+    insert_node_for_parser(html, body, nullptr);
+    VERIFY(can_parse_fragment_fast_in_context(body));
+
+    GC::RootVector<GC::Ref<DOM::Node>> body_children;
+    with_code_unit_span(content, [&](auto source) { build_fast_fragment_into_detached_nodes(*body, source, body_children); });
+    for (auto child : body_children)
+        insert_node_for_parser(body, child, nullptr);
+
+    the_end(document, parserless_completion_token(document));
+    return true;
 }
 
 GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Element& context, Utf16View input)

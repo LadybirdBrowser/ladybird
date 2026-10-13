@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const samples = [
+        '', ' \n\t\f', 'plain text\n\t', '\n  leading whitespace<div>x</div>\n  ',
+        '<li class="" data-id="item" data-priority="1"><div class="view"><input class="toggle" type="checkbox" checked><label>Todo 1</label><button class="destroy"></button></div><input class="edit" value="Todo 1"></li>\n',
+        '\n    <li data-id="1"><label>日本語のテキスト 😀</label><input class="edit" value="Купить молоко"></li>\n    ',
+        '<span><strong>42</strong> items left</span><ul><li><a class="selected" href="#/all">All</a></li></ul>',
+        '<input value="initial" type="text"><input checked type="checkbox" value="yes">',
+        '<div>unclosed', '<b>one<i>two</b>three</i>', '<li>one<li>two</li></li>',
+        '\r\n<div>carriage return</div>', '<div title="a&amp;b">&lt;</div>', '<div>lone \ud800 surrogate</div>',
+        '<!DOCTYPE html><div>doctype</div>', '<html><body><div>explicit</div></body></html>',
+        '<head></head><div>head</div>', '<body class="b"><div>body</div>', '<title>t</title><div>title</div>',
+        '<script>1</scr' + 'ipt><div>script</div>', '<p>paragraph</p>', '<table><tr><td>cell</td></tr></table>',
+    ];
+    const marker = 'force general parser';
+    const parser = new DOMParser();
+    const describe = doc => {
+        const inputs = [...doc.querySelectorAll('input')].map(input => `${input.type}:${input.value}:${input.checked}`);
+        return JSON.stringify([doc.documentElement.outerHTML, doc.childNodes.length, doc.compatMode, doc.characterSet,
+            doc.contentType, doc.readyState, doc.URL === document.URL, inputs]);
+    };
+    let comparisons = 0;
+    for (const markup of samples) {
+        const actual = parser.parseFromString(markup, 'text/html');
+        // A trailing comment forces the general parser without changing the rest of the document.
+        const reference = parser.parseFromString(markup + `<!--${marker}-->`, 'text/html');
+        const walker = reference.createTreeWalker(reference, NodeFilter.SHOW_COMMENT);
+        while (walker.nextNode()) {
+            if (walker.currentNode.data === marker) {
+                walker.currentNode.remove();
+                break;
+            }
+        }
+        if (describe(actual) !== describe(reference))
+            throw new Error(`${JSON.stringify(markup)}: ${describe(actual)} != ${describe(reference)}`);
+        ++comparisons;
+    }
+    println(`Compared ${comparisons} documents`);
+
+    const doc = parser.parseFromString('<ul><li class="item"><span>a</span></li><li class="item">b</li></ul>', 'text/html');
+    println(`Body: ${doc.body.firstChild.localName}, ${doc.head.childNodes.length}, ${doc.getElementsByClassName('item').length}, ${doc.querySelector('li > span').isConnected}`);
+    const container = document.createElement('div');
+    document.body.append(container);
+    container.replaceChildren(...doc.body.childNodes);
+    println(`Adopted: ${container.querySelectorAll('li.item').length}, ${doc.body.childNodes.length}`);
+});
+</script>
