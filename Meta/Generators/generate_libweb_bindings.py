@@ -27,6 +27,7 @@ from Generators.libweb_bindings.intrinsics import write_exposed_interface_implem
 from Generators.libweb_bindings.intrinsics import write_intrinsic_definitions_header
 from Generators.libweb_bindings.intrinsics import write_intrinsic_definitions_implementation
 from Generators.libweb_bindings.intrinsics import write_wrapper_factory_implementation
+from Generators.libweb_bindings.rust_usage import DefinitionUsage
 from Generators.libweb_bindings.structured_serialize import write_structured_serialize_bindings_implementation
 from Generators.libweb_bindings.to_idl_value import dictionaries_in_dependency_order
 from Generators.libweb_bindings.to_idl_value import write_dictionary_conversion
@@ -102,7 +103,7 @@ def write_common_enumerations_header(out: TextIO, module: Module) -> None:
     out.write("} // namespace Web::Bindings\n")
 
 
-def write_idl_header(out: TextIO, module: Module, context: GenerationContext) -> None:
+def write_idl_header(out: TextIO, module: Module, context: GenerationContext, usage: DefinitionUsage) -> None:
     includes = GeneratedIncludes(local_type_names(module))
     body = StringIO()
 
@@ -118,8 +119,8 @@ def write_idl_header(out: TextIO, module: Module, context: GenerationContext) ->
         write_enumeration_declaration(body, enumeration, includes)
         write_enumeration_to_javascript_value_declaration(body, enumeration, includes)
 
-    # NB: The dictionaries of an interface implemented in Rust only exist in its Rust bindings.
-    for dictionary in dictionaries_in_dependency_order(rust_bindings.cpp_dictionaries(module), context):
+    # NB: A dictionary that only the bindings of the interfaces implemented in Rust convert has no C++ representation.
+    for dictionary in dictionaries_in_dependency_order(usage.cpp_dictionaries(module), context):
         write_dictionary_declaration(body, dictionary, includes, context)
         write_dictionary_to_javascript_value_declaration(body, dictionary)
 
@@ -130,7 +131,7 @@ def write_idl_header(out: TextIO, module: Module, context: GenerationContext) ->
     out.write("} // namespace Web::Bindings\n")
 
 
-def write_idl_implementation(out: TextIO, module: Module, context: GenerationContext) -> None:
+def write_idl_implementation(out: TextIO, module: Module, context: GenerationContext, usage: DefinitionUsage) -> None:
     includes = GeneratedIncludes(local_type_names(module))
     includes.add_binding(module.path.stem)
     body = StringIO()
@@ -144,7 +145,7 @@ def write_idl_implementation(out: TextIO, module: Module, context: GenerationCon
         write_enumeration_conversion(body, enumeration, includes)
         write_enumeration_to_javascript_value_conversion(body, enumeration)
 
-    for dictionary in rust_bindings.cpp_dictionaries(module):
+    for dictionary in usage.cpp_dictionaries(module):
         write_dictionary_conversion(body, dictionary, includes, context)
         write_dictionary_to_javascript_value_conversion(body, dictionary, includes, context)
 
@@ -175,7 +176,7 @@ def write_global_mixin_idl_header(out: TextIO, interface, context: GenerationCon
     out.write("} // namespace Web::Bindings\n")
 
 
-def write_forward_header(out: TextIO, modules: List[Module]) -> None:
+def write_forward_header(out: TextIO, modules: List[Module], usage: DefinitionUsage) -> None:
     out.write(
         """#pragma once
 
@@ -208,7 +209,7 @@ def write_forward_header(out: TextIO, modules: List[Module]) -> None:
 """
         )
 
-    dictionary_names = {dictionary.name for module in modules for dictionary in rust_bindings.cpp_dictionaries(module)}
+    dictionary_names = {dictionary.name for module in modules for dictionary in usage.cpp_dictionaries(module)}
 
     out.write(
         """namespace Web::Bindings {
@@ -268,8 +269,11 @@ def main() -> int:
     context = GenerationContext(modules)
     modules = context.modules
 
+    usage = DefinitionUsage(context)
+    interface_sets = collect_interface_sets(modules)
+
     try:
-        rust_bindings.check_rust_bindings(context, modules)
+        rust_bindings.check_rust_bindings(context, usage, interface_sets.intrinsics)
     except rust_bindings.UnsupportedByRustBindings as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -282,15 +286,13 @@ def main() -> int:
         implementation_path = output_directory / f"{path.stem}.cpp"
 
         common_header_path = common_output_directory / f"{path.stem}.h"
-        write_generated_file(header_path, write_idl_header, module, context)
-        write_generated_file(implementation_path, write_idl_implementation, module, context)
+        write_generated_file(header_path, write_idl_header, module, context, usage)
+        write_generated_file(implementation_path, write_idl_implementation, module, context, usage)
         write_generated_file(common_header_path, write_common_enumerations_header, module)
         output_files.append(common_header_path)
 
         output_files.append(header_path)
         output_files.append(implementation_path)
-
-    interface_sets = collect_interface_sets(modules)
 
     intrinsic_definitions_header_path = output_directory / "IntrinsicDefinitions.h"
     intrinsic_definitions_implementation_path = output_directory / "IntrinsicDefinitions.cpp"
@@ -323,7 +325,7 @@ def main() -> int:
         output_files.append(exposed_interface_implementation_path)
 
     forward_header_path = output_directory / "Forward.h"
-    write_generated_file(forward_header_path, write_forward_header, modules)
+    write_generated_file(forward_header_path, write_forward_header, modules, usage)
     output_files.append(forward_header_path)
 
     for global_mixin_interface_name in (
@@ -349,7 +351,7 @@ def main() -> int:
 
     rust_bindings_path = output_directory / "RustBindings.rs"
     write_generated_file(
-        rust_bindings_path, rust_bindings.write_rust_bindings, context, modules, interface_sets.intrinsics
+        rust_bindings_path, rust_bindings.write_rust_bindings, context, usage, interface_sets.intrinsics
     )
     output_files.append(rust_bindings_path)
 
