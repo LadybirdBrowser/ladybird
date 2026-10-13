@@ -88,8 +88,8 @@ impl JitEntryTable {
 
     #[cfg(feature = "address-sanitizer")]
     fn code_start(&self) -> *const c_void {
-        // SAFETY: The offset is inside the mapping.
-        unsafe { self.base.as_ptr().add(JIT_ENTRY_TABLE_CODE_OFFSET).cast() }
+        // NB: The offset is inside the mapping.
+        self.base.as_ptr().wrapping_add(JIT_ENTRY_TABLE_CODE_OFFSET).cast()
     }
 
     /// The address of the entries, which JIT code embeds.

@@ -38,8 +38,7 @@ impl InterpreterStackMemory {
         InterpreterStack {
             base: Cell::new(base),
             top: Cell::new(base),
-            // SAFETY: The end of the allocation is in bounds.
-            limit: Cell::new(unsafe { base.add(Self::SIZE) }),
+            limit: Cell::new(base.wrapping_add(Self::SIZE)),
             next_frame_id: Cell::new(1),
         }
     }
