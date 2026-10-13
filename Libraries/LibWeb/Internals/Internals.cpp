@@ -1578,7 +1578,7 @@ GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
     navigable->page().history_executor().request_history_operation(
         FlushSessionHistoryTraversalQueueOperationParameters {},
         {
-            .on_complete = GC::create_function(heap(), [&realm, promise](Web::HTML::HistoryStepResult) {
+            .on_complete = GC::create_function(heap(), [&realm, promise] {
                 HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::resolve_promise(promise);
             }),

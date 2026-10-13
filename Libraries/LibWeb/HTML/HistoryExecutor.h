@@ -44,7 +44,9 @@ public:
         GC::Ptr<DOM::Document> pending_document {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
-        GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
+        GC::Ptr<GC::Function<void()>> on_complete {};
+        GC::Ptr<OnApplyHistoryStepComplete> on_apply_history_step_complete {};
+        GC::Ptr<GC::Function<void()>> on_navigation_api_traversal_rejected {};
 
         // State retained between a changing job and its continuation, null until the claiming job is ready.
         HashMap<CrossProcessId, GC::Ptr<ChangingNavigableContinuationState>> changing_navigable_continuations {};
@@ -55,7 +57,9 @@ public:
     CrossProcessId request_history_operation(HistoryOperationParameters, HistoryOperationState);
     // Takes back a requested operation the UI process has not started.
     void revoke_history_operation(CrossProcessId operation_id);
-    void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> target_entry_step);
+    void complete_ui_history_operation(CrossProcessId operation_id, Optional<i32> target_entry_step);
+    void did_apply_ui_history_step(CrossProcessId operation_id, HistoryStepResult);
+    void reject_ui_navigation_api_traversal(CrossProcessId operation_id);
 
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);

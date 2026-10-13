@@ -1384,16 +1384,13 @@ void CanonicalNavigable::cancel_navigation_for_client(WebContentClient& client)
         end_navigation(*navigation);
 }
 
-// The history operation finalizing a navigation is over. The document populated for it, if it was not activated, is not
-// going to be.
-void CanonicalNavigable::did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::HistoryStepResult result)
+// The history operation finalizing a navigation is over.
+void CanonicalNavigable::did_finish_finalizing_navigation(Utf16String const& navigation_id)
 {
     auto navigation = navigation_with_id(navigation_id);
     if (!navigation || !navigation->is_finalizing())
         return;
     end_navigation(*navigation);
-    if (result != Web::HTML::HistoryStepResult::Applied && m_active_document_load.navigation_id == navigation_id)
-        clear_active_document_load();
 }
 
 void CanonicalNavigable::did_cancel_navigation(Utf16String navigation_id)
@@ -1408,8 +1405,9 @@ void CanonicalNavigable::did_cancel_navigation(Utf16String navigation_id)
 
     if (!is_tracked_load || !is_top_level_traversable())
         return;
+    // A navigation being finalized that is canceled never activates its document, like an uncommitted one.
     if (auto view = top_level_traversable().view(); view.has_value())
-        view->did_cancel_loading({}, canceled_uncommitted_navigation);
+        view->did_cancel_loading({}, navigation != nullptr);
 }
 
 Optional<Utf16String> CanonicalNavigable::tracked_load_navigation_id() const

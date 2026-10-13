@@ -70,6 +70,8 @@ void HistoryExecutor::visit_edges(Cell::Visitor& visitor)
     for (auto& operation : m_history_operations) {
         visitor.visit(operation.value.pending_document);
         visitor.visit(operation.value.on_complete);
+        visitor.visit(operation.value.on_apply_history_step_complete);
+        visitor.visit(operation.value.on_navigation_api_traversal_rejected);
         for (auto& population : operation.value.pending_populations)
             visitor.visit(population.value);
         for (auto& continuation : operation.value.changing_navigable_continuations)
@@ -109,7 +111,7 @@ void HistoryExecutor::revoke_history_operation(CrossProcessId operation_id)
         m_page->client().page_did_revoke_history_operation(operation_id);
 }
 
-void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult result, Optional<i32> target_entry_step)
+void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id, Optional<i32> target_entry_step)
 {
     auto operation = m_history_operations.take(operation_id);
     if (!operation.has_value())
@@ -131,7 +133,21 @@ void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id,
         }
     }
     if (operation->on_complete)
-        operation->on_complete->function()(result);
+        operation->on_complete->function()();
+}
+
+void HistoryExecutor::did_apply_ui_history_step(CrossProcessId operation_id, HistoryStepResult result)
+{
+    auto* operation = find_history_operation(operation_id);
+    if (operation && operation->on_apply_history_step_complete)
+        operation->on_apply_history_step_complete->function()(result);
+}
+
+void HistoryExecutor::reject_ui_navigation_api_traversal(CrossProcessId operation_id)
+{
+    auto* operation = find_history_operation(operation_id);
+    if (operation && operation->on_navigation_api_traversal_rejected)
+        operation->on_navigation_api_traversal_rejected->function()();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta

@@ -801,7 +801,19 @@ void ConnectionFromClient::update_nonchanging_navigable_history_state(Web::PageI
     }));
 }
 
-void ConnectionFromClient::complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> target_entry_step, u64 session_history_entry_count)
+void ConnectionFromClient::history_step_applied(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().history_executor().did_apply_ui_history_step(operation_id, result);
+}
+
+void ConnectionFromClient::reject_navigation_api_traversal(Web::PageId page_id, Web::HTML::CrossProcessId operation_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().history_executor().reject_ui_navigation_api_traversal(operation_id);
+}
+
+void ConnectionFromClient::complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<i32> target_entry_step, u64 session_history_entry_count)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -809,7 +821,7 @@ void ConnectionFromClient::complete_history_operation(Web::PageId page_id, Web::
 
     if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()))
         traversable->set_session_history_entry_count(session_history_entry_count);
-    page->page().history_executor().complete_ui_history_operation(operation_id, result, target_entry_step);
+    page->page().history_executor().complete_ui_history_operation(operation_id, target_entry_step);
 }
 
 void ConnectionFromClient::set_viewport(Web::PageId page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen)

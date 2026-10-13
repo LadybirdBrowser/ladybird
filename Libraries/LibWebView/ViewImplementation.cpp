@@ -517,20 +517,13 @@ void ViewImplementation::did_apply_top_level_history_traversal_step(Web::HTML::C
     complete_webdriver_history_traversal(operation_id);
 }
 
-void ViewImplementation::did_finish_history_traversal(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result)
+void ViewImplementation::did_finish_history_traversal(Web::HTML::CrossProcessId operation_id)
 {
-    if (result == Web::HTML::HistoryStepResult::Applied) {
-        if (auto const* current_entry = traversable().session_history().current_entry())
-            set_url(current_entry->url);
-    }
-
     complete_webdriver_history_traversal(operation_id);
     update_navigation_action_state();
     if (on_browser_history_traversal_complete)
         on_browser_history_traversal_complete();
-    dump_session_history(result == Web::HTML::HistoryStepResult::Applied
-            ? "webcontent-history-step-applied"sv
-            : "webcontent-history-step-canceled"sv);
+    dump_session_history("webcontent-history-traversal-complete"sv);
 }
 
 Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::session_history_traversal_menu_items(int direction) const
@@ -2488,10 +2481,10 @@ void ViewImplementation::did_start_navigation()
     dump_session_history("did-start-navigation"sv);
 }
 
-void ViewImplementation::did_cancel_loading(Badge<CanonicalNavigable>, bool canceled_ongoing_navigation)
+void ViewImplementation::did_cancel_loading(Badge<CanonicalNavigable>, bool canceled_navigation)
 {
     set_loading_state(false);
-    if (canceled_ongoing_navigation)
+    if (canceled_navigation)
         did_end_uncommitted_navigation("did-cancel-navigation"sv);
     else if (m_webdriver_navigation_observation.has_value())
         complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
@@ -3206,7 +3199,7 @@ void ViewImplementation::request_history_operation(Badge<WebContentPage>, WebCon
             return parameters.navigable_id == traversable().id();
         },
         [](auto const&) { return false; });
-    auto requested_operation_completion = [this, reloads_top_level, finalizes_top_level_cross_document_navigation](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+    auto on_history_step_applied = [this, reloads_top_level, finalizes_top_level_cross_document_navigation](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
         if (reloads_top_level && result != Web::HTML::HistoryStepResult::Applied && !traversable().tracked_load_navigation_id().has_value()) {
             set_loading_state(false);
             if (m_webdriver_navigation_observation.has_value())
@@ -3221,7 +3214,7 @@ void ViewImplementation::request_history_operation(Badge<WebContentPage>, WebCon
         dump_session_history("requested-history-operation-complete"sv);
     };
 
-    traversable().enqueue_history_operation(operation_id, move(parameters), requesting_page, sequence_number, move(requested_operation_completion));
+    traversable().enqueue_history_operation(operation_id, move(parameters), requesting_page, sequence_number, move(on_history_step_applied));
 }
 
 void ViewImplementation::did_reset_session_history_for_testing(

@@ -24,11 +24,6 @@ enum class HistoryStepResult {
     InitiatorDisallowed,
     CanceledByBeforeUnload,
     CanceledByNavigate,
-    // AD-HOC: This is an internal result used when WebContent no longer has the requested page.
-    CanceledByMissingPage,
-    // AD-HOC: An internal result for when the canonical session history has no entry matching the
-    //         requested operation (for example, a navigation API traversal to a pruned entry).
-    NoMatchingEntry,
     Applied,
 };
 

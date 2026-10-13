@@ -130,7 +130,7 @@ void NavigableContainer::create_new_child_navigable()
         {
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .on_complete = GC::create_function(heap(), [this, navigable](HistoryStepResult) {
+            .on_complete = GC::create_function(heap(), [this, navigable] {
                 if (navigable->has_been_destroyed() || content_navigable() != navigable)
                     return;
                 navigable->set_has_session_history_entry_and_ready_for_navigation();
