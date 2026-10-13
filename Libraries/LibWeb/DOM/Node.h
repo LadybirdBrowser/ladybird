@@ -285,6 +285,13 @@ public:
     void insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_observers = false);
     void parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child);
     void parser_append_child(GC::Ref<Node> node) { parser_insert_before(node, nullptr); }
+    // Links a node the parser has just created into a new subtree that is not yet in any tree. The caller must
+    // insert the subtree's root, which runs the insertion steps for every node of the subtree.
+    void parser_append_child_without_insertion_steps(GC::Ref<Node> node)
+    {
+        VERIFY(!is_connected() && &node->document() == &document());
+        append_child_impl(node);
+    }
     void remove(bool suppress_observers = false);
     void remove_all_children(bool suppress_observers = false);
 

@@ -1203,7 +1203,8 @@ struct FragmentAttribute {
 Utf16FlyString const* supported_fragment_tag(StringView name)
 {
     // Keep this subset deliberately small. Adding a tag requires checking its in-body tree-builder rules,
-    // its insertion steps, and interactions with every other supported tag.
+    // its insertion steps, and interactions with every other supported tag. A supported tag must not have children
+    // changed steps, since the fast path links children below a new element without running them.
     if (name == "a"sv)
         return &TagNames::a;
     if (name == "b"sv)
@@ -1393,32 +1394,41 @@ private:
 
 }
 
-GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Element& context, Utf16View input)
+bool HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(DOM::Element& context, Utf16View input, GC::RootVector<GC::Ref<DOM::Node>>& top_level_nodes)
 {
     // OPTIMIZATION: Validate a restricted in-body grammar before allocating or exposing any DOM nodes. The second
     //               pass borrows input spans and constructs elements directly, bypassing tokenization and tree building.
     //               All unsupported syntax falls back without side effects, including custom elements and foreign content.
-    if (context.namespace_uri() != Namespace::HTML || !input.has_ascii_storage())
-        return nullptr;
+    //               Like Blink and WebKit, only link the nodes below each top-level node without running the insertion
+    //               steps. The caller inserts the top-level nodes, which runs the insertion steps for every node once.
+    //               Nothing can observe the skipped steps: the nodes are new, so no script, observer, live range or
+    //               collection can reach them, and the children changed steps of a new element have nothing to update.
+    VERIFY(top_level_nodes.is_empty());
+    if (context.namespace_uri() != Namespace::HTML || context.document().is_xml_document() || !input.has_ascii_storage())
+        return false;
     if (!context.local_name().is_one_of(TagNames::body, TagNames::div, TagNames::span, TagNames::ul, TagNames::ol,
             TagNames::li, TagNames::footer, TagNames::button, TagNames::label, TagNames::p))
-        return nullptr;
+        return false;
     if (context.first_ancestor_of_type<HTMLFormElement>())
-        return nullptr;
+        return false;
 
     StringView source { input.ascii_span().data(), input.length_in_code_units() };
     // Character references and input preprocessing use the general parser.
     if (!FragmentScanner { source }.parse([](auto const&, auto, bool) { }, [] { }, [](auto) { }))
-        return nullptr;
+        return false;
 
-    auto fragment = DOM::DocumentFragment::create(context.document());
+    auto& document = context.document();
     auto registry = look_up_a_custom_element_registry(context);
     GC::RootVector<GC::Ref<DOM::Node>, 32> parents;
-    parents.append(fragment);
+    auto append = [&](GC::Ref<DOM::Node> node) {
+        if (parents.is_empty())
+            top_level_nodes.append(node);
+        else
+            parents.last()->parser_append_child_without_insertion_steps(node);
+    };
     auto success = FragmentScanner { source }.parse(
         [&](Utf16FlyString const& tag, ReadonlySpan<FragmentAttribute> attributes, bool is_void) {
-            auto& parent = *parents.last();
-            auto element = MUST(DOM::create_element(context.document(), tag, Namespace::HTML, {}, {}, false, registry));
+            auto element = MUST(DOM::create_element(document, tag, Namespace::HTML, {}, {}, false, registry));
             element->ensure_attribute_capacity(attributes.size());
             for (auto const& attribute : attributes) {
                 DOM::QualifiedName name { Utf16FlyString::from_utf8_without_validation(attribute.name), {}, {} };
@@ -1427,20 +1437,31 @@ GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Ele
             auto& html_element = as<HTMLElement>(*element);
             if (html_element.is_form_associated_element() && html_element.is_resettable())
                 html_element.reset_algorithm();
-            parent.parser_append_child(element);
+            append(element);
             if (!is_void)
                 parents.append(element);
         },
         [&] { parents.take_last(); },
         [&](StringView text) {
-            parents.last()->parser_append_child(DOM::Text::create(context.document(), Utf16String::from_utf8_without_validation(text)));
+            append(DOM::Text::create(document, Utf16String::from_utf8_without_validation(text)));
         });
     VERIFY(success);
+    return true;
+}
+
+GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Element& context, Utf16View input)
+{
+    GC::RootVector<GC::Ref<DOM::Node>> top_level_nodes;
+    if (!try_parse_html_fragment_fast_into_detached_nodes(context, input, top_level_nodes))
+        return nullptr;
+    auto fragment = DOM::DocumentFragment::create(context.document());
+    for (auto node : top_level_nodes)
+        fragment->parser_append_child(node);
     return fragment;
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View input, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View input, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode, FragmentFastPath fast_path)
 {
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
@@ -1454,7 +1475,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     VERIFY(context);
 
     // OPTIMIZATION: A validated subset of in-body fragments can be constructed directly from input spans.
-    if (target.has<GC::Ref<DOM::Element>>()) {
+    if (fast_path == FragmentFastPath::Allow && target.has<GC::Ref<DOM::Element>>()) {
         if (auto fragment = try_parse_html_fragment_fast(*context, input))
             return GC::Ref { *fragment };
     }
