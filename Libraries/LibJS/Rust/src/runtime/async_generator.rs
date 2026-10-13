@@ -117,8 +117,7 @@ impl AsyncGenerator {
     }
 
     fn as_gc(&self) -> Gc<AsyncGenerator> {
-        // SAFETY: Async generators only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     /// [[AsyncGeneratorContext]]. It lives out of line until the generator is finalized, so the pointer stays valid for

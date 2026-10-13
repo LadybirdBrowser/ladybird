@@ -216,8 +216,7 @@ impl Realm {
     }
 
     fn as_gc(&self) -> Gc<Realm> {
-        // SAFETY: Realms only exist as cells, since Realm::create() allocates every one.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     pub fn intrinsics(&self) -> Gc<Intrinsics> {

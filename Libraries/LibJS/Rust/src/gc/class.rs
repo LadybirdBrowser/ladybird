@@ -319,15 +319,27 @@ impl<T: GcCell> core::ops::Deref for crate::layout::cell::Gc<T> {
 }
 
 impl<T: GcCell> crate::layout::cell::Gc<T> {
-    /// The Gc of a cell the caller only has a reference to, like the receiver of a method.
-    ///
-    /// # Safety
-    ///
-    /// `cell` must be a cell in the heap, not a value that has yet to be allocated.
-    pub unsafe fn from_ref(cell: &T) -> Self {
-        // SAFETY: The caller guarantees that the reference is to a live cell.
-        unsafe { Self::from_non_null(core::ptr::NonNull::from(cell)) }
+    /// The Gc of a cell the caller only has a reference to, like the receiver of a method. Panics if the reference is
+    /// to a value that has yet to be allocated.
+    pub fn from_ref(cell: &T) -> Self {
+        assert!(
+            is_in_heap_region(core::ptr::from_ref(cell).addr()),
+            "a {} that has yet to be allocated is not a cell",
+            T::CLASS.name
+        );
+        // SAFETY: The reference is into the heap region, where every value of a cell type is a cell that was allocated
+        //         as one, since cells only ever embed the cell they extend, at their start.
+        let gc = unsafe { Self::from_non_null(core::ptr::NonNull::from(cell)) };
+        debug_assert!(class_of(gc).is_subclass_of(T::CLASS));
+        gc
     }
+}
+
+/// Whether `address` is in the region LibGC allocates every cell in, which has no cells before it is set up.
+pub(crate) fn is_in_heap_region(address: usize) -> bool {
+    // SAFETY: LibGC sets the base once, when it sets up the region, before any cell exists.
+    let base = unsafe { super::capi::js_heap_region_base };
+    base != 0 && address.wrapping_sub(base) as u64 <= crate::build_configuration::HEAP_REGION_OFFSET_MASK
 }
 
 impl<T> crate::layout::cell::Gc<T> {

@@ -239,8 +239,7 @@ impl NativeFunction {
     }
 
     pub fn as_native_function_gc(&self) -> Gc<NativeFunction> {
-        // SAFETY: Native functions only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 
     fn methods(&self) -> &'static NativeFunctionMethods {
@@ -444,8 +443,7 @@ impl NativeFunction {
 
 impl FunctionObject {
     pub fn as_function_object_gc(&self) -> Gc<FunctionObject> {
-        // SAFETY: Function objects only exist as cells once constructed.
-        unsafe { Gc::from_ref(self) }
+        Gc::from_ref(self)
     }
 }
 

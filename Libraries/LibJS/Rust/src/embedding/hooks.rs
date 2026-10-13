@@ -495,8 +495,7 @@ impl CompletionPayload for HandledByHost {
 
 /// The address of an object that the VM lends a hook.
 fn lent_object_into_abi(object: &Object) -> *mut JSObject {
-    // SAFETY: The VM only lends a hook objects that are cells of its heap.
-    object_into_abi(unsafe { Gc::from_ref(object) })
+    object_into_abi(Gc::from_ref(object))
 }
 
 fn ensure_can_add_private_element(vm: &Vm, object: &Object) -> ThrowCompletionOr<()> {
