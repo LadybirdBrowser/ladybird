@@ -2351,9 +2351,11 @@ impl RetainedState {
                 })
             })
             .collect::<Vec<_>>();
-        let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(
-            HostShared::as_pointer_slice(&payloads),
-        );
+        // SAFETY: Each payload was just built for its group, and the drive holds the only reference to it until
+        // ownership transfers to the catalog below.
+        let holds_image_values = unsafe {
+            crate::css::computed_values::style_group_payloads_hold_image_values(HostShared::as_pointer_slice(&payloads))
+        };
         let dependency_flags = unsafe { &*table }.publication_dependency_flags()
             | (u8::from(swap_eligible) * computed::INHERITED_GROUP_SWAP_ELIGIBLE)
             | (u8::from(holds_image_values) * computed::HOLDS_IMAGE_VALUES);

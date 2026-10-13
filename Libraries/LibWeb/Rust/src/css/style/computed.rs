@@ -1133,11 +1133,14 @@ impl ComputedGroupSets {
         // A payload nobody has interned yet is asked for its content, which is what decides its
         // identity: an equal payload built by another record is the same group, however the two
         // builds were ordered.
-        let payload_content_hash = style_group_payloads_hash(index, payload.as_ptr());
+        // SAFETY: Published style-group payloads stay live while their records do.
+        let payload_content_hash = unsafe { style_group_payloads_hash(index, payload.as_ptr()) };
         let groups = &self.groups;
         if let Some(identity) = self.groups_by_content.find(payload_content_hash, |identity, ()| {
             let group = &groups[identity];
-            group.index == index && style_group_payloads_equal(index, group.payload.as_ptr(), payload.as_ptr())
+            // SAFETY: Published style-group payloads stay live while their records do.
+            group.index == index
+                && unsafe { style_group_payloads_equal(index, group.payload.as_ptr(), payload.as_ptr()) }
         }) {
             return (identity, false);
         }
@@ -1807,7 +1810,8 @@ impl ComputedGroupSets {
             // An equal payload keeps the old identity, as a C++ build adopts its parent's and
             // predecessor's identical payloads.
             let identity = if payload == old_payload
-                || style_group_payloads_equal(group, old_payload.as_ptr(), payload.as_ptr())
+                // SAFETY: Published style-group payloads stay live while their records do.
+                || unsafe { style_group_payloads_equal(group, old_payload.as_ptr(), payload.as_ptr()) }
             {
                 canonicalized_groups += 1;
                 release_group_payload(group, payload.as_ptr());
@@ -1826,7 +1830,10 @@ impl ComputedGroupSets {
         let holds_image_values = self
             .sets
             .get_index(group_set.0 as usize)
-            .is_some_and(|set| style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(&set.payloads)));
+            // SAFETY: Published style-group payloads stay live while their records do.
+            .is_some_and(|set| unsafe {
+                style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(&set.payloads))
+            });
         let old_metadata = self.computed_fixed_metadata[old_record.fixed_metadata];
         let counter_style_environment_identity =
             counter_style_environment_identity.unwrap_or(old_metadata.counter_style_environment_identity);
@@ -2034,7 +2041,8 @@ impl ComputedGroupSets {
             .get_index(base_style_record.index())
             .expect("base style-record is live");
         let mut dependency_flags = self.computed_fixed_metadata.get(base.fixed_metadata).dependency_flags;
-        if style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(payloads)) {
+        // SAFETY: Published style-group payloads stay live while their records do.
+        if unsafe { style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(payloads)) } {
             dependency_flags |= HOLDS_IMAGE_VALUES;
         }
         if let Some(in_display_none_subtree) = in_display_none_subtree {
@@ -2392,7 +2400,8 @@ impl ComputedGroupSets {
             assert!(!payload.is_null(), "computed group payload is null");
             let previous_identity = previous_group_set.and_then(|set| self.sets[set].groups.get(index).copied());
             let previous_equal_identity = previous_identity.filter(|identity| {
-                style_group_payloads_equal(index, payload.as_ptr(), self.groups[*identity].payload.as_ptr())
+                // SAFETY: Published style-group payloads stay live while their records do.
+                unsafe { style_group_payloads_equal(index, payload.as_ptr(), self.groups[*identity].payload.as_ptr()) }
             });
             let identity = match previous_equal_identity {
                 Some(identity) => {
@@ -2776,7 +2785,9 @@ impl ComputedGroupSets {
                     .zip(second_groups.iter())
                     .enumerate()
                     .any(|(index, (&first, &second))| {
-                        first != second && !style_group_payloads_equal(index, first.as_ptr(), second.as_ptr())
+                        // SAFETY: Published style-group payloads stay live while their records do.
+                        first != second
+                            && !unsafe { style_group_payloads_equal(index, first.as_ptr(), second.as_ptr()) }
                     })
             {
                 return false;
@@ -2874,11 +2885,12 @@ impl ComputedGroupSets {
             let node_payload = node_groups[group];
             let parent_payload = parent_groups[group];
             node_payload == parent_payload
-                || crate::css::computed_values::style_group_payloads_equal(
+                // SAFETY: Published style-group payloads stay live while their records do.
+                || unsafe { crate::css::computed_values::style_group_payloads_equal(
                     group,
                     node_payload.as_ptr(),
                     parent_payload.as_ptr(),
-                )
+                ) }
         }))
     }
 
@@ -2904,11 +2916,12 @@ impl ComputedGroupSets {
         (0..ENGINE_INHERITED_GROUP_COUNT).all(|group| {
             let sampled = overlay.payloads[group];
             sampled == base_groups[group]
-                || crate::css::computed_values::style_group_payloads_equal(
+                // SAFETY: Published style-group payloads stay live while their records do.
+                || unsafe { crate::css::computed_values::style_group_payloads_equal(
                     group,
                     sampled.as_ptr(),
                     base_groups[group].as_ptr(),
-                )
+                ) }
         })
     }
 
@@ -2944,11 +2957,12 @@ impl ComputedGroupSets {
             let record_payload = record_groups[group];
             let node_payload = node_groups[group];
             record_payload == node_payload
-                || crate::css::computed_values::style_group_payloads_equal(
+                // SAFETY: Published style-group payloads stay live while their records do.
+                || unsafe { crate::css::computed_values::style_group_payloads_equal(
                     group,
                     record_payload.as_ptr(),
                     node_payload.as_ptr(),
-                )
+                ) }
         })
     }
 

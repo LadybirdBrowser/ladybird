@@ -726,10 +726,13 @@ impl StyleEngine {
         ) else {
             return true;
         };
-        crate::css::computed_values::style_group_payloads_move_image_values(
-            SharedPayload::as_pointer_slice(old),
-            SharedPayload::as_pointer_slice(new),
-        )
+        // SAFETY: Published style-group payloads stay live while their records do.
+        unsafe {
+            crate::css::computed_values::style_group_payloads_move_image_values(
+                SharedPayload::as_pointer_slice(old),
+                SharedPayload::as_pointer_slice(new),
+            )
+        }
     }
 
     /// Whether `row` owes its element no more than a moved inherited custom-property environment, which its style reads

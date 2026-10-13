@@ -782,11 +782,12 @@ fn style_payloads_equal_in_groups(a: StylePayloadsRef, b: StylePayloadsRef, comp
     (0..a.groups.len()).all(|group_index| {
         !compares(group_index)
             || a.groups[group_index] == b.groups[group_index]
-            || crate::css::computed_values::style_group_payloads_equal(
+            // SAFETY: Published style-group payloads stay live while their records do.
+            || unsafe { crate::css::computed_values::style_group_payloads_equal(
                 group_index,
                 a.groups[group_index],
                 b.groups[group_index],
-            )
+            ) }
     })
 }
 

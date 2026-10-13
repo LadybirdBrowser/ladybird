@@ -1381,7 +1381,10 @@ pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
 
 /// The style groups in `groups` whose payloads differ between two records, `[base, composed]` each: explicit
 /// inheritance reads both the base and the composition over it. `None` when a record holds fewer groups.
-pub(crate) fn changed_style_groups(
+///
+/// # Safety
+/// Every payload must be a live payload of the group at its index.
+pub(crate) unsafe fn changed_style_groups(
     old: [&[crate::css::host_shared::SharedPayload]; 2],
     new: [&[crate::css::host_shared::SharedPayload]; 2],
     groups: std::ops::Range<usize>,
@@ -1390,7 +1393,8 @@ pub(crate) fn changed_style_groups(
     for group in groups {
         for (before, after) in old.iter().zip(new.iter()) {
             let (&before, &after) = (before.get(group)?, after.get(group)?);
-            if before != after && !style_group_payloads_equal(group, before.as_ptr(), after.as_ptr()) {
+            // SAFETY: The caller guarantees live payloads of each group.
+            if before != after && !unsafe { style_group_payloads_equal(group, before.as_ptr(), after.as_ptr()) } {
                 changed |= 1 << group;
                 break;
             }
@@ -1399,11 +1403,14 @@ pub(crate) fn changed_style_groups(
     Some(changed)
 }
 
-pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b: *const c_void) -> bool {
+/// Whether two payloads of the group at `group_index` hold the same values.
+///
+/// # Safety
+/// `a` and `b` must be live payloads of the group at `group_index`.
+pub(crate) unsafe fn style_group_payloads_equal(group_index: usize, a: *const c_void, b: *const c_void) -> bool {
     assert!(!a.is_null());
     assert!(!b.is_null());
-    // SAFETY: Published style-group payloads remain live for the call and both use the registered
-    // group type at `group_index`.
+    // SAFETY: The caller guarantees live payloads of the group.
     unsafe { payloads_equal(style_group(group_index), a, b) }
 }
 
@@ -1411,12 +1418,14 @@ pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b
 /// two payloads that compare equal always hash equal, whoever built them and wherever they live.
 /// That is what lets a payload's identity be its content instead of its address. The group
 /// index is hashed with the content so payloads of different groups never share a bucket.
-pub(crate) fn style_group_payloads_hash(group_index: usize, payload: *const c_void) -> u64 {
+///
+/// # Safety
+/// `payload` must be a live payload of the group at `group_index`.
+pub(crate) unsafe fn style_group_payloads_hash(group_index: usize, payload: *const c_void) -> u64 {
     assert!(!payload.is_null());
     let mut hasher = fast_hasher();
     hasher.write_usize(group_index);
-    // SAFETY: Published style-group payloads remain live for the call and use the registered
-    // group type at `group_index`.
+    // SAFETY: The caller guarantees a live payload of the group.
     unsafe { payload_content_hash(style_group(group_index), payload, &mut hasher) };
     hasher.finish()
 }
@@ -1547,10 +1556,12 @@ unsafe fn payload_holds_image_values(group: StyleGroup, payload: *const c_void) 
 /// node loads and observes: the background and mask layers, the cursor, the border-image source and
 /// the list-style image. Nearly every style holds none, and a record answers that with one flag
 /// instead of materializing its layers to find out.
-pub(crate) fn style_group_payloads_hold_image_values(payloads: &[*const c_void]) -> bool {
+///
+/// # Safety
+/// Every non-null payload must be a live payload of the group at its index.
+pub(crate) unsafe fn style_group_payloads_hold_image_values(payloads: &[*const c_void]) -> bool {
     payloads.iter().enumerate().any(|(group_index, &payload)| {
-        // SAFETY: Published style-group payloads remain live for the call and use the registered
-        // group type at `group_index`.
+        // SAFETY: The caller guarantees live payloads of each group.
         !payload.is_null() && unsafe { payload_holds_image_values(style_group(group_index), payload) }
     })
 }
@@ -1558,7 +1569,10 @@ pub(crate) fn style_group_payloads_hold_image_values(payloads: &[*const c_void])
 /// Whether the group payloads `old` and `new`, of two records, hold different `<image>` values in the properties whose
 /// images a layout node loads and observes, by identity. Where they hold the same ones, a box that moves from one
 /// record to the other keeps the images it loads and the facts it paints them with.
-pub(crate) fn style_group_payloads_move_image_values(old: &[*const c_void], new: &[*const c_void]) -> bool {
+///
+/// # Safety
+/// Every non-null payload must be a live payload of the group at its index.
+pub(crate) unsafe fn style_group_payloads_move_image_values(old: &[*const c_void], new: &[*const c_void]) -> bool {
     old.iter()
         .zip(new)
         .enumerate()
@@ -1933,7 +1947,8 @@ pub unsafe extern "C" fn rust_style_group_payloads_equal(
     a: *const c_void,
     b: *const c_void,
 ) -> bool {
-    style_group_payloads_equal(group_index, a, b)
+    // SAFETY: The caller guarantees live payloads of the group.
+    unsafe { style_group_payloads_equal(group_index, a, b) }
 }
 
 /// One field of a style group the generic builder can populate or check: a pokeable simple field
@@ -3930,10 +3945,13 @@ mod tests {
             let default = default_group_payload(group_index);
             // SAFETY: The default payload is a live payload of its group.
             let clone = unsafe { rust_style_group_clone(group_index, default) };
-            assert!(style_group_payloads_equal(group_index, default, clone));
+            // SAFETY: The payloads are live defaults and clones of this group.
+            assert!(unsafe { style_group_payloads_equal(group_index, default, clone) });
             assert_eq!(
-                style_group_payloads_hash(group_index, default),
-                style_group_payloads_hash(group_index, clone),
+                // SAFETY: The payloads are live defaults and clones of this group.
+                unsafe { style_group_payloads_hash(group_index, default) },
+                // SAFETY: The payloads are live defaults and clones of this group.
+                unsafe { style_group_payloads_hash(group_index, clone) },
                 "a clone must hash like the payload it was copied from"
             );
             refcount_of(clone, payload_align(style_group(group_index))).store(0, Ordering::Relaxed);
@@ -3947,14 +3965,13 @@ mod tests {
         changed.border_spacing_horizontal = 17;
         let changed_payload = (&raw const changed).cast::<c_void>();
         let table_default = default_group_payload(group_index::INHERITED_TABLE);
-        assert!(!style_group_payloads_equal(
-            group_index::INHERITED_TABLE,
-            table_default,
-            changed_payload
-        ));
+        // SAFETY: The payloads are live defaults and clones of this group.
+        assert!(!unsafe { style_group_payloads_equal(group_index::INHERITED_TABLE, table_default, changed_payload) });
         assert_ne!(
-            style_group_payloads_hash(group_index::INHERITED_TABLE, table_default),
-            style_group_payloads_hash(group_index::INHERITED_TABLE, changed_payload)
+            // SAFETY: The payloads are live defaults and clones of this group.
+            unsafe { style_group_payloads_hash(group_index::INHERITED_TABLE, table_default) },
+            // SAFETY: The payloads are live defaults and clones of this group.
+            unsafe { style_group_payloads_hash(group_index::INHERITED_TABLE, changed_payload) }
         );
     }
 }

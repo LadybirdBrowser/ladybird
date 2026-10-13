@@ -1962,10 +1962,12 @@ pub(crate) fn publish_computed_groups_from_inputs(
         inherited_group_swap_candidate && table.property_inheritance_is_standard() && !table.display_is_list_item()
     });
     let holds_image_values =
-        crate::css::computed_values::style_group_payloads_hold_image_values(HostShared::as_pointer_slice(payloads))
-            || crate::css::computed_values::style_group_payloads_hold_image_values(HostShared::as_pointer_slice(
+        // SAFETY: Published style-group payloads stay live while their records do.
+        unsafe { crate::css::computed_values::style_group_payloads_hold_image_values(HostShared::as_pointer_slice(payloads)) }
+            // SAFETY: Published style-group payloads stay live while their records do.
+            || unsafe { crate::css::computed_values::style_group_payloads_hold_image_values(HostShared::as_pointer_slice(
                 animation_overlay_payloads,
-            ));
+            )) };
     let dependency_flags = longhand_table.map_or(0, |table| table.publication_dependency_flags())
         | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE)
         | (u8::from(holds_image_values) * super::computed::HOLDS_IMAGE_VALUES);
@@ -2349,7 +2351,8 @@ pub unsafe extern "C" fn style_engine_changed_style_groups(
     let (Some(old), Some(new)) = (payloads(old), payloads(new)) else {
         return u32::MAX;
     };
-    crate::css::computed_values::changed_style_groups(old, new, first_group..end_group).unwrap_or(u32::MAX)
+    // SAFETY: Published style-group payloads stay live while their records do.
+    unsafe { crate::css::computed_values::changed_style_groups(old, new, first_group..end_group) }.unwrap_or(u32::MAX)
 }
 
 /// Returns a synchronous borrowed view of a base or live animation-overlay record.
