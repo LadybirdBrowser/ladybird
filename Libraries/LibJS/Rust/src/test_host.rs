@@ -9,45 +9,20 @@
 
 use std::alloc::Layout;
 use std::collections::HashMap;
-use std::ffi::c_void;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicU32;
 
-#[unsafe(no_mangle)]
-extern "C" fn rust_compile_regex(
-    _pattern_data: *const u16,
-    _pattern_len: usize,
-    _flags_data: *const u16,
-    _flags_len: usize,
-    error_out: *mut *const u16,
-    error_len_out: *mut usize,
-) -> *mut c_void {
-    // SAFETY: The frontend passes valid out-parameters.
-    unsafe {
-        *error_out = std::ptr::null();
-        *error_len_out = 0;
-    }
-    std::ptr::null_mut()
+pub fn validate_regex(_pattern: &[u16], _flags: &[u16]) -> Result<(), String> {
+    Ok(())
 }
 
-#[unsafe(no_mangle)]
-extern "C" fn rust_free_compiled_regex(_ptr: *mut c_void) {}
-
-#[unsafe(no_mangle)]
-extern "C" fn rust_free_error_string(_str: *const u16) {}
-
-#[unsafe(no_mangle)]
-extern "C" fn rust_number_to_utf16(value: f64, buffer: *mut u16, buffer_len: usize) -> usize {
+pub fn number_to_utf16(value: f64) -> Vec<u16> {
     let text = if value.is_infinite() {
         if value > 0.0 { "Infinity" } else { "-Infinity" }.to_string()
     } else {
         value.to_string()
     };
-    let units: Vec<u16> = text.encode_utf16().collect();
-    assert!(units.len() <= buffer_len);
-    // SAFETY: The frontend passes a buffer of `buffer_len` code units.
-    unsafe { std::ptr::copy_nonoverlapping(units.as_ptr(), buffer, units.len()) };
-    units.len()
+    text.encode_utf16().collect()
 }
 
 #[unsafe(no_mangle)]
