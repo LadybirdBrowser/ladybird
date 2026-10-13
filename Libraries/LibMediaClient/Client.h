@@ -31,7 +31,6 @@ class Client final
     C_OBJECT_ABSTRACT(Client);
 
 public:
-    using InitTransport = Messages::MediaServer::InitTransport;
     using TransportFactory = Function<ErrorOr<NonnullOwnPtr<IPC::Transport>>()>;
 
     // Installed by the process that reaches the Browser, which spawns the process's MediaServer and brokers the

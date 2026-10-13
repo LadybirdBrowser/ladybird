@@ -85,11 +85,6 @@ public:
         m_connection = RequestServer::ConnectionFromClient::construct(
             move(pair.local), RequestServer::IsPrivate::No, site_binding,
             server.connections, server.request_transfer_leases, server.disk_cache);
-#ifdef AK_OS_WINDOWS
-        auto pid = Core::System::getpid();
-        m_connection->transport().set_peer_pid(pid);
-        m_remote_transport->set_peer_pid(pid);
-#endif
     }
 
     ~TestConnection()

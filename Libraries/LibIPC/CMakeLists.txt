@@ -6,6 +6,7 @@ set(SOURCES
     File.cpp
     Message.cpp
     ReceivedMessageBytes.cpp
+    StartupTransport.cpp
     TransportHandle.cpp
 )
 
@@ -25,6 +26,8 @@ elseif (UNIX)
 else()
     list(APPEND SOURCES
         Attachment.cpp
+        HandleBroker.cpp
+        HandleBrokerServer.cpp
         TransportSocketWindows.cpp)
 endif()
 

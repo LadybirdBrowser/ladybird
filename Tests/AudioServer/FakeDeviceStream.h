@@ -12,16 +12,6 @@
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
 
-// Both ends of a pair made in one process are ours, and the Windows transport has to know whose handles it duplicates.
-template<typename TransportType>
-void introduce_paired_transports(TransportType& server_side, TransportType& client_side)
-{
-    if constexpr (requires { server_side.set_peer_pid(0); }) {
-        server_side.set_peer_pid(Core::System::getpid());
-        client_side.set_peer_pid(Core::System::getpid());
-    }
-}
-
 // A device stream the test drives by hand: it records control calls and renders a callback on demand.
 class FakeDeviceStream final : public Audio::PlaybackStream {
 public:

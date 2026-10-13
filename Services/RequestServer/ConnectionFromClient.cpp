@@ -11,7 +11,6 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
-#include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Header.h>
 #include <LibHTTP/Method.h>
@@ -248,17 +247,6 @@ bool ConnectionFromClient::may_use_network_isolation_key(HTTP::NetworkIsolationK
     if (!key.frame_site.has_value())
         return m_bound_top_level_sites.contains(key.top_level_site);
     return m_bound_sites.contains(BoundSite { key.top_level_site, *key.frame_site });
-}
-
-Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
-{
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#else
-    did_misbehave("Unexpected RequestServer transport initialization");
-    return 0;
-#endif
 }
 
 static bool is_supported_protocol_name(StringView protocol)

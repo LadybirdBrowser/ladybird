@@ -28,6 +28,8 @@
 #if defined(AK_OS_WINDOWS)
 #    include <AK/ScopeGuard.h>
 #    include <AK/Windows.h>
+#    include <LibIPC/HandleBrokerServer.h>
+#    include <LibWebView/Application.h>
 #endif
 
 namespace WebView {
@@ -230,7 +232,18 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
     spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = socket_fds[1], .fd = socket_fds[1] });
 
     // NB: Only the helper gets to see this, if it has an environment of its own.
-    auto takeover_string = ByteString::formatted("{}:{}", options.name, socket_fds[1]);
+    auto takeover_string = ByteString::formatted("ipc:{}", socket_fds[1]);
+
+#    if defined(AK_OS_WINDOWS)
+    // A Windows socket cannot carry a handle, so the helper also gets a line to the Browser's handle broker.
+    int broker_socket_fds[2] {};
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, broker_socket_fds));
+    ArmedScopeGuard guard_broker_fd_0 { [&] { MUST(Core::System::close(broker_socket_fds[0])); } };
+    ArmedScopeGuard guard_broker_fd_1 { [&] { MUST(Core::System::close(broker_socket_fds[1])); } };
+    spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = broker_socket_fds[1], .fd = broker_socket_fds[1] });
+    takeover_string = ByteString::formatted("{};handle-broker:{}", takeover_string, broker_socket_fds[1]);
+#    endif
+
     if (spawn_options.environment.has_value())
         spawn_options.environment->append(ByteString::formatted("SOCKET_TAKEOVER={}", takeover_string));
     else
@@ -243,6 +256,11 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
     TRY(ipc_socket->set_blocking(true));
 
     auto transport = make<IPC::Transport>(move(ipc_socket));
+
+#    if defined(AK_OS_WINDOWS)
+    guard_broker_fd_0.disarm();
+    Application::handle_broker_server().add_child(process.pid(), broker_socket_fds[0]);
+#    endif
 #endif
 
     if (capture_output) {

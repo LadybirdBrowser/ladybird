@@ -2,7 +2,6 @@
 
 endpoint ImageDecoderServer
 {
-    init_transport(int peer_pid) => (int peer_pid)
     decode_image(Core::AnonymousBuffer data, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, i64 request_id) =|
     cancel_decoding(i64 request_id) =|
 

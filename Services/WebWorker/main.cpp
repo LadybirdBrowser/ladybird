@@ -157,10 +157,6 @@ static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHa
     auto request_client = client_id.has_value()
         ? TRY(try_make_ref_counted<Requests::RequestClient>(move(transport), *client_id))
         : TRY(try_make_ref_counted<Requests::RequestClient>(move(transport)));
-#ifdef AK_OS_WINDOWS
-    auto response = request_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
-    request_client->transport().set_peer_pid(response->peer_pid());
-#endif
     if (Web::ResourceLoader::is_initialized())
         Web::ResourceLoader::the().set_client(move(request_client));
     else
@@ -172,10 +168,6 @@ static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle
 {
     auto transport = TRY(handle.create_transport());
     auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(transport)));
-#ifdef AK_OS_WINDOWS
-    auto response = new_client->send_sync<Messages::ImageDecoderServer::InitTransport>(Core::System::getpid());
-    new_client->transport().set_peer_pid(response->peer_pid());
-#endif
     if (Web::Platform::ImageCodecPlugin::is_initialized())
         static_cast<Web::Platform::RemoteImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
     else

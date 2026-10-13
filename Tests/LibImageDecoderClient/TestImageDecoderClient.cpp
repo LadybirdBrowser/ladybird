@@ -26,11 +26,6 @@ static bool reply_is_accepted(Gfx::BitmapSequence sequence, Vector<u32> duration
     Core::EventLoop event_loop;
     auto paired = MUST(IPC::Transport::create_paired());
     auto client = adopt_ref(*new ImageDecoderClient::Client(move(paired.local)));
-#ifdef AK_OS_WINDOWS
-    // The Windows transport duplicates the handles it sends into its peer, which is this same process here.
-    client->transport().set_peer_pid(Core::System::getpid());
-#endif
-
     // The first request has token 0.
     Array<u8, 1> encoded_data { 0 };
     auto promise = client->decode_image(encoded_data, {}, {});

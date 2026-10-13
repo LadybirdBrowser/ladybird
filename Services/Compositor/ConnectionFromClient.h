@@ -39,7 +39,6 @@ private:
     virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) override;
     virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) override;
 
-    virtual Messages::CompositorControlServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
     virtual Messages::CompositorControlServer::ConnectWebContentResponse connect_web_content() override;
     virtual void create_context(Web::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;

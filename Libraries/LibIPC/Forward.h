@@ -18,6 +18,11 @@ class Encoder;
 class Message;
 class MessageBuffer;
 class File;
+class HandleBroker;
+struct HandleBrokerRequest;
+struct HandleBrokerResponse;
+class HandleBrokerServer;
+class LocalHandleBroker;
 class Stub;
 class TransportHandle;
 

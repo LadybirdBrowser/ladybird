@@ -6,7 +6,6 @@
 
 #include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
-#include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibMediaClient/Client.h>
 #include <LibMediaClient/RemoteMediaStream.h>
@@ -34,10 +33,6 @@ ErrorOr<NonnullRefPtr<Client>> Client::acquire()
 
     auto transport = TRY((*s_transport_factory)());
     auto client = TRY(try_make_ref_counted<Client>(move(transport)));
-#ifdef AK_OS_WINDOWS
-    auto response = client->send_sync<InitTransport>(Core::System::getpid());
-    client->transport().set_peer_pid(response->peer_pid());
-#endif
     *s_client = client;
     client->update_idle_timer();
     return client;

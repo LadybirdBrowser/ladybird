@@ -8,7 +8,6 @@
 #include <LibAudio/ClientConnection.h>
 #include <LibAudio/RemotePlaybackStream.h>
 #include <LibAudio/RemoteRecordStream.h>
-#include <LibCore/System.h>
 
 namespace Audio {
 
@@ -39,13 +38,6 @@ ErrorOr<NonnullRefPtr<ClientConnection>> ClientConnection::acquire()
 
     auto transport = TRY((*s_transport_factory)());
     auto connection = adopt_ref(*new ClientConnection(move(transport)));
-#ifdef AK_OS_WINDOWS
-    // A transport that already knows its peer, as one paired within a process does, needs no introduction.
-    if (connection->transport().peer_pid() == -1) {
-        auto response = connection->send_sync<Messages::AudioServer::InitTransport>(Core::System::getpid());
-        connection->transport().set_peer_pid(response->peer_pid());
-    }
-#endif
     *s_connection = connection;
     return connection;
 }

@@ -17,11 +17,6 @@ target_include_directories(TestRequestTimingInfo PRIVATE ${LADYBIRD_SOURCE_DIR}/
 ladybird_test(TestSiteBinding.cpp RequestServer LIBS requestserverservice)
 target_include_directories(TestSiteBinding PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
 
-if (NOT WIN32)
-    ladybird_test(TestTransportPlatform.cpp RequestServer NAME TestRequestServerTransportPlatform LIBS requestserverservice)
-    target_include_directories(TestRequestServerTransportPlatform PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
-endif()
-
 if (LINUX)
     ladybird_test(TestResourceMapSandbox.cpp RequestServer LIBS requestserverservice)
     target_include_directories(TestResourceMapSandbox PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)

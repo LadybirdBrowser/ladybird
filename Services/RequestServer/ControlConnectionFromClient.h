@@ -36,8 +36,6 @@ public:
 private:
     ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RequestServer::ConnectionFromClient::ConnectionMap&, RequestServer::ConnectionFromClient::RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>);
 
-    virtual Messages::RequestServerControl::InitTransportResponse init_transport(int peer_pid) override;
-
     virtual Messages::RequestServerControl::ConnectNewClientResponse connect_new_client(IsPrivate, SiteBinding) override;
     virtual Messages::RequestServerControl::ConnectNewClientsResponse connect_new_clients(size_t count, IsPrivate, SiteBinding) override;
     virtual void bind_client_to_site(int client_id, Utf16String top_level_site, Optional<Utf16String> frame_site) override;

@@ -9,7 +9,6 @@
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
-#include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
@@ -142,11 +141,6 @@ intptr_t FontServiceClient::thread_main()
     }
     if (!connection)
         return 1;
-
-#ifdef AK_OS_WINDOWS
-    if (auto response = connection->send_sync_but_allow_failure<Messages::FontServer::InitTransport>(Core::System::getpid()))
-        connection->transport().set_peer_pid(response->peer_pid());
-#endif
 
     for (;;) {
         Question const* question = nullptr;

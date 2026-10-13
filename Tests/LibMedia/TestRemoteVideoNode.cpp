@@ -349,12 +349,6 @@ TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
     auto paired = MUST(IPC::Transport::create_paired());
     auto server = VideoPresentationServerConnection::construct(move(paired.local));
     auto client = adopt_ref(*new VideoPresentationClientConnection(MUST(paired.remote_handle.create_transport())));
-#ifdef AK_OS_WINDOWS
-    auto pid = Core::System::getpid();
-    server->transport().set_peer_pid(pid);
-    client->transport().set_peer_pid(pid);
-#endif
-
     bool edge_ready = false;
     client->create_edge(handle, [&](NonnullRefPtr<DisplayingVideoSink>) {
         edge_ready = true;

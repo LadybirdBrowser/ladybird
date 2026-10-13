@@ -416,8 +416,11 @@ void MessagePort::drain_transport()
         m_pending_incoming_messages.append(MUST(decoder.decode<SerializedTransferRecord>()));
     });
 
-    if (schedule_shutdown == IPC::Transport::ShouldShutdown::Yes)
+    // The peer is gone, so nothing more arrives; the pending messages are delivered once the port is enabled.
+    if (schedule_shutdown == IPC::Transport::ShouldShutdown::Yes) {
         m_should_shutdown_on_enable = true;
+        m_transport->close();
+    }
 }
 
 void MessagePort::post_port_message(SerializedTransferRecord const& serialize_with_transfer_result)

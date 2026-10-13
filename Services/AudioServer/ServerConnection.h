@@ -50,7 +50,6 @@ private:
     void remove_record_streams();
     void stop_listening_for_device_changes();
 
-    virtual Messages::AudioServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void create_stream(u64 stream_id) override;
     virtual void destroy_stream(u64 stream_id) override;
     virtual void attach_stream_ring(u64 stream_id, SharedAudioFrameRing ring) override;

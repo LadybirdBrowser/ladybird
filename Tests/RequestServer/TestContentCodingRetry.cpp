@@ -107,11 +107,6 @@ TEST_CASE(content_coding_retry_keeps_client_supplied_cookie_header)
     auto remote_transport = MUST(pair.remote_handle.create_transport());
     auto connection = RequestServer::ConnectionFromClient::construct(
         move(pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted, connections, request_transfer_leases, Optional<HTTP::DiskCache&> {});
-#ifdef AK_OS_WINDOWS
-    auto pid = Core::System::getpid();
-    connection->transport().set_peer_pid(pid);
-    remote_transport->set_peer_pid(pid);
-#endif
 
     UnsupportedCodingServer server;
     auto message = make<Messages::RequestServer::StartRequest>(
