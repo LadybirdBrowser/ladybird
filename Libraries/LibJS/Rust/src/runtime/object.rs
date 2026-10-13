@@ -345,7 +345,8 @@ unsafe impl Trace for Object {
         }
         if !named_properties.is_null()
             && !self.named_storage_is_inline()
-            && let Some(storage) = value_storage::cell(named_properties)
+            // SAFETY: Out-of-line named storage is storage value_storage::allocate() returned.
+            && let Some(storage) = unsafe { value_storage::cell(named_properties) }
         {
             visitor.visit(storage);
         }
@@ -364,7 +365,8 @@ unsafe impl Trace for Object {
             self.indexed_storage_kind(),
             IndexedStorageKind::Packed | IndexedStorageKind::Holey
         ) && !indexed_elements.is_null()
-            && let Some(storage) = value_storage::cell(indexed_elements)
+            // SAFETY: Packed and holey indexed storage is storage value_storage::allocate() returned.
+            && let Some(storage) = unsafe { value_storage::cell(indexed_elements) }
         {
             visitor.visit(storage);
         }
@@ -3611,7 +3613,8 @@ impl Object {
         if self.named_properties.get().is_null() || self.named_storage_is_inline() {
             return 0;
         }
-        value_storage::external_memory_size_of(self.named_properties.get())
+        // SAFETY: Out-of-line named storage is storage value_storage::allocate() returned.
+        unsafe { value_storage::external_memory_size_of(self.named_properties.get()) }
     }
 
     fn indexed_storage_external_memory_size(&self) -> usize {
@@ -3622,7 +3625,8 @@ impl Object {
                 if elements.is_null() {
                     return 0;
                 }
-                value_storage::external_memory_size_of(elements)
+                // SAFETY: Packed and holey indexed storage is storage value_storage::allocate() returned.
+                unsafe { value_storage::external_memory_size_of(elements) }
             }
             IndexedStorageKind::Dictionary => {
                 size_of::<GenericIndexedPropertyStorage>() + self.indexed_dictionary().borrow().external_memory_size()
@@ -3636,7 +3640,8 @@ impl Object {
         if self.named_storage_is_inline() {
             return self.inline_named_capacity.get().into();
         }
-        value_storage::capacity(self.named_properties.get())
+        // SAFETY: Out-of-line named storage is storage value_storage::allocate() returned.
+        unsafe { value_storage::capacity(self.named_properties.get()) }
     }
 
     /// The VM whose heap the object lives in, for operations that allocate storage without being handed the VM.
@@ -3651,7 +3656,8 @@ impl Object {
         let old_storage = storage.get();
         let old_storage_is_malloc = self.has_flag(malloc_flag);
         storage.set(new_storage);
-        if value_storage::kind(new_storage) == ValueStorageKind::Malloc {
+        // SAFETY: Callers pass storage value_storage::allocate() returned.
+        if unsafe { value_storage::kind(new_storage) } == ValueStorageKind::Malloc {
             self.set_flag(malloc_flag);
         } else {
             self.clear_flag(malloc_flag);
@@ -3723,7 +3729,8 @@ impl Object {
             self.indexed_storage_kind(),
             IndexedStorageKind::Packed | IndexedStorageKind::Holey
         ));
-        value_storage::capacity(elements)
+        // SAFETY: Packed and holey indexed storage is storage value_storage::allocate() returned.
+        unsafe { value_storage::capacity(elements) }
     }
 
     /// Whether the packed or holey indexed storage holds an element (not a hole) at `index`.
