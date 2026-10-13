@@ -259,10 +259,8 @@ impl NativeFunction {
 
         // 1. Let callerContext be the running execution context.
         let caller_context = vm
-            .running_execution_context()
+            .running_execution_context_if_any()
             .expect("a native function is called from a running execution context");
-        // SAFETY: The running execution context is live.
-        let caller_context = unsafe { caller_context.as_ref() };
 
         // 2. If callerContext is not already suspended, suspend callerContext.
         // 3. Let calleeContext be a new execution context.
@@ -344,10 +342,8 @@ impl NativeFunction {
 
         // 1. Let callerContext be the running execution context.
         let caller_context = vm
-            .running_execution_context()
+            .running_execution_context_if_any()
             .expect("a native function is constructed from a running execution context");
-        // SAFETY: The running execution context is live.
-        let caller_context = unsafe { caller_context.as_ref() };
 
         // 2. If callerContext is not already suspended, suspend callerContext.
         // 3. Let calleeContext be a new execution context.

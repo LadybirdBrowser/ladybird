@@ -668,7 +668,6 @@ pub fn yield_iterator_result(
 }
 
 fn running_execution_context(vm: &Vm) -> &ExecutionContext {
-    let context = vm.running_execution_context().expect("a generator's frame is running");
-    // SAFETY: The running context is live while the slow path runs in it.
-    unsafe { context.as_ref() }
+    vm.running_execution_context_if_any()
+        .expect("a generator's frame is running")
 }

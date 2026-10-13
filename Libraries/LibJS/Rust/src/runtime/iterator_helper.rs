@@ -135,11 +135,10 @@ impl IteratorHelper {
         closure: IteratorHelperClosure,
     ) -> Gc<IteratorHelper> {
         let prototype = realm.intrinsics().iterator_helper_prototype();
-        let running_execution_context = vm
-            .running_execution_context()
-            .expect("an iterator helper is created by a running built-in");
-        // SAFETY: The running execution context is live.
-        let execution_context = unsafe { running_execution_context.as_ref() }.copy();
+        let execution_context = vm
+            .running_execution_context_if_any()
+            .expect("an iterator helper is created by a running built-in")
+            .copy();
         let iterator = realm.create_object(
             vm,
             IteratorHelper {

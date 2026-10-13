@@ -896,12 +896,11 @@ pub fn new_function_environment_for_native_javascript_backed_function(
 // 9.4.3 GetThisEnvironment ( ), https://tc39.es/ecma262/#sec-getthisenvironment
 pub fn get_this_environment(vm: &Vm) -> Gc<Environment> {
     let context = vm
-        .running_execution_context()
+        .running_execution_context_if_any()
         .expect("GetThisEnvironment runs in an execution context");
 
     // 1. Let env be the running execution context's LexicalEnvironment.
-    // SAFETY: The running execution context is live.
-    let mut env = unsafe { context.as_ref() }.lexical_environment.get();
+    let mut env = context.lexical_environment.get();
 
     // 2. Repeat,
     while let Some(environment) = env {
@@ -1088,11 +1087,9 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
 
     // 16. Let runningContext be the running execution context.
     // 17. NOTE: If direct is true, runningContext will be the execution context that performed the direct eval. If direct is false, runningContext will be the execution context for the invocation of the eval function.
-    let running_context_pointer = vm
-        .running_execution_context()
+    let running_context = vm
+        .running_execution_context_if_any()
         .expect("eval runs in an execution context");
-    // SAFETY: The running execution context stays live until eval returns to it.
-    let running_context = unsafe { running_context_pointer.as_ref() };
 
     let lexical_environment: Gc<Environment>;
     let mut variable_environment: Gc<Environment>;

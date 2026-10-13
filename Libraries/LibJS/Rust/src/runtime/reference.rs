@@ -450,12 +450,11 @@ impl Reference {
 // 6.2.4.9 MakePrivateReference ( baseValue, privateIdentifier ), https://tc39.es/ecma262/#sec-makeprivatereference
 pub fn make_private_reference(vm: &Vm, base_value: Value, private_identifier: &Utf16FlyString) -> Reference {
     let context = vm
-        .running_execution_context()
+        .running_execution_context_if_any()
         .expect("MakePrivateReference runs in an execution context");
 
     // 1. Let privEnv be the running execution context's PrivateEnvironment.
-    // SAFETY: The running execution context is live.
-    let private_environment = unsafe { context.as_ref() }.private_environment.get();
+    let private_environment = context.private_environment.get();
 
     // 2. Assert: privEnv is not null.
     let private_environment = private_environment.expect("there is a private environment");

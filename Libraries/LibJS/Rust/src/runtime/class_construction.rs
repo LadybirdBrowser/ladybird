@@ -35,11 +35,8 @@ use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, C
 use crate::runtime::value::PreferredType;
 
 fn running_execution_context(vm: &Vm) -> &ExecutionContext {
-    let context = vm
-        .running_execution_context()
-        .expect("a class is constructed in a running execution context");
-    // SAFETY: The running execution context is live for as long as the class is being constructed.
-    unsafe { context.as_ref() }
+    vm.running_execution_context_if_any()
+        .expect("a class is constructed in a running execution context")
 }
 
 fn update_function_name(vm: &Vm, value: Value, name: &ClassElementName, prefix: Option<&str>) {

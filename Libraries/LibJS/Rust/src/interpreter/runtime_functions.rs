@@ -58,9 +58,10 @@ pub fn handle_asm_exception(vm: &Vm, pc: u32, exception: Value) -> SlowPathContr
     match vm.handle_exception(pc, exception) {
         HandleExceptionResponse::ExitFromExecutable => SlowPathControl::EXIT,
         HandleExceptionResponse::ContinueInThisExecutable => {
-            let context = vm.running_execution_context().expect("the handler's frame is running");
-            // SAFETY: The running context is live.
-            SlowPathControl::dispatch_at(unsafe { context.as_ref() }.program_counter.get())
+            let context = vm
+                .running_execution_context_if_any()
+                .expect("the handler's frame is running");
+            SlowPathControl::dispatch_at(context.program_counter.get())
         }
     }
 }

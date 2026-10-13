@@ -814,9 +814,7 @@ impl Vm {
 
     /// The Realm of the running execution context.
     pub fn current_realm(&self) -> Option<Gc<Realm>> {
-        let context = self.running_execution_context()?;
-        // SAFETY: The running execution context is live.
-        unsafe { context.as_ref() }.realm.get()
+        self.running_execution_context_if_any()?.realm.get()
     }
 
     /// Whether so little of the native stack is left that running more JavaScript could overflow it.
@@ -1402,11 +1400,8 @@ impl Vm {
 
     /// The executable of the running execution context.
     pub fn current_executable(&self) -> Gc<Executable> {
-        let context = self
-            .running_execution_context()
-            .expect("there is a running execution context");
-        // SAFETY: The running execution context is live.
-        let executable = unsafe { context.as_ref() }
+        let executable = self
+            .running_execution_context_ref()
             .executable
             .get()
             .expect("the running execution context runs an executable");
@@ -1796,12 +1791,19 @@ impl Vm {
     }
 
     pub(crate) fn running_execution_context_ref(&self) -> &ExecutionContext {
-        let context = self
-            .running_execution_context()
-            .expect("there is a running execution context");
+        self.running_execution_context_if_any()
+            .expect("there is a running execution context")
+    }
+
+    /// The running execution context, if there is one.
+    ///
+    /// NB: Callers that deallocate the running frame keep using running_execution_context(), since the reference
+    ///     would outlive the frame.
+    pub(crate) fn running_execution_context_if_any(&self) -> Option<&ExecutionContext> {
         // SAFETY: The running execution context is live while it runs, which outlasts any use of this reference by
         // the code running in it.
-        unsafe { context.as_ref() }
+        self.running_execution_context()
+            .map(|context| unsafe { context.as_ref() })
     }
 
     /// The number of arguments the running execution context has slots for.
