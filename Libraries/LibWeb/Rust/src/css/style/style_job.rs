@@ -295,7 +295,7 @@ impl StyleJob {
             .into_iter()
             .filter_map(|record| {
                 // SAFETY: The view points into the record, which stays live while the rows name it.
-                let view = unsafe { super::bridge::style_record_view(engine, record) };
+                let view = super::bridge::style_record_view(engine, record);
                 view.present.then(|| {
                     let environment = engine
                         .computed_group_sets

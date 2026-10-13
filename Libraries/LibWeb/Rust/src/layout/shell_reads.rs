@@ -67,16 +67,12 @@ pub extern "C" fn layout_row_identity_flags(host: &DocumentHost, id: NodeSlotId)
 }
 
 /// The layout node of the row `id` links to, made if nothing has asked for it yet, or null.
-///
-/// # Safety
-///
-/// As for [`layout_row_flags`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_link_shell(host: &DocumentHost, id: NodeSlotId, link: FfiNodeLink) -> *mut c_void {
+pub extern "C" fn layout_row_link_shell(host: &DocumentHost, id: NodeSlotId, link: FfiNodeLink) -> *mut c_void {
     // SAFETY: Guaranteed by the caller.
     let linked = rows(host, node_read()).link(id, link);
     // SAFETY: As above.
-    unsafe { shell_of(host, node_read(), (!linked.is_invalid()).then_some(linked)) }
+    shell_of(host, node_read(), (!linked.is_invalid()).then_some(linked))
 }
 
 #[unsafe(no_mangle)]
@@ -142,25 +138,17 @@ fn read_rows<R>(host: &DocumentHost, read: impl FnOnce(&PaintSource<'_>) -> R) -
 }
 
 /// The layout node of the live row `id`, made if nothing has asked for it yet, or null for none, spending `wait`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-unsafe fn shell_of(host: &DocumentHost, wait: impl RenderWait, id: Option<NodeSlotId>) -> *mut c_void {
+fn shell_of(host: &DocumentHost, wait: impl RenderWait, id: Option<NodeSlotId>) -> *mut c_void {
     let Some(id) = id else {
         return std::ptr::null_mut();
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { bound_shell(host, wait, |_| Some(id)) }
+    bound_shell(host, wait, |_| Some(id))
 }
 
 /// The layout node of the live row `bound` finds among what each row is and the row each node is bound to, made if
 /// nothing has asked for it yet, or null for none, spending `wait`: the identities are read once for both.
-///
-/// # Safety
-///
-/// As for [`shell_of`].
-unsafe fn bound_shell(
+fn bound_shell(
     host: &DocumentHost,
     wait: impl RenderWait,
     bound: impl FnOnce(&RowIdentities) -> Option<NodeSlotId>,
@@ -179,17 +167,13 @@ unsafe fn bound_shell(
 
 /// The layout node of the row the element or text node with `style_node` is bound to, made if nothing has asked for it
 /// yet, or null if the node has no row.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_bound_shell(host: &DocumentHost, read: &BegunRead, style_node: u32) -> *mut c_void {
+pub extern "C" fn layout_row_bound_shell(host: &DocumentHost, read: &BegunRead, style_node: u32) -> *mut c_void {
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return std::ptr::null_mut();
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { bound_shell(host, read, |identities| identities.bound_row(style_node)) }
+    bound_shell(host, read, |identities| identities.bound_row(style_node))
 }
 
 /// The content size of the committed box of the row the element with `style_node` is bound to, or none where the
@@ -220,12 +204,8 @@ pub extern "C" fn layout_row_bound_committed_content_size(
 
 /// The layout node of the row the pseudo-element of kind `generated_for` on the element with `style_node` is bound to,
 /// made if nothing has asked for it yet, or null.
-///
-/// # Safety
-///
-/// As for [`layout_row_bound_shell`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_bound_pseudo_element_shell(
+pub extern "C" fn layout_row_bound_pseudo_element_shell(
     host: &DocumentHost,
     read: &BegunRead,
     style_node: u32,
@@ -235,7 +215,7 @@ pub unsafe extern "C" fn layout_row_bound_pseudo_element_shell(
         return std::ptr::null_mut();
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    {
         bound_shell(host, read, |identities| {
             identities.bound_pseudo_element_row(style_node, generated_for)
         })
@@ -243,14 +223,10 @@ pub unsafe extern "C" fn layout_row_bound_pseudo_element_shell(
 }
 
 /// The layout node of the viewport row the document is bound to, made if nothing has asked for it yet, or null.
-///
-/// # Safety
-///
-/// As for [`layout_row_bound_shell`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_bound_viewport_shell(host: &DocumentHost, read: &BegunRead) -> *mut c_void {
+pub extern "C" fn layout_row_bound_viewport_shell(host: &DocumentHost, read: &BegunRead) -> *mut c_void {
     // SAFETY: Guaranteed by the caller.
-    unsafe { bound_shell(host, read, RowIdentities::bound_viewport_row) }
+    bound_shell(host, read, RowIdentities::bound_viewport_row)
 }
 
 /// The read of the layout node the host holds, which the host lends the entries it calls about the node's document.
@@ -273,16 +249,12 @@ pub extern "C" fn layout_row_is_bound_to(host: &DocumentHost, id: NodeSlotId, st
 }
 
 /// The layout node of the box whose content box the row is laid out against, or null.
-///
-/// # Safety
-///
-/// As for [`layout_row_bound_shell`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_containing_block_shell_if_live(host: &DocumentHost, id: NodeSlotId) -> *mut c_void {
+pub extern "C" fn layout_row_containing_block_shell_if_live(host: &DocumentHost, id: NodeSlotId) -> *mut c_void {
     // SAFETY: Guaranteed by the caller.
     let containing_block = read_rows(host, |rows| rows.node_containing_block_if_live(id));
     // SAFETY: As above.
-    unsafe { shell_of(host, node_read(), containing_block) }
+    shell_of(host, node_read(), containing_block)
 }
 
 #[unsafe(no_mangle)]
@@ -319,12 +291,8 @@ pub extern "C" fn layout_row_any_ancestor_establishes_a_fixed_position_containin
 }
 
 /// The layout node of the row whose paintable row `slot` is, or null when the row has none.
-///
-/// # Safety
-///
-/// As for [`layout_row_bound_shell`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_paintable_layout_node_shell(
+pub extern "C" fn layout_row_paintable_layout_node_shell(
     host: &DocumentHost,
     read: &BegunRead,
     slot: NodeSlotId,
@@ -332,7 +300,7 @@ pub unsafe extern "C" fn layout_row_paintable_layout_node_shell(
     // SAFETY: Guaranteed by the caller.
     let populated = rows(host, read).paintable.paintable_row_is_populated(slot);
     // SAFETY: As above.
-    unsafe { shell_of(host, read, populated.then_some(slot)) }
+    shell_of(host, read, populated.then_some(slot))
 }
 
 #[unsafe(no_mangle)]

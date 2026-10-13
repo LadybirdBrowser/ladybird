@@ -336,7 +336,7 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
         if let Some(geometry_host) = host.host_tables().geometry_host.get() {
             for (slot, offset) in prepared.clamped_scroll_offsets {
                 // SAFETY: The pass clamped the offsets of live rows, and the host holds no borrow of the arena.
-                unsafe { geometry_host.set_scroll_offset(&main_thread, read, slot, offset.into()) };
+                geometry_host.set_scroll_offset(&main_thread, read, slot, offset.into());
             }
         }
     }

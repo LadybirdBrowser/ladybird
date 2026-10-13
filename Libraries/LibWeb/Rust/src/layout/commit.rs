@@ -85,7 +85,7 @@ impl CommitNotifications {
             reset.tell(main_thread);
         }
         // SAFETY: Guaranteed by the caller.
-        unsafe { host.deliver_commit_messages(main_thread, read, &self.messages) };
+        host.deliver_commit_messages(main_thread, read, &self.messages);
     }
 }
 

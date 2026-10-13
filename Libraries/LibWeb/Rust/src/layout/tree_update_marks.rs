@@ -688,10 +688,7 @@ fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: b
     }
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-unsafe fn queue_marks(host: &DocumentHost, target: MarkedBox, marks: FfiBoxMarks) {
+fn queue_marks(host: &DocumentHost, target: MarkedBox, marks: FfiBoxMarks) {
     if marks.is_empty() {
         return;
     }
@@ -700,24 +697,16 @@ unsafe fn queue_marks(host: &DocumentHost, target: MarkedBox, marks: FfiBoxMarks
 }
 
 /// Marks the box bound to the node with `style_node`, or the document's for 0.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_mark_node_box(host: &DocumentHost, style_node: u32, marks: FfiBoxMarks) {
+pub extern "C" fn render_state_mark_node_box(host: &DocumentHost, style_node: u32, marks: FfiBoxMarks) {
     let target = MarkedBox::Node(StyleNodeID::from_raw(style_node));
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_marks(host, target, marks) };
+    queue_marks(host, target, marks);
 }
 
 /// Marks the box bound to the pseudo-element of kind `generated_for` on the element with `generator`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
+pub extern "C" fn render_state_mark_pseudo_element_box(
     host: &DocumentHost,
     generator: u32,
     generated_for: u8,
@@ -731,19 +720,15 @@ pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
         generated_for,
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_marks(host, target, marks) };
+    queue_marks(host, target, marks);
 }
 
 /// Marks the box of the row `row`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_mark_row_box(host: &DocumentHost, row: NodeSlotId, marks: FfiBoxMarks) {
+pub extern "C" fn render_state_mark_row_box(host: &DocumentHost, row: NodeSlotId, marks: FfiBoxMarks) {
     let target = MarkedBox::Row(row);
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_marks(host, target, marks) };
+    queue_marks(host, target, marks);
 }
 
 #[cfg(test)]

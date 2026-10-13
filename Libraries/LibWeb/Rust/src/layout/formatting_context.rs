@@ -952,11 +952,7 @@ impl FfiLayoutHostCallbacks {
     }
 
     /// Delivers `messages` to the document, in `read`.
-    ///
-    /// # Safety
-    ///
-    /// The document may re-enter the arena, so no arena borrow may be held across this call.
-    pub(crate) unsafe fn deliver_commit_messages(
+    pub(crate) fn deliver_commit_messages(
         &self,
         _: &crate::stage::MainThread,
         read: &crate::render_state::BegunRead,
@@ -970,11 +966,7 @@ impl FfiLayoutHostCallbacks {
     }
 
     /// Hands the document the scroll containers a build gave a style, in `read`.
-    ///
-    /// # Safety
-    ///
-    /// The document may re-enter the arena, so no arena borrow may be held across this call.
-    pub(crate) unsafe fn take_built_scroll_containers(
+    pub(crate) fn take_built_scroll_containers(
         &self,
         _: &crate::stage::MainThread,
         read: &crate::render_state::BegunRead,
