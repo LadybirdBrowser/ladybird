@@ -726,6 +726,8 @@ pub mod element_construction_fact {
     pub const IS_EDITING_HOST: u32 = 1 << 4;
     pub const IS_BODY: u32 = 1 << 5;
     pub const IS_DOCUMENT_ELEMENT: u32 = 1 << 6;
+    pub const IS_SVG_RESOURCE_ELEMENT: u32 = 1 << 7;
+    pub const IS_SVG_GEOMETRY_ELEMENT: u32 = 1 << 8;
 }
 
 /// Which principal box an element asks for before its computed style has a say. The element's own

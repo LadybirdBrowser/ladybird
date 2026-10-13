@@ -2474,7 +2474,7 @@ void Element::clear_computed_styles_from_display_none_descendants(Layout::BegunR
         //     Restore their styles in this style update, so painting never needs to materialize
         //     styles for referenced resources. The engine still holds their records and settles
         //     the reaction from them.
-        if (element->is_svg_element())
+        if (auto const* svg_element = as_if<SVG::SVGElement>(*element); svg_element && svg_element->is_referenceable_in_display_none_subtree())
             element->document().style_computer().style_engine().record_derived_element_style_input_change(element->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
         element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {

@@ -399,6 +399,22 @@ bool SVGElement::describes_svg_paint_resource() const
     return false;
 }
 
+bool SVGElement::is_resource_element() const
+{
+    return is_svg_gradient_element() || is_svg_pattern_element() || is_svg_clip_path_element() || is_svg_mask_element() || is_svg_filter_element();
+}
+
+bool SVGElement::is_referenceable_in_display_none_subtree() const
+{
+    if (is_svg_geometry_element() && id().has_value())
+        return true;
+    for (auto const* element = this; element; element = as_if<SVGElement>(element->parent_or_shadow_host_element())) {
+        if (element->is_resource_element())
+            return true;
+    }
+    return false;
+}
+
 void SVGElement::note_svg_paint_resource_description_may_have_changed()
 {
     if (describes_svg_paint_resource())

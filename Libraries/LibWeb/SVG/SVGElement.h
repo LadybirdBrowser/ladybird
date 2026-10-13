@@ -48,6 +48,9 @@ public:
     // layout pass reads them.
     void publish_svg_attribute_facts();
 
+    bool is_resource_element() const;
+    bool is_referenceable_in_display_none_subtree() const;
+
     GC::Ref<SVGAnimatedLength> svg_animated_length_for_attribute(Utf16FlyString const&, SVGLength::Directionality, SVGLengthValue default_value);
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const final override;

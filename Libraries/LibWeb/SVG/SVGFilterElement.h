@@ -25,6 +25,8 @@ class SVGFilterElement final
 public:
     virtual ~SVGFilterElement() override = default;
 
+    virtual bool is_svg_filter_element() const final { return true; }
+
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     // Hands every supported child primitive to the Rust primitive list behind `sink` as attribute
@@ -53,5 +55,12 @@ private:
     Optional<SVGUnits> m_filter_units {};
     Optional<SVGUnits> m_primitive_units {};
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGFilterElement>() const { return is_svg_filter_element(); }
 
 }
