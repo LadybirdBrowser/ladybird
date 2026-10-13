@@ -14,7 +14,7 @@
 //!
 //! The generated code expects the including module to provide the operand types
 //! named by `field_type_info()` (`Operand`, `Label`, `IdentifierTableIndex`,
-//! `PropertyKeyTableIndex`, `StringTableIndex`, `RegexTableIndex`,
+//! `PropertyKeyTableIndex`, `StringTableIndex`,
 //! `EnvironmentCoordinate`) with `from_raw` / `optional_from_raw` constructors,
 //! plus `read_u16(bytes, at)`, `read_u32(bytes, at)` and `read_u64(bytes, at)` helpers reachable
 //! through the `reader` path prefix passed to the field reading functions.
@@ -120,7 +120,6 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
         "Optional<StringTableIndex>" => {
             format!("StringTableIndex::optional_from_raw({reader}read_u32(bytes, {offset}))")
         }
-        "RegexTableIndex" => format!("RegexTableIndex({reader}read_u32(bytes, {offset}))"),
         "EnvironmentCoordinate" => format!(
             "EnvironmentCoordinate {{ hops: {reader}read_u32(bytes, {offset}), index: {reader}read_u32(bytes, {offset} + 4) }}"
         ),

@@ -72,12 +72,7 @@ macro_rules! define_table_index {
     };
 }
 
-define_table_index!(
-    IdentifierTableIndex,
-    PropertyKeyTableIndex,
-    StringTableIndex,
-    RegexTableIndex
-);
+define_table_index!(IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex);
 
 /// A table index that may be absent, encoded with all bits set.
 #[repr(transparent)]

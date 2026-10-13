@@ -7,8 +7,6 @@
 //! Expression parsing: primary, secondary (binary/postfix), unary, and
 //! precedence climbing.
 
-use std::sync::Arc;
-
 use crate::ast::*;
 use crate::lexer::ch;
 use crate::parser::Associativity;
@@ -660,19 +658,14 @@ impl Parser<'_> {
             Vec::new()
         };
         self.validate_regex_flags(&flags);
-        let compiled_regex = match crate::host::compile_regex(&pattern, &flags) {
-            Ok(handle) => Arc::new(CompiledRegex::new(handle)),
-            Err(msg) => {
-                self.syntax_error_at_position(&String::from_utf16_lossy(&msg), start);
-                Arc::new(CompiledRegex::new(std::ptr::null_mut()))
-            }
-        };
+        if let Err(msg) = crate::host::validate_regex(&pattern, &flags) {
+            self.syntax_error_at_position(&String::from_utf16_lossy(&msg), start);
+        }
         self.expression(
             start,
             ExpressionKind::RegExpLiteral(Box::new(RegExpLiteralData {
                 pattern: pattern.into(),
                 flags: flags.into(),
-                compiled_regex,
             })),
         )
     }

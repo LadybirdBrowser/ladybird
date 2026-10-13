@@ -572,7 +572,6 @@ impl<'a> Parser<'a> {
                 | "ObjectPropertyIteratorCacheIndex"
                 | "ObjectShapeCacheIndex"
                 | "PropertyKeyTableIndex"
-                | "RegexTableIndex"
                 | "StringTableIndex"
                 | "TemplateObjectCacheIndex"
         ) {

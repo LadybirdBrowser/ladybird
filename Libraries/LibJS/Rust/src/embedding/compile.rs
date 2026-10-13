@@ -38,7 +38,7 @@ use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSModule, JSVM};
 use crate::parser_error::ParserError;
 use crate::runtime::module::Module;
-use crate::runtime::shared_function_instance_data::{SharedFunctionInstanceData, discard_precompiled_function};
+use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
 use crate::utf16::Utf16View;
@@ -260,7 +260,7 @@ pub unsafe fn compiled_program_from_abi<'a>(compiled: *const JSCompiledProgram) 
 pub unsafe extern "C" fn js_compile_compiled_program_destroy(compiled: *mut JSCompiledProgram) {
     if !compiled.is_null() {
         // SAFETY: The caller gives up a live compiled program.
-        unsafe { take_compiled_program_from_abi(compiled) }.discard();
+        drop(unsafe { take_compiled_program_from_abi(compiled) });
     }
 }
 
@@ -647,12 +647,10 @@ unsafe extern "C" fn install_compiled_lazy_functions(compiled: *mut c_void) {
                 executable,
                 awaiting_compilation.callbacks.clone(),
             );
-            discard_precompiled_function(compiled_function);
             continue;
         }
         // Installing a bytecode cache may have dropped the AST, and its bytecode with it, while the worker compiled.
         if !shared_data.has_function_ast() {
-            discard_precompiled_function(compiled_function);
             continue;
         }
         shared_data.set_precompiled_bytecode_executable(compiled_function);

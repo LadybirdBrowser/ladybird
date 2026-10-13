@@ -164,10 +164,6 @@ impl IdentifierTableIndex {
 #[derive(Debug, Clone, Copy)]
 pub struct PropertyKeyTableIndex(pub u32);
 
-/// Index into the regex table.
-#[derive(Debug, Clone, Copy)]
-pub struct RegexTableIndex(pub u32);
-
 /// Environment coordinate used by environment lookup instructions.
 /// Layout: two `u32` fields (hops + index).
 #[derive(Debug, Clone, Copy)]

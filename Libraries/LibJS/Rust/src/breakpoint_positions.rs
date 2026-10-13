@@ -35,7 +35,6 @@ pub fn breakpoint_positions_for_source(
     let compiled = compile_parsed_program_off_thread(parsed, source.len(), FunctionPrecompileMode::All);
     let mut positions = Vec::new();
     compiled.for_each_breakpoint_position(|position| positions.push(position));
-    compiled.discard();
     positions.sort_unstable();
     positions.dedup();
     positions

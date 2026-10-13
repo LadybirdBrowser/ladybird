@@ -575,9 +575,6 @@ fn emit_scalar_field_check(
             w,
             "            validate_property_key_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
-        "RegexTableIndex" => {
-            // The regex table is not consulted at runtime; skip range-checking.
-        }
         "PropertyLookupCacheIndex" => writeln!(
             w,
             "            validate_property_lookup_cache_index(read_u32(bytes, at + {offset}), ctx)?;"

@@ -38,7 +38,7 @@ fn rust_type(ty: &str) -> String {
         "Optional<Operand>" => "OptionalOperand".to_string(),
         "Label" => "Label".to_string(),
         "Optional<Label>" => "OptionalLabel".to_string(),
-        "IdentifierTableIndex" | "PropertyKeyTableIndex" | "StringTableIndex" | "RegexTableIndex" => ty.to_string(),
+        "IdentifierTableIndex" | "PropertyKeyTableIndex" | "StringTableIndex" => ty.to_string(),
         "Optional<IdentifierTableIndex>" => "OptionalIndex<IdentifierTableIndex>".to_string(),
         "Optional<StringTableIndex>" => "OptionalIndex<StringTableIndex>".to_string(),
         "EnvironmentCoordinate" => "EnvironmentCoordinate".to_string(),

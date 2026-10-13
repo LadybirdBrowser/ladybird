@@ -6,8 +6,6 @@
 
 //! Compiled bytecode together with everything needed to run it, as owned Rust values.
 
-use std::ffi::c_void;
-
 use super::basic_block::SourceMapEntry;
 use super::generator::AssembledBytecode;
 use super::generator::ConstantValue;
@@ -17,24 +15,6 @@ use super::generator::LocalVariable;
 use super::generator::PendingClassBlueprint;
 use super::generator::PendingSharedFunctionData;
 use super::operand::PropertyKeyTableIndex;
-
-/// A regular expression that `host::compile_regex()` compiled for the bytecode, which only the host looks into.
-#[repr(transparent)]
-pub struct CompiledRegexHandle(*mut c_void);
-
-// SAFETY: The frontend never dereferences the handle. It only carries it from the thread that compiled the bytecode to
-// the one that runs it, where the runtime adopts or frees it, and hosts let any thread do that.
-unsafe impl Send for CompiledRegexHandle {}
-
-impl CompiledRegexHandle {
-    pub fn new(handle: *mut c_void) -> Self {
-        Self(handle)
-    }
-
-    pub fn into_raw(self) -> *mut c_void {
-        self.0
-    }
-}
 
 /// How many inline cache and feedback slots of each kind the bytecode indexes into.
 #[derive(Clone, Copy)]
@@ -76,9 +56,6 @@ pub struct ExecutableData {
     pub length_identifier: Option<PropertyKeyTableIndex>,
     pub shared_function_data: Vec<PendingSharedFunctionData>,
     pub class_blueprints: Vec<PendingClassBlueprint>,
-    /// Handles from `host::compile_regex()`, owned by this executable until the
-    /// runtime adopts them.
-    pub compiled_regexes: Vec<CompiledRegexHandle>,
 }
 
 impl ExecutableData {
@@ -123,7 +100,6 @@ impl ExecutableData {
             length_identifier: generator.length_identifier,
             shared_function_data,
             class_blueprints: generator.class_blueprints,
-            compiled_regexes: generator.compiled_regexes,
         }
     }
 }

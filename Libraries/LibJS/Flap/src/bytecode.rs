@@ -180,7 +180,6 @@ fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &
         | "ObjectPropertyIteratorCacheIndex"
         | "ObjectShapeCacheIndex"
         | "PropertyKeyTableIndex"
-        | "RegexTableIndex"
         | "StringTableIndex"
         | "TemplateObjectCacheIndex"
         | "Optional<IdentifierTableIndex>"

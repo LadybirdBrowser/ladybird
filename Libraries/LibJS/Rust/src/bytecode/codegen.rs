@@ -317,14 +317,11 @@ fn generate_expression_inner(
         ExpressionKind::RegExpLiteral(data) => {
             let source_index = generator.intern_string(&data.pattern);
             let flags_index = generator.intern_string(&data.flags);
-            let compiled = data.compiled_regex.take();
-            let regex_index = generator.intern_regex(compiled);
             let dst = choose_dst(generator, preferred_dst);
             generator.emit(Instruction::NewRegExp {
                 dst: dst.operand(),
                 source_index,
                 flags_index,
-                regex_index,
             });
             Some(dst)
         }

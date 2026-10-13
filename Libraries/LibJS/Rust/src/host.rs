@@ -39,12 +39,9 @@ pub fn js_number_to_utf16(value: f64) -> Utf16String {
     Utf16String(buffer[..len].to_vec())
 }
 
-/// Compile a regex pattern+flags using the host's regex engine.
-///
-/// On success, returns an opaque handle to the compiled regex, which must be
-/// released with `free_compiled_regex()` unless an executable adopts it. On
-/// failure, returns the error message.
-pub fn compile_regex(pattern: &[u16], flags: &[u16]) -> Result<*mut c_void, Utf16String> {
+/// Check a regex pattern+flags with the host's regex engine, so that an invalid
+/// one becomes an early error. Returns the error message if it is invalid.
+pub fn validate_regex(pattern: &[u16], flags: &[u16]) -> Result<(), Utf16String> {
     unsafe {
         let mut error: *const u16 = std::ptr::null();
         let mut error_len = 0usize;
@@ -57,19 +54,12 @@ pub fn compile_regex(pattern: &[u16], flags: &[u16]) -> Result<*mut c_void, Utf1
             &raw mut error_len,
         );
         if error.is_null() {
-            Ok(handle)
+            rust_free_compiled_regex(handle);
+            Ok(())
         } else {
             let msg = Utf16String(std::slice::from_raw_parts(error, error_len).to_vec());
             rust_free_error_string(error);
             Err(msg)
         }
     }
-}
-
-/// # Safety
-///
-/// `ptr` must identify a compiled regular expression whose ownership has not
-/// been transferred to an executable or released previously.
-pub unsafe fn free_compiled_regex(ptr: *mut c_void) {
-    unsafe { rust_free_compiled_regex(ptr) };
 }

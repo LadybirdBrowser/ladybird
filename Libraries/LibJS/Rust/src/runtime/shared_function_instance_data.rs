@@ -15,12 +15,10 @@ pub use crate::ast::FunctionKind;
 use crate::ast::FunctionPayload;
 use crate::bytecode::bytecode_cache::materialize_cached_function_executable;
 use crate::bytecode::executable::Executable;
-use crate::bytecode::executable_data::ExecutableData;
 use crate::bytecode::generator::{FunctionSfdMetadata, PendingSharedFunctionData, PrecompiledFunction};
 use crate::bytecode_cache::{DecodedCachedExecutableRecord, DecodedFunctionRecord};
 use crate::compile::FunctionPrecompileMode;
 use crate::compile::SharedFunctionDescription;
-use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::visitor::{Trace, Visitor};
@@ -141,36 +139,11 @@ pub struct SharedFunctionInstanceDataStorage {
     closure_count: Cell<ClosureCount>,
 }
 
-impl Drop for SharedFunctionInstanceDataStorage {
-    fn drop(&mut self) {
-        if let Some(precompiled) = self.precompiled_bytecode_executable.get_mut().take() {
-            discard_precompiled_function(precompiled);
-        }
-    }
-}
-
 /// The most properties that constructions make room for ahead (the largest inline capacity of plain objects).
 const MAX_CONSTRUCT_RESERVE: u32 = 16;
 
 /// The last construction that follows the transitions again (see SharedFunctionInstanceData::construct_reserve()).
 const MAX_CONSTRUCT_RESERVE_UPDATES: u32 = 1024;
-
-/// Frees bytecode that the frontend compiled ahead of a call that never came, along with the regular expressions the
-/// host compiled for it and for the functions nested in it, which only an executable created from it frees otherwise.
-pub fn discard_precompiled_function(mut precompiled: Box<PrecompiledFunction>) {
-    fn free_compiled_regexes(executable: &mut ExecutableData) {
-        for regex in executable.compiled_regexes.drain(..) {
-            // SAFETY: No executable was created from this bytecode, so it still owns the regexes, which are freed once.
-            unsafe { rust_free_compiled_regex(regex.into_raw()) };
-        }
-        for nested in &mut executable.shared_function_data {
-            if let Some(nested_precompiled) = &mut nested.precompiled_function {
-                free_compiled_regexes(&mut nested_precompiled.executable);
-            }
-        }
-    }
-    free_compiled_regexes(&mut precompiled.executable);
-}
 
 define_cell!(SharedFunctionInstanceData, Other);
 
@@ -605,9 +578,7 @@ impl SharedFunctionInstanceData {
 
     pub fn clear_non_bytecode_cache_compile_inputs(&self) {
         drop(self.storage.rust_function_ast.take());
-        if let Some(precompiled) = self.storage.precompiled_bytecode_executable.take() {
-            discard_precompiled_function(precompiled);
-        }
+        drop(self.storage.precompiled_bytecode_executable.take());
     }
 
     /// Whether the function still has the AST it compiles from when it is first called.
