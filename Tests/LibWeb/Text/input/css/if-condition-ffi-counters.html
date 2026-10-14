@@ -12,7 +12,6 @@
 
         internals.resetStyleFfiCounters();
         println(`${name} result: ${getComputedStyle(target).width}`);
-        println(`${name} media environment callbacks: ${internals.styleFfiCounters().mediaEnvironmentCallbacks}`);
         target.remove();
     }
 
@@ -31,7 +30,6 @@
         internals.resetStyleFfiCounters();
         internals.updateStyle();
         println(`shared results: ${targets.map(target => getComputedStyle(target).width).join(", ")}`);
-        println(`shared media environment callbacks: ${internals.styleFfiCounters().mediaEnvironmentCallbacks}`);
         targets.forEach(target => target.remove());
     }
 

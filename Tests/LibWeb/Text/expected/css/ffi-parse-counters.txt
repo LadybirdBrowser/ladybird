@@ -1,2 +1,1 @@
 computed width: 1px
-mediaEnvironmentCallbacks: 0

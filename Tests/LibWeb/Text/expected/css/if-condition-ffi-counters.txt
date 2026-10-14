@@ -1,10 +1,5 @@
 media result: 1px
-media media environment callbacks: 0
 supports result: 1px
-supports media environment callbacks: 0
 style result: 1px
-style media environment callbacks: 0
 shared results: 1px, 1px
-shared media environment callbacks: 0
 shared results: 1px, 1px
-shared media environment callbacks: 0

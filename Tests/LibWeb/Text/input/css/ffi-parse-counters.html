@@ -49,7 +49,6 @@
 
         const sheet = new CSSStyleSheet();
         sheet.replaceSync(source);
-        const counters = internals.styleFfiCounters();
         document.adoptedStyleSheets = [sheet];
 
         const target = document.createElement("div");
@@ -57,9 +56,5 @@
         target.dataset.index = "0";
         document.body.appendChild(target);
         println(`computed width: ${getComputedStyle(target).width}`);
-
-        const names = ["mediaEnvironmentCallbacks"];
-        for (const name of names)
-            println(`${name}: ${counters[name]}`);
     });
 </script>

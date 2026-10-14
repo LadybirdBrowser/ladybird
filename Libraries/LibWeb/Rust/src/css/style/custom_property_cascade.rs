@@ -20,22 +20,18 @@ use std::sync::Arc;
 use super::publication::{Drive, Unanswered};
 use super::*;
 use crate::css::cascaded_properties::{
-    CallbackFreeParseOutcome, FfiCascadeResolutionContext, FfiCustomPropertyDriveInput,
-    destroy_resolved_custom_properties, parse_substituted_source, parse_substituted_without_callbacks,
+    CallbackFreeParseOutcome, CascadeResolutionContext, parse_substituted_source, parse_substituted_without_callbacks,
     resolve_declared_custom_properties,
 };
 use crate::css::custom_properties::{
-    CustomPropertyFinalization, CustomPropertyStore, FfiSubstitutionFunctionDeclaration,
-    FfiSubstitutionFunctionDefinition, FfiSubstitutionFunctionVisibility, NativeVarResolution,
+    CustomPropertyFinalization, CustomPropertyStore, FfiSubstitutionFunctionVisibility, NativeVarResolution,
+    SubstitutionAttribute, SubstitutionFunctionDeclaration, SubstitutionFunctionDefinition, VarResolutionInputs,
     prepare_var_resolution_environment,
 };
-use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::value_parser::ParseOutcome;
 use crate::css::rule::CompiledFunction;
-use crate::css::style_value::{
-    RetainedStyleValueData, StyleValueData, release_style_value, utf16_equals_ascii_case_insensitive,
-};
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData, utf16_equals_ascii_case_insensitive};
 use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
 
 /// The document's media features as the style update a transaction belongs to saw them, which
@@ -320,12 +316,9 @@ impl DocumentFunctionSnapshot {
 
 /// The custom functions a node's calls may reach, as the resolver takes them: each definition with
 /// the declarations its conditions select for the node, and which definition each scope's calls
-/// name. It points into the definitions the engine retains for the transaction, which outlive
-/// every drive in it.
+/// name.
 pub(super) struct PreparedCustomFunctions {
-    /// What `definitions` point into.
-    _declarations: Vec<Vec<FfiSubstitutionFunctionDeclaration>>,
-    definitions: Vec<FfiSubstitutionFunctionDefinition>,
+    definitions: Vec<SubstitutionFunctionDefinition>,
     visibilities: Vec<FfiSubstitutionFunctionVisibility>,
     caller_scope: usize,
     /// Whether a selected declaration substitutes `attr()`, which reads the node's attributes.
@@ -344,72 +337,39 @@ pub(super) struct RegisteredValueContext {
     pub color_scheme: u8,
 }
 
-/// Draws the random base value of a registered value's random caching key for its element from
-/// the engine's own, as the host draws one.
-///
-/// # Safety
-/// `context` must point at the element and the engine's random base values, and `name` at
-/// `length` code units.
-unsafe extern "C" fn draw_engine_random_base_value(
-    context: *mut c_void,
-    name: *const u16,
-    length: usize,
-    element_shared: bool,
-) -> f64 {
-    let (node, values) = unsafe { &mut *context.cast::<(StyleNodeID, &mut super::random_bases::RandomBaseValues)>() };
-    let name = match length {
-        0 => &[],
-        _ => unsafe { std::slice::from_raw_parts(name, length) },
-    };
-    values.ensure(Some(*node), name, element_shared)
-}
-
 /// The resolution context the engine substitutes under: the stores alone, with no callback into
 /// C++ - what the engine cannot resolve without one is left to C++ before this is built.
 #[expect(
     clippy::too_many_arguments,
     reason = "the context borrows each resolution input on its own"
 )]
-fn engine_resolution_context(
-    parse_context: &crate::css::parser::value_parser::ParseContext,
-    store: *const c_void,
-    inheritance_store: *const c_void,
-    registry: *const c_void,
-    attributes: Option<&SubstitutionAttributes<'_>>,
-    media_environment: &crate::css::parser::query_parser::FfiMediaEnvironment,
-    style_query: Option<&crate::css::cascaded_properties::FfiStyleQueryInputs>,
-    style_query_references: Option<&mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
-    functions: Option<&PreparedCustomFunctions>,
-) -> FfiCascadeResolutionContext {
-    let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
-    FfiCascadeResolutionContext {
-        parse_context: std::ptr::from_ref(parse_context).cast(),
-        media_environment: std::ptr::from_ref(media_environment).cast(),
-        load_media_environment: None,
-        custom_property_store: store,
-        inheritance_custom_property_store: inheritance_store,
-        custom_property_registry: registry,
-        root_custom_property_name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: std::ptr::null(),
-            length: 0,
+fn engine_resolution_context<'a>(
+    parse_context: &'a crate::css::parser::value_parser::ParseContext,
+    store: Option<&'a CustomPropertyStore>,
+    inheritance_store: Option<&'a CustomPropertyStore>,
+    registry: &'a crate::css::custom_properties::CustomPropertyRegistry,
+    attributes: Option<&'a SubstitutionAttributes<'a>>,
+    media_environment: &'a crate::css::parser::query_parser::FfiMediaEnvironment,
+    style_query: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,
+    style_query_references: Option<&'a mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
+    functions: Option<&'a PreparedCustomFunctions>,
+) -> CascadeResolutionContext<'a> {
+    CascadeResolutionContext {
+        inputs: VarResolutionInputs {
+            store,
+            inheritance_store,
+            registry: Some(registry),
+            parse_context: Some(parse_context),
+            media_environment: Some(media_environment),
+            attribute_names_are_ascii_case_insensitive: attributes
+                .is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
+            style_query_inputs: style_query,
         },
-        attributes: substitution_attributes.as_ptr(),
-        attribute_count: substitution_attributes.len(),
-        attribute_names_are_ascii_case_insensitive: attributes
-            .is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
-        custom_functions: functions.map_or(std::ptr::null(), |functions| functions.definitions.as_ptr()),
-        custom_function_count: functions.map_or(0, |functions| functions.definitions.len()),
+        attributes: attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice()),
+        custom_functions: functions.map_or(&[][..], |functions| functions.definitions.as_slice()),
         custom_function_scope_identity: functions.map_or(0, |functions| functions.caller_scope),
-        custom_function_visibilities: functions.map_or(std::ptr::null(), |functions| functions.visibilities.as_ptr()),
-        custom_function_visibility_count: functions.map_or(0, |functions| functions.visibilities.len()),
-        callback_context: std::ptr::null_mut(),
-        install_custom_properties: None,
-        style_query_inputs: style_query.map_or(std::ptr::null(), std::ptr::from_ref),
-        load_style_query_inputs: None,
-        style_query_dependencies: style_query_references
-            .map_or(std::ptr::null_mut(), |references| std::ptr::from_mut(references).cast()),
-        note_substitution: None,
+        custom_function_visibilities: functions.map_or(&[][..], |functions| functions.visibilities.as_slice()),
+        style_query_dependencies: style_query_references,
     }
 }
 
@@ -555,29 +515,18 @@ pub(super) struct SubstitutionInputs<'a> {
 /// attributes in no namespace, by local name, with its value's text, and whether names match ASCII
 /// case-insensitively, as an HTML element's do. It points into the facts it borrows.
 pub(super) struct SubstitutionAttributes<'a> {
-    attributes: Vec<crate::css::custom_properties::FfiSubstitutionAttribute>,
+    attributes: Vec<SubstitutionAttribute<'a>>,
     names_are_ascii_case_insensitive: bool,
-    facts: std::marker::PhantomData<&'a index::ElementFactStore>,
 }
 
 impl<'a> SubstitutionAttributes<'a> {
     pub(super) fn of(facts: &'a index::ElementFactStore, node: StyleNodeID, html_namespace: StyleAtomID) -> Self {
-        use crate::css::custom_properties::FfiSubstitutionAttribute;
-        let view = |text: &[u16]| FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: text.as_ptr(),
-            length: text.len(),
-        };
         Self {
             attributes: facts
                 .substitution_attributes(node)
-                .map(|(name, value)| FfiSubstitutionAttribute {
-                    name: view(name),
-                    value: view(value),
-                })
+                .map(|(name, value)| SubstitutionAttribute { name, value })
                 .collect(),
             names_are_ascii_case_insensitive: !html_namespace.is_none() && facts.namespace_of(node) == html_namespace,
-            facts: std::marker::PhantomData,
         }
     }
 }
@@ -1286,14 +1235,9 @@ impl RetainedState {
                 }
                 for descriptor in &input.declarations.descriptors {
                     reads_attributes |= value_reads_attributes(&descriptor.value);
-                    let name = descriptor.name.units();
-                    selected.push(FfiSubstitutionFunctionDeclaration {
-                        name: FfiUtf16View {
-                            ascii: std::ptr::null(),
-                            utf16: name.as_ptr(),
-                            length: name.len(),
-                        },
-                        data: Arc::as_ptr(&descriptor.value).cast(),
+                    selected.push(SubstitutionFunctionDeclaration {
+                        name: descriptor.name.clone(),
+                        value: descriptor.value.clone(),
                     });
                 }
             }
@@ -1301,19 +1245,15 @@ impl RetainedState {
         }
         let definitions = visible_definitions
             .iter()
-            .zip(&declarations)
-            .map(
-                |((function, scope, _), declarations)| FfiSubstitutionFunctionDefinition {
-                    identity: function.identity,
-                    scope_identity: *scope,
-                    signature: Arc::as_ptr(&function.signature).cast(),
-                    declarations: declarations.as_ptr(),
-                    declaration_count: declarations.len(),
-                },
-            )
+            .zip(declarations)
+            .map(|((function, scope, _), declarations)| SubstitutionFunctionDefinition {
+                identity: function.identity,
+                scope_identity: *scope,
+                signature: function.signature.clone(),
+                declarations,
+            })
             .collect();
         Some(PreparedCustomFunctions {
-            _declarations: declarations,
             definitions,
             visibilities: visible.map_or_else(Vec::new, |visible| visible.visibilities.clone()),
             caller_scope,
@@ -1530,7 +1470,7 @@ impl RetainedState {
             reads_attributes.then(|| SubstitutionAttributes::of(&self.facts, node, self.html_element_namespace));
         // SAFETY: The parent store is live for as long as a record names its environment, and the
         // values are the program's interned values, live for the call.
-        let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(parent_store, values) };
+        let cascaded_store = unsafe { Arc::from_raw(CustomPropertyStore::cascaded_child(parent_store, values).cast()) };
         let mut random_function_index = 0_usize;
         let mut parse_context = registry_ref.parse_context(&mut random_function_index);
         parse_context.in_quirks_mode = inputs.in_quirks_mode;
@@ -1541,11 +1481,13 @@ impl RetainedState {
         // The custom properties a `style()` query reads are the element's style query references,
         // which the host records with its record.
         let mut style_query_references = None;
-        let resolution_context = engine_resolution_context(
+        // SAFETY: The store is live for as long as a record names its environment.
+        let inheritance_store = unsafe { inheritance_store.cast::<CustomPropertyStore>().as_ref() };
+        let mut resolution_context = engine_resolution_context(
             &parse_context,
-            cascaded_store,
+            Some(&cascaded_store),
             inheritance_store,
-            std::ptr::from_ref(registry_ref).cast(),
+            registry_ref,
             attributes.as_ref(),
             &media_environment,
             style_query.as_ref(),
@@ -1565,40 +1507,28 @@ impl RetainedState {
             .then(|| self.sibling_position(node))
             .flatten()
             .map(|position| (u64::from(position.count), u64::from(position.index)));
-        let mut random_base_values = (node, &mut self.random_base_values);
+        let random_base_values = std::cell::RefCell::new(&mut self.random_base_values);
+        let draw_random_base_value = |name: &[u16], element_shared: bool| {
+            random_base_values.borrow_mut().ensure(Some(node), name, element_shared)
+        };
         let finalization = CustomPropertyFinalization {
             length: length.as_ref(),
             tree_counting,
             random_base_values: &[],
             color_scheme: registered.as_ref().map_or(0, |registered| registered.color_scheme),
-            draw_random_base_value: Some((
-                draw_engine_random_base_value,
-                std::ptr::from_mut(&mut random_base_values).cast(),
-            )),
+            draw_random_base_value: Some(&draw_random_base_value),
         };
-        let drive = FfiCustomPropertyDriveInput {
-            store: cascaded_store,
-            resolved_parent_store: parent_store,
-            reuse_resolved_parent_if_empty: !parent_store.is_null(),
-            resolution_context: &raw const resolution_context,
-            finalization_length_resolution_context: std::ptr::null(),
-            finalization_environment: std::ptr::null(),
-            finalization_color_scheme: 0,
-            draw_random_base_value: None,
-            random_base_context: std::ptr::null_mut(),
+        // SAFETY: The parent store is live for as long as a record names its environment.
+        let (rust_store, reads) = unsafe {
+            resolve_declared_custom_properties(
+                &cascaded_store,
+                parent_store,
+                !parent_store.is_null(),
+                &mut resolution_context,
+                finalization,
+            )
         };
-        // SAFETY: Every pointer the drive reads is live for the call.
-        let (resolved, reads) = unsafe { resolve_declared_custom_properties(&drive, finalization) };
-        // The resolved values live in the store; the listing transfers references of its own.
-        let properties = match resolved.count {
-            0 => &[],
-            count => unsafe { std::slice::from_raw_parts(resolved.properties, count) },
-        };
-        for property in properties {
-            unsafe { release_style_value(property.data.cast()) };
-        }
-        unsafe { destroy_resolved_custom_properties(resolved.storage, resolved.count) };
-        unsafe { Arc::decrement_strong_count(cascaded_store.cast::<CustomPropertyStore>()) };
+        drop(cascaded_store);
         self.counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
         // What the registered values read beyond the element's fonts reaches the element's
         // records as what they read themselves does: a sibling change, a container's size.
@@ -1627,12 +1557,12 @@ impl RetainedState {
                 },
             );
         }
-        let identity = if resolved.rust_store.is_null() {
+        let identity = if rust_store.is_null() {
             inherited_environment
         } else {
             unsafe {
                 self.custom_property_environments.adopt_engine_environment(
-                    resolved.rust_store,
+                    rust_store,
                     inherited_environment,
                     parent_store,
                     registry_ref,
@@ -1832,47 +1762,43 @@ fn substitute_against_stores(
     let mut parse_context = registry_ref.parse_context(&mut random_function_index);
     parse_context.in_quirks_mode = inputs.document.in_quirks_mode;
     let media_environment = inputs.media.environment();
-    let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
-    let resolution_environment = unsafe {
-        prepare_var_resolution_environment(
-            substitution_attributes.as_ptr(),
-            substitution_attributes.len(),
-            functions.map_or(std::ptr::null(), |functions| functions.definitions.as_ptr()),
-            functions.map_or(0, |functions| functions.definitions.len()),
-            functions.map_or(0, |functions| functions.caller_scope),
-            functions.map_or(std::ptr::null(), |functions| functions.visibilities.as_ptr()),
-            functions.map_or(0, |functions| functions.visibilities.len()),
-        )
-    };
+    let resolution_environment = prepare_var_resolution_environment(
+        attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice()),
+        functions.map_or(&[][..], |functions| functions.definitions.as_slice()),
+        functions.map_or(0, |functions| functions.caller_scope),
+        functions.map_or(&[][..], |functions| functions.visibilities.as_slice()),
+    );
     let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
     // A function definition whose declarations do not tokenize resolves nothing.
     let resolution = match resolution_environment {
-        // SAFETY: The store is live while a record names its environment, and the written
-        // value is retained by the declaration that carries it.
-        Some(mut resolution_environment) => unsafe {
-            crate::css::custom_properties::resolve_vars(
+        Some(mut resolution_environment) => {
+            // SAFETY: The stores are null or live while a record names their environments.
+            let (store, inheritance_store) = unsafe {
+                (
+                    store.cast::<CustomPropertyStore>().as_ref(),
+                    inheritance_store.cast::<CustomPropertyStore>().as_ref(),
+                )
+            };
+            let resolution_inputs = VarResolutionInputs {
                 store,
                 inheritance_store,
-                std::ptr::from_ref(registry_ref).cast(),
-                Some(&parse_context),
-                Some(&media_environment),
-                None,
+                registry: Some(registry_ref),
+                parse_context: Some(&parse_context),
+                media_environment: Some(&media_environment),
+                attribute_names_are_ascii_case_insensitive: attributes
+                    .is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
+                style_query_inputs: inputs.style_query,
+            };
+            crate::css::custom_properties::resolve_vars(
+                &resolution_inputs,
                 property,
-                FfiUtf16View {
-                    ascii: std::ptr::null(),
-                    utf16: root_custom_property_name.as_ptr(),
-                    length: root_custom_property_name.len(),
-                },
-                written.pointer().cast(),
+                root_custom_property_name,
+                written.data(),
                 &mut resolution_environment,
-                attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
-                std::ptr::null_mut(),
-                inputs.style_query,
-                None,
                 style_query_references.as_deref_mut(),
                 None,
             )
-        },
+        }
         None => NativeVarResolution::NotHandled,
     };
     // The substituted source parses as the C++ cascade parses it: without callbacks first,

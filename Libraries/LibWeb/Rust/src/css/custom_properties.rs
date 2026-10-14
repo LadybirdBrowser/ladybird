@@ -198,25 +198,24 @@ pub struct FfiCustomPropertyRegistryContext {
     pub document_base_url_length: usize,
 }
 
-#[repr(C)]
-pub struct FfiSubstitutionAttribute {
-    pub name: FfiUtf16View,
-    pub value: FfiUtf16View,
+/// One of an element's attributes an `attr()` reads: its local name, and its value's text.
+pub(crate) struct SubstitutionAttribute<'a> {
+    pub(crate) name: &'a [u16],
+    pub(crate) value: &'a [u16],
 }
 
-#[repr(C)]
-pub struct FfiSubstitutionFunctionDeclaration {
-    pub name: FfiUtf16View,
-    pub data: *const c_void,
+/// One declaration in the body of a custom function, as its conditions select it.
+pub(crate) struct SubstitutionFunctionDeclaration {
+    pub(crate) name: crate::css::style_value::CssString,
+    pub(crate) value: Arc<StyleValueData>,
 }
 
-#[repr(C)]
-pub struct FfiSubstitutionFunctionDefinition {
-    pub identity: u64,
-    pub scope_identity: usize,
-    pub signature: *const c_void,
-    pub declarations: *const FfiSubstitutionFunctionDeclaration,
-    pub declaration_count: usize,
+/// A custom function a call may reach, with the declarations its conditions select.
+pub(crate) struct SubstitutionFunctionDefinition {
+    pub(crate) identity: u64,
+    pub(crate) scope_identity: usize,
+    pub(crate) signature: Arc<FunctionSignature>,
+    pub(crate) declarations: Vec<SubstitutionFunctionDeclaration>,
 }
 
 /// That a call from a scope names a function: the definition its name dereferences to there, as
@@ -317,9 +316,14 @@ pub(crate) struct CustomPropertyFinalization<'a> {
     pub(crate) random_base_values: &'a [crate::css::style_compute::FfiRandomBaseValue],
     /// A PreferredColorScheme code.
     pub(crate) color_scheme: u8,
-    /// How to draw the random base value of a key the host published none for, with its context.
-    pub(crate) draw_random_base_value: Option<(DrawRandomBaseValue, *mut c_void)>,
+    /// Draws the random base value of a key the host published none for, from its name and whether
+    /// the key's element is null.
+    pub(crate) draw_random_base_value: Option<&'a DrawRandomBaseValue<'a>>,
 }
+
+/// Draws the random base value of a random caching key for the element computed: its name, and
+/// whether the key's element is null.
+pub(crate) type DrawRandomBaseValue<'a> = dyn Fn(&[u16], bool) -> f64 + 'a;
 
 /// What computing registered values read of their element beyond the fonts of its lengths: the
 /// viewport, its place among its siblings, and the container-relative units it resolved against
@@ -338,14 +342,6 @@ impl std::ops::BitOrAssign for RegisteredValueReads {
         self.container_unit_mask |= other.container_unit_mask;
     }
 }
-
-/// Loads what a style query resolves against from a resolution's callback context.
-pub(crate) type LoadStyleQueryInputs =
-    unsafe extern "C" fn(*mut c_void) -> *const crate::css::cascaded_properties::FfiStyleQueryInputs;
-
-/// Draws the random base value of a random caching key for the element computed: its name, and
-/// whether the key's element is null.
-pub(crate) type DrawRandomBaseValue = unsafe extern "C" fn(*mut c_void, *const u16, usize, bool) -> f64;
 
 impl CustomPropertyRegistry {
     /// Parse a value with a registration's syntax, as the computation of its name parses it.
@@ -550,9 +546,9 @@ fn random_base_values_for_registered_value(
             let value = match published.iter().find(|base| kind(base.source.cast()) == Some(wanted)) {
                 Some(base) => base.value,
                 None => {
-                    let (draw, context) = finalization.draw_random_base_value?;
+                    let draw = finalization.draw_random_base_value?;
                     let (name, element_shared) = crate::css::style_compute::random_caching_key(unsafe { &*sharing });
-                    unsafe { draw(context, name.as_ptr(), name.len(), element_shared) }
+                    draw(name, element_shared)
                 }
             };
             Some(crate::css::style_compute::FfiRandomBaseValue {
@@ -896,8 +892,6 @@ struct ASFResolutionContext<'a> {
     custom_functions: Option<&'a CustomFunctionRegistry>,
     parse_context: Option<&'a ParseContext>,
     media_environment: Option<&'a FfiMediaEnvironment>,
-    load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
-    callback_context: *mut c_void,
     /// What lengths in a style query resolve against: the element's last computed style.
     style_query_length_resolution_context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
     /// What colors in a style query resolve against, where the queried element's are known.
@@ -905,14 +899,11 @@ struct ASFResolutionContext<'a> {
     /// The queried element's sibling count and index, which tree-counting functions in a style
     /// query resolve against, where they are known.
     style_query_tree_counting: Option<(u64, u64)>,
-    /// Loads both from the callback context the first time a style query is evaluated.
-    load_style_query_inputs: Option<LoadStyleQueryInputs>,
     /// Where the custom properties a style query reads are noted, for the host to record.
     style_query_dependencies: Option<&'a mut Option<Box<StyleQueryDependencies>>>,
-    final_custom_properties: Option<&'a HashMap<Vec<u16>, *const c_void>>,
+    final_custom_properties: Option<&'a HashMap<Vec<u16>, RetainedStyleValueData>>,
     function_local_scopes: Vec<FunctionLocalScope>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
-    resolution_stats: Option<&'a VarResolutionStats>,
 }
 
 impl ASFResolutionContext<'_> {
@@ -920,33 +911,6 @@ impl ASFResolutionContext<'_> {
         if let Some(dependencies) = self.style_query_dependencies.as_deref_mut() {
             dependencies.get_or_insert_default().note(name);
         }
-    }
-
-    /// Load what a style query resolves against, if the host left it to be loaded.
-    fn load_style_query_inputs(&mut self) {
-        let Some(load) = self.load_style_query_inputs.take() else {
-            return;
-        };
-        // SAFETY: The host keeps what it loads live for the resolution.
-        let Some(inputs) = (unsafe { load(self.callback_context).as_ref() }) else {
-            return;
-        };
-        self.style_query_length_resolution_context = Some(&inputs.length);
-        self.style_query_color_resolution_input = Some(inputs.color_input());
-    }
-
-    fn media_environment(&mut self) -> Option<&FfiMediaEnvironment> {
-        if self.media_environment.is_none()
-            && let Some(load_media_environment) = self.load_media_environment
-        {
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::MediaEnvironmentCallback);
-            self.media_environment = unsafe {
-                load_media_environment(self.callback_context)
-                    .cast::<FfiMediaEnvironment>()
-                    .as_ref()
-            };
-        }
-        self.media_environment
     }
 }
 
@@ -1007,23 +971,6 @@ pub(crate) struct VarResolutionEnvironment {
     attributes: HashMap<Vec<u16>, Vec<u16>>,
     custom_functions: CustomFunctionRegistry,
     token_cache: CustomPropertyTokenCache,
-    resolution_stats: VarResolutionStats,
-}
-
-#[derive(Default)]
-struct VarResolutionStats {
-    final_value_hits: std::cell::Cell<u64>,
-    final_value_misses: std::cell::Cell<u64>,
-}
-
-impl VarResolutionEnvironment {
-    pub(crate) fn final_value_hits(&self) -> u64 {
-        self.resolution_stats.final_value_hits.get()
-    }
-
-    pub(crate) fn final_value_misses(&self) -> u64 {
-        self.resolution_stats.final_value_misses.get()
-    }
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -1225,21 +1172,14 @@ pub(crate) unsafe fn ffi_slice<'a, T>(items: *const T, count: usize) -> &'a [T] 
     }
 }
 
-unsafe fn custom_function_registry_from_ffi(
-    definitions: &[FfiSubstitutionFunctionDefinition],
+fn custom_function_registry(
+    definitions: &[SubstitutionFunctionDefinition],
     caller_scope_identity: usize,
     visibilities: &[FfiSubstitutionFunctionVisibility],
 ) -> Option<CustomFunctionRegistry> {
     let mut parsed_definitions = Vec::with_capacity(definitions.len());
     for definition in definitions {
-        let signature = definition.signature.cast::<FunctionSignature>();
-        if signature.is_null() {
-            return None;
-        }
-        let signature = unsafe {
-            Arc::increment_strong_count(signature);
-            Arc::from_raw(signature)
-        };
+        let signature = definition.signature.clone();
         let mut parameter_defaults = Vec::with_capacity(signature.parameters.len());
         for parameter in &signature.parameters {
             parameter_defaults.push(match &parameter.default_value {
@@ -1247,17 +1187,10 @@ unsafe fn custom_function_registry_from_ffi(
                 None => None,
             });
         }
-        let declarations = if definition.declaration_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(definition.declarations, definition.declaration_count) }
-        };
-        let mut parsed_declarations = Vec::with_capacity(declarations.len());
-        for declaration in declarations {
-            let name = unsafe { declaration.name.to_utf16() }?;
-            let data = unsafe { &*declaration.data.cast::<StyleValueData>() };
-            let (tokens, includes_substitution) = tokens_for_function_value(data)?;
-            parsed_declarations.push((name, tokens, includes_substitution));
+        let mut parsed_declarations = Vec::with_capacity(definition.declarations.len());
+        for declaration in &definition.declarations {
+            let (tokens, includes_substitution) = tokens_for_function_value(&declaration.value)?;
+            parsed_declarations.push((declaration.name.units().to_vec(), tokens, includes_substitution));
         }
         parsed_definitions.push(CustomFunctionDefinition {
             identity: definition.identity,
@@ -1285,38 +1218,25 @@ unsafe fn custom_function_registry_from_ffi(
 }
 
 /// Builds the element-wide immutable substitution inputs once for all declarations in a cascade.
-///
-/// # Safety
-/// Every FFI pointer must remain readable for this call.
-pub(crate) unsafe fn prepare_var_resolution_environment(
-    attributes: *const FfiSubstitutionAttribute,
-    attribute_count: usize,
-    custom_functions: *const FfiSubstitutionFunctionDefinition,
-    custom_function_count: usize,
+pub(crate) fn prepare_var_resolution_environment(
+    attributes: &[SubstitutionAttribute],
+    custom_functions: &[SubstitutionFunctionDefinition],
     custom_function_scope_identity: usize,
-    custom_function_visibilities: *const FfiSubstitutionFunctionVisibility,
-    custom_function_visibility_count: usize,
+    custom_function_visibilities: &[FfiSubstitutionFunctionVisibility],
 ) -> Option<VarResolutionEnvironment> {
-    let attributes = unsafe { ffi_slice(attributes, attribute_count) }
+    let attributes = attributes
         .iter()
-        .filter_map(|attribute| {
-            Some((unsafe { attribute.name.to_utf16() }?, unsafe {
-                attribute.value.to_utf16()
-            }?))
-        })
+        .map(|attribute| (attribute.name.to_vec(), attribute.value.to_vec()))
         .collect();
-    let custom_functions = unsafe {
-        custom_function_registry_from_ffi(
-            ffi_slice(custom_functions, custom_function_count),
-            custom_function_scope_identity,
-            ffi_slice(custom_function_visibilities, custom_function_visibility_count),
-        )
-    }?;
+    let custom_functions = custom_function_registry(
+        custom_functions,
+        custom_function_scope_identity,
+        custom_function_visibilities,
+    )?;
     Some(VarResolutionEnvironment {
         attributes,
         custom_functions,
         token_cache: HashMap::new(),
-        resolution_stats: VarResolutionStats::default(),
     })
 }
 
@@ -1574,28 +1494,19 @@ fn resolve_custom_property_with_lookup(
     }
     if lookup == CustomPropertyLookup::Normal
         && let Some(final_values) = context.final_custom_properties
+        && let Some(data) = final_values.get(name).and_then(RetainedStyleValueData::optional_data)
     {
-        if let Some(data) = final_values
-            .get(name)
-            .and_then(|data| unsafe { data.cast::<StyleValueData>().as_ref() })
-        {
-            if let Some(stats) = context.resolution_stats {
-                stats.final_value_hits.set(stats.final_value_hits.get() + 1);
-            }
-            if matches!(data, StyleValueData::GuaranteedInvalid) {
-                return TokenResolution::Invalid;
-            }
-            let Some((tokens, includes_substitution, contains_attr_tainted_values)) =
-                cached_tokens_for_custom_property_value(data, context)
-            else {
-                return TokenResolution::NotHandled;
-            };
-            context.contains_attr_tainted_values |= contains_attr_tainted_values;
-            if !includes_substitution {
-                return TokenResolution::Resolved(tokens.to_vec());
-            }
-        } else if let Some(stats) = context.resolution_stats {
-            stats.final_value_misses.set(stats.final_value_misses.get() + 1);
+        if matches!(data, StyleValueData::GuaranteedInvalid) {
+            return TokenResolution::Invalid;
+        }
+        let Some((tokens, includes_substitution, contains_attr_tainted_values)) =
+            cached_tokens_for_custom_property_value(data, context)
+        else {
+            return TokenResolution::NotHandled;
+        };
+        context.contains_attr_tainted_values |= contains_attr_tainted_values;
+        if !includes_substitution {
+            return TokenResolution::Resolved(tokens.to_vec());
         }
     }
     let registration = registry.and_then(|registry| registry.registrations.get(name));
@@ -2478,7 +2389,6 @@ fn evaluate_style_query(
         Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
         Err(ConditionValidation::Valid) => unreachable!(),
     };
-    context.load_style_query_inputs();
     evaluate_parsed_boolean_expression(&expression, &mut |feature| {
         evaluate_style_feature(store, registry, feature, context, recursion_depth + 1)
     })
@@ -2538,7 +2448,7 @@ fn evaluate_if_condition(
             return evaluate_style_query(store, registry, &test[1..close], context, recursion_depth + 1);
         }
         if name.eq_ignore_ascii_case("media") {
-            let Some(environment) = context.media_environment() else {
+            let Some(environment) = context.media_environment else {
                 return ConditionEvaluation::NotHandled;
             };
             let source = serialize_tokens(&test[1..close]);
@@ -3393,42 +3303,37 @@ fn serialize_tokens(tokens: &[OwnedToken]) -> Vec<u16> {
     output
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn resolve_vars(
-    store: *const c_void,
-    inheritance_store: *const c_void,
-    registry: *const c_void,
-    parse_context: Option<&ParseContext>,
-    media_environment: Option<&FfiMediaEnvironment>,
-    load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
+/// What a substitution reads beyond the value it substitutes.
+#[derive(Clone, Copy)]
+pub(crate) struct VarResolutionInputs<'a> {
+    pub(crate) store: Option<&'a CustomPropertyStore>,
+    pub(crate) inheritance_store: Option<&'a CustomPropertyStore>,
+    pub(crate) registry: Option<&'a CustomPropertyRegistry>,
+    pub(crate) parse_context: Option<&'a ParseContext>,
+    pub(crate) media_environment: Option<&'a FfiMediaEnvironment>,
+    pub(crate) attribute_names_are_ascii_case_insensitive: bool,
+    pub(crate) style_query_inputs: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,
+}
+
+pub(crate) fn resolve_vars(
+    inputs: &VarResolutionInputs,
     property_id: u16,
-    root_custom_property_name: FfiUtf16View,
-    value_data: *const c_void,
+    root_custom_property_name: &[u16],
+    value_data: &StyleValueData,
     environment: &mut VarResolutionEnvironment,
-    attribute_names_are_ascii_case_insensitive: bool,
-    callback_context: *mut c_void,
-    style_query_inputs: Option<&crate::css::cascaded_properties::FfiStyleQueryInputs>,
-    load_style_query_inputs: Option<LoadStyleQueryInputs>,
     style_query_dependencies: Option<&mut Option<Box<StyleQueryDependencies>>>,
-    final_custom_properties: Option<&HashMap<Vec<u16>, *const c_void>>,
+    final_custom_properties: Option<&HashMap<Vec<u16>, RetainedStyleValueData>>,
 ) -> NativeVarResolution {
-    let store = if store.is_null() {
-        None
-    } else {
-        Some(unsafe { &*store.cast::<CustomPropertyStore>() })
-    };
-    let registry = if registry.is_null() {
-        None
-    } else {
-        Some(unsafe { &*registry.cast::<CustomPropertyRegistry>() })
-    };
-    let inheritance_store = if inheritance_store.is_null() {
-        None
-    } else {
-        Some(unsafe { &*inheritance_store.cast::<CustomPropertyStore>() })
-    };
-    let value_data = unsafe { &*value_data.cast::<StyleValueData>() };
-    let root_custom_property_name = unsafe { root_custom_property_name.to_utf16() }.filter(|name| !name.is_empty());
+    let VarResolutionInputs {
+        store,
+        inheritance_store,
+        registry,
+        parse_context,
+        media_environment,
+        attribute_names_are_ascii_case_insensitive,
+        style_query_inputs,
+    } = *inputs;
+    let root_custom_property_name = (!root_custom_property_name.is_empty()).then(|| root_custom_property_name.to_vec());
     assert_eq!(
         root_custom_property_name.is_some(),
         property_id == crate::css::property_metadata::property_id::CUSTOM,
@@ -3444,7 +3349,6 @@ pub(crate) unsafe fn resolve_vars(
         attributes,
         custom_functions,
         token_cache,
-        resolution_stats,
     } = environment;
     let mut context = ASFResolutionContext {
         attributes: Some(attributes),
@@ -3454,15 +3358,11 @@ pub(crate) unsafe fn resolve_vars(
         custom_functions: Some(custom_functions),
         parse_context,
         media_environment,
-        load_media_environment,
-        callback_context,
         style_query_length_resolution_context: style_query_inputs.map(|inputs| &inputs.length),
         style_query_color_resolution_input: style_query_inputs.map(|inputs| inputs.color_input()),
-        load_style_query_inputs,
         style_query_dependencies,
         final_custom_properties,
         token_cache: Some(token_cache),
-        resolution_stats: Some(resolution_stats),
         ..Default::default()
     };
     let Some((source, includes_substitution, contains_attr_tainted_values)) =
