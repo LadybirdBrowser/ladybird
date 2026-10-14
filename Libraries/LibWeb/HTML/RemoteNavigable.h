@@ -38,7 +38,7 @@ public:
     void set_provisional_navigable(GC::Ptr<LocalNavigable> navigable) { m_provisional_navigable = navigable; }
 
     virtual bool has_been_destroyed() const override { return m_has_been_destroyed; }
-    virtual void set_has_been_destroyed() override { m_has_been_destroyed = true; }
+    virtual void set_has_been_destroyed() override;
 
     Optional<Web::CompositorContextId> compositor_context_id() const { return m_replicated_state.compositor_context_id; }
 

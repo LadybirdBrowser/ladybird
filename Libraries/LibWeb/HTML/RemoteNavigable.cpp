@@ -153,11 +153,18 @@ Vector<GC::Root<Navigable>> RemoteNavigable::active_document_inclusive_descendan
     return navigables;
 }
 
+void RemoteNavigable::set_has_been_destroyed()
+{
+    m_has_been_destroyed = true;
+    DOM::Document::invalidate_full_activity();
+}
+
 void RemoteNavigable::set_replicated_state(ReplicatedNavigableState state)
 {
     auto was_delaying_the_load_event_of_its_container = m_replicated_state.delays_the_load_event_of_its_container;
     auto previous_compositor_context_id = m_replicated_state.compositor_context_id;
     m_replicated_state = move(state);
+    DOM::Document::invalidate_full_activity();
 
     // The documents of the navigable's children hosted here composite into the context its document is painted
     // through, wherever that document is hosted.

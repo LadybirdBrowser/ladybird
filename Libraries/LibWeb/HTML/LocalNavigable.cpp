@@ -707,6 +707,7 @@ void LocalNavigable::set_has_been_destroyed()
     cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
     m_has_been_destroyed = true;
+    DOM::Document::invalidate_full_activity();
     resolve_all_pending_async_scroll_operations();
     cancel_user_scroll_settlement();
 }
@@ -1110,6 +1111,7 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
     m_active_document = document;
+    DOM::Document::invalidate_full_activity();
     document->set_navigable(this);
 
     // 5. Set navigable's parent to parent.
@@ -1173,6 +1175,7 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
         m_active_document->set_navigable(nullptr);
     }
     m_active_document = new_document;
+    DOM::Document::invalidate_full_activity();
     new_document->set_navigable(this);
     set_needs_to_record_display_list();
 
@@ -1587,6 +1590,7 @@ void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
         m_active_document->set_navigable(nullptr);
     }
     m_active_document = document;
+    DOM::Document::invalidate_full_activity();
     if (document)
         document->set_navigable(this);
     set_needs_to_record_display_list();

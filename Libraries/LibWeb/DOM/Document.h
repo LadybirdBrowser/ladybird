@@ -819,8 +819,18 @@ public:
 
     [[nodiscard]] bool has_a_style_sheet_that_is_blocking_scripts() const;
 
-    bool is_fully_active() const;
+    bool is_fully_active() const
+    {
+        // Whether a document is fully active rarely changes, so the answer is kept until invalidate_full_activity().
+        if (m_full_activity_epoch == s_full_activity_epoch) [[likely]]
+            return m_is_fully_active;
+        return update_is_fully_active();
+    }
     bool is_active() const;
+
+    // To call whenever anything that decides if a document is fully active changes: a navigable's parent, its being
+    // destroyed, or its active document, or a document's navigable or unload counter.
+    static void invalidate_full_activity() { ++s_full_activity_epoch; }
 
     [[nodiscard]] HTML::HTMLParser::AllowDeclarativeShadowRoots allow_declarative_shadow_roots() const;
     void set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots allow_declarative_shadow_roots);
@@ -1607,6 +1617,9 @@ protected:
     void initialize_document();
 
 private:
+    bool update_is_fully_active() const;
+    bool compute_is_fully_active() const;
+
     // Records the document's viewport for the host to publish, or, given `committed`, commits the recording.
     Optional<Painting::DisplayListRecording> start_recording(Layout::BegunRead const&, HTML::PaintConfig, Painting::PaintCommandCacheMode, Optional<Compositor::FlightPresentation>&& committed);
 
@@ -1828,6 +1841,11 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#unload-counter
     u32 m_unload_counter { 0 };
+
+    // The answer is_fully_active() last gave, and the value of s_full_activity_epoch it's valid for.
+    mutable bool m_is_fully_active { false };
+    mutable u64 m_full_activity_epoch { 0 };
+    static u64 s_full_activity_epoch;
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#throw-on-dynamic-markup-insertion-counter
     u32 m_throw_on_dynamic_markup_insertion_counter { 0 };
