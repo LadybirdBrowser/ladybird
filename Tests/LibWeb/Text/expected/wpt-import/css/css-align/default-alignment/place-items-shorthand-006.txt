@@ -1,0 +1,174 @@
+Harness status: OK
+
+Found 168 tests
+
+80 Pass
+88 Fail
+Pass	Checking place-items: normal left
+Pass	Checking place-items: normal right
+Pass	Checking place-items: normal normal
+Pass	Checking place-items: normal stretch
+Pass	Checking place-items: normal start
+Pass	Checking place-items: normal end
+Pass	Checking place-items: normal self-start
+Pass	Checking place-items: normal self-end
+Pass	Checking place-items: normal center
+Fail	Checking place-items: normal flex-start
+Fail	Checking place-items: normal flex-end
+Pass	Checking place-items: normal baseline
+Fail	Checking place-items: normal first baseline
+Fail	Checking place-items: normal last baseline
+Pass	Checking place-items: stretch left
+Pass	Checking place-items: stretch right
+Pass	Checking place-items: stretch normal
+Pass	Checking place-items: stretch stretch
+Pass	Checking place-items: stretch start
+Pass	Checking place-items: stretch end
+Pass	Checking place-items: stretch self-start
+Pass	Checking place-items: stretch self-end
+Pass	Checking place-items: stretch center
+Fail	Checking place-items: stretch flex-start
+Fail	Checking place-items: stretch flex-end
+Pass	Checking place-items: stretch baseline
+Fail	Checking place-items: stretch first baseline
+Fail	Checking place-items: stretch last baseline
+Pass	Checking place-items: start left
+Pass	Checking place-items: start right
+Pass	Checking place-items: start normal
+Pass	Checking place-items: start stretch
+Pass	Checking place-items: start start
+Pass	Checking place-items: start end
+Pass	Checking place-items: start self-start
+Pass	Checking place-items: start self-end
+Pass	Checking place-items: start center
+Fail	Checking place-items: start flex-start
+Fail	Checking place-items: start flex-end
+Pass	Checking place-items: start baseline
+Fail	Checking place-items: start first baseline
+Fail	Checking place-items: start last baseline
+Pass	Checking place-items: end left
+Pass	Checking place-items: end right
+Pass	Checking place-items: end normal
+Pass	Checking place-items: end stretch
+Pass	Checking place-items: end start
+Pass	Checking place-items: end end
+Pass	Checking place-items: end self-start
+Pass	Checking place-items: end self-end
+Pass	Checking place-items: end center
+Fail	Checking place-items: end flex-start
+Fail	Checking place-items: end flex-end
+Pass	Checking place-items: end baseline
+Fail	Checking place-items: end first baseline
+Fail	Checking place-items: end last baseline
+Pass	Checking place-items: self-start left
+Pass	Checking place-items: self-start right
+Pass	Checking place-items: self-start normal
+Pass	Checking place-items: self-start stretch
+Pass	Checking place-items: self-start start
+Pass	Checking place-items: self-start end
+Pass	Checking place-items: self-start self-start
+Pass	Checking place-items: self-start self-end
+Pass	Checking place-items: self-start center
+Fail	Checking place-items: self-start flex-start
+Fail	Checking place-items: self-start flex-end
+Pass	Checking place-items: self-start baseline
+Fail	Checking place-items: self-start first baseline
+Fail	Checking place-items: self-start last baseline
+Pass	Checking place-items: self-end left
+Pass	Checking place-items: self-end right
+Pass	Checking place-items: self-end normal
+Pass	Checking place-items: self-end stretch
+Pass	Checking place-items: self-end start
+Pass	Checking place-items: self-end end
+Pass	Checking place-items: self-end self-start
+Pass	Checking place-items: self-end self-end
+Pass	Checking place-items: self-end center
+Fail	Checking place-items: self-end flex-start
+Fail	Checking place-items: self-end flex-end
+Pass	Checking place-items: self-end baseline
+Fail	Checking place-items: self-end first baseline
+Fail	Checking place-items: self-end last baseline
+Pass	Checking place-items: center left
+Pass	Checking place-items: center right
+Pass	Checking place-items: center normal
+Pass	Checking place-items: center stretch
+Pass	Checking place-items: center start
+Pass	Checking place-items: center end
+Pass	Checking place-items: center self-start
+Pass	Checking place-items: center self-end
+Pass	Checking place-items: center center
+Fail	Checking place-items: center flex-start
+Fail	Checking place-items: center flex-end
+Pass	Checking place-items: center baseline
+Fail	Checking place-items: center first baseline
+Fail	Checking place-items: center last baseline
+Fail	Checking place-items: flex-start left
+Fail	Checking place-items: flex-start right
+Fail	Checking place-items: flex-start normal
+Fail	Checking place-items: flex-start stretch
+Fail	Checking place-items: flex-start start
+Fail	Checking place-items: flex-start end
+Fail	Checking place-items: flex-start self-start
+Fail	Checking place-items: flex-start self-end
+Fail	Checking place-items: flex-start center
+Fail	Checking place-items: flex-start flex-start
+Fail	Checking place-items: flex-start flex-end
+Fail	Checking place-items: flex-start baseline
+Fail	Checking place-items: flex-start first baseline
+Fail	Checking place-items: flex-start last baseline
+Fail	Checking place-items: flex-end left
+Fail	Checking place-items: flex-end right
+Fail	Checking place-items: flex-end normal
+Fail	Checking place-items: flex-end stretch
+Fail	Checking place-items: flex-end start
+Fail	Checking place-items: flex-end end
+Fail	Checking place-items: flex-end self-start
+Fail	Checking place-items: flex-end self-end
+Fail	Checking place-items: flex-end center
+Fail	Checking place-items: flex-end flex-start
+Fail	Checking place-items: flex-end flex-end
+Fail	Checking place-items: flex-end baseline
+Fail	Checking place-items: flex-end first baseline
+Fail	Checking place-items: flex-end last baseline
+Pass	Checking place-items: baseline left
+Pass	Checking place-items: baseline right
+Pass	Checking place-items: baseline normal
+Pass	Checking place-items: baseline stretch
+Pass	Checking place-items: baseline start
+Pass	Checking place-items: baseline end
+Pass	Checking place-items: baseline self-start
+Pass	Checking place-items: baseline self-end
+Pass	Checking place-items: baseline center
+Fail	Checking place-items: baseline flex-start
+Fail	Checking place-items: baseline flex-end
+Pass	Checking place-items: baseline baseline
+Fail	Checking place-items: baseline first baseline
+Fail	Checking place-items: baseline last baseline
+Fail	Checking place-items: first baseline left
+Fail	Checking place-items: first baseline right
+Fail	Checking place-items: first baseline normal
+Fail	Checking place-items: first baseline stretch
+Fail	Checking place-items: first baseline start
+Fail	Checking place-items: first baseline end
+Fail	Checking place-items: first baseline self-start
+Fail	Checking place-items: first baseline self-end
+Fail	Checking place-items: first baseline center
+Fail	Checking place-items: first baseline flex-start
+Fail	Checking place-items: first baseline flex-end
+Fail	Checking place-items: first baseline baseline
+Fail	Checking place-items: first baseline first baseline
+Fail	Checking place-items: first baseline last baseline
+Fail	Checking place-items: last baseline left
+Fail	Checking place-items: last baseline right
+Fail	Checking place-items: last baseline normal
+Fail	Checking place-items: last baseline stretch
+Fail	Checking place-items: last baseline start
+Fail	Checking place-items: last baseline end
+Fail	Checking place-items: last baseline self-start
+Fail	Checking place-items: last baseline self-end
+Fail	Checking place-items: last baseline center
+Fail	Checking place-items: last baseline flex-start
+Fail	Checking place-items: last baseline flex-end
+Fail	Checking place-items: last baseline baseline
+Fail	Checking place-items: last baseline first baseline
+Fail	Checking place-items: last baseline last baseline

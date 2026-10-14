@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>CSS Box Alignment: place-self shorthand - Shorthand 'specified' and 'resolved' value</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com" />
+<link rel="help" href="http://www.w3.org/TR/css3-align/#place-self-property" />
+<meta name="assert" content="Check the place-self's 'specified' and 'resolved' values serialization." />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/css-align/resources/alignment-parsing-utils.js"></script>
+<div id="log"></div>
+<script>
+    let classes = Object.assign({"Auto":"auto", "Normal":"normal", "Stretch":"stretch"}, selfPositionClasses,
+                                baselineClasses);
+    let computedClasses = Object.assign({"Auto":"auto", "Normal":"normal", "Stretch":"stretch"}, selfPositionComputedClasses,
+                                baselineClasses);
+    for (var key1 in classes) {
+        let alignValue = classes[key1];
+        let expectedAlignValue = computedClasses[key1];
+        let classes2 = Object.assign({"Left":"left", "Right":"right"}, classes);
+        let computedClasses2 = Object.assign({"Left":"left", "Right":"right"}, computedClasses);
+        for (var key2 in classes2) {
+            let justifyValue = classes2[key2];
+            let expectedJustifyValue = computedClasses2[key2];
+            var value = (alignValue + " " + justifyValue).trim();
+            test(function() {
+                checkPlaceShorthand(
+                    "place-self", value, alignValue, justifyValue,
+                    expectedAlignValue, expectedJustifyValue)
+            }, "Checking place-self: " + value);
+        }
+    }
+</script>

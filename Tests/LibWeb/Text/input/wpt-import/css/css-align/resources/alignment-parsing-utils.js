@@ -5,6 +5,13 @@ var baselineClasses = {"Baseline":"baseline", "FirstBaseline":"first baseline", 
 var overflowClasses = {"SafeFlexEnd":"safe flex-end", "UnsafeEnd":"unsafe end", "SafeEnd":"safe end", "UnsafeFlexStart":"unsafe flex-start", "SafeCenter":"safe center"};
 var legacyClasses = {"LegacyLeft":"legacy left", "LegacyCenter":"legacy center", "LegacyRight":"legacy right"};
 
+// Computed-value companions for the maps above, keyed the same way. Only
+// flex-start/flex-end canonicalize to flow-start/flow-end when computed;
+// every other keyword's computed value equals its specified value.
+var selfPositionComputedClasses = {"Start":"start", "End":"end", "SelfStart":"self-start", "SelfEnd":"self-end", "Center":"center", "FlexStart":"flow-start", "FlexEnd":"flow-end"};
+var contentPositionComputedClasses = {"Start":"start", "End":"end", "Center":"center", "FlexStart":"flow-start", "FlexEnd":"flow-end"};
+var overflowComputedClasses = {"SafeFlexEnd":"safe flow-end", "UnsafeEnd":"unsafe end", "SafeEnd":"safe end", "UnsafeFlexStart":"unsafe flow-start", "SafeCenter":"safe center"};
+
 var invalidPositionValues = ["auto safe", "auto left", "normal unsafe", "normal stretch", "baseline normal",
                              "baseline center", "first baseline center", "last baseline center", "baseline last",
                              "baseline first", "stretch unsafe", "stretch right", "unsafe unsafe", "unsafe safe",
@@ -17,7 +24,9 @@ var invalidDistributionValues = ["space-between left", "space-around center", "s
                                  "space-between safe", "space-between stretch", "stretch start",
                                  "stretch baseline", "first baseline space-around"];
 
-function checkPlaceShorhand(shorthand, shorthandValue, alignValue, justifyValue)
+function checkPlaceShorthand(shorthand, shorthandValue, alignValue, justifyValue,
+                            expectedAlignValue = alignValue,
+                            expectedJustifyValue = justifyValue)
 {
     var div = document.createElement("div");
     div.style[shorthand] = shorthandValue;
@@ -29,15 +38,21 @@ function checkPlaceShorhand(shorthand, shorthandValue, alignValue, justifyValue)
         justifyValue = "baseline";
     if (justifyValue === "")
         justifyValue = alignValue;
+    if (expectedAlignValue === "first baseline")
+        expectedAlignValue = "baseline";
+    if (expectedJustifyValue === "first baseline")
+        expectedJustifyValue = "baseline";
+    if (expectedJustifyValue === "")
+        expectedJustifyValue = expectedAlignValue;
 
     let specifiedValue = (alignValue + " " + justifyValue).trim();
     if (alignValue === justifyValue)
         specifiedValue = alignValue;
 
     var resolvedValue = getComputedStyle(div).getPropertyValue(shorthand);
-    var expectedResolvedValue = (alignValue + " " + justifyValue).trim();
-    if (alignValue === justifyValue)
-        expectedResolvedValue = alignValue;
+    var expectedResolvedValue = (expectedAlignValue + " " + expectedJustifyValue).trim();
+    if (expectedAlignValue === expectedJustifyValue)
+        expectedResolvedValue = expectedAlignValue;
 
     assert_equals(div.style[shorthand], specifiedValue, shorthandValue + " specified value");
     // FIXME: We need https://github.com/w3c/csswg-drafts/issues/1041 to clarify which
@@ -45,7 +60,7 @@ function checkPlaceShorhand(shorthand, shorthandValue, alignValue, justifyValue)
     assert_in_array(resolvedValue, ["", expectedResolvedValue], shorthand + " resolved value");
 }
 
-function checkPlaceShorhandLonghands(shorthand, alignLonghand, justifyLonghand, alignValue, justifyValue = "")
+function checkPlaceShorthandLonghands(shorthand, alignLonghand, justifyLonghand, alignValue, justifyValue = "")
 {
     var div = document.createElement("div");
     div.setAttribute("style", shorthand + ": " + alignValue + " " + justifyValue);

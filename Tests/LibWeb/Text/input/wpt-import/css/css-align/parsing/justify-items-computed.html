@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Box Alignment Level 3: getComputedStyle().justifyItems</title>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-items">
+<meta name="assert" content="justify-items computed value is as specified.">
+<meta name="assert" content="justify-items legacy depends on inherited value.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value("justify-items", "normal");
+test_computed_value("justify-items", "stretch");
+
+test_computed_value("justify-items", "baseline");
+test_computed_value("justify-items", "last baseline");
+
+test_computed_value("justify-items", "center");
+test_computed_value("justify-items", "start");
+test_computed_value("justify-items", "end");
+test_computed_value("justify-items", "self-start");
+test_computed_value("justify-items", "self-end");
+test_computed_value("justify-items", "flex-start", "flow-start");
+test_computed_value("justify-items", "flex-end", "flow-end");
+test_computed_value("justify-items", "flow-start");
+test_computed_value("justify-items", "flow-end");
+test_computed_value("justify-items", "safe flow-start");
+test_computed_value("justify-items", "unsafe flow-end");
+test_computed_value("justify-items", "unsafe center");
+test_computed_value("justify-items", "safe self-end");
+test_computed_value("justify-items", "right");
+test_computed_value("justify-items", "safe left");
+
+test_computed_value("justify-items", "legacy", "normal");
+test_computed_value("justify-items", "legacy left");
+test_computed_value("justify-items", "legacy right");
+test_computed_value("justify-items", "legacy center");
+
+test(() => {
+  const container = document.getElementById('container');
+  const target = document.getElementById('target');
+  target.style.justifyItems = 'legacy';
+  container.style.justifyItems = 'legacy left';
+  assert_equals(getComputedStyle(target).justifyItems, 'legacy left');
+  container.style.justifyItems = 'legacy right';
+  assert_equals(getComputedStyle(target).justifyItems, 'legacy right');
+  container.style.justifyItems = 'legacy center';
+  assert_equals(getComputedStyle(target).justifyItems, 'legacy center');
+  container.style.justifyItems = 'flex-end';
+  assert_equals(getComputedStyle(target).justifyItems, 'normal');
+}, 'justify-items legacy depends on inherited value');
+</script>
+</body>
+</html>
