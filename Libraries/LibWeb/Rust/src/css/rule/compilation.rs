@@ -535,7 +535,7 @@ mod tests {
     use crate::css::parser::syntax_parser::parse_shared_stylesheet;
     use crate::css::parser::value_parser::ParseContext;
     use crate::css::rule::RulePayload;
-    use crate::css::style_sheet::{rust_style_sheet_create, rust_style_sheet_set_import};
+    use crate::css::style_sheet::rust_style_sheet_create;
     use std::cell::RefCell;
 
     fn sheet(source: &str) -> Rc<NativeStyleSheet> {
@@ -771,7 +771,7 @@ mod tests {
                     .any_changed
             );
         });
-        unsafe { rust_style_sheet_set_import(&source, source.rules().rule_at(0).identity, Rc::as_ptr(&child)) };
+        source.set_import(source.rules().rule_at(0).identity, Some(child.clone()));
         with_media_width(150.0, |environment| {
             let mut published = Vec::new();
             let result = source.evaluate_media_queries(environment, &mut state, &mut |identity, holds| {
@@ -789,7 +789,7 @@ mod tests {
             crate::css::rule::NativeRuleList::new(Vec::new(), None),
             media_at(&source, &[0]),
         );
-        unsafe { rust_style_sheet_set_import(&source, source.rules().rule_at(0).identity, Rc::as_ptr(&child)) };
+        source.set_import(source.rules().rule_at(0).identity, Some(child.clone()));
         let mut state = crate::css::style_sheet::NativeMediaEvaluationState::default();
         with_media_width(50.0, |environment| {
             assert!(
@@ -817,7 +817,7 @@ mod tests {
         ];
         let imports = [source.rules().rule_at(0).identity, source.rules().rule_at(2).identity];
         for (identity, child) in imports.iter().zip(&children) {
-            unsafe { rust_style_sheet_set_import(&source, *identity, Rc::as_ptr(child)) };
+            source.set_import(*identity, Some(child.clone()));
         }
         let mut media_state = crate::css::style_sheet::NativeMediaEvaluationState::default();
         let media = children.each_ref().map(|child| media_at(child, &[0]));
@@ -863,7 +863,7 @@ mod tests {
         let children = std::array::from_fn::<_, 3, _>(|_| sheet(".imported {}"));
         let child_rules = children.each_ref().map(|child| child.rules().rule_at(0).identity);
         for (identity, child) in imports.iter().zip(&children) {
-            unsafe { rust_style_sheet_set_import(&source, *identity, Rc::as_ptr(child)) };
+            source.set_import(*identity, Some(child.clone()));
         }
         let imported_media = media_at(&source, &[0]);
         let outer = media_at(&source, &[3]);
@@ -943,7 +943,7 @@ mod tests {
         );
         let child = sheet("@layer 子;");
         for index in [0, 1] {
-            unsafe { rust_style_sheet_set_import(&source, source.rules().rule_at(index).identity, Rc::as_ptr(&child)) };
+            source.set_import(source.rules().rule_at(index).identity, Some(child.clone()));
         }
         let mut names = Vec::new();
         source.visit_layer_names(&mut "根".encode_utf16().collect(), &mut |name| {
@@ -981,24 +981,22 @@ mod tests {
         let children = parent.children.as_ref().unwrap();
         let child = children.rule_at(0);
         let scope = children.rule_at(1);
-        unsafe {
-            let matching = child.matching_selectors();
-            let start = scope.scope_start_selectors().unwrap();
-            let end = scope.scope_end_selectors().unwrap();
-            assert!(Rc::ptr_eq(&matching, &child.matching_selectors()));
-            assert!(Rc::ptr_eq(&start, &scope.scope_start_selectors().unwrap()));
-            assert!(Rc::ptr_eq(&end, &scope.scope_end_selectors().unwrap()));
-            let units: Vec<_> = ".新".encode_utf16().collect();
-            assert!(parent.set_selector_text(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), None));
-            assert!(!Rc::ptr_eq(&matching, &child.matching_selectors()));
-            assert!(!Rc::ptr_eq(&start, &scope.scope_start_selectors().unwrap()));
-            assert!(Rc::ptr_eq(&end, &scope.scope_end_selectors().unwrap()));
-        }
+        let matching = child.matching_selectors();
+        let start = scope.scope_start_selectors().unwrap();
+        let end = scope.scope_end_selectors().unwrap();
+        assert!(Rc::ptr_eq(&matching, &child.matching_selectors()));
+        assert!(Rc::ptr_eq(&start, &scope.scope_start_selectors().unwrap()));
+        assert!(Rc::ptr_eq(&end, &scope.scope_end_selectors().unwrap()));
+        let units: Vec<_> = ".新".encode_utf16().collect();
+        assert!(parent.set_selector_text(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), None));
+        assert!(!Rc::ptr_eq(&matching, &child.matching_selectors()));
+        assert!(!Rc::ptr_eq(&start, &scope.scope_start_selectors().unwrap()));
+        assert!(Rc::ptr_eq(&end, &scope.scope_end_selectors().unwrap()));
     }
 
     #[test]
     fn ancestor_lifetimes_follow_detachment_and_reparenting() {
-        use crate::css::rule::{rust_rule_list_clear, rust_rule_list_insert};
+        use crate::css::rule::rust_rule_list_clear;
         fn ancestors(rule: &NativeRule) -> Vec<Rc<NativeRule>> {
             let mut result = Vec::new();
             let mut parent = rule.parent.borrow().upgrade();
@@ -1028,7 +1026,7 @@ mod tests {
         drop(retained);
         assert!(ancestors(&leaf).is_empty());
         let children = destination.children.as_ref().unwrap();
-        unsafe { rust_rule_list_insert(children, 0, Rc::as_ptr(&leaf)) };
+        children.insert(0, leaf.clone());
         let reparented = ancestors(&leaf);
         assert_eq!(reparented.len(), 1);
         assert_eq!(reparented[0].identity, destination.identity);
@@ -1264,9 +1262,7 @@ mod tests {
                     &media,
                 ))
             };
-            unsafe {
-                rust_style_sheet_set_import(&source, rule.identity(), Rc::as_ptr(&child));
-            }
+            source.set_import(rule.identity(), Some(child.clone()));
             loaded_child = Some(child);
             std::ops::ControlFlow::Break(())
         });
@@ -1744,7 +1740,7 @@ mod tests {
         } } }",
         );
         let import = root.rules().materialized_rules()[0].identity;
-        unsafe { rust_style_sheet_set_import(&root, import, Rc::as_ptr(&child)) };
+        root.set_import(import, Some(child.clone()));
         let rules = collect(&root, 0, NativeCompilationPurpose::Rules);
         assert_eq!(rules.len(), 2);
         for rule in &rules {
@@ -1802,9 +1798,7 @@ mod tests {
     #[test]
     fn keyframe_children_share_declarations_and_track_native_membership() {
         use crate::css::declaration_block::rust_declaration_block_identity;
-        use crate::css::rule::{
-            rust_rule_declarations, rust_rule_list_clear, rust_rule_list_insert, rust_rule_list_remove,
-        };
+        use crate::css::rule::{rust_rule_declarations, rust_rule_list_clear, rust_rule_list_remove};
         let sheet = sheet("@keyframes 色 { from { opacity: 0.25; } to { opacity: 0.75; } }");
         let rule = sheet.rules().materialized_rules()[0].clone();
         let children = rule.children.as_ref().unwrap();
@@ -1819,7 +1813,7 @@ mod tests {
         rust_rule_list_remove(children, 0);
         assert_eq!(first.declaration_owner_identity(), None);
         assert_eq!(children.materialized_rules().len(), 1);
-        unsafe { rust_rule_list_insert(children, 1, Rc::as_ptr(&first)) };
+        children.insert(1, first.clone());
         assert_eq!(first.declaration_owner_identity(), Some(rule.identity));
         let reinserted = unsafe { Box::from_raw(rust_rule_declarations(&children.rule_at(1))) };
         assert_eq!(
@@ -1833,9 +1827,7 @@ mod tests {
 
     #[test]
     fn native_rule_identity_survives_tree_edits() {
-        use crate::css::rule::{
-            rust_rule_list_clear, rust_rule_list_insert, rust_rule_list_remove, rust_rule_list_replace,
-        };
+        use crate::css::rule::{rust_rule_list_clear, rust_rule_list_remove, rust_rule_list_replace};
         let source = ".先頭 {} @media all { .兄弟 {} @supports (display: grid) { .対象 { width: 13px } } }";
         let first = sheet(source);
         let second = sheet(source);
@@ -1860,11 +1852,11 @@ mod tests {
         assert_eq!(path(rules, target.identity), [0, 0, 0]);
         rust_rule_list_remove(descendants, 0);
         assert!(path(rules, target.identity).is_empty());
-        unsafe { rust_rule_list_insert(descendants, 0, Rc::as_ptr(&target)) };
+        descendants.insert(0, target.clone());
         assert_eq!(path(rules, target.identity), [0, 0, 0]);
         rust_rule_list_clear(rules);
         assert!(path(rules, target.identity).is_empty());
-        unsafe { rust_rule_list_insert(rules, 0, Rc::as_ptr(&media)) };
+        rules.insert(0, media.clone());
         assert_eq!(path(rules, target.identity), [0, 0, 0]);
         rust_rule_list_replace(rules, other);
         assert!(path(rules, target.identity).is_empty());

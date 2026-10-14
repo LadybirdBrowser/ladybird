@@ -284,7 +284,6 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
     use crate::css::declaration_block::{rust_declaration_block_identity as identity, rust_declaration_block_replace};
     use crate::css::property_metadata::property_id;
     use crate::css::rule::*;
-    use std::rc::Rc;
 
     let sheet = parse_shared_on_worker(
         "@keyframes 色 { from, 50% { width: 13px !important; height: 17px; } 25% { width: 19px; } to { width: 29px; } }",
@@ -331,7 +330,7 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
         assert_eq!(identity(&declarations_at(children, 1)), identity(&exposed_declarations));
         rust_rule_list_remove(children, 1);
         rust_declaration_block_replace(&mut exposed_declarations, &original);
-        rust_rule_list_insert(children, 1, Rc::as_ptr(&exposed));
+        children.insert(1, exposed.clone());
         assert_eq!(identity(&declarations_at(children, 1)), identity(&exposed_declarations));
         assert_eq!(
             serialize_style_value_to_utf16(&snapshot.properties[0].value).unwrap(),
