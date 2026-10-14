@@ -63,6 +63,17 @@ public:
     bool is_completely_loaded() const { return m_completely_loaded; }
     void set_completely_loaded() { m_completely_loaded = true; }
 
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-counter
+    // NB: Nonzero from when unload a document and its descendants starts for the document until the task that unloads
+    //     it is queued, or until another page hosting it has unloaded it.
+    u32 unload_counter() const { return m_unload_counter; }
+    void increment_unload_counter() { ++m_unload_counter; }
+    void decrement_unload_counter()
+    {
+        VERIFY(m_unload_counter > 0);
+        --m_unload_counter;
+    }
+
     // The origin of the top-level document of this document's browsing context, or nothing if that browsing context has
     // been discarded.
     Optional<URL::Origin> top_level_origin() const;
@@ -93,6 +104,7 @@ private:
     IsInitialAboutBlank m_is_initial_about_blank { IsInitialAboutBlank::No };
     Web::HTML::OpenerPolicy m_opener_policy;
     bool m_completely_loaded { false };
+    u32 m_unload_counter { 0 };
     bool m_is_local_file_content { false };
     Optional<String> m_web_ui_host;
     RefPtr<WebContentPage> m_host;

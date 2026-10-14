@@ -679,7 +679,7 @@ void CanonicalTraversable::stop_loading()
     // 1. Let document be navigable's active document.
     // 2. If document's unload counter is 0, and navigable's ongoing navigation is a navigation ID, then set the ongoing
     //    navigation for navigable to null.
-    auto stopped_navigation = !is_unloading_document_of(id()) && has_uncommitted_navigation();
+    auto stopped_navigation = active_document().unload_counter() == 0 && has_uncommitted_navigation();
     if (stopped_navigation)
         clear_ongoing_navigation();
     else
@@ -1229,7 +1229,7 @@ void CanonicalTraversable::did_not_receive_reply(OwedReply const& owed)
         return;
     }
     case OwedReply::Kind::DescendantUnload:
-        complete_descendant_unload_task(owed.id, owed.navigable_id);
+        complete_document_unload_task(owed.id);
         return;
     case OwedReply::Kind::NonchangingUpdate: {
         auto* operation = find_history_operation(owed.id);
@@ -1549,7 +1549,7 @@ void CanonicalTraversable::unload_displayed_document_for_cross_document_navigati
     // 5. If potentiallyTriggerViewTransition is false, then:
     // 3. Unload a document and its descendants given displayedDocument, targetEntry's document,
     //    afterPotentialUnloads, and firePageSwapBeforeUnload.
-    unload_a_document_and_its_descendants(changing_navigable.id, changing_job_endpoint(changing_navigable), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id, navigable_id = changing_navigable.id](UnloadedInItsHost) {
+    unload_a_document_and_its_descendants(changing_navigable.navigable(), changing_job_endpoint(changing_navigable), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id, navigable_id = changing_navigable.id](UnloadedInItsHost) {
         // NB: The process running the job unloads the document it displays: displayedDocument, or the stand-in of a
         //     host chosen for the new document.
         auto* operation = find_history_operation(operation_id);
@@ -1593,131 +1593,126 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void CanonicalTraversable::unload_a_document_and_its_descendants(Web::HTML::CrossProcessId navigable_id, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Function<void(UnloadedInItsHost)> queue_document_unload_task)
+void CanonicalTraversable::unload_a_document_and_its_descendants(CanonicalNavigable& navigable, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Function<void(UnloadedInItsHost)> queue_document_unload_task)
 {
     // 1. Assert: this is running within document's node navigable's traversable navigable's session history
-    //    traversal queue. The UI process owns that queue. The recursion's bookkeeping runs here because the
-    //    descendant subtrees can be hosted by other WebContent processes.
+    //    traversal queue.
+    // NB: The UI process owns that queue. The recursion runs here because the descendant subtrees can be hosted by
+    //     other WebContent processes.
 
-    // 2. Let childNavigables be document's child navigables.
-    // 3. Let numberUnloaded be 0.
-    // Snapshot the descendant tree, and the page hosting the document, before unload handlers can mutate the tree.
-    // A navigable that disappears before its dispatch counts as unloaded.
-    PendingUnload pending_unload;
-    pending_unload.navigable_id = navigable_id;
-    RefPtr<WebContentPage> document_host;
-    if (auto navigable = find(navigable_id); navigable.has_value()) {
-        // A document is unloaded in the page hosting it, whichever that is, before the document replacing it activates.
-        // That is the page continuing the invoking algorithm for the traversable's document, unless another page
-        // displays it while the view's process populates the document replacing it.
-        document_host = navigable->active_document().host();
-        if (!document_host)
-            document_host = page_hosting(*navigable);
-        Function<void(CanonicalNavigable const&, Optional<Web::HTML::CrossProcessId>)> append_subtree =
-            [&](CanonicalNavigable const& descendant, Optional<Web::HTML::CrossProcessId> parent_id) {
-                pending_unload.nodes.set(descendant.id(),
-                    PendingUnload::Node {
-                        .parent_id = parent_id,
-                        .remaining_children = descendant.children().size(),
-                        .endpoint = page_hosting(descendant),
-                    });
-                for (auto const& grandchild : descendant.children())
-                    append_subtree(*grandchild, descendant.id());
-            };
-        for (auto const& child : navigable->children())
-            append_subtree(*child, {});
-        pending_unload.remaining_root_children = navigable->children().size();
-    }
+    // NB: A document is unloaded in the page hosting it, whichever that is, before the document replacing it
+    //     activates. That is the page continuing the invoking algorithm for the traversable's document, unless another
+    //     page displays it while the view's process populates the document replacing it.
+    NonnullRefPtr document = navigable.active_document();
+    RefPtr<WebContentPage> document_host = document->host();
+    if (!document_host)
+        document_host = page_hosting(navigable);
+    document->increment_unload_counter();
 
-    // 6. Queue a global task on the navigation and traversal task source given document's relevant global object
-    //    to perform the following steps:
-    //    1. If firePageSwapSteps is given, then run firePageSwapSteps.
-    //    2. Unload document, passing along newDocument if it is not null.
-    //    3. If afterAllUnloads was given, then run it.
-    // NB: queue_document_unload_task dispatches this task to the page continuing the invoking algorithm, once every
-    //     child subtree has completed. When another page hosts the document, that page unloads it first, and the
-    //     task is told so. This happens immediately when the document has no child navigables.
-    pending_unload.queue_document_unload_task = [this, navigable_id, continuing_endpoint, child_navigable_destruction, document_host = move(document_host), queue_document_unload_task = move(queue_document_unload_task)] mutable {
+    unload_the_documents_of_child_navigables(navigable, [this, document, navigable_id = navigable.id(), continuing_endpoint = move(continuing_endpoint), child_navigable_destruction, document_host = move(document_host), queue_document_unload_task = move(queue_document_unload_task)] mutable {
+        // 6. Queue a global task on the navigation and traversal task source given document's relevant global object
+        //    to perform the following steps:
+        //    1. If firePageSwapSteps is given, then run firePageSwapSteps.
+        //    2. Unload document, passing along newDocument if it is not null.
+        //    3. If afterAllUnloads was given, then run it.
+        // NB: queue_document_unload_task dispatches this task to the page continuing the invoking algorithm. When
+        //     another page hosts the document, that page unloads it first, and the task is told so.
         if (!document_host || document_host == continuing_endpoint) {
+            document->decrement_unload_counter();
             queue_document_unload_task(UnloadedInItsHost::No);
             return;
         }
-        unload_document_in_its_host(document_host.release_nonnull(), navigable_id, child_navigable_destruction, [queue_document_unload_task = move(queue_document_unload_task)] {
+        // NB: Another page replaces or destroys the document. This one represents the navigable remotely from the
+        //     moment the document is unloaded.
+        run_document_unload_task(move(document_host), navigable_id, child_navigable_destruction, Web::HTML::StopHostingAfterUnload::Yes, [document, queue_document_unload_task = move(queue_document_unload_task)] {
+            document->decrement_unload_counter();
             queue_document_unload_task(UnloadedInItsHost::Yes);
         });
-    };
-    if (pending_unload.nodes.is_empty()) {
-        pending_unload.queue_document_unload_task();
+    });
+}
+
+namespace {
+
+// numberUnloaded, and the steps waiting until it equals the number of child navigables.
+struct ChildNavigableUnloads : RefCounted<ChildNavigableUnloads> {
+    ChildNavigableUnloads(size_t child_navigable_count, Function<void()> after_child_navigable_unloads)
+        : child_navigable_count(child_navigable_count)
+        , after_child_navigable_unloads(move(after_child_navigable_unloads))
+    {
+    }
+
+    size_t number_unloaded { 0 };
+    size_t child_navigable_count { 0 };
+    Function<void()> after_child_navigable_unloads;
+};
+
+}
+
+// Steps 2 to 5 of unload a document and its descendants, for navigable's active document.
+void CanonicalTraversable::unload_the_documents_of_child_navigables(CanonicalNavigable const& navigable, Function<void()> after_child_navigable_unloads)
+{
+    // 2. Let childNavigables be document's child navigables.
+    Vector<Web::HTML::CrossProcessId> child_navigables;
+    for (auto const& child_navigable : navigable.children())
+        child_navigables.append(child_navigable->id());
+    if (child_navigables.is_empty()) {
+        after_child_navigable_unloads();
         return;
     }
 
-    // 4. For each childNavigable of childNavigables [[ in what order? ]], queue a global task on the navigation
-    //    and traversal task source given childNavigable's active window to perform the following steps:
-    //    1. Let incrementUnloaded be an algorithm step which increments numberUnloaded.
-    //    2. Unload a document and its descendants given childNavigable's active document, null, and
-    //       incrementUnloaded.
-    // NB: The nested recursion is this walk itself: a node's task is dispatched only after its own subtree has
-    //     completed, so the leaves go first and every completion dispatches its parent once the parent's other
-    //     children are done. Collect the leaves before dispatching: a missing endpoint completes synchronously
-    //     and mutates the node set.
-    Vector<Web::HTML::CrossProcessId> leaves;
-    for (auto const& node : pending_unload.nodes) {
-        if (node.value.remaining_children == 0)
-            leaves.append(node.key);
+    // 3. Let numberUnloaded be 0.
+    auto unloads = adopt_ref(*new ChildNavigableUnloads(child_navigables.size(), move(after_child_navigable_unloads)));
+
+    // 4. For each childNavigable of childNavigables [[ in what order? ]], queue a global task on the navigation and
+    //    traversal task source given childNavigable's active window to perform the following steps:
+    for (auto child_navigable_id : child_navigables) {
+        // 1. Let incrementUnloaded be an algorithm step which increments numberUnloaded.
+        auto increment_unloaded = [unloads] {
+            ++unloads->number_unloaded;
+
+            // 5. Wait until numberUnloaded equals childNavigable's size.
+            if (unloads->number_unloaded == unloads->child_navigable_count)
+                unloads->after_child_navigable_unloads();
+        };
+
+        // 2. Unload a document and its descendants given childNavigable's active document, null, and
+        //    incrementUnloaded.
+        // NB: A child navigable that is gone by then counts as unloaded.
+        auto child_navigable = find(child_navigable_id);
+        if (!child_navigable.has_value()) {
+            increment_unloaded();
+            continue;
+        }
+        // NB: A page unloads the documents it hosts even when an operation's jobs left it for the process replacing it.
+        auto endpoint = page_hosting(*child_navigable);
+        unload_the_documents_of_child_navigables(*child_navigable, [this, endpoint = move(endpoint), child_navigable_id, increment_unloaded = move(increment_unloaded)] mutable {
+            // 6. Queue a global task on the navigation and traversal task source given document's relevant global
+            //    object to perform the following steps:
+            //    1. If firePageSwapSteps is given, then run firePageSwapSteps.
+            //    2. Unload document, passing along newDocument if it is not null.
+            //    3. If afterAllUnloads was given, then run it.
+            run_document_unload_task(move(endpoint), child_navigable_id, Web::HTML::ChildNavigableDestruction::No, Web::HTML::StopHostingAfterUnload::No, move(increment_unloaded));
+        });
+    }
+}
+
+// The task step 6 of unload a document and its descendants queues, in the page hosting the document.
+void CanonicalTraversable::run_document_unload_task(RefPtr<WebContentPage> endpoint, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Web::HTML::StopHostingAfterUnload stop_hosting_after_unload, Function<void()> after_unload)
+{
+    if (!endpoint || !endpoint->is_open()) {
+        after_unload();
+        return;
     }
     auto unload_id = Application::the().allocate_ui_process_cross_process_id();
-    m_pending_unloads.set(unload_id, move(pending_unload));
-    for (auto leaf : leaves)
-        dispatch_descendant_unload_task(unload_id, leaf);
-}
-
-void CanonicalTraversable::dispatch_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
-{
-    auto pending_unload = m_pending_unloads.find(unload_id);
-    if (pending_unload == m_pending_unloads.end())
-        return;
-    auto node = pending_unload->value.nodes.find(navigable_id);
-    if (node == pending_unload->value.nodes.end())
-        return;
-
-    // A page unloads the documents it hosts even when an operation's jobs left it for the process replacing it.
-    auto endpoint = node->value.endpoint;
-    if (!endpoint || !endpoint->is_open()) {
-        complete_descendant_unload_task(unload_id, navigable_id);
-        return;
-    }
+    m_document_unload_tasks.set(unload_id, move(after_unload));
     endpoint->owe_reply({ OwedReply::Kind::DescendantUnload, unload_id, navigable_id });
-    endpoint->async_run_descendant_unload_task(unload_id, navigable_id, node->value.child_navigable_destruction, node->value.stop_hosting_after_unload);
+    endpoint->async_run_descendant_unload_task(unload_id, navigable_id, child_navigable_destruction, stop_hosting_after_unload);
 }
 
-void CanonicalTraversable::complete_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
+void CanonicalTraversable::complete_document_unload_task(Web::HTML::CrossProcessId unload_id)
 {
-    auto pending_unload = m_pending_unloads.find(unload_id);
-    if (pending_unload == m_pending_unloads.end())
-        return;
-    auto node = pending_unload->value.nodes.take(navigable_id);
-    if (!node.has_value())
-        return;
-    VERIFY(node->remaining_children == 0);
-
-    // 5. Wait until numberUnloaded equals childNavigable's size.
-    if (node->parent_id.has_value()) {
-        auto parent = pending_unload->value.nodes.find(*node->parent_id);
-        VERIFY(parent != pending_unload->value.nodes.end());
-        VERIFY(parent->value.remaining_children > 0);
-        --parent->value.remaining_children;
-        if (parent->value.remaining_children == 0)
-            dispatch_descendant_unload_task(unload_id, parent->key);
-        return;
-    }
-
-    VERIFY(pending_unload->value.remaining_root_children > 0);
-    --pending_unload->value.remaining_root_children;
-    if (pending_unload->value.remaining_root_children == 0) {
-        // 6. Queue a global task ... to fire pageswap, unload document, and run afterAllUnloads.
-        auto completed_unload = m_pending_unloads.take(unload_id);
-        completed_unload->queue_document_unload_task();
-    }
+    if (auto after_unload = m_document_unload_tasks.take(unload_id); after_unload.has_value())
+        (*after_unload)();
 }
 
 void CanonicalTraversable::did_receive_changing_navigable_unload_preparation_complete(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
@@ -1727,37 +1722,6 @@ void CanonicalTraversable::did_receive_changing_navigable_unload_preparation_com
     auto* operation = find_history_operation(operation_id);
     if (auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr)
         unload_displayed_document_for_cross_document_navigation(*operation, *changing_navigable);
-}
-
-// Step 6 of unload a document and its descendants for a document hosted by a page other than the one continuing the
-// invoking algorithm: that page unloads it the way it unloads a descendant's, and afterAllUnloads runs once it has.
-void CanonicalTraversable::unload_document_in_its_host(NonnullRefPtr<WebContentPage> endpoint, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Function<void()> after_unload)
-{
-    PendingUnload pending_unload;
-    pending_unload.navigable_id = navigable_id;
-    pending_unload.queue_document_unload_task = move(after_unload);
-    pending_unload.nodes.set(navigable_id, PendingUnload::Node {
-                                               .parent_id = {},
-                                               .remaining_children = 0,
-                                               .endpoint = move(endpoint),
-                                               .child_navigable_destruction = child_navigable_destruction,
-                                               // Another page replaces or destroys the document. This one represents the
-                                               // navigable remotely from the moment the document is unloaded.
-                                               .stop_hosting_after_unload = Web::HTML::StopHostingAfterUnload::Yes,
-                                           });
-    pending_unload.remaining_root_children = 1;
-    auto unload_id = Application::the().allocate_ui_process_cross_process_id();
-    m_pending_unloads.set(unload_id, move(pending_unload));
-    dispatch_descendant_unload_task(unload_id, navigable_id);
-}
-
-bool CanonicalTraversable::is_unloading_document_of(Web::HTML::CrossProcessId navigable_id) const
-{
-    for (auto const& pending_unload : m_pending_unloads) {
-        if (pending_unload.value.navigable_id == navigable_id)
-            return true;
-    }
-    return false;
 }
 
 // Whether the page hosting the navigable's active document is unloading it, or has, for a document another page hosts.
@@ -1820,7 +1784,7 @@ NonnullRefPtr<WebContentPage> CanonicalTraversable::changing_job_endpoint(Changi
 void CanonicalTraversable::did_receive_descendant_unload_task_complete(WebContentPage& source_page, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (source_page.take_owed_reply({ OwedReply::Kind::DescendantUnload, unload_id, navigable_id }))
-        complete_descendant_unload_task(unload_id, navigable_id);
+        complete_document_unload_task(unload_id);
 }
 
 void CanonicalTraversable::did_receive_child_navigable_unload_request(WebContentPage& source_page, Web::HTML::CrossProcessId navigable_id)
@@ -1835,7 +1799,7 @@ void CanonicalTraversable::did_receive_child_navigable_unload_request(WebContent
     // NB: The container holds a local navigable exactly when the requesting page hosts the document, so that page
     //     unloads it as it continues, having informed its navigation API itself; a remote navigable's document is
     //     unloaded in its host, which informs the navigation API there first.
-    unload_a_document_and_its_descendants(navigable_id, source_page, Web::HTML::ChildNavigableDestruction::Yes, [source_page = NonnullRefPtr<WebContentPage>(source_page), navigable_id](UnloadedInItsHost) {
+    unload_a_document_and_its_descendants(*navigable, source_page, Web::HTML::ChildNavigableDestruction::Yes, [source_page = NonnullRefPtr<WebContentPage>(source_page), navigable_id](UnloadedInItsHost) {
         source_page->async_continue_child_navigable_destruction(navigable_id);
     });
 }
@@ -2435,7 +2399,7 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
             // NB: The final unload-and-destroy task is dispatched to the page hosting the traversable once every
             //     descendant subtree has unloaded. That need not be the requesting page: a cross-site navigation
             //     ahead of the close in the queue can have moved the traversable to another process.
-            unload_a_document_and_its_descendants(id(), page_hosting(*this), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id](UnloadedInItsHost) {
+            unload_a_document_and_its_descendants(*this, page_hosting(*this), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id](UnloadedInItsHost) {
                 if (!find_history_operation(operation_id))
                     return;
                 if (auto host = page_hosting(*this))
