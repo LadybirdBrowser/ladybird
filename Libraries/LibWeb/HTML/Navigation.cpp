@@ -234,21 +234,6 @@ HistoryHandlingBehavior to_history_handling_behavior(NavigationHistoryBehavior b
     VERIFY_NOT_REACHED();
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#history-handling-behavior
-NavigationHistoryBehavior to_navigation_history_behavior(HistoryHandlingBehavior b)
-{
-    // A history handling behavior is a NavigationHistoryBehavior that is either "push" or "replace",
-    // i.e., that has been resolved away from any initial "auto" value.
-
-    switch (b) {
-    case HistoryHandlingBehavior::Push:
-        return NavigationHistoryBehavior::Push;
-    case HistoryHandlingBehavior::Replace:
-        return NavigationHistoryBehavior::Replace;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-navigate
 WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(Utf16String url, Bindings::NavigationNavigateOptions const& options)
 {

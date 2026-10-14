@@ -35,7 +35,6 @@ public:
     WebIDL::ExceptionOr<void> set_scroll_restoration(Bindings::ScrollRestoration);
     WebIDL::ExceptionOr<JS::Value> state() const;
     JS::Value const& state_value() const { return m_state; }
-    bool associated_document_is_fully_active() const;
 
     u64 m_index { 0 };
     u64 m_length { 0 };
