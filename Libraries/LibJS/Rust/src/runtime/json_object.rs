@@ -41,10 +41,10 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::raw_json_object::RawJSONObject;
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
+use crate::runtime::special_property_cache::{self, SpecialPropertyKey};
 use crate::runtime::string_conversions::parse_first_number_f64;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::value::{DecimalDigits, append_number_to_string, same_value};
-use crate::runtime::watchpoint_set::WatchpointSet;
 use crate::simdjson;
 use crate::utf16::{Utf16StringBuilder, Utf16View};
 
@@ -192,13 +192,10 @@ struct StringifyCachedProperty {
 struct StringifyShapeInfo {
     /// The properties it serializes: their keys as JSON strings followed by a colon, and where their values are.
     properties: Vec<StringifyCachedProperty>,
-    /// The validity of the shape of the prototype of the objects when neither they nor their prototypes had a "toJSON"
-    /// property, which stops being valid when a prototype changes its properties.
-    to_json_absence: Option<GcWeak<WatchpointSet>>,
 }
 
 impl StringifyShapeInfo {
-    fn new(vm: &Vm, shape: Gc<Shape>) -> Self {
+    fn new(shape: Gc<Shape>) -> Self {
         let mut properties = Vec::with_capacity(shape.property_count() as usize);
         shape.for_each_property_in_insertion_order(|property_key, metadata| {
             if property_key.is_symbol() || !metadata.attributes.is_enumerable() {
@@ -217,41 +214,7 @@ impl StringifyShapeInfo {
             });
             ControlFlow::Continue(())
         });
-        Self {
-            properties,
-            to_json_absence: Self::to_json_absence(vm, shape),
-        }
-    }
-
-    fn to_json_absence(vm: &Vm, shape: Gc<Shape>) -> Option<GcWeak<WatchpointSet>> {
-        let to_json = &vm.names.toJSON;
-        if shape.lookup(to_json).is_some() {
-            return None;
-        }
-        let first_prototype = shape.prototype()?;
-        let validity = first_prototype.shape().prototype_chain_validity()?;
-        if !validity.is_valid() {
-            return None;
-        }
-        let object_prototype = vm.current_realm().map(|realm| realm.object_prototype());
-        let mut prototype = Some(first_prototype);
-        while let Some(current) = prototype {
-            // NB: %Object.prototype% only has an exotic [[SetPrototypeOf]].
-            let is_ordinary = Some(current) == object_prototype || current.has_ordinary_named_property_lookup();
-            if !is_ordinary || current.has_intrinsic_accessors() || current.shape().lookup(to_json).is_some() {
-                return None;
-            }
-            prototype = current.shape().prototype();
-        }
-        Some(GcWeak::new(vm.heap(), validity))
-    }
-
-    /// Whether Get of "toJSON" on the objects gives undefined without running any code.
-    fn has_no_to_json(&self) -> bool {
-        self.to_json_absence
-            .as_ref()
-            .and_then(GcWeak::get)
-            .is_some_and(|validity| validity.is_valid())
+        Self { properties }
     }
 }
 
@@ -303,7 +266,7 @@ impl JsonStringifyCache {
         {
             return entry.info.clone();
         }
-        let info = Rc::new(StringifyShapeInfo::new(vm, shape));
+        let info = Rc::new(StringifyShapeInfo::new(shape));
         self.entries.borrow_mut()[slot] = Some(StringifyShapeCacheEntry {
             shape: GcWeak::new(vm.heap(), shape),
             info: info.clone(),
@@ -1262,25 +1225,31 @@ impl JSONObject {
             }
         }
 
-        // OPTIMIZATION: What is known of the shape of an object without other properties tells whether it has a toJSON
-        //               to look up, and what to serialize of it when nothing runs before it is serialized.
+        // OPTIMIZATION: The special property cache of the shape of an object without other properties may know that it
+        //               has no toJSON to call, and then what is known of the shape tells what to serialize of it when
+        //               nothing runs before it is serialized.
         let mut shape_info = None;
-        if value.is_object() && state.replacer_function.is_none() && can_use_direct_property_access(&value.as_object())
+        if value.is_object()
+            && state.replacer_function.is_none()
+            && can_use_direct_property_access(&value.as_object())
+            && special_property_cache::known(&value.as_object(), SpecialPropertyKey::ToJson)
+                .is_some_and(|to_json| to_json.is_undefined())
         {
-            let info = vm.json_stringify_cache().info(vm, value.as_object().shape());
-            if info.has_no_to_json() {
-                shape_info = Some(info);
-            }
+            shape_info = Some(vm.json_stringify_cache().info(vm, value.as_object().shape()));
         }
 
         // 2. If Type(value) is Object or BigInt, then
         if (value.is_object() || value.is_bigint()) && shape_info.is_none() {
             // a. Let toJSON be ? GetV(value, "toJSON").
-            let to_json = value.get_with_cache(
-                vm,
-                &vm.names.toJSON,
-                vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::JSONSerializeToJSON),
-            )?;
+            let to_json = if value.is_object() {
+                special_property_cache::get(vm, &value.as_object(), SpecialPropertyKey::ToJson)?
+            } else {
+                value.get_with_cache(
+                    vm,
+                    &vm.names.toJSON,
+                    vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::JSONSerializeToJSON),
+                )?
+            };
 
             // b. If IsCallable(toJSON) is true, then
             if to_json.is_function() {
