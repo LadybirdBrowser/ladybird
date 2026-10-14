@@ -1957,7 +1957,6 @@ void HTMLMediaElement::upon_current_playback_position_possibly_changed()
     time_marches_on();
 
     upon_has_ended_playback_possibly_changed();
-    update_natural_dimensions();
 
     // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
     //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
@@ -2067,8 +2066,6 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
 
     auto event = TrackEvent::create(HTML::EventNames::addtrack, move(event_init), event_time_stamp_for_element(*this));
     m_video_tracks->dispatch_event(event);
-
-    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void HTMLMediaElement::on_metadata_parsed(SourceType source_type)
@@ -2484,7 +2481,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     ScopeGuard guard { [&] {
         upon_has_ended_playback_possibly_changed();
         update_screen_wake_lock();
-        update_natural_dimensions();
+        update_representation();
     } };
 
     // When the ready state of a media element whose networkState is not NETWORK_EMPTY changes, the user agent must
@@ -3064,8 +3061,7 @@ void HTMLMediaElement::set_show_poster(bool show_poster)
 
     m_show_poster = show_poster;
 
-    update_natural_dimensions();
-    set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    update_representation();
 }
 
 void HTMLMediaElement::set_paused(bool paused)
@@ -3086,8 +3082,7 @@ void HTMLMediaElement::set_paused(bool paused)
 
     update_screen_wake_lock();
 
-    update_natural_dimensions();
-    set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    update_representation();
     CSS::Invalidation::invalidate_style_after_media_paused_state_change(*this, paused);
 }
 

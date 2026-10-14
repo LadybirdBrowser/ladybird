@@ -190,7 +190,7 @@ public:
 
     Optional<Compositing::VideoSinkResourceId> video_sink_resource_id() const;
 
-    virtual void update_natural_dimensions() { }
+    virtual void update_representation() { }
 
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);

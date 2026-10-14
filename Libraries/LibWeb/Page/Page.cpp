@@ -1419,8 +1419,6 @@ void Page::sync_media_element_video_sink_ticking()
 {
     for_each_media_element([&](auto& media_element) {
         media_element.sync_video_sink_ticking();
-        if (auto* video_element = as_if<HTML::HTMLVideoElement>(&media_element))
-            Painting::push_video_paint_facts(*video_element);
     });
 }
 

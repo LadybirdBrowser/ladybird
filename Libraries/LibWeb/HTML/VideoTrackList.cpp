@@ -40,7 +40,7 @@ void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)
     m_video_tracks.append(video_track);
     video_track->add_video_track_list({}, *this);
     if (m_media_element)
-        m_media_element->update_natural_dimensions();
+        m_media_element->update_representation();
 }
 
 void VideoTrackList::remove_all_tracks()
@@ -51,7 +51,7 @@ void VideoTrackList::remove_all_tracks()
     }
     m_video_tracks.clear();
     if (m_media_element)
-        m_media_element->update_natural_dimensions();
+        m_media_element->update_representation();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-videotracklist-gettrackbyid
