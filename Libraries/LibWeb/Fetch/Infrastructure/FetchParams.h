@@ -30,7 +30,7 @@ public:
     struct PreloadedResponseCandidatePendingTag { };
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, NonnullRefPtr<Response>>;
 
-    [[nodiscard]] static GC::Ref<FetchParams> create(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
+    [[nodiscard]] static GC::Ref<FetchParams> create(FetchController&, NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     [[nodiscard]] static GC::Ref<FetchParams> copy(FetchParams const&);
 
     [[nodiscard]] NonnullRefPtr<Request> request() const { return m_request; }

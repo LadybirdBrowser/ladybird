@@ -37,9 +37,8 @@ FetchParams::FetchParams(FetchParams const& params)
 {
 }
 
-GC::Ref<FetchParams> FetchParams::create(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
+GC::Ref<FetchParams> FetchParams::create(FetchController& controller, NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
 {
-    auto controller = Infrastructure::FetchController::create();
     return GC::Heap::the().allocate<FetchParams>(move(request), algorithms, controller, move(timing_info), move(loader_config));
 }
 

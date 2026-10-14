@@ -23,18 +23,15 @@ namespace Web::Fetch::Infrastructure {
 
 GC_DEFINE_ALLOCATOR(FetchController);
 
-FetchController::FetchController() = default;
-
-void FetchController::finalize()
+FetchController::FetchController(FetchControllerRegistry& registry)
+    : m_registry(registry)
+    , m_token(registry.add({}, *this))
 {
-    // A discarded response can leave an ongoing controller without a stop or end-of-body task.
-    end_rendering_pending_operation(this);
-    Base::finalize();
 }
 
-GC::Ref<FetchController> FetchController::create()
+GC::Ref<FetchController> FetchController::create(FetchControllerRegistry& registry)
 {
-    return GC::Heap::the().allocate<FetchController>();
+    return GC::Heap::the().allocate<FetchController>(registry);
 }
 
 void FetchController::visit_edges(JS::Cell::Visitor& visitor)
@@ -50,6 +47,21 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_preloaded_response);
     visitor.visit(m_stop_steps);
     visitor.visit(m_pending_responses);
+}
+
+void FetchController::finalize()
+{
+    // A discarded response can leave an ongoing controller without a stop or end-of-body task.
+    end_rendering_pending_operation(this);
+    Base::finalize();
+    if (m_registry)
+        m_registry->remove({}, m_token);
+}
+
+void FetchController::set_algorithms(Badge<FetchParams>, GC::Ref<FetchAlgorithms const> algorithms)
+{
+    VERIFY(!m_algorithms);
+    m_algorithms = algorithms;
 }
 
 GC::Ref<FetchAlgorithms const> FetchController::algorithms() const

@@ -577,6 +577,7 @@ namespace Web::Fetch::Infrastructure {
 class Body;
 class FetchAlgorithms;
 class FetchController;
+class FetchControllerRegistry;
 class FetchParams;
 class FetchRecord;
 class FetchTimingInfo;
