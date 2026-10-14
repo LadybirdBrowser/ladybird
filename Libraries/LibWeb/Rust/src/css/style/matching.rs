@@ -402,7 +402,7 @@ impl RetainedState {
                     || dispatch.prefixes().supports_relation(&self.tree, root))
             {
                 let states = caches.states.prepare_program(program);
-                let relation = states.relation.take().unwrap_or_else(|| {
+                let mut relation = states.relation.take().unwrap_or_else(|| {
                     let mut workspace = MatchScratch::default();
                     let mut evaluator = MatchEvaluator::new(&self.tree, facts)
                         .with_match_workspace(&mut workspace, selector::MatchEvaluationSide::Current);

@@ -6094,7 +6094,7 @@ fn prefix_relation_copies_only_dispatch_complete_predicates() {
         }
         discard_transaction(&mut engine);
         let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
-        let (_, relation) = test_prefix_relation(&mut engine, nodes[0]);
+        let (_, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
         let evaluated = engine.counters.get(Counter::PrefixCompoundsEvaluated) - before;
         if additional_tests {
             assert!(evaluated > 0);
@@ -6123,7 +6123,7 @@ fn prefix_completion_reuses_positive_and_negative_relation_answers() {
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
     add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
     discard_transaction(&mut engine);
-    let (dispatch, relation) = test_prefix_relation(&mut engine, nodes[0]);
+    let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
     let facts = engine.facts.primary();
     let mut evaluator = MatchEvaluator::new(&engine.tree, facts);
     let mut evaluation = PrefixEvaluation::new(
@@ -6448,7 +6448,7 @@ fn prefix_relation_local_fact_cache_separates_predicates_and_tracks_changes() {
         );
         assert_eq!(relation.changed_answers.len(), nodes.len());
         relation.install_answers(&mut states);
-        let (_, rebuilt) = test_prefix_relation(&mut engine, nodes[0]);
+        let (_, mut rebuilt) = test_prefix_relation(&mut engine, nodes[0]);
         let mut rebuilt_states = PrefixStates::new();
         rebuilt.install_answers(&mut rebuilt_states);
         for (index, &node) in nodes.iter().enumerate() {
