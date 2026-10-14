@@ -19,23 +19,69 @@ endpoint TestClient {
 """
 
 
-def generate(contents: str) -> str:
+def generate_files(contents: str) -> tuple[str, str]:
     out = io.StringIO()
-    build(out, parse(contents))
-    return out.getvalue()
+    implementation = io.StringIO()
+    build(out, parse(contents), implementation, "TestEndpoint.h")
+    return out.getvalue(), implementation.getvalue()
+
+
+def generate(contents: str) -> str:
+    header, implementation = generate_files(contents)
+    return header + implementation
 
 
 class TestIPCGenerator(unittest.TestCase):
+    def test_non_template_implementations_are_only_in_the_cpp_file(self) -> None:
+        header, implementation = generate_files(ENDPOINT)
+        self.assertIn('#include "TestEndpoint.h"', implementation)
+        self.assertIn("static ErrorOr<NonnullOwnPtr<PageChanged>> decode(AK::FixedMemoryStream& stream", header)
+        self.assertNotIn("decoder.decode<", header)
+        self.assertNotIn("stream.encode(", header)
+        self.assertNotIn("IPC::verify_message_argument", header)
+        self.assertNotIn("m_connection.send_sync", header)
+        self.assertIn("PageChanged::decode(AK::FixedMemoryStream& stream", implementation)
+        self.assertIn("TestClientProxy::page_wants_cookie", implementation)
+        self.assertIn("TestClientStub::handle_page_changed", implementation)
+        self.assertNotIn("template<typename LocalEndpoint", header)
+
+    def test_exports_are_applied_to_the_generated_api(self) -> None:
+        header = io.StringIO()
+        implementation = io.StringIO()
+        build(header, parse(ROUTED_ENDPOINT), implementation, "TestEndpoint.h", "LibWebCommon")
+        self.assertIn(
+            """\
+#if __has_include(<LibWebCommon/Export.h>)
+#include <LibWebCommon/Export.h>
+#else
+#define WEBCOMMON_API
+#endif
+""",
+            header.getvalue(),
+        )
+        for name in [
+            "PageChanged",
+            "TestClientProxy",
+            "TestClientEndpoint",
+            "TestClientStub",
+            "TestClientPageRoutingStub",
+            "TestClientPageProxy",
+        ]:
+            self.assertIn(f"class WEBCOMMON_API {name}", header.getvalue())
+        self.assertNotIn("class WEBCOMMON_API TestClientProxy;", header.getvalue())
+        self.assertNotIn("template<typename Derived>", header.getvalue())
+        self.assertNotIn("template<typename Base>", header.getvalue())
+
     def test_asynchronous_message_verifies_every_argument_before_dispatch(self) -> None:
         generated = generate(ENDPOINT)
 
         for argument in ("page_id", "revision"):
             self.assertIn(
                 f"""\
-        if (!IPC::verify_message_argument(*this, request.{argument}())) {{
-            did_misbehave("page_changed"sv, "argument '{argument}' is not a valid claim for this sender"sv);
-            return nullptr;
-        }}
+    if (!IPC::verify_message_argument(*this, request.{argument}())) {{
+        did_misbehave("page_changed"sv, "argument '{argument}' is not a valid claim for this sender"sv);
+        return nullptr;
+    }}
 """,
                 generated,
             )
@@ -49,10 +95,10 @@ class TestIPCGenerator(unittest.TestCase):
 
         self.assertIn(
             """\
-        if (!IPC::verify_message_argument(*this, request.page_id())) {
-            did_misbehave("page_wants_cookie"sv, "argument 'page_id' is not a valid claim for this sender"sv);
-            return IPC::refused_reply<Messages::TestClient::PageWantsCookieResponse, HTTP::Cookie::VersionedCookie>();
-        }
+    if (!IPC::verify_message_argument(*this, request.page_id())) {
+        did_misbehave("page_wants_cookie"sv, "argument 'page_id' is not a valid claim for this sender"sv);
+        return IPC::refused_reply<Messages::TestClient::PageWantsCookieResponse, HTTP::Cookie::VersionedCookie>();
+    }
 """,
             generated,
         )
@@ -62,11 +108,11 @@ class TestIPCGenerator(unittest.TestCase):
 
         self.assertIn(
             """\
-    NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_ping()
-    {
-        ping();
-        return nullptr;
-    }
+ErrorOr<OwnPtr<IPC::MessageBuffer>> TestClientStub::handle_ping()
+{
+    ping();
+    return nullptr;
+}
 """,
             generated,
         )
@@ -101,21 +147,21 @@ class TestIPCGeneratorRouting(unittest.TestCase):
         self.assertIn("virtual TestClientPageStub* page_stub(Web::PageId const&) = 0;", generated)
         self.assertIn(
             """\
-    virtual void page_changed(Web::PageId page_id, u32 revision) override
-    {
-        if (auto* stub = page_stub(page_id))
-            stub->page_changed(revision);
-    }
+void TestClientPageRoutingStub::page_changed(Web::PageId page_id, u32 revision)
+{
+    if (auto* stub = page_stub(page_id))
+        stub->page_changed(revision);
+}
 """,
             generated,
         )
         self.assertIn(
             """\
-    virtual void page_acknowledged(Web::PageId page_id) override
-    {
-        if (auto* stub = page_stub(page_id))
-            stub->page_acknowledged();
-    }
+void TestClientPageRoutingStub::page_acknowledged(Web::PageId page_id)
+{
+    if (auto* stub = page_stub(page_id))
+        stub->page_acknowledged();
+}
 """,
             generated,
         )
@@ -126,16 +172,17 @@ class TestIPCGeneratorRouting(unittest.TestCase):
         self.assertIn("class TestClientPageProxy {", generated)
         self.assertIn(
             """\
-    void async_page_changed(u32 revision) const
-    {
-        if (auto* connection = derived().routed_connection())
-            connection->async_page_changed(derived().routed_page_id(), revision);
-    }
+void TestClientPageProxy::async_page_changed(u32 revision) const
+{
+    if (auto* connection = routed_proxy())
+        connection->async_page_changed(routed_page_id(), revision);
+}
 """,
             generated,
         )
-        self.assertIn("    HTTP::Cookie::VersionedCookie page_wants_cookie() const\n", generated)
-        self.assertNotIn("async_ping", generated.split("class TestClientPageProxy {")[1])
+        self.assertIn("    HTTP::Cookie::VersionedCookie page_wants_cookie() const;\n", generated)
+        header, _ = generate_files(ROUTED_ENDPOINT)
+        self.assertNotIn("async_ping", header.split("class TestClientPageProxy {")[1])
 
     def test_a_message_marked_not_routed_stays_on_the_connection(self) -> None:
         generated = generate(ROUTED_ENDPOINT)

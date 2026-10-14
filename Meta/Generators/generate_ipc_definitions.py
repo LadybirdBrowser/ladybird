@@ -7,7 +7,10 @@
 
 
 import argparse
+import io
+import re
 import sys
+import textwrap
 
 from dataclasses import dataclass
 from dataclasses import field
@@ -93,6 +96,7 @@ class Endpoint:
     # The argument a message can be routed by: messages whose first parameter is this one are about the
     # object it names, so a receiver can hand them to that object and a sender can bind a proxy to it.
     route: Optional[Parameter] = None
+    export_macro: str = ""
 
     def binds(self, message: Message) -> bool:
         if self.route is None or not message.inputs:
@@ -364,17 +368,34 @@ def parse(contents: str) -> List[Endpoint]:
     return endpoints
 
 
-def constructor_for_message(name: str, parameters: List[Parameter]) -> str:
-    if not parameters:
-        return f"{name}() = default;"
+def class_declaration(endpoint: Endpoint, name: str) -> str:
+    export = f"{endpoint.export_macro} " if endpoint.export_macro else ""
+    return f"class {export}{name}"
 
-    params = ", ".join(f"{p.type} {p.name}" for p in parameters)
-    initializers = "\n        , ".join(f"m_{p.name}(move({p.name}))" for p in parameters)
 
-    return f"""{name}({params})
-        : {initializers}
-    {{
-    }}"""
+def write_method(
+    header: TextIO,
+    implementation: TextIO,
+    class_name: str,
+    signature: str,
+    body: str = "",
+    initializers: str = "",
+) -> None:
+    """Write a generated member's declaration and matching out-of-line definition."""
+    header.write(f"\n    {signature};\n")
+    definition = signature.removeprefix("virtual ").removeprefix("static ").removeprefix("NEVER_INLINE ")
+    definition = definition.removesuffix(" override")
+    result_and_name, parameters = definition.split("(", 1)
+    if " " in result_and_name:
+        result, name = result_and_name.rsplit(" ", 1)
+        result += " "
+    else:
+        result, name = "", result_and_name
+    implementation.write(f"\n{result}{class_name}::{name}({parameters}\n{initializers}{{\n")
+    implementation.write(textwrap.indent(textwrap.dedent(body).strip("\n"), "    "))
+    if body.strip():
+        implementation.write("\n")
+    implementation.write("}\n")
 
 
 def write_message_ids_enum(out: TextIO, endpoint: Endpoint) -> None:
@@ -394,28 +415,28 @@ def write_message_ids_enum(out: TextIO, endpoint: Endpoint) -> None:
 
 def write_message_class(
     out: TextIO,
+    implementation: TextIO,
     endpoint: Endpoint,
     name: str,
     parameters: List[Parameter],
     response_type: str = "",
 ) -> None:
     pascal_name = pascal_case(name)
-
-    out.write(f"""
-class {pascal_name} final : public IPC::Message {{
-public:""")
-
+    qualified_name = pascal_name
+    out.write(f"\n{class_declaration(endpoint, pascal_name)} final : public IPC::Message {{\npublic:")
     if response_type:
         out.write(f"\n    typedef class {response_type} ResponseType;\n")
-
+    if parameters:
+        params = ", ".join(f"{p.type} {p.name}" for p in parameters)
+        initializers = "    : " + "\n    , ".join(f"m_{p.name}(move({p.name}))" for p in parameters) + "\n"
+        write_method(out, implementation, qualified_name, f"{pascal_name}({params})", initializers=initializers)
+    else:
+        out.write(f"\n    {pascal_name}() = default;\n")
     out.write(f"""
-    {constructor_for_message(pascal_name, parameters)}
-
     {pascal_name}({pascal_name} const&) = default;
     {pascal_name}({pascal_name}&&) = default;
     {pascal_name}& operator=({pascal_name} const&) = default;
 """)
-
     if len(parameters) == 1:
         out.write(f"""
     template<typename WrappedReturnType>
@@ -425,66 +446,79 @@ public:""")
     {{
     }}
 """)
-
-    out.write(f"""
-    static constexpr u32 ENDPOINT_MAGIC = {endpoint.magic};
-
-    virtual u32 endpoint_magic() const override {{ return ENDPOINT_MAGIC; }}
-    virtual i32 message_id() const override {{ return (int)MessageID::{pascal_name}; }}
-    static i32 static_message_id() {{ return (int)MessageID::{pascal_name}; }}
-    virtual StringView message_name() const override {{ return "{endpoint.name}::{pascal_name}"sv; }}
-
-    static ErrorOr<NonnullOwnPtr<{pascal_name}>> decode(FixedMemoryStream& stream, Queue<IPC::Attachment>& attachments)
-    {{
-        IPC::Decoder decoder {{ stream, attachments }};""")
-
+    out.write(f"\n    static constexpr u32 ENDPOINT_MAGIC = {endpoint.magic};\n")
+    write_method(
+        out, implementation, qualified_name, "virtual u32 endpoint_magic() const override", "return ENDPOINT_MAGIC;"
+    )
+    write_method(
+        out,
+        implementation,
+        qualified_name,
+        "virtual i32 message_id() const override",
+        f"return (int)MessageID::{pascal_name};",
+    )
+    out.write(f"    static i32 static_message_id() {{ return (int)MessageID::{pascal_name}; }}\n")
+    write_method(
+        out,
+        implementation,
+        qualified_name,
+        "virtual StringView message_name() const override",
+        f'return "{endpoint.name}::{pascal_name}"sv;',
+    )
+    body = io.StringIO()
+    body.write("IPC::Decoder decoder { stream, attachments };\n")
     for parameter in parameters:
-        out.write(f"\n        auto {parameter.name} = TRY((decoder.decode<{parameter.type}>()));")
-
+        body.write(f"auto {parameter.name} = TRY((decoder.decode<{parameter.type}>()));\n")
         if "UTF8" in parameter.attributes:
-            out.write(f"""
-        if (!Utf8View({parameter.name}).validate())
-            return Error::from_string_literal("Decoded {parameter.name} is invalid UTF-8");
+            body.write(f"""if (!Utf8View({parameter.name}).validate())
+    return Error::from_string_literal("Decoded {parameter.name} is invalid UTF-8");
 """)
-
     constructor_args = ", ".join(f"move({p.name})" for p in parameters)
-    out.write(f"""
-        return make<{pascal_name}>({constructor_args});
-    }}
-""")
-
+    body.write(f"return make<{pascal_name}>({constructor_args});\n")
+    write_method(
+        out,
+        implementation,
+        qualified_name,
+        f"static ErrorOr<NonnullOwnPtr<{pascal_name}>> decode(AK::FixedMemoryStream& stream, Queue<IPC::Attachment>& attachments)",
+        body.getvalue(),
+    )
     encode_params = ", ".join(f"{make_argument_type(p.type_for_encoding)} {p.name}" for p in parameters)
-    out.write(f"""
-    static ErrorOr<IPC::MessageBuffer> static_encode({encode_params})
-    {{
-        IPC::MessageBuffer buffer;
-        IPC::Encoder stream(buffer);
-        TRY(stream.encode(ENDPOINT_MAGIC));
-        TRY(stream.encode((int)MessageID::{pascal_name}));""")
-
-    for parameter in parameters:
-        out.write(f"\n        TRY(stream.encode({parameter.name}));")
-
-    member_args = ", ".join(f"m_{p.name}" for p in parameters)
-    out.write(f"""
-        return buffer;
-    }}
-
-    virtual ErrorOr<IPC::MessageBuffer> encode() const override
-    {{
-        return static_encode({member_args});
-    }}
+    body = io.StringIO()
+    body.write(f"""IPC::MessageBuffer buffer;
+IPC::Encoder stream(buffer);
+TRY(stream.encode(ENDPOINT_MAGIC));
+TRY(stream.encode((int)MessageID::{pascal_name}));
 """)
-
+    for parameter in parameters:
+        body.write(f"TRY(stream.encode({parameter.name}));\n")
+    body.write("return buffer;\n")
+    write_method(
+        out,
+        implementation,
+        qualified_name,
+        f"static ErrorOr<IPC::MessageBuffer> static_encode({encode_params})",
+        body.getvalue(),
+    )
+    member_args = ", ".join(f"m_{p.name}" for p in parameters)
+    write_method(
+        out,
+        implementation,
+        qualified_name,
+        "virtual ErrorOr<IPC::MessageBuffer> encode() const override",
+        f"return static_encode({member_args});",
+    )
     for parameter in parameters:
         if is_primitive_or_simple_type(parameter.type):
             out.write(f"\n    {parameter.type} {parameter.name}() const {{ return m_{parameter.name}; }}\n")
         else:
-            out.write(f"""
-    {parameter.type} const& {parameter.name}() const {{ return m_{parameter.name}; }}
-    {parameter.type} take_{parameter.name}() {{ return move(m_{parameter.name}); }}
-""")
-
+            out.write(f"\n    {parameter.type} const& {parameter.name}() const {{ return m_{parameter.name}; }}\n")
+            write_method(
+                out,
+                implementation,
+                qualified_name,
+                f"{parameter.type} take_{parameter.name}()",
+                f"return move(m_{parameter.name});",
+            )
     out.write("\nprivate:")
     for parameter in parameters:
         out.write(f"\n    {parameter.type} m_{parameter.name};")
@@ -493,6 +527,7 @@ public:""")
 
 def write_proxy_method(
     out: TextIO,
+    implementation: TextIO,
     endpoint: Endpoint,
     message: Message,
     parameters: List[Parameter],
@@ -534,15 +569,16 @@ def write_proxy_method(
 
         signature_params.append(f"{type} {parameter.name}")
 
-    out.write(f"\n    {return_type} {method_name}({', '.join(signature_params)})\n    {{")
+    signature = f"{return_type} {method_name}({', '.join(signature_params)})"
+    body = io.StringIO()
 
     if not is_synchronous and not is_try and not is_unicode_string_overload:
         for parameter in parameters:
             if parameter.type == "String" and parameter.type_for_encoding == "StringView":
-                out.write(f"\n        VERIFY(Utf8View {{ {parameter.name} }}.validate());")
+                body.write(f"\n        VERIFY(Utf8View {{ {parameter.name} }}.validate());")
                 generate_unicode_string_overload = True
             elif parameter.type == "Utf16String" and parameter.type_for_encoding == "Utf16View":
-                out.write(f"\n        VERIFY({parameter.name}.validate());")
+                body.write(f"\n        VERIFY({parameter.name}.validate());")
                 generate_unicode_string_overload = True
 
     call_args_parts: List[str] = []
@@ -555,16 +591,16 @@ def write_proxy_method(
     call_args = ", ".join(call_args_parts)
 
     if is_synchronous and not is_try:
-        sync_call = f"m_connection.template send_sync<Messages::{endpoint.name}::{pascal_name}>({call_args})"
+        sync_call = f"m_connection.send_sync<Messages::{endpoint.name}::{pascal_name}>({call_args})"
 
         if return_type == "void":
-            out.write(f"\n        (void){sync_call};")
+            body.write(f"\n        (void){sync_call};")
         elif len(message.outputs) == 1:
             output = message.outputs[0]
             accessor = output.name if is_primitive_or_simple_type(output.type) else f"take_{output.name}"
-            out.write(f"\n        return {sync_call}->{accessor}();")
+            body.write(f"\n        return {sync_call}->{accessor}();")
         else:
-            out.write(f"\n        return move(*{sync_call});")
+            body.write(f"\n        return move(*{sync_call});")
     elif is_try:
         if inner_return_type == "void":
             success_return = "{}"
@@ -574,22 +610,23 @@ def write_proxy_method(
             success_return = f"result->{accessor}()"
         else:
             success_return = "move(*result)"
-        out.write(f"""
-        if (auto result = m_connection.template send_sync_but_allow_failure<Messages::{endpoint.name}::{pascal_name}>({call_args}))
+        body.write(f"""
+        if (auto result = m_connection.send_sync_but_allow_failure<Messages::{endpoint.name}::{pascal_name}>({call_args}))
             return {success_return};
         m_connection.shutdown();
         return IPC::ErrorCode::PeerDisconnected;""")
     else:
         # Async messages silently ignore send failures (e.g. peer disconnected).
-        out.write(f"""
+        body.write(f"""
         auto message_buffer = MUST(Messages::{endpoint.name}::{pascal_name}::static_encode({call_args}));
         (void)m_connection.post_message(message_buffer);""")
 
-    out.write("\n    }\n")
+    write_method(out, implementation, f"{endpoint.name}Proxy", signature, body.getvalue())
 
     if generate_unicode_string_overload:
         write_proxy_method(
             out,
+            implementation,
             endpoint,
             message,
             message.inputs,
@@ -599,50 +636,46 @@ def write_proxy_method(
         )
 
 
-def write_proxy_class(out: TextIO, endpoint: Endpoint) -> None:
+def write_proxy_class(out: TextIO, implementation: TextIO, endpoint: Endpoint) -> None:
+    name = f"{endpoint.name}Proxy"
+    connection_parameter = "IPC::ConnectionBase& connection" if endpoint.messages else "IPC::ConnectionBase&"
+    initializer = "        : m_connection(connection)\n" if endpoint.messages else ""
     out.write(f"""
-template<typename LocalEndpoint, typename PeerEndpoint>
-class {endpoint.name}Proxy {{
+{class_declaration(endpoint, name)} {{
 public:
     // Used to disambiguate the constructor call.
     struct Tag {{ }};
 
-    {endpoint.name}Proxy(IPC::Connection<LocalEndpoint, PeerEndpoint>& connection, Tag)
-        : m_connection(connection)
-    {{
+    {name}({connection_parameter}, Tag)
+{initializer}    {{
     }}
 """)
-
     for message in endpoint.messages:
-        write_proxy_method(out, endpoint, message, message.inputs, message.is_synchronous, is_try=False)
+        write_proxy_method(out, implementation, endpoint, message, message.inputs, message.is_synchronous, is_try=False)
         if message.is_synchronous:
-            write_proxy_method(out, endpoint, message, message.inputs, is_synchronous=False, is_try=False)
-            write_proxy_method(out, endpoint, message, message.inputs, is_synchronous=True, is_try=True)
+            write_proxy_method(
+                out, implementation, endpoint, message, message.inputs, is_synchronous=False, is_try=False
+            )
+            write_proxy_method(out, implementation, endpoint, message, message.inputs, is_synchronous=True, is_try=True)
+    if endpoint.messages:
+        out.write("\nprivate:\n    IPC::ConnectionBase& m_connection;\n")
+    out.write("};\n")
 
-    out.write("""
-private:
-    IPC::Connection<LocalEndpoint, PeerEndpoint>& m_connection;
-};
-""")
 
-
-def write_endpoint_class(out: TextIO, endpoint: Endpoint) -> None:
+def write_endpoint_class(out: TextIO, implementation: TextIO, endpoint: Endpoint) -> None:
     out.write(f"""
-template<typename LocalEndpoint, typename PeerEndpoint>
-class {endpoint.name}Proxy;
-class {endpoint.name}Stub;
+{class_declaration(endpoint, f"{endpoint.name}Stub")};
 
-class {endpoint.name}Endpoint {{
+{class_declaration(endpoint, f"{endpoint.name}Endpoint")} {{
 public:
-    template<typename LocalEndpoint>
-    using Proxy = {endpoint.name}Proxy<LocalEndpoint, {endpoint.name}Endpoint>;
+    using Proxy = {endpoint.name}Proxy;
     using Stub = {endpoint.name}Stub;
 
     static u32 static_magic() {{ return {endpoint.magic}; }}
-
-    static ErrorOr<NonnullOwnPtr<IPC::Message>> decode_message(ReadonlyBytes buffer, [[maybe_unused]] Queue<IPC::Attachment>& attachments)
-    {{
-        FixedMemoryStream stream {{ buffer }};
+""")
+    body = io.StringIO()
+    body.write("""
+        FixedMemoryStream stream { buffer };
         auto message_endpoint_magic = TRY(stream.read_value<u32>());
 
         if (message_endpoint_magic != static_magic())
@@ -650,7 +683,7 @@ public:
 
         auto message_id = TRY(stream.read_value<i32>());
 
-        switch (message_id) {{""")
+        switch (message_id) {""")
 
     for message in endpoint.messages:
         names = [message.name]
@@ -659,22 +692,28 @@ public:
 
         for name in names:
             pascal_name = pascal_case(name)
-            out.write(f"""
+            body.write(f"""
         case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:
             return Messages::{endpoint.name}::{pascal_name}::decode(stream, attachments);""")
 
-    out.write(f"""
+    body.write(f"""
         default:
             return Error::from_string_literal("Failed to decode {endpoint.name} message");
         }}
 
         VERIFY_NOT_REACHED();
-    }}
-}};
 """)
+    write_method(
+        out,
+        implementation,
+        f"{endpoint.name}Endpoint",
+        "static ErrorOr<NonnullOwnPtr<IPC::Message>> decode_message(ReadonlyBytes buffer, [[maybe_unused]] Queue<IPC::Attachment>& attachments)",
+        body.getvalue(),
+    )
+    out.write("};\n")
 
 
-def write_stub_class(out: TextIO, endpoint: Endpoint) -> None:
+def write_stub_class(out: TextIO, implementation: TextIO, endpoint: Endpoint) -> None:
     # The receiver answers for every argument type its endpoint carries. Which of those types ask
     # anything of it is decided by the types themselves.
     argument_types: List[str] = []
@@ -688,7 +727,7 @@ def write_stub_class(out: TextIO, endpoint: Endpoint) -> None:
         bases += f"\n    , public IPC::SenderClaimReceivers<{', '.join(argument_types)}>"
 
     out.write(f"""
-class {endpoint.name}Stub : {bases} {{
+{class_declaration(endpoint, f"{endpoint.name}Stub")} : {bases} {{
 public:
     {endpoint.name}Stub() {{ }}
     virtual ~{endpoint.name}Stub() override {{ }}
@@ -696,25 +735,31 @@ public:
     virtual u32 magic() const override {{ return {endpoint.magic}; }}
     virtual ByteString name() const override {{ return "{endpoint.name}"; }}
 
-    virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle(NonnullOwnPtr<IPC::Message> message) override
-    {{
-        switch (message->message_id()) {{""")
+""")
+    body = io.StringIO()
+    body.write("\n        switch (message->message_id()) {\n")
 
     for message in endpoint.messages:
         pascal_name = pascal_case(message.name)
-        out.write(f"\n        case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:\n")
+        body.write(f"\n        case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:\n")
 
         if message.inputs:
-            out.write(f"            return handle_{message.name}(*message);")
+            body.write(f"            return handle_{message.name}(*message);")
         else:
-            out.write(f"            return handle_{message.name}();")
+            body.write(f"            return handle_{message.name}();")
 
-    out.write(f"""
+    body.write(f"""
         default:
             return Error::from_string_literal("Unknown message ID for {endpoint.name} endpoint");
         }}
-    }}
 """)
+    write_method(
+        out,
+        implementation,
+        f"{endpoint.name}Stub",
+        "virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle(NonnullOwnPtr<IPC::Message> message) override",
+        body.getvalue(),
+    )
 
     for message in endpoint.messages:
         pascal_name = pascal_case(message.name)
@@ -725,43 +770,44 @@ public:
             arg_parts.append(f"request.{accessor}()")
         arguments = ", ".join(arg_parts)
 
-        out.write(f"\n    NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_{message.name}(")
+        body = io.StringIO()
+        signature = f"NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_{message.name}("
 
         if message.inputs:
-            out.write("IPC::Message& message)\n    {\n")
-            out.write(f"        auto& request = static_cast<Messages::{endpoint.name}::{pascal_name}&>(message);\n")
+            signature += "IPC::Message& message)"
+            body.write(f"        auto& request = static_cast<Messages::{endpoint.name}::{pascal_name}&>(message);\n")
         else:
-            out.write(")\n    {\n")
+            signature += ")"
 
         # An argument whose type is a claim by the sender about itself is verified before the handler
         # runs. Which types make a claim is decided by the types, not here.
         for parameter in message.inputs:
             reason = f"argument '{parameter.name}' is not a valid claim for this sender"
-            out.write(f"        if (!IPC::verify_message_argument(*this, request.{parameter.name}())) {{\n")
-            out.write(f'            did_misbehave("{message.name}"sv, "{reason}"sv);\n')
+            body.write(f"        if (!IPC::verify_message_argument(*this, request.{parameter.name}())) {{\n")
+            body.write(f'            did_misbehave("{message.name}"sv, "{reason}"sv);\n')
 
             if not message.is_synchronous:
-                out.write("            return nullptr;\n")
+                body.write("            return nullptr;\n")
             else:
                 refused_types = [message_name_qualified(endpoint.name, message.name, True)]
                 refused_types += [output.type for output in message.outputs]
-                out.write(f"            return IPC::refused_reply<{', '.join(refused_types)}>();\n")
+                body.write(f"            return IPC::refused_reply<{', '.join(refused_types)}>();\n")
 
-            out.write("        }\n")
+            body.write("        }\n")
 
         if not message.is_synchronous:
-            out.write(f"        {message.name}({arguments});\n")
-            out.write("        return nullptr;\n")
+            body.write(f"        {message.name}({arguments});\n")
+            body.write("        return nullptr;\n")
         elif not message.outputs:
             response_pascal_name = pascal_case(message.response_name())
-            out.write(f"        {message.name}({arguments});\n")
-            out.write(f"        auto response = Messages::{endpoint.name}::{response_pascal_name} {{}};\n")
-            out.write("        return make<IPC::MessageBuffer>(TRY(response.encode()));\n")
+            body.write(f"        {message.name}({arguments});\n")
+            body.write(f"        auto response = Messages::{endpoint.name}::{response_pascal_name} {{}};\n")
+            body.write("        return make<IPC::MessageBuffer>(TRY(response.encode()));\n")
         else:
-            out.write(f"        auto response = {message.name}({arguments});\n")
-            out.write("        return make<IPC::MessageBuffer>(TRY(response.encode()));\n")
+            body.write(f"        auto response = {message.name}({arguments});\n")
+            body.write("        return make<IPC::MessageBuffer>(TRY(response.encode()));\n")
 
-        out.write("    }\n")
+        write_method(out, implementation, f"{endpoint.name}Stub", signature, body.getvalue())
 
     out.write("\n")
 
@@ -783,7 +829,7 @@ def write_routed_stub_class(out: TextIO, endpoint: Endpoint) -> None:
 
     out.write(f"""
 // The receiver of the messages about one {endpoint.route_scope()}: those whose first argument is the {endpoint.route.name}.
-class {endpoint.name}{scope}Stub {{
+{class_declaration(endpoint, f"{endpoint.name}{scope}Stub")} {{
 public:
     virtual ~{endpoint.name}{scope}Stub() = default;
 
@@ -801,7 +847,7 @@ public:
     out.write("};\n")
 
 
-def write_routing_stub_mixin(out: TextIO, endpoint: Endpoint) -> None:
+def write_routing_stub_class(out: TextIO, implementation: TextIO, endpoint: Endpoint) -> None:
     assert endpoint.route is not None
     scope = endpoint.route_scope_pascal()
     route = endpoint.route
@@ -811,11 +857,8 @@ def write_routing_stub_mixin(out: TextIO, endpoint: Endpoint) -> None:
 // A receiver that hands each message about a {endpoint.route_scope()} to that {endpoint.route_scope()}'s stub, and drops
 // it when there is none. It still answers the unrouted messages itself, and may take a routed one back by
 // overriding it.
-template<typename Base>
-class {endpoint.name}{scope}RoutingStub : public Base {{
+{class_declaration(endpoint, f"{endpoint.name}{scope}RoutingStub")} : public {endpoint.name}Stub {{
 public:
-    using Base::Base;
-
     virtual {endpoint.name}{scope}Stub* {stub_accessor}({route.type} const&) = 0;
 """)
 
@@ -826,17 +869,20 @@ public:
         args = ", ".join(
             p.name if is_primitive_or_simple_type(p.type) else f"move({p.name})" for p in message.inputs[1:]
         )
-        out.write(f"\n    virtual void {message.name}({params}) override\n    {{\n")
-        out.write(
-            f"        if (auto* stub = {stub_accessor}({route.name}))\n            stub->{message.name}({args});\n"
+        write_method(
+            out,
+            implementation,
+            f"{endpoint.name}{scope}RoutingStub",
+            f"virtual void {message.name}({params}) override",
+            f"if (auto* stub = {stub_accessor}({route.name}))\n    stub->{message.name}({args});",
         )
-        out.write("    }\n")
 
     out.write("};\n")
 
 
 def write_bound_proxy_method(
     out: TextIO,
+    implementation: TextIO,
     endpoint: Endpoint,
     message: Message,
     is_synchronous: bool,
@@ -858,7 +904,7 @@ def write_bound_proxy_method(
     method_name = ("try_" if is_try else "") + ("" if is_synchronous else "async_") + message.name
 
     signature_params: List[str] = []
-    call_args: List[str] = [f"derived().routed_{endpoint.route.name}()"]
+    call_args: List[str] = [f"routed_{endpoint.route.name}()"]
     generate_unicode_string_overload = False
     for parameter in parameters:
         if is_synchronous or is_try:
@@ -879,76 +925,147 @@ def write_bound_proxy_method(
         call_args.append(parameter.name if is_primitive_or_simple_type(forwarded_type) else f"move({parameter.name})")
 
     call = f"connection->{method_name}({', '.join(call_args)})"
-    out.write(f"\n    {return_type} {method_name}({', '.join(signature_params)}) const\n    {{\n")
-    out.write("        if (auto* connection = derived().routed_connection())\n")
+    signature = f"{return_type} {method_name}({', '.join(signature_params)}) const"
+    body = io.StringIO()
+    body.write("        if (auto* connection = routed_proxy())\n")
     if return_type == "void":
-        out.write(f"            {call};\n")
+        body.write(f"            {call};\n")
     else:
-        out.write(f"            return {call};\n")
+        body.write(f"            return {call};\n")
         if is_try:
-            out.write("        return IPC::ErrorCode::PeerDisconnected;\n")
+            body.write("        return IPC::ErrorCode::PeerDisconnected;\n")
         elif len(message.outputs) == 1:
-            out.write(f"        return IPC::empty_value<{return_type}>();\n")
+            body.write(f"        return IPC::empty_value<{return_type}>();\n")
         else:
             outputs = ", ".join(output.type for output in message.outputs)
-            out.write(f"        return IPC::empty_response<{return_type}, {outputs}>();\n")
-    out.write("    }\n")
+            body.write(f"        return IPC::empty_response<{return_type}, {outputs}>();\n")
+    write_method(
+        out, implementation, f"{endpoint.name}{endpoint.route_scope_pascal()}Proxy", signature, body.getvalue()
+    )
 
     if generate_unicode_string_overload:
-        write_bound_proxy_method(out, endpoint, message, is_synchronous, is_try, is_unicode_string_overload=True)
+        write_bound_proxy_method(
+            out, implementation, endpoint, message, is_synchronous, is_try, is_unicode_string_overload=True
+        )
 
 
-def write_bound_proxy_class(out: TextIO, endpoint: Endpoint) -> None:
+def write_bound_proxy_class(out: TextIO, implementation: TextIO, endpoint: Endpoint) -> None:
     assert endpoint.route is not None
     scope = endpoint.route_scope_pascal()
 
     out.write(f"""
 // Sends the messages about one {endpoint.route_scope()} without naming it each time. The class deriving this provides
-// routed_connection(), the proxy the messages go through, or null once the {endpoint.route_scope()} has none, and
+// routed_proxy(), the proxy the messages go through, or null once the {endpoint.route_scope()} has none, and
 // routed_{endpoint.route.name}(). A message for a {endpoint.route_scope()} without a connection is dropped.
-template<typename Derived>
-class {endpoint.name}{scope}Proxy {{
+{class_declaration(endpoint, f"{endpoint.name}{scope}Proxy")} {{
 public:
+    virtual ~{endpoint.name}{scope}Proxy() = default;
 """)
 
     for message in endpoint.messages:
         if not endpoint.binds(message):
             continue
-        write_bound_proxy_method(out, endpoint, message, message.is_synchronous, is_try=False)
+        write_bound_proxy_method(out, implementation, endpoint, message, message.is_synchronous, is_try=False)
         if message.is_synchronous:
-            write_bound_proxy_method(out, endpoint, message, is_synchronous=False, is_try=False)
-            write_bound_proxy_method(out, endpoint, message, is_synchronous=True, is_try=True)
+            write_bound_proxy_method(out, implementation, endpoint, message, is_synchronous=False, is_try=False)
+            write_bound_proxy_method(out, implementation, endpoint, message, is_synchronous=True, is_try=True)
 
-    out.write("""
-private:
-    Derived const& derived() const { return static_cast<Derived const&>(*this); }
-};
+    out.write(f"""
+protected:
+    virtual {endpoint.name}Proxy* routed_proxy() const = 0;
+    virtual {endpoint.route.type} routed_{endpoint.route.name}() const = 0;
+}};
 """)
 
 
-def write_endpoint(out: TextIO, endpoint: Endpoint) -> None:
+def write_endpoint(out: TextIO, implementation: TextIO, endpoint: Endpoint) -> None:
     out.write(f"\nnamespace Messages::{endpoint.name} {{\n")
+    implementation.write(f"\nnamespace Messages::{endpoint.name} {{\n")
     write_message_ids_enum(out, endpoint)
-
     for message in endpoint.messages:
         response_name = ""
-
         if message.is_synchronous:
             response_name = message.response_name()
-            write_message_class(out, endpoint, response_name, message.outputs)
-
-        write_message_class(out, endpoint, message.name, message.inputs, response_name)
-
+            write_message_class(out, implementation, endpoint, response_name, message.outputs)
+        write_message_class(out, implementation, endpoint, message.name, message.inputs, response_name)
     out.write(f"\n}} // namespace Messages::{endpoint.name}\n")
-
-    write_proxy_class(out, endpoint)
-    write_endpoint_class(out, endpoint)
-    write_stub_class(out, endpoint)
+    implementation.write(f"\n}} // namespace Messages::{endpoint.name}\n")
+    write_proxy_class(out, implementation, endpoint)
+    write_endpoint_class(out, implementation, endpoint)
+    write_stub_class(out, implementation, endpoint)
     if endpoint.route is not None:
         write_routed_stub_class(out, endpoint)
-        write_routing_stub_mixin(out, endpoint)
-        write_bound_proxy_class(out, endpoint)
+        write_routing_stub_class(out, implementation, endpoint)
+        write_bound_proxy_class(out, implementation, endpoint)
 
+
+def build(
+    out: TextIO,
+    endpoints: List[Endpoint],
+    implementation: TextIO,
+    header_name: str,
+    library: str = "",
+) -> None:
+    out.write("#pragma once\n\n")
+    export_macro = ""
+    if library:
+        export_macro = f"{library.removeprefix('Lib').upper()}_API"
+        out.write(f"""\
+#if __has_include(<{library}/Export.h>)
+#include <{library}/Export.h>
+#else
+#define {export_macro}
+#endif
+
+""")
+    for endpoint in endpoints:
+        for include in endpoint.includes:
+            out.write(f"{include}\n")
+    # Message members need complete owning types even when an endpoint has no explicit includes.
+    parameter_types = " ".join(
+        parameter.type
+        for endpoint in endpoints
+        for message in endpoint.messages
+        for parameter in message.inputs + message.outputs
+    )
+    for name in ["ByteBuffer", "ByteString", "JsonValue", "Optional", "String", "Utf16String", "Vector"]:
+        if re.search(rf"\b{name}\b", parameter_types):
+            out.write(f"#include <AK/{name}.h>\n")
+    out.write("""\
+#include <AK/Error.h>
+#include <AK/OwnPtr.h>
+#include <AK/Platform.h>
+#include <AK/Result.h>
+#include <LibIPC/File.h>
+#include <LibIPC/Message.h>
+#include <LibIPC/SenderClaim.h>
+#include <LibIPC/Stub.h>
+
+namespace AK {
+class FixedMemoryStream;
+}
+
+namespace IPC {
+class ConnectionBase;
+}
+
+#if defined(AK_COMPILER_CLANG)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdefaulted-function-deleted"
+#endif
+""")
+    implementation.write(f'#include "{header_name}"\n\n')
+    implementation.write("""\
+#include <AK/MemoryStream.h>
+#include <AK/Utf8View.h>
+#include <LibIPC/Attachment.h>
+#include <LibIPC/Connection.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
+""")
+    for endpoint in endpoints:
+        endpoint.export_macro = export_macro
+        write_endpoint(out, implementation, endpoint)
     out.write("""
 #if defined(AK_COMPILER_CLANG)
 #pragma clang diagnostic pop
@@ -956,50 +1073,31 @@ def write_endpoint(out: TextIO, endpoint: Endpoint) -> None:
 """)
 
 
-def build(out: TextIO, endpoints: List[Endpoint]) -> None:
-    out.write("#pragma once\n\n")
-
-    for endpoint in endpoints:
-        for include in endpoint.includes:
-            out.write(f"{include}\n")
-
-    out.write("""\
-#include <AK/Error.h>
-#include <AK/MemoryStream.h>
-#include <AK/OwnPtr.h>
-#include <AK/Platform.h>
-#include <AK/Result.h>
-#include <AK/Utf8View.h>
-#include <LibIPC/Attachment.h>
-#include <LibIPC/Connection.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
-#include <LibIPC/File.h>
-#include <LibIPC/Message.h>
-#include <LibIPC/SenderClaim.h>
-#include <LibIPC/Stub.h>
-
-#if defined(AK_COMPILER_CLANG)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdefaulted-function-deleted"
-#endif
-""")
-
-    for endpoint in endpoints:
-        write_endpoint(out, endpoint)
-
-
 def main():
     parser = argparse.ArgumentParser(description="Ladybird IPC endpoint compiler")
     parser.add_argument("--input", required=True, help="IPC endpoint definition file")
-    parser.add_argument("--output", required=True, help="File to write file generated header")
+    parser.add_argument("--output", required=True, help="Generated header file")
+    parser.add_argument("--implementation", required=True, help="Generated implementation file")
+    parser.add_argument("--header-name", help="Header name to include from the implementation")
+    parser.add_argument(
+        "--library", default="", help="Owning library, e.g. LibWebCommon; determines the export header and macro"
+    )
     args = parser.parse_args()
 
     with open(args.input, "r", encoding="utf-8") as input_file:
         endpoints = parse(input_file.read())
 
-    with open(args.output, "w", encoding="utf-8") as output_file:
-        build(output_file, endpoints)
+    with (
+        open(args.output, "w", encoding="utf-8") as output_file,
+        open(args.implementation, "w", encoding="utf-8") as implementation_file,
+    ):
+        build(
+            output_file,
+            endpoints,
+            implementation_file,
+            args.header_name or Path(args.output).name,
+            args.library,
+        )
 
 
 if __name__ == "__main__":

@@ -60,23 +60,27 @@ bool verify_message_argument(Stub& stub, T const& argument)
     return verify_sender_claim(stub, argument);
 }
 
-// The value a routed synchronous message with one output gets when there is no object to send it to.
-// A message whose output cannot be empty is marked [NotRouted] so that it never reaches this.
+// The value a bound synchronous send gets when its object no longer has a connection. If the reply
+// cannot be empty, there is no value we can invent: like a failed mandatory synchronous send, it fails.
 template<typename Value>
 Value empty_value()
 {
-    static_assert(requires { Value {}; }, "A routed synchronous message needs a reply that can be value-initialized");
-    return Value {};
+    if constexpr (requires { Value {}; })
+        return Value {};
+    else
+        VERIFY_NOT_REACHED();
 }
 
-// The reply a routed synchronous message gets when there is no object to route it to: every output
-// value-initialized. A message whose outputs cannot all be empty is marked [NotRouted] so that it never
-// reaches this.
+// The reply a bound synchronous send gets when its object no longer has a connection: every output
+// value-initialized. If a reply cannot be empty, there is no value we can invent, so it fails like a
+// mandatory synchronous send on a closed connection.
 template<typename Response, typename... Outputs>
 Response empty_response()
 {
-    static_assert(requires { Response { Outputs {}... }; }, "A routed synchronous message needs a reply that can be value-initialized");
-    return Response { Outputs {}... };
+    if constexpr (requires { Response { Outputs {}... }; })
+        return Response { Outputs {}... };
+    else
+        VERIFY_NOT_REACHED();
 }
 
 // The reply a refused synchronous message is answered with: every output value-initialized, so the
