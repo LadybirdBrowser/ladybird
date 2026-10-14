@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Each iframe loads a script and a stylesheet, and a function of this document runs hot on its objects, so that the
+    // JIT compiles code against them. Once an iframe is removed, nothing may keep its document alive: not the JIT code
+    // of this document's functions, which outlive it, nor what was left over from loading its script and stylesheet.
+    // NB: Each iframe gets its own function, so that the code of each one only saw the objects of one iframe.
+    const exercisers = [];
+    function createExerciser() {
+        const exercise = new Function("document", "window", `
+            for (let i = 0; i < 20000; ++i) {
+                if (document.body.firstElementChild === null || window.counter.value < 0 || window.bump() <= 0)
+                    throw new Error("the iframe did not load its content");
+            }`);
+        exercisers.push(exercise);
+        return exercise;
+    }
+
+    promiseTest(async () => {
+        const content = `<!DOCTYPE html>
+            <link rel="stylesheet" href="data:text/css,p { color: green; }">
+            <script src="data:text/javascript,window.counter = { value: 0 }; function bump() { return ++counter.value; }"><\/script>
+            <p>content</p>`;
+
+        // The documents are recorded in a nested function, so that none lingers in a register of this function's frame
+        // while they are expected to be collected. An expando preserves each document's wrapper for as long as the
+        // document lives, so the weak reference tracks the document rather than a wrapper that JS may drop early.
+        const weakDocuments = await (async () => {
+            const weakDocuments = [];
+            for (let i = 0; i < 5; ++i) {
+                const iframe = document.createElement("iframe");
+                const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+                iframe.srcdoc = content;
+                document.body.append(iframe);
+                await loaded;
+
+                const iframeDocument = iframe.contentDocument;
+                createExerciser()(iframeDocument, iframe.contentWindow);
+
+                iframeDocument.preserveWrapper = true;
+                weakDocuments.push(new WeakRef(iframeDocument));
+                iframe.remove();
+            }
+            return weakDocuments;
+        })();
+
+        const maximumGcRounds = 100;
+        for (let round = 0; round < maximumGcRounds; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakDocuments.every(weak => weak.deref() === undefined))
+                break;
+        }
+
+        const collected = weakDocuments.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakDocuments.length} removed iframe documents`);
+    });
+</script>
