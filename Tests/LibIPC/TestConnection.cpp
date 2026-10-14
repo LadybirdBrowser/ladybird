@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Atomic.h>
+#include <AK/ByteBuffer.h>
 #include <AK/ByteReader.h>
 #include <AK/ByteString.h>
 #include <AK/Function.h>
@@ -165,6 +167,14 @@ ErrorOr<PeerCloseOutcome> send_one_message_then_close_peer(bool peer_owns_this_p
     return outcome;
 }
 
+ByteBuffer patterned_bytes(size_t size, u8 seed)
+{
+    auto bytes = MUST(ByteBuffer::create_uninitialized(size));
+    for (size_t i = 0; i < size; ++i)
+        bytes[i] = static_cast<u8>(seed + i % 251);
+    return bytes;
+}
+
 }
 
 TEST_CASE(taking_unprocessed_messages_includes_the_current_dispatch_batch)
@@ -250,6 +260,42 @@ TEST_CASE(anonymous_buffer_size_uses_64_bits)
     IPC::Decoder decoder { stream, attachments };
     auto decoded_buffer = MUST(decoder.decode<Core::AnonymousBuffer>());
     EXPECT_EQ(decoded_buffer.size(), buffer_size);
+}
+
+TEST_CASE(payloads_of_any_size_arrive_intact_with_their_attachments)
+{
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+    auto receiver = TRY_OR_FAIL(pair.remote_handle.create_transport());
+
+    Array<size_t, 3> payload_sizes { 1 * KiB, 2 * MiB, 65 * MiB };
+    for (size_t i = 0; i < payload_sizes.size(); ++i) {
+        auto attachment = TRY_OR_FAIL(Core::AnonymousBuffer::create_with_size(sizeof(size_t)));
+        *attachment.data<size_t>() = i;
+
+        IPC::MessageBuffer buffer;
+        IPC::Encoder encoder { buffer };
+        TRY_OR_FAIL(encoder.encode(patterned_bytes(payload_sizes[i], static_cast<u8>(i))));
+        TRY_OR_FAIL(encoder.encode(attachment));
+        TRY_OR_FAIL(buffer.transfer_message(*pair.local));
+    }
+
+    size_t received = 0;
+    while (received < payload_sizes.size()) {
+        receiver->wait_until_readable();
+        auto should_shutdown = receiver->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            FixedMemoryStream stream { message.bytes.bytes() };
+            IPC::Decoder decoder { stream, message.attachments };
+            auto payload = MUST(decoder.decode<ByteBuffer>());
+            auto attachment = MUST(decoder.decode<Core::AnonymousBuffer>());
+            EXPECT(payload == patterned_bytes(payload_sizes[received], static_cast<u8>(received)));
+            EXPECT_EQ(*attachment.data<size_t>(), received);
+            EXPECT(message.attachments.is_empty());
+            ++received;
+        });
+        if (should_shutdown == IPC::Transport::ShouldShutdown::Yes)
+            break;
+    }
+    EXPECT_EQ(received, payload_sizes.size());
 }
 
 // Regression test for #9582. wait_for_specific_endpoint_message_impl is reachable from any sync IPC call, including
