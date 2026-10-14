@@ -27,7 +27,6 @@ FetchParams::FetchParams(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms
 FetchParams::FetchParams(FetchParams const& params)
     : m_request(params.m_request)
     , m_body_intent(params.m_body_intent)
-    , m_task_destination(params.m_task_destination)
     , m_cross_origin_isolated_capability(params.m_cross_origin_isolated_capability)
     , m_controller(params.m_controller)
     , m_timing_info(params.m_timing_info)
@@ -53,7 +52,6 @@ void FetchParams::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_controller);
-    visitor.visit(m_task_destination);
 }
 
 // https://fetch.spec.whatwg.org/#fetch-params-aborted

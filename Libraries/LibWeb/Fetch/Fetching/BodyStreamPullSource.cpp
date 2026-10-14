@@ -224,7 +224,7 @@ void BodyStreamPullSource::on_pull_wake()
         run_pull_task();
     });
     if (m_fetch_params) {
-        Infrastructure::queue_fetch_task(m_fetch_params->task_destination(), steps);
+        Infrastructure::queue_fetch_task(m_fetch_params->controller()->task_destination(), steps);
         return;
     }
 
