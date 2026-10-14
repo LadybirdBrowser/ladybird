@@ -281,6 +281,42 @@ TEST_CASE(a_seek_past_the_consumed_last_frame_re_emits_it)
     }
 }
 
+// A decoder keeps frames meant for output across a seek that leaves the demuxer where it was, and a seek past the
+// end has none of its own to offer instead, so those must not pass for the last frame.
+TEST_CASE(a_seek_past_the_end_during_playback_lands_on_the_last_frame)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    AK::Duration last_sample_timestamp;
+    {
+        auto [demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+        TRY_OR_FAIL(demuxer->create_context_for_track(track));
+        while (true) {
+            auto sample = demuxer->get_next_sample_for_track(track);
+            if (sample.is_error())
+                break;
+            last_sample_timestamp = sample.value().presentation_timestamp();
+        }
+    }
+
+    auto producer = create_started_producer(loop, "./vp9_in_webm.webm"sv);
+    auto time_limit = AK::Duration::from_seconds(5);
+    // Decoding has to be underway for the decoder to hold frames meant for output when the seek arrives.
+    for (size_t frame_count = 0; frame_count < 3; frame_count++) {
+        if (take_frame_within_time_limit(*producer, loop, time_limit) == nullptr) {
+            FAIL(ByteString::formatted("Timed out waiting for frame {}", frame_count));
+            return;
+        }
+    }
+
+    producer->seek(last_sample_timestamp + AK::Duration::from_seconds(10));
+    auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
+    if (frame == nullptr)
+        FAIL("Timed out waiting for the seek past the end to resolve");
+    else
+        EXPECT_EQ(frame->timestamp(), last_sample_timestamp);
+}
+
 TEST_CASE(a_codec_change_drains_the_previous_decoder)
 {
     auto& loop = never_destroyed_event_loop();
