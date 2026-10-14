@@ -1,0 +1,33 @@
+Ladybird resolves macOS Control-key bindings in the UI and carries the
+resulting commands with the original keyboard event. Gecko records
+AppKit selectors in nsCocoaUtils::GetCommandsFromKeyEvent(), then maps
+them in NativeKeyBindings::AppendEditCommandsForSelector(). WebKit’s
+WebViewImpl::collectKeyboardLayoutCommandsForEvent() records AppKit
+commands. Chromium records selectors in its native Cocoa view method,
+RenderWidgetHostViewCocoa::doCommandBySelector:.
+
+Ladybird executes deletion after keyboard and beforeinput cancellation
+checks, using word or paragraph-boundary ranges. WebKit routes
+executeDeleteWordBackward() and executeDeleteToEndOfParagraph() through
+Editor::deleteWithDirection(). Blink routes ExecuteDeleteWordBackward()
+and ExecuteDeleteToEndOfParagraph() through DeleteWithDirection(). Both
+delete the separator when paragraph-end deletion starts there.
+
+Ladybird reports paragraph-end deletion as deleteHardLineForward,
+matching Blink and WebKit. Gecko computes the hard-line range with
+CreateRangeExtendedToNextHardLineBreak(), but maps the action through
+eDeleteToEndOfSoftLine and reports deleteSoftLineForward. Ladybird uses
+the hard-line input type because its range ends at a paragraph boundary.
+
+Ladybird resolves physical line edges from shaped text rather than block
+direction alone. Blink uses SelectionModifyDirection::kLeft or kRight
+with TextGranularity::kLineBoundary in MoveCommands. WebKit uses
+SelectionDirection::Left or Right with TextGranularity::LineBoundary in
+its editing commands. Gecko uses visual movement and the edge frame bidi
+level in nsFrameSelection::MoveCaret().
+
+Ladybird keeps physical line-edge navigation inside the editing host.
+Blink bounds StartOfLine() and EndOfLine() with HighestEditableRoot().
+WebKit line-boundary helpers call honorEditingBoundaryAtOrBefore() or
+honorEditingBoundaryAtOrAfter(). Gecko passes the ancestor returned by
+GetAncestorLimiterForCaretMove() into PeekOffsetForCaretMove().
