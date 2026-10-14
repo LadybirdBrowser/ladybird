@@ -580,7 +580,7 @@ void ConnectionFromClient::discard_embedded_page(Web::PageId page_id)
     page->page().discard();
 }
 
-void ConnectionFromClient::queue_navigation_api_state_clear_task(Web::PageId page_id, Web::HTML::CrossProcessId, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::queue_navigation_api_state_clear_task(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     auto* navigable = page.has_value() ? as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr()) : nullptr;
@@ -781,7 +781,7 @@ void ConnectionFromClient::container_unfullscreen_complete(Web::PageId page_id, 
         page->page().container_unfullscreen_complete(navigable_id);
 }
 
-void ConnectionFromClient::run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId)
+void ConnectionFromClient::run_traversable_close_unload_task(Web::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         as<Web::HTML::LocalTraversableNavigable>(*page->page().local_traversable()).run_ui_traversable_close_unload_task();

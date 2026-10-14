@@ -1941,7 +1941,7 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Histor
             if (!endpoint)
                 return;
             add_history_operation_completion_endpoint(operation, *endpoint);
-            endpoint->async_queue_navigation_api_state_clear_task(operation.operation_id, navigable_id); },
+            endpoint->async_queue_navigation_api_state_clear_task(navigable_id); },
         .select_changing_navigable_history_step_job_endpoint = [this, &operation](ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob& job) { return !operation.finished && select_changing_navigable_history_step_job_endpoint(operation, job); },
         .run_changing_navigable_history_step_job = [this, &operation](ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob job, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete) {
             if (operation.finished)
@@ -2510,7 +2510,7 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
                 if (!find_history_operation(operation_id))
                     return;
                 if (auto host = page_hosting(*this))
-                    host->async_run_traversable_close_unload_task(operation_id);
+                    host->async_run_traversable_close_unload_task();
                 end_history_operation(operation_id);
             });
         },
