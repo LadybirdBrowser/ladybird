@@ -125,7 +125,7 @@ public:
     NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(SessionHistoryEntryDescriptor);
     Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor>, NonnullRefPtr<SessionHistoryEntry> target_entry);
 
-    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
+    void activate_history_entry(NonnullRefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void queue_navigation_api_state_clear_task();
     void run_ui_descendant_unload_task(ChildNavigableDestruction, StopHostingAfterUnload, GC::Ref<GC::Function<void()>> on_complete);

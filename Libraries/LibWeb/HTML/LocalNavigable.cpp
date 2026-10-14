@@ -1120,7 +1120,7 @@ void LocalNavigable::inherit_page_state_from(LocalNavigable const& parent)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
+void LocalNavigable::activate_history_entry(NonnullRefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
     // AD-HOC: The document a provisional navigable populated activates: the navigable takes its container over first,
     //         so that the document is the content navigable's active document, and the WindowProxy's [[Window]], from
@@ -1141,7 +1141,6 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
 
     // DocumentState identifies its associated Document by a process-local ID. Restore that association at the
     // transition that makes a reconstructed entry's Document active.
-    VERIFY(entry);
     auto document_state = entry->document_state();
     VERIFY(document_state);
     document_state->set_document_id(new_document->unique_id());
