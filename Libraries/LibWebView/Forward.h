@@ -15,6 +15,7 @@ namespace WebView {
 
 class Action;
 class Application;
+class ApplyHistoryStep;
 class AudioServerControlClient;
 class Autocomplete;
 class AutocompleteService;
@@ -43,6 +44,7 @@ class FontServiceHost;
 class HistoryStore;
 class HSTSStore;
 class Menu;
+class NavigationLoader;
 class OutOfProcessWebView;
 class ProcessManager;
 class RequestServerInstance;
@@ -64,8 +66,10 @@ class WebUI;
 struct DownloadRecord;
 struct BookmarkItem;
 struct BrowserOptions;
+struct ChangingNavigable;
 struct CookieStorageKey;
 struct HistoryEntry;
+struct HistoryOperation;
 struct SearchEngine;
 struct WebContentOptions;
 class WebContentPage;
