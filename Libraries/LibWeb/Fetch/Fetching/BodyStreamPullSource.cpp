@@ -241,7 +241,7 @@ void BodyStreamPullSource::push_while_paused()
 {
     if (m_detached || m_pending_pull_promise || m_push_ticket.has_value() || !HTML::main_thread_event_loop().execution_paused())
         return;
-    if (!m_fetch_params || m_fetch_params->body_intent() != Engine::BodyIntent::SyncAccumulate)
+    if (!m_fetch_params || m_fetch_params->control_block().body_intent() != Engine::BodyIntent::SyncAccumulate)
         return;
     m_push_ticket = arm_waiter(Engine::FetchByteChannel::BufferedAtLeast { 1 });
 }

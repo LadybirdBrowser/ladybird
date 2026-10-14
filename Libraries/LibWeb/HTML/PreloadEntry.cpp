@@ -126,11 +126,8 @@ bool consume_a_preloaded_resource(
         //         in-flight preload (XMLHttpRequestMainThread::FindPreload, FetchPreloader::AsyncConsume); Blink never
         //         reuses a resource for a sync request (Resource::CanReuse), and WebKit's sync load bypasses its cache
         //         and preloads (DocumentThreadableLoader::loadRequest).
-        if (consumer_body_intent == Fetch::Engine::BodyIntent::SyncAccumulate && entry->controller) {
-            entry->controller->set_task_destination(ParallelQueue::create());
-            if (auto fetch_params = entry->controller->fetch_params())
-                fetch_params->set_body_intent(consumer_body_intent);
-        }
+        if (consumer_body_intent == Fetch::Engine::BodyIntent::SyncAccumulate && entry->controller)
+            entry->controller->retarget(ParallelQueue::create(), consumer_body_intent);
     }
     // 10. Otherwise, call onResponseAvailable with entry's response.
     else {

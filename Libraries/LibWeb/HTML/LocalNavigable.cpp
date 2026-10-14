@@ -562,7 +562,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
     if (WebDriver::BiDi::g_network_events_enabled && response->network_transport().has_value() && !network_response.is_object() && navigation_params->request) {
         RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info = navigation_params->fetch_timing_info;
         if (navigation_params->fetch_controller)
-            timing_info = navigation_params->fetch_controller->timing_info();
+            timing_info = navigation_params->fetch_controller->full_timing_info();
         if (timing_info) {
             auto metadata = WebDriver::BiDi::network_response_for_navigation(
                 *navigation_params->request, *timing_info, *response->record());

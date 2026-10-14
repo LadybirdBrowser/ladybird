@@ -136,8 +136,8 @@ static NavigationParamsDescriptor create_navigation_params_descriptor(Navigation
         request = create_navigation_request_descriptor(*params.request);
 
     Optional<NavigationFetchTimingInfoDescriptor> fetch_timing_info;
-    if (params.fetch_controller && params.fetch_controller->timing_info())
-        fetch_timing_info = create_navigation_fetch_timing_info_descriptor(*params.fetch_controller->timing_info());
+    if (params.fetch_controller && params.fetch_controller->full_timing_info())
+        fetch_timing_info = create_navigation_fetch_timing_info_descriptor(*params.fetch_controller->full_timing_info());
     else if (params.fetch_timing_info)
         fetch_timing_info = create_navigation_fetch_timing_info_descriptor(*params.fetch_timing_info);
 
@@ -158,7 +158,7 @@ static NavigationParamsDescriptor create_navigation_params_descriptor(Navigation
         .id = params.id,
         .navigable_id = params.navigable->id(),
         .request = move(request),
-        .response = create_navigation_response_descriptor(*params.response, params.request.ptr(), params.fetch_controller ? params.fetch_controller->timing_info().ptr() : params.fetch_timing_info.ptr()),
+        .response = create_navigation_response_descriptor(*params.response, params.request.ptr(), params.fetch_controller ? params.fetch_controller->full_timing_info().ptr() : params.fetch_timing_info.ptr()),
         .fetch_timing_info = move(fetch_timing_info),
         .coop_enforcement_result = params.coop_enforcement_result,
         .reserved_environment = move(reserved_environment),
