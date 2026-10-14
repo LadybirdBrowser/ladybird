@@ -34,6 +34,8 @@ class TransportWindows {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
+    static constexpr size_t MAX_INLINE_PAYLOAD_SIZE = 1 * MiB;
+
     struct Paired {
         NonnullOwnPtr<TransportWindows> local;
         TransportHandle remote_handle;

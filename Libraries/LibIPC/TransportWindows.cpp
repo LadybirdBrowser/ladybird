@@ -10,6 +10,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
@@ -22,12 +23,19 @@
 
 namespace IPC {
 
-// A message with attachments carries the handle broker token that names them right after its header.
+// A message with attachments carries the handle broker token that names them right after its header. A section
+// holding the payload is the last of those attachments.
 struct TransportWindows::MessageHeader {
+    enum class PayloadLocation : u8 {
+        Inline = 0,
+        SharedMemory = 1,
+    };
     u32 payload_size { 0 };
     u32 attachment_count { 0 };
+    PayloadLocation payload_location { PayloadLocation::Inline };
 
     size_t token_size() const { return attachment_count > 0 ? sizeof(HandleBrokerToken) : 0; }
+    size_t inline_payload_size() const { return payload_location == PayloadLocation::Inline ? payload_size : 0; }
 };
 
 // Maximum size of accumulated unprocessed bytes before we disconnect the peer
@@ -247,6 +255,21 @@ ErrorOr<void> TransportWindows::transfer(ReadonlyBytes bytes_to_write)
     return {};
 }
 
+static ErrorOr<Attachment> copy_payload_to_shared_memory(ReadonlyBytes payload)
+{
+    auto section = TRY(Core::AnonymousBuffer::create_with_size(payload.size()));
+    payload.copy_to({ section.data<u8>(), section.size() });
+    return Attachment::from_fd(TRY(Core::System::dup(section.fd())));
+}
+
+static ErrorOr<Vector<u8>> copy_payload_from_shared_memory(Attachment section, size_t size)
+{
+    auto buffer = TRY(Core::AnonymousBuffer::create_from_anon_fd(section.to_fd(), size));
+    Vector<u8> payload;
+    TRY(payload.try_append(buffer.bytes().data(), buffer.size()));
+    return payload;
+}
+
 ErrorOr<void> TransportWindows::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
 {
     VERIFY(bytes.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
@@ -258,6 +281,12 @@ ErrorOr<void> TransportWindows::post_message(MessageDataType bytes, Vector<Attac
         .payload_size = static_cast<u32>(bytes.size()),
         .attachment_count = static_cast<u32>(attachments.size()),
     };
+    if (bytes.size() > MAX_INLINE_PAYLOAD_SIZE) {
+        attachments.append(TRY(copy_payload_to_shared_memory(bytes)));
+        bytes.clear();
+        header.payload_location = MessageHeader::PayloadLocation::SharedMemory;
+        ++header.attachment_count;
+    }
     HandleBrokerToken attachment_token = 0;
     if (!attachments.is_empty()) {
         attachment_token = TRY(HandleBroker::the().park(m_handle_broker_channel, move(attachments)));
@@ -372,24 +401,37 @@ TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_poss
     while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
-        if (header.payload_size > MAX_MESSAGE_PAYLOAD_SIZE) {
-            dbgln("TransportWindows: Rejecting message with payload_size {} exceeding limit {}", header.payload_size, MAX_MESSAGE_PAYLOAD_SIZE);
+        if (header.payload_location != MessageHeader::PayloadLocation::Inline && header.payload_location != MessageHeader::PayloadLocation::SharedMemory) {
+            dbgln("TransportWindows: Rejecting message with unknown payload location {}", to_underlying(header.payload_location));
             should_shutdown = ShouldShutdown::Yes;
             break;
         }
-        if (header.attachment_count > MAX_MESSAGE_FD_COUNT) {
-            dbgln("TransportWindows: Rejecting message with attachment_count {} exceeding limit {}", header.attachment_count, MAX_MESSAGE_FD_COUNT);
+        bool payload_is_in_shared_memory = header.payload_location == MessageHeader::PayloadLocation::SharedMemory;
+        if (!payload_is_in_shared_memory && header.payload_size > MAX_INLINE_PAYLOAD_SIZE) {
+            dbgln("TransportWindows: Rejecting message with payload_size {} exceeding limit {}", header.payload_size, MAX_INLINE_PAYLOAD_SIZE);
+            should_shutdown = ShouldShutdown::Yes;
+            break;
+        }
+        auto max_attachment_count = payload_is_in_shared_memory ? MAX_MESSAGE_FD_COUNT_WITH_SHARED_MEMORY : MAX_MESSAGE_FD_COUNT;
+        if (header.attachment_count > max_attachment_count) {
+            dbgln("TransportWindows: Rejecting message with attachment_count {} exceeding limit {}", header.attachment_count, max_attachment_count);
+            should_shutdown = ShouldShutdown::Yes;
+            break;
+        }
+        if (payload_is_in_shared_memory && header.attachment_count == 0) {
+            dbgln("TransportWindows: Rejecting shared memory message without a section");
             should_shutdown = ShouldShutdown::Yes;
             break;
         }
 
-        Checked<size_t> message_size = header.payload_size;
+        Checked<size_t> message_size = header.inline_payload_size();
         message_size += sizeof(MessageHeader);
         message_size += header.token_size();
         if (message_size.has_overflow() || message_size.value() > m_unprocessed_bytes.size() - index)
             break;
 
         Message message;
+        Attachment section;
         if (header.attachment_count > 0) {
             HandleBrokerToken attachment_token = 0;
             memcpy(&attachment_token, m_unprocessed_bytes.data() + index + sizeof(MessageHeader), sizeof(attachment_token));
@@ -399,13 +441,23 @@ TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_poss
                 should_shutdown = ShouldShutdown::Yes;
                 break;
             }
+            if (payload_is_in_shared_memory)
+                section = attachments.value().take_last();
             for (auto& attachment : attachments.value())
                 message.attachments.enqueue(move(attachment));
         }
 
         auto const* payload = m_unprocessed_bytes.data() + index + sizeof(MessageHeader) + header.token_size();
         Vector<u8> payload_bytes;
-        if (payload_bytes.try_append(payload, header.payload_size).is_error()) {
+        if (payload_is_in_shared_memory) {
+            auto copied_bytes = copy_payload_from_shared_memory(move(section), header.payload_size);
+            if (copied_bytes.is_error()) {
+                dbgln("TransportWindows: Failed to copy payload_size {} from shared memory: {}", header.payload_size, copied_bytes.error());
+                should_shutdown = ShouldShutdown::Yes;
+                break;
+            }
+            payload_bytes = copied_bytes.release_value();
+        } else if (payload_bytes.try_append(payload, header.payload_size).is_error()) {
             dbgln("TransportWindows: Failed to allocate message buffer for payload_size {}", header.payload_size);
             should_shutdown = ShouldShutdown::Yes;
             break;

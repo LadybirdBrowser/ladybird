@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", "/oop-post-large-message-child", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const bytes = new Uint8Array(80 * 1024 * 1024);
+                    bytes[0] = 1;
+                    bytes[bytes.length - 1] = 2;
+                    parent.postMessage(bytes, "*");
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-post-large-message-child");
+
+        const received = new Promise(resolve => window.addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        const event = await received;
+        println(`byteLength: ${event.data.byteLength}`);
+        println(`first byte: ${event.data[0]}, last byte: ${event.data[event.data.length - 1]}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

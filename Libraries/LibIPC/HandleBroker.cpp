@@ -21,6 +21,9 @@ namespace IPC {
 static NeverDestroyed<Mutex> s_installed_broker_mutex;
 static NeverDestroyed<OwnPtr<HandleBroker>> s_installed_broker;
 
+static constexpr size_t MAX_HANDLE_BROKER_MESSAGE_SIZE = sizeof(HandleBrokerOperation) + sizeof(HandleBrokerToken) + sizeof(HandleBrokerChannel) + sizeof(u32) + MAX_MESSAGE_FD_COUNT_WITH_SHARED_MEMORY * sizeof(u64);
+static_assert(MAX_HANDLE_BROKER_MESSAGE_SIZE <= TransportWindows::MAX_INLINE_PAYLOAD_SIZE);
+
 HandleBroker& HandleBroker::the()
 {
     MutexLocker locker(*s_installed_broker_mutex);
@@ -47,7 +50,7 @@ static ErrorOr<void> encode_handle_values(Encoder& encoder, Vector<u64> const& h
 static ErrorOr<Vector<u64>> decode_handle_values(Decoder& decoder)
 {
     auto count = TRY(decoder.decode<u32>());
-    if (count > MAX_MESSAGE_FD_COUNT)
+    if (count > MAX_MESSAGE_FD_COUNT_WITH_SHARED_MEMORY)
         return Error::from_string_literal("Handle broker message names too many handles");
 
     Vector<u64> handle_values;

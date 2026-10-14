@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/CharacterTypes.h>
@@ -487,12 +488,60 @@ TEST_CASE(message_with_the_maximum_number_of_descriptors_arrives_whole_and_in_or
     EXPECT(!observed_shutdown);
 }
 
-static bool reader_disconnects_after_receiving(ReadonlyBytes bytes)
+TEST_CASE(message_with_the_maximum_number_of_descriptors_and_a_payload_in_shared_memory_arrives_whole)
+{
+    raise_descriptor_limit();
+    IGNORE_USE_IN_ESCAPING_LAMBDA TransportPair pair;
+
+    Vector<IPC::Attachment> attachments;
+    attachments.append(IPC::Attachment::from_fd(pipe_holding('F')));
+    for (size_t i = 2; i < IPC::MAX_MESSAGE_FD_COUNT; ++i)
+        attachments.append(IPC::Attachment::from_fd(MUST(Core::System::open("/dev/null"sv, O_RDONLY))));
+    attachments.append(IPC::Attachment::from_fd(pipe_holding('L')));
+    static constexpr size_t payload_size = IPC::TransportSocket::MAX_INLINE_PAYLOAD_SIZE + 1;
+    IPC::MessageDataType payload;
+    payload.resize(payload_size);
+    payload.span().fill('A');
+    MUST(pair.sender->post_message(move(payload), attachments));
+    (void)pair.post_with_descriptor('B');
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Vector<u8> received_tags;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool arrived_whole = true;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool observed_shutdown = false;
+    pair.receiver->set_up_read_hook([&] {
+        auto should_shutdown = pair.receiver->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            auto bytes = message.bytes.bytes();
+            received_tags.append(bytes[0]);
+            Vector<int> fds;
+            while (!message.attachments.is_empty())
+                fds.append(message.attachments.dequeue().to_fd());
+            if (bytes[0] == 'A') {
+                if (bytes.size() != payload_size || any_of(bytes, [](u8 byte) { return byte != 'A'; }))
+                    arrived_whole = false;
+                if (fds.size() != IPC::MAX_MESSAGE_FD_COUNT || byte_in_descriptor(fds.first()) != 'F' || byte_in_descriptor(fds.last()) != 'L')
+                    arrived_whole = false;
+            } else if (fds.size() != 1 || byte_in_descriptor(fds.first()) != 'B') {
+                arrived_whole = false;
+            }
+            for (auto fd : fds)
+                MUST(Core::System::close(fd));
+        });
+        if (should_shutdown == IPC::TransportSocket::ShouldShutdown::Yes)
+            observed_shutdown = true;
+    });
+
+    spin_until(pair.loop, [&] { return received_tags.size() == 2 || observed_shutdown; }, 10000_ms);
+    EXPECT(received_tags == Vector<u8>({ 'A', 'B' }));
+    EXPECT(arrived_whole);
+    EXPECT(!observed_shutdown);
+}
+
+static bool reader_disconnects_after_receiving(ReadonlyBytes bytes, Vector<int, 1> descriptors = {})
 {
     Core::EventLoop loop;
     int fds[2] {};
     MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
-    ScopeGuard close_peer = [&] { MUST(Core::System::close(fds[1])); };
+    auto peer = MUST(Core::LocalSocket::adopt_fd(fds[1]));
     auto reader_socket = MUST(Core::LocalSocket::adopt_fd(fds[0]));
     MUST(reader_socket->set_blocking(false));
     IGNORE_USE_IN_ESCAPING_LAMBDA IPC::TransportSocket transport(move(reader_socket));
@@ -502,7 +551,7 @@ static bool reader_disconnects_after_receiving(ReadonlyBytes bytes)
         if (transport.read_as_many_messages_as_possible_without_blocking([](auto&&) { }) == IPC::TransportSocket::ShouldShutdown::Yes)
             observed_shutdown = true;
     });
-    EXPECT_EQ(MUST(Core::System::write(fds[1], bytes)), bytes.size());
+    EXPECT_EQ(MUST(peer->send_message(bytes, 0, move(descriptors))), bytes.size());
     spin_until(loop, [&] {
         return observed_shutdown;
     });
@@ -527,6 +576,38 @@ TEST_CASE(attachments_frame_with_a_payload_disconnects_the_peer)
         .fd_count = 0,
     };
     EXPECT(reader_disconnects_after_receiving({ &header, sizeof(header) }));
+}
+
+TEST_CASE(inline_payload_larger_than_the_inline_limit_disconnects_the_peer)
+{
+    IPC::SocketMessageHeader header {
+        .type = IPC::SocketMessageHeader::Type::Payload,
+        .payload_size = IPC::TransportSocket::MAX_INLINE_PAYLOAD_SIZE + 1,
+        .fd_count = 0,
+    };
+    EXPECT(reader_disconnects_after_receiving({ &header, sizeof(header) }));
+}
+
+TEST_CASE(shared_memory_payload_without_a_descriptor_disconnects_the_peer)
+{
+    IPC::SocketMessageHeader header {
+        .type = IPC::SocketMessageHeader::Type::SharedMemoryPayload,
+        .payload_size = 1,
+        .fd_count = 0,
+    };
+    EXPECT(reader_disconnects_after_receiving({ &header, sizeof(header) }));
+}
+
+TEST_CASE(shared_memory_smaller_than_its_payload_disconnects_the_peer)
+{
+    auto shared_memory = MUST(Core::System::anon_create(4 * KiB, O_CLOEXEC));
+    ScopeGuard close_shared_memory = [&] { MUST(Core::System::close(shared_memory)); };
+    IPC::SocketMessageHeader header {
+        .type = IPC::SocketMessageHeader::Type::SharedMemoryPayload,
+        .payload_size = 1 * MiB,
+        .fd_count = 1,
+    };
+    EXPECT(reader_disconnects_after_receiving({ &header, sizeof(header) }, { shared_memory }));
 }
 
 // The IO thread reads a bounded amount per round. A backlog larger than that must still arrive in full and in order,
