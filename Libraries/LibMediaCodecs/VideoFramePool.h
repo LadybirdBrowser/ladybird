@@ -57,9 +57,9 @@ protected:
     struct Slot {
         Core::AnonymousBuffer buffer;
         // A slot keeps its surface once it has one, so that the decoder handing the same one back is recognized.
-        // Only the use says the pixels are live, and only a held slot has one.
+        // Only a held slot has contents, which the decoder gave with the surface and which go with the last hold.
         RefPtr<VideoSurface> surface;
-        VideoSurfaceUse surface_use;
+        RefPtr<VideoSurfaceContents> contents;
         u64 last_slot_acquisition_id { 0 };
         u64 allocated_buffer_id { 0 };
         u32 hold_count { 0 };
@@ -134,7 +134,9 @@ public:
         u64 allocated_buffer_id { 0 };
     };
     // Gets the slot already representing this surface, or a free one, so that a recycled surface keeps its identity.
-    Optional<AcquiredSlot> try_acquire(NonnullRefPtr<VideoSurface> const&);
+    // A surface handed back while its slot is still held, as a frame shown a second time is, gets another hold on
+    // the acquisition it already has, and the contents given with it are dropped in favor of the ones held.
+    Optional<AcquiredSlot> try_acquire(NonnullRefPtr<VideoSurface> const&, NonnullRefPtr<VideoSurfaceContents>);
     ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_acquired_slot(AcquiredSlot const&);
 
 private:
@@ -146,27 +148,32 @@ private:
 };
 
 // Mirrors a pool in another process, whose frames this process holds and lends onward as its own. The other process
-// publishes each acquisition in the slot's buffer and keeps the slot until this pool releases it, so this pool tracks
-// holds without publishing anything.
+// publishes each acquisition in the slot's buffer and holds the slot once for each frame it hands out of it, until
+// this pool releases that hold, so this pool tracks holds without publishing anything. Holds taken here beyond the
+// adoptions, by lending a frame onward, are this process's own, so they are not released to the other process.
 class MEDIACODECS_API VideoFrameRelayPool final : public VideoFrameEntryLedger {
 public:
     static constexpr u32 MAX_SLOT_COUNT = 16;
 
-    using SlotReleasedCallback = Function<void(u32 slot_index)>;
-    static ErrorOr<NonnullRefPtr<VideoFrameRelayPool>> create(SlotReleasedCallback);
+    // Called once for each adoption of a slot, once the slot is no longer held here at all.
+    using AdoptionReleasedCallback = Function<void(u32 slot_index)>;
+    static ErrorOr<NonnullRefPtr<VideoFrameRelayPool>> create(AdoptionReleasedCallback);
 
     // Takes a new buffer for a slot, as the other process announces it. Fails if the slot is still held.
     ErrorOr<void> set_slot_storage(u32 slot_index, Core::AnonymousBuffer, RefPtr<VideoSurface>);
-    // Holds a slot for an acquisition the other process published in the slot's buffer.
+    // Holds a slot for an acquisition the other process published in the slot's buffer, or holds it once more for
+    // the acquisition it is already held for.
     ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_published_slot(u32 slot_index, u64 slot_acquisition_id);
 
 private:
-    explicit VideoFrameRelayPool(SlotReleasedCallback);
+    explicit VideoFrameRelayPool(AdoptionReleasedCallback);
 
     virtual void drop_slot_storage_while_locked(Slot&) override;
     virtual void did_free_slot(u32 slot_index) override;
 
-    SlotReleasedCallback m_slot_released_callback;
+    AdoptionReleasedCallback m_adoption_released_callback;
+    // How many times each slot was adopted since it was last free, indexed like the slots.
+    Vector<u32> m_adoption_counts_by_slot;
 };
 
 // A strong reference to a slot in a frame pool to be used within a single process.
@@ -214,7 +221,6 @@ public:
 private:
     Core::AnonymousBuffer m_slot_buffer;
     RefPtr<VideoSurface> m_surface;
-    VideoSurfaceUse m_surface_use;
     VideoFramePoolID m_pool_id { 0 };
     u32 m_slot_index { 0 };
     u64 m_slot_acquisition_id { 0 };

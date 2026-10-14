@@ -60,6 +60,9 @@ public:
     // The platform surface holding the frame's pixels, null when they live in the backing slot's buffer.
     RefPtr<VideoSurface> surface() const;
 
+    // Converts the pixels to RGBA in memory, wherever they are, if this process can read them.
+    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap() const;
+
     PooledVideoFrameSlot const* pool_slot() const;
     ResolvedVideoFrameSlot const* resolved_slot() const;
 

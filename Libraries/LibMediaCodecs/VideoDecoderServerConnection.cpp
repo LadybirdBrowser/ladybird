@@ -369,12 +369,12 @@ void VideoDecoderServerConnection::die()
         entry.value->exit_and_join();
     m_sessions.clear();
 
-    HashMap<HeldSlot, NonnullRefPtr<VideoFrame>, HeldSlotTraits> held_frames;
+    HashMap<HeldSlot, Vector<NonnullRefPtr<VideoFrame>>, HeldSlotTraits> held_frames_by_slot;
     {
         MutexLocker locker { m_held_frames_mutex };
-        held_frames = move(m_held_frames);
+        held_frames_by_slot = move(m_held_frames_by_slot);
     }
-    held_frames.clear();
+    held_frames_by_slot.clear();
 
     if (on_death)
         on_death();
@@ -456,10 +456,15 @@ void VideoDecoderServerConnection::flush(u64 decoder_id, u32 generation)
 void VideoDecoderServerConnection::release_frame(VideoFramePoolID pool_id, u32 slot_index)
 {
     // The frame is dropped outside the lock, since freeing its slot wakes the decoder thread that may be taking it.
-    Optional<NonnullRefPtr<VideoFrame>> frame;
+    RefPtr<VideoFrame> frame;
     {
         MutexLocker locker { m_held_frames_mutex };
-        frame = m_held_frames.take({ pool_id, slot_index });
+        auto held_frames = m_held_frames_by_slot.find({ pool_id, slot_index });
+        if (held_frames == m_held_frames_by_slot.end())
+            return;
+        frame = held_frames->value.take_last();
+        if (held_frames->value.is_empty())
+            m_held_frames_by_slot.remove(held_frames);
     }
 }
 
@@ -469,7 +474,7 @@ void VideoDecoderServerConnection::hold_frame_until_released(NonnullRefPtr<Video
     VERIFY(pool_slot != nullptr);
     HeldSlot slot { pool_slot->ledger().id(), pool_slot->slot_index() };
     MutexLocker locker { m_held_frames_mutex };
-    m_held_frames.set(slot, move(frame));
+    m_held_frames_by_slot.ensure(slot).append(move(frame));
 }
 
 bool VideoDecoderServerConnection::should_close_after_decoding_frame()

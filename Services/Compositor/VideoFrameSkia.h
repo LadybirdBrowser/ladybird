@@ -6,13 +6,9 @@
 
 #pragma once
 
-#include <AK/Platform.h>
 #include <LibGfx/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
-
-#ifdef AK_OS_MACOS
-#    include <LibCore/IOSurface.h>
-#endif
+#include <LibMediaCodecs/Forward.h>
 
 class SkImage;
 class SkYUVAPixmaps;
@@ -28,10 +24,9 @@ SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints);
 // Views the planes of the YUV data as Skia pixmaps. Samples deeper than 8 bits are copied and stretched to 16 bits.
 SkYUVAPixmaps make_yuva_pixmaps(Gfx::YUVData const&);
 
-#ifdef AK_OS_MACOS
 // Views a decoder's surface as a GPU image, sampling its planes where they already are instead of uploading a copy.
-// Returns null for a surface whose layout is not one the platform decoder produces.
-sk_sp<SkImage> sk_image_from_video_surface(Core::IOSurfaceHandle const&, Media::CodingIndependentCodePoints, Gfx::SkiaBackendContext&);
-#endif
+// Returns null for a surface whose layout is not one the platform decoder produces, or on a platform that cannot
+// sample its surfaces yet.
+sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const&, Media::CodingIndependentCodePoints, Gfx::SkiaBackendContext&);
 
 }

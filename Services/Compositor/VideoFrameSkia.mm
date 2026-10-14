@@ -10,6 +10,7 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibGfx/VideoSurfaceImage.h>
+#include <LibMediaCodecs/VideoSurface.h>
 
 #include <core/SkColorSpace.h>
 #include <core/SkImage.h>
@@ -24,11 +25,13 @@
 
 namespace Compositor {
 
-sk_sp<SkImage> sk_image_from_video_surface(Core::IOSurfaceHandle const& io_surface, Media::CodingIndependentCodePoints cicp, Gfx::SkiaBackendContext& skia_backend_context)
+sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const& surface, Media::CodingIndependentCodePoints cicp, Gfx::SkiaBackendContext& skia_backend_context)
 {
     auto* gr_context = skia_backend_context.sk_context();
     if (!gr_context)
         return nullptr;
+
+    auto const& io_surface = surface.io_surface();
 
     auto bit_depth = Gfx::biplanar_bit_depth_for_pixel_format(io_surface.pixel_format());
     if (!bit_depth.has_value() || io_surface.plane_count() != 2)

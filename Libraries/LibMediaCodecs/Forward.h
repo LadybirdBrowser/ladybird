@@ -13,5 +13,7 @@ class DecoderError;
 class VideoDecoder;
 class VideoDecoderServerConnection;
 class VideoFrame;
+class VideoSurface;
+class VideoSurfaceContents;
 
 }

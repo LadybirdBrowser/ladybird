@@ -16,7 +16,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
-#include <LibGfx/VideoSurfaceImage.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFrameHandle.h>
@@ -58,9 +57,9 @@ struct DisplayListRasterCache::VideoSinkImage {
     // A surface-backed image samples the surface where it lies, so it stays valid for every frame decoded into
     // that surface rather than only for the one acquisition.
     u32 surface_id { 0 };
-    // Drawing is recorded here but read by the GPU afterwards, so the surface stays in use until a different one
-    // is drawn in its place.
-    Media::VideoSurfaceUse surface_use;
+    // Drawing is recorded here but read by the GPU afterwards, so the frame stays held, and its surface's pixels
+    // with it, until a different frame is drawn in its place.
+    RefPtr<Media::VideoFrame const> drawn_frame;
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     sk_sp<SkImage> image;
 };
@@ -210,16 +209,16 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
             return false;
         return true;
     }();
-    if (cached_image_matches)
+    if (cached_image_matches) {
+        cached_image.drawn_frame = frame;
         return cached_image.image;
+    }
 
     sk_sp<SkImage> image;
     auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
 
-#ifdef AK_OS_MACOS
     if (surface != nullptr && skia_backend_context)
-        image = sk_image_from_video_surface(surface->io_surface(), frame->cicp(), *skia_backend_context);
-#endif
+        image = sk_image_from_video_surface(*surface, frame->cicp(), *skia_backend_context);
 
     auto yuv_data = image ? Optional<Gfx::YUVData> {} : frame->yuv_data();
     if (!image && !yuv_data.has_value() && surface == nullptr)
@@ -239,14 +238,8 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
     }
 
     if (!image) {
-        auto bitmap_or_error = [&] -> ErrorOr<NonnullRefPtr<Gfx::Bitmap>> {
-#ifdef AK_OS_MACOS
-            // Without a GPU to sample the surface on, its pixels have to be read back into memory to be drawn.
-            if (surface != nullptr)
-                return Gfx::bitmap_from_video_surface(surface->io_surface(), frame->cicp());
-#endif
-            return yuv_data->to_bitmap();
-        }();
+        // Without a GPU to sample a surface on, its pixels have to be read back into memory to be drawn.
+        auto bitmap_or_error = frame->to_bitmap();
         if (bitmap_or_error.is_error()) {
             dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
             return nullptr;
@@ -268,7 +261,7 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
     cached_image.slot_index = handle.slot_index;
     cached_image.slot_acquisition_id = handle.slot_acquisition_id;
     cached_image.surface_id = surface_id;
-    cached_image.surface_use = surface ? surface->begin_use() : Media::VideoSurfaceUse {};
+    cached_image.drawn_frame = frame;
     cached_image.skia_backend_context = skia_backend_context;
     cached_image.image = image;
     return image;
