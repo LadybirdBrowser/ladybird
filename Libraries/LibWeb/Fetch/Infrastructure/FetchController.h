@@ -18,6 +18,7 @@
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
+#include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -69,6 +70,9 @@ public:
 
     void set_algorithms(Badge<FetchParams>, GC::Ref<FetchAlgorithms const> algorithms) { m_algorithms = algorithms; }
     [[nodiscard]] GC::Ref<FetchAlgorithms const> algorithms() const;
+
+    [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
+    void set_task_destination(TaskDestination task_destination) { m_task_destination = move(task_destination); }
 
     // AD-HOC: Whether this fetch's response has arrived: as headers from the network, or at main fetch. From then on,
     //         its body delivery is queued as event-loop tasks, and its response processing captures its task
@@ -152,6 +156,13 @@ private:
     // process response consume body (default null)
     //     Null or an algorithm.
     GC::Ptr<FetchAlgorithms const> m_algorithms;
+
+    // AD-HOC: The fetch params' task destination is kept on their controller, which every copy of the fetch params
+    //         shares.
+    // https://fetch.spec.whatwg.org/#fetch-params-task-destination
+    // task destination (default null)
+    //     Null, a global object, or a parallel queue.
+    TaskDestination m_task_destination;
 
     bool m_response_arrived { false };
     // NB: Assumes one waiting consumer for a pending preloaded response.

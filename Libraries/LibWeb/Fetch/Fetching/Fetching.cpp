@@ -324,7 +324,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //    response consume body is processResponseConsumeBody, process response end-of-body is processResponseEndOfBody,
     //    task destination is taskDestination, and cross-origin isolated capability is crossOriginIsolatedCapability.
     auto fetch_params = Infrastructure::FetchParams::create(request, algorithms, timing_info, current_loader_config());
-    fetch_params->set_task_destination(task_destination);
+    fetch_params->controller()->set_task_destination(task_destination);
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
     fetch_params->set_has_response_body_transfer_lease(create_response_body_transfer_lease == CreateResponseBodyTransferLease::Yes);
 
@@ -918,7 +918,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
                 // 4. Fully read response’s body given processBody and processBodyError.
                 auto body_view = create_body_view(realm, *response, &fetch_params);
-                body_view->fully_read(realm, process_body, process_body_error, fetch_params.task_destination());
+                body_view->fully_read(realm, process_body, process_body_error, fetch_params.controller()->task_destination());
             }
             // 24. Otherwise, run fetch response handover given fetchParams and response.
             else {
@@ -1094,7 +1094,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         //         entry for a preloaded resource and its consumer.
         // AD-HOC: The global object of a client another process hosts is in that process, so the fetch reports its
         //         timing to the global object of the realm that started it.
-        auto const* task_destination_global_object = fetch_params.task_destination().get_pointer<GC::Ref<JS::Object>>();
+        auto const* task_destination_global_object = fetch_params.controller()->task_destination().get_pointer<GC::Ref<JS::Object>>();
         if (task_destination_global_object != nullptr && fetch_params.request()->initiator_type().has_value() && !fetch_params.preload_reports_timing()) {
             auto client = resolve_fetch_client(fetch_params.request());
             auto client_global_is_task_destination = client.has_value()
@@ -1129,13 +1129,13 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         });
 
         // 4. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination.
-        Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), move(process_response_end_of_body_task));
+        Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), move(process_response_end_of_body_task));
     };
 
     // 5. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
     //    given response, with fetchParams’s task destination.
     if (fetch_params.controller()->algorithms()->process_response()) {
-        Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params, response_view]() {
+        Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params, response_view]() {
             fetch_params.controller()->algorithms()->process_response()(response_view);
         }));
     }
@@ -1263,7 +1263,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
                 process_response_end_of_body();
             });
             auto discard_error = GC::create_function(GC::Heap::the(), [](JS::Value) { });
-            body_view->incrementally_read(realm, discard_chunk, end_of_body, discard_error, fetch_params.task_destination());
+            body_view->incrementally_read(realm, discard_chunk, end_of_body, discard_error, fetch_params.controller()->task_destination());
             break;
         }
         case Engine::BodyIntent::SyncAccumulate:
@@ -1312,7 +1312,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             if (read_body_in_parallel) {
                 (algorithms->process_response_consume_body())(response_view, Empty {});
             } else {
-                Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [algorithms, response_view]() {
+                Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), GC::create_function(GC::Heap::the(), [algorithms, response_view]() {
                     // NB: We have to provide fully_read a callback which accepts a ByteBuffer. Since that's not
                     //     nullable, we just invoke process_response_consume_body with a null value manually here.
                     (algorithms->process_response_consume_body())(response_view, Empty {});
@@ -1352,7 +1352,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
                 }
             }
         } else {
-            body_view->fully_read(realm, process_body, process_body_error, fetch_params.task_destination());
+            body_view->fully_read(realm, process_body, process_body_error, fetch_params.controller()->task_destination());
         }
     }
 }
@@ -2978,7 +2978,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     //    fetchParams’s process request end-of-body and fetchParams’s task destination.
     if (request->body().has<Empty>()) {
         if (fetch_params.controller()->algorithms()->process_request_end_of_body()) {
-            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params]() {
+            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params]() {
                 fetch_params.controller()->algorithms()->process_request_end_of_body()();
             }));
         }
@@ -3035,18 +3035,18 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         //         fetch() acquired for its stream.
         if (auto const& source = body->source(); source.has_value()) {
             if (auto length = source->size(); length > 0) {
-                Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [process_body_chunk, length] {
+                Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), GC::create_function(GC::Heap::the(), [process_body_chunk, length] {
                     process_body_chunk(length);
                 }));
             }
-            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), process_end_of_body);
+            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), process_end_of_body);
         } else if (auto const& request_body_reader = fetch_params.controller()->algorithms()->request_body_reader(); request_body_reader.has_value()) {
             // FIXME: Send the bytes read here to RequestServer, which only receives a body's source.
             auto process_body_chunk_bytes = GC::create_function(GC::Heap::the(), [process_body_chunk](ByteBuffer bytes) {
                 process_body_chunk(bytes.size());
             });
             HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-            request_body_reader->body->incrementally_read_loop(request_body_reader->reader, fetch_params.task_destination(), process_body_chunk_bytes, process_end_of_body, process_body_error);
+            request_body_reader->body->incrementally_read_loop(request_body_reader->reader, fetch_params.controller()->task_destination(), process_body_chunk_bytes, process_end_of_body, process_body_error);
         }
     }
 

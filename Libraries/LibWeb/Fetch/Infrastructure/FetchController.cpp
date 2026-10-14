@@ -46,6 +46,7 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_fetch_params);
     visitor.visit(m_algorithms);
+    visitor.visit(m_task_destination);
     visitor.visit(m_pending_preloaded_response);
     visitor.visit(m_stop_steps);
     visitor.visit(m_pending_responses);
