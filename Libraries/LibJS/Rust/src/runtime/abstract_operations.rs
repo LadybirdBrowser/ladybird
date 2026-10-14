@@ -1689,7 +1689,7 @@ pub fn create_unmapped_arguments_object(vm: &Vm, arguments: &[Cell<Value>]) -> G
     let object = Object::create_with_premade_shape(vm, realm.unmapped_arguments_object_shape());
 
     // 4. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-    object.put_direct(
+    object.initialize_direct(
         realm.unmapped_arguments_object_length_offset(),
         Value::from_f64(length as f64),
     );
@@ -1703,13 +1703,13 @@ pub fn create_unmapped_arguments_object(vm: &Vm, arguments: &[Cell<Value>]) -> G
 
     // 7. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     let array_prototype_values = realm.array_prototype_values_function();
-    object.put_direct(
+    object.initialize_direct(
         realm.unmapped_arguments_object_well_known_symbol_iterator_offset(),
         Value::from_object(array_prototype_values),
     );
 
     // 8. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false }).
-    object.put_direct(
+    object.initialize_direct(
         realm.unmapped_arguments_object_callee_offset(),
         Value::from_accessor(realm.throw_type_error_accessor()),
     );
@@ -1769,7 +1769,7 @@ pub fn create_mapped_arguments_object(
     set_arguments_as_indexed_elements(&object, arguments);
 
     // 16. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-    object.put_direct(realm.mapped_arguments_object_length_offset(), Value::from_i32(length));
+    object.initialize_direct(realm.mapped_arguments_object_length_offset(), Value::from_i32(length));
 
     // OPTIMIZATION: We take a different route here than what the spec suggests.
     //               The spec would have us allocate a new object for the parameter map,
@@ -1797,13 +1797,13 @@ pub fn create_mapped_arguments_object(
 
     // 20. Perform ! DefinePropertyOrThrow(obj, %Symbol.iterator%, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     let array_prototype_values = realm.array_prototype_values_function();
-    object.put_direct(
+    object.initialize_direct(
         realm.mapped_arguments_object_well_known_symbol_iterator_offset(),
         Value::from_object(array_prototype_values),
     );
 
     // 21. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-    object.put_direct(
+    object.initialize_direct(
         realm.mapped_arguments_object_callee_offset(),
         Value::from_object(function),
     );

@@ -533,19 +533,19 @@ fn regexp_builtin_exec(
     array.set_indexed_property_elements_to_undefined(n_capture_groups + 1);
 
     // "index" property.
-    array.put_direct(
+    array.initialize_direct(
         realm.intrinsics().regexp_builtin_exec_array_index_offset(),
         index_value(match_index),
     );
 
     // "input" property.
-    array.put_direct(
+    array.initialize_direct(
         realm.intrinsics().regexp_builtin_exec_array_input_offset(),
         Value::from_string(string),
     );
 
     // NB: The groups slot holds undefined until it is set below, so that the array never exposes an unset slot.
-    array.put_direct(
+    array.initialize_direct(
         realm.intrinsics().regexp_builtin_exec_array_groups_offset(),
         Value::UNDEFINED,
     );
@@ -561,7 +561,7 @@ fn regexp_builtin_exec(
     };
 
     // "groups" property.
-    array.put_direct(realm.intrinsics().regexp_builtin_exec_array_groups_offset(), groups);
+    array.initialize_direct(realm.intrinsics().regexp_builtin_exec_array_groups_offset(), groups);
 
     // Track which group names have been matched (non-undefined) to handle duplicate names.
     let mut matched_group_names: HashSet<Utf16FlyString> = HashSet::new();

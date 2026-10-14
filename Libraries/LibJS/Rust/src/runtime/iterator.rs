@@ -644,10 +644,10 @@ pub fn create_iterator_result_object(vm: &Vm, realm: Gc<Realm>, value: Value, do
     let object = Object::create_with_premade_shape(vm, realm.iterator_result_object_shape());
 
     // 2. Perform ! CreateDataPropertyOrThrow(obj, "value", value).
-    object.put_direct(realm.iterator_result_object_value_offset(), value);
+    object.initialize_direct(realm.iterator_result_object_value_offset(), value);
 
     // 3. Perform ! CreateDataPropertyOrThrow(obj, "done", done).
-    object.put_direct(realm.iterator_result_object_done_offset(), Value::from_bool(done));
+    object.initialize_direct(realm.iterator_result_object_done_offset(), Value::from_bool(done));
 
     // 4. Return obj.
     object

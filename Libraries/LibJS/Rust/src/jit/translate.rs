@@ -160,7 +160,7 @@ impl<'a> SiteValues<'a> {
                 Some(location) => self.value(*location),
                 None => Value::UNDEFINED,
             };
-            object.put_direct(index, value);
+            object.initialize_direct(index, value);
         }
         Value::from_object(object)
     }
