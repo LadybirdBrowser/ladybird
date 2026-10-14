@@ -206,6 +206,53 @@ test("primitive wrappers", () => {
     }
 });
 
+describe("toJSON in JSON.stringify", () => {
+    test("added to Object.prototype", () => {
+        const object = { h: 1 };
+        try {
+            for (let i = 0; i < 10; ++i) expect(JSON.stringify(object)).toBe('{"h":1}');
+            Object.prototype.toJSON = () => "added";
+            expect(JSON.stringify(object)).toBe('"added"');
+            expect(JSON.stringify([object, { i: 2 }])).toBe('"added"');
+        } finally {
+            delete Object.prototype.toJSON;
+        }
+        expect(JSON.stringify(object)).toBe('{"h":1}');
+    });
+
+    test("replaced on a prototype", () => {
+        class Point {
+            constructor(x) {
+                this.x = x;
+            }
+            toJSON() {
+                return `point ${this.x}`;
+            }
+        }
+        const points = [new Point(1), new Point(2)];
+        for (let i = 0; i < 10; ++i) expect(JSON.stringify(points)).toBe('["point 1","point 2"]');
+        Point.prototype.toJSON = function () {
+            return this.x * 10;
+        };
+        expect(JSON.stringify(points)).toBe("[10,20]");
+        delete Point.prototype.toJSON;
+        expect(JSON.stringify(points)).toBe('[{"x":1},{"x":2}]');
+    });
+
+    test("Date.prototype.toJSON replaced", () => {
+        const original = Date.prototype.toJSON;
+        const date = new Date(0);
+        try {
+            for (let i = 0; i < 10; ++i) expect(JSON.stringify(date)).toBe('"1970-01-01T00:00:00.000Z"');
+            Date.prototype.toJSON = () => "replaced";
+            expect(JSON.stringify(date)).toBe('"replaced"');
+        } finally {
+            Date.prototype.toJSON = original;
+        }
+        expect(JSON.stringify(date)).toBe('"1970-01-01T00:00:00.000Z"');
+    });
+});
+
 test("@@toStringTag getter that changes @@toStringTag", () => {
     const prototype = {};
     const first = Object.create(prototype);

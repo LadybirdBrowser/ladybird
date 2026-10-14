@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The special property cache of a shape: what Get of the properties that conversions of objects to primitives look
-//! up gives on the objects of the shape, for as long as that holds.
+//! The special property cache of a shape: what Get of the properties that conversions of objects to primitives and
+//! JSON.stringify look up gives on the objects of the shape, for as long as that holds.
 //!
 //! The cache only knows what Get gives without running code: that no object on the prototype chain has the property,
 //! or that a prototype has it as a data property with a value. It relies on watchpoint sets for that to stay true. The
@@ -42,9 +42,10 @@ pub enum SpecialPropertyKey {
     ToString,
     ValueOf,
     ToStringTag,
+    ToJson,
 }
 
-const SPECIAL_PROPERTY_KEY_COUNT: usize = 4;
+const SPECIAL_PROPERTY_KEY_COUNT: usize = 5;
 
 impl SpecialPropertyKey {
     fn property_key(self, vm: &Vm) -> PropertyKey {
@@ -53,6 +54,7 @@ impl SpecialPropertyKey {
             Self::ToString => vm.names.toString.clone(),
             Self::ValueOf => vm.names.valueOf.clone(),
             Self::ToStringTag => PropertyKey::from(vm.well_known_symbols().to_string_tag),
+            Self::ToJson => vm.names.toJSON.clone(),
         }
     }
 
@@ -62,6 +64,7 @@ impl SpecialPropertyKey {
             Self::ToString => StaticPropertyLookupCacheSite::ObjectOrdinaryToPrimitiveToString,
             Self::ValueOf => StaticPropertyLookupCacheSite::ObjectOrdinaryToPrimitiveValueOf,
             Self::ToStringTag => StaticPropertyLookupCacheSite::ObjectPrototypeToStringToStringTag,
+            Self::ToJson => StaticPropertyLookupCacheSite::JSONSerializeToJSON,
         }
     }
 }
@@ -218,19 +221,23 @@ pub fn note_object_to_string(object: &Object, to_string_tag: Value, string: Gc<P
     // NB: The string only depends on the class and the shape of the object, and on what Get of @@toStringTag gives,
     //     which the cache must know to be what the string was made from. A getter may have changed it since.
     if let Some(cache) = cache_of(object)
-        && cache.values[SpecialPropertyKey::ToStringTag as usize].get() == to_string_tag
+        && known(object, SpecialPropertyKey::ToStringTag) == Some(to_string_tag)
     {
         cache.object_to_string.set(Some(string));
     }
 }
 
+/// What Get(object, key) gives, if the cache knows.
+#[inline]
+pub fn known(object: &Object, key: SpecialPropertyKey) -> Option<Value> {
+    let value = cache_of(object)?.values[key as usize].get();
+    (!value.is_empty()).then_some(value)
+}
+
 /// Get(object, key), from the cache if it knows what that gives.
 pub fn get(vm: &Vm, object: &Object, key: SpecialPropertyKey) -> ThrowCompletionOr<Value> {
-    if let Some(cache) = cache_of(object) {
-        let value = cache.values[key as usize].get();
-        if !value.is_empty() {
-            return Ok(value);
-        }
+    if let Some(value) = known(object, key) {
+        return Ok(value);
     }
     let property_key = key.property_key(vm);
     let value = object.get_with_cache(
