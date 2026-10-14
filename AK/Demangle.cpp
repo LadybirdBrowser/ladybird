@@ -10,6 +10,7 @@
 
 #ifndef AK_OS_WINDOWS
 #    include <cxxabi.h>
+#    include <dlfcn.h>
 #    include <stdlib.h>
 #    include <string.h>
 #endif
@@ -76,6 +77,22 @@ ByteString demangle(StringView name)
         free(demangled_name);
     return string;
 }
+
+Optional<SymbolAtAddress> symbol_at_address(FlatPtr address)
+{
+    Dl_info info {};
+    if (!dladdr(reinterpret_cast<void const*>(address), &info) || !info.dli_sname)
+        return {};
+    return SymbolAtAddress { demangle({ info.dli_sname, strlen(info.dli_sname) }), address - reinterpret_cast<FlatPtr>(info.dli_saddr) };
+}
+
+#else
+
+Optional<SymbolAtAddress> symbol_at_address(FlatPtr)
+{
+    return {};
+}
+
 #endif
 
 }

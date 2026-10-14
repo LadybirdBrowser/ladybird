@@ -50,7 +50,7 @@ public:
     }
 
 private:
-    static ByteString symbolicate_frame(Core::CrashReportData::ReportFrame const&);
+    static void symbolicate_frame(Core::CrashReportData::ReportFrame&);
 
     NonnullOwnPtr<Core::File> m_file;
     [[maybe_unused]] ProcessType m_process_type;

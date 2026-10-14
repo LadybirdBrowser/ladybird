@@ -205,6 +205,8 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path, Optiona
                 builder.appendff("#{} unavailable\n", frame_count);
                 continue;
             }
+            if (!frame.description_length && frame.binary.size)
+                symbolicate_frame(frame);
             if (frame.binary.size)
                 builder.appendff("#{} {} {:#x}", frame_count, encode_hex(frame.binary.bytes.span().trim(frame.binary.size)), frame.address);
             else
@@ -213,10 +215,6 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path, Optiona
                 builder.append(' ');
                 for (u32 i = 0; i < frame.description_length; ++i)
                     builder.append(is_ascii_printable(frame.description[i]) ? frame.description[i] : '?');
-            } else if (frame.binary.size) {
-                auto symbol = symbolicate_frame(frame);
-                if (!symbol.is_empty())
-                    builder.appendff(" {}", symbol);
             }
             builder.append('\n');
         }
@@ -245,9 +243,8 @@ ErrorOr<void> CrashReport::record_build_description(StringView) { return {}; }
 #endif
 
 #if !defined(AK_OS_MACOS) && !defined(AK_OS_LINUX)
-ByteString CrashReport::symbolicate_frame(ReportFrame const&)
+void CrashReport::symbolicate_frame(ReportFrame&)
 {
-    return {};
 }
 
 bool CrashReport::is_supported()
