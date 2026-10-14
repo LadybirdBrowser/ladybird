@@ -7,7 +7,6 @@
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
-use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::class_id::ClassId;
 use crate::interpreter::vm::Vm;
@@ -30,9 +29,13 @@ use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::regexp_constructor::is_raw_native_function_running;
+use crate::runtime::special_property_cache::{self, SpecialPropertyKey};
 use crate::runtime::string_object::StringObject;
 use crate::runtime::value::same_value;
 use crate::utf16::{Utf16View, concatenate};
+
+/// %Object.prototype.toString%, which is_to_string_function() looks for.
+static TO_STRING_FUNCTION: RawNativeFunctionPointer = raw_native!(ObjectPrototype::to_string);
 
 /// %Object.prototype.valueOf%, which is_value_of_function() looks for.
 static VALUE_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(ObjectPrototype::value_of);
@@ -53,25 +56,26 @@ define_object_class!(ObjectPrototype, extends: [Object], methods: {
 /// The longest tag whose Object.prototype.toString result is made without building a string first.
 const SHORT_TAG_LENGTH: usize = 23;
 
-/// Whether no object on the prototype chain of `object`, starting with `object`, has a @@toStringTag property, and all of
-/// them look properties up in their storage, so that Get of @@toStringTag gives undefined without running code.
-fn has_no_to_string_tag_on_prototype_chain(vm: &Vm, object: &Object) -> bool {
-    const MAX_PROTOTYPE_CHAIN_LENGTH: usize = 8;
-    let object_prototype = vm.current_realm().map(|realm| realm.object_prototype());
-    let mut current = Some(object.as_gc());
-    for _ in 0..MAX_PROTOTYPE_CHAIN_LENGTH {
-        let Some(object) = current else {
-            return true;
-        };
-        // NB: %Object.prototype% only has an exotic [[SetPrototypeOf]]. Intrinsic accessors, whose keys are in the shape
-        //     already, only have string keys.
-        let is_ordinary = Some(object) == object_prototype || object.has_ordinary_named_property_lookup();
-        if !is_ordinary || object.shape().has_to_string_tag(vm) {
-            return false;
-        }
-        current = object.shape().prototype();
+/// Step 17 of Object.prototype.toString: the string-concatenation of "[object ", `tag`, and "]".
+fn object_to_string_with_tag(vm: &Vm, tag: Utf16View<'_>) -> Gc<PrimitiveString> {
+    // OPTIMIZATION: The VM has a cache for the extremely common "[object Object]" string.
+    if tag == "Object" {
+        return vm.cached_strings().object_Object;
     }
-    false
+    // OPTIMIZATION: The result for a short ASCII tag is made from its characters without building a string first.
+    if let Utf16View::Ascii(tag_characters) = tag
+        && tag_characters.len() <= SHORT_TAG_LENGTH
+    {
+        let mut characters = [0; SHORT_TAG_LENGTH + 9];
+        characters[..8].copy_from_slice(b"[object ");
+        characters[8..8 + tag_characters.len()].copy_from_slice(tag_characters);
+        characters[8 + tag_characters.len()] = b']';
+        return PrimitiveString::create_from_ascii(vm, &characters[..tag_characters.len() + 9]);
+    }
+    PrimitiveString::create(
+        vm,
+        concatenate(&[Utf16View::Ascii(b"[object "), tag, Utf16View::Ascii(b"]")]),
+    )
 }
 
 /// Steps 5 to 14 of Object.prototype.toString: the builtinTag of `object`, given whether IsArray(object) is true.
@@ -142,7 +146,7 @@ impl ObjectPrototype {
             object.define_native_function(vm, realm, property_key, function, length, attr, None);
         };
         define_native_function(&names.hasOwnProperty, HAS_OWN_PROPERTY_FUNCTION, 1);
-        define_native_function(&names.toString, raw_native!(ObjectPrototype::to_string), 0);
+        define_native_function(&names.toString, TO_STRING_FUNCTION, 0);
         define_native_function(&names.toLocaleString, raw_native!(ObjectPrototype::to_locale_string), 0);
         define_native_function(&names.valueOf, VALUE_OF_FUNCTION, 0);
         define_native_function(
@@ -272,6 +276,11 @@ impl ObjectPrototype {
         // 3. Let O be ! ToObject(this value).
         let object = this_value.to_object(vm).must();
 
+        // OPTIMIZATION: The special property cache of the shape of O may know what the steps below give.
+        if let Some(string) = special_property_cache::object_to_string(&object) {
+            return Ok(Value::from_string(string));
+        }
+
         // 4. Let isArray be ? IsArray(O).
         let is_array = Value::from_object(object).is_array(vm)?;
 
@@ -279,16 +288,7 @@ impl ObjectPrototype {
         let builtin_tag = builtin_tag(&object, is_array);
 
         // 15. Let tag be ? Get(O, @@toStringTag).
-        // OPTIMIZATION: Get finds nothing without running code when no object on the chain has the property.
-        let to_string_tag = if has_no_to_string_tag_on_prototype_chain(vm, &object) {
-            Value::UNDEFINED
-        } else {
-            object.get_with_cache(
-                vm,
-                &PropertyKey::from(vm.well_known_symbols().to_string_tag),
-                vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::ObjectPrototypeToStringToStringTag),
-            )?
-        };
+        let to_string_tag = special_property_cache::get(vm, &object, SpecialPropertyKey::ToStringTag)?;
 
         // Optimization: Instead of creating another PrimitiveString from builtin_tag, we separate tag and to_string_tag and add an additional branch to step 16.
         let custom_tag: Utf16String;
@@ -302,28 +302,14 @@ impl ObjectPrototype {
         };
 
         // 17. Return the string-concatenation of "[object ", tag, and "]".
+        let string = object_to_string_with_tag(vm, tag);
+        special_property_cache::note_object_to_string(&object, to_string_tag, string);
+        Ok(Value::from_string(string))
+    }
 
-        // OPTIMIZATION: The VM has a cache for the extremely common "[object Object]" string.
-        if tag == "Object" {
-            return Ok(Value::from_string(vm.cached_strings().object_Object));
-        }
-        // OPTIMIZATION: The result for a short ASCII tag is made from its characters without building a string first.
-        if let Utf16View::Ascii(tag_characters) = tag
-            && tag_characters.len() <= SHORT_TAG_LENGTH
-        {
-            let mut characters = [0; SHORT_TAG_LENGTH + 9];
-            characters[..8].copy_from_slice(b"[object ");
-            characters[8..8 + tag_characters.len()].copy_from_slice(tag_characters);
-            characters[8 + tag_characters.len()] = b']';
-            return Ok(Value::from_string(PrimitiveString::create_from_ascii(
-                vm,
-                &characters[..tag_characters.len() + 9],
-            )));
-        }
-        Ok(Value::from_string(PrimitiveString::create(
-            vm,
-            concatenate(&[Utf16View::Ascii(b"[object "), tag, Utf16View::Ascii(b"]")]),
-        )))
+    /// Whether `function` is %Object.prototype.toString% of some realm.
+    pub fn is_to_string_function(vm: &Vm, function: Gc<FunctionObject>) -> bool {
+        is_raw_native_function_running(vm, function, TO_STRING_FUNCTION)
     }
 
     /// Whether `function` is %Object.prototype.valueOf% of some realm.

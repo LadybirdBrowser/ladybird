@@ -16,6 +16,7 @@ pub use crate::runtime::private_environment::PrivateEnvironmentStorage;
 pub use crate::runtime::realm::RealmStorage;
 pub use crate::runtime::shape::ShapeStorage;
 pub use crate::runtime::symbol::Symbol;
+pub use crate::runtime::watchpoint_set::WatchpointSetStorage;
 pub use ak::Utf16StringDataHeader;
 
 pub use crate::runtime::intrinsics::Intrinsics;

@@ -21,13 +21,15 @@ use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
-pub use crate::layout::shape::{Shape, WatchpointSet};
+pub use crate::layout::shape::Shape;
 use crate::layout::value::Value;
 use crate::runtime::descriptor_array::{DescriptorArray, MAX_DESCRIPTOR_COUNT, PropertyMetadata};
 use crate::runtime::object::IntegrityLevel;
 use crate::runtime::property_attributes::PropertyAttributes;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::special_property_cache::SpecialPropertyCache;
+use crate::runtime::watchpoint_set::WatchpointSet;
 
 type RandomState = foldhash::fast::RandomState;
 
@@ -37,51 +39,13 @@ pub struct TransitionKey {
     pub attributes: PropertyAttributes,
 }
 
-define_cell!(WatchpointSet, Other);
-
-// SAFETY: A watchpoint set holds no cells.
-unsafe impl Trace for WatchpointSet {
-    fn trace(&self, _: &mut Visitor) {}
-}
-
-impl WatchpointSet {
-    pub fn create(vm: &Vm) -> Gc<WatchpointSet> {
-        vm.heap().allocate(WatchpointSet {
-            header: CellHeader::for_class(Self::CLASS),
-            valid: Cell::new(true),
-            padding: 0,
-        })
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self.valid.get()
-    }
-
-    /// Notes that what the set stands for stopped holding, which invalidates the JIT code that depends on it.
-    pub fn fire(&self, vm: &Vm) {
-        if !self.is_valid() {
-            return;
-        }
-        self.valid.set(false);
-        crate::jit::dependencies::invalidate_dependents(
-            vm,
-            Dependency::WatchpointSetValid(CellId(core::ptr::from_ref(self) as u64)),
-        );
-    }
-}
-
 /// The bits of Shape::flags, the flags of a shape that are not its forward transition storage.
 mod shape_flag {
     pub const DICTIONARY: u8 = 1 << 0;
     pub const HAS_PARAMETER_MAP: u8 = 1 << 1;
-    /// Whether HAS_CONVERSION_PROPERTIES has been found for a shape that is not a dictionary.
-    pub const CONVERSION_PROPERTIES_KNOWN: u8 = 1 << 2;
-    /// Whether the shape has one of the properties that conversions to primitives look up.
-    pub const HAS_CONVERSION_PROPERTIES: u8 = 1 << 3;
-    /// Whether HAS_TO_STRING_TAG has been found for a shape that is not a dictionary.
-    pub const TO_STRING_TAG_KNOWN: u8 = 1 << 4;
-    /// Whether the shape has a @@toStringTag property.
-    pub const HAS_TO_STRING_TAG: u8 = 1 << 5;
+    /// Something relies on the value in a slot of the object of this prototype shape (see
+    /// `Shape::watch_slot_for_replacements()`).
+    pub const HAS_WATCHED_SLOTS: u8 = 1 << 2;
     /// An object may have left the shape (see `Shape::is_stable()`).
     pub const UNSTABLE: u8 = 1 << 6;
     /// JIT code depends on the shape staying stable.
@@ -124,6 +88,17 @@ struct RareData {
     assign_copy: Option<AssignCopy>,
     /// The shapes that sealing and freezing objects of this shape give them, by integrity level.
     integrity_level_shapes: [Option<Gc<Shape>>; 2],
+    /// What is known of the replacement of the values in the slots of the object that has this prototype shape, by
+    /// offset (see `Shape::watch_slot_for_replacements()`).
+    watched_slots: HashMap<u32, WatchedSlot, RandomState>,
+}
+
+/// What a prototype shape knows of the replacement of the value in one of the slots of its object.
+enum WatchedSlot {
+    /// The set fires when the value changes.
+    Watched(Gc<WatchpointSet>),
+    /// A property lookup cache may write to the slot, without telling anything.
+    WrittenByCaches,
 }
 
 /// What Object.assign of an object with a shape onto an empty object makes, as set_cached_assign_copy() keeps it.
@@ -155,6 +130,9 @@ pub struct ShapeStorage {
     /// long as any object has a shape, the whole chain that leads to it stays cached and the next object built the same
     /// way gets the same shape, also after a garbage collection.
     previous: Cell<Option<Gc<Shape>>>,
+    /// What Get of the properties that conversions look up gives on the objects of this shape (see
+    /// `SpecialPropertyCache`).
+    special_property_cache: Cell<Option<Gc<SpecialPropertyCache>>>,
 }
 
 impl Default for ShapeStorage {
@@ -164,15 +142,18 @@ impl Default for ShapeStorage {
             forward_transitions: GcRefCell::new(ForwardTransitions::Empty),
             rare_data: GcRefCell::new(None),
             previous: Cell::new(None),
+            special_property_cache: Cell::new(None),
         }
     }
 }
 
-// SAFETY: Visits the descriptor array, the keys this storage owns and the previous shape. The shapes of transitions are
+// SAFETY: Visits the descriptor array, the keys this storage owns, the previous shape, the special property cache and
+// the watchpoint sets of slots. The shapes of transitions are
 // weak, and so are the keys of prototype transitions, which are only compared.
 unsafe impl Trace for ShapeStorage {
     fn trace(&self, visitor: &mut Visitor) {
         self.previous.trace(visitor);
+        self.special_property_cache.trace(visitor);
 
         match &*self.property_storage.borrow() {
             PropertyStorage::Descriptors(descriptors) => descriptors.trace(visitor),
@@ -209,6 +190,11 @@ unsafe impl Trace for ShapeStorage {
             }
             for shape in rare_data.integrity_level_shapes.iter().flatten() {
                 visitor.visit(*shape);
+            }
+            for watched_slot in rare_data.watched_slots.values() {
+                if let WatchedSlot::Watched(watchpoint_set) = watched_slot {
+                    visitor.visit(*watchpoint_set);
+                }
             }
         }
     }
@@ -710,13 +696,6 @@ impl Shape {
 
     pub fn add_property_without_transition(&self, vm: &Vm, property_key: &PropertyKey, attributes: PropertyAttributes) {
         self.invalidate_prototype_if_needed_for_change_without_transition(vm);
-        self.flags.set(
-            self.flags.get()
-                & !(shape_flag::CONVERSION_PROPERTIES_KNOWN
-                    | shape_flag::HAS_CONVERSION_PROPERTIES
-                    | shape_flag::TO_STRING_TAG_KNOWN
-                    | shape_flag::HAS_TO_STRING_TAG),
-        );
         let property_count = self.property_count();
         let metadata = PropertyMetadata {
             offset: property_count,
@@ -908,6 +887,7 @@ impl Shape {
         }
         new_prototype_shape.set_prototype_shape(vm);
         self.prototype_shape_validity().fire(vm);
+        self.fire_slot_watchpoints(vm);
 
         self.invalidate_all_prototype_chains_leading_to_this(vm);
 
@@ -931,6 +911,7 @@ impl Shape {
         }
         self.prototype_shape_validity().fire(vm);
         self.prototype_chain_validity.set(Some(WatchpointSet::create(vm)));
+        self.fire_slot_watchpoints(vm);
 
         self.invalidate_all_prototype_chains_leading_to_this(vm);
     }
@@ -1024,63 +1005,6 @@ impl Shape {
         self.flags.set(self.flags.get() | shape_flag::HAS_PARAMETER_MAP);
     }
 
-    /// Whether objects of this shape have one of the properties that converting an object to a primitive looks up:
-    /// "toString", "valueOf", @@toPrimitive and @@toStringTag.
-    pub fn has_conversion_properties(&self, vm: &Vm) -> bool {
-        if self.property_count() == 0 {
-            return false;
-        }
-        // OPTIMIZATION: The properties of a shape that is not a dictionary only change when one is added to it without a
-        //               transition, which forgets the answer, so the answer is kept.
-        let flags = self.flags.get();
-        if flags & shape_flag::CONVERSION_PROPERTIES_KNOWN != 0 {
-            return flags & shape_flag::HAS_CONVERSION_PROPERTIES != 0;
-        }
-        let well_known_symbols = vm.well_known_symbols();
-        let has_conversion_properties = self.lookup(&vm.names.toString).is_some()
-            || self.lookup(&vm.names.valueOf).is_some()
-            || self
-                .lookup(&PropertyKey::from(well_known_symbols.to_primitive))
-                .is_some()
-            || self
-                .lookup(&PropertyKey::from(well_known_symbols.to_string_tag))
-                .is_some();
-        if !self.is_dictionary() {
-            let has_flag = if has_conversion_properties {
-                shape_flag::HAS_CONVERSION_PROPERTIES
-            } else {
-                0
-            };
-            self.flags
-                .set(flags | shape_flag::CONVERSION_PROPERTIES_KNOWN | has_flag);
-        }
-        has_conversion_properties
-    }
-
-    /// Whether objects of this shape have a @@toStringTag property.
-    pub fn has_to_string_tag(&self, vm: &Vm) -> bool {
-        if self.property_count() == 0 {
-            return false;
-        }
-        // OPTIMIZATION: As with has_conversion_properties(), the answer is kept for shapes that are not dictionaries.
-        let flags = self.flags.get();
-        if flags & shape_flag::TO_STRING_TAG_KNOWN != 0 {
-            return flags & shape_flag::HAS_TO_STRING_TAG != 0;
-        }
-        let has_to_string_tag = self
-            .lookup(&PropertyKey::from(vm.well_known_symbols().to_string_tag))
-            .is_some();
-        if !self.is_dictionary() {
-            let has_flag = if has_to_string_tag {
-                shape_flag::HAS_TO_STRING_TAG
-            } else {
-                0
-            };
-            self.flags.set(flags | shape_flag::TO_STRING_TAG_KNOWN | has_flag);
-        }
-        has_to_string_tag
-    }
-
     pub fn dictionary_generation(&self) -> u32 {
         self.dictionary_generation.get()
     }
@@ -1091,6 +1015,120 @@ impl Shape {
 
     pub fn prototype_chain_validity(&self) -> Option<Gc<WatchpointSet>> {
         self.prototype_chain_validity.get()
+    }
+
+    pub fn special_property_cache(&self) -> Option<Gc<SpecialPropertyCache>> {
+        self.storage.special_property_cache.get()
+    }
+
+    pub fn set_special_property_cache(&self, cache: Gc<SpecialPropertyCache>) {
+        assert!(!self.is_dictionary() && !self.is_prototype_shape());
+        self.storage.special_property_cache.set(Some(cache));
+    }
+
+    /// The watchpoint set that fires when the value in slot `offset` of the object of this prototype shape changes, or
+    /// when the object leaves the shape. There is none for a slot that property lookup caches may write to, since they
+    /// write without telling anything.
+    pub fn watch_slot_for_replacements(&self, vm: &Vm, offset: u32) -> Option<Gc<WatchpointSet>> {
+        if !self.is_prototype_shape() {
+            return None;
+        }
+        match self
+            .storage
+            .rare_data
+            .borrow()
+            .as_ref()
+            .and_then(|rare_data| rare_data.watched_slots.get(&offset))
+        {
+            Some(WatchedSlot::WrittenByCaches) => return None,
+            Some(WatchedSlot::Watched(watchpoint_set)) if watchpoint_set.is_valid() => return Some(*watchpoint_set),
+            _ => {}
+        }
+        // NB: Allocating may collect garbage, which reads the rare data, so the set is made before borrowing it.
+        let watchpoint_set = WatchpointSet::create(vm);
+        self.with_rare_data(|rare_data| {
+            rare_data
+                .watched_slots
+                .insert(offset, WatchedSlot::Watched(watchpoint_set))
+        });
+        self.flags.set(self.flags.get() | shape_flag::HAS_WATCHED_SLOTS);
+        Some(watchpoint_set)
+    }
+
+    /// Whether something relies on the values in the slots of the object of this prototype shape.
+    #[inline]
+    pub fn has_watched_slots(&self) -> bool {
+        self.flags.get() & shape_flag::HAS_WATCHED_SLOTS != 0
+    }
+
+    /// Whether something relies on the value in slot `offset` of the object of this prototype shape.
+    pub fn is_slot_watched(&self, offset: u32) -> bool {
+        self.has_watched_slots()
+            && self.storage.rare_data.borrow().as_ref().is_some_and(|rare_data| {
+                matches!(
+                    rare_data.watched_slots.get(&offset),
+                    Some(WatchedSlot::Watched(watchpoint_set)) if watchpoint_set.is_valid()
+                )
+            })
+    }
+
+    /// Notes that the value in slot `offset` of the object of this prototype shape changes, which fires the watchpoint
+    /// set of the slot.
+    pub fn note_slot_replacement(&self, vm: &Vm, offset: u32) {
+        if !self.has_watched_slots() {
+            return;
+        }
+        let watchpoint_set = {
+            let mut rare_data = self.storage.rare_data.borrow_mut();
+            let Some(rare_data) = rare_data.as_mut() else {
+                return;
+            };
+            match rare_data.watched_slots.get(&offset) {
+                Some(WatchedSlot::Watched(watchpoint_set)) => {
+                    let watchpoint_set = *watchpoint_set;
+                    rare_data.watched_slots.remove(&offset);
+                    watchpoint_set
+                }
+                Some(WatchedSlot::WrittenByCaches) | None => return,
+            }
+        };
+        watchpoint_set.fire(vm);
+    }
+
+    /// Notes that property lookup caches may write to slot `offset` of the object of this prototype shape from now on,
+    /// which fires the watchpoint set of the slot, and keeps the slot from getting another one.
+    pub fn note_slot_written_by_caches(&self, vm: &Vm, offset: u32) {
+        if !self.is_prototype_shape() {
+            return;
+        }
+        let watched_slot =
+            self.with_rare_data(|rare_data| rare_data.watched_slots.insert(offset, WatchedSlot::WrittenByCaches));
+        if let Some(WatchedSlot::Watched(watchpoint_set)) = watched_slot {
+            watchpoint_set.fire(vm);
+        }
+    }
+
+    /// Fires the watchpoint sets of the slots of the object of this prototype shape, as the object left the shape or
+    /// changed it in place, after which the offsets of its properties may be others. Which slots caches write to stays
+    /// known, since the caches that write to the shape in place may still do so.
+    fn fire_slot_watchpoints(&self, vm: &Vm) {
+        if !self.has_watched_slots() {
+            return;
+        }
+        self.flags.set(self.flags.get() & !shape_flag::HAS_WATCHED_SLOTS);
+        let mut watchpoint_sets = Vec::new();
+        if let Some(rare_data) = self.storage.rare_data.borrow_mut().as_mut() {
+            rare_data.watched_slots.retain(|_, watched_slot| match watched_slot {
+                WatchedSlot::Watched(watchpoint_set) => {
+                    watchpoint_sets.push(*watchpoint_set);
+                    false
+                }
+                WatchedSlot::WrittenByCaches => true,
+            });
+        }
+        for watchpoint_set in watchpoint_sets {
+            watchpoint_set.fire(vm);
+        }
     }
 
     pub fn property_iterator_cache(&self) -> Option<Gc<ObjectPropertyIteratorCacheData>> {
