@@ -35,11 +35,12 @@ use std::rc::Rc;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::capi;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::heap::cell_is_dead;
 use crate::interpreter::dispatch_tables::DispatchTable;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
+use code::CompileState;
 use code::EntryTrampoline;
 use code::SnapshotExecutable;
 use compile_queue::{CompileQueue, CompileResult};
@@ -109,8 +110,10 @@ impl InterpreterTier {
     pub const ALL: [InterpreterTier; 4] = [Self::Plain, Self::WarmingUp, Self::Unprofiled, Self::Profiling];
 }
 
-/// A compile job running on a compile thread. The VM keeps the executable and every cell its snapshot refers to
-/// alive until the job's code is installed or the job is abandoned.
+/// A compile job running on a compile thread. The job holds the executable and every cell its snapshot refers to
+/// weakly, like the code it compiles: once one of them dies, the job is abandoned (see
+/// `JitState::abandon_compile_jobs_with_dead_cells()`), so that a job whose code is never installed does not keep
+/// them alive.
 pub struct CompileJob {
     pub executable: Gc<Executable>,
     pub cells: Vec<Gc<CellHeader>>,
@@ -383,6 +386,26 @@ impl JitState {
         self.jobs.borrow_mut().clear();
     }
 
+    /// Abandons the compile jobs of which a cell died in the collection in progress, whose results are dropped when
+    /// they finish. Their executables, if they live on, may be compiled again later. Only meaningful in a sweep
+    /// callback.
+    pub(crate) fn abandon_compile_jobs_with_dead_cells(&self) {
+        self.jobs.borrow_mut().retain(|_, job| {
+            let has_dead_cells = cell_is_dead(job.executable)
+                || job.cells.iter().any(|cell| cell_is_dead(*cell))
+                || code::snapshot_executables_have_dead_cells(&job.snapshot_executables);
+            if !has_dead_cells {
+                return true;
+            }
+            self.count_coverage("abandon-dead-cells");
+            if !cell_is_dead(job.executable) {
+                job.executable.set_jit_compile_state(CompileState::None);
+                job.executable.head.tier_up_budget.set(tier_up::recompile_budget(self));
+            }
+            false
+        });
+    }
+
     pub(crate) fn take_job(&self, id: u64) -> Option<CompileJob> {
         self.jobs.borrow_mut().remove(&id)
     }
@@ -435,23 +458,6 @@ impl JitState {
 impl Drop for JitState {
     fn drop(&mut self) {
         self.flush_coverage();
-    }
-}
-
-unsafe impl Trace for JitState {
-    fn trace(&self, visitor: &mut Visitor) {
-        for job in self.jobs.borrow().values() {
-            visitor.visit(job.executable);
-            for cell in &job.cells {
-                visitor.visit(*cell);
-            }
-            for executable in &job.snapshot_executables {
-                visitor.visit(executable.executable);
-                if let Some(function) = executable.function {
-                    function.visit(visitor);
-                }
-            }
-        }
     }
 }
 

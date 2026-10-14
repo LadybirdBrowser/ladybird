@@ -142,6 +142,20 @@ pub enum Dependency {
     StableShape(CellId),
 }
 
+impl Dependency {
+    /// The cell the dependency names, if any.
+    pub fn cell(&self) -> Option<CellId> {
+        match self {
+            Self::PrototypeChainValid(cell) | Self::StableShape(cell) => Some(*cell),
+            Self::GlobalDeclarations { environment, .. } | Self::GlobalBindingUnassigned { environment, .. } => {
+                Some(*environment)
+            }
+            Self::GlobalPropertyUnassigned { object, .. } => Some(*object),
+            Self::NoHtmlDdaObjects => None,
+        }
+    }
+}
+
 /// A point of compiled code where the runtime may translate its state into
 /// interpreter frames (see `SiteKind`): the frame states there, and where
 /// their values are.

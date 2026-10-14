@@ -2250,7 +2250,8 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
 
 // SAFETY: Visits the constants, the for-in key snapshots, the environment shapes, the template object caches, the
 // functions the bytecode creates and the literal values of its classes, which are all the cells an executable keeps
-// alive so far. The inline caches do not keep the shapes and objects they remember alive.
+// alive so far. The inline caches do not keep the shapes and objects they remember alive, and neither does the JIT
+// code, unless a frame runs it (see `Vm::trace_running_jit_code()`).
 unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         visitor.visit_values(&self.constants);
@@ -2262,6 +2263,5 @@ unsafe impl Trace for Executable {
         self.template_object_caches.trace(visitor);
         self.shared_function_data.trace(visitor);
         self.class_blueprints.trace(visitor);
-        self.trace_jit_code(visitor);
     }
 }

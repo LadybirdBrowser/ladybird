@@ -16,6 +16,7 @@ use libjs_jit::code::{ExitKind, Site};
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
 use crate::bytecode::executable::Executable;
+use crate::gc::heap::cell_is_dead;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -114,8 +115,11 @@ pub struct JitCode {
     memory: ExecutableMemory,
     entry: JitEntry,
     sites: Vec<Site>,
-    /// The cells the code compares against or uses. The executable the code is attached to keeps them alive, so they
-    /// keep their addresses for as long as the code may run.
+    /// The cells the code compares against or uses, and the executables and functions its exits materialize frames
+    /// of. The code holds them weakly, like the inline caches of its executable: once one of them dies, the code is
+    /// dropped (see `Executable::drop_jit_code_with_dead_cells()`), so code compiled against objects of a realm that
+    /// went away does not keep that realm alive. Only code that frames run keeps them alive (see
+    /// `Vm::trace_running_jit_code()`), so they keep their addresses for as long as the code runs.
     embedded_cells: Vec<Gc<CellHeader>>,
     snapshot_executables: Vec<SnapshotExecutable>,
     /// Where a frame running in the interpreter at the loop back edge `pc` can continue in this code.
@@ -249,6 +253,24 @@ impl JitCode {
         self.exit_count.set(count);
         count
     }
+
+    /// Whether a cell the code holds weakly died in the collection in progress. Only meaningful in a sweep callback.
+    fn has_dead_cells(&self) -> bool {
+        self.embedded_cells.iter().any(|cell| cell_is_dead(*cell))
+            || snapshot_executables_have_dead_cells(&self.snapshot_executables)
+    }
+}
+
+/// Whether one of the executables or functions of a snapshot died in the collection in progress. Only meaningful in a
+/// sweep callback.
+pub(super) fn snapshot_executables_have_dead_cells(snapshot_executables: &[SnapshotExecutable]) -> bool {
+    snapshot_executables.iter().any(|executable| {
+        cell_is_dead(executable.executable)
+            || executable.function.is_some_and(|function| match function {
+                InlinedFunction::Ecmascript(function) => cell_is_dead(function),
+                InlinedFunction::Builtin(function) => cell_is_dead(function),
+            })
+    })
 }
 
 unsafe impl Trace for JitCode {
@@ -263,6 +285,16 @@ unsafe impl Trace for JitCode {
             }
         }
     }
+}
+
+/// Drops JIT code in a collection's sweep callback.
+fn drop_jit_code_in_collection(vm: &Vm, mut code: Box<JitCode>) {
+    // OPTIMIZATION: The compile threads allocated the sites, so one of them frees them, outside the collection this
+    //               runs in.
+    if let Some(queue) = vm.jit.started_compile_queue() {
+        queue.drop_sites(code.take_sites());
+    }
+    drop(code);
 }
 
 /// The JIT state of an executable that the interpreter and JIT code do not read: they read the fields of its head.
@@ -357,15 +389,38 @@ impl Executable {
         let Some(table) = vm.jit.entry_table.as_ref() else {
             return;
         };
-        let Some(mut code) = table.free(self.head.jit_entry_slot.get(), core::ptr::from_ref(&self.head) as u64) else {
+        let Some(code) = table.free(self.head.jit_entry_slot.get(), core::ptr::from_ref(&self.head) as u64) else {
             return;
         };
-        // OPTIMIZATION: The compile threads allocated the sites, so one of them frees them, outside the collection
-        //               this runs in.
-        if let Some(queue) = vm.jit.started_compile_queue() {
-            queue.drop_sites(code.take_sites());
+        drop_jit_code_in_collection(vm, code);
+    }
+
+    /// Drops the executable's JIT code if a cell it holds weakly died in the collection in progress. No frame runs the
+    /// code then: frames that run JIT code keep the cells of their code alive. The executable may be compiled again
+    /// later, against the cells it meets by then.
+    ///
+    /// NB: Unlike a discard after exits, this does not count towards refusing the executable: the code did nothing
+    ///     wrong, what it was compiled against just went away.
+    pub fn drop_jit_code_with_dead_cells(&self, vm: &Vm) {
+        let Some((table, slot)) = self.jit_entry_table_slot() else {
+            return;
+        };
+        if !table.code(slot).is_some_and(JitCode::has_dead_cells) {
+            return;
         }
-        drop(code);
+        let state = self.jit_compile_state();
+        assert!(matches!(state, CompileState::Installed | CompileState::Discarding));
+        table.set_entry(slot, None);
+        let code = table.set_code(slot, None).expect("the code is attached");
+        drop_jit_code_in_collection(vm, code);
+        vm.jit.count_coverage("drop-dead-cells");
+        // NB: Code that was discarded after exits counts towards refusing the executable as when it is detached.
+        if state == CompileState::Discarding {
+            self.finish_detaching_discarded_jit_code(vm);
+            return;
+        }
+        self.set_jit_compile_state(CompileState::None);
+        self.head.tier_up_budget.set(super::tier_up::recompile_budget(&vm.jit));
     }
 
     /// The executable's attached JIT code, if any.
@@ -374,7 +429,7 @@ impl Executable {
         table.code(slot)
     }
 
-    /// Visits the cells the executable's attached JIT code keeps alive.
+    /// Visits the cells the executable's attached JIT code holds, for a frame that runs the code.
     pub fn trace_jit_code(&self, visitor: &mut Visitor) {
         if let Some(code) = self.jit_code() {
             code.trace(visitor);
@@ -472,9 +527,15 @@ impl Executable {
 
     /// Drops the executable's discarded code, which no frame runs anymore.
     fn detach_jit_code(&self, vm: &Vm) {
-        let state = self.jit_state();
         let (table, slot) = self.jit_entry_table_slot().expect("the code is attached");
         drop(table.set_code(slot, None));
+        self.finish_detaching_discarded_jit_code(vm);
+    }
+
+    /// Counts the discard of the executable's code, which was just detached, and refuses the executable once it was
+    /// discarded too often.
+    fn finish_detaching_discarded_jit_code(&self, vm: &Vm) {
+        let state = self.jit_state();
         vm.jit.count_coverage("discard");
         let discard_count = state.discard_count.get() + 1;
         state.discard_count.set(discard_count);

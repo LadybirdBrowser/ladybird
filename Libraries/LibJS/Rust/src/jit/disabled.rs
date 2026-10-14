@@ -14,7 +14,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use crate::bytecode::executable::Executable;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::dispatch_tables::plain_dispatch_table;
 use crate::interpreter::vm::Vm;
 
@@ -50,11 +50,9 @@ impl JitState {
 
     pub fn abandon_compile_jobs(&self) {}
 
-    pub fn flush_coverage(&self) {}
-}
+    pub fn abandon_compile_jobs_with_dead_cells(&self) {}
 
-unsafe impl Trace for JitState {
-    fn trace(&self, _visitor: &mut Visitor) {}
+    pub fn flush_coverage(&self) {}
 }
 
 /// Keeps the heap from collecting garbage while it lives, which only matters for frames of inlined calls.
@@ -116,6 +114,8 @@ pub mod code {
         pub fn free_jit_entry_slot(&self, _vm: &Vm) {}
 
         pub fn trace_jit_code(&self, _visitor: &mut Visitor) {}
+
+        pub fn drop_jit_code_with_dead_cells(&self, _vm: &Vm) {}
 
         pub fn jit_compile_state(&self) -> CompileState {
             CompileState::None

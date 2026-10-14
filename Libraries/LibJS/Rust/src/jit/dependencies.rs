@@ -86,10 +86,17 @@ impl Dependents {
         }
     }
 
-    /// Forgets the entries of code whose executable died, and the slots of global objects that died.
+    /// Forgets the entries of code that is gone, and the slots of global objects that died. Runs after the executables
+    /// dropped the code whose cells died, which the dependencies of the code may name.
     pub fn remove_dead_entries(&self) {
         self.code.borrow_mut().retain(|_, dependents| {
-            dependents.retain(|dependent| dependent.executable.get().is_some());
+            dependents.retain(|dependent| {
+                dependent
+                    .executable
+                    .get()
+                    .and_then(|executable| executable.jit_code().map(|code| code.id() == dependent.id))
+                    .unwrap_or(false)
+            });
             !dependents.is_empty()
         });
         self.assigned_global_object_slots.borrow_mut().retain(|&object, _| {
@@ -145,7 +152,7 @@ pub fn note_global_object_slot_assignments(vm: &Vm, object: &Object, offsets: Ra
 
 /// The global declarative environment a dependency names.
 fn declarative_environment(environment: CellId) -> &'static DeclarativeEnvironment {
-    // SAFETY: Code that depends on the environment embeds it, which keeps it alive.
+    // SAFETY: The compile job or the code that depends on the environment holds it, and is dropped once it dies.
     unsafe { &*(environment.0 as *const DeclarativeEnvironment) }
 }
 
@@ -153,7 +160,7 @@ fn declarative_environment(environment: CellId) -> &'static DeclarativeEnvironme
 pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
     match dependency {
         Dependency::PrototypeChainValid(validity) => {
-            // SAFETY: Code that depends on the cell embeds it, which keeps it alive.
+            // SAFETY: The compile job or the code that depends on the cell holds it, and is dropped once it dies.
             unsafe { &*(validity.0 as *const PrototypeChainValidity) }.is_valid()
         }
         Dependency::GlobalDeclarations { environment, serial } => {
@@ -163,7 +170,7 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
             !declarative_environment(*environment).binding_may_have_been_assigned(*index as usize)
         }
         Dependency::GlobalPropertyUnassigned { object, offset } => {
-            // SAFETY: Code that depends on the object embeds it, which keeps it alive.
+            // SAFETY: The compile job or the code that depends on the object holds it, and is dropped once it dies.
             !global_object_slot_may_have_been_assigned(vm, unsafe { &*(object.0 as *const Object) }, *offset)
         }
         Dependency::NoHtmlDdaObjects => !vm.jit.htmldda_objects_exist(),
@@ -173,7 +180,7 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
 
 /// The shape a dependency names.
 fn shape_of(shape: CellId) -> &'static Shape {
-    // SAFETY: Code that depends on the shape embeds it, which keeps it alive.
+    // SAFETY: The compile job or the code that depends on the shape holds it, and is dropped once it dies.
     unsafe { &*(shape.0 as *const Shape) }
 }
 

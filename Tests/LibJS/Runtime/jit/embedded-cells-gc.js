@@ -1,6 +1,9 @@
 // JIT code may embed the shapes its property accesses saw. These tests drop
 // every object of such a shape, collect garbage and allocate objects with new
 // shapes, which must never be mistaken for the old ones.
+//
+// The code holds the cells it embeds weakly, unless a frame runs it: once one
+// of them dies, the code is dropped, and the function may be compiled again.
 
 function makeShapes(count, keys) {
     const objects = [];
@@ -47,5 +50,26 @@ describe("JIT code whose embedded cells lose every other reference", () => {
             return makeShapes(200, ["p", "q", "r"])[123];
         });
         expect(result).toBe(124);
+    });
+
+    test("the code is dropped once a cell it embeds dies", () => {
+        const read = new Function("object", "return object.a;");
+        jit.prepare(read);
+        // NB: The objects only live in this nested function's frame, so that none lingers in a register of the
+        //     test's frame.
+        (() => {
+            const prototype = { a: 1 };
+            const object = Object.create(prototype);
+            for (let i = 0; i < 10; ++i) expect(read(object)).toBe(1);
+            expect(jit.compile(read)).toBe(jit.enabled);
+        })();
+        gc();
+        expect(jit.isCompiled(read)).toBeFalse();
+        expect(jit.discardCount(read)).toBe(0);
+
+        const object = Object.create({ a: 2 });
+        for (let i = 0; i < 10; ++i) expect(read(object)).toBe(2);
+        expect(jit.compile(read)).toBe(jit.enabled);
+        expect(read(object)).toBe(2);
     });
 });

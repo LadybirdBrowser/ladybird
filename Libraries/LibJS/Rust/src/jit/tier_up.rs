@@ -8,7 +8,7 @@
 
 use core::ptr::NonNull;
 
-use libjs_jit::code::CompiledCode;
+use libjs_jit::code::{CompiledCode, Dependency};
 
 use super::code::{CompileState, EntryStatus, JitCode, SnapshotExecutable};
 use super::compile_queue::CompileResult;
@@ -294,8 +294,15 @@ fn install(
     memory: ExecutableMemory,
     snapshot: SnapshotExecutables,
 ) {
-    let embedded_cells = compiled
-        .embedded_cells
+    // NB: The code also holds the cells its dependencies name, so that it is dropped once one of them dies, and its
+    //     entries in the dependency table with it (see `Dependents::remove_dead_entries()`).
+    let mut embedded_cells = compiled.embedded_cells.clone();
+    for cell in compiled.dependencies.iter().filter_map(Dependency::cell) {
+        if !embedded_cells.contains(&cell) {
+            embedded_cells.push(cell);
+        }
+    }
+    let embedded_cells = embedded_cells
         .iter()
         .map(|cell| {
             // SAFETY: The snapshot kept every cell it captured alive, and the code embeds only those.

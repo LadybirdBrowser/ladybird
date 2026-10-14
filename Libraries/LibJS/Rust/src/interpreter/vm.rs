@@ -1038,7 +1038,7 @@ impl Vm {
     }
 
     fn gather_roots(&self, visitor: &mut Visitor) {
-        self.jit.trace(visitor);
+        self.trace_running_jit_code(visitor);
         self.for_each_execution_context_top_to_bottom(|context| {
             context.trace(visitor);
             ControlFlow::Continue(())
@@ -1328,6 +1328,19 @@ impl Vm {
         });
     }
 
+    /// Visits the cells of the JIT code that live frames run, which have to stay where the code expects them. Other JIT
+    /// code holds its cells weakly, and is dropped once one of them dies.
+    fn trace_running_jit_code(&self, visitor: &mut Visitor) {
+        self.for_each_live_execution_context(|context| {
+            if context.runs_jit_code.get()
+                && let Some(executable) = context.executable.get()
+            {
+                Executable::from_head(executable).trace_jit_code(visitor);
+            }
+            ControlFlow::Continue(())
+        });
+    }
+
     /// Drops the weak cache entries of strings that died in this collection.
     fn remove_dead_strings_from_weak_caches(&self) {
         let is_dead = |string: Gc<PrimitiveString>| !string.header.mark.get();
@@ -1352,8 +1365,10 @@ impl Vm {
                 return false;
             }
             executable.remove_dead_cells();
+            executable.drop_jit_code_with_dead_cells(self);
             true
         });
+        self.jit.abandon_compile_jobs_with_dead_cells();
         self.static_property_lookup_caches.remove_dead_entries();
         self.keyed_property_lookup_cache.remove_dead_entries();
         self.prototype_transition_cache.remove_dead_entries();
