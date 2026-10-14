@@ -773,10 +773,14 @@ void EventLoop::update_the_rendering()
     // What the lanes reported has been taken in: the style node ids that left their nodes since name nothing of theirs.
     // A document with no lanes has none that report any.
     for (auto& document : documents_in_this_event_loop_matching([](auto const&) { return true; })) {
+        // NB: A document that never made a style computer has retired no style nodes.
+        auto* style_computer = document->style_computer_if_created();
+        if (!style_computer)
+            continue;
         auto* arena = document->layout_node_arena_if_created();
         bool const lanes_taken_in = any_of(documents_with_lanes, [&](auto const& taken_in) { return taken_in.ptr() == document.ptr(); });
         if (lanes_taken_in || !arena || !Layout::RustFFI::document_host_may_have_lanes(arena->host()))
-            document->style_computer().forget_style_nodes_retired_beside_lanes();
+            style_computer->forget_style_nodes_retired_beside_lanes();
     }
 
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.

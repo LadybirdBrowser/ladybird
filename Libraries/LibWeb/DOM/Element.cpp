@@ -5214,7 +5214,12 @@ ReadonlySpan<Element::Attribute> Element::attribute_list() const
 
 CSS::ComputedStyleRecordView Element::computed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
 {
-    return document().style_computer().computed_style_record_view(installed_style(pseudo_element_type));
+    // NB: An element that was never styled has no record to view, which keeps a document that styles nothing from
+    //     needing a style computer.
+    auto const& style = installed_style(pseudo_element_type);
+    if (!style)
+        return {};
+    return document().style_computer().computed_style_record_view(style);
 }
 
 CSS::InstalledStyle const& Element::installed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
@@ -5249,10 +5254,10 @@ void Element::update_animated_properties_for_abstract_element(Badge<Web::Animati
 
 void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
 {
-    Layout::ForcedReadScope read { document() };
     VERIFY(!style_record_identity || style_node_id() != 0);
     if (m_installed_style.record() == style_record_identity)
         return;
+    Layout::ForcedReadScope read { document() };
     auto held_before = exchange(m_installed_style, document().style_computer().install_style(read, style_record_identity));
     // The element holds the record it installed before until the engine takes the new one in, so the layout node reads
     // what it moves from before the element lets go of it.
