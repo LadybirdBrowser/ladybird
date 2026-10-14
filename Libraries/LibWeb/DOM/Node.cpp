@@ -700,7 +700,9 @@ void Node::record_style_environment_change()
     document().bump_style_environment_version();
 
     if (is_document()) {
-        CSS::StyleEngineFFI::style_engine_record_environment_change(document().style_computer().style_engine().host());
+        // NB: An engine created later starts from the environment as it is then.
+        if (auto* style_computer = document().style_computer_if_created())
+            CSS::StyleEngineFFI::style_engine_record_environment_change(style_computer->style_engine().host());
         return;
     }
 
@@ -1389,7 +1391,8 @@ static void pin_bound_box_style_record_for_detachment(Node& node, Optional<CSS::
 
 class RemovalStyleRecordPins {
 public:
-    explicit RemovalStyleRecordPins(CSS::StyleComputer const& style_computer)
+    // NB: A document that has no style computer yet holds no style records to pin.
+    explicit RemovalStyleRecordPins(CSS::StyleComputer const* style_computer)
         : m_style_computer(style_computer)
     {
     }
@@ -1449,11 +1452,12 @@ private:
     {
         if (!style_record_identity)
             return;
+        VERIFY(m_style_computer);
         m_style_computer->pin_style_record(style_record_identity);
         m_dom_style_record_pins.append(style_record_identity);
     }
 
-    GC::Ref<CSS::StyleComputer const> m_style_computer;
+    GC::Ptr<CSS::StyleComputer const> m_style_computer;
     Vector<CSS::StyleRecordID, 16> m_dom_style_record_pins;
 };
 
@@ -1683,7 +1687,7 @@ void Node::remove(bool suppress_observers)
     auto& parent_root = parent->root();
     auto descendant_slots = descendant_slots_before_removal(parent_root);
 
-    RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
+    RemovalStyleRecordPins removal_style_record_pins { document().style_computer_if_created() };
     removal_style_record_pins.pin_style_records_before_removal(*this, was_tracked_by_style_engine);
     if (was_tracked_by_style_engine) {
         Layout::ForcedReadScope read { document() };
@@ -3001,7 +3005,7 @@ void Node::remove_all_children(bool suppress_observers)
 
         auto descendant_slots = child->descendant_slots_before_removal(parent_root);
 
-        RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
+        RemovalStyleRecordPins removal_style_record_pins { document().style_computer_if_created() };
         removal_style_record_pins.pin_style_records_before_removal(*child, was_tracked_by_style_engine);
         if (was_tracked_by_style_engine) {
             Layout::ForcedReadScope read { document() };

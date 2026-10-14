@@ -641,7 +641,6 @@ GC::Ref<Document> Document::create_for_fragment_parsing(Page& page, GC::Ref<Even
 Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
     : ParentNode(*this, NodeType::DOCUMENT_NODE)
     , m_page(page)
-    , m_style_computer(GC::Heap::the().allocate<CSS::StyleComputer>(*this))
     , m_font_computer(GC::Heap::the().allocate<CSS::FontComputer>(*this))
     , m_url(url)
     , m_relevant_global_event_target(relevant_global_event_target)
@@ -661,6 +660,14 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 }
 
 Document::~Document() = default;
+
+void Document::create_style_computer()
+{
+    m_style_computer = GC::Heap::the().allocate<CSS::StyleComputer>(*this);
+    // NB: A quirks mode set before the style computer existed told no engine about it.
+    if (in_quirks_mode())
+        CSS::StyleEngineFFI::style_engine_set_fold_id_and_class_name_case(m_style_computer->style_engine().host(), true);
+}
 
 void Document::mark_style_attribute_dirty(Element& element)
 {
@@ -1740,6 +1747,11 @@ Layout::Node* Document::layout_root_if_live(Layout::BegunRead const& read) const
 
 void Document::tear_down_layout_tree()
 {
+    // NB: A document that never made a style computer never built a layout tree. This also runs from finalizers, where
+    //     making one would allocate while the heap sweeps.
+    if (!m_style_computer)
+        return;
+
     // A frame in flight lands first, and the host pays the layout round it ran, whose build may have replaced boxes the
     // host still holds, before the tree goes.
     Layout::ForcedReadScope read { *this };
@@ -2238,7 +2250,10 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
 
 void Document::flush_deferred_style_change_event()
 {
-    auto& style_engine = style_computer().style_engine();
+    auto* style_computer = style_computer_if_created();
+    if (!style_computer)
+        return;
+    auto& style_engine = style_computer->style_engine();
     // Only a geometry read defers a transaction, so until one has, the flush has nothing to read.
     if (!style_engine.may_have_deferred_geometry_transaction())
         return;
@@ -2408,7 +2423,8 @@ void Document::set_quirks_mode(QuirksMode mode)
 
     // It also changes which case a rule cache buckets id and class selectors under, and brings a user
     // agent stylesheet with it, so no scope's rule cache and no element's style survives it either.
-    CSS::StyleEngineFFI::style_engine_set_fold_id_and_class_name_case(style_computer().style_engine().host(), in_quirks_mode());
+    if (auto* style_computer = style_computer_if_created())
+        CSS::StyleEngineFFI::style_engine_set_fold_id_and_class_name_case(style_computer->style_engine().host(), in_quirks_mode());
     style_scope().invalidate_style_cache();
     for_each_shadow_root([](auto& shadow_root) {
         shadow_root.style_scope().invalidate_style_cache();

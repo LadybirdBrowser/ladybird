@@ -396,8 +396,16 @@ public:
     Optional<URL::URL> encoding_parse_url(Utf16View) const;
     Optional<Utf16String> encoding_parse_and_serialize_url(Utf16View) const;
 
-    CSS::StyleComputer& style_computer() { return *m_style_computer; }
-    CSS::StyleComputer const& style_computer() const { return *m_style_computer; }
+    CSS::StyleComputer& style_computer()
+    {
+        if (!m_style_computer) [[unlikely]]
+            create_style_computer();
+        return *m_style_computer;
+    }
+    CSS::StyleComputer const& style_computer() const { return const_cast<Document&>(*this).style_computer(); }
+    // NB: The style computer is made when something first needs it, so a document that never styles anything, such as
+    //     one DOMParser creates, never makes one.
+    CSS::StyleComputer* style_computer_if_created() { return m_style_computer.ptr(); }
 
     CSS::FontComputer& font_computer() { return *m_font_computer; }
     CSS::FontComputer const& font_computer() const { return *m_font_computer; }
@@ -1737,6 +1745,8 @@ private:
         Optional<Utf16FlyString> is;
     };
     WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(ElementCreationOptions const&) const;
+
+    void create_style_computer();
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
