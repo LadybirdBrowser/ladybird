@@ -37,7 +37,6 @@ struct ChangingNavigableContinuationState : public GC::Cell {
     GC::Ptr<LocalNavigable> navigable;
     bool update_only = false;
     Optional<Bindings::NavigationType> navigation_type;
-    UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
 
     GC::Ptr<DOM::Document> pending_document;
     GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> population_output;
@@ -368,7 +367,6 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
         changing_navigable_continuation->navigable = navigable;
         changing_navigable_continuation->update_only = false;
         changing_navigable_continuation->navigation_type = job.navigation_type;
-        changing_navigable_continuation->user_involvement = job.user_involvement;
         changing_navigable_continuation->pending_document = pending_document;
         changing_navigable_continuation->population_output = nullptr;
 
