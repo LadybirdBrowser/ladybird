@@ -1,4 +1,4 @@
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.5
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface WebGLFramebuffer : WebGLObject {
 };

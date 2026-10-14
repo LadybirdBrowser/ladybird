@@ -1,5 +1,5 @@
 // https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface WebGL2RenderingContext {
 };
 

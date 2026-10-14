@@ -10,6 +10,10 @@
     non_upper_case_globals,
     reason = "GL has lower case letters in the names of some constants"
 )]
+#![allow(
+    dead_code,
+    reason = "these are all the constants of the interfaces, of which the implementation names some"
+)]
 
 include!(concat!(env!("OUT_DIR"), "/webgl_constants.rs"));
 

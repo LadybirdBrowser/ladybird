@@ -7,6 +7,11 @@
 //! The methods of the recorder that follow from the signature of a GL function. The build script writes them from
 //! GLFunctions.json (generate/webgl_proxy.rs).
 
+#![allow(
+    dead_code,
+    reason = "the recorder has a method for every GL function of the replayer, of which the contexts call some"
+)]
+
 use super::recorder::{
     Proxy, bytes_of, bytes_of_mut, copy_reply_data, gen_count, leading_bytes, leading_bytes_mut, payload_size,
     until_nul,

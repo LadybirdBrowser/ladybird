@@ -1049,45 +1049,9 @@ set(SOURCES
     WebDriver/UserPrompt.cpp
     WebGL/EventNames.cpp
     WebGL/RemoteWebGLTransportFFI.cpp
-    WebGL/Extensions/ANGLEInstancedArrays.cpp
-    WebGL/Extensions/EXTBlendMinMax.cpp
-    WebGL/Extensions/EXTColorBufferFloat.cpp
-    WebGL/Extensions/EXTRenderSnorm.cpp
-    WebGL/Extensions/EXTTextureFilterAnisotropic.cpp
-    WebGL/Extensions/EXTTextureNorm16.cpp
-    WebGL/Extensions/OESElementIndexUint.cpp
-    WebGL/Extensions/OESStandardDerivatives.cpp
-    WebGL/Extensions/OESVertexArrayObject.cpp
-    WebGL/Extensions/WebGLCompressedTextureS3tc.cpp
-    WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.cpp
-    WebGL/Extensions/WebGLDebugRendererInfo.cpp
-    WebGL/Extensions/WebGLDrawBuffers.cpp
-    WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
-    WebGL/WebGL2RenderingContext.cpp
-    WebGL/WebGL2RenderingContextImpl.cpp
-    WebGL/WebGL2RenderingContextOverloads.cpp
-    WebGL/WebGLActiveInfo.cpp
-    WebGL/WebGLBuffer.cpp
     WebGL/WebGLContextAttributes.cpp
     WebGL/WebGLContextEvent.cpp
-    WebGL/WebGLContextProxyBase.cpp
-    WebGL/WebGLFramebuffer.cpp
-    WebGL/WebGLObject.cpp
-    WebGL/WebGLProgram.cpp
-    WebGL/WebGLQuery.cpp
-    WebGL/WebGLRenderbuffer.cpp
-    WebGL/WebGLRenderingContext.cpp
     WebGL/WebGLRenderingContextBase.cpp
-    WebGL/WebGLRenderingContextImpl.cpp
-    WebGL/WebGLRenderingContextOverloads.cpp
-    WebGL/WebGLSampler.cpp
-    WebGL/WebGLShader.cpp
-    WebGL/WebGLShaderPrecisionFormat.cpp
-    WebGL/WebGLSync.cpp
-    WebGL/WebGLTexture.cpp
-    WebGL/WebGLTransformFeedback.cpp
-    WebGL/WebGLUniformLocation.cpp
-    WebGL/WebGLVertexArrayObject.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
@@ -1138,7 +1102,6 @@ generate_css_implementation()
 
 generate_html_implementation()
 
-generate_webgl_implementation()
 
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
@@ -1161,7 +1124,6 @@ set(GENERATED_SOURCES
     SVG/SVGStyleSheetSource.cpp
     HTML/MediaControlsDOM.cpp
     HTML/Parser/NamedCharacterReferences.cpp
-    WebGL/WebGLContextProxy.cpp
 )
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)

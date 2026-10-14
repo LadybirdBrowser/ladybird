@@ -8,6 +8,8 @@
 //! https://webidl.spec.whatwg.org/#es-type-mapping
 
 use core::mem::MaybeUninit;
+use core::ops::Range;
+use std::borrow::Cow;
 
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
@@ -23,6 +25,7 @@ use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap}
 use crate::bindings::services::web_bindings_object_implements_interface;
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
+#[derive(Clone)]
 pub(crate) struct UsvString(Utf16String);
 
 impl UsvString {
@@ -376,59 +379,125 @@ impl From<ArrayBufferView> for BufferSource {
     }
 }
 
+pub(crate) struct BufferSourceExtent {
+    pub(crate) buffer: Gc<ArrayBuffer>,
+    pub(crate) is_out_of_bounds: bool,
+    pub(crate) byte_offset: usize,
+    pub(crate) byte_length: usize,
+    pub(crate) element_size: usize,
+}
+
 impl BufferSource {
-    /// Calls the function with the bytes that the buffer source holds, https://webidl.spec.whatwg.org/#dfn-get-buffer-source-copy,
-    /// without copying them unless their buffer is shared. A detached buffer and a view that is out of bounds hold
-    /// no bytes.
+    pub(crate) fn extent(&self) -> BufferSourceExtent {
+        match self {
+            Self::TypedArray(typed_array) => {
+                let record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBufferOrder::SeqCst);
+                // AD-HOC: The WebIDL spec has not been updated for resizable ArrayBuffer objects. This check follows
+                //         the behavior of step 7 of the TypedArray.prototype.buffer getter.
+                let is_out_of_bounds = is_typed_array_out_of_bounds(&record);
+                let byte_length = if is_out_of_bounds {
+                    0
+                } else {
+                    typed_array_byte_length(&record) as usize
+                };
+                BufferSourceExtent {
+                    buffer: typed_array.viewed_array_buffer(),
+                    is_out_of_bounds,
+                    byte_offset: typed_array.byte_offset() as usize,
+                    byte_length,
+                    element_size: typed_array.element_size() as usize,
+                }
+            }
+            Self::DataView(view) => {
+                let record = make_data_view_with_buffer_witness_record(*view, ArrayBufferOrder::SeqCst);
+                // AD-HOC: The WebIDL spec has not been updated for resizable ArrayBuffer objects. This check follows
+                //         the behavior of step 7 of the DataView.prototype.buffer getter.
+                let is_out_of_bounds = is_view_out_of_bounds(&record);
+                let byte_length = if is_out_of_bounds {
+                    0
+                } else {
+                    get_view_byte_length(&record) as usize
+                };
+                BufferSourceExtent {
+                    buffer: view.viewed_array_buffer(),
+                    is_out_of_bounds,
+                    byte_offset: view.byte_offset() as usize,
+                    byte_length,
+                    element_size: 1,
+                }
+            }
+            Self::ArrayBuffer(buffer) => BufferSourceExtent {
+                buffer: *buffer,
+                is_out_of_bounds: false,
+                byte_offset: 0,
+                byte_length: buffer.byte_length(),
+                element_size: 1,
+            },
+        }
+    }
+
+    /// https://webidl.spec.whatwg.org/#dfn-get-buffer-source-copy, without copying the bytes unless their buffer is
+    /// shared.
     ///
     /// # Safety
     ///
     /// The function must not run script or allocate a cell, either of which could detach, resize or free the buffer
     /// that the bytes are in.
     pub(crate) unsafe fn with_bytes<R>(&self, function: impl FnOnce(&[u8]) -> R) -> R {
-        let (buffer, offset, length) = match self {
-            Self::TypedArray(typed_array) => {
-                let record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBufferOrder::SeqCst);
-                // AD-HOC: The WebIDL spec has not been updated for resizable ArrayBuffer objects. This check follows
-                //         the behavior of step 7 of the TypedArray.prototype.buffer getter.
-                if is_typed_array_out_of_bounds(&record) {
-                    return function(&[]);
-                }
-                let length = typed_array_byte_length(&record) as usize;
-                (
-                    typed_array.viewed_array_buffer(),
-                    typed_array.byte_offset() as usize,
-                    length,
-                )
-            }
-            Self::DataView(view) => {
-                let record = make_data_view_with_buffer_witness_record(*view, ArrayBufferOrder::SeqCst);
-                // AD-HOC: The WebIDL spec has not been updated for resizable ArrayBuffer objects. This check follows
-                //         the behavior of step 7 of the DataView.prototype.buffer getter.
-                if is_view_out_of_bounds(&record) {
-                    return function(&[]);
-                }
-                let length = get_view_byte_length(&record) as usize;
-                (view.viewed_array_buffer(), view.byte_offset() as usize, length)
-            }
-            Self::ArrayBuffer(buffer) => (*buffer, 0, buffer.byte_length()),
-        };
-
+        let extent = self.extent();
         // 7. If IsDetachedBuffer(jsArrayBuffer) is true, then return the empty byte sequence.
-        if buffer.is_detached() || length == 0 {
-            return function(&[]);
-        }
-
-        // NB: Another thread can write the bytes of a shared buffer at any time, so the function gets a copy of them.
-        if buffer.is_shared_array_buffer() {
-            return function(&buffer.copy_to_byte_buffer(offset, length));
-        }
-        let bytes = buffer.with_data_block(|data_block| data_block.data_at(offset));
-        assert!(!bytes.is_null());
-        // SAFETY: The buffer is not detached and holds `length` bytes from `offset`, which nothing writes while the
-        //         function runs, as the buffer is not shared and the caller keeps script from running.
-        function(unsafe { core::slice::from_raw_parts(bytes, length) })
+        let held_byte_length = if extent.buffer.is_detached() {
+            0
+        } else {
+            extent.byte_length
+        };
+        let held_bytes = extent.byte_offset..extent.byte_offset + held_byte_length;
+        // SAFETY: The caller keeps the function from running script and from allocating.
+        unsafe { with_bytes_of_buffer(&extent.buffer, held_bytes, function) }
+            .expect("a buffer has the bytes of its views that are in bounds")
     }
+}
+
+/// # Safety
+///
+/// The function must not run script or allocate a cell, either of which could detach, resize or free the buffer that
+/// the bytes are in.
+pub(crate) unsafe fn with_bytes_of_buffer<R>(
+    buffer: &ArrayBuffer,
+    bytes: Range<usize>,
+    function: impl FnOnce(&[u8]) -> R,
+) -> Option<R> {
+    // SAFETY: The caller keeps the function from running script and from allocating.
+    unsafe { borrowed_or_copied_bytes_of_buffer(buffer, bytes) }.map(|bytes| function(&bytes))
+}
+
+/// `None` when the buffer does not have the bytes.
+pub(crate) fn copy_of_bytes_of_buffer(buffer: &ArrayBuffer, bytes: Range<usize>) -> Option<Vec<u8>> {
+    // SAFETY: The bytes are borrowed only while they are copied, which neither runs script nor allocates a cell.
+    unsafe { borrowed_or_copied_bytes_of_buffer(buffer, bytes) }.map(Cow::into_owned)
+}
+
+/// # Safety
+///
+/// Nothing may run script or allocate a cell while the bytes are borrowed, either of which could detach, resize or
+/// free the buffer that they are in.
+unsafe fn borrowed_or_copied_bytes_of_buffer(buffer: &ArrayBuffer, bytes: Range<usize>) -> Option<Cow<'_, [u8]>> {
+    if bytes.is_empty() {
+        return Some(Cow::Borrowed(&[]));
+    }
+    if buffer.is_detached() || bytes.end > buffer.byte_length() {
+        return None;
+    }
+
+    // NB: Another thread can write the bytes of a shared buffer at any time, so they are copied.
+    if buffer.is_shared_array_buffer() {
+        return Some(Cow::Owned(buffer.copy_to_byte_buffer(bytes.start, bytes.len())));
+    }
+    let data = buffer.with_data_block(|data_block| data_block.data_at(bytes.start));
+    assert!(!data.is_null());
+    // SAFETY: The buffer is not detached and has the bytes, which nothing writes while they are borrowed, as the
+    //         buffer is not shared and the caller keeps script from running.
+    Some(Cow::Borrowed(unsafe { core::slice::from_raw_parts(data, bytes.len()) }))
 }
 
 impl ArrayBufferView {

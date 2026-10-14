@@ -11,9 +11,9 @@ typedef (Int32Array or sequence<GLint>) Int32List;
 
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
 interface mixin WebGLRenderingContextOverloads {
-    undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
+    [ImplementedAs=buffer_data_with_size] undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
     // FIXME: BufferSource is really a AllowSharedBufferSource
-    undefined bufferData(GLenum target, BufferSource? data, GLenum usage);
+    [ImplementedAs=buffer_data] undefined bufferData(GLenum target, BufferSource? data, GLenum usage);
     undefined bufferSubData(GLenum target, GLintptr offset, BufferSource data);
 
     undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView data);
@@ -21,11 +21,11 @@ interface mixin WebGLRenderingContextOverloads {
 
     undefined readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
 
-    undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
-    undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
+    [ImplementedAs=tex_image2d] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
+    [ImplementedAs=tex_image2d_with_source] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
 
-    undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
-    undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
+    [ImplementedAs=tex_sub_image2d] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
+    [ImplementedAs=tex_sub_image2d_with_source] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
 
     undefined uniform1fv(WebGLUniformLocation? location, Float32List v);
     undefined uniform2fv(WebGLUniformLocation? location, Float32List v);

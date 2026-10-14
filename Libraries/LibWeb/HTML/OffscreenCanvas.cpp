@@ -33,7 +33,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
-#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
@@ -225,7 +224,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
     if (auto* context = m_context.get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>())
         (*context)->replace_bitmap_with_cleared_bitmap();
     else if (auto* webgl_context = canvas_webgl_context())
-        webgl_context->context().clear_drawing_buffer();
+        webgl_context->clear_drawing_buffer();
 
     // 5. Return image.
     return image;
@@ -353,7 +352,7 @@ void OffscreenCanvas::commit_to_placeholder()
             if (context->is_context_lost())
                 return;
             context->prepare_for_compositing();
-            source_canvas_id = context->context().canvas_id();
+            source_canvas_id = context->canvas_id();
         },
         [](Empty) {
             // Do nothing.

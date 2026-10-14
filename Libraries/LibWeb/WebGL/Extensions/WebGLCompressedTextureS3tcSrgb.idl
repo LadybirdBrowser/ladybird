@@ -4,7 +4,7 @@
 //       IDL generator to handle snake_case to TitleCase conversion.
 //       Having a different name is totally fine, because LegacyNoInterfaceObject
 //       prevents the name from being exposed to JavaScript.
-[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+[Exposed=(Window,Worker), ImplementedIn=Rust, LegacyNoInterfaceObject]
 interface WebGLCompressedTextureS3tcSrgb {
     // Compressed Texture Formats
     const GLenum COMPRESSED_SRGB_S3TC_DXT1_EXT = 0x8C4C;

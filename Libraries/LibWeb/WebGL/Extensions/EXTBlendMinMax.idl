@@ -4,7 +4,7 @@
 //       IDL generator to handle snake_case to TitleCase conversion.
 //       Having a different name is totally fine, because LegacyNoInterfaceObject
 //       prevents the name from being exposed to JavaScript.
-[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+[Exposed=(Window,Worker), ImplementedIn=Rust, LegacyNoInterfaceObject]
 interface EXTBlendMinMax {
     const GLenum MIN_EXT = 0x8007;
     const GLenum MAX_EXT = 0x8008;

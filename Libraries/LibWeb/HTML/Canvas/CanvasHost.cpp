@@ -10,7 +10,6 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasHost.h>
-#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::HTML {
@@ -51,7 +50,7 @@ RefPtr<Gfx::Bitmap> CanvasHost::get_bitmap_from_surface()
         return nullptr;
 
     if (auto* webgl_context = canvas_webgl_context())
-        return webgl_context->context().read_back_drawing_buffer({ {}, size });
+        return webgl_context->read_back_drawing_buffer({ {}, size });
 
     if (auto* context = canvas_2d_context()) {
         context->ensure_backing_storage();
