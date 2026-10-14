@@ -47,7 +47,11 @@
         "swresample",
         "dav1d",
         "zlib",
-        "ladybird-components"
+        "ladybird-components",
+        {
+          "name": "vulkan",
+          "platform": "linux"
+        }
       ]
     },
     {
