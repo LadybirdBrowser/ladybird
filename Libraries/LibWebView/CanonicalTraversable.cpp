@@ -1553,7 +1553,13 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     Optional<Utf16String const&> navigation_id;
     if (auto navigation = finalized_navigation(operation))
         navigation_id = navigation->navigation_id;
+    auto const* replaced_document = &navigable.active_document();
     navigable.did_commit_navigation(target_entry, move(activated_navigable_state), operation.sequence_number, navigation_id, move(host));
+
+    // NB: Another operation's job for the document this replaced cannot run: destroying the document drops its tasks.
+    //     This operation's job has ended already.
+    if (&navigable.active_document() != replaced_document)
+        end_history_jobs(navigable);
 
     if (&navigable == this) {
         if (auto view = this->view(); view.has_value()) {

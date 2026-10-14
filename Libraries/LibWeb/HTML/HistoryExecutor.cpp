@@ -238,33 +238,15 @@ static bool is_same_document_push_or_replace(Optional<Bindings::NavigationType> 
     return target_entry.document_state()->document_id() == displayed_document_id;
 }
 
-static void queue_apply_history_step_task(GC::Ref<LocalNavigable> navigable, GC::Ptr<DOM::Document> top_level_document, GC::Ref<GC::Function<void()>> steps)
+static void queue_apply_history_step_task(GC::Ref<LocalNavigable> navigable, GC::Ref<GC::Function<void()>> steps)
 {
-    // AD-HOC: Queue top-level tasks with the active Document instead of using queue_global_task(active_window).
-    //         During initial about:blank Window reuse, active_window()->associated_document() can already be the
-    //         pending Document, but the apply-history task must run against the current active Document.
-    //
-    //         Child navigables can destroy or deactivate their active Document before the queued task runs, causing
-    //         document-associated tasks to be dropped. Queue child tasks with a null Document so the task remains
-    //         runnable, and revalidate the child navigable inside the task.
-    auto task_document = navigable->is_top_level_traversable() ? top_level_document : GC::Ptr<DOM::Document> {};
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, task_document, steps);
-}
-
-static bool changing_navigable_is_still_current(GC::Ptr<LocalNavigable> navigable, Optional<UniqueNodeID> expected_active_document_id, bool allow_ongoing_navigation)
-{
-    if (!navigable || navigable->has_been_destroyed() || !navigable->active_window())
-        return false;
-
-    auto active_document = navigable->active_document();
-    if (!active_document || active_document->has_been_destroyed())
-        return false;
-
-    if (navigable->active_document_id() != expected_active_document_id)
-        return false;
-
-    return navigable->ongoing_navigation().has<Empty>()
-        || (allow_ongoing_navigation && navigable->ongoing_navigation().has<Utf16String>());
+    // AD-HOC: Queue the task with navigable's active Document instead of using queue_global_task(active_window). During
+    //         initial about:blank Window reuse, active_window()->associated_document() can already be the pending
+    //         Document, but the apply-history task must run against the current active Document.
+    // NB: The task does not run while the Document is not fully active, as once its navigable is destroyed, which leaves
+    //     its job without a reply. The UI process ends the jobs of a navigable it removes, and of a document another
+    //     operation replaces.
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), steps);
 }
 
 bool HistoryExecutor::resume_history_navigation_population(CrossProcessId operation_id, HistoryNavigationPopulation&& population)
@@ -332,9 +314,8 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     } else {
         local_target_entry = navigable->resolve_local_session_history_entry(move(target_entry_descriptor));
     }
-    // AD-HOC: If the navigable has been destroyed, or has no active window, skip it.
-    //         Complete the job here rather than relying on the queued task, because Document::destroy() removes tasks
-    //         associated with a document from the task queue, which can cause those tasks to never run.
+    // AD-HOC: This process can destroy a navigable before the UI process removes it, which leaves no active window to
+    //         queue the task on.
     if (navigable->has_been_destroyed() || !navigable->active_window()) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, UnloadDisplayedDocument::No);
         return;
@@ -400,18 +381,7 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
 
     operation.changing_navigable_jobs.ensure(navigable_id);
 
-    queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [this, operation_id, navigable_id, navigation_type, user_involvement, population = move(population), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete]() mutable {
-        // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-        if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()) {
-            // AD-HOC: Release the claim this job made, unless its operation completed and released it already.
-            if (auto* operation = find_history_operation(operation_id)) {
-                operation->changing_navigable_jobs.remove(navigable_id);
-                navigable->clear_ongoing_history_traversal();
-            }
-            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, UnloadDisplayedDocument::No);
-            return;
-        }
-
+    queue_apply_history_step_task(*navigable, GC::create_function(heap(), [this, operation_id, navigable_id, navigation_type, user_involvement, population = move(population), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete]() mutable {
         // 1. Let displayedEntry be navigable's active session history entry.
         auto displayed_entry = navigable->active_session_history_entry();
 
@@ -433,21 +403,6 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
                 return;
             }
             target_entry = claimed_target_entry;
-        }
-
-        auto target_step = target_entry ? target_entry->step_value() : Optional<int> {};
-        if (!target_step.has_value()) {
-            // NB: Child navigables created during a busy top-level navigation can still have a pending initial
-            //     session history entry. The spec's step-based history algorithms operate on used history steps,
-            //     so a pending child entry must not block or crash the top-level apply-history step. The queued
-            //     child creation/destruction history step will reconcile the child once it has a concrete step.
-            // AD-HOC: Release the claim this job made, unless its operation completed and released it already.
-            if (auto* operation = find_history_operation(operation_id)) {
-                operation->changing_navigable_jobs.remove(navigable_id);
-                navigable->clear_ongoing_history_traversal();
-            }
-            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, UnloadDisplayedDocument::No);
-            return;
         }
 
         // 3. Let changingNavigableContinuation be a changing navigable continuation state with:
@@ -604,7 +559,7 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
                     request.user_involvement, {}, params.release_value(), request.csp_navigation_type,
                     request.history_entry.document_state.reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward,
                     output, GC::create_function(heap(), [navigable, after_document_populated](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
-                        queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(navigable->heap(), [after_document_populated, output] {
+                        queue_apply_history_step_task(*navigable, GC::create_function(navigable->heap(), [after_document_populated, output] {
                             after_document_populated->function()(output);
                         }));
                     }));
@@ -801,16 +756,6 @@ void HistoryExecutor::apply_ui_changing_navigable_continuation(CrossProcessId op
                 on_complete->function()({}, {});
                 return;
             }
-
-            // AD-HOC: Child navigable same-document/update-only tasks are queued without an associated Document so
-            //         they can survive the old active Document being deactivated. That also lets them run after the
-            //         child frame was destroyed or after a newer navigation claimed the frame. Browser engines let
-            //         the newer frame state win, so skip this stale continuation in that case.
-            if (!changing_navigable_is_still_current(navigable, displayed_document_id, applies_same_document_push_or_replace)) {
-                navigable->clear_ongoing_history_traversal();
-                on_complete->function()({}, {});
-                return;
-            }
         }
 
         if (population_output)
@@ -902,7 +847,7 @@ void HistoryExecutor::apply_ui_changing_navigable_continuation(CrossProcessId op
         // 10.2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
         // Mirror the traversal queue's ongoing-navigation transition in the local projection.
         navigable->clear_ongoing_history_traversal();
-        queue_apply_history_step_task(*navigable, navigable->active_document(), after_potential_unload);
+        queue_apply_history_step_task(*navigable, after_potential_unload);
     } else {
         // 11. Otherwise:
         // The UI process has already unloaded every descendant subtree of displayedDocument.
