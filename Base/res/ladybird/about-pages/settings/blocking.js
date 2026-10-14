@@ -26,24 +26,33 @@ function listStatus(list) {
 
 function createListRow(list, removable = false) {
     const row = document.querySelector("#filter-list-row").content.firstElementChild.cloneNode(true);
-    const label = row.querySelector("label");
     const toggle = row.querySelector("input");
+    const label = row.querySelector("label");
+    const labelText = row.querySelector(".label");
     const details = row.querySelector(".description");
     const metadata = row.querySelector(".filter-list-metadata");
+
+    const id = `content-blocker-list-${list.identifier}`;
     const name = list.name ?? list.url;
-    label.textContent = name;
-    label.htmlFor = toggle.id = `content-blocker-list-${list.identifier}`;
+
+    toggle.id = id;
+    label.htmlFor = id;
+    labelText.textContent = name;
+
     details.id = `${toggle.id}-description`;
     details.textContent = list.description ?? "";
+
     metadata.id = `${toggle.id}-metadata`;
     metadata.textContent = [list.url ? new URL(list.url).host : "Local file", list.url && listStatus(list)]
         .filter(Boolean)
         .join(" · ");
+
     toggle.setAttribute("aria-describedby", `${details.id} ${metadata.id}`);
     toggle.checked = list.enabled;
     toggle.addEventListener("change", () => {
         ladybird.sendMessage("setContentBlockerListEnabled", { identifier: list.identifier, enabled: toggle.checked });
     });
+
     const remove = row.querySelector("button");
     if (removable) {
         remove.setAttribute("aria-label", `Remove ${name}`);
@@ -51,6 +60,7 @@ function createListRow(list, removable = false) {
     } else {
         remove.remove();
     }
+
     return row;
 }
 

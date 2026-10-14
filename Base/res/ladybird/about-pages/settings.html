@@ -648,16 +648,20 @@
         <div class="tab-panel" id="tab-blocking">
             <div class="card card-body">
                 <div class="inline-container">
-                    <label for="enable-content-blocking">Enable ad blocking</label>
+                    <label for="enable-content-blocking">
+                        Enable ad blocking
+                        <p class="description">Use filter lists to block ads, trackers, and other unwanted content.</p>
+                    </label>
                     <input id="enable-content-blocking" type="checkbox" switch />
                 </div>
-                <p class="description">Use filter lists to block ads, trackers, and other unwanted content.</p>
             </div>
             <template id="filter-list-row">
                 <div class="card-group inline-container filter-list-row">
                     <div>
-                        <label></label>
-                        <p class="description"></p>
+                        <label>
+                            <span class="label"></span>
+                            <p class="description"></p>
+                        </label>
                         <p class="description filter-list-metadata"></p>
                     </div>
                     <div class="input-field-container">
