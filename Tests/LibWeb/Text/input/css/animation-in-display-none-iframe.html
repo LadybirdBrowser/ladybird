@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container" style="display: none"></div>
+<script>
+asyncTest(async done => {
+    const frame = document.createElement("iframe");
+    frame.srcdoc = `<!DOCTYPE html>
+        <style>
+            @keyframes spin { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
+            circle { animation: spin 100s linear infinite; }
+        </style>
+        <svg width="100" height="100">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="red" stroke-dasharray="10 20" />
+        </svg>`;
+    const loaded = new Promise(resolve => frame.onload = resolve);
+    container.append(frame);
+    await loaded;
+
+    const child = frame.contentWindow;
+    const circle = frame.contentDocument.querySelector("circle");
+    child.getComputedStyle(circle).strokeDashoffset;
+    const animation = circle.getAnimations()[0];
+    const frames = async () => {
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+    };
+    await frames();
+    child.internals.resetStyleInvalidationCounters();
+    await frames();
+    const hidden = child.internals.getStyleInvalidationCounters();
+    println(`hidden iframe skips animation frame requests: ${hidden.animationFramePumpRequests === 0}`);
+    println(`hidden iframe skips animated style builds: ${hidden.animatedStyleOverlayBuilds === 0}`);
+
+    animation.currentTime = 50000;
+    println(`hidden iframe style read samples animation: ${Math.abs(parseFloat(child.getComputedStyle(circle).strokeDashoffset) - 50) < 1}`);
+    await frames();
+    child.internals.resetStyleInvalidationCounters();
+    container.style.display = "block";
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const shown = child.internals.getStyleInvalidationCounters();
+    println(`showing iframe resumes animation frame requests: ${shown.animationFramePumpRequests > 0}`);
+    println(`showing iframe resumes animated style builds: ${shown.animatedStyleOverlayBuilds > 0}`);
+
+    container.style.display = "none";
+    await frames();
+    child.internals.resetStyleInvalidationCounters();
+    await frames();
+    println(`hiding iframe stops animation frame requests: ${child.internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+
+    const listener = () => {};
+    circle.addEventListener("animationiteration", listener);
+    await frames();
+    child.internals.resetStyleInvalidationCounters();
+    await frames();
+    const listening = child.internals.getStyleInvalidationCounters();
+    println(`hidden iframe iteration listener uses wake-up timer: ${listening.animationFramePumpRequests === 0 && listening.compositorAnimationWakeupTimerActive}`);
+    circle.removeEventListener("animationiteration", listener);
+    const iteration = new Promise(resolve => circle.addEventListener("animationiteration", () => resolve(true), { once: true }));
+    animation.effect.updateTiming({ duration: 100 });
+    animation.currentTime = 0;
+    println(`hidden iframe dispatches iteration event: ${await Promise.race([iteration, new Promise(resolve => setTimeout(() => resolve(false), 2000))])}`);
+    animation.cancel();
+
+    const nested = child.document.createElement("iframe");
+    nested.srcdoc = frame.srcdoc;
+    const nestedLoaded = new Promise(resolve => nested.onload = resolve);
+    child.document.body.append(nested);
+    await nestedLoaded;
+    const nestedChild = nested.contentWindow;
+    const nestedCircle = nestedChild.document.querySelector("circle");
+    nestedChild.getComputedStyle(nestedCircle).strokeDashoffset;
+    await frames();
+    nestedChild.internals.resetStyleInvalidationCounters();
+    await frames();
+    println(`hidden ancestor iframe stops nested animation frame requests: ${nestedChild.internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+    container.style.display = "block";
+    await new Promise(resolve => setTimeout(resolve, 100));
+    println(`showing ancestor iframe resumes nested animation: ${nestedChild.internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+    nestedCircle.getAnimations()[0].cancel();
+    container.style.display = "none";
+    await frames();
+    const reversed = circle.animate({ strokeDashoffset: ["0", "100"] }, { duration: 100000, iterations: Infinity });
+    reversed.currentTime = 500;
+    reversed.playbackRate = -1;
+    const finished = reversed.finished.then(() => true);
+    println(`reversed infinite animation can finish while hidden: ${await Promise.race([finished, new Promise(resolve => setTimeout(() => resolve(false), 2000))])}`);
+    reversed.cancel();
+    frame.remove();
+    done();
+});
+</script>

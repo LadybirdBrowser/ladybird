@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/showing-iframe-with-svg-animation-ref.html">
+<div id="container" style="display: none"></div>
+<script>
+window.onload = async () => {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "width: 120px; height: 120px; border: 0";
+    frame.srcdoc = `<!DOCTYPE html><body style="margin: 0">
+        <svg width="100" height="100">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="green" stroke-width="10" stroke-dasharray="30 20" />
+        </svg>`;
+    const loaded = new Promise(resolve => frame.onload = resolve);
+    container.append(frame);
+    await loaded;
+    const child = frame.contentWindow;
+    const circle = child.document.querySelector("circle");
+    const timeline = child.internals.createInternalAnimationTimeline();
+    const animation = new child.Animation(new child.KeyframeEffect(circle,
+        { strokeDashoffset: ["0", "100"] }, { duration: 100, iterations: Infinity }), timeline);
+    timeline.setTime(0);
+    animation.play();
+    animation.startTime = 0;
+    const frames = async () => {
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+    };
+    await frames();
+    timeline.setTime(75);
+    await frames();
+    container.style.display = "block";
+    await frames();
+    document.documentElement.classList.remove("reftest-wait");
+};
+</script>
+</html>
