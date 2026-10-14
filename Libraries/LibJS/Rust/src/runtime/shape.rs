@@ -21,7 +21,7 @@ use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
-pub use crate::layout::shape::{PrototypeChainValidity, Shape};
+pub use crate::layout::shape::{Shape, WatchpointSet};
 use crate::layout::value::Value;
 use crate::runtime::descriptor_array::{DescriptorArray, MAX_DESCRIPTOR_COUNT, PropertyMetadata};
 use crate::runtime::object::IntegrityLevel;
@@ -37,16 +37,16 @@ pub struct TransitionKey {
     pub attributes: PropertyAttributes,
 }
 
-define_cell!(PrototypeChainValidity, Other);
+define_cell!(WatchpointSet, Other);
 
-// SAFETY: A validity holds no cells.
-unsafe impl Trace for PrototypeChainValidity {
+// SAFETY: A watchpoint set holds no cells.
+unsafe impl Trace for WatchpointSet {
     fn trace(&self, _: &mut Visitor) {}
 }
 
-impl PrototypeChainValidity {
-    pub fn create(vm: &Vm) -> Gc<PrototypeChainValidity> {
-        vm.heap().allocate(PrototypeChainValidity {
+impl WatchpointSet {
+    pub fn create(vm: &Vm) -> Gc<WatchpointSet> {
+        vm.heap().allocate(WatchpointSet {
             header: CellHeader::for_class(Self::CLASS),
             valid: Cell::new(true),
             padding: 0,
@@ -57,15 +57,15 @@ impl PrototypeChainValidity {
         self.valid.get()
     }
 
-    /// Marks the prototype chain as changed, which invalidates the JIT code that depends on it staying as it was.
-    pub fn invalidate(&self, vm: &Vm) {
+    /// Notes that what the set stands for stopped holding, which invalidates the JIT code that depends on it.
+    pub fn fire(&self, vm: &Vm) {
         if !self.is_valid() {
             return;
         }
         self.valid.set(false);
         crate::jit::dependencies::invalidate_dependents(
             vm,
-            Dependency::PrototypeChainValid(CellId(core::ptr::from_ref(self) as u64)),
+            Dependency::WatchpointSetValid(CellId(core::ptr::from_ref(self) as u64)),
         );
     }
 }
@@ -131,7 +131,7 @@ struct RareData {
 pub struct AssignCopy {
     /// The validity of the shape of the prototype of the empty object when the copy was found to be right, which stops
     /// being valid when that prototype changes its properties.
-    pub prototype_validity: Gc<PrototypeChainValidity>,
+    pub prototype_validity: Gc<WatchpointSet>,
     /// The shape the empty object ends up with.
     pub copy_shape: Gc<Shape>,
 }
@@ -875,9 +875,7 @@ impl Shape {
             new_shape.set_descriptors(self.descriptors());
             new_shape.property_count.set(self.property_count());
         }
-        new_shape
-            .prototype_chain_validity
-            .set(Some(PrototypeChainValidity::create(vm)));
+        new_shape.prototype_chain_validity.set(Some(WatchpointSet::create(vm)));
         if let Some(prototype) = new_shape.prototype() {
             prototype.shape().add_child_prototype_shape(vm, new_shape);
         }
@@ -891,8 +889,7 @@ impl Shape {
 
     pub fn set_prototype_shape(&self, vm: &Vm) {
         assert!(!self.is_prototype_shape());
-        self.prototype_chain_validity
-            .set(Some(PrototypeChainValidity::create(vm)));
+        self.prototype_chain_validity.set(Some(WatchpointSet::create(vm)));
         if let Some(prototype) = self.prototype() {
             prototype.shape().add_child_prototype_shape(vm, self.as_gc());
         }
@@ -910,7 +907,7 @@ impl Shape {
             return;
         }
         new_prototype_shape.set_prototype_shape(vm);
-        self.prototype_shape_validity().invalidate(vm);
+        self.prototype_shape_validity().fire(vm);
 
         self.invalidate_all_prototype_chains_leading_to_this(vm);
 
@@ -932,14 +929,13 @@ impl Shape {
         if !self.is_prototype_shape() {
             return;
         }
-        self.prototype_shape_validity().invalidate(vm);
-        self.prototype_chain_validity
-            .set(Some(PrototypeChainValidity::create(vm)));
+        self.prototype_shape_validity().fire(vm);
+        self.prototype_chain_validity.set(Some(WatchpointSet::create(vm)));
 
         self.invalidate_all_prototype_chains_leading_to_this(vm);
     }
 
-    fn prototype_shape_validity(&self) -> Gc<PrototypeChainValidity> {
+    fn prototype_shape_validity(&self) -> Gc<WatchpointSet> {
         self.prototype_chain_validity
             .get()
             .expect("a prototype shape has a validity")
@@ -983,10 +979,8 @@ impl Shape {
 
         for index in 0..shapes_to_invalidate.len() {
             let shape: Gc<Shape> = shapes_to_invalidate.get(index).expect("the index is in bounds");
-            shape.prototype_shape_validity().invalidate(vm);
-            shape
-                .prototype_chain_validity
-                .set(Some(PrototypeChainValidity::create(vm)));
+            shape.prototype_shape_validity().fire(vm);
+            shape.prototype_chain_validity.set(Some(WatchpointSet::create(vm)));
         }
     }
 
@@ -1095,7 +1089,7 @@ impl Shape {
         self.prototype_chain_validity.get().is_some()
     }
 
-    pub fn prototype_chain_validity(&self) -> Option<Gc<PrototypeChainValidity>> {
+    pub fn prototype_chain_validity(&self) -> Option<Gc<WatchpointSet>> {
         self.prototype_chain_validity.get()
     }
 

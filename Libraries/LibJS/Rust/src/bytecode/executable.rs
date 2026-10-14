@@ -42,7 +42,7 @@ pub use crate::layout::property_lookup_cache::{
     PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG, PropertyLookupCache, PropertyLookupCacheEntry,
     PropertyLookupCacheEntryType,
 };
-use crate::layout::shape::{PrototypeChainValidity, Shape};
+use crate::layout::shape::{Shape, WatchpointSet};
 use crate::layout::value::Value;
 use crate::layout_forward::FlyStringSlot;
 use crate::runtime::array::Array;
@@ -69,7 +69,7 @@ pub struct PropertyLookupCacheEntryData {
     pub from_shape: Option<Gc<Shape>>,
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
-    pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    pub prototype_chain_validity: Option<Gc<WatchpointSet>>,
     /// See PropertyLookupCacheEntry::key.
     pub key: u64,
 }
@@ -848,7 +848,7 @@ pub struct KeyedPropertyLookup {
     pub shape_dictionary_generation: u32,
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
-    pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    pub prototype_chain_validity: Option<Gc<WatchpointSet>>,
     /// The shape that adding the property to an object of `shape` gives it, for `AddOwnProperty` entries of the
     /// keyed property store cache.
     pub new_shape: Option<Gc<Shape>>,
@@ -1083,7 +1083,7 @@ impl ObjectPropertyIteratorCacheData {
         indexed_property_count: u32,
         receiver_has_magical_length_property: bool,
         shape: Gc<Shape>,
-        prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+        prototype_chain_validity: Option<Gc<WatchpointSet>>,
     ) -> Gc<ObjectPropertyIteratorCacheData> {
         let (shape_is_dictionary, shape_dictionary_generation) = if shape.is_dictionary() {
             (true, shape.dictionary_generation())
@@ -1167,7 +1167,7 @@ impl ObjectPropertyIteratorCacheData {
         self.shape.get()
     }
 
-    pub fn prototype_chain_validity(&self) -> Option<Gc<PrototypeChainValidity>> {
+    pub fn prototype_chain_validity(&self) -> Option<Gc<WatchpointSet>> {
         self.prototype_chain_validity.get()
     }
 

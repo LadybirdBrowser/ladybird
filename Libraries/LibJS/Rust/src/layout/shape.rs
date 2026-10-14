@@ -18,15 +18,18 @@ pub struct Shape {
     pub flags: Cell<u8>,
     pub realm: Cell<Gc<Realm>>,
     pub prototype: Cell<Option<Gc<Object>>>,
-    pub prototype_chain_validity: Cell<Option<Gc<PrototypeChainValidity>>>,
+    pub prototype_chain_validity: Cell<Option<Gc<WatchpointSet>>>,
     pub property_iterator_cache: Cell<Option<Gc<ObjectPropertyIteratorCacheData>>>,
     pub property_count: Cell<u32>,
     pub dictionary_generation: Cell<u32>,
     pub storage: ShapeStorage,
 }
 
+/// Something the runtime and JIT code may rely on until it stops holding, when the set fires once and stays invalid.
+/// The shape of each prototype has one, which fires when the properties or the prototype of that object or of one
+/// above it on its prototype chain change (see `Shape::prototype_chain_validity`).
 #[repr(C)]
-pub struct PrototypeChainValidity {
+pub struct WatchpointSet {
     pub header: CellHeader,
     pub valid: Cell<bool>,
     /// Keeps the cell at the minimum cell size.

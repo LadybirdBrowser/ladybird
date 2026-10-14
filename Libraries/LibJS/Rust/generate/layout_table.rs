@@ -221,7 +221,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     offset!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_FROM_SHAPE", PropertyLookupCacheEntry, from_shape);
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE", "PropertyLookupCache.shape", "Shape", PropertyLookupCacheEntry, shape, 8, "nullable", "cell", "cache_target");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE", "PropertyLookupCache.prototype", "Object", PropertyLookupCacheEntry, prototype, 8, "nullable", "cell", "cache_target");
-    field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY", "PropertyLookupCache.prototype_chain_validity", "PrototypeChainValidity", PropertyLookupCacheEntry, prototype_chain_validity, 8, "nullable", "cell");
+    field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY", "PropertyLookupCache.prototype_chain_validity", "WatchpointSet", PropertyLookupCacheEntry, prototype_chain_validity, 8, "nullable", "cell");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_KEY", "PropertyLookupCache.key", "Value", PropertyLookupCacheEntry, key, 8, "nullable", "scalar");
     size!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SIZE", PropertyLookupCacheEntry);
     w.constant("PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_OWN_PROPERTY", PropertyLookupCacheEntryType::GetOwnProperty as u32);
@@ -241,7 +241,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTIES", ObjectPropertyIteratorCacheData, storage);
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES", ObjectPropertyIteratorCacheData, property_values);
     field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE", "ObjectPropertyIteratorCacheData.shape", "Shape", ObjectPropertyIteratorCacheData, shape, 8, "nullable", "cell");
-    field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY", "ObjectPropertyIteratorCacheData.prototype_chain_validity", "PrototypeChainValidity", ObjectPropertyIteratorCacheData, prototype_chain_validity, 8, "nullable", "cell");
+    field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY", "ObjectPropertyIteratorCacheData.prototype_chain_validity", "WatchpointSet", ObjectPropertyIteratorCacheData, prototype_chain_validity, 8, "nullable", "cell");
     field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_INDEXED_PROPERTY_COUNT", "ObjectPropertyIteratorCacheData.indexed_property_count", "u32", ObjectPropertyIteratorCacheData, indexed_property_count, 4, "nullable", "scalar");
     field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_DICTIONARY_GENERATION", "ObjectPropertyIteratorCacheData.shape_dictionary_generation", "u32", ObjectPropertyIteratorCacheData, shape_dictionary_generation, 4, "nullable", "scalar");
     field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_IS_DICTIONARY", "ObjectPropertyIteratorCacheData.shape_is_dictionary", "bool", ObjectPropertyIteratorCacheData, shape_is_dictionary, 1, "nullable", "scalar");
@@ -447,8 +447,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.section("PutKind enum");
     w.constant("PUT_KIND_NORMAL", PutKind::Normal as u8);
 
-    w.section("PrototypeChainValidity layout");
-    field!(w, "PROTOTYPE_CHAIN_VALIDITY_VALID", "PrototypeChainValidity.valid", "bool", PrototypeChainValidity, valid, 1, "nonnull", "scalar");
+    w.section("WatchpointSet layout");
+    field!(w, "WATCHPOINT_SET_VALID", "WatchpointSet.valid", "bool", WatchpointSet, valid, 1, "nonnull", "scalar");
 
     w.section("DeclarativeEnvironment layout");
     field!(w, "DECLARATIVE_ENVIRONMENT_RARE_DATA", "DeclarativeEnvironment.rare_data", "DeclarativeEnvironmentRareData", DeclarativeEnvironment, rare_data, 8, "nullable", "scalar");

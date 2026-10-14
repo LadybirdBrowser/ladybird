@@ -54,7 +54,7 @@ use crate::layout::property_lookup_cache::{
     PropertyLookupCacheEntryType,
 };
 use crate::layout::realm::Realm;
-use crate::layout::shape::{PrototypeChainValidity, Shape};
+use crate::layout::shape::{Shape, WatchpointSet};
 use crate::layout::value::Value;
 use crate::layout::vm::VmHead;
 use crate::runtime::array::{ARRAY_IS_PROXY_TARGET_OFFSET, ARRAY_LENGTH_WRITABLE_OFFSET};
@@ -122,7 +122,7 @@ fn runtime_offsets() -> RuntimeOffsets {
         object_shape: offset(offset_of!(Object, shape)),
         object_named_properties: offset(offset_of!(Object, named_properties)),
         shape_dictionary_generation: offset(offset_of!(Shape, dictionary_generation)),
-        prototype_chain_validity_valid: offset(offset_of!(PrototypeChainValidity, valid)),
+        prototype_chain_validity_valid: offset(offset_of!(WatchpointSet, valid)),
         accessor_getter: offset(offset_of!(Accessor, getter)),
         accessor_setter: offset(offset_of!(Accessor, setter)),
         execution_context_function: offset(offset_of!(ExecutionContext, function)),

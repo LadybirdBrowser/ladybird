@@ -742,7 +742,7 @@ pub enum Op {
     CheckShape {
         shapes: Vec<ShapeCheck>,
     },
-    /// Exits unless the `PrototypeChainValidity` cell `validity` is still valid.
+    /// Exits unless the `WatchpointSet` cell `validity` is still valid.
     CheckPrototypeChainValid {
         validity: CellId,
     },

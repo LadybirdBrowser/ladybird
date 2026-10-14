@@ -40,7 +40,7 @@ use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, Propert
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::raw_json_object::RawJSONObject;
 use crate::runtime::realm::Realm;
-use crate::runtime::shape::{PrototypeChainValidity, Shape};
+use crate::runtime::shape::{Shape, WatchpointSet};
 use crate::runtime::string_conversions::parse_first_number_f64;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::value::{DecimalDigits, append_number_to_string, same_value};
@@ -193,7 +193,7 @@ struct StringifyShapeInfo {
     properties: Vec<StringifyCachedProperty>,
     /// The validity of the shape of the prototype of the objects when neither they nor their prototypes had a "toJSON"
     /// property, which stops being valid when a prototype changes its properties.
-    to_json_absence: Option<GcWeak<PrototypeChainValidity>>,
+    to_json_absence: Option<GcWeak<WatchpointSet>>,
 }
 
 impl StringifyShapeInfo {
@@ -222,7 +222,7 @@ impl StringifyShapeInfo {
         }
     }
 
-    fn to_json_absence(vm: &Vm, shape: Gc<Shape>) -> Option<GcWeak<PrototypeChainValidity>> {
+    fn to_json_absence(vm: &Vm, shape: Gc<Shape>) -> Option<GcWeak<WatchpointSet>> {
         let to_json = &vm.names.toJSON;
         if shape.lookup(to_json).is_some() {
             return None;
