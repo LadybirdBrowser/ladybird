@@ -25,6 +25,7 @@ use super::GraphBuilder;
 use crate::CompileFailure;
 use crate::bytecode::OpCode;
 use crate::bytecode::RESERVED_REGISTER_COUNT;
+use crate::bytecode::cfg::Loop;
 
 /// Whether instructions with this opcode are loop back edges, which count
 /// loop iterations in the interpreter.
@@ -141,7 +142,9 @@ impl GraphBuilder<'_> {
 
     /// Records the loop back edges in the loop of the back edge at `pc`, which
     /// has an entry. A frame running in the interpreter at one of them reaches
-    /// the entry once its inner loops finish an iteration.
+    /// the entry once its inner loops finish an iteration. Also records the
+    /// other back edges of the loops around that loop, from where a frame may
+    /// reach the entry on a later iteration.
     fn record_osr_loop_back_edges(&mut self, pc: u32) {
         let cfg = &self.function.cfg;
         let Some(back_edge_block) = cfg.block_for_pc(pc) else {
@@ -158,12 +161,26 @@ impl GraphBuilder<'_> {
         else {
             return;
         };
-        for &block in &entered_loop.blocks {
-            for instruction in &self.function.instructions[cfg.blocks[block].instructions.clone()] {
-                if is_loop_back_edge(instruction.instruction.opcode())
-                    && !self.graph.osr_loop_back_edges.contains(&instruction.pc)
-                {
-                    self.graph.osr_loop_back_edges.push(instruction.pc);
+        let back_edges_in = |current_loop: &Loop| {
+            current_loop
+                .blocks
+                .iter()
+                .flat_map(|&block| &self.function.instructions[cfg.blocks[block].instructions.clone()])
+                .filter(|instruction| is_loop_back_edge(instruction.instruction.opcode()))
+                .map(|instruction| instruction.pc)
+                .collect::<Vec<_>>()
+        };
+        for back_edge_pc in back_edges_in(entered_loop) {
+            if !self.graph.osr_loop_back_edges.contains(&back_edge_pc) {
+                self.graph.osr_loop_back_edges.push(back_edge_pc);
+            }
+        }
+        for outer_loop in cfg.loops.iter().filter(|current_loop| {
+            current_loop.blocks.contains(&back_edge_block) && current_loop.blocks.len() > entered_loop.blocks.len()
+        }) {
+            for back_edge_pc in back_edges_in(outer_loop) {
+                if !self.graph.osr_outer_loop_back_edges.contains(&back_edge_pc) {
+                    self.graph.osr_outer_loop_back_edges.push(back_edge_pc);
                 }
             }
         }

@@ -12,7 +12,7 @@ use core::ptr::NonNull;
 use libjs_abi::register;
 use libjs_jit::code::SiteKind;
 
-use super::code::{CompileState, EntryStatus, JitEntry, JitResult};
+use super::code::{CompileState, EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP, EntryStatus, JitEntry, JitResult};
 use super::translate::{self, RegisterDump};
 use super::{executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
@@ -89,6 +89,12 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
         //     loops would check at every back edge without ever reaching an entry.
         if code.reaches_osr_entry_from(pc) {
             executable.head.tier_up_budget.set(tier_up_costs::LOOP_ITERATION);
+        } else if code.exit_count() >= EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP && !code.may_reach_osr_entry_from(pc) {
+            // NB: The frame may have exited into this loop, and no later iteration of a loop it is in reaches an entry.
+            //     Once the code is detached, a later check here compiles the executable again, with what the exits
+            //     taught it and an entry at this loop.
+            vm.jit.count_coverage("discard-from-loop");
+            executable.discard_jit_code(vm);
         }
         return None;
     };
