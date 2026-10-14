@@ -10,9 +10,9 @@
 #include <AK/ByteString.h>
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
+#include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <AK/StdLibExtras.h>
-#include <AK/Stream.h>
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Try.h>
@@ -39,7 +39,7 @@ inline ErrorOr<T> decode(Decoder&)
 
 class Decoder {
 public:
-    Decoder(Stream& stream, Queue<Attachment>& attachments)
+    Decoder(FixedMemoryStream& stream, Queue<Attachment>& attachments)
         : m_stream(stream)
         , m_attachments(attachments)
     {
@@ -63,11 +63,11 @@ public:
 
     ErrorOr<size_t> decode_size();
 
-    Stream& stream() { return m_stream; }
+    FixedMemoryStream& stream() { return m_stream; }
     Queue<Attachment>& attachments() { return m_attachments; }
 
 private:
-    Stream& m_stream;
+    FixedMemoryStream& m_stream;
     Queue<Attachment>& m_attachments;
 };
 

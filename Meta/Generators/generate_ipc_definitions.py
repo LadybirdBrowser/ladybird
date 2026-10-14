@@ -434,7 +434,7 @@ public:""")
     static i32 static_message_id() {{ return (int)MessageID::{pascal_name}; }}
     virtual StringView message_name() const override {{ return "{endpoint.name}::{pascal_name}"sv; }}
 
-    static ErrorOr<NonnullOwnPtr<{pascal_name}>> decode(Stream& stream, Queue<IPC::Attachment>& attachments)
+    static ErrorOr<NonnullOwnPtr<{pascal_name}>> decode(FixedMemoryStream& stream, Queue<IPC::Attachment>& attachments)
     {{
         IPC::Decoder decoder {{ stream, attachments }};""")
 
