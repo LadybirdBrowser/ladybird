@@ -16,6 +16,14 @@ ByteString demangle(StringView name);
 Optional<ByteString> demangle_rust_symbol(StringView symbol);
 ByteString demangle_backtrace_symbols_line(StringView line);
 
+struct SymbolAtAddress {
+    ByteString name;
+    FlatPtr offset;
+};
+
+// Names the function that a loaded image exports or keeps in its symbol table, without reading any file.
+Optional<SymbolAtAddress> symbol_at_address(FlatPtr address);
+
 using RustSymbolDemangler = bool (*)(char const* name, size_t name_length, void (*append)(void* context, char const*, size_t), void* context);
 
 }
@@ -26,4 +34,6 @@ extern "C" void ladybird_set_rust_symbol_demangler(AK::RustSymbolDemangler);
 using AK::demangle;
 using AK::demangle_backtrace_symbols_line;
 using AK::demangle_rust_symbol;
+using AK::symbol_at_address;
+using AK::SymbolAtAddress;
 #endif
