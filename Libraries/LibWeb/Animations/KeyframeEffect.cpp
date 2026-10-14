@@ -1085,8 +1085,8 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
 
     // An animation inside a box-less iframe can't affect its embedding document's rendering. Check the containers
     // before the target-local cache, since their layout can change without changing the target's style or layout box.
-    // Reverse playback still needs ticks to finish when it reaches the start, even with an infinite iteration count.
-    if (auto animation = associated_animation(); animation && animation->playback_rate() > 0 && isinf(iteration_count())) {
+    // Reverse playback and effects with a finite end time need ticks to finish, even with an infinite iteration count.
+    if (auto animation = associated_animation(); animation && animation->playback_rate() > 0 && isinf(iteration_count()) && isinf(end_time().value)) {
         for (auto navigable = target->document().navigable(); navigable;) {
             auto container = navigable->container();
             if (!container)

@@ -9,3 +9,4 @@ hidden iframe dispatches iteration event: true
 hidden ancestor iframe stops nested animation frame requests: true
 showing ancestor iframe resumes nested animation: true
 reversed infinite animation can finish while hidden: true
+zero-duration infinite animation finishes after its end delay while hidden: true
