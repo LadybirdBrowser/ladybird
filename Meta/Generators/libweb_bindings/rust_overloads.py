@@ -287,6 +287,17 @@ def write_resolution_at_distinguishing_index(
 """
             )
             continue
+        if len(selections) == 1:
+            condition, call = selections[0]
+            condition = f"({condition})" if "||" in condition else condition
+            out.write(
+                f"""                // {step.description}
+                if {step.argument_test} && {condition} {{
+                    return {call};
+                }}
+"""
+            )
+            continue
         out.write(f"                // {step.description}\n                if {step.argument_test} {{\n")
         for condition, call in selections:
             if condition == ALWAYS:
