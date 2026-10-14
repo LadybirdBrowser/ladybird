@@ -1,0 +1,12 @@
+When a change to an element’s spellcheck, readonly, disabled, type, or
+contenteditable attribute turns checking off for text under it, Ladybird
+drops that text’s spelling markers. But when checking turns back on,
+Ladybird starts no check: A script turns it on, not the user — and a
+check that a page could start at will would let it test any words it
+likes against the user’s dictionary.
+
+For the same reason, Blink starts no check when checking turns on, in
+IdleSpellCheckController::RespondToChangedEnablement(). But WebKit’s
+HTMLTextFormControlElement::effectiveSpellcheckAttributeChanged() clears
+a text control’s markers when checking turns off, and it checks the
+whole control again once checking turns back on for it.
