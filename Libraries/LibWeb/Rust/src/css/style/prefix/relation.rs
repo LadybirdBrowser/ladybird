@@ -395,7 +395,11 @@ impl PrefixRelation {
             + self.handled_routing_keys.shallow_capacity_bytes();
     }
 
-    pub(in crate::css::style) fn install_answers(&self, states: &mut PrefixStates) {
+    /// Install the answers into `states`: every live node's when `states` holds none yet, and
+    /// otherwise the ones the last update changed and its arrivals. Both are installed once: a
+    /// transaction that installs the relation again without an update or a geometry pass would
+    /// otherwise pay the size of that old update again.
+    pub(in crate::css::style) fn install_answers(&mut self, states: &mut PrefixStates) {
         if states.relation_answers.is_empty() {
             for (position, (&node, entries)) in self.nodes.iter().zip(&self.answers).enumerate() {
                 if self.live[position] {
@@ -410,6 +414,9 @@ impl PrefixRelation {
                 states.install_relation_answer(self.nodes[position], &self.answers[position]);
             }
         }
+        self.changed_answers.clear();
+        self.arrivals.clear();
+        self.refresh_capacity_bytes();
     }
 
     /// Whether `node` is one of the live nodes the relation answers for.
