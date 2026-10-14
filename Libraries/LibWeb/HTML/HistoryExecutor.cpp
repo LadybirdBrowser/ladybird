@@ -847,10 +847,6 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     } else {
         local_target_entry = navigable->resolve_local_session_history_entry(move(target_entry));
     }
-    if (!local_target_entry) {
-        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, UnloadDisplayedDocument::No);
-        return;
-    }
     auto did_claim_navigable = run_changing_navigable_history_step_job_impl(
         {
             .operation_id = operation_id,
