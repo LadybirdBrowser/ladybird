@@ -10,17 +10,16 @@
 
 namespace IPC {
 
-template<typename ClientEndpoint, typename ServerEndpoint>
+template<typename ClientEndpoint, typename ServerEndpoint, typename LocalStub = typename ClientEndpoint::Stub>
 class ConnectionToServer : public IPC::Connection<ClientEndpoint, ServerEndpoint>
-    , public ClientEndpoint::Stub
-    , public ServerEndpoint::template Proxy<ClientEndpoint> {
+    , public LocalStub
+    , public ServerEndpoint::Proxy {
 public:
-    using ClientStub = typename ClientEndpoint::Stub;
-    using IPCProxy = typename ServerEndpoint::template Proxy<ClientEndpoint>;
+    using IPCProxy = typename ServerEndpoint::Proxy;
 
-    ConnectionToServer(ClientStub& local_endpoint, NonnullOwnPtr<Transport> transport)
+    ConnectionToServer(LocalStub& local_endpoint, NonnullOwnPtr<Transport> transport)
         : Connection<ClientEndpoint, ServerEndpoint>(local_endpoint, move(transport))
-        , ServerEndpoint::template Proxy<ClientEndpoint>(*this, {})
+        , ServerEndpoint::Proxy(*this, {})
     {
     }
 

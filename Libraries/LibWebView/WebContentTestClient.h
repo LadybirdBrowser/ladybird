@@ -17,7 +17,7 @@ namespace WebView {
 // The test-only half of the WebContent protocol. The UI process connects this second transport only when it runs
 // tests, so a WebContent process serving a real browsing session cannot send these messages at all.
 class WEBVIEW_API WebContentTestClient final
-    : public WebContentTestClientPageRoutingStub<IPC::ConnectionToServer<WebContentTestClientEndpoint, WebContentTestServerEndpoint>>
+    : public IPC::ConnectionToServer<WebContentTestClientEndpoint, WebContentTestServerEndpoint, WebContentTestClientPageRoutingStub>
     , public WebContentTestClientEndpoint {
     C_OBJECT_ABSTRACT(WebContentTestClient);
 

@@ -67,7 +67,7 @@ namespace WebView {
 class ViewImplementation;
 
 class WEBVIEW_API WebContentClient final
-    : public WebContentClientPageRoutingStub<IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>>
+    : public IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint, WebContentClientPageRoutingStub>
     , public WebContentClientEndpoint {
     C_OBJECT_ABSTRACT(WebContentClient);
 

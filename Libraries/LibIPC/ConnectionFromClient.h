@@ -21,14 +21,14 @@ NonnullRefPtr<T> new_client_connection(Args&&... args)
 template<typename ClientEndpoint, typename ServerEndpoint>
 class ConnectionFromClient : public Connection<ServerEndpoint, ClientEndpoint>
     , public ServerEndpoint::Stub
-    , public ClientEndpoint::template Proxy<ServerEndpoint> {
+    , public ClientEndpoint::Proxy {
 public:
     using ServerStub = typename ServerEndpoint::Stub;
-    using IPCProxy = typename ClientEndpoint::template Proxy<ServerEndpoint>;
+    using IPCProxy = typename ClientEndpoint::Proxy;
 
     ConnectionFromClient(ServerStub& stub, NonnullOwnPtr<Transport> transport, int client_id)
         : IPC::Connection<ServerEndpoint, ClientEndpoint>(stub, move(transport))
-        , ClientEndpoint::template Proxy<ServerEndpoint>(*this, {})
+        , ClientEndpoint::Proxy(*this, {})
         , m_client_id(client_id)
     {
     }

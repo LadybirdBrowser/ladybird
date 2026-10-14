@@ -154,6 +154,11 @@ WebContentPage::WebContentPage(WebContentClient& client, Web::PageId id, Canonic
 
 WebContentPage::~WebContentPage() = default;
 
+WebContentServerProxy* WebContentPage::routed_proxy() const
+{
+    return routed_connection();
+}
+
 WebContentClient& WebContentPage::client() const
 {
     VERIFY(m_client);

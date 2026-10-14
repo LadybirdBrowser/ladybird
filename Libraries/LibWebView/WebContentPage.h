@@ -64,7 +64,7 @@ class WEBVIEW_API WebContentPage final
     : public RefCounted<WebContentPage>
     , public WebContentClientPageStub
     , public WebContentTestClientPageStub
-    , public WebContentServerPageProxy<WebContentPage> {
+    , public WebContentServerPageProxy {
     AK_MAKE_NONCOPYABLE(WebContentPage);
     AK_MAKE_NONMOVABLE(WebContentPage);
     AK_ALLOC_WITH_KMALLOC;
@@ -79,7 +79,8 @@ public:
     WebContentClient& client() const;
     Web::PageId id() const { return m_id; }
     WebContentClient* routed_connection() const { return m_is_open ? m_client.ptr() : nullptr; }
-    Web::PageId routed_page_id() const { return m_id; }
+    virtual WebContentServerProxy* routed_proxy() const override;
+    virtual Web::PageId routed_page_id() const override { return m_id; }
 
     CanonicalTraversable& traversable() const;
     ViewImplementation& view() const;

@@ -14,7 +14,7 @@
 namespace WebView {
 
 WebContentTestClient::WebContentTestClient(NonnullOwnPtr<IPC::Transport> transport, WebContentClient& client)
-    : WebContentTestClientPageRoutingStub(*this, move(transport))
+    : IPC::ConnectionToServer<WebContentTestClientEndpoint, WebContentTestServerEndpoint, WebContentTestClientPageRoutingStub>(*this, move(transport))
     , m_client(client)
 {
 }
