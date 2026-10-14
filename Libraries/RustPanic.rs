@@ -52,6 +52,12 @@ pub(crate) extern "C" fn initialize() {
                     is_panicking,
                 );
             }
+            // Nothing can catch this panic, so no later code gets to capture the backtrace.
+            #[cfg(panic = "abort")]
+            // SAFETY: The bridge only reads the message stored above.
+            unsafe {
+                ladybird_rust_panic_will_abort();
+            }
             previous(info);
         }));
     });
