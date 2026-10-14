@@ -76,11 +76,6 @@ WebIDL::ExceptionOr<JS::Value> History::state() const
     return m_state;
 }
 
-bool History::associated_document_is_fully_active() const
-{
-    return m_document->is_fully_active();
-}
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#delta-traverse
 WebIDL::ExceptionOr<void> History::delta_traverse(WebIDL::Long delta)
 {

@@ -237,6 +237,5 @@ private:
 };
 
 HistoryHandlingBehavior to_history_handling_behavior(NavigationHistoryBehavior);
-NavigationHistoryBehavior to_navigation_history_behavior(HistoryHandlingBehavior);
 
 }

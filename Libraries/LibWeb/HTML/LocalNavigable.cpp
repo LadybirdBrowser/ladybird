@@ -4523,14 +4523,6 @@ void check_if_unloading_is_canceled(
     state->start(navigables_that_need_before_unload, move(target_entry));
 }
 
-void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
-{
-    check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {}, UnloadPromptShown::No,
-        GC::create_function(GC::Heap::the(), [callback](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown) {
-            callback->function()(result);
-        }));
-}
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
 // NB: The UI process appends the steps finalizing the navigation, and runs them, once this process reports that
 //     populating historyEntry's document is over.
