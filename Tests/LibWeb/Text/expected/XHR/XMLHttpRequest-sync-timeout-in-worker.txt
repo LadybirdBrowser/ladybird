@@ -1,0 +1,3 @@
+Timeout before headers: TimeoutError
+Timeout after headers, before the body ends: TimeoutError
+The worker still responds

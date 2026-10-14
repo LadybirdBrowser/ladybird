@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const responseHeaders = { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" };
+
+        const beforeHeadersToken = crypto.randomUUID();
+        const beforeHeadersURL = await server.createEcho("GET", "/before-headers", {
+            status: 200,
+            headers: responseHeaders,
+            body: "late",
+            wait_for_unblock: beforeHeadersToken,
+        });
+
+        const afterHeadersToken = crypto.randomUUID();
+        const afterHeadersEchoURL = await server.createEcho("GET", "/after-headers", {
+            status: 200,
+            headers: responseHeaders,
+            body: "x".repeat(64),
+        });
+        const afterHeadersURL = `${afterHeadersEchoURL}?chunks=8&chunk_unblock_tokens=${afterHeadersToken}`;
+
+        const workerSource = `
+            function sendWithTimeout(url, timeout) {
+                const xhr = new XMLHttpRequest();
+                xhr.open("GET", url, false);
+                xhr.timeout = timeout;
+                try {
+                    xhr.send();
+                    return "no exception, status " + xhr.status;
+                } catch (e) {
+                    return e.name;
+                }
+            }
+            onmessage = event => {
+                if (event.data === "ping") {
+                    postMessage(["The worker still responds"]);
+                    return;
+                }
+                postMessage([
+                    "Timeout before headers: " + sendWithTimeout(event.data.beforeHeaders, 200),
+                    // Leaves time for the headers and the first bytes to arrive.
+                    "Timeout after headers, before the body ends: " + sendWithTimeout(event.data.afterHeaders, 1000),
+                ]);
+            };
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        const nextLines = () =>
+            new Promise(resolve => {
+                worker.onmessage = event => resolve(event.data);
+                worker.onerror = event => resolve([`The worker failed: ${event.message}`]);
+            });
+
+        let lines = nextLines();
+        worker.postMessage({ beforeHeaders: beforeHeadersURL, afterHeaders: afterHeadersURL });
+        const replies = await lines;
+        replies.forEach(line => println(line));
+
+        // A worker that failed does not answer.
+        if (!replies[0].startsWith("The worker failed")) {
+            lines = nextLines();
+            worker.postMessage("ping");
+            (await lines).forEach(line => println(line));
+        }
+
+        await fetch(new URL(`/unblock/${beforeHeadersToken}`, beforeHeadersURL));
+        await fetch(new URL(`/unblock/${afterHeadersToken}`, afterHeadersEchoURL));
+    });
+</script>
