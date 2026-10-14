@@ -165,8 +165,8 @@ struct CustomFunctionRegistry {
 }
 
 #[derive(Clone)]
-struct FunctionLocalRegistration {
-    syntax: SyntaxNode,
+struct FunctionLocalRegistration<'a> {
+    syntax: &'a SyntaxNode,
     initial_tokens: Option<Vec<ComponentValue>>,
     is_result: bool,
 }
@@ -181,7 +181,7 @@ struct FunctionLocalScope<'a> {
     function_identity: CustomFunctionIdentity,
     resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, Vec<ComponentValue>>>>,
     values: HashMap<Vec<u16>, FunctionLocalValue<'a>>,
-    registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration>>,
+    registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration<'a>>>,
 }
 
 #[repr(C)]
@@ -1504,7 +1504,7 @@ fn resolve_function_local_property(
     name: &[u16],
     function_identity: CustomFunctionIdentity,
     value: Option<FunctionLocalValue<'_>>,
-    registration: FunctionLocalRegistration,
+    registration: FunctionLocalRegistration<'_>,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
@@ -1551,7 +1551,7 @@ fn resolve_function_local_property(
         }
     }
     match result {
-        TokenResolution::Resolved(tokens) => normalize_function_tokens(registry, &registration.syntax, &tokens),
+        TokenResolution::Resolved(tokens) => normalize_function_tokens(registry, registration.syntax, &tokens),
         other => other,
     }
 }
@@ -1609,7 +1609,7 @@ fn resolve_custom_property_with_lookup(
             function_identity,
             value,
             registration.unwrap_or(FunctionLocalRegistration {
-                syntax: SyntaxNode::Universal,
+                syntax: &SyntaxNode::Universal,
                 initial_tokens: None,
                 is_result: false,
             }),
@@ -2357,7 +2357,7 @@ fn evaluate_named_style_feature(
                     registry.expect("registered syntax requires registry"),
                     local_registration
                         .as_ref()
-                        .map(|registration| &registration.syntax)
+                        .map(|registration| registration.syntax)
                         .unwrap_or_else(|| &registration.expect("registered property").syntax),
                     &computed,
                     &expected,
@@ -2382,7 +2382,7 @@ fn evaluate_named_style_feature(
         registry,
         local_registration
             .as_ref()
-            .map(|registration| &registration.syntax)
+            .map(|registration| registration.syntax)
             .or_else(|| registration.map(|registration| &registration.syntax)),
     ) {
         return ConditionEvaluation::Match(registered_style_query_values_are_equal(
@@ -2612,7 +2612,7 @@ fn evaluate_a_custom_function<'a>(
         registrations.insert(
             parameter.name.units().to_vec(),
             FunctionLocalRegistration {
-                syntax: (*parameter.syntax).clone(),
+                syntax: &parameter.syntax,
                 initial_tokens: None,
                 is_result: false,
             },
@@ -2626,7 +2626,7 @@ fn evaluate_a_custom_function<'a>(
     registrations.insert(
         result_name.clone(),
         FunctionLocalRegistration {
-            syntax: (*custom_function.signature.return_type).clone(),
+            syntax: &custom_function.signature.return_type,
             initial_tokens: None,
             is_result: true,
         },
