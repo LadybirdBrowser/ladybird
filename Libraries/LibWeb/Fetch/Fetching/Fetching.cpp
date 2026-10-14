@@ -390,7 +390,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             request.credentials_mode(),
             request.integrity_metadata(),
             on_preloaded_response_available,
-            fetch_params->body_intent(),
+            fetch_params->control_block().body_intent(),
             preload_reports_timing);
         fetch_params->set_preload_reports_timing(preload_reports_timing);
 
@@ -781,7 +781,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             //         (the fully-read in step 22, and fetch response handover's tasks, body pipe and body read). Record
             //         that the response has arrived (a network response was recorded as its headers came in) — so
             //         consume_a_preloaded_resource() re-targets an in-flight preload's fetch only til then.
-            fetch_params.controller()->set_response_arrived();
+            fetch_params.control_block().set_response_arrived();
 
             if (response_was_null)
                 response = resolved_response;
@@ -1017,7 +1017,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     // 3. If fetchParams's request's destination is "document", then set fetchParams's controller's full timing info
     //    to fetchParams's timing info.
     if (fetch_params.request()->is_navigation_request())
-        fetch_params.controller()->set_full_timing_info(fetch_params.timing_info());
+        fetch_params.control_block().set_full_timing_info(fetch_params.timing_info());
 
     // AD-HOC: We extract steps 1-2 of processResponseEndOfBody into a separate lambda so we can also call it from
     //         the error path. The fetch spec only runs processResponseEndOfBody on successful body read (via the
@@ -1172,7 +1172,10 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     auto algorithms = fetch_params.controller()->algorithms();
 
-    auto body_intent = fetch_params.body_intent();
+    // NB: Nobody reads the body of a fetch stopped before its handover.
+    auto body_intent = fetch_params.control_block().state() == Infrastructure::FetchControlBlock::State::Stopped
+        ? Engine::BodyIntent::DrainAndDiscard
+        : fetch_params.control_block().body_intent();
 
     // AD-HOC: A fetch whose body intent is SyncAccumulate is a sync XHR send()
     //         (https://xhr.spec.whatwg.org/#the-send()-method, step 12) — or a preload fetch that "consume a preloaded
@@ -2213,7 +2216,7 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
     }
 
     // AD-HOC: If the controller is already in the non-spec Stopped state, we should cancel the network request immediately.
-    if (http_fetch_params->controller()->state() == Infrastructure::FetchController::State::Stopped)
+    if (http_fetch_params->control_block().state() == Infrastructure::FetchControlBlock::State::Stopped)
         http_fetch_params->controller()->stop_fetch();
 
     auto returned_pending_response = PendingResponse::create(fetch_params);
@@ -2850,7 +2853,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
         // AD-HOC: From here on, the response's body delivery is scheduled against the event loop (see
         //         BodyStreamPullSource::on_wake()); record that, for consume_a_preloaded_resource().
-        fetch_params.controller()->set_response_arrived();
+        fetch_params.control_block().set_response_arrived();
 
         auto response = Infrastructure::Response::create();
         response->set_status(status_code.value_or(200));
@@ -2972,6 +2975,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             tear_down_network_body(*delivery_gate, *channel, reason);
             body_pump->abandon_cache_entry();
         });
+        if (request->destination() == Infrastructure::Request::Destination::Font) {
+            network_transport->set_on_requires_network([control_block = NonnullRefPtr { fetch_params.control_block() }] {
+                control_block->set_requires_network();
+            });
+        }
         fetch_params.controller()->set_network_transport(*network_transport);
     } else {
         fetch_params.controller()->set_body_transport(whole_body_transport);
@@ -3114,15 +3122,14 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
     auto preflight_response = http_network_or_cache_fetch(realm, preflight_fetch_params);
 
-    preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller](NonnullRefPtr<Infrastructure::Response> response) {
+    preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller, preflight_fetch_params](NonnullRefPtr<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
 
         if (WebDriver::BiDi::g_network_events_enabled) {
-            auto params = preflight_controller->fetch_params();
             if (response->is_network_error())
-                WebDriver::BiDi::network_fetch_error(*params, response->network_error_message().value_or("Preflight failed"_string));
+                WebDriver::BiDi::network_fetch_error(*preflight_fetch_params, response->network_error_message().value_or("Preflight failed"_string));
             else
-                WebDriver::BiDi::network_response_completed(*params, *response);
+                WebDriver::BiDi::network_response_completed(*preflight_fetch_params, *response);
         }
 
         // NB: Only the preflight response's headers are read.

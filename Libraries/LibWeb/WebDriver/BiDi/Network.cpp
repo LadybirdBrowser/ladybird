@@ -89,7 +89,7 @@ static GC::Ptr<NetworkContinuation> blocked_request(Request const& request)
 
 static GC::Ptr<NetworkContinuation> blocked_request(FetchController const& controller)
 {
-    auto fetch_params = controller.fetch_params();
+    auto fetch_params = controller.original_fetch_params();
     if (!fetch_params)
         return nullptr;
     auto blocked = blocked_request(*fetch_params->request());
@@ -248,7 +248,7 @@ JsonArray get_network_intercepts(FetchParams const& fetch_params, StringView pha
     // NB: An existing request keeps its original context. A request first observed after instrumentation was
     //     enabled can still discover its context, and blocking must use that same context.
     auto navigable = request_navigable(*request);
-    if (!navigable || fetch_params.is_canceled() || fetch_params.controller()->state() == FetchController::State::Stopped)
+    if (!navigable || fetch_params.is_canceled() || fetch_params.control_block().state() == FetchControlBlock::State::Stopped)
         return intercepts;
     if (!state)
         initialize_network_request(*request, navigable);
@@ -526,14 +526,14 @@ void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infras
     auto request = fetch_params.request();
     // NB: Cancellation runs through the controller's original parameters, rather than a prepared HTTP clone.
     //     Bind both requests to the same identity before exposing a blocked request.
-    if (auto original_params = fetch_params.controller()->fetch_params()) {
+    if (auto original_params = fetch_params.controller()->original_fetch_params()) {
         synchronize_network_request(*original_params->request(), *request);
         if (!original_request)
             original_request = original_params->request();
     }
     initialize_network_request(*request);
     auto state = request->webdriver_bidi_network_request();
-    if (fetch_params.is_canceled() || fetch_params.controller()->state() == FetchController::State::Stopped) {
+    if (fetch_params.is_canceled() || fetch_params.control_block().state() == FetchControlBlock::State::Stopped) {
         if (response)
             stop_response_transport(fetch_params, *response);
         continuation->invoke(NetworkContinuationAction::Fail, Response::network_error("Intercepted fetch was stopped"_string));

@@ -461,7 +461,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //         rebuilt from a descriptor carry the fetch's timing info directly.
     RefPtr<Fetch::Infrastructure::FetchTimingInfo> navigation_fetch_timing_info = navigation_params.fetch_timing_info;
     if (navigation_params.fetch_controller)
-        navigation_fetch_timing_info = navigation_params.fetch_controller->timing_info();
+        navigation_fetch_timing_info = navigation_params.fetch_controller->full_timing_info();
 
     // 8. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
     DOM::DocumentLoadTimingInfo load_timing_info;

@@ -15,20 +15,20 @@ GC_DEFINE_ALLOCATOR(FetchParams);
 
 FetchParams::FetchParams(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, GC::Ref<FetchController> controller, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
     : m_request(move(request))
-    , m_body_intent(algorithms->body_intent())
     , m_controller(controller)
+    , m_control_block(controller->control_block())
     , m_timing_info(move(timing_info))
     , m_loader_config(move(loader_config))
 {
-    m_controller->set_fetch_params({}, *this);
     m_controller->set_algorithms({}, algorithms);
+    m_controller->set_original_fetch_params({}, *this);
 }
 
 FetchParams::FetchParams(FetchParams const& params)
     : m_request(params.m_request)
-    , m_body_intent(params.m_body_intent)
     , m_cross_origin_isolated_capability(params.m_cross_origin_isolated_capability)
     , m_controller(params.m_controller)
+    , m_control_block(params.m_control_block)
     , m_timing_info(params.m_timing_info)
     , m_preloaded_response_candidate(params.m_preloaded_response_candidate)
     , m_has_response_body_transfer_lease(params.m_has_response_body_transfer_lease)
@@ -57,14 +57,15 @@ void FetchParams::visit_edges(JS::Cell::Visitor& visitor)
 bool FetchParams::is_aborted() const
 {
     // A fetch params fetchParams is aborted if its controller’s state is "aborted".
-    return m_controller->state() == FetchController::State::Aborted;
+    return m_control_block->state() == FetchControlBlock::State::Aborted;
 }
 
 // https://fetch.spec.whatwg.org/#fetch-params-canceled
 bool FetchParams::is_canceled() const
 {
     // A fetch params fetchParams is canceled if its controller’s state is "aborted" or "terminated".
-    return m_controller->state() == FetchController::State::Aborted || m_controller->state() == FetchController::State::Terminated;
+    auto state = m_control_block->state();
+    return state == FetchControlBlock::State::Aborted || state == FetchControlBlock::State::Terminated;
 }
 
 }

@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibRequests/Forward.h>
@@ -19,7 +19,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-timing-info
-class WEB_API FetchTimingInfo : public RefCounted<FetchTimingInfo> {
+class WEB_API FetchTimingInfo : public AtomicRefCounted<FetchTimingInfo> {
 public:
     [[nodiscard]] static NonnullRefPtr<FetchTimingInfo> create();
 
