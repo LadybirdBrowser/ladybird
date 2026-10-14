@@ -564,7 +564,7 @@ fn put_by_value_with_keyed_store_cache(
                 if (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
                     && !object.get_direct(entry.property_offset).is_accessor()
                 {
-                    object.put_direct(entry.property_offset, value);
+                    object.put_direct_from_cache(entry.property_offset, value);
                     return Ok(());
                 }
             }
@@ -580,7 +580,7 @@ fn put_by_value_with_keyed_store_cache(
                         .is_none_or(|validity| validity.is_valid())
                 {
                     object.unsafe_set_shape(new_shape);
-                    object.put_direct(entry.property_offset, value);
+                    object.initialize_direct(entry.property_offset, value);
                     return Ok(());
                 }
             }
@@ -796,7 +796,7 @@ pub fn init_object_literal_property(
         && object.shape() == cached_shape
         && let Some(property_offset) = cached_property_offset
     {
-        object.put_direct(property_offset, value);
+        object.initialize_direct(property_offset, value);
         return SlowPathControl::continue_at(pc + op::InitObjectLiteralProperty::LENGTH);
     }
 
@@ -1479,7 +1479,7 @@ pub fn try_put_by_id_cache(vm: &Vm, instruction: &op::PutById, values: &op::PutB
                 if current.is_accessor() || !entry.writes_data_property.get() {
                     return false;
                 }
-                object.put_direct(entry.property_offset.get(), value);
+                object.put_direct_from_cache(entry.property_offset.get(), value);
                 return true;
             }
             PropertyLookupCacheEntryType::AddOwnProperty => {
@@ -1513,7 +1513,7 @@ pub fn try_put_by_id_cache(vm: &Vm, instruction: &op::PutById, values: &op::PutB
                     continue;
                 }
                 object.unsafe_set_shape(cached_shape);
-                object.put_direct(entry.property_offset.get(), value);
+                object.initialize_direct(entry.property_offset.get(), value);
                 return true;
             }
             _ => continue,
@@ -1609,7 +1609,7 @@ pub fn try_put_by_value_cache(vm: &Vm, instruction: &op::PutByValue, values: &op
                 if current.is_accessor() || !entry.writes_data_property.get() {
                     return false;
                 }
-                object.put_direct(entry.property_offset.get(), value);
+                object.put_direct_from_cache(entry.property_offset.get(), value);
                 return true;
             }
             PropertyLookupCacheEntryType::AddOwnProperty => {
@@ -1639,7 +1639,7 @@ pub fn try_put_by_value_cache(vm: &Vm, instruction: &op::PutByValue, values: &op
                     continue;
                 }
                 object.unsafe_set_shape(cached_shape);
-                object.put_direct(entry.property_offset.get(), value);
+                object.initialize_direct(entry.property_offset.get(), value);
                 return true;
             }
             _ => continue,

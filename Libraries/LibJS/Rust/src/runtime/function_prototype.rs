@@ -295,7 +295,9 @@ impl FunctionPrototype {
 
         // 7. Perform SetFunctionLength(F, L).
         match length_and_name_slots {
-            LengthAndNameSlots::Premade => function.put_direct(BOUND_FUNCTION_LENGTH_OFFSET, Value::from_f64(length)),
+            LengthAndNameSlots::Premade => {
+                function.initialize_direct(BOUND_FUNCTION_LENGTH_OFFSET, Value::from_f64(length));
+            }
             LengthAndNameSlots::Absent => function.set_function_length(vm, length),
         }
 
@@ -318,7 +320,7 @@ impl FunctionPrototype {
                 if let Some(target_name) = target_name {
                     builder.append(target_name.utf16_string_view());
                 }
-                function.put_direct(
+                function.initialize_direct(
                     BOUND_FUNCTION_NAME_OFFSET,
                     Value::from_string(PrimitiveString::create(vm, builder.to_utf16_string())),
                 );

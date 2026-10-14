@@ -628,7 +628,7 @@ pub fn put_by_property_key(
                             if !cache.writes_data_property {
                                 continue;
                             }
-                            object.put_direct(cache.property_offset, value);
+                            object.put_direct_from_cache(cache.property_offset, value);
                             return Ok(());
                         }
                         PropertyLookupCacheEntryType::AddOwnProperty => {
@@ -663,7 +663,7 @@ pub fn put_by_property_key(
                                 continue;
                             }
                             object.unsafe_set_shape(cached_shape);
-                            object.put_direct(cache.property_offset, value);
+                            object.initialize_direct(cache.property_offset, value);
                             return Ok(());
                         }
                         PropertyLookupCacheEntryType::GetOwnProperty
@@ -797,7 +797,7 @@ pub fn put_by_property_key(
                             continue;
                         }
                         object.unsafe_set_shape(cached_shape);
-                        object.put_direct(cache.property_offset, value);
+                        object.initialize_direct(cache.property_offset, value);
                         return Ok(());
                     }
                 }

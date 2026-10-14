@@ -1462,7 +1462,7 @@ impl Object {
         let mut offset = 0;
         from_shape.for_each_property_in_insertion_order(|_, metadata| {
             if metadata.attributes.is_enumerable() {
-                self.put_direct(offset, from.get_direct(metadata.offset));
+                self.initialize_direct(offset, from.get_direct(metadata.offset));
                 offset += 1;
             }
             ControlFlow::Continue(())
@@ -1531,7 +1531,7 @@ impl Object {
                 self.shape().mark_unstable(vm);
                 self.unsafe_set_shape(from.shape());
                 from.shape().for_each_property_in_insertion_order(|_, metadata| {
-                    self.put_direct(metadata.offset, from.get_direct(metadata.offset));
+                    self.initialize_direct(metadata.offset, from.get_direct(metadata.offset));
                     ControlFlow::Continue(())
                 });
                 return Ok(());
@@ -2552,7 +2552,7 @@ impl Object {
                 match phase {
                     PropertyLookupPhase::OwnProperty => {
                         // NB: Caches may only write to the slots of a global object that may have been assigned
-                        //     already, since the runtime notes assignments to them (see `storage_set()`).
+                        //     already, since the runtime notes assignments to them (see `replace_direct()`).
                         if writes_data_property
                             && self.has_global_object_flag()
                             && !crate::jit::dependencies::global_object_slot_may_have_been_assigned(
@@ -2783,7 +2783,7 @@ impl Object {
             && let Some(accessor) = find_intrinsic_accessor(vm, self, property_key)
         {
             let value = accessor.compute_value(vm, self.shape().realm());
-            self.put_direct(metadata.offset, value);
+            self.initialize_direct(metadata.offset, value);
         }
 
         Some(ValueAndAttributes {
@@ -2844,18 +2844,7 @@ impl Object {
             }
         }
 
-        // NB: JIT code may take the values of global object properties that were never assigned as constants.
-        if self.has_global_object_flag() {
-            let previous = self.get_direct(metadata.offset);
-            if !previous.is_undefined() && previous != value {
-                crate::jit::dependencies::note_global_object_slot_assignments(
-                    vm,
-                    self,
-                    metadata.offset..metadata.offset + 1,
-                );
-            }
-        }
-        self.put_direct(metadata.offset, value);
+        self.replace_direct(vm, metadata.offset, value);
         Some(metadata.offset)
     }
 
@@ -2890,7 +2879,7 @@ impl Object {
         }
         let new_offset = self.shape().property_count() - 1;
         self.ensure_named_storage_capacity(self.shape().property_count());
-        self.put_direct(new_offset, value);
+        self.initialize_direct(new_offset, value);
         Some(new_offset)
     }
 
@@ -3603,10 +3592,39 @@ impl Object {
         unsafe { self.named_properties.get().add(index as usize).read() }
     }
 
-    pub fn put_direct(&self, index: u32, value: Value) {
+    // NB: Every write to a named-property slot goes through one of the three methods below, each of which says why
+    //     the write needs no more than it does, so that what depends on a slot keeping its value is told of each write
+    //     that changes it.
+    fn write_direct(&self, index: u32, value: Value) {
         assert!(index < self.named_storage_capacity());
         // SAFETY: The index is within the named storage.
         unsafe { self.named_properties.get().add(index as usize).write(value) };
+    }
+
+    /// Gives a slot its first value, which nothing can have read yet: a slot of an object that is being created, a
+    /// slot of a property that was just added, or the slot of an intrinsic accessor that computes its value the first
+    /// time it is read.
+    pub fn initialize_direct(&self, index: u32, value: Value) {
+        self.write_direct(index, value);
+    }
+
+    /// Writes a value to the slot of an own writable data property where a property lookup cache recorded a write.
+    /// Caches only record writes that need nothing but the write itself (see `replace_direct()`).
+    pub fn put_direct_from_cache(&self, index: u32, value: Value) {
+        self.write_direct(index, value);
+    }
+
+    /// Changes the value of the own named property in slot `index`, and tells what depends on the slot keeping its
+    /// value.
+    pub fn replace_direct(&self, vm: &Vm, index: u32, value: Value) {
+        // NB: JIT code may take the values of global object properties that were never assigned as constants.
+        if self.has_global_object_flag() {
+            let previous = self.get_direct(index);
+            if !previous.is_undefined() && previous != value {
+                crate::jit::dependencies::note_global_object_slot_assignments(vm, self, index..index + 1);
+            }
+        }
+        self.write_direct(index, value);
     }
 
     fn inline_named_storage_pointer(&self) -> *mut Value {

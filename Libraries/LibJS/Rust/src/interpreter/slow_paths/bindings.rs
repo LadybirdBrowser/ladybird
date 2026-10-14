@@ -862,7 +862,7 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
                 return SlowPathControl::continue_at(pc + op::SetGlobal::LENGTH);
             }
             if entry.writes_data_property {
-                binding_object.put_direct(entry.property_offset, src);
+                binding_object.put_direct_from_cache(entry.property_offset, src);
                 return SlowPathControl::continue_at(pc + op::SetGlobal::LENGTH);
             }
         }

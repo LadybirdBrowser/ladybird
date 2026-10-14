@@ -207,7 +207,7 @@ impl RegExpObject {
                 realm: Cell::new(None),
             },
         );
-        regexp_object.put_direct(NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET, Value::from_i32(0));
+        regexp_object.initialize_direct(NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET, Value::from_i32(0));
         regexp_object
     }
 

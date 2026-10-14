@@ -109,14 +109,14 @@ impl NativeJavaScriptBackedFunction {
         function.unsafe_set_shape(realm.native_function_shape());
 
         // 10. Perform SetFunctionLength(func, length).
-        function.put_direct(realm.native_function_length_offset(), Value::from_i32(length));
+        function.initialize_direct(realm.native_function_length_offset(), Value::from_i32(length));
 
         // 11. If prefix is not present, then
         //     a. Perform SetFunctionName(func, name).
         // 12. Else,
         //     a. Perform SetFunctionName(func, name, prefix).
         let function_name = function.make_function_name(vm, &ClassElementName::PropertyKey(name.clone()), None);
-        function.put_direct(realm.native_function_name_offset(), Value::from_string(function_name));
+        function.initialize_direct(realm.native_function_name_offset(), Value::from_string(function_name));
 
         // 13. Return func.
         function

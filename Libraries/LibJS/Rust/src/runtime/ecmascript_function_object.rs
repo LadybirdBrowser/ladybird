@@ -238,11 +238,11 @@ impl EcmascriptFunctionObject {
 
         // NOTE: The constructor gave us a premade shape with "length" and "name" (and "prototype" for generator kinds) at
         //       these offsets, with the attributes the spec requires, so we only have to store the values.
-        self.put_direct(
+        self.initialize_direct(
             realm.normal_function_length_offset(),
             Value::from_i32(self.function_length()),
         );
-        self.put_direct(realm.normal_function_name_offset(), Value::from_string(name_string));
+        self.initialize_direct(realm.normal_function_name_offset(), Value::from_string(name_string));
 
         match self.kind() {
             FunctionKind::Normal => {
@@ -252,7 +252,7 @@ impl EcmascriptFunctionObject {
             }
             FunctionKind::Generator => {
                 // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
-                self.put_direct(
+                self.initialize_direct(
                     realm.generator_function_prototype_property_offset(),
                     Value::from_object(Object::create_prototype(
                         vm,
@@ -266,7 +266,7 @@ impl EcmascriptFunctionObject {
                 // AsyncFunction instances do not have a prototype property as they are not constructible.
             }
             FunctionKind::AsyncGenerator => {
-                self.put_direct(
+                self.initialize_direct(
                     realm.generator_function_prototype_property_offset(),
                     Value::from_object(Object::create_prototype(
                         vm,
@@ -1076,7 +1076,7 @@ impl EcmascriptFunctionObject {
             let metadata = object.shape().lookup(property_key);
             if metadata.is_none() {
                 let prototype = Object::create_with_premade_shape(vm, realm.normal_function_prototype_shape());
-                prototype.put_direct(
+                prototype.initialize_direct(
                     realm.normal_function_prototype_constructor_offset(),
                     Value::from_object(function.as_function_object_gc()),
                 );

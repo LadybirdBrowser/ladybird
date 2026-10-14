@@ -459,7 +459,7 @@ impl<'a, 'vm, C: CodeUnit> Parser<'a, 'vm, C> {
         if let Some(shape) = tables.shapes.shape_for_keys(self.vm, self.realm, keys) {
             let object = Object::create_with_premade_shape(self.vm, shape);
             for (offset, value) in self.values.borrow()[first_value..].iter().enumerate() {
-                object.put_direct(offset as u32, *value);
+                object.initialize_direct(offset as u32, *value);
             }
             return object;
         }

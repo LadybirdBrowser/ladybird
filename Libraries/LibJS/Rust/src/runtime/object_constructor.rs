@@ -781,16 +781,14 @@ fn try_assign_from_shape(vm: &Vm, target: &Object, source: &Object) -> ThrowComp
         }
         // OPTIMIZATION: [[Set]] of an own writable data property of an object with ordinary property lookup and [[Set]]
         //               changes its value, and nothing else.
-        // NB: Assignments to the properties of global objects are noted in `Object::storage_set()`.
         if target.has_ordinary_named_property_lookup_and_set()
             && !target.has_intrinsic_accessors()
-            && !target.has_global_object_flag()
             && let Some(metadata) = target.shape().lookup(&property_key)
             && metadata.attributes.is_writable()
             && !target.get_direct(metadata.offset).is_accessor()
         {
             realm_fuses::note_property_change(vm, target, &property_key);
-            target.put_direct(metadata.offset, value);
+            target.replace_direct(vm, metadata.offset, value);
             continue;
         }
         target.set(vm, &property_key, value, ShouldThrowExceptions::Yes)?;

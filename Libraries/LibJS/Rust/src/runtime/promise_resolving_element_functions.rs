@@ -179,8 +179,8 @@ impl PromiseResolvingElementFunction {
         (NATIVE_FUNCTION_METHODS.initialize)(object, vm, realm);
 
         object.unsafe_set_shape(realm.native_function_shape());
-        object.put_direct(realm.native_function_length_offset(), Value::from_i32(1));
-        object.put_direct(
+        object.initialize_direct(realm.native_function_length_offset(), Value::from_i32(1));
+        object.initialize_direct(
             realm.native_function_name_offset(),
             Value::from_string(vm.empty_string()),
         );

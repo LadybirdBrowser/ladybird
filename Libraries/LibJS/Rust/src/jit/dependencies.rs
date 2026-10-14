@@ -52,9 +52,9 @@ pub struct Dependents {
     /// assignment, and neither is storing the value it holds, as CreateGlobalFunctionBinding does after defining the
     /// property.
     ///
-    /// Nothing but the runtime (`Object::storage_set()` and `Object::storage_delete()`) writes to the slots of a global
-    /// object that are not assigned yet, while its shape is a dictionary: property lookup caches only write to slots
-    /// whose writes they cached, and the runtime caches no write to such a slot (see
+    /// Nothing but the runtime (`Object::replace_direct()` and `Object::storage_delete()`) writes to the slots of a
+    /// global object that are not assigned yet, while its shape is a dictionary: property lookup caches only write to
+    /// slots whose writes they cached, and the runtime caches no write to such a slot (see
     /// `global_object_slot_may_have_been_assigned()`). And no other object ever gets one of the shapes of a global
     /// object once it has a dictionary shape, which belongs to it alone, as do the shapes it gets from that one, so
     /// that writes the caches made for other objects never apply to it.
