@@ -20,7 +20,6 @@ def bindings_glue_header_for_interface(interface: Interface, wrapper_interface_n
         "TrustedTypes": "LibWeb/TrustedTypes/BindingsGlue.h",
         "WebAssembly": "LibWeb/WebAssembly/BindingsGlue.h",
         "WebAudio": "LibWeb/WebAudio/BindingsGlue.h",
-        "WebGL": "LibWeb/WebGL/BindingsGlue.h",
     }
     if module in module_headers:
         return module_headers[module]

@@ -4,7 +4,7 @@
 //       IDL generator to handle snake_case to TitleCase conversion.
 //       Having a different name is totally fine, because LegacyNoInterfaceObject
 //       prevents the name from being exposed to JavaScript.
-[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+[Exposed=(Window,Worker), ImplementedIn=Rust, LegacyNoInterfaceObject]
 interface OESVertexArrayObject {
     // Same note as WebGLRenderingContextBase:
     // Functions that have the [WebGLHandlesContextLoss] extended attribute in the spec do not have them here.

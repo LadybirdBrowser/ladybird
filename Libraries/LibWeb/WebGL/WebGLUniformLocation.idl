@@ -1,4 +1,4 @@
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.10
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface WebGLUniformLocation {
 };

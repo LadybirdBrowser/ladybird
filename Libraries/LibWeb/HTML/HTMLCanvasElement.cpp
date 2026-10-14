@@ -41,7 +41,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
-#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -486,7 +485,7 @@ Optional<Compositing::CanvasId> HTMLCanvasElement::canvas_id() const
     if (auto context = canvas_rendering_context_2d())
         return context->canvas_id();
     if (auto* webgl_context = canvas_webgl_context(); webgl_context && !webgl_context->is_context_lost())
-        return webgl_context->context().canvas_id();
+        return webgl_context->canvas_id();
     return {};
 }
 

@@ -31,14 +31,17 @@ static_assert(offsetof(ReadPixelsResult, columns) == sizeof(i32));
 static_assert(offsetof(ReadPixelsResult, rows) == 2 * sizeof(i32));
 static_assert(sizeof(Compositing::CanvasId) == sizeof(u64));
 
-// What the recorder and the replayer of the command stream have to agree on besides the command structs. The
-// recorder has constants of its own for these, and compares them with this before it records (fingerprint.rs).
+// What the WebGL implementation in Rust states for itself besides the command structs: the framing and the shared
+// data region that the recorder and the replayer of the command stream have to agree on, and the largest drawing
+// buffer that the compositor allocates. Rust compares its own constants with these before the first context records
+// (fingerprint.rs).
 struct ConstantsRestatedInRust {
     size_t record_alignment { 0 };
     size_t header_size { 0 };
     size_t header_payload_size_offset { 0 };
     size_t shared_data_region_offset { 0 };
     size_t shared_data_region_capacity { 0 };
+    size_t max_drawing_buffer_dimension { 0 };
 };
 
 // NB: The recorder writes the header of a command and that of a synchronous call the same way.
@@ -194,6 +197,7 @@ void web_webgl_constants_restated_in_rust(ConstantsRestatedInRust* out_constants
         .header_payload_size_offset = offsetof(Compositing::WebGL::WebGLCommandHeader, payload_size),
         .shared_data_region_offset = Compositing::WebGL::WebGLSharedCommandBuffer::data_region_offset,
         .shared_data_region_capacity = Compositing::WebGL::WebGLSharedCommandBuffer::default_data_region_capacity,
+        .max_drawing_buffer_dimension = Compositing::WebGL::max_webgl_drawing_buffer_dimension,
     };
 }
 

@@ -4,7 +4,7 @@
 //       IDL generator to handle snake_case to TitleCase conversion.
 //       Having a different name is totally fine, because LegacyNoInterfaceObject
 //       prevents the name from being exposed to JavaScript.
-[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+[Exposed=(Window,Worker), ImplementedIn=Rust, LegacyNoInterfaceObject]
 interface WebGLDrawBuffers {
     const GLenum COLOR_ATTACHMENT0_WEBGL     = 0x8CE0;
     const GLenum COLOR_ATTACHMENT1_WEBGL     = 0x8CE1;

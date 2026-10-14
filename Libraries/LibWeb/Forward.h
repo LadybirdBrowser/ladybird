@@ -1265,39 +1265,10 @@ class PeriodicWave;
 namespace Web::WebGL {
 
 class RemoteWebGLTransport;
-class WebGLContextProxy;
 class WebGL2RenderingContext;
-class WebGLActiveInfo;
-class WebGLBuffer;
 class WebGLContextEvent;
-class WebGLFramebuffer;
-class WebGLObject;
-class WebGLProgram;
-class WebGLQuery;
-class WebGLRenderbuffer;
 class WebGLRenderingContext;
 class WebGLRenderingContextBase;
-class WebGLSampler;
-class WebGLShader;
-class WebGLShaderPrecisionFormat;
-class WebGLSync;
-class WebGLTexture;
-class WebGLTransformFeedback;
-class WebGLUniformLocation;
-class WebGLVertexArrayObject;
-class ANGLEInstancedArrays;
-class EXTBlendMinMax;
-class EXTColorBufferFloat;
-class EXTRenderSnorm;
-class EXTTextureFilterAnisotropic;
-class EXTTextureNorm16;
-class OESElementIndexUint;
-class OESStandardDerivatives;
-class OESVertexArrayObject;
-class WebGLCompressedTextureS3tc;
-class WebGLCompressedTextureS3tcSrgb;
-class WebGLDrawBuffers;
-class WebGLVertexArrayObjectOES;
 
 }
 

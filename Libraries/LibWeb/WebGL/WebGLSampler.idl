@@ -1,4 +1,4 @@
 // https://registry.khronos.org/webgl/specs/latest/2.0/#3.3
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface WebGLSampler : WebGLObject {
 };

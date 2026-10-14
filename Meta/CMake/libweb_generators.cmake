@@ -208,31 +208,6 @@ function (generate_html_implementation)
     list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${HTML_GENERATED_HEADERS})
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 endfunction()
-
-function (generate_webgl_implementation)
-    set(LIBCOMPOSITING_INPUT_FOLDER "${LADYBIRD_SOURCE_DIR}/Libraries/LibCompositing")
-
-    invoke_py_generator(
-        "WebGLContextProxy.cpp"
-        "generate_libweb_webgl_proxy.py"
-        "${LIBCOMPOSITING_INPUT_FOLDER}/WebGL/GLFunctions.json"
-        "WebGL/WebGLContextProxy.h"
-        "WebGL/WebGLContextProxy.cpp"
-        arguments -j "${LIBCOMPOSITING_INPUT_FOLDER}/WebGL/GLFunctions.json"
-        dependencies "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_webgl.py"
-    )
-
-    set(WEBGL_GENERATED_HEADERS
-       "WebGL/WebGLContextProxy.h"
-    )
-    list(TRANSFORM WEBGL_GENERATED_HEADERS PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-    if (ENABLE_INSTALL_HEADERS)
-        install(FILES ${WEBGL_GENERATED_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/WebGL")
-    endif()
-    list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${WEBGL_GENERATED_HEADERS})
-    set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
-endfunction()
-
 function (generate_js_bindings target)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
     find_package(Python3 REQUIRED COMPONENTS Interpreter)

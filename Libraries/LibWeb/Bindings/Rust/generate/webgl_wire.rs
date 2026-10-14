@@ -102,7 +102,13 @@ fn write_type_enum(out: &mut String, enum_name: &str, count_name: &str, descript
         writeln!(out, "    {name},").unwrap();
     }
     out.push_str("}\n\n");
-    writeln!(out, "pub(crate) const {count_name}: u16 = {};\n", names.len()).unwrap();
+    // NB: Only the tests of the vocabulary ask how many types there are.
+    writeln!(
+        out,
+        "#[cfg(test)]\npub(crate) const {count_name}: u16 = {};\n",
+        names.len()
+    )
+    .unwrap();
 }
 
 fn write_layout_words(out: &mut String, rust_path: &str, layout: &WireStruct) {

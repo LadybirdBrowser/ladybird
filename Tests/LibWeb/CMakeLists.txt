@@ -32,7 +32,6 @@ set(TEST_SOURCES
     TestStructuredSerializeHardening.cpp
     TestStructuredSerializeSharedArrayBuffer.cpp
     TestStyleEngineBridge.cpp
-    TestWebGLSpanWithStorage.cpp
     TestWebIDLBuffers.cpp
     TestWindowProxyWorld.cpp
     TestWorldCallback.cpp
@@ -71,7 +70,6 @@ target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests 
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
 target_link_libraries(TestWebIDLBuffers PRIVATE LibGC LibJS)
-target_link_libraries(TestWebGLSpanWithStorage PRIVATE LibGC LibJS)
 target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeDurability PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeFormat PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)

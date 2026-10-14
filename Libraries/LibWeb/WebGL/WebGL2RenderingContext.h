@@ -8,52 +8,17 @@
 
 #pragma once
 
-#include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Forward.h>
-#include <LibWeb/WebGL/Types.h>
-#include <LibWeb/WebGL/WebGL2RenderingContextOverloads.h>
-#include <LibWeb/WebGL/WebGLContextAttributes.h>
+#include <LibWeb/Bindings/WebGL2RenderingContext.h>
+#include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL {
 
-class WebGL2RenderingContext final : public WebGL2RenderingContextOverloads {
-    WEB_WRAPPABLE(WebGL2RenderingContext, WebGL2RenderingContextOverloads);
-    GC_DECLARE_ALLOCATOR(WebGL2RenderingContext);
+// https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
+class WEB_API WebGL2RenderingContext final : public WebGLRenderingContextBase {
+    WEB_RUST_INTERFACE(WebGL2RenderingContext, web_gl2_rendering_context)
 
 public:
     static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(JS::Realm&, CanvasOwner, JS::Value options);
-
-    virtual ~WebGL2RenderingContext() override;
-
-    void prepare_for_compositing() override;
-    void did_update_canvas_content() override;
-
-    virtual CanvasOwner canvas_for_binding() const override;
-
-    Optional<WebGLContextAttributes> get_context_attributes();
-
-    void set_size(Gfx::IntSize const&);
-    void reset_to_default_state();
-
-    WebIDL::Long drawing_buffer_width() const;
-    WebIDL::Long drawing_buffer_height() const;
-
-private:
-    WebGL2RenderingContext(JS::Realm&, CanvasOwner, NonnullOwnPtr<WebGLContextProxy> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
-
-    virtual void visit_edges(Cell::Visitor&) override;
-    virtual bool reestablish_remote_context() override;
-
-    CanvasOwner m_canvas;
-
-    // https://www.khronos.org/registry/webgl/specs/latest/1.0/#context-creation-parameters
-    // Each WebGLRenderingContext has context creation parameters, set upon creation, in a WebGLContextAttributes object.
-    WebGLContextAttributes m_context_creation_parameters {};
-
-    // https://www.khronos.org/registry/webgl/specs/latest/1.0/#actual-context-parameters
-    // Each WebGLRenderingContext has actual context parameters, set each time the drawing buffer is created, in a WebGLContextAttributes object.
-    WebGLContextAttributes m_actual_context_parameters {};
 };
 
 }
