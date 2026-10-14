@@ -428,8 +428,9 @@ impl RetainedStyleValueData {
         self.pointer.cast()
     }
 
+    /// The handle's value, which an empty handle does not have.
     pub(crate) fn data(&self) -> &StyleValueData {
-        unsafe { &*self.pointer.cast::<StyleValueData>() }
+        self.optional_data().expect("an empty style value handle has no data")
     }
 
     pub(crate) fn optional_data(&self) -> Option<&StyleValueData> {
