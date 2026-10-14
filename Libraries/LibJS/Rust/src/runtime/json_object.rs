@@ -40,10 +40,11 @@ use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, Propert
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::raw_json_object::RawJSONObject;
 use crate::runtime::realm::Realm;
-use crate::runtime::shape::{Shape, WatchpointSet};
+use crate::runtime::shape::Shape;
 use crate::runtime::string_conversions::parse_first_number_f64;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::value::{DecimalDigits, append_number_to_string, same_value};
+use crate::runtime::watchpoint_set::WatchpointSet;
 use crate::simdjson;
 use crate::utf16::{Utf16StringBuilder, Utf16View};
 

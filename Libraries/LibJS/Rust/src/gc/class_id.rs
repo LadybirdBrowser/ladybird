@@ -33,6 +33,7 @@ define_class_ids! {
     Shape,
     WatchpointSet,
     Fuse,
+    SpecialPropertyCache,
     DescriptorArray,
     ValueStorage,
     PrivateEnvironment,

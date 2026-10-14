@@ -10,7 +10,7 @@ use super::cell::{CellHeader, Gc};
 use super::object::Object;
 use super::property_lookup_cache::ObjectPropertyIteratorCacheData;
 use super::realm::Realm;
-use crate::layout_forward::ShapeStorage;
+use crate::layout_forward::{ShapeStorage, WatchpointSetStorage};
 
 #[repr(C)]
 pub struct Shape {
@@ -32,6 +32,5 @@ pub struct Shape {
 pub struct WatchpointSet {
     pub header: CellHeader,
     pub valid: Cell<bool>,
-    /// Keeps the cell at the minimum cell size.
-    pub padding: usize,
+    pub storage: WatchpointSetStorage,
 }
