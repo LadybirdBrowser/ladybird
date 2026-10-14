@@ -210,16 +210,13 @@ pub(crate) unsafe fn resolve_calc_with_external_resolutions(
     let root = unsafe { &*calc_root_from_calculated(calculated) };
     let mut externals = Vec::new();
     collect_external_resolutions(root, &mut externals);
-    // The resolver hands back one reference to each node, which these keep until the resolution is done.
-    let mut resolved_nodes = Vec::new();
     if let Some(resolve_non_math_function) = resolve_non_math_function {
         for resolution in &mut externals {
             if resolution.kind == CalcExternalResolutionKind::NonMathFunction {
-                let node = unsafe { resolve_non_math_function(callback_context, resolution.source) }.cast::<CalcNode>();
-                if !node.is_null() {
-                    resolved_nodes.push(unsafe { std::sync::Arc::from_raw(node) });
-                }
-                resolution.resolved_node = node;
+                let node = unsafe { resolve_non_math_function(callback_context, resolution.source.pointer().cast()) }
+                    .cast::<CalcNode>();
+                // SAFETY: The resolver hands back one reference to each node it resolves.
+                resolution.resolved_node = (!node.is_null()).then(|| unsafe { std::sync::Arc::from_raw(node) });
             }
         }
     }

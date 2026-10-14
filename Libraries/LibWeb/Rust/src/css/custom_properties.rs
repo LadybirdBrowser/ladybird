@@ -2000,12 +2000,7 @@ impl StyleRangeValue {
                 match tree_counting
                     .zip(length_resolution_context)
                     .and_then(|(tree_counting, context)| {
-                        crate::css::calc::absolutize_calculation_value(
-                            value,
-                            std::ptr::from_ref(context).cast(),
-                            Some(tree_counting),
-                            &[],
-                        )
+                        crate::css::calc::absolutize_calculation_value(value, context, Some(tree_counting), &[])
                     }) {
                     Some(crate::css::calc::AbsolutizedCalculation::Value(resolved)) => {
                         return Self::of(&resolved, length_resolution_context, None);
