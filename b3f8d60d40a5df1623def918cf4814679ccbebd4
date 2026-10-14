@@ -1,0 +1,14 @@
+As the user types, Ladybird checks the text around the caret: the
+paragraph it’s in, clipped to 1024 code units around it. But the word
+still being typed is exempt: Its markers come off, and no check flags
+it, until the caret leaves it.
+
+Blink’s HotModeSpellCheckRequester::CheckSpellingAt() treats a
+half-typed word the same way: It takes the markers off the word that
+CurrentWordIfTypingInPartialWord() finds, and checks nothing while the
+user is still typing it. Otherwise, it checks the caret’s paragraph, or
+the kHotModeChunkSize (1024) characters of it centered on the caret.
+
+WebKit’s Editor::editorUIUpdateTimerFired() does likewise: It clears the
+markers around a new selection, then checks the words that were around
+the old one once the caret has moved off them.
