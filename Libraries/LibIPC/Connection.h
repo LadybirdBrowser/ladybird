@@ -54,7 +54,32 @@ public:
     // Dispatch every message the peer has already sent on this connection, without waiting for new ones.
     void dispatch_pending_messages();
 
+    template<typename RequestType, typename... Args>
+    NonnullOwnPtr<typename RequestType::ResponseType> send_sync(Args&&... args)
+    {
+        MUST(post_sync_request(RequestType(forward<Args>(args)...)));
+        auto response = wait_for_specific_endpoint_message<typename RequestType::ResponseType>();
+        VERIFY(response);
+        return response.release_nonnull();
+    }
+
+    template<typename RequestType, typename... Args>
+    OwnPtr<typename RequestType::ResponseType> send_sync_but_allow_failure(Args&&... args)
+    {
+        if (post_sync_request(RequestType(forward<Args>(args)...)).is_error())
+            return nullptr;
+        return wait_for_specific_endpoint_message<typename RequestType::ResponseType>();
+    }
+
 protected:
+    template<typename MessageType>
+    OwnPtr<MessageType> wait_for_specific_endpoint_message()
+    {
+        if (auto message = wait_for_specific_endpoint_message_impl(MessageType::ENDPOINT_MAGIC, MessageType::static_message_id()))
+            return message.template release_nonnull<MessageType>();
+        return {};
+    }
+
     explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Transport>, u32 local_endpoint_magic);
 
     virtual void shutdown_with_error(Error const&);
@@ -94,32 +119,7 @@ public:
     {
     }
 
-    template<typename RequestType, typename... Args>
-    NonnullOwnPtr<typename RequestType::ResponseType> send_sync(Args&&... args)
-    {
-        MUST(post_sync_request(RequestType(forward<Args>(args)...)));
-        auto response = wait_for_specific_endpoint_message<typename RequestType::ResponseType, PeerEndpoint>();
-        VERIFY(response);
-        return response.release_nonnull();
-    }
-
-    template<typename RequestType, typename... Args>
-    OwnPtr<typename RequestType::ResponseType> send_sync_but_allow_failure(Args&&... args)
-    {
-        if (post_sync_request(RequestType(forward<Args>(args)...)).is_error())
-            return nullptr;
-        return wait_for_specific_endpoint_message<typename RequestType::ResponseType, PeerEndpoint>();
-    }
-
 protected:
-    template<typename MessageType, typename Endpoint>
-    OwnPtr<MessageType> wait_for_specific_endpoint_message()
-    {
-        if (auto message = wait_for_specific_endpoint_message_impl(Endpoint::static_magic(), MessageType::static_message_id()))
-            return message.template release_nonnull<MessageType>();
-        return {};
-    }
-
     virtual OwnPtr<Message> try_parse_message(ReadonlyBytes bytes, Queue<Attachment>& attachments) override
     {
         auto local_message = LocalEndpoint::decode_message(bytes, attachments);
