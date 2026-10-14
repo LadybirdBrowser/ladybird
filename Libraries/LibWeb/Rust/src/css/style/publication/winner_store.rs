@@ -199,7 +199,7 @@ pub(super) struct WinnerView<'a> {
     engine: &'a RetainedState,
 }
 
-pub(super) fn shorthand_longhand_data(property: u16, data: &StyleValueData) -> Option<&StyleValueData> {
+pub(super) fn shorthand_longhand_data(property: u16, data: &StyleValueData) -> Option<&RetainedStyleValueData> {
     let StyleValueData::Shorthand {
         sub_properties, values, ..
     } = data
@@ -207,12 +207,10 @@ pub(super) fn shorthand_longhand_data(property: u16, data: &StyleValueData) -> O
         return None;
     };
     for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
-        // SAFETY: The shorthand owns every nested value for this borrow.
-        let sub_data = unsafe { &*sub_value.pointer().cast::<StyleValueData>() };
         if sub_property == property {
-            return Some(sub_data);
+            return Some(sub_value);
         }
-        if let Some(found) = shorthand_longhand_data(property, sub_data) {
+        if let Some(found) = shorthand_longhand_data(property, sub_value.data()) {
             return Some(found);
         }
     }
@@ -220,9 +218,9 @@ pub(super) fn shorthand_longhand_data(property: u16, data: &StyleValueData) -> O
 }
 
 impl WinnerView<'_> {
-    fn value<'a>(&'a self, declaration: &'a WinnerDeclaration) -> &'a StyleValueData {
+    fn value<'a>(&'a self, declaration: &'a WinnerDeclaration) -> &'a RetainedStyleValueData {
         let written = match &declaration.value {
-            WinnerValue::Substituted { value, .. } => return value.data(),
+            WinnerValue::Substituted { value, .. } => return value,
             WinnerValue::Written { node, source, index } => match source {
                 WinnerSource::Rule(rule) => &self.engine.program.written_values_of(*rule)[*index],
                 WinnerSource::Element(kind) => self
@@ -238,7 +236,7 @@ impl WinnerView<'_> {
             data @ StyleValueData::Shorthand { .. } => {
                 shorthand_longhand_data(declaration.property, data).expect("validated shorthand winner")
             }
-            data => data,
+            _ => written,
         }
     }
 }
@@ -275,7 +273,7 @@ impl WinnerStore {
         for declaration in &self.declarations {
             if view.dependencies(declaration).has_unfixed_random_sharing {
                 crate::css::style_compute::collect_unfixed_random_sharings_in_value(
-                    view.value(declaration),
+                    view.value(declaration).data(),
                     &mut sharings,
                 );
             }
@@ -321,7 +319,7 @@ impl<'a> WinnerView<'a> {
         if memoized & DEPENDENCIES_COMPUTED != 0 {
             return unpack_dependencies(memoized);
         }
-        let dependencies = external_value_dependencies(self.value(declaration));
+        let dependencies = external_value_dependencies(self.value(declaration).data());
         declaration
             .dependencies
             .store(pack_dependencies(dependencies), Ordering::Relaxed);
@@ -354,10 +352,10 @@ impl<'a> WinnerView<'a> {
 }
 
 impl CascadedValues for WinnerView<'_> {
-    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration> {
+    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration<'_>> {
         let (index, declaration) = self.store.declaration(property)?;
         Some((
-            std::ptr::from_ref(self.value(declaration)).cast(),
+            self.value(declaration),
             declaration.important,
             u32::try_from(index).unwrap(),
             self.resource_context(declaration).is_some(),
@@ -480,8 +478,8 @@ mod tests {
             let actual = view.winning_declaration(property).unwrap();
             let expected = owned.winning_declaration(property).unwrap();
             assert_eq!(
-                (actual.0, actual.1, actual.2, actual.3),
-                (expected.0, expected.1, expected.2, expected.3)
+                (actual.0.pointer(), actual.1, actual.2, actual.3),
+                (expected.0.pointer(), expected.1, expected.2, expected.3)
             );
             assert!(matches!(view.winning_origin(property), Some(CascadeOrigin::Author)));
         }

@@ -708,7 +708,7 @@ impl RetainedState {
             progress.recascaded_font_size
         } else if store
             .winning_declaration(prop::FONT_FAMILY)
-            .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
+            .is_some_and(|(value, ..)| font_family_is_monospace(value.data()))
         {
             match self.monospace_recascaded_font_size(target, inputs) {
                 Some(MonospaceRecascade::Size(recascaded, reads_viewport)) => {

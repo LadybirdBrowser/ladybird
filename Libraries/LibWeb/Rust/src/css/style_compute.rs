@@ -2692,20 +2692,19 @@ pub fn map_physical_to_logical_alias(property_id: u16, writing_mode: u8, directi
     }
 }
 
-struct ComputedStoreEntry {
+struct ComputedStoreEntry<'a> {
     property_id: u16,
     /// The selected specified value; also the stored value when
     /// `computed_kind` is `COMPUTED_KIND_UNCHANGED`.
-    data: *const c_void,
+    data: &'a RetainedStyleValueData,
     /// The C++ declaration-source slot for a cascaded value, or -1.
     source_slot: i64,
     /// Whether the selected cascaded facade carried stylesheet context.
     has_style_sheet_context: bool,
     inheritance_dependent: bool,
-    /// An owned replacement style value when `computed_kind` is
-    /// `COMPUTED_KIND_STYLE_VALUE`. The Rust table adopts this reference when
-    /// storing the entry.
-    computed_data: *const c_void,
+    /// The replacement style value when `computed_kind` is
+    /// `COMPUTED_KIND_STYLE_VALUE`.
+    computed_data: Option<RetainedStyleValueData>,
     /// How Rust constructs the table value: with COMPUTED_KIND_UNCHANGED the
     /// stored value is `data` itself; the other kinds carry a replacement in
     /// `value` while `data` remains the specified value for the
@@ -3204,11 +3203,8 @@ pub(crate) fn table_row_bits(property_id: u16) -> u8 {
     }
 }
 
-fn value_is_initial_or_unset(value: *const c_void) -> bool {
-    if value.is_null() {
-        return false;
-    }
-    match unsafe { &*(value as *const StyleValueData) } {
+fn value_is_initial_or_unset(value: &StyleValueData) -> bool {
+    match value {
         StyleValueData::Keyword { keyword } => *keyword == keyword::INITIAL || *keyword == keyword::UNSET,
         _ => false,
     }
@@ -3231,40 +3227,33 @@ fn retained_new(value: StyleValueData) -> RetainedStyleValueData {
     RetainedStyleValueData::from_arc(Arc::new(value))
 }
 
-fn needs_computed_style_sheet_context(value: *const StyleValueData) -> bool {
-    if value.is_null() {
-        return false;
-    }
+fn needs_computed_style_sheet_context(value: &RetainedStyleValueData) -> bool {
     // NB: Keep this traversal aligned with StyleValue::set_style_sheet(). Only image
     //     wrappers consume the context; container wrappers forward it to their children.
-    match unsafe { &*value } {
-        StyleValueData::Image { .. } | StyleValueData::ImageSet { .. } => true,
-        StyleValueData::Content { content, alt_text } => {
-            needs_computed_style_sheet_context(content.pointer())
-                || needs_computed_style_sheet_context(alt_text.pointer())
+    match value.optional_data() {
+        Some(StyleValueData::Image { .. } | StyleValueData::ImageSet { .. }) => true,
+        Some(StyleValueData::Content { content, alt_text }) => {
+            needs_computed_style_sheet_context(content) || needs_computed_style_sheet_context(alt_text)
         }
-        StyleValueData::Shorthand { values, .. } | StyleValueData::ValueList { values, .. } => values
-            .as_slice()
-            .iter()
-            .any(|value| needs_computed_style_sheet_context(value.pointer())),
+        Some(StyleValueData::Shorthand { values, .. } | StyleValueData::ValueList { values, .. }) => {
+            values.as_slice().iter().any(needs_computed_style_sheet_context)
+        }
         _ => false,
     }
 }
 
 /// Store what a drive found for one longhand: its computed value, and the specified value its
 /// inheritance depends on, if it does.
-fn store_driven_value(longhand_table: &mut ComputedLonghandTable, entry: &ComputedStoreEntry) {
-    let specified_value = entry.inheritance_dependent.then(|| unsafe {
-        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(entry.data.cast()))
-    });
+fn store_driven_value(longhand_table: &mut ComputedLonghandTable, entry: ComputedStoreEntry) {
+    let specified_value = entry.inheritance_dependent.then(|| entry.data.clone());
     longhand_table.set_drive_inheritance_dependent_value(entry.property_id, specified_value);
     store_computed_value(longhand_table, entry);
 }
 
-fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &ComputedStoreEntry) {
+fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: ComputedStoreEntry) {
     let source_slot = if entry.has_style_sheet_context
         && entry.computed_kind == COMPUTED_KIND_UNCHANGED
-        && needs_computed_style_sheet_context(entry.data.cast())
+        && needs_computed_style_sheet_context(entry.data)
     {
         entry.source_slot
     } else {
@@ -3272,17 +3261,14 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &Comp
     };
     let computed = match entry.computed_kind {
         COMPUTED_KIND_UNCHANGED => {
-            let retained = unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                    entry.data.cast(),
-                ))
-            };
-            longhand_table.set_or_keep_equal(entry.property_id, retained, source_slot);
+            longhand_table.set_or_keep_equal(entry.property_id, entry.data.clone(), source_slot);
             return;
         }
         COMPUTED_KIND_STYLE_VALUE => {
-            let retained = unsafe { RetainedStyleValueData::from_retained_pointer(entry.computed_data.cast()) };
-            longhand_table.set_or_keep_equal(entry.property_id, retained, source_slot);
+            let computed = entry
+                .computed_data
+                .expect("a replaced computed value carries its replacement");
+            longhand_table.set_or_keep_equal(entry.property_id, computed, source_slot);
             return;
         }
         COMPUTED_KIND_PX_LENGTH => StyleValueData::Length {
@@ -3454,7 +3440,7 @@ pub(crate) unsafe fn drive_property_computation(
             cascaded_property_id = store.property_with_higher_priority(property_id, counterpart_property_id);
         }
 
-        let mut value = std::ptr::null();
+        let mut value: Option<&RetainedStyleValueData> = None;
         let mut source_slot = -1;
         let mut has_style_sheet_context = false;
         let mut external_dependencies = None;
@@ -3466,7 +3452,8 @@ pub(crate) unsafe fn drive_property_computation(
             cascaded_external_dependencies,
         )) = store.winning_declaration(cascaded_property_id)
         {
-            value = value_data;
+            // An empty winning value cascades nothing, as no declaration would.
+            value = Some(value_data).filter(|value| value.optional_data().is_some());
             source_slot = i64::from(cascaded_source_slot);
             has_style_sheet_context = cascaded_has_style_sheet_context;
             external_dependencies = Some(cascaded_external_dependencies);
@@ -3474,11 +3461,7 @@ pub(crate) unsafe fn drive_property_computation(
                 set_longhand_bit(&mut important_words, property_id);
             }
             if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
-                longhand_table.set_raw_cascaded_font_size(Some(unsafe {
-                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                        value_data.cast(),
-                    ))
-                }));
+                longhand_table.set_raw_cascaded_font_size(Some(value_data.clone()));
             }
         } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE && has_new_font_size {
             // NOTE: The recascaded font-size has already been stored before the loop.
@@ -3487,11 +3470,7 @@ pub(crate) unsafe fn drive_property_computation(
             longhand_table.set_raw_cascaded_font_size(None);
         }
 
-        let cascaded_value = if value.is_null() {
-            None
-        } else {
-            Some(unsafe { &*(value as *const StyleValueData) })
-        };
+        let cascaded_value = value.map(RetainedStyleValueData::data);
         let decision = longhand_decision(cascaded_value, property_id);
 
         // The computation-need level to compare against depends on which source wins;
@@ -3551,8 +3530,8 @@ pub(crate) unsafe fn drive_property_computation(
             // non-inherited property take the parent's stored computed value for
             // `inherited_property_id` straight from the snapshot's table span.
             value = snapshot
-                .value(inherited_property_id)
-                .map_or(std::ptr::null(), |data| (data as *const StyleValueData).cast());
+                .value_handle(inherited_property_id)
+                .filter(|value| value.optional_data().is_some());
             if property_affects_font_metrics(inherited_property_id) && snapshot.font_metrics_depend_on_viewport_metrics
             {
                 results.font_metrics_depend_on_viewport_metrics = true;
@@ -3561,7 +3540,7 @@ pub(crate) unsafe fn drive_property_computation(
         }
 
         let use_initial = if inherit_fetch_attempted {
-            value.is_null() || value_is_initial_or_unset(value)
+            value.is_none_or(|value| value_is_initial_or_unset(value.data()))
         } else {
             decision.use_initial_without_inherit
         };
@@ -3569,7 +3548,7 @@ pub(crate) unsafe fn drive_property_computation(
             source_slot = -1;
             has_style_sheet_context = false;
             external_dependencies = Some(initial_value_dependencies(property_id));
-            value = initial_value_data(property_id).cast();
+            value = Some(initial_value_handle(property_id));
             required_level = REQUIRES_COMPUTATION_NON_INHERITED;
         }
 
@@ -3577,7 +3556,8 @@ pub(crate) unsafe fn drive_property_computation(
 
         // Whether the computed value depends on inherited information, so the specified
         // value must be kept for re-resolution when an ancestor changes.
-        let value_data = unsafe { &*(value as *const StyleValueData) };
+        let value = value.expect("a longhand has a cascaded, inherited or initial value");
+        let value_data = value.data();
         let external_dependencies = external_dependencies.unwrap_or_else(|| external_value_dependencies(value_data));
 
         if tree_counting_context.is_some() && external_dependencies.uses_tree_counting_function {
@@ -4262,16 +4242,20 @@ pub(crate) unsafe fn drive_property_computation(
                 (native, _) => native,
             };
             let (computed_kind, computed_value, computed_data) = match native {
-                NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px, std::ptr::null()),
-                NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64, std::ptr::null()),
-                NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter, std::ptr::null()),
-                NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number, std::ptr::null()),
-                NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage, std::ptr::null()),
+                NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px, None),
+                NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64, None),
+                NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter, None),
+                NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number, None),
+                NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage, None),
                 NativeValue::FontStyle(font_style_keyword) => {
-                    (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64, std::ptr::null())
+                    (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64, None)
                 }
-                NativeValue::StyleValue(value) => (COMPUTED_KIND_STYLE_VALUE, 0.0, Arc::into_raw(value).cast()),
-                NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, std::ptr::null()),
+                NativeValue::StyleValue(value) => (
+                    COMPUTED_KIND_STYLE_VALUE,
+                    0.0,
+                    Some(RetainedStyleValueData::from_arc(value)),
+                ),
+                NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, None),
                 NativeValue::Unsupported => {
                     unreachable!("unsupported native computation for longhand property {inherited_property_id}")
                 }
@@ -4293,7 +4277,7 @@ pub(crate) unsafe fn drive_property_computation(
                 source_slot,
                 has_style_sheet_context,
                 inheritance_dependent,
-                computed_data: std::ptr::null(),
+                computed_data: None,
                 computed_kind: COMPUTED_KIND_UNCHANGED,
                 value: 0.0,
             }
@@ -4395,7 +4379,7 @@ pub(crate) unsafe fn drive_property_computation(
         }
 
         let mut store = |entry: ComputedStoreEntry| {
-            store_driven_value(longhand_table, &entry);
+            store_driven_value(longhand_table, entry);
         };
         if property_id == prop::OVERFLOW_X {
             pending_overflow_x_store = Some(entry);
@@ -6300,18 +6284,18 @@ fn apply_post_compute_adjustments(
     };
     let adjusted_entry = |property_id, computed_kind, value| ComputedStoreEntry {
         property_id,
-        data: initial_value_data(property_id).cast(),
+        data: initial_value_handle(property_id),
         source_slot: -1,
         has_style_sheet_context: false,
         inheritance_dependent: false,
-        computed_data: std::ptr::null(),
+        computed_data: None,
         computed_kind,
         value,
     };
     // An adjustment moves only a computed value. Whether the value depends on the parent stays
     // what the drive recorded for the specified value, as for a match-parent text-align a table
     // adjusts.
-    let mut store = |entry: ComputedStoreEntry| store_computed_value(longhand_table, &entry);
+    let mut store = |entry: ComputedStoreEntry| store_computed_value(longhand_table, entry);
     let mut post_adjusted_longhands = 0;
     if transformation.set_float_none {
         post_adjusted_longhands |= POST_ADJUSTED_FLOAT;
@@ -6401,13 +6385,13 @@ pub(crate) fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
 /// values have no facade-local resource context.
 pub(crate) fn expand_shorthands_with<Sink>(
     property_id: u16,
-    data: *const c_void,
+    data: &RetainedStyleValueData,
     has_style_sheet_context: bool,
     sink: &mut Sink,
 ) where
-    Sink: FnMut(u16, *const c_void, bool),
+    Sink: FnMut(u16, &RetainedStyleValueData, bool),
 {
-    let value = unsafe { &*(data as *const StyleValueData) };
+    let value = data.data();
     let is_shorthand = property_is_shorthand(property_id);
 
     if is_shorthand
@@ -6424,12 +6408,11 @@ pub(crate) fn expand_shorthands_with<Sink>(
         // https://drafts.csswg.org/css-values-5/#pending-substitution-value
         // Ensure we keep the longhand around until it can be resolved.
         sink(property_id, data, has_style_sheet_context);
-        let retained_data = unsafe { crate::css::style_value::retain_style_value(data.cast::<StyleValueData>()) };
-        let pending_data =
-            unsafe { crate::css::style_value::rust_style_value_create_pending_substitution(retained_data) };
-        let pending = unsafe { RetainedStyleValueData::from_retained_pointer(pending_data) };
+        let pending = RetainedStyleValueData::from_arc(std::sync::Arc::new(StyleValueData::PendingSubstitution {
+            original_shorthand_value: data.clone(),
+        }));
         for &longhand in longhands_for_shorthand(property_id) {
-            expand_shorthands_with(longhand, pending.pointer().cast(), has_style_sheet_context, sink);
+            expand_shorthands_with(longhand, &pending, has_style_sheet_context, sink);
         }
         return;
     }
@@ -6439,8 +6422,7 @@ pub(crate) fn expand_shorthands_with<Sink>(
     } = value
     {
         for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
-            let sub_data = sub_value.pointer().cast();
-            expand_shorthands_with(sub_property, sub_data, false, sink);
+            expand_shorthands_with(sub_property, sub_value, false, sink);
         }
         return;
     }
@@ -6465,15 +6447,11 @@ struct ShorthandExpansion {
     _values: Vec<RetainedStyleValueData>,
 }
 
-fn expand_shorthands(property_id: u16, data: *const c_void) -> ShorthandExpansion {
+fn expand_shorthands(property_id: u16, data: &RetainedStyleValueData) -> ShorthandExpansion {
     let mut properties = Vec::new();
     let mut values = Vec::new();
     expand_shorthands_with(property_id, data, false, &mut |longhand_id, longhand_data, _| {
-        let value = unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                longhand_data.cast(),
-            ))
-        };
+        let value = longhand_data.clone();
         properties.push(FfiExpandedProperty {
             property_id: longhand_id,
             data: value.pointer().cast(),
@@ -6496,7 +6474,11 @@ pub unsafe extern "C" fn rust_expand_property_shorthands(
     property_id: u16,
     data: *const c_void,
 ) -> FfiShorthandExpansion {
-    let expansion = Box::new(expand_shorthands(property_id, data));
+    // SAFETY: Guaranteed by the caller.
+    let data = unsafe {
+        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
+    };
+    let expansion = Box::new(expand_shorthands(property_id, &data));
     let properties = expansion.properties.as_ptr();
     let count = expansion.properties.len();
     FfiShorthandExpansion {

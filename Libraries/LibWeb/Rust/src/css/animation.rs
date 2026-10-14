@@ -583,7 +583,7 @@ fn resolve_animation_declarations(
         }
         crate::css::style_compute::expand_shorthands_with(
             declaration.property_id,
-            declaration.value.pointer().cast(),
+            &declaration.value,
             false,
             &mut |longhand_id, data, _| {
                 let physical_property_id =
@@ -595,11 +595,7 @@ fn resolve_animation_declarations(
                     custom_is_inherited: false,
                     source_property_id: declaration.property_id,
                     source_longhand_id: longhand_id,
-                    value: unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                            data.cast(),
-                        ))
-                    },
+                    value: data.clone(),
                     style_sheet_resource_context: declaration.style_sheet_resource_context,
                     use_initial: declaration.use_initial,
                     is_transition: declaration.is_transition,

@@ -144,13 +144,13 @@ impl DeclarationBlockData {
         // the one with greatest cascading order must be represented, at the same relative position as it was specified.
         expand_shorthands_with(
             declaration.property_id,
-            Arc::as_ptr(&declaration.value).cast(),
+            &crate::css::style_value::RetainedStyleValueData::from_arc(declaration.value),
             false,
             &mut |property_id, value, _| {
                 self.append_normalized_property(DeclaredProperty {
                     property_id,
                     important: declaration.important,
-                    value: unsafe { retain_value(value) },
+                    value: value.clone().into_arc(),
                 });
             },
         );

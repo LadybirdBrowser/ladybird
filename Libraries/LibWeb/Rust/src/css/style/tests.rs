@@ -834,7 +834,7 @@ fn retained_winners_construct_a_source_free_cascade_store() {
         .unwrap();
     let (stored, important, _, has_style_sheet_context, _) =
         store.winning_declaration(property_id::BACKGROUND_COLOR).unwrap();
-    assert_eq!(stored, value.pointer().cast());
+    assert_eq!(stored.pointer(), value.pointer());
     assert!(important);
     assert!(!has_style_sheet_context);
 }

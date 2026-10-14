@@ -3528,7 +3528,7 @@ impl RetainedState {
                             )?;
                             continue 'winners;
                         };
-                        (location, Some(value))
+                        (location, Some(value.data()))
                     }
                     // A value with var() references substitutes under the node's environment, as
                     // the C++ cascade substitutes it; a value invalid at computed-value time is
@@ -4978,20 +4978,11 @@ fn expanded_longhand_value(
     value: &crate::css::style_value::RetainedStyleValueData,
 ) -> Option<crate::css::style_value::RetainedStyleValueData> {
     let mut found = None;
-    crate::css::style_compute::expand_shorthands_with(
-        shorthand,
-        value.pointer().cast(),
-        false,
-        &mut |longhand, data, _| {
-            if longhand == property && found.is_none() {
-                found = Some(unsafe {
-                    crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
-                        crate::css::style_value::retain_style_value(data.cast()),
-                    )
-                });
-            }
-        },
-    );
+    crate::css::style_compute::expand_shorthands_with(shorthand, value, false, &mut |longhand, data, _| {
+        if longhand == property && found.is_none() {
+            found = Some(data.clone());
+        }
+    });
     found
 }
 
@@ -5006,15 +4997,10 @@ fn shorthand_longhand_value(
         return None;
     };
     for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
-        let sub_data = unsafe { &*sub_value.pointer().cast::<crate::css::style_value::StyleValueData>() };
         if sub_property == property {
-            return Some(unsafe {
-                crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
-                    crate::css::style_value::retain_style_value(sub_data),
-                )
-            });
+            return Some(sub_value.clone());
         }
-        if let Some(found) = shorthand_longhand_value(property, sub_data) {
+        if let Some(found) = shorthand_longhand_value(property, sub_value.data()) {
             return Some(found);
         }
     }

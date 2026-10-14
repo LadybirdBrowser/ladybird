@@ -3258,28 +3258,26 @@ fn serialize_shorthand(
     // If all the longhands are the same CSS-wide keyword, just return that once.
     let mut built_in_keyword: Option<u16> = None;
     let mut all_same_keyword = true;
-    expand_shorthands_with(
-        shorthand_property,
-        (whole_value as *const StyleValueData).cast(),
-        false,
-        &mut |_, data, _| {
-            // SAFETY: The expansion hands back live Rust-owned style value data.
-            let value = unsafe { &*data.cast::<StyleValueData>() };
-            if !value_is_css_wide_keyword(value) {
-                all_same_keyword = false;
-                return;
-            }
-            let StyleValueData::Keyword { keyword: code } = value else {
-                all_same_keyword = false;
-                return;
-            };
-            match built_in_keyword {
-                None => built_in_keyword = Some(*code),
-                Some(existing) if existing != *code => all_same_keyword = false,
-                _ => {}
-            }
-        },
-    );
+    // The expansion of a shorthand value is that of each of its sub-values.
+    let mut check = |_, data: &crate::css::style_value::RetainedStyleValueData, _| {
+        let value = data.data();
+        if !value_is_css_wide_keyword(value) {
+            all_same_keyword = false;
+            return;
+        }
+        let StyleValueData::Keyword { keyword: code } = value else {
+            all_same_keyword = false;
+            return;
+        };
+        match built_in_keyword {
+            None => built_in_keyword = Some(*code),
+            Some(existing) if existing != *code => all_same_keyword = false,
+            _ => {}
+        }
+    };
+    for (&sub_property, sub_value) in sub_properties.iter().zip(values.as_slice()) {
+        expand_shorthands_with(sub_property, sub_value, false, &mut check);
+    }
     if let Some(code) = built_in_keyword {
         if all_same_keyword {
             sink.push_ascii(keyword::NAMES[code as usize]);

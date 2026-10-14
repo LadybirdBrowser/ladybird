@@ -654,7 +654,7 @@ impl RetainedState {
                 // substituted shorthand, which the same declarations hold.
                 let (substituted_property, written) = match declaration.value.as_ref() {
                     data @ StyleValueData::Shorthand { .. } => match shorthand_longhand_data(property, data) {
-                        Some(longhand) => (None, retained(longhand)),
+                        Some(longhand) => (None, longhand.clone()),
                         None => continue,
                     },
                     data @ StyleValueData::Unresolved { .. } => (Some(property), retained(data)),
