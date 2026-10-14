@@ -20,15 +20,13 @@
 
 namespace IPC {
 
-// Maximum size for decoded containers (strings, buffers, vectors, etc.)
-// This prevents a malicious peer from claiming huge sizes to cause OOM.
-static constexpr size_t MAX_DECODED_SIZE = 64 * MiB;
-
 ErrorOr<size_t> Decoder::decode_size()
 {
     auto size = static_cast<size_t>(TRY(decode<u32>()));
-    if (size > MAX_DECODED_SIZE)
-        return Error::from_string_literal("IPC decode: Size exceeds maximum allowed");
+
+    // Every element of a string or container takes at least one byte or one attachment of the message.
+    if (size > m_stream.remaining() + m_attachments.size())
+        return Error::from_string_literal("IPC decode: Size exceeds the rest of the message");
     return size;
 }
 
@@ -183,8 +181,8 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     if (auto valid = TRY(decoder.decode<bool>()); !valid)
         return Core::AnonymousBuffer {};
 
-    // We don't use decode_size() here since AnonymousBuffer is backed by shared memory, not heap allocation. The
-    // MAX_DECODED_SIZE limit doesn't apply because the memory is already allocated by the sender.
+    // We don't use decode_size() here since AnonymousBuffer is backed by shared memory, not heap allocation. Its
+    // contents are not part of the message.
     auto encoded_size = TRY(decoder.decode<u64>());
     if (!AK::is_within_range<size_t>(encoded_size))
         return Error::from_string_literal("Anonymous buffer size does not fit on this platform");
