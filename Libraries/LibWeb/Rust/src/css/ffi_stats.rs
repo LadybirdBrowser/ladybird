@@ -53,8 +53,6 @@ define_ffi_ops! {
     SizesAttributeParseEntry => "sizesAttributeParseEntries",
     // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
-    // CSS parser callbacks: Rust -> C++.
-    MediaEnvironmentCallback => "mediaEnvironmentCallbacks",
 }
 
 /// Counts owned by one bridge context. Atomics permit observation from another thread;
