@@ -25,6 +25,8 @@
 #include <LibWeb/DOM/Slot.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
@@ -1080,6 +1082,21 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
     auto target = this->target();
     if (!target)
         return false;
+
+    // An animation inside a box-less iframe can't affect its embedding document's rendering. Check the containers
+    // before the target-local cache, since their layout can change without changing the target's style or layout box.
+    // Reverse playback still needs ticks to finish when it reaches the start, even with an infinite iteration count.
+    if (auto animation = associated_animation(); animation && animation->playback_rate() > 0 && isinf(iteration_count())) {
+        for (auto navigable = target->document().navigable(); navigable;) {
+            auto container = navigable->container();
+            if (!container)
+                break;
+            if (container->document().layout_is_up_to_date() && !container->has_layout_box())
+                return true;
+            navigable = container->document().navigable();
+        }
+    }
+
     Layout::ForcedReadScope read { target->document() };
     auto cache_result = [&](bool result) {
         if (target->document().layout_is_up_to_date()) {
@@ -1107,8 +1124,8 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
             ++target->document().style_invalidation_counters().animation_style_skip_cache_misses;
     }
 
-    // INTEROP: Other engines suppress main-thread style sampling for invisible transform animations. Restrict this
-    // optimization to the infinite transform-only case until animation overflow updates can also be throttled safely.
+    // Restrict throttling within a rendered document to infinite transform-only effects until animation overflow
+    // updates can also be throttled safely.
     if (!isinf(iteration_count()) || pseudo_element_type().has_value())
         return cache_result(false);
 

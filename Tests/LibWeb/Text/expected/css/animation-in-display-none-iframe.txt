@@ -1,0 +1,11 @@
+hidden iframe skips animation frame requests: true
+hidden iframe skips animated style builds: true
+hidden iframe style read samples animation: true
+showing iframe resumes animation frame requests: true
+showing iframe resumes animated style builds: true
+hiding iframe stops animation frame requests: true
+hidden iframe iteration listener uses wake-up timer: true
+hidden iframe dispatches iteration event: true
+hidden ancestor iframe stops nested animation frame requests: true
+showing ancestor iframe resumes nested animation: true
+reversed infinite animation can finish while hidden: true
