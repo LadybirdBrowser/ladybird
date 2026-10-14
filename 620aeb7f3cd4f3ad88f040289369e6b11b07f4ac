@@ -1,0 +1,7 @@
+Ladybird runs a spellcheck only while the page has transient user
+activation — so a page can’t start one at will to test words against the
+user’s dictionary. Blink puts the same limit on its own checks, for the
+same reason: ColdModeSpellCheckRequester::QualifyingEditable() skips a
+field when the page lacks transient activation, or when the user didn’t
+focus it. And IdleSpellCheckController::RespondToChangedContents() skips
+any edit made without transient activation.
