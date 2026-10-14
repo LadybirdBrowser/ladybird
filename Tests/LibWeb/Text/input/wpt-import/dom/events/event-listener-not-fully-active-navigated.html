@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Event listeners are not invoked for targets in a navigated-away-from document</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke">
+<link rel="help" href="https://github.com/whatwg/dom/issues/1084">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/not-fully-active-helpers.js"></script>
+<body>
+<script>
+"use strict";
+
+// Removing an iframe is not the only way for a Document to stop being fully
+// active: navigating away from it, or making one of its ancestors not fully
+// active, has the same effect.
+//
+// Note that these tests deliberately avoid holding on to the iframe's
+// WindowProxy across a navigation, since that would then refer to the new
+// Window rather than to the old one.
+
+const frameURL = "resources/not-fully-active-frame.html";
+
+promise_test(async t => {
+  const frame = await addSrcFrame(t, frameURL);
+  const { document: doc, element, createEventTarget } = window.frameAPI;
+  const target = createEventTarget();
+
+  let count = 0;
+  const listener = () => count++;
+  doc.addEventListener("x", listener);
+  element.addEventListener("x", listener);
+  element.onclick = listener;
+  target.addEventListener("x", listener);
+
+  doc.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("click"));
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 4, "listeners run before the navigation");
+
+  await navigateFrame(frame, "/common/blank.html");
+
+  doc.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("click"));
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 4, "listeners do not run after the navigation");
+}, "Targets in a document that its iframe has navigated away from");
+
+promise_test(async t => {
+  const outer = await addSrcFrame(t, "/common/blank.html");
+  const outerDoc = outer.contentDocument;
+  const inner = outerDoc.createElement("iframe");
+  inner.src = new URL(frameURL, location.href).href;
+  await new Promise(resolve => {
+    inner.addEventListener("load", resolve, { once: true });
+    outerDoc.body.append(inner);
+  });
+
+  const { document: doc, element, createEventTarget } = window.frameAPI;
+  const target = createEventTarget();
+
+  let count = 0;
+  const listener = () => count++;
+  doc.addEventListener("x", listener);
+  element.addEventListener("x", listener);
+  target.addEventListener("x", listener);
+
+  doc.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("x"));
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 3, "listeners run while both iframes are attached");
+
+  // This makes the outer document, and therefore the inner document, no longer
+  // fully active.
+  await navigateFrame(outer, "/common/blank.html?2");
+
+  doc.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("x"));
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 3, "listeners do not run once the outer iframe navigated");
+}, "Targets in a nested iframe whose parent document is no longer fully active");
+
+promise_test(async t => {
+  const outer = await addSrcFrame(t, "/common/blank.html");
+  const outerDoc = outer.contentDocument;
+  const inner = outerDoc.createElement("iframe");
+  inner.src = new URL(frameURL, location.href).href;
+  await new Promise(resolve => {
+    inner.addEventListener("load", resolve, { once: true });
+    outerDoc.body.append(inner);
+  });
+
+  const { document: doc, element, createEventTarget } = window.frameAPI;
+  const target = createEventTarget();
+
+  let count = 0;
+  const listener = () => count++;
+  doc.addEventListener("x", listener);
+  element.addEventListener("x", listener);
+  target.addEventListener("x", listener);
+
+  outer.remove();
+
+  doc.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("x"));
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 0);
+}, "Targets in a nested iframe whose parent iframe was removed");
+</script>

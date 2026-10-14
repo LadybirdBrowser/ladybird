@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Event listener callbacks from a document that is not fully active</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke">
+<link rel="help" href="https://html.spec.whatwg.org/#the-event-handler-processing-algorithm">
+<link rel="help" href="https://github.com/whatwg/dom/issues/1084">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/not-fully-active-helpers.js"></script>
+<body>
+<script>
+"use strict";
+
+// Separately from the event target's global, a listener is also not invoked
+// when the global of its callback is a Window whose associated Document is not
+// fully active — even when the target itself is fine. "Inner invoke" checks
+// both globals, and the event handler processing algorithm checks the
+// callback's global as well.
+//
+// What is *not* checked is the realm that addEventListener() happened to be
+// called from.
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>
+    parent.callback = () => { parent.count++; };
+  <\/script>`);
+  const { callback } = window;
+  window.count = 0;
+
+  const target = new EventTarget();
+  target.addEventListener("x", callback);
+
+  target.dispatchEvent(new Event("x"));
+  assert_equals(window.count, 1, "the callback runs while the iframe is attached");
+
+  frame.remove();
+  target.dispatchEvent(new Event("x"));
+  assert_equals(window.count, 1, "the callback does not run once the iframe is removed");
+}, "Function callback from a removed iframe, with a fully active target");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>
+    parent.callbackObject = { handleEvent() { parent.count++; } };
+  <\/script>`);
+  const { callbackObject } = window;
+  window.count = 0;
+
+  const target = new EventTarget();
+  target.addEventListener("x", callbackObject);
+  frame.remove();
+
+  target.dispatchEvent(new Event("x"));
+  assert_equals(window.count, 0);
+}, "handleEvent() callback from a removed iframe, with a fully active target");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>
+    parent.callback = () => { parent.count++; };
+  <\/script>`);
+  const { callback } = window;
+  window.count = 0;
+
+  const element = document.createElement("div");
+  element.onclick = callback;
+  frame.remove();
+
+  element.dispatchEvent(new Event("click"));
+  assert_equals(window.count, 0);
+}, "Event handler attribute set to a function from a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>
+    parent.addListener = (target, callback) => target.addEventListener("x", callback);
+  <\/script>`);
+  const { addListener } = window;
+
+  // Both the target and the callback belong to this fully active document;
+  // only addEventListener() was called from the iframe.
+  const target = new EventTarget();
+  let count = 0;
+  addListener(target, () => count++);
+  frame.remove();
+
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 1);
+}, "Listener added from a removed iframe, with a fully active target and callback");
+</script>

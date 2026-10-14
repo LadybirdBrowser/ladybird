@@ -52,6 +52,7 @@ WEB_API void remove_event_listener(DOM::EventTarget&, Utf16String const&, GC::Pt
 WEB_API GC::Ref<JS::Environment> new_event_handler_object_environment(JS::Realm&, GC::Ref<DOM::EventTarget>, GC::Ref<JS::Environment>);
 WEB_API JS::Realm* callback_realm(WebIDL::CallbackType*);
 WEB_API HTML::Window* window_from_callback(WebIDL::CallbackType&);
+WEB_API DOM::EventTarget* current_target_global(WebIDL::CallbackType&, DOM::Event const&);
 WEB_API void report_exception_for_callback(WebIDL::CallbackType&, JS::Value);
 WEB_API JS::Completion invoke_event_listener(WebIDL::CallbackType&, DOM::Event&);
 WEB_API JS::Completion invoke_event_handler(WebIDL::CallbackType&, DOM::Event&, bool);

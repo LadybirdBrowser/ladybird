@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Event listeners on nodes whose realm and node document disagree</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke">
+<link rel="help" href="https://github.com/whatwg/dom/issues/1084">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/not-fully-active-helpers.js"></script>
+<body>
+<script>
+"use strict";
+
+// A node is created in the realm of the document it is created for, and
+// adopting the node into another document does not change that realm. So for a
+// node the realm it was created in and its node document can belong to
+// different globals, which can independently stop being fully active.
+//
+// These tests assert that it is the node document's global that determines
+// whether listeners run, matching how HTML defines "scripting is disabled" for
+// a node.
+
+const frameURL = "resources/not-fully-active-frame.html";
+
+promise_test(async t => {
+  const frame = await addSrcFrame(t, frameURL);
+  const element = window.frameAPI.createElement();
+  assert_false(element instanceof HTMLDivElement,
+               "sanity check: the element was created in the iframe's realm");
+
+  // Adopts the element into this document.
+  document.body.append(element);
+  t.add_cleanup(() => element.remove());
+
+  let count = 0;
+  element.addEventListener("x", () => count++);
+  element.onclick = () => count++;
+
+  element.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("click"));
+  assert_equals(count, 2, "listeners run while the iframe is attached");
+
+  frame.remove();
+
+  element.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("click"));
+  assert_equals(count, 4, "listeners still run once the iframe is removed");
+}, "Node created in an iframe's realm and adopted into this document, iframe removed");
+
+promise_test(async t => {
+  const frame = await addSrcFrame(t, frameURL);
+  const frameDocument = window.frameAPI.document;
+  const element = document.createElement("div");
+
+  // Adopts the element into the iframe's document.
+  frameDocument.body.append(element);
+  assert_true(element instanceof HTMLDivElement,
+              "sanity check: adopting does not change the element's realm");
+
+  let count = 0;
+  element.addEventListener("x", () => count++);
+  element.onclick = () => count++;
+
+  element.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("click"));
+  assert_equals(count, 2, "listeners run while the iframe is attached");
+
+  frame.remove();
+
+  element.dispatchEvent(new Event("x"));
+  element.dispatchEvent(new Event("click"));
+  assert_equals(count, 2, "listeners do not run once the iframe is removed");
+}, "Node created in this realm and adopted into an iframe's document, iframe removed");
+
+promise_test(async t => {
+  const frame = await addSrcFrame(t, frameURL);
+  const frameDocument = window.frameAPI.document;
+  const element = document.createElement("div");
+  document.body.append(element);
+  t.add_cleanup(() => element.remove());
+
+  // Control for the test below: adopting the target into another fully active
+  // document partway through dispatch does not stop the remaining listeners.
+  const order = [];
+  element.addEventListener("x", () => {
+    order.push("first");
+    frameDocument.body.append(element);
+  });
+  element.addEventListener("x", () => order.push("second"));
+
+  element.dispatchEvent(new Event("x"));
+  assert_array_equals(order, ["first", "second"]);
+}, "Adopting the target into a fully active iframe's document during dispatch");
+
+promise_test(async t => {
+  const frame = await addSrcFrame(t, frameURL);
+  const frameDocument = window.frameAPI.document;
+  const element = document.createElement("div");
+  document.body.append(element);
+  t.add_cleanup(() => element.remove());
+
+  // targetGlobal is determined per listener rather than once for the dispatch,
+  // so adopting the target into a document that is no longer fully active
+  // partway through does stop the remaining listeners.
+  const order = [];
+  element.addEventListener("x", () => {
+    order.push("first");
+    frameDocument.body.append(element);
+    frame.remove();
+  });
+  element.addEventListener("x", () => order.push("second"));
+
+  element.dispatchEvent(new Event("x"));
+  assert_array_equals(order, ["first"]);
+}, "Adopting the target into a removed iframe's document during dispatch");
+
+promise_test(async t => {
+  const frame = await addSrcFrame(t, frameURL);
+  const element = window.frameAPI.createElement();
+  document.body.append(element);
+  t.add_cleanup(() => element.remove());
+
+  // The listener is registered on an ancestor in this document, while the
+  // target is a node from the removed iframe's realm.
+  let count = 0;
+  const listener = () => count++;
+  document.body.addEventListener("x", listener);
+  t.add_cleanup(() => document.body.removeEventListener("x", listener));
+
+  frame.remove();
+
+  element.dispatchEvent(new Event("x", { bubbles: true }));
+  assert_equals(count, 1);
+}, "Event from a node created in a removed iframe's realm still reaches listeners in this document");
+</script>

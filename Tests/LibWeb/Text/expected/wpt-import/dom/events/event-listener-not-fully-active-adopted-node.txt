@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Node created in an iframe's realm and adopted into this document, iframe removed
+Pass	Node created in this realm and adopted into an iframe's document, iframe removed
+Pass	Adopting the target into a fully active iframe's document during dispatch
+Pass	Adopting the target into a removed iframe's document during dispatch
+Pass	Event from a node created in a removed iframe's realm still reaches listeners in this document
