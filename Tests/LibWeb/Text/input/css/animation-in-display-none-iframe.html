@@ -85,6 +85,15 @@ asyncTest(async done => {
     const finished = reversed.finished.then(() => true);
     println(`reversed infinite animation can finish while hidden: ${await Promise.race([finished, new Promise(resolve => setTimeout(() => resolve(false), 2000))])}`);
     reversed.cancel();
+
+    const zeroDuration = circle.animate({ strokeDashoffset: ["0", "100"] }, {
+        duration: 0,
+        iterations: Infinity,
+        endDelay: 1000,
+    });
+    const zeroDurationFinished = zeroDuration.finished.then(() => true);
+    println(`zero-duration infinite animation finishes after its end delay while hidden: ${await Promise.race([zeroDurationFinished, new Promise(resolve => setTimeout(() => resolve(false), 2000))])}`);
+    zeroDuration.cancel();
     frame.remove();
     done();
 });
