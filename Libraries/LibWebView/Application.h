@@ -128,6 +128,7 @@ public:
 
     virtual bool supports_system_menu_bar() const { return false; }
     virtual bool supports_vertical_tabs() const { return false; }
+    virtual bool supports_content_blocking_controls() const { return false; }
     virtual bool supports_private_browsing_windows() const { return false; }
     virtual bool supports_client_side_window_decorations() const { return false; }
     // Returns true if the platform sends momentum scroll events after a touchpad flick.

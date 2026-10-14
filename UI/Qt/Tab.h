@@ -135,6 +135,7 @@ private:
 
     virtual void tab_settings_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
+    virtual void content_blocker_count_visibility_changed() override;
 
     void recreate_toolbar_icons();
     void update_vertical_tabs_toolbar_button_placement();

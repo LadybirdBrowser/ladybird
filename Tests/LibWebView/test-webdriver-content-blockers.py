@@ -141,6 +141,32 @@ with tempfile.TemporaryDirectory() as directory:
         assert command("execute/sync", {"script": "return location.href", "args": []}) == "about:about"
         command("url", {"url": "about:blocking"})
         state = settings()
+        assert state["contentBlockers"]["showBlockedCount"] is True
+        features = command(
+            "execute/async",
+            {
+                "script": """
+                const done = arguments[arguments.length - 1];
+                document.addEventListener('WebUIMessage', function receive(event) {
+                    if (event.detail.name !== 'loadFeatures') return;
+                    document.removeEventListener('WebUIMessage', receive);
+                    done(event.detail.data);
+                });
+                ladybird.sendMessage('loadFeatures');
+                """,
+                "args": [],
+            },
+        )
+        display = command(
+            "execute/sync",
+            {
+                "script": "return getComputedStyle(document.querySelector('#show-content-blocker-count-setting')).display",
+                "args": [],
+            },
+        )
+        assert (display != "none") == features["contentBlockingControls"]
+        command("execute/sync", {"script": "ladybird.sendMessage('setShowContentBlockerCount', false)", "args": []})
+        assert settings()["contentBlockers"]["showBlockedCount"] == (not features["contentBlockingControls"])
         assert command(
             "execute/sync",
             {

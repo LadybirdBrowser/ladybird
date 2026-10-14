@@ -79,6 +79,7 @@ static constexpr auto BACKGROUND_NETWORKING_ENABLED_KEY = "enabled"sv;
 static constexpr auto BACKGROUND_NETWORKING_FEATURES_KEY = "features"sv;
 
 static constexpr auto CONTENT_BLOCKERS_KEY = "contentBlockers"sv;
+static constexpr auto CONTENT_BLOCKER_SHOW_BLOCKED_COUNT_KEY = "showBlockedCount"sv;
 static constexpr auto CONTENT_BLOCKER_DISABLED_SITES_KEY = "disabledSites"sv;
 static constexpr auto CONTENT_BLOCKER_BUILT_IN_LISTS_KEY = "builtInLists"sv;
 static constexpr auto CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY = "customSubscriptions"sv;
@@ -356,6 +357,7 @@ Settings Settings::create(ByteString settings_path)
 
     if (auto content_blockers = settings_json.value().get_object(CONTENT_BLOCKERS_KEY); content_blockers.has_value()) {
         settings.m_content_blocker_enabled = content_blockers->get_bool(CONTENT_BLOCKER_ENABLED_KEY).value_or(false);
+        settings.m_show_content_blocker_count = content_blockers->get_bool(CONTENT_BLOCKER_SHOW_BLOCKED_COUNT_KEY).value_or(true);
 
         if (auto sites = content_blockers->get_array(CONTENT_BLOCKER_DISABLED_SITES_KEY); sites.has_value()) {
             sites->for_each([&](JsonValue const& entry) {
@@ -586,6 +588,7 @@ JsonValue Settings::serialize_json() const
 
     JsonObject content_blockers;
     content_blockers.set(CONTENT_BLOCKER_ENABLED_KEY, m_content_blocker_enabled);
+    content_blockers.set(CONTENT_BLOCKER_SHOW_BLOCKED_COUNT_KEY, m_show_content_blocker_count);
     content_blockers.set(CONTENT_BLOCKER_DISABLED_SITES_KEY, move(disabled_sites));
     content_blockers.set(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY, move(built_in_content_blocker_lists));
     content_blockers.set(CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY, move(custom_content_blocker_subscriptions));
@@ -1106,6 +1109,16 @@ void Settings::set_content_blocker_enabled(bool enabled)
     persist_settings();
     for (auto& observer : m_observers)
         observer.content_blocker_settings_changed();
+}
+
+void Settings::set_show_content_blocker_count(bool show)
+{
+    if (m_show_content_blocker_count == show)
+        return;
+    m_show_content_blocker_count = show;
+    persist_settings();
+    for (auto& observer : m_observers)
+        observer.content_blocker_count_visibility_changed();
 }
 
 void Settings::set_content_blocker_list_enabled(StringView identifier, bool enabled)

@@ -703,6 +703,7 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     QObject::connect(m_content_blocking_button, &QToolButton::clicked, this, [this] { show_content_blocking_popover(); });
     view().on_content_blocking_change = [this](auto const& snapshot) { update_content_blocking_controls(snapshot); };
     update_content_blocking_controls(view().content_blocking_snapshot());
+    content_blocker_count_visibility_changed();
 
     m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
     toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignVCenter);
@@ -1344,6 +1345,11 @@ void Tab::config_variable_changed(WebView::ConfigVariableID variable)
         m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(variable));
     if (variable == WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
         update_tab_title();
+}
+
+void Tab::content_blocker_count_visibility_changed()
+{
+    m_content_blocking_button->set_show_count_badge(WebView::Application::settings().show_content_blocker_count());
 }
 
 void Tab::set_loading(bool is_loading)
