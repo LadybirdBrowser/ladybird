@@ -808,8 +808,6 @@ void Document::initialize_document()
     m_selection = Selection::Selection::create(*this);
 
     m_list_of_available_images = HTML::ListOfAvailableImages::create();
-
-    ensure_cookie_version_index(m_url);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#populate-with-html/head/body
@@ -6180,9 +6178,15 @@ GC::Ptr<HTML::HTMLParser> Document::active_parser() const
 
 void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_context)
 {
+    auto had_browsing_context = m_browsing_context != nullptr;
     m_browsing_context = browsing_context;
-    if (browsing_context)
+    if (browsing_context) {
         ensure_style_engine_tracks_tree();
+        // NB: A document without a browsing context is cookie-averse, so the version index that lets document.cookie
+        //     skip asking for unchanged cookies is requested once it first has one.
+        if (!had_browsing_context)
+            ensure_cookie_version_index(m_url, m_url);
+    }
 }
 
 void Document::set_style_node_id(CSS::StyleNodeID style_node_id)
@@ -11208,6 +11212,12 @@ void Document::build_registered_properties_cache()
 
 void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url)
 {
+    // NB: A cookie-averse document never uses the index; set_browsing_context() asks for it once it can.
+    if (!browsing_context()) {
+        m_cookie_version_index = {};
+        return;
+    }
+
     auto new_domain = HTTP::Cookie::canonicalize_domain(new_url);
     if (!new_domain.has_value()) {
         m_cookie_version_index = {};
