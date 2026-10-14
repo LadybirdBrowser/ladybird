@@ -27,6 +27,10 @@ pub struct CompiledCode {
     /// The loop back edges from where a frame running in the interpreter
     /// reaches one of the `osr_entries` without leaving the loop it is in.
     pub osr_loop_back_edges: Vec<u32>,
+    /// The loop back edges in the loops around those of the `osr_entries`,
+    /// from where a frame running in the interpreter may reach one of them
+    /// on a later iteration.
+    pub osr_outer_loop_back_edges: Vec<u32>,
     /// The sites of the code, by index: exit and leave stubs pass the index of
     /// theirs to the runtime, and calls in inlined callees name theirs.
     pub sites: Vec<Site>,
