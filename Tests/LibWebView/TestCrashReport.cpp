@@ -16,11 +16,58 @@
 #include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/ProcessManager.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#if defined(AK_OS_LINUX)
+TEST_CASE(crash_scratch_has_fixed_size_and_allows_report_writes)
+{
+    auto report = MUST(WebView::CrashReport::create(WebView::ProcessType::WebContent));
+    auto fd = report->fd();
+    // NB: Depending on vm.memfd_noexec, the kernel can also add F_SEAL_EXEC.
+    auto seals = MUST(Core::System::fcntl(fd, F_GET_SEALS, static_cast<uintptr_t>(0)));
+    auto required_seals = F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL;
+    EXPECT_EQ(seals & required_seals, required_seals);
+    EXPECT_EQ(seals & F_SEAL_WRITE, 0);
+    EXPECT(MUST(Core::System::fcntl(fd, F_GETFD, static_cast<uintptr_t>(0))) & FD_CLOEXEC);
+
+    auto metadata = MUST(Core::System::fstat(fd));
+    EXPECT_EQ(metadata.st_nlink, 0u);
+    EXPECT_EQ(metadata.st_mode & 0777, 0600u);
+    auto size = metadata.st_size;
+    // NB: The record holds the header, the frames, and a build description of at most 16 KiB after its length.
+    auto description_offset = sizeof(Core::CrashReportData::ReportHeader) + Core::CrashReportData::maximum_frames * sizeof(Core::CrashReportData::ReportFrame);
+    EXPECT_EQ(size, static_cast<off_t>(description_offset + sizeof(u32) + 16 * KiB));
+
+    auto shrink_result = ftruncate(fd, 0);
+    auto shrink_error = errno;
+    EXPECT_EQ(shrink_result, -1);
+    EXPECT_EQ(shrink_error, EPERM);
+    auto grow_result = ftruncate(fd, size + 1);
+    auto grow_error = errno;
+    EXPECT_EQ(grow_result, -1);
+    EXPECT_EQ(grow_error, EPERM);
+
+    Core::CrashReportData::ReportHeader header;
+    EXPECT_EQ(pwrite(fd, &header, sizeof(header), 0), static_cast<ssize_t>(sizeof(header)));
+    Core::CrashReportData::ReportHeader recorded;
+    EXPECT_EQ(pread(fd, &recorded, sizeof(recorded), 0), static_cast<ssize_t>(sizeof(recorded)));
+    EXPECT_EQ(recorded.magic, header.magic);
+
+    auto description = WebView::CrashReport::describe_current_build(WebView::ProcessType::WebContent);
+    MUST(report->record_build_description(description));
+    u32 recorded_length = 0;
+    EXPECT_EQ(pread(fd, &recorded_length, sizeof(recorded_length), description_offset), static_cast<ssize_t>(sizeof(recorded_length)));
+    EXPECT_EQ(recorded_length, description.length());
+    auto recorded_description = MUST(ByteBuffer::create_uninitialized(recorded_length));
+    EXPECT_EQ(pread(fd, recorded_description.data(), recorded_length, description_offset + sizeof(recorded_length)), static_cast<ssize_t>(recorded_length));
+    EXPECT_EQ(StringView { recorded_description.bytes() }, description.view());
+}
+#endif
 
 static ByteString test_directory()
 {
