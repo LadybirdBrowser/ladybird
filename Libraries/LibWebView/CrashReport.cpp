@@ -17,6 +17,7 @@
 #include <LibWebView/ProcessManager.h>
 
 #if !defined(AK_OS_WINDOWS)
+#    include <fcntl.h>
 #    include <signal.h>
 #    include <sys/utsname.h>
 #    include <sys/wait.h>
@@ -29,8 +30,21 @@ using namespace Core::CrashReportData;
 
 #if !defined(AK_OS_WINDOWS)
 
+// A record keeps a description of the build that wrote it after its last frame, where the crash handler never writes,
+// as its length followed by its text.
+static constexpr off_t build_description_offset = sizeof(ReportHeader) + maximum_frames * sizeof(ReportFrame);
+static constexpr size_t maximum_build_description_length = 16 * KiB;
+
 ErrorOr<NonnullOwnPtr<CrashReport>> CrashReport::create(ProcessType process_type)
 {
+#    if defined(AK_OS_LINUX)
+    // NB: The record has room for the frames and a build description, so it never needs to change size. Like the
+    //     temporary file on other platforms, only its owner can read and write it.
+    auto fd = TRY(Core::System::anon_create(build_description_offset + sizeof(u32) + maximum_build_description_length, O_CLOEXEC, Core::System::AllowSealing::Yes));
+    auto file = TRY(Core::File::adopt_fd(fd, Core::File::OpenMode::ReadWrite));
+    TRY(Core::System::fchmod(fd, 0600));
+    TRY(Core::System::fcntl(fd, F_ADD_SEALS, static_cast<uintptr_t>(F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL)));
+#    else
     auto pattern = ByteString::formatted("{}/ladybird-crash-XXXXXX", Core::StandardPaths::tempfile_directory());
     auto pattern_buffer = TRY(ByteBuffer::create_zeroed(pattern.length() + 1));
     pattern.bytes().copy_to(pattern_buffer);
@@ -39,6 +53,7 @@ ErrorOr<NonnullOwnPtr<CrashReport>> CrashReport::create(ProcessType process_type
     auto file = TRY(Core::File::adopt_fd(fd, Core::File::OpenMode::ReadWrite));
     TRY(Core::System::unlink(StringView { pattern_buffer.bytes().trim(pattern.length()) }));
     TRY(Core::System::set_close_on_exec(fd, true));
+#    endif
     return make<CrashReport>(move(file), process_type);
 }
 
@@ -91,11 +106,6 @@ static void append_system_description(StringBuilder& builder)
         builder.appendff("Kernel release: {}\n", release.substring_view(0, length));
     }
 }
-
-// A record keeps a description of the build that wrote it after its last frame, where the crash handler never writes,
-// as its length followed by its text.
-static constexpr off_t build_description_offset = sizeof(ReportHeader) + maximum_frames * sizeof(ReportFrame);
-static constexpr size_t maximum_build_description_length = 16 * KiB;
 
 ByteString CrashReport::describe_current_build(ProcessType process_type)
 {
