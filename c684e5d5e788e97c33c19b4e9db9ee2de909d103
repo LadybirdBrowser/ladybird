@@ -1,0 +1,15 @@
+The context menu Ladybird opens on a misspelled word starts with a
+spelling block: up to five of the spellchecker’s guesses (or a disabled
+No Guesses Found), then Ignore Spelling and Learn Spelling. That order
+follows WebKit’s ContextMenuController, which lists every guess (or No
+Guesses Found), then Ignore Spelling and Learn Spelling. The cap of five
+is kMaxSpellingSuggestionsLimit in Chrome’s SpellingMenuObserver.
+
+Ladybird’s pages each keep the words the user ignored or learned, and
+drop them from every spellcheck answer that comes back — including
+answers to checks that ran before the spellchecker knew the word. Chrome
+does the same with its renderer’s copy of the user’s custom dictionary:
+SpellCheck::CreateTextCheckingResults() skips any result whose word the
+dictionary holds. But Chrome has no Ignore Spelling in its context menu,
+and the one in the macOS Spelling panel goes straight to NSSpellChecker,
+so nothing drops ignored words from answers already on their way.
