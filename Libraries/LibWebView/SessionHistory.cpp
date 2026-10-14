@@ -376,16 +376,6 @@ Vector<i32> TraversableSessionHistory::used_steps() const
     return get_all_used_history_steps(m_entries);
 }
 
-bool TraversableSessionHistory::can_go_back() const
-{
-    return current_used_step_index() > 0;
-}
-
-bool TraversableSessionHistory::can_go_forward() const
-{
-    return current_used_step_index() + 1 < used_step_count();
-}
-
 bool TraversableSessionHistory::has_only_top_level_used_steps() const
 {
     if (entries_have_nested_histories(m_entries))
@@ -402,44 +392,18 @@ bool TraversableSessionHistory::has_only_top_level_used_steps() const
     return true;
 }
 
-Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::traversal_target_for_delta(int delta) const
-{
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
-
-    // 1. Let allSteps be the result of getting all used history steps for traversable.
-
-    // 2. Let currentStepIndex be the index of traversable's current session history step within allSteps.
-
-    // 3. Let targetStepIndex be currentStepIndex plus delta.
-    auto target_step_index = target_step_index_for_delta(delta);
-
-    // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
-    if (!target_step_index.has_value())
-        return {};
-
-    auto target_step = step_at(*target_step_index);
-    VERIFY(target_step.has_value());
-    return traversal_target_for_step(*target_step);
-}
-
 Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::traversal_target_for_step(i32 step) const
 {
     auto target_step_index = used_steps().find_first_index(step);
     if (!target_step_index.has_value())
         return {};
 
-    auto target_top_level_entry_index = top_level_entry_index_for_step(m_entries, step);
-    VERIFY(target_top_level_entry_index.has_value());
-    auto const* target_top_level_entry = m_entries[*target_top_level_entry_index].ptr();
-    auto const* current_top_level_entry = &current_entry();
+    auto const* target_top_level_entry = top_level_entry_for_step(step);
+    VERIFY(target_top_level_entry);
 
     return TraversalTarget {
         .target_step_index = *target_step_index,
-        .target_step = step,
-        .target_top_level_entry_index = *target_top_level_entry_index,
-        .target_top_level_entry = target_top_level_entry,
-        .target_step_is_top_level_entry = entry_for_step(step) != nullptr,
-        .changes_top_level_entry = target_top_level_entry != current_top_level_entry,
+        .changes_top_level_entry = target_top_level_entry != &current_entry(),
     };
 }
 
@@ -500,37 +464,6 @@ Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> Traversable
     return WebView::get_session_history_entries(m_entries, navigable, step);
 }
 
-Optional<size_t> TraversableSessionHistory::target_step_index_for_delta(int delta) const
-{
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
-    // Let allSteps be the result of getting all used history steps. Let
-    // targetStepIndex be currentStepIndex plus delta. If allSteps[targetStepIndex]
-    // does not exist, then abort these steps.
-    auto current_used_step_index = this->current_used_step_index();
-    if (delta == 0)
-        return {};
-
-    if (delta < 0) {
-        auto magnitude = static_cast<size_t>(-static_cast<i64>(delta));
-        if (magnitude > current_used_step_index)
-            return {};
-        return current_used_step_index - magnitude;
-    }
-
-    auto target_index = current_used_step_index + static_cast<size_t>(delta);
-    if (target_index >= used_step_count())
-        return {};
-    return target_index;
-}
-
-Optional<i32> TraversableSessionHistory::step_at(size_t index) const
-{
-    auto used_steps = this->used_steps();
-    if (index >= used_steps.size())
-        return {};
-    return used_steps[index];
-}
-
 CanonicalSessionHistoryEntry& TraversableSessionHistory::current_entry() const
 {
     return *m_entries[current_top_level_entry_index()];
@@ -543,28 +476,12 @@ CanonicalSessionHistoryEntry* TraversableSessionHistory::entry_at(size_t index) 
     return m_entries[index].ptr();
 }
 
-CanonicalSessionHistoryEntry* TraversableSessionHistory::entry_for_step(i32 step) const
-{
-    for (auto const& entry : m_entries) {
-        if (entry->step == step)
-            return entry.ptr();
-    }
-    return nullptr;
-}
-
 CanonicalSessionHistoryEntry* TraversableSessionHistory::top_level_entry_for_step(i32 step) const
 {
     auto index = top_level_entry_index_for_step(m_entries, step);
     if (!index.has_value())
         return nullptr;
     return m_entries[*index].ptr();
-}
-
-void TraversableSessionHistory::traverse_to(size_t index)
-{
-    auto used_steps = this->used_steps();
-    VERIFY(index < used_steps.size());
-    m_current_session_history_step = used_steps[index];
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step

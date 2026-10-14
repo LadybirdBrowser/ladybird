@@ -305,9 +305,27 @@ static void expect_entry_resource(Web::HTML::SessionHistoryEntryDescriptor const
 
 static void expect_used_step(WebView::TraversableSessionHistory const& history, size_t index, i32 expected_step)
 {
-    auto step = history.step_at(index);
-    VERIFY(step.has_value());
-    EXPECT_EQ(*step, expected_step);
+    auto used_steps = history.used_steps();
+    VERIFY(index < used_steps.size());
+    EXPECT_EQ(used_steps[index], expected_step);
+}
+
+static bool can_go_back(WebView::TraversableSessionHistory const& history)
+{
+    return history.current_used_step_index() > 0;
+}
+
+static bool can_go_forward(WebView::TraversableSessionHistory const& history)
+{
+    return history.current_used_step_index() + 1 < history.used_step_count();
+}
+
+static Optional<i32> used_step_for_delta(WebView::TraversableSessionHistory const& history, int delta)
+{
+    auto target_step_index = static_cast<i64>(history.current_used_step_index()) + delta;
+    if (delta == 0 || target_step_index < 0 || static_cast<size_t>(target_step_index) >= history.used_step_count())
+        return {};
+    return history.used_steps()[target_step_index];
 }
 
 static void expect_nested_history(Web::HTML::SessionHistoryEntryDescriptor const& entry, size_t index, StringView expected_id, size_t expected_size)
@@ -569,8 +587,8 @@ TEST_CASE(used_steps_include_nested_history_steps)
     EXPECT_EQ(history.size(), 2uz);
     EXPECT_EQ(history.used_step_count(), 3uz);
     EXPECT(!history.has_only_top_level_used_steps());
-    EXPECT(history.can_go_back());
-    EXPECT(!history.can_go_forward());
+    EXPECT(can_go_back(history));
+    EXPECT(!can_go_forward(history));
     expect_entry(history, 0, 0, "https://a.example/"sv);
     expect_current_entry(history, 2, "https://b.example/"sv);
 
@@ -579,26 +597,21 @@ TEST_CASE(used_steps_include_nested_history_steps)
     expect_nested_history(*first_entry, 0, "frame-1"sv, 1);
     expect_nested_entry(first_entry->document_state->nested_histories[0], 0, 1, "https://frame.example/a"sv);
 
-    auto target_step_index = history.target_step_index_for_delta(-1);
-    VERIFY(target_step_index.has_value());
-    expect_used_step(history, *target_step_index, 1);
-    EXPECT_EQ(history.entry_for_step(1), nullptr);
+    EXPECT_EQ(used_step_for_delta(history, -1), 1);
     auto* target_top_level_entry = history.top_level_entry_for_step(1);
     VERIFY(target_top_level_entry);
     EXPECT_EQ(target_top_level_entry->url, parse_url("https://a.example/"sv));
+    EXPECT_EQ(target_top_level_entry->step, 0);
 
-    auto traversal_target = history.traversal_target_for_delta(-1);
+    auto traversal_target = history.traversal_target_for_step(1);
     VERIFY(traversal_target.has_value());
-    EXPECT_EQ(traversal_target->target_step_index, *target_step_index);
-    EXPECT_EQ(traversal_target->target_step, 1);
-    EXPECT_EQ(traversal_target->target_top_level_entry, target_top_level_entry);
-    EXPECT(!traversal_target->target_step_is_top_level_entry);
+    EXPECT_EQ(traversal_target->target_step_index, 1uz);
     EXPECT(traversal_target->changes_top_level_entry);
 
-    history.traverse_to(*target_step_index);
+    history.set_current_session_history_step(1);
     expect_current_entry(history, 0, "https://a.example/"sv);
-    EXPECT(history.can_go_back());
-    EXPECT(history.can_go_forward());
+    EXPECT(can_go_back(history));
+    EXPECT(can_go_forward(history));
 }
 
 TEST_CASE(traversal_target_for_top_level_step)
@@ -611,15 +624,15 @@ TEST_CASE(traversal_target_for_top_level_step)
                                                         },
         { 0, 1, 2 }, 2);
     EXPECT_EQ(update_result, true);
-    history.traverse_to(1);
+    history.set_current_session_history_step(1);
 
-    auto traversal_target = history.traversal_target_for_delta(1);
+    EXPECT_EQ(used_step_for_delta(history, 1), 2);
+    auto traversal_target = history.traversal_target_for_step(2);
     VERIFY(traversal_target.has_value());
     EXPECT_EQ(traversal_target->target_step_index, 2uz);
-    EXPECT_EQ(traversal_target->target_step, 2);
-    VERIFY(traversal_target->target_top_level_entry);
-    EXPECT_EQ(traversal_target->target_top_level_entry->url, parse_url("https://c.example/"sv));
-    EXPECT(traversal_target->target_step_is_top_level_entry);
+    VERIFY(history.top_level_entry_for_step(2));
+    EXPECT_EQ(history.top_level_entry_for_step(2)->url, parse_url("https://c.example/"sv));
+    EXPECT_EQ(history.top_level_entry_for_step(2)->step, 2);
     EXPECT(traversal_target->changes_top_level_entry);
 }
 
@@ -639,16 +652,16 @@ TEST_CASE(traversal_target_for_nested_step_in_current_top_level_entry)
 
     EXPECT_EQ(update_result, true);
 
-    auto traversal_target = history.traversal_target_for_delta(1);
+    EXPECT_EQ(used_step_for_delta(history, 1), 1);
+    auto traversal_target = history.traversal_target_for_step(1);
     VERIFY(traversal_target.has_value());
     EXPECT_EQ(traversal_target->target_step_index, 1uz);
-    EXPECT_EQ(traversal_target->target_step, 1);
-    VERIFY(traversal_target->target_top_level_entry);
-    EXPECT_EQ(traversal_target->target_top_level_entry->url, parse_url("https://a.example/"sv));
-    EXPECT(!traversal_target->target_step_is_top_level_entry);
+    VERIFY(history.top_level_entry_for_step(1));
+    EXPECT_EQ(history.top_level_entry_for_step(1)->url, parse_url("https://a.example/"sv));
+    EXPECT_EQ(history.top_level_entry_for_step(1)->step, 0);
     EXPECT(!traversal_target->changes_top_level_entry);
 
-    history.traverse_to(traversal_target->target_step_index);
+    history.set_current_session_history_step(1);
 }
 
 TEST_CASE(traversal_target_for_nested_step_in_earlier_top_level_entry)
@@ -673,37 +686,29 @@ TEST_CASE(traversal_target_for_nested_step_in_earlier_top_level_entry)
 
     EXPECT_EQ(update_result, true);
 
-    auto traversal_target = history.traversal_target_for_delta(-1);
+    EXPECT_EQ(used_step_for_delta(history, -1), 1);
+    auto traversal_target = history.traversal_target_for_step(1);
     VERIFY(traversal_target.has_value());
     EXPECT_EQ(traversal_target->target_step_index, 1uz);
-    EXPECT_EQ(traversal_target->target_step, 1);
-    VERIFY(traversal_target->target_top_level_entry);
-    EXPECT_EQ(traversal_target->target_top_level_entry->url, parse_url("https://a.example/"sv));
-    EXPECT(!traversal_target->target_step_is_top_level_entry);
-    EXPECT(traversal_target->changes_top_level_entry);
-
-    traversal_target = history.traversal_target_for_step(1);
-    VERIFY(traversal_target.has_value());
-    EXPECT_EQ(traversal_target->target_step_index, 1uz);
-    EXPECT_EQ(traversal_target->target_step, 1);
-    VERIFY(traversal_target->target_top_level_entry);
-    EXPECT_EQ(traversal_target->target_top_level_entry->url, parse_url("https://a.example/"sv));
-    EXPECT(!traversal_target->target_step_is_top_level_entry);
+    VERIFY(history.top_level_entry_for_step(1));
+    EXPECT_EQ(history.top_level_entry_for_step(1)->url, parse_url("https://a.example/"sv));
+    EXPECT_EQ(history.top_level_entry_for_step(1)->step, 0);
     EXPECT(traversal_target->changes_top_level_entry);
 
     EXPECT(!history.traversal_target_for_step(42).has_value());
 }
 
-TEST_CASE(traversal_target_for_delta_outside_used_steps)
+TEST_CASE(no_traversal_target_outside_used_steps)
 {
     WebView::TraversableSessionHistory history { initial_history_entry() };
     auto update_result = history.initialize_for_testing(
         { entry(0, "https://a.example/"sv) }, { 0 }, 0);
     EXPECT_EQ(update_result, true);
 
-    EXPECT(!history.traversal_target_for_delta(-1).has_value());
-    EXPECT(!history.traversal_target_for_delta(0).has_value());
-    EXPECT(!history.traversal_target_for_delta(1).has_value());
+    EXPECT(!used_step_for_delta(history, -1).has_value());
+    EXPECT(!used_step_for_delta(history, 0).has_value());
+    EXPECT(!used_step_for_delta(history, 1).has_value());
+    EXPECT(!history.traversal_target_for_step(1).has_value());
 }
 
 TEST_CASE(clear_forward_session_history_rebuilds_traversal_state)
@@ -725,12 +730,11 @@ TEST_CASE(clear_forward_session_history_rebuilds_traversal_state)
     EXPECT_EQ(history.size(), 1uz);
     EXPECT_EQ(history.used_step_count(), 2uz);
     EXPECT_EQ(history.current_step(), 1);
-    EXPECT(history.can_go_back());
-    EXPECT(!history.can_go_forward());
-    EXPECT(!history.traversal_target_for_delta(1).has_value());
+    EXPECT(can_go_back(history));
+    EXPECT(!can_go_forward(history));
+    EXPECT(!used_step_for_delta(history, 1).has_value());
     expect_used_step(history, 0, 0);
     expect_used_step(history, 1, 1);
-    EXPECT(!history.step_at(2).has_value());
 
     auto* current_entry = &history.current_entry();
     expect_nested_history(*current_entry, 0, "frame-1"sv, 2);
@@ -767,8 +771,8 @@ TEST_CASE(cross_document_push_clears_forward_history_at_finalization)
 
     EXPECT_EQ(history.size(), 2uz);
     EXPECT_EQ(history.used_step_count(), 3uz);
-    EXPECT(history.can_go_back());
-    EXPECT(!history.can_go_forward());
+    EXPECT(can_go_back(history));
+    EXPECT(!can_go_forward(history));
     expect_entry(history, 0, 0, "https://a.example/"sv);
     expect_current_entry(history, 2, "https://b.example/"sv);
     expect_used_step(history, 0, 0);
@@ -887,8 +891,8 @@ TEST_CASE(cross_document_replacement_preserves_forward_history)
 
     EXPECT_EQ(history.size(), 2uz);
     EXPECT_EQ(history.used_step_count(), 2uz);
-    EXPECT(!history.can_go_back());
-    EXPECT(history.can_go_forward());
+    EXPECT(!can_go_back(history));
+    EXPECT(can_go_forward(history));
     expect_current_entry(history, 0, "https://b.example/"sv);
     expect_entry(history, 1, 2, "https://c.example/"sv);
     expect_used_step(history, 0, 0);
@@ -931,8 +935,8 @@ TEST_CASE(cross_document_replacement_in_a_parent_keeps_a_current_step_in_a_child
     EXPECT_EQ(history.used_step_count(), 1uz);
     EXPECT_EQ(history.current_step(), 1);
     EXPECT_EQ(history.current_used_step_index(), 0uz);
-    EXPECT(!history.can_go_back());
-    EXPECT(!history.can_go_forward());
+    EXPECT(!can_go_back(history));
+    EXPECT(!can_go_forward(history));
     expect_current_entry(history, 0, "https://b.example/"sv);
 }
 
@@ -1078,7 +1082,7 @@ TEST_CASE(failed_nested_same_document_push_preserves_forward_history)
     EXPECT_EQ(history.current_step(), 0);
     EXPECT_EQ(history.size(), 2uz);
     EXPECT_EQ(history.used_step_count(), 3uz);
-    EXPECT(history.can_go_forward());
+    EXPECT(can_go_forward(history));
     expect_entry(history, 0, 0, "https://top.example/current"sv);
     expect_entry(history, 1, 2, "https://top.example/forward"sv);
     expect_nested_history(*history.entry_at(1), 0, "frame"sv, 1);
@@ -1107,7 +1111,7 @@ TEST_CASE(failed_nested_cross_document_push_preserves_forward_history)
     EXPECT_EQ(history.current_step(), 0);
     EXPECT_EQ(history.size(), 2uz);
     EXPECT_EQ(history.used_step_count(), 3uz);
-    EXPECT(history.can_go_forward());
+    EXPECT(can_go_forward(history));
     expect_entry(history, 0, 0, "https://top.example/current"sv);
     expect_entry(history, 1, 2, "https://top.example/forward"sv);
     expect_nested_history(*history.entry_at(1), 0, "frame"sv, 1);
@@ -1224,8 +1228,8 @@ TEST_CASE(restore_from_ui_snapshot_installs_a_valid_snapshot)
 
     EXPECT(!result.is_error());
     EXPECT_EQ(history.size(), 2uz);
-    EXPECT(history.can_go_back());
-    EXPECT(!history.can_go_forward());
+    EXPECT(can_go_back(history));
+    EXPECT(!can_go_forward(history));
     expect_entry(history, 0, 0, "https://a.example/"sv);
     expect_current_entry(history, 1, "https://b.example/"sv);
     EXPECT_EQ(history.entry_at(0)->document_state->id.namespace_id, 4u);

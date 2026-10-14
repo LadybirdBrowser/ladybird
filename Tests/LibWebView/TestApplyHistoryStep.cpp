@@ -245,7 +245,7 @@ struct TestTraversable {
 
     Optional<i32> current_step() const
     {
-        return history.step_at(history.current_used_step_index());
+        return history.used_steps()[history.current_used_step_index()];
     }
 
     void initialize_navigable_entry_identities()
@@ -762,7 +762,7 @@ TEST_CASE(a_paused_traversal_is_abandoned_once_a_jumping_push_removes_its_target
     OwnPtr<WebView::ApplyHistoryStep> nested_operation;
     Optional<Web::HTML::HistoryStepResult> nested_result;
     test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        auto pushed_entry = WebView::CanonicalSessionHistoryEntry::create(test.history.entry_for_step(1)->document_state);
+        auto pushed_entry = WebView::CanonicalSessionHistoryEntry::create(test.history.top_level_entry_for_step(1)->document_state);
         pushed_entry->url = parse_url("https://b.example/pushed"sv);
         VERIFY(test.history.push_session_history_entry(test.traversable, move(pushed_entry)) == 2);
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 2,
@@ -815,7 +815,7 @@ TEST_CASE(a_paused_push_appends_its_entry_again_once_a_jumping_push_clears_it)
     OwnPtr<WebView::ApplyHistoryStep> nested_operation;
     Optional<Web::HTML::HistoryStepResult> nested_result;
     test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        auto pushed_entry = WebView::CanonicalSessionHistoryEntry::create(test.history.entry_for_step(1)->document_state);
+        auto pushed_entry = WebView::CanonicalSessionHistoryEntry::create(test.history.top_level_entry_for_step(1)->document_state);
         pushed_entry->url = parse_url("https://b.example/pushed"sv);
         VERIFY(test.history.push_session_history_entry(test.traversable, move(pushed_entry)) == 2);
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 2,
