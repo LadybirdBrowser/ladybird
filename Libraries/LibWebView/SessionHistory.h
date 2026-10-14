@@ -31,10 +31,6 @@ class WEBVIEW_API TraversableSessionHistory {
 public:
     struct TraversalTarget {
         size_t target_step_index { 0 };
-        i32 target_step { 0 };
-        size_t target_top_level_entry_index { 0 };
-        CanonicalSessionHistoryEntry const* target_top_level_entry { nullptr };
-        bool target_step_is_top_level_entry { false };
         bool changes_top_level_entry { false };
     };
 
@@ -64,10 +60,7 @@ public:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
     Vector<i32> used_steps() const;
 
-    [[nodiscard]] bool can_go_back() const;
-    [[nodiscard]] bool can_go_forward() const;
     [[nodiscard]] bool has_only_top_level_used_steps() const;
-    [[nodiscard]] Optional<TraversalTarget> traversal_target_for_delta(int delta) const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_step(i32 step) const;
     [[nodiscard]] Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_session_history_entries(CanonicalNavigable const&) const;
     [[nodiscard]] Optional<i32> get_the_used_step(i32 step) const;
@@ -82,14 +75,9 @@ public:
         VERIFY(used_steps().contains_slow(step));
         m_current_session_history_step = step;
     }
-    [[nodiscard]] Optional<size_t> target_step_index_for_delta(int delta) const;
-    [[nodiscard]] Optional<i32> step_at(size_t index) const;
     [[nodiscard]] CanonicalSessionHistoryEntry& current_entry() const;
     [[nodiscard]] CanonicalSessionHistoryEntry* entry_at(size_t index) const;
-    [[nodiscard]] CanonicalSessionHistoryEntry* entry_for_step(i32 step) const;
     [[nodiscard]] CanonicalSessionHistoryEntry* top_level_entry_for_step(i32 step) const;
-
-    void traverse_to(size_t index);
 
 private:
     // The entries of navigable among those at or before step, which clearing the forward session history at step keeps.
