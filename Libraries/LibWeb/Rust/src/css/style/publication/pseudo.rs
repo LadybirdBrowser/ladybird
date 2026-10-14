@@ -1305,10 +1305,7 @@ fn pseudo_content_generates_nothing(store: &impl crate::css::cascaded_properties
     use crate::css::property_metadata::property_id as prop;
     use crate::css::style_compute::keyword;
     let generated = matches!(kind, pseudo_kind::BEFORE | pseudo_kind::AFTER);
-    match store
-        .winning_declaration(prop::CONTENT)
-        .map(|(value, ..)| unsafe { &*value.cast::<StyleValueData>() })
-    {
+    match store.winning_declaration(prop::CONTENT).map(|(value, ..)| value.data()) {
         None => generated,
         Some(StyleValueData::Keyword { keyword }) => {
             *keyword == keyword::NONE || (*keyword == keyword::NORMAL && generated)

@@ -113,8 +113,8 @@ impl Hasher for PropertyIdHasher {
     }
 }
 
-pub(crate) type WinningDeclaration = (
-    *const c_void,
+pub(crate) type WinningDeclaration<'a> = (
+    &'a RetainedStyleValueData,
     bool,
     u32,
     bool,
@@ -123,13 +123,13 @@ pub(crate) type WinningDeclaration = (
 
 /// The immutable winner inputs used by longhand computation, without cascade history.
 pub(crate) trait CascadedValues {
-    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration>;
+    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration<'_>>;
     fn winning_origin(&self, property: u16) -> Option<CascadeOrigin>;
     fn property_with_higher_priority(&self, first: u16, second: u16) -> u16;
 }
 
 impl CascadedValues for CascadedPropertyStore {
-    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration> {
+    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration<'_>> {
         self.winning_declaration(property)
     }
     fn winning_origin(&self, property: u16) -> Option<CascadeOrigin> {
@@ -304,19 +304,10 @@ impl CascadedPropertyStore {
 
     /// The winning declaration for a property: its Rust-owned data, importance,
     /// and C++ declaration-source slot.
-    pub(crate) fn winning_declaration(
-        &self,
-        property_id: u16,
-    ) -> Option<(
-        *const c_void,
-        bool,
-        u32,
-        bool,
-        crate::css::style_compute::ExternalValueDependencies,
-    )> {
+    pub(crate) fn winning_declaration(&self, property_id: u16) -> Option<WinningDeclaration<'_>> {
         self.last_entry(property_id).map(|entry| {
             (
-                entry.value.pointer().cast(),
+                &entry.value,
                 entry.important,
                 entry.source_slot,
                 entry.has_style_sheet_context,
