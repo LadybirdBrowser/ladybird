@@ -61,7 +61,7 @@ public:
     void did_apply_ui_history_step(CrossProcessId operation_id, HistoryStepResult);
     void reject_ui_navigation_api_traversal(CrossProcessId operation_id);
 
-    void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
+    void traverse_the_history_by_delta(int delta, DOM::Document& source_document);
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
 
     void run_ui_beforeunload_check(Vector<CrossProcessId> navigable_ids, Optional<SessionHistoryEntryDescriptor> target_entry, Optional<UserNavigationInvolvement> user_involvement_for_navigate_event, UnloadPromptShown, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult, UnloadPromptShown)>>);

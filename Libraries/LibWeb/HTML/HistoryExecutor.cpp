@@ -151,33 +151,28 @@ void HistoryExecutor::reject_ui_navigation_api_traversal(CrossProcessId operatio
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
-void HistoryExecutor::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document)
+void HistoryExecutor::traverse_the_history_by_delta(int delta, DOM::Document& source_document)
 {
     // 1. Let sourceSnapshotParams and initiatorToCheck be null.
-    GC::Ptr<SourceSnapshotParams> source_snapshot_params = nullptr;
-    GC::Ptr<LocalNavigable> initiator_to_check = nullptr;
-
     // 2. Let userInvolvement be "browser UI".
-    UserNavigationInvolvement user_involvement = UserNavigationInvolvement::BrowserUI;
-
     // 3. If sourceDocument is given, then:
-    if (source_document) {
-        // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
-        source_snapshot_params = snapshot_source_snapshot_params(source_document);
+    // NB: sourceDocument is always given here. The UI process traverses the history for the browser UI.
 
-        // 2. Set initiatorToCheck to sourceDocument's node navigable.
-        initiator_to_check = source_document->navigable();
+    // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
+    auto source_snapshot_params = snapshot_source_snapshot_params(source_document);
 
-        // 3. Set userInvolvement to "none".
-        user_involvement = UserNavigationInvolvement::None;
-    }
+    // 2. Set initiatorToCheck to sourceDocument's node navigable.
+    auto initiator_to_check = source_document.navigable();
+
+    // 3. Set userInvolvement to "none".
+    auto user_involvement = UserNavigationInvolvement::None;
 
     // 4. Append the following session history traversal steps to traversable:
     request_history_operation(
         TraverseByDeltaHistoryOperationParameters {
             .delta = delta,
             .initiator_to_check = initiator_to_check ? Optional<CrossProcessId> { initiator_to_check->id() } : OptionalNone {},
-            .source_snapshot_params = source_snapshot_params ? Optional<NavigationSourceSnapshot> { create_navigation_source_snapshot(*source_snapshot_params) } : OptionalNone {},
+            .source_snapshot_params = create_navigation_source_snapshot(*source_snapshot_params),
             .user_involvement = user_involvement,
         });
 }
