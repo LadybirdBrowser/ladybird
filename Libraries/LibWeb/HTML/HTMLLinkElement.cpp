@@ -1145,8 +1145,11 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                         link->cancel_pending_stylesheet_processing();
                         return;
                     }
+                    // NB: The task's function keeps the element and the document alive as cells it holds, not as GC
+                    //     roots: the roots of a function that died would keep them alive through the collection that
+                    //     finds it dead.
                     link->queue_an_element_task(Task::Source::Networking,
-                        [link = move(link), loaded_document = move(loaded_document), fetch_generation, location = move(location), base_url = move(base_url), parsed = move(parsed), origin_clean] {
+                        [link = GC::Ref { *link }, loaded_document = GC::Ref { *loaded_document }, fetch_generation, location = move(location), base_url = move(base_url), parsed = move(parsed), origin_clean] {
                             if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                                 return;
                             if (&link->document() != loaded_document.ptr() || !loaded_document->is_fully_active()
