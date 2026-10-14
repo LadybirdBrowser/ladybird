@@ -48,9 +48,11 @@ public:
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_history_step_complete {};
         GC::Ptr<GC::Function<void()>> on_navigation_api_traversal_rejected {};
 
-        // State retained between a changing job and its continuation, null until the claiming job is ready.
-        HashMap<CrossProcessId, GC::Ptr<ChangingNavigableContinuationState>> changing_navigable_continuations {};
-        HashMap<CrossProcessId, GC::Ref<GC::Function<void(HistoryNavigationPopulation)>>> pending_populations {};
+        struct ChangingNavigableJob {
+            GC::Ptr<ChangingNavigableContinuationState> continuation;
+            GC::Ptr<GC::Function<void(HistoryNavigationPopulation)>> continue_population;
+        };
+        HashMap<CrossProcessId, ChangingNavigableJob> changing_navigable_jobs {};
     };
 
     CrossProcessId request_history_operation(HistoryOperationParameters);
