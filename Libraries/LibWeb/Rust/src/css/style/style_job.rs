@@ -109,12 +109,13 @@ impl SealedStyleInputs {
             )
         };
         // Every context's base URL goes into one buffer.
-        let resource_context_urls: Box<[u8]> = lent_contexts
-            .iter()
+        let mut resource_context_urls =
+            Vec::with_capacity(lent_contexts.iter().map(|entry| entry.base_url_length).sum());
+        for entry in lent_contexts {
             // SAFETY: Guaranteed by the caller.
-            .flat_map(|entry| unsafe { lent_values(entry.base_url, entry.base_url_length) })
-            .copied()
-            .collect();
+            resource_context_urls.extend_from_slice(unsafe { lent_values(entry.base_url, entry.base_url_length) });
+        }
+        let resource_context_urls = resource_context_urls.into_boxed_slice();
         let mut offset = 0;
         let resource_contexts: Box<[_]> = lent_contexts
             .iter()
