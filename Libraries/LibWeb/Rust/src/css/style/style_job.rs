@@ -432,13 +432,6 @@ pub extern "C" fn style_engine_note_style_node_beside_flown_transaction(host: &D
     }
 }
 
-/// Whether the element `node` names arrived, moved or retired beside the style transaction of `host`'s document that
-/// flew.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_style_node_is_beside_flown_transaction(host: &DocumentHost, node: u32) -> bool {
-    StyleNodeID::from_raw(node).is_some_and(|node| host.engine_memo().beside_flown_transaction.borrow().contains(&node))
-}
-
 /// Whether the frame whose style transaction `host`'s document drains applied the element `style_node` names its record
 /// `style_record` ahead of the host, and marked the relayout the move asks for: the host's install of the row marks none
 /// then.

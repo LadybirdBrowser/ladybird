@@ -56,7 +56,6 @@ public:
     }
 
     Parser::ValueParserFFI::PageSelectorList const* handle() const { return m_selectors; }
-    size_t size() const { return Parser::ValueParserFFI::rust_page_selector_list_count(m_selectors); }
     Utf16String serialize() const
     {
         Utf16String result;
