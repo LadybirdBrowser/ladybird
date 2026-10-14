@@ -120,6 +120,9 @@ pub struct JitCode {
     snapshot_executables: Vec<SnapshotExecutable>,
     /// Where a frame running in the interpreter at the loop back edge `pc` can continue in this code.
     osr_entries: Vec<(u32, JitEntry)>,
+    /// The loop back edges from where a frame running in the interpreter reaches one of the `osr_entries` without
+    /// leaving the loop it is in.
+    osr_loop_back_edges: Vec<u32>,
     /// Identifies the code among all code the VM installed, for the dependencies it registers (see
     /// `super::dependencies`).
     id: u64,
@@ -134,6 +137,7 @@ impl JitCode {
         memory: ExecutableMemory,
         entry_offset: u32,
         osr_entry_offsets: &[(u32, u32)],
+        osr_loop_back_edges: Vec<u32>,
         sites: Vec<Site>,
         embedded_cells: Vec<Gc<CellHeader>>,
         snapshot_executables: Vec<SnapshotExecutable>,
@@ -156,6 +160,7 @@ impl JitCode {
             embedded_cells,
             snapshot_executables,
             osr_entries,
+            osr_loop_back_edges,
             id: 0,
             invalidation_patches: Vec::new(),
             invalidated: Cell::new(false),
@@ -198,8 +203,10 @@ impl JitCode {
             .map(|(_, entry)| *entry)
     }
 
-    pub fn has_osr_entries(&self) -> bool {
-        !self.osr_entries.is_empty()
+    /// Whether a frame running in the interpreter at the loop back edge `pc` reaches an on-stack replacement entry
+    /// without leaving the loop it is in.
+    pub fn reaches_osr_entry_from(&self, pc: u32) -> bool {
+        self.osr_loop_back_edges.contains(&pc)
     }
 
     pub fn site(&self, index: u32) -> &Site {
