@@ -284,7 +284,10 @@ static void prepare_bytecode_cache_off_thread(EnvironmentSettingsObject& setting
     auto* preparation = new BytecodeCachePreparation { move(bytecode),
         [settings_object = GC::make_root(settings_object), on_prepared = move(on_prepared)](RefPtr<JS::DecodedBytecodeCache> bytecode_cache) mutable {
             queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), [on_prepared = move(on_prepared), bytecode_cache = move(bytecode_cache)]() mutable {
-                on_prepared(move(bytecode_cache));
+                // NB: The callback holds GC roots. Release them as the task runs: the roots of a function that died
+                //     would keep what they root alive through the collection that finds it dead.
+                auto steps = move(on_prepared);
+                steps(move(bytecode_cache));
             }));
         } };
     auto& main_thread_event_loop = Core::EventLoop::current();
@@ -318,7 +321,10 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Nonnu
     auto* callback = new Function<void(OffThreadCompiledProgram)>(
         [settings_object = GC::make_root(settings_object), on_compiled = move(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
             queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), [on_compiled = move(on_compiled), source_code = move(source_code), result = move(result)]() mutable {
-                on_compiled(move(result), move(source_code));
+                // NB: The callback holds GC roots. Release them as the task runs: the roots of a function that died
+                //     would keep what they root alive through the collection that finds it dead.
+                auto steps = move(on_compiled);
+                steps(move(result), move(source_code));
             }));
         });
 
