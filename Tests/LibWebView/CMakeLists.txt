@@ -1,6 +1,5 @@
 set(TEST_SOURCES
     TestAccessibilityTreeManager.cpp
-    TestApplyHistoryStep.cpp
     TestBackgroundNetworking.cpp
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp

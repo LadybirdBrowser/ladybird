@@ -660,17 +660,17 @@ Optional<Vector<Web::HTML::SessionHistoryEntryDescriptor>> TraversableSessionHis
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#get-all-navigables-whose-current-session-history-entry-will-change-or-reload
-Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_whose_current_session_history_entry_will_change_or_reload(CanonicalNavigable const& traversable, i32 target_step) const
+Vector<CanonicalNavigable&> TraversableSessionHistory::get_all_navigables_whose_current_session_history_entry_will_change_or_reload(CanonicalNavigable& traversable, i32 target_step) const
 {
     // 1. Let results be an empty list.
-    Vector<Web::HTML::CrossProcessId> results;
+    Vector<CanonicalNavigable&> results;
 
     // 2. Let navigablesToCheck be « traversable ».
-    Vector<CanonicalNavigable const*> navigables_to_check { &traversable };
+    Vector<CanonicalNavigable*> navigables_to_check { &traversable };
 
     // 3. For each navigable of navigablesToCheck:
     while (!navigables_to_check.is_empty()) {
-        auto const* navigable = navigables_to_check.take_first();
+        auto* navigable = navigables_to_check.take_first();
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto const* target_entry = get_the_target_history_entry(*navigable, target_step);
@@ -680,7 +680,7 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
         // 2. If targetEntry is not navigable's current session history entry or targetEntry's document state's reload
         //    pending is true, then append navigable to results.
         if (!navigable->current_session_history_entry_is(*target_entry) || target_entry->document_state->reload_pending)
-            results.append(navigable->id());
+            results.append(*navigable);
 
         // 3. If targetEntry's document is navigable's document, and targetEntry's document state's reload pending is
         //    false, then extend navigablesToCheck with the child navigables of navigable.
