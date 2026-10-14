@@ -942,11 +942,6 @@ void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin 
     client().async_did_request_external_url(m_id, url, initiator_origin, has_transient_activation);
 }
 
-void PageClient::page_did_create_new_document(Web::DOM::Document& document)
-{
-    initialize_js_console(document);
-}
-
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
 {
     auto& realm = document.relevant_settings_object().realm();
@@ -955,6 +950,12 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 
     if (m_web_ui && &m_web_ui->document() != &document)
         m_web_ui.clear();
+
+    // NB: Only the active document of the top-level browsing context has its console client read, so a document gets
+    //     one when it becomes that, and the many documents that never do (such as those DOMParser creates) never pay
+    //     for one.
+    if (!document.console_client())
+        initialize_js_console(document);
 
     if (auto console_client = document.console_client()) {
         auto& web_content_console_client = as<WebContentConsoleClient>(*console_client);

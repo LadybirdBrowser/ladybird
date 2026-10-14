@@ -809,8 +809,6 @@ void Document::initialize_document()
 
     m_list_of_available_images = HTML::ListOfAvailableImages::create();
 
-    page().client().page_did_create_new_document(*this);
-
     ensure_cookie_version_index(m_url);
 }
 
