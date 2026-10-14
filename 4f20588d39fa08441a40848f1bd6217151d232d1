@@ -1,0 +1,7 @@
+When a checkable editable gets focus, Ladybird checks all of its
+existing text. Blink does the same, in its ColdModeSpellCheckRequester.
+And Gecko’s mozInlineSpellChecker::EditorSpellCheckInited() checks the
+whole text of an editor once spellchecking starts for it. But WebKit’s
+HTMLTextFormControlElement::effectiveSpellcheckAttributeChanged() checks
+a whole text control only when its spellcheck state changes — and
+otherwise, WebKit checks each word only as the caret leaves that word.
