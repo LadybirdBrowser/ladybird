@@ -614,11 +614,15 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
         while ancestor.name != interface.name:
             next_ancestor = context.interfaces[ancestor.parent_name]
             next_path = "Implementation" if next_ancestor.name == interface.name else rust_interface_path(next_ancestor)
-            steps += f"                    let object = <{rust_interface_path(ancestor)} as Inherits<{next_path}>>::parent(object);\n"
+            step = f"<{rust_interface_path(ancestor)} as Inherits<{next_path}>>::parent(object)"
+            # NB: The last step is the value of the arm.
+            if next_ancestor.name == interface.name:
+                steps += f"                    {step}\n"
+            else:
+                steps += f"                    let object = {step};\n"
             ancestor = next_ancestor
         arms += f"""                Self::{other.name}(object) => {{
-{steps}                    object
-                }}
+{steps}                }}
 """
         choices += f"""        if let Some(object) = implementation_if::<{path}>(object) {{
             return Ok((Receiver::{other.name}(object), cx));
@@ -697,16 +701,26 @@ def write_rust_operation(
         steps.write("        drop(type_error_realm_scope);\n")
     arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
     returns_promise = is_promise_type(operation.return_type) and not operation.return_type.nullable
-    if returns_promise:
-        conversion = "result.to_js(&cx)"
+    call = f"Implementation::{overload.method}(&implementation, &mut cx{arguments})"
+    if operation.return_type.name == "undefined" and not operation.return_type.nullable:
+        # NB: An operation that returns nothing has no result to name, and the conversion of nothing is undefined.
+        steps.write(
+            f"""        {call}
+            .map_err(|exception| exception.throw(vm))?;
+        Ok(Value::UNDEFINED)
+"""
+        )
     else:
-        conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
-    steps.write(
-        f"""        let result = Implementation::{overload.method}(&implementation, &mut cx{arguments})
+        if returns_promise:
+            conversion = "result.to_js(&cx)"
+        else:
+            conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
+        steps.write(
+            f"""        let result = {call}
             .map_err(|exception| exception.throw(vm))?;
         {conversion}
 """
-    )
+        )
 
     out.write(f"\n    fn {function}(vm: &Vm) -> ThrowCompletionOr<Value> {{\n")
     if returns_promise:
