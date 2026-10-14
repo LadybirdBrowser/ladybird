@@ -79,6 +79,19 @@ pub struct NativeStyleSheet {
 }
 
 impl NativeStyleSheet {
+    /// Attach a loaded sheet to the import rule `rule_identity` names, or remove the edge when
+    /// the rule is detached. The imported sheet must not transitively import this one.
+    pub(crate) fn set_import(&self, rule_identity: u64, imported: Option<Rc<NativeStyleSheet>>) {
+        match imported {
+            None => {
+                self.imports.borrow_mut().remove(&rule_identity);
+            }
+            Some(imported) => {
+                self.imports.borrow_mut().insert(rule_identity, imported);
+            }
+        }
+    }
+
     pub(crate) fn identity(&self) -> u64 {
         self.identity
     }
@@ -479,15 +492,14 @@ pub unsafe extern "C" fn rust_style_sheet_set_import(
     rule_identity: u64,
     imported: *const NativeStyleSheet,
 ) {
-    if imported.is_null() {
-        sheet.imports.borrow_mut().remove(&rule_identity);
-    } else {
-        unsafe { Rc::increment_strong_count(imported) };
-        sheet
-            .imports
-            .borrow_mut()
-            .insert(rule_identity, unsafe { Rc::from_raw(imported) });
-    }
+    let imported = (!imported.is_null()).then(|| {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            Rc::increment_strong_count(imported);
+            Rc::from_raw(imported)
+        }
+    });
+    sheet.set_import(rule_identity, imported);
 }
 
 #[cfg(test)]
@@ -656,7 +668,7 @@ mod tests {
     use crate::css::media_list::rust_media_list_length;
     use crate::css::parser::syntax_parser::{ParsedStyleSheet, parse_shared_stylesheet};
     use crate::css::parser::value_parser::ParseContext;
-    use crate::css::rule::{rust_rule_list_at, rust_rule_list_count, rust_rule_list_remove};
+    use crate::css::rule::{rust_rule_list_count, rust_rule_list_remove};
 
     fn parse(source: &str) -> std::sync::Arc<ParsedStyleSheet> {
         let units: Vec<_> = source.encode_utf16().collect();
@@ -918,10 +930,8 @@ mod tests {
         let leaf_rule = identity(&leaf, 0);
         let middle_rule = identity(&middle, 1);
         let root_rule = identity(&root, 1);
-        unsafe {
-            rust_style_sheet_set_import(&root, root_import, Rc::as_ptr(&middle));
-            rust_style_sheet_set_import(&middle, middle_import, Rc::as_ptr(&leaf));
-        }
+        root.set_import(root_import, Some(middle.clone()));
+        middle.set_import(middle_import, Some(leaf.clone()));
         let owners = crate::css::rule::RULE_OWNER_ALLOCATIONS.get();
         let mut prefix = Vec::with_capacity(32);
         prefix.extend("根".encode_utf16());
@@ -974,7 +984,7 @@ mod tests {
             vec![entry(root_import, "根"), entry(root_rule, "根")]
         );
         set_media(&middle, "");
-        unsafe { rust_style_sheet_set_import(&middle, middle_import, std::ptr::null()) };
+        middle.set_import(middle_import, None);
         assert_eq!(
             collect(FfiRuleTraversalOrder::Preorder),
             vec![
@@ -993,14 +1003,12 @@ mod tests {
         let root = sheet(&parse("@import 'middle.css' layer(外); @layer 末;"));
         let middle = sheet(&parse("@import 'leaf.css' layer(中); @layer 隣;"));
         let leaf = sheet(&parse("@layer 内;"));
-        let root_import = unsafe { &*rust_rule_list_at(&root.rules, 0) };
-        let middle_import = unsafe { &*rust_rule_list_at(&middle.rules, 0) };
+        let root_import = &root.rules.rule_at(0);
+        let middle_import = &middle.rules.rule_at(0);
         let root_id = crate::css::rule::rust_rule_identity(root_import);
         let middle_id = crate::css::rule::rust_rule_identity(middle_import);
-        unsafe {
-            rust_style_sheet_set_import(&middle, middle_id, Rc::as_ptr(&leaf));
-            rust_style_sheet_set_import(&root, root_id, Rc::as_ptr(&middle));
-        }
+        middle.set_import(middle_id, Some(leaf.clone()));
+        root.set_import(root_id, Some(middle.clone()));
         let weak_middle = Rc::downgrade(&middle);
         let weak_leaf = Rc::downgrade(&leaf);
         drop(middle);
@@ -1009,10 +1017,10 @@ mod tests {
         let middle = weak_middle.upgrade().unwrap();
         let leaf = weak_leaf.upgrade().unwrap();
         let replacement = sheet(&parse("@layer 替;"));
-        unsafe { rust_style_sheet_set_import(&root, root_id, Rc::as_ptr(&replacement)) };
+        root.set_import(root_id, Some(replacement.clone()));
         drop(replacement);
         assert_layers(&root, &["根.外.替", "根.外", "根.末"]);
-        unsafe { rust_style_sheet_set_import(&root, root_id, std::ptr::null()) };
+        root.set_import(root_id, None);
         assert!(style_sheet_import(&root, root_id).is_null());
         assert_layers(&root, &["根.外", "根.末"]);
         assert_layers(&middle, &["根.中.内", "根.中", "根.隣"]);
@@ -1033,7 +1041,7 @@ mod tests {
         let leaf = Rc::downgrade(&child);
         for _ in 0..20_000 {
             let parent = sheet(&parsed);
-            let rule = unsafe { &*rust_rule_list_at(&parent.rules, 0) };
+            let rule = &parent.rules.rule_at(0);
             parent
                 .imports
                 .borrow_mut()

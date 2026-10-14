@@ -292,7 +292,7 @@ mod tests {
     use super::*;
     use crate::css::parser::syntax_parser::parse_shared_stylesheet;
     use crate::css::parser::value_parser::ParseContext;
-    use crate::css::rule::{rust_rule_list_at, rust_rule_payload};
+    use crate::css::rule::rust_rule_payload;
 
     #[test]
     fn descriptor_snapshots_can_be_mutated_on_a_worker() {
@@ -338,8 +338,8 @@ mod tests {
         let context = ParseContext::default();
         let parse = unsafe { parse_shared_stylesheet(input, &context) };
         let rules = crate::css::rule::NativeRuleList::from_parsed(parse);
-        let rule = unsafe { &*rust_rule_list_at(&rules, 0) };
-        let block = unsafe { &*rust_rule_payload(rule).descriptors };
+        let rule = rules.rule_at(0);
+        let block = unsafe { &*rust_rule_payload(&rule).descriptors };
         let snapshot = block.data();
         let old_data = Arc::downgrade(&snapshot);
         assert_eq!(snapshot.descriptors.len(), 2);
@@ -377,7 +377,7 @@ mod tests {
         rust_descriptor_block_replace(&mut retained, &fork);
         assert_eq!(rust_descriptor_block_length(block), 2);
         assert!(matches!(*fork.state.borrow(), DescriptorBlockState::Immutable(_)));
-        drop(rules);
+        drop((rule, rules));
         let first = &snapshot.descriptors[0];
         assert!(unsafe { rust_descriptor_block_remove(&mut fork, first.id, FfiUtf16View::default()) });
         assert!(matches!(*fork.state.borrow(), DescriptorBlockState::Mutable(_)));

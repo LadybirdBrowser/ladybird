@@ -116,7 +116,6 @@ mod tests {
     use crate::css::parser::syntax_parser::parse_shared_stylesheet;
     use crate::css::parser::value_parser::ParseContext;
     use crate::css::rule::rust_rule_list_remove;
-    use crate::css::style_sheet::rust_style_sheet_set_import;
 
     fn sheet(source: &str) -> Rc<NativeStyleSheet> {
         let units: Vec<_> = source.encode_utf16().collect();
@@ -151,10 +150,8 @@ mod tests {
         let nested = sheet("@keyframes 動き { from { opacity: 0 } to { opacity: 1 } } .先頭 {}");
         let import = root.rules().materialized_rules()[0].clone();
         let nested_import = imported.rules().materialized_rules()[0].clone();
-        unsafe {
-            rust_style_sheet_set_import(&root, import.identity, Rc::as_ptr(&imported));
-            rust_style_sheet_set_import(&imported, nested_import.identity, Rc::as_ptr(&nested));
-        }
+        root.set_import(import.identity, Some(imported.clone()));
+        imported.set_import(nested_import.identity, Some(nested.clone()));
         let middle = imported.rules().materialized_rules()[1].identity;
         let last = root.rules().materialized_rules()[1].identity;
         let published = |identity| identity == middle || identity == last;
@@ -164,7 +161,7 @@ mod tests {
         assert!(!declares_layer(&nested_import));
 
         rust_rule_list_remove(root.rules(), 0);
-        unsafe { rust_style_sheet_set_import(&root, import.identity, std::ptr::null()) };
+        root.set_import(import.identity, None);
         let removed = unsafe { removed_rules(&import, &root, Some(&imported)) };
         let kinds: Vec<_> = removed.iter().map(|rule| rule.rule_type).collect();
         assert!(

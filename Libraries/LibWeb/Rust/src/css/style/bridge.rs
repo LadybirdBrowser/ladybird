@@ -2842,28 +2842,21 @@ pub unsafe extern "C" fn style_engine_remove_native_rule(
 
 /// Read a rule's native cascade data without a CSSOM facade.
 ///
-/// # Safety
-/// `host` must be a live document host, on its document's thread. On success the caller owns
-/// declarations and must release it with rust_declaration_data_release. Layer text is borrowed
-/// until the next rule mutation; callers must copy any text needed across such a mutation. Source
-/// identity never retains a native sheet.
+/// On success the caller owns declarations and must release it with
+/// rust_declaration_data_release. Layer text is borrowed until the next rule mutation; callers must
+/// copy any text needed across such a mutation. Source identity never retains a native sheet.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_native_rule_target(
+pub extern "C" fn style_engine_native_rule_target(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     rule: u32,
     result: &mut FfiNativeRuleTarget,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| unsafe { native_rule_target(engine, rule, result) })
+    with_engine(read, host, |engine| native_rule_target(engine, rule, result))
 }
 
 /// [`style_engine_native_rule_target`] on `engine`.
-///
-/// # Safety
-/// As for [`style_engine_native_rule_target`], for the arguments after `engine`.
-pub unsafe fn native_rule_target(engine: &mut StyleEngine, rule: u32, result: &mut FfiNativeRuleTarget) -> bool {
+pub fn native_rule_target(engine: &mut StyleEngine, rule: u32, result: &mut FfiNativeRuleTarget) -> bool {
     let Some(target) = rule
         .checked_sub(1)
         .and_then(|id| engine.native_rules.targets.get(&RuleID(id)))

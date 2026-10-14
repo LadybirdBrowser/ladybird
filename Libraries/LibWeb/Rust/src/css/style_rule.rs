@@ -54,7 +54,7 @@ mod tests {
     use super::*;
     use crate::css::parser::syntax_parser::parse_shared_stylesheet;
     use crate::css::parser::value_parser::ParseContext;
-    use crate::css::rule::{NativeRuleList, rust_rule_list_at, rust_rule_list_visit_images};
+    use crate::css::rule::{NativeRuleList, rust_rule_list_visit_images};
     use std::ffi::c_void;
     use std::rc::Rc;
 
@@ -73,7 +73,7 @@ mod tests {
         use crate::css::style::bridge::publish_rule_declarations;
         use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
         let rules = rules(".文字 { width: 13px; transition: width 1s; background-image: url(image.png); }");
-        let rule = unsafe { &*rust_rule_list_at(&rules, 0) };
+        let rule = &rules.rule_at(0);
         let style = rule.style_rule();
         assert!(style.declarations.is_immutable());
         assert!(Arc::ptr_eq(&style.selectors(), &style.selectors.borrow()));
@@ -100,7 +100,7 @@ mod tests {
     fn cascade_targets_retain_immutable_snapshots_without_promoting_style_owners() {
         use crate::css::media_list::MediaList;
         use crate::css::property_metadata::property_id;
-        use crate::css::rule::{rust_rule_list_clear, rust_rule_retain};
+        use crate::css::rule::rust_rule_list_clear;
         use crate::css::style::StyleEngine;
         use crate::css::style::bridge::{FfiNativeRuleTarget, native_rule_target};
         use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
@@ -112,8 +112,8 @@ mod tests {
         let source = NativeStyleSheet::new(rules.clone(), media);
         let source_lifetime = Rc::downgrade(&source);
         let source_identity = source.identity();
-        let rule = unsafe { &*rust_rule_list_at(&rules, 0) };
-        let retained_rule = unsafe { Rc::from_raw(rust_rule_retain(rule)) };
+        let rule = rules.rule_at(0);
+        let retained_rule = Rc::clone(&rule);
         let rule_lifetime = Rc::downgrade(&retained_rule);
         drop(retained_rule);
         let style = rule.style_rule();
@@ -122,7 +122,7 @@ mod tests {
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Style);
         engine.register_native_rule(
             id,
-            crate::css::rule::rust_rule_identity(rule),
+            crate::css::rule::rust_rule_identity(&rule),
             rule.cascade_declarations(),
             source.identity(),
             &[],
@@ -130,7 +130,7 @@ mod tests {
         );
         // All fields are integers, nullable pointers, booleans, or enums whose zero variant is valid.
         let mut target: FfiNativeRuleTarget = unsafe { std::mem::zeroed() };
-        assert!(unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
+        assert!(native_rule_target(&mut engine, id.0 + 1, &mut target,));
         let snapshot = unsafe { Arc::from_raw(target.declarations.cast::<DeclarationBlockData>()) };
         assert_eq!(target.source_identity, source_identity);
         assert!(style.declarations.is_immutable());
@@ -145,25 +145,26 @@ mod tests {
             .and_then(|identity| engine.native_rule_id(identity))
             .expect("the rule owns its declarations");
         publish_native_rule_declarations(&mut engine, rule.cascade_declarations(), owner);
-        assert!(unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
+        assert!(native_rule_target(&mut engine, id.0 + 1, &mut target,));
         let edited_snapshot = unsafe { Arc::from_raw(target.declarations.cast::<DeclarationBlockData>()) };
         assert_eq!(target.identity, identity);
         assert_ne!(target.declaration_version, version);
         assert!(!Arc::ptr_eq(&snapshot, &edited_snapshot));
         drop(declarations);
+        drop(rule);
         rust_rule_list_clear(&rules);
         drop(source);
         drop(rules);
         assert!(source_lifetime.upgrade().is_none());
         assert!(rule_lifetime.upgrade().is_none());
         // The program reads its published snapshot, not a live document-local rule record.
-        assert!(unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
+        assert!(native_rule_target(&mut engine, id.0 + 1, &mut target,));
         let surviving_snapshot = unsafe { Arc::from_raw(target.declarations.cast::<DeclarationBlockData>()) };
         assert!(Arc::ptr_eq(&edited_snapshot, &surviving_snapshot));
         assert_eq!(target.identity, identity);
         assert_eq!(target.source_identity, source_identity);
         engine.remove_style_rule(id);
-        assert!(!unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
+        assert!(!native_rule_target(&mut engine, id.0 + 1, &mut target,));
         drop(engine);
         assert!(
             snapshot
@@ -186,13 +187,13 @@ mod tests {
     fn retained_rules_share_mutation_without_changing_parsed_snapshots() {
         use crate::css::property_metadata::property_id;
         let rules = rules(".文字 { width: 13px; height: 19px; }");
-        let rule = unsafe { &*rust_rule_list_at(&rules, 0) };
+        let rule = &rules.rule_at(0);
         let style = rule.style_rule();
         let snapshot = style.declarations.data();
         let fork = StyleRule::new(style.selectors(), style.declarations.data());
         assert!(style.declarations.is_immutable());
         assert!(fork.declarations.is_immutable());
-        let retained_rule = unsafe { Rc::from_raw(crate::css::rule::rust_rule_retain(rule)) };
+        let retained_rule = Rc::clone(rule);
         let retained = retained_rule.style_rule();
         assert!(std::ptr::eq(style, retained));
         let mut declarations = retained.declarations.clone();

@@ -181,7 +181,7 @@ mod tests {
     use crate::css::media_list::MediaList;
     use crate::css::parser::syntax_parser::parse_shared_stylesheet;
     use crate::css::parser::value_parser::ParseContext;
-    use crate::css::rule::{rust_rule_identity, rust_rule_list_at, rust_rule_list_clear, rust_rule_retain};
+    use crate::css::rule::{rust_rule_identity, rust_rule_list_clear};
     use crate::css::style::StyleEngine;
     use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
     use crate::css::style_sheet::NativeStyleSheet;
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn native_rule_inputs_do_not_retain_document_local_sheets_or_rules() {
         let source = source();
-        let rule = unsafe { Rc::from_raw(rust_rule_retain(rust_rule_list_at(source.rules(), 0))) };
+        let rule = source.rules().rule_at(0);
         let identity = rust_rule_identity(&rule);
         let source_weak = Rc::downgrade(&source);
         let source_identity = source.identity();
@@ -253,12 +253,11 @@ mod tests {
 
     #[test]
     fn declaration_edits_resolve_native_owners_and_use_engine_revisions() {
-        use crate::css::rule::rust_rule_children;
         use crate::css::style::rule_writes::publish_native_rule_declarations;
         let source = source();
-        let rule = unsafe { &*rust_rule_list_at(source.rules(), 0) };
-        let children = unsafe { &*rust_rule_children(rule) };
-        let child = unsafe { Rc::from_raw(rust_rule_retain(rust_rule_list_at(children, 0))) };
+        let rule = &source.rules().rule_at(0);
+        let children = rule.child_rules().unwrap();
+        let child = children.rule_at(0);
         let mut engine = StyleEngine::new();
         let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Function);
@@ -301,8 +300,8 @@ mod tests {
     fn replacing_a_native_owner_retires_the_old_reverse_lookup() {
         let old_source = source();
         let new_source = source();
-        let old_rule = unsafe { &*rust_rule_list_at(old_source.rules(), 0) };
-        let new_rule = unsafe { &*rust_rule_list_at(new_source.rules(), 0) };
+        let old_rule = &old_source.rules().rule_at(0);
+        let new_rule = &new_source.rules().rule_at(0);
         let mut engine = StyleEngine::new();
         let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Function);

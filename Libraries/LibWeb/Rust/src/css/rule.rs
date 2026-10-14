@@ -252,7 +252,12 @@ impl NativeRule {
         None
     }
 
-    pub(crate) unsafe fn matching_selectors(&self) -> Rc<RustParsedSelectorList> {
+    /// The rule's child rules, for a grouping rule.
+    pub(crate) fn child_rules(&self) -> Option<&Rc<NativeRuleList>> {
+        self.children.as_ref()
+    }
+
+    pub(crate) fn matching_selectors(&self) -> Rc<RustParsedSelectorList> {
         let parent = self.nesting_parent();
         let parent_kind = parent.as_ref().map_or(StyleNestingParent::None, |parent| {
             if parent.rule_type == NativeRuleType::Style {
@@ -262,7 +267,7 @@ impl NativeRule {
             }
         });
         let parents = if parent_kind == StyleNestingParent::Style {
-            Some(unsafe { parent.as_ref().unwrap().matching_selectors() })
+            Some(parent.as_ref().unwrap().matching_selectors())
         } else {
             None
         };
@@ -324,7 +329,7 @@ impl NativeRule {
         }
     }
 
-    pub(crate) unsafe fn scope_start_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
+    pub(crate) fn scope_start_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
         let source = self.scope().start.as_ref()?.clone();
         // Imports start a new sheet. A scope prelude uses its immediate enclosing rule's context.
         let parent = if self.rule_type == NativeRuleType::Scope {
@@ -340,7 +345,7 @@ impl NativeRule {
                 _ => StyleNestingParent::None,
             });
         let parents = if parent_kind == StyleNestingParent::Style {
-            Some(unsafe { parent.as_ref().unwrap().matching_selectors() })
+            Some(parent.as_ref().unwrap().matching_selectors())
         } else {
             None
         };
@@ -848,24 +853,22 @@ pub extern "C" fn rust_rule_selectors(rule: &NativeRule) -> *const c_void {
     Arc::as_ptr(&rule.style_rule().selectors()).cast()
 }
 
-/// # Safety
-/// Call only for style or nested-declaration rules on the document thread.
-/// The returned list must be released with `rust_parsed_selector_list_destroy` on that same thread.
+/// Call only for style or nested-declaration rules. The returned list must be released with
+/// `rust_parsed_selector_list_destroy` on the same thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_matching_selectors(rule: &NativeRule) -> *mut c_void {
-    let selectors = unsafe { rule.matching_selectors() };
+pub extern "C" fn rust_rule_matching_selectors(rule: &NativeRule) -> *mut c_void {
+    let selectors = rule.matching_selectors();
     Box::into_raw(Box::new(RustParsedSelectorList {
         selectors: selectors.selectors.clone(),
     }))
     .cast()
 }
 
-/// # Safety
-/// Call for a scope rule or scoped import on the document thread. A non-null result
-/// must be destroyed with `rust_parsed_selector_list_destroy`; null means the start is omitted.
+/// Call for a scope rule or scoped import. A non-null result must be destroyed with
+/// `rust_parsed_selector_list_destroy`; null means the start is omitted.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_scope_start_selectors(rule: &NativeRule) -> *mut c_void {
-    unsafe { rule.scope_start_selectors() }
+pub extern "C" fn rust_rule_scope_start_selectors(rule: &NativeRule) -> *mut c_void {
+    rule.scope_start_selectors()
         .map(|selectors| {
             Box::into_raw(Box::new(RustParsedSelectorList {
                 selectors: selectors.selectors.clone(),
@@ -1046,7 +1049,7 @@ pub unsafe extern "C" fn rust_rule_set_page_selectors(rule: &NativeRule, selecto
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_children(rule: &NativeRule) -> *const NativeRuleList {
-    rule.children.as_ref().map_or(std::ptr::null(), Rc::as_ptr)
+    rule.child_rules().map_or(std::ptr::null(), Rc::as_ptr)
 }
 
 #[unsafe(no_mangle)]
