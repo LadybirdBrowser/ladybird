@@ -323,71 +323,63 @@ fn parse_type(context: &ParseContext, syntax_type: SyntaxType, tokens: &mut Toke
     }
 }
 
+/// May consume tokens on failure. Callers that retry must use a transaction.
 fn parse_node(context: &ParseContext, syntax: &SyntaxNode, tokens: &mut TokenStream<'_>) -> Option<StyleValueData> {
-    let mut transaction = tokens.begin_transaction();
-    let parsed = match syntax {
-        SyntaxNode::Universal => return None,
+    match syntax {
+        SyntaxNode::Universal => None,
         SyntaxNode::Ident { value, case_sensitive } => {
-            transaction.discard_whitespace();
-            let identifier = transaction.consume_a_token().ident()?;
+            tokens.discard_whitespace();
+            let identifier = tokens.consume_a_token().ident()?;
             if !identifier_matches(identifier, value, *case_sensitive) {
                 return None;
             }
             if let Some(keyword) = keyword_from_ascii_case_insensitive(value) {
-                StyleValueData::Keyword { keyword }
+                Some(StyleValueData::Keyword { keyword })
             } else {
-                StyleValueData::CustomIdent {
+                Some(StyleValueData::CustomIdent {
                     custom_ident: CssString::from_utf16(value),
-                }
+                })
             }
         }
-        SyntaxNode::Type(syntax_type) => parse_type(context, *syntax_type, &mut transaction)?,
+        SyntaxNode::Type(syntax_type) => parse_type(context, *syntax_type, tokens),
         SyntaxNode::Multiplier { child, multiplier } => {
             let mut values = Vec::new();
-            transaction.discard_whitespace();
+            tokens.discard_whitespace();
             loop {
-                values.push(parse_node(context, child, &mut transaction)?);
-                transaction.discard_whitespace();
+                values.push(parse_node(context, child, tokens)?);
+                tokens.discard_whitespace();
                 match multiplier {
-                    SyntaxMultiplier::CommaSeparated if transaction.next_token().is_comma() => {
-                        transaction.discard_a_token();
-                        transaction.discard_whitespace();
-                        if !transaction.has_next_token() {
+                    SyntaxMultiplier::CommaSeparated if tokens.next_token().is_comma() => {
+                        tokens.discard_a_token();
+                        tokens.discard_whitespace();
+                        if !tokens.has_next_token() {
                             return None;
                         }
                     }
-                    SyntaxMultiplier::SpaceSeparated if transaction.has_next_token() => {}
+                    SyntaxMultiplier::SpaceSeparated if tokens.has_next_token() => {}
                     _ => break,
                 }
             }
-            value_list(values, u8::from(*multiplier == SyntaxMultiplier::CommaSeparated), true)
+            Some(value_list(
+                values,
+                u8::from(*multiplier == SyntaxMultiplier::CommaSeparated),
+                true,
+            ))
         }
         SyntaxNode::Alternatives(alternatives) => {
             for alternative in alternatives {
-                let parsed = {
-                    let mut alternative_transaction = transaction.begin_transaction();
-                    if let Some(parsed) = parse_node(context, alternative, &mut alternative_transaction) {
-                        alternative_transaction.discard_whitespace();
-                        if !alternative_transaction.has_next_token() {
-                            alternative_transaction.commit();
-                            Some(parsed)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
+                let mut transaction = tokens.begin_transaction();
+                if let Some(parsed) = parse_node(context, alternative, &mut transaction) {
+                    transaction.discard_whitespace();
+                    if !transaction.has_next_token() {
+                        transaction.commit();
+                        return Some(parsed);
                     }
-                };
-                if let Some(parsed) = parsed {
-                    transaction.commit();
-                    return Some(parsed);
                 }
             }
-            return None;
+            None
         }
-    };
-    transaction.commit();
-    Some(parsed)
+    }
 }
 
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
