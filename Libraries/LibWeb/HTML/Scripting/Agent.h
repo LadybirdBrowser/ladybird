@@ -10,6 +10,7 @@
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Agent.h>
+#include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 #include <LibWeb/Forward.h>
 
 namespace JS {
@@ -32,6 +33,8 @@ struct WEB_API Agent : public JS::Agent {
 
     // Rooted by Bindings::create_global_object_wrapper() until Bindings::cache_global_object_wrapper() runs.
     Vector<GC::Root<JS::HostObject>> global_object_wrappers_of_realms_being_set_up;
+
+    Fetch::Infrastructure::FetchControllerRegistry fetch_controller_registry;
 
     virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) override;
 

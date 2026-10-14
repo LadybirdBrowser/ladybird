@@ -48,6 +48,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -90,7 +91,9 @@ GC::Ref<XMLHttpRequest> XMLHttpRequest::create(GC::Ref<DOM::EventTarget> relevan
     auto upload_object = GC::Heap::the().allocate<XMLHttpRequestUpload>();
     auto author_request_headers = HTTP::HeaderList::create();
     auto response = Fetch::Infrastructure::ResponseView::network_error("Not sent yet"_string);
-    auto fetch_controller = Fetch::Infrastructure::FetchController::create();
+    auto& global_scope = HTML::relevant_window_or_worker_global_scope(*relevant_global_object);
+    auto& relevant_agent = HTML::relevant_agent(HTML::relevant_global_object(global_scope));
+    auto fetch_controller = Fetch::Infrastructure::FetchController::create(relevant_agent.fetch_controller_registry);
     auto xhr = GC::Heap::the().allocate<XMLHttpRequest>(relevant_global_object, *upload_object, move(author_request_headers), *response, *fetch_controller);
     live_xml_http_requests().append(xhr);
     prune_live_xml_http_requests();

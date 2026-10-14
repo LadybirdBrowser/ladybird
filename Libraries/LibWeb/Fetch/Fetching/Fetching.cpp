@@ -58,6 +58,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/PreloadEntry.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -323,8 +324,10 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //    process early hints response is processEarlyHintsResponse, process response is processResponse, process
     //    response consume body is processResponseConsumeBody, process response end-of-body is processResponseEndOfBody,
     //    task destination is taskDestination, and cross-origin isolated capability is crossOriginIsolatedCapability.
-    auto fetch_params = Infrastructure::FetchParams::create(request, algorithms, timing_info, current_loader_config());
-    fetch_params->controller()->set_task_destination(task_destination);
+    auto& controller_registry = HTML::relevant_agent(realm.global_object()).fetch_controller_registry;
+    auto controller = Infrastructure::FetchController::create(controller_registry);
+    auto fetch_params = Infrastructure::FetchParams::create(controller, request, algorithms, timing_info, current_loader_config());
+    controller->set_task_destination(task_destination);
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
     fetch_params->set_has_response_body_transfer_lease(create_response_body_transfer_lease == CreateResponseBodyTransferLease::Yes);
 
@@ -465,7 +468,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     // 14. If request is a subresource request, then:
     if (request.is_subresource_request()) {
         // 1. Let record be a new fetch record whose request is request and controller is fetchParams’s controller.
-        auto record = Infrastructure::FetchRecord::create(request, fetch_params->controller());
+        auto record = Infrastructure::FetchRecord::create(request, controller);
 
         // 2. Append record to request’s client’s fetch group’s fetch records.
         // AD-HOC: A client another process hosts has its fetch group there.
@@ -490,7 +493,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     (void)main_fetch(realm, fetch_params);
 
     // 16. Return fetchParams’s controller.
-    return fetch_params->controller();
+    return controller;
 }
 
 // https://fetch.spec.whatwg.org/#populate-request-from-client
@@ -3101,13 +3104,16 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     // 6. Let response be the result of running HTTP-network-or-cache fetch given a new fetch params whose request is preflight.
     // FIXME: The spec doesn't say anything about timing_info here, but FetchParams requires a non-null FetchTimingInfo object.
     auto timing_info = Infrastructure::FetchTimingInfo::create();
-    auto preflight_fetch_params = Infrastructure::FetchParams::create(preflight, Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard }), timing_info, fetch_params.loader_config_snapshot());
+    auto& controller_registry = HTML::relevant_agent(realm.global_object()).fetch_controller_registry;
+    auto preflight_controller = Infrastructure::FetchController::create(controller_registry);
+    auto preflight_algorithms = Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard });
+    auto preflight_fetch_params = Infrastructure::FetchParams::create(preflight_controller, preflight, preflight_algorithms, timing_info, fetch_params.loader_config_snapshot());
 
     auto returned_pending_response = PendingResponse::create(fetch_params);
 
     auto preflight_response = http_network_or_cache_fetch(realm, preflight_fetch_params);
 
-    preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller = preflight_fetch_params->controller()](NonnullRefPtr<Infrastructure::Response> response) {
+    preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller](NonnullRefPtr<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
 
         if (WebDriver::BiDi::g_network_events_enabled) {
