@@ -182,7 +182,7 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     // 9. If navigable's active document's unload counter is greater than 0, then invoke WebDriver BiDi navigation failed
     //    with navigable and a WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url
     //    is url, and return.
-    if (traversable.is_unloading_document_of(id()))
+    if (active_document().unload_counter() > 0)
         return;
 
     // NB: The page hosting navigable's active document, which has its container if any process does, runs steps 10,
