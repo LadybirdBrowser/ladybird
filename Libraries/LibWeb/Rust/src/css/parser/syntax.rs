@@ -303,23 +303,13 @@ fn identifier_matches(value: &[u16], expected: &[u16], case_sensitive: bool) -> 
 
 fn parse_type(context: &ParseContext, syntax_type: SyntaxType, tokens: &mut TokenStream<'_>) -> Option<StyleValueData> {
     tokens.discard_whitespace();
-    let parsed = match syntax_type {
+    match syntax_type {
         SyntaxType::Color => parse_color_value(context, property_id::CUSTOM, tokens, false),
-        SyntaxType::CustomIdent => {
-            let value = parse_custom_ident_value(context, tokens.next_token(), &[])?;
-            tokens.discard_a_token();
-            Some(value)
-        }
+        SyntaxType::CustomIdent => parse_custom_ident_value(context, tokens.consume_a_token(), &[]),
         SyntaxType::Image => parse_image_value(context, property_id::CUSTOM, tokens, false),
-        SyntaxType::String => {
-            let value = parse_string_value(context, tokens.next_token())?;
-            tokens.discard_a_token();
-            Some(value)
-        }
+        SyntaxType::String => parse_string_value(context, tokens.consume_a_token()),
         SyntaxType::TransformFunction => {
-            let value = parse_transform_function(context, property_id::CUSTOM, tokens.next_token())?;
-            tokens.discard_a_token();
-            Some(value)
+            parse_transform_function(context, property_id::CUSTOM, tokens.consume_a_token())
         }
         SyntaxType::TransformList => {
             let start = tokens.current_index();
@@ -328,18 +318,9 @@ fn parse_type(context: &ParseContext, syntax_type: SyntaxType, tokens: &mut Toke
             }
             parse_transform(context, property_id::CUSTOM, tokens.tokens_since(start))
         }
-        SyntaxType::Url => {
-            let value = parse_url_value(context, tokens.next_token())?;
-            tokens.discard_a_token();
-            Some(value)
-        }
-        _ => {
-            let value = parse_syntax_numeric_value(context, syntax_type, tokens.next_token())?;
-            tokens.discard_a_token();
-            Some(value)
-        }
-    }?;
-    Some(parsed)
+        SyntaxType::Url => parse_url_value(context, tokens.consume_a_token()),
+        _ => parse_syntax_numeric_value(context, syntax_type, tokens.consume_a_token()),
+    }
 }
 
 fn parse_node(context: &ParseContext, syntax: &SyntaxNode, tokens: &mut TokenStream<'_>) -> Option<StyleValueData> {
