@@ -53,6 +53,7 @@ public:
     [[nodiscard]] State state() const { return m_control_block->state(); }
     [[nodiscard]] RefPtr<FetchTimingInfo> full_timing_info() const { return m_control_block->full_timing_info(); }
 
+    [[nodiscard]] bool has_report_timing_steps() const { return m_report_timing_steps != nullptr; }
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;
 
