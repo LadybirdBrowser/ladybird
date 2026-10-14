@@ -28,7 +28,13 @@ WEB_API ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_sour
 WEB_API ErrorOr<ByteBuffer> get_buffer_source_copy(BufferSource const&);
 WEB_API ErrorOr<ByteBuffer> get_buffer_source_copy(ArrayBufferView const&);
 
-JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args);
+// AD-HOC: Whether to refuse a callback whose realm's global object is a Window whose associated Document isn't fully
+//         active. A caller that has just skipped such a callback itself passes No.
+enum class RefuseCallbackFromInactiveWindow {
+    Yes,
+    No,
+};
+JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args, RefuseCallbackFromInactiveWindow = RefuseCallbackFromInactiveWindow::Yes);
 
 WEB_API JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM&, JS::Value);

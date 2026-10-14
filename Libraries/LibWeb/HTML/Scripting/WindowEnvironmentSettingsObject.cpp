@@ -93,7 +93,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
 GC::Ptr<DOM::Document> WindowEnvironmentSettingsObject::responsible_document()
 {
     // Return window's associated Document.
-    return m_window->associated_document();
+    return m_window->associated_document_if_any();
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:api-base-url
