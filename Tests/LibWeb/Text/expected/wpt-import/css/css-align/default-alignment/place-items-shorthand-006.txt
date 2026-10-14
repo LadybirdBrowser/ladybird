@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 168 tests
 
-80 Pass
-88 Fail
+120 Pass
+48 Fail
 Pass	Checking place-items: normal left
 Pass	Checking place-items: normal right
 Pass	Checking place-items: normal normal
@@ -16,8 +16,8 @@ Pass	Checking place-items: normal center
 Fail	Checking place-items: normal flex-start
 Fail	Checking place-items: normal flex-end
 Pass	Checking place-items: normal baseline
-Fail	Checking place-items: normal first baseline
-Fail	Checking place-items: normal last baseline
+Pass	Checking place-items: normal first baseline
+Pass	Checking place-items: normal last baseline
 Pass	Checking place-items: stretch left
 Pass	Checking place-items: stretch right
 Pass	Checking place-items: stretch normal
@@ -30,8 +30,8 @@ Pass	Checking place-items: stretch center
 Fail	Checking place-items: stretch flex-start
 Fail	Checking place-items: stretch flex-end
 Pass	Checking place-items: stretch baseline
-Fail	Checking place-items: stretch first baseline
-Fail	Checking place-items: stretch last baseline
+Pass	Checking place-items: stretch first baseline
+Pass	Checking place-items: stretch last baseline
 Pass	Checking place-items: start left
 Pass	Checking place-items: start right
 Pass	Checking place-items: start normal
@@ -44,8 +44,8 @@ Pass	Checking place-items: start center
 Fail	Checking place-items: start flex-start
 Fail	Checking place-items: start flex-end
 Pass	Checking place-items: start baseline
-Fail	Checking place-items: start first baseline
-Fail	Checking place-items: start last baseline
+Pass	Checking place-items: start first baseline
+Pass	Checking place-items: start last baseline
 Pass	Checking place-items: end left
 Pass	Checking place-items: end right
 Pass	Checking place-items: end normal
@@ -58,8 +58,8 @@ Pass	Checking place-items: end center
 Fail	Checking place-items: end flex-start
 Fail	Checking place-items: end flex-end
 Pass	Checking place-items: end baseline
-Fail	Checking place-items: end first baseline
-Fail	Checking place-items: end last baseline
+Pass	Checking place-items: end first baseline
+Pass	Checking place-items: end last baseline
 Pass	Checking place-items: self-start left
 Pass	Checking place-items: self-start right
 Pass	Checking place-items: self-start normal
@@ -72,8 +72,8 @@ Pass	Checking place-items: self-start center
 Fail	Checking place-items: self-start flex-start
 Fail	Checking place-items: self-start flex-end
 Pass	Checking place-items: self-start baseline
-Fail	Checking place-items: self-start first baseline
-Fail	Checking place-items: self-start last baseline
+Pass	Checking place-items: self-start first baseline
+Pass	Checking place-items: self-start last baseline
 Pass	Checking place-items: self-end left
 Pass	Checking place-items: self-end right
 Pass	Checking place-items: self-end normal
@@ -86,8 +86,8 @@ Pass	Checking place-items: self-end center
 Fail	Checking place-items: self-end flex-start
 Fail	Checking place-items: self-end flex-end
 Pass	Checking place-items: self-end baseline
-Fail	Checking place-items: self-end first baseline
-Fail	Checking place-items: self-end last baseline
+Pass	Checking place-items: self-end first baseline
+Pass	Checking place-items: self-end last baseline
 Pass	Checking place-items: center left
 Pass	Checking place-items: center right
 Pass	Checking place-items: center normal
@@ -100,8 +100,8 @@ Pass	Checking place-items: center center
 Fail	Checking place-items: center flex-start
 Fail	Checking place-items: center flex-end
 Pass	Checking place-items: center baseline
-Fail	Checking place-items: center first baseline
-Fail	Checking place-items: center last baseline
+Pass	Checking place-items: center first baseline
+Pass	Checking place-items: center last baseline
 Fail	Checking place-items: flex-start left
 Fail	Checking place-items: flex-start right
 Fail	Checking place-items: flex-start normal
@@ -142,33 +142,33 @@ Pass	Checking place-items: baseline center
 Fail	Checking place-items: baseline flex-start
 Fail	Checking place-items: baseline flex-end
 Pass	Checking place-items: baseline baseline
-Fail	Checking place-items: baseline first baseline
-Fail	Checking place-items: baseline last baseline
-Fail	Checking place-items: first baseline left
-Fail	Checking place-items: first baseline right
-Fail	Checking place-items: first baseline normal
-Fail	Checking place-items: first baseline stretch
-Fail	Checking place-items: first baseline start
-Fail	Checking place-items: first baseline end
-Fail	Checking place-items: first baseline self-start
-Fail	Checking place-items: first baseline self-end
-Fail	Checking place-items: first baseline center
+Pass	Checking place-items: baseline first baseline
+Pass	Checking place-items: baseline last baseline
+Pass	Checking place-items: first baseline left
+Pass	Checking place-items: first baseline right
+Pass	Checking place-items: first baseline normal
+Pass	Checking place-items: first baseline stretch
+Pass	Checking place-items: first baseline start
+Pass	Checking place-items: first baseline end
+Pass	Checking place-items: first baseline self-start
+Pass	Checking place-items: first baseline self-end
+Pass	Checking place-items: first baseline center
 Fail	Checking place-items: first baseline flex-start
 Fail	Checking place-items: first baseline flex-end
-Fail	Checking place-items: first baseline baseline
-Fail	Checking place-items: first baseline first baseline
-Fail	Checking place-items: first baseline last baseline
-Fail	Checking place-items: last baseline left
-Fail	Checking place-items: last baseline right
-Fail	Checking place-items: last baseline normal
-Fail	Checking place-items: last baseline stretch
-Fail	Checking place-items: last baseline start
-Fail	Checking place-items: last baseline end
-Fail	Checking place-items: last baseline self-start
-Fail	Checking place-items: last baseline self-end
-Fail	Checking place-items: last baseline center
+Pass	Checking place-items: first baseline baseline
+Pass	Checking place-items: first baseline first baseline
+Pass	Checking place-items: first baseline last baseline
+Pass	Checking place-items: last baseline left
+Pass	Checking place-items: last baseline right
+Pass	Checking place-items: last baseline normal
+Pass	Checking place-items: last baseline stretch
+Pass	Checking place-items: last baseline start
+Pass	Checking place-items: last baseline end
+Pass	Checking place-items: last baseline self-start
+Pass	Checking place-items: last baseline self-end
+Pass	Checking place-items: last baseline center
 Fail	Checking place-items: last baseline flex-start
 Fail	Checking place-items: last baseline flex-end
-Fail	Checking place-items: last baseline baseline
-Fail	Checking place-items: last baseline first baseline
-Fail	Checking place-items: last baseline last baseline
+Pass	Checking place-items: last baseline baseline
+Pass	Checking place-items: last baseline first baseline
+Pass	Checking place-items: last baseline last baseline

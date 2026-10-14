@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 360 tests
 
-143 Pass
-217 Fail
+360 Pass
 Pass	Checking place-self: auto left
 Pass	Checking place-self: auto right
 Pass	Checking place-self: auto auto
@@ -17,13 +16,13 @@ Pass	Checking place-self: auto center
 Pass	Checking place-self: auto flex-start
 Pass	Checking place-self: auto flex-end
 Pass	Checking place-self: auto baseline
-Fail	Checking place-self: auto first baseline
-Fail	Checking place-self: auto last baseline
-Fail	Checking place-self: auto safe flex-end
-Fail	Checking place-self: auto unsafe end
-Fail	Checking place-self: auto safe end
-Fail	Checking place-self: auto unsafe flex-start
-Fail	Checking place-self: auto safe center
+Pass	Checking place-self: auto first baseline
+Pass	Checking place-self: auto last baseline
+Pass	Checking place-self: auto safe flex-end
+Pass	Checking place-self: auto unsafe end
+Pass	Checking place-self: auto safe end
+Pass	Checking place-self: auto unsafe flex-start
+Pass	Checking place-self: auto safe center
 Pass	Checking place-self: normal left
 Pass	Checking place-self: normal right
 Pass	Checking place-self: normal auto
@@ -37,13 +36,13 @@ Pass	Checking place-self: normal center
 Pass	Checking place-self: normal flex-start
 Pass	Checking place-self: normal flex-end
 Pass	Checking place-self: normal baseline
-Fail	Checking place-self: normal first baseline
-Fail	Checking place-self: normal last baseline
-Fail	Checking place-self: normal safe flex-end
-Fail	Checking place-self: normal unsafe end
-Fail	Checking place-self: normal safe end
-Fail	Checking place-self: normal unsafe flex-start
-Fail	Checking place-self: normal safe center
+Pass	Checking place-self: normal first baseline
+Pass	Checking place-self: normal last baseline
+Pass	Checking place-self: normal safe flex-end
+Pass	Checking place-self: normal unsafe end
+Pass	Checking place-self: normal safe end
+Pass	Checking place-self: normal unsafe flex-start
+Pass	Checking place-self: normal safe center
 Pass	Checking place-self: stretch left
 Pass	Checking place-self: stretch right
 Pass	Checking place-self: stretch auto
@@ -57,13 +56,13 @@ Pass	Checking place-self: stretch center
 Pass	Checking place-self: stretch flex-start
 Pass	Checking place-self: stretch flex-end
 Pass	Checking place-self: stretch baseline
-Fail	Checking place-self: stretch first baseline
-Fail	Checking place-self: stretch last baseline
-Fail	Checking place-self: stretch safe flex-end
-Fail	Checking place-self: stretch unsafe end
-Fail	Checking place-self: stretch safe end
-Fail	Checking place-self: stretch unsafe flex-start
-Fail	Checking place-self: stretch safe center
+Pass	Checking place-self: stretch first baseline
+Pass	Checking place-self: stretch last baseline
+Pass	Checking place-self: stretch safe flex-end
+Pass	Checking place-self: stretch unsafe end
+Pass	Checking place-self: stretch safe end
+Pass	Checking place-self: stretch unsafe flex-start
+Pass	Checking place-self: stretch safe center
 Pass	Checking place-self: start left
 Pass	Checking place-self: start right
 Pass	Checking place-self: start auto
@@ -77,13 +76,13 @@ Pass	Checking place-self: start center
 Pass	Checking place-self: start flex-start
 Pass	Checking place-self: start flex-end
 Pass	Checking place-self: start baseline
-Fail	Checking place-self: start first baseline
-Fail	Checking place-self: start last baseline
-Fail	Checking place-self: start safe flex-end
-Fail	Checking place-self: start unsafe end
-Fail	Checking place-self: start safe end
-Fail	Checking place-self: start unsafe flex-start
-Fail	Checking place-self: start safe center
+Pass	Checking place-self: start first baseline
+Pass	Checking place-self: start last baseline
+Pass	Checking place-self: start safe flex-end
+Pass	Checking place-self: start unsafe end
+Pass	Checking place-self: start safe end
+Pass	Checking place-self: start unsafe flex-start
+Pass	Checking place-self: start safe center
 Pass	Checking place-self: end left
 Pass	Checking place-self: end right
 Pass	Checking place-self: end auto
@@ -97,13 +96,13 @@ Pass	Checking place-self: end center
 Pass	Checking place-self: end flex-start
 Pass	Checking place-self: end flex-end
 Pass	Checking place-self: end baseline
-Fail	Checking place-self: end first baseline
-Fail	Checking place-self: end last baseline
-Fail	Checking place-self: end safe flex-end
-Fail	Checking place-self: end unsafe end
-Fail	Checking place-self: end safe end
-Fail	Checking place-self: end unsafe flex-start
-Fail	Checking place-self: end safe center
+Pass	Checking place-self: end first baseline
+Pass	Checking place-self: end last baseline
+Pass	Checking place-self: end safe flex-end
+Pass	Checking place-self: end unsafe end
+Pass	Checking place-self: end safe end
+Pass	Checking place-self: end unsafe flex-start
+Pass	Checking place-self: end safe center
 Pass	Checking place-self: self-start left
 Pass	Checking place-self: self-start right
 Pass	Checking place-self: self-start auto
@@ -117,13 +116,13 @@ Pass	Checking place-self: self-start center
 Pass	Checking place-self: self-start flex-start
 Pass	Checking place-self: self-start flex-end
 Pass	Checking place-self: self-start baseline
-Fail	Checking place-self: self-start first baseline
-Fail	Checking place-self: self-start last baseline
-Fail	Checking place-self: self-start safe flex-end
-Fail	Checking place-self: self-start unsafe end
-Fail	Checking place-self: self-start safe end
-Fail	Checking place-self: self-start unsafe flex-start
-Fail	Checking place-self: self-start safe center
+Pass	Checking place-self: self-start first baseline
+Pass	Checking place-self: self-start last baseline
+Pass	Checking place-self: self-start safe flex-end
+Pass	Checking place-self: self-start unsafe end
+Pass	Checking place-self: self-start safe end
+Pass	Checking place-self: self-start unsafe flex-start
+Pass	Checking place-self: self-start safe center
 Pass	Checking place-self: self-end left
 Pass	Checking place-self: self-end right
 Pass	Checking place-self: self-end auto
@@ -137,13 +136,13 @@ Pass	Checking place-self: self-end center
 Pass	Checking place-self: self-end flex-start
 Pass	Checking place-self: self-end flex-end
 Pass	Checking place-self: self-end baseline
-Fail	Checking place-self: self-end first baseline
-Fail	Checking place-self: self-end last baseline
-Fail	Checking place-self: self-end safe flex-end
-Fail	Checking place-self: self-end unsafe end
-Fail	Checking place-self: self-end safe end
-Fail	Checking place-self: self-end unsafe flex-start
-Fail	Checking place-self: self-end safe center
+Pass	Checking place-self: self-end first baseline
+Pass	Checking place-self: self-end last baseline
+Pass	Checking place-self: self-end safe flex-end
+Pass	Checking place-self: self-end unsafe end
+Pass	Checking place-self: self-end safe end
+Pass	Checking place-self: self-end unsafe flex-start
+Pass	Checking place-self: self-end safe center
 Pass	Checking place-self: center left
 Pass	Checking place-self: center right
 Pass	Checking place-self: center auto
@@ -157,13 +156,13 @@ Pass	Checking place-self: center center
 Pass	Checking place-self: center flex-start
 Pass	Checking place-self: center flex-end
 Pass	Checking place-self: center baseline
-Fail	Checking place-self: center first baseline
-Fail	Checking place-self: center last baseline
-Fail	Checking place-self: center safe flex-end
-Fail	Checking place-self: center unsafe end
-Fail	Checking place-self: center safe end
-Fail	Checking place-self: center unsafe flex-start
-Fail	Checking place-self: center safe center
+Pass	Checking place-self: center first baseline
+Pass	Checking place-self: center last baseline
+Pass	Checking place-self: center safe flex-end
+Pass	Checking place-self: center unsafe end
+Pass	Checking place-self: center safe end
+Pass	Checking place-self: center unsafe flex-start
+Pass	Checking place-self: center safe center
 Pass	Checking place-self: flex-start left
 Pass	Checking place-self: flex-start right
 Pass	Checking place-self: flex-start auto
@@ -177,13 +176,13 @@ Pass	Checking place-self: flex-start center
 Pass	Checking place-self: flex-start flex-start
 Pass	Checking place-self: flex-start flex-end
 Pass	Checking place-self: flex-start baseline
-Fail	Checking place-self: flex-start first baseline
-Fail	Checking place-self: flex-start last baseline
-Fail	Checking place-self: flex-start safe flex-end
-Fail	Checking place-self: flex-start unsafe end
-Fail	Checking place-self: flex-start safe end
-Fail	Checking place-self: flex-start unsafe flex-start
-Fail	Checking place-self: flex-start safe center
+Pass	Checking place-self: flex-start first baseline
+Pass	Checking place-self: flex-start last baseline
+Pass	Checking place-self: flex-start safe flex-end
+Pass	Checking place-self: flex-start unsafe end
+Pass	Checking place-self: flex-start safe end
+Pass	Checking place-self: flex-start unsafe flex-start
+Pass	Checking place-self: flex-start safe center
 Pass	Checking place-self: flex-end left
 Pass	Checking place-self: flex-end right
 Pass	Checking place-self: flex-end auto
@@ -197,13 +196,13 @@ Pass	Checking place-self: flex-end center
 Pass	Checking place-self: flex-end flex-start
 Pass	Checking place-self: flex-end flex-end
 Pass	Checking place-self: flex-end baseline
-Fail	Checking place-self: flex-end first baseline
-Fail	Checking place-self: flex-end last baseline
-Fail	Checking place-self: flex-end safe flex-end
-Fail	Checking place-self: flex-end unsafe end
-Fail	Checking place-self: flex-end safe end
-Fail	Checking place-self: flex-end unsafe flex-start
-Fail	Checking place-self: flex-end safe center
+Pass	Checking place-self: flex-end first baseline
+Pass	Checking place-self: flex-end last baseline
+Pass	Checking place-self: flex-end safe flex-end
+Pass	Checking place-self: flex-end unsafe end
+Pass	Checking place-self: flex-end safe end
+Pass	Checking place-self: flex-end unsafe flex-start
+Pass	Checking place-self: flex-end safe center
 Pass	Checking place-self: baseline left
 Pass	Checking place-self: baseline right
 Pass	Checking place-self: baseline auto
@@ -217,150 +216,150 @@ Pass	Checking place-self: baseline center
 Pass	Checking place-self: baseline flex-start
 Pass	Checking place-self: baseline flex-end
 Pass	Checking place-self: baseline baseline
-Fail	Checking place-self: baseline first baseline
-Fail	Checking place-self: baseline last baseline
-Fail	Checking place-self: baseline safe flex-end
-Fail	Checking place-self: baseline unsafe end
-Fail	Checking place-self: baseline safe end
-Fail	Checking place-self: baseline unsafe flex-start
-Fail	Checking place-self: baseline safe center
-Fail	Checking place-self: first baseline left
-Fail	Checking place-self: first baseline right
-Fail	Checking place-self: first baseline auto
-Fail	Checking place-self: first baseline normal
-Fail	Checking place-self: first baseline stretch
-Fail	Checking place-self: first baseline start
-Fail	Checking place-self: first baseline end
-Fail	Checking place-self: first baseline self-start
-Fail	Checking place-self: first baseline self-end
-Fail	Checking place-self: first baseline center
-Fail	Checking place-self: first baseline flex-start
-Fail	Checking place-self: first baseline flex-end
-Fail	Checking place-self: first baseline baseline
-Fail	Checking place-self: first baseline first baseline
-Fail	Checking place-self: first baseline last baseline
-Fail	Checking place-self: first baseline safe flex-end
-Fail	Checking place-self: first baseline unsafe end
-Fail	Checking place-self: first baseline safe end
-Fail	Checking place-self: first baseline unsafe flex-start
-Fail	Checking place-self: first baseline safe center
-Fail	Checking place-self: last baseline left
-Fail	Checking place-self: last baseline right
-Fail	Checking place-self: last baseline auto
-Fail	Checking place-self: last baseline normal
-Fail	Checking place-self: last baseline stretch
-Fail	Checking place-self: last baseline start
-Fail	Checking place-self: last baseline end
-Fail	Checking place-self: last baseline self-start
-Fail	Checking place-self: last baseline self-end
-Fail	Checking place-self: last baseline center
-Fail	Checking place-self: last baseline flex-start
-Fail	Checking place-self: last baseline flex-end
-Fail	Checking place-self: last baseline baseline
-Fail	Checking place-self: last baseline first baseline
-Fail	Checking place-self: last baseline last baseline
-Fail	Checking place-self: last baseline safe flex-end
-Fail	Checking place-self: last baseline unsafe end
-Fail	Checking place-self: last baseline safe end
-Fail	Checking place-self: last baseline unsafe flex-start
-Fail	Checking place-self: last baseline safe center
-Fail	Checking place-self: safe flex-end left
-Fail	Checking place-self: safe flex-end right
-Fail	Checking place-self: safe flex-end auto
-Fail	Checking place-self: safe flex-end normal
-Fail	Checking place-self: safe flex-end stretch
-Fail	Checking place-self: safe flex-end start
-Fail	Checking place-self: safe flex-end end
-Fail	Checking place-self: safe flex-end self-start
-Fail	Checking place-self: safe flex-end self-end
-Fail	Checking place-self: safe flex-end center
-Fail	Checking place-self: safe flex-end flex-start
-Fail	Checking place-self: safe flex-end flex-end
-Fail	Checking place-self: safe flex-end baseline
-Fail	Checking place-self: safe flex-end first baseline
-Fail	Checking place-self: safe flex-end last baseline
-Fail	Checking place-self: safe flex-end safe flex-end
-Fail	Checking place-self: safe flex-end unsafe end
-Fail	Checking place-self: safe flex-end safe end
-Fail	Checking place-self: safe flex-end unsafe flex-start
-Fail	Checking place-self: safe flex-end safe center
-Fail	Checking place-self: unsafe end left
-Fail	Checking place-self: unsafe end right
-Fail	Checking place-self: unsafe end auto
-Fail	Checking place-self: unsafe end normal
-Fail	Checking place-self: unsafe end stretch
-Fail	Checking place-self: unsafe end start
-Fail	Checking place-self: unsafe end end
-Fail	Checking place-self: unsafe end self-start
-Fail	Checking place-self: unsafe end self-end
-Fail	Checking place-self: unsafe end center
-Fail	Checking place-self: unsafe end flex-start
-Fail	Checking place-self: unsafe end flex-end
-Fail	Checking place-self: unsafe end baseline
-Fail	Checking place-self: unsafe end first baseline
-Fail	Checking place-self: unsafe end last baseline
-Fail	Checking place-self: unsafe end safe flex-end
-Fail	Checking place-self: unsafe end unsafe end
-Fail	Checking place-self: unsafe end safe end
-Fail	Checking place-self: unsafe end unsafe flex-start
-Fail	Checking place-self: unsafe end safe center
-Fail	Checking place-self: safe end left
-Fail	Checking place-self: safe end right
-Fail	Checking place-self: safe end auto
-Fail	Checking place-self: safe end normal
-Fail	Checking place-self: safe end stretch
-Fail	Checking place-self: safe end start
-Fail	Checking place-self: safe end end
-Fail	Checking place-self: safe end self-start
-Fail	Checking place-self: safe end self-end
-Fail	Checking place-self: safe end center
-Fail	Checking place-self: safe end flex-start
-Fail	Checking place-self: safe end flex-end
-Fail	Checking place-self: safe end baseline
-Fail	Checking place-self: safe end first baseline
-Fail	Checking place-self: safe end last baseline
-Fail	Checking place-self: safe end safe flex-end
-Fail	Checking place-self: safe end unsafe end
-Fail	Checking place-self: safe end safe end
-Fail	Checking place-self: safe end unsafe flex-start
-Fail	Checking place-self: safe end safe center
-Fail	Checking place-self: unsafe flex-start left
-Fail	Checking place-self: unsafe flex-start right
-Fail	Checking place-self: unsafe flex-start auto
-Fail	Checking place-self: unsafe flex-start normal
-Fail	Checking place-self: unsafe flex-start stretch
-Fail	Checking place-self: unsafe flex-start start
-Fail	Checking place-self: unsafe flex-start end
-Fail	Checking place-self: unsafe flex-start self-start
-Fail	Checking place-self: unsafe flex-start self-end
-Fail	Checking place-self: unsafe flex-start center
-Fail	Checking place-self: unsafe flex-start flex-start
-Fail	Checking place-self: unsafe flex-start flex-end
-Fail	Checking place-self: unsafe flex-start baseline
-Fail	Checking place-self: unsafe flex-start first baseline
-Fail	Checking place-self: unsafe flex-start last baseline
-Fail	Checking place-self: unsafe flex-start safe flex-end
-Fail	Checking place-self: unsafe flex-start unsafe end
-Fail	Checking place-self: unsafe flex-start safe end
-Fail	Checking place-self: unsafe flex-start unsafe flex-start
-Fail	Checking place-self: unsafe flex-start safe center
-Fail	Checking place-self: safe center left
-Fail	Checking place-self: safe center right
-Fail	Checking place-self: safe center auto
-Fail	Checking place-self: safe center normal
-Fail	Checking place-self: safe center stretch
-Fail	Checking place-self: safe center start
-Fail	Checking place-self: safe center end
-Fail	Checking place-self: safe center self-start
-Fail	Checking place-self: safe center self-end
-Fail	Checking place-self: safe center center
-Fail	Checking place-self: safe center flex-start
-Fail	Checking place-self: safe center flex-end
-Fail	Checking place-self: safe center baseline
-Fail	Checking place-self: safe center first baseline
-Fail	Checking place-self: safe center last baseline
-Fail	Checking place-self: safe center safe flex-end
-Fail	Checking place-self: safe center unsafe end
-Fail	Checking place-self: safe center safe end
-Fail	Checking place-self: safe center unsafe flex-start
-Fail	Checking place-self: safe center safe center
+Pass	Checking place-self: baseline first baseline
+Pass	Checking place-self: baseline last baseline
+Pass	Checking place-self: baseline safe flex-end
+Pass	Checking place-self: baseline unsafe end
+Pass	Checking place-self: baseline safe end
+Pass	Checking place-self: baseline unsafe flex-start
+Pass	Checking place-self: baseline safe center
+Pass	Checking place-self: first baseline left
+Pass	Checking place-self: first baseline right
+Pass	Checking place-self: first baseline auto
+Pass	Checking place-self: first baseline normal
+Pass	Checking place-self: first baseline stretch
+Pass	Checking place-self: first baseline start
+Pass	Checking place-self: first baseline end
+Pass	Checking place-self: first baseline self-start
+Pass	Checking place-self: first baseline self-end
+Pass	Checking place-self: first baseline center
+Pass	Checking place-self: first baseline flex-start
+Pass	Checking place-self: first baseline flex-end
+Pass	Checking place-self: first baseline baseline
+Pass	Checking place-self: first baseline first baseline
+Pass	Checking place-self: first baseline last baseline
+Pass	Checking place-self: first baseline safe flex-end
+Pass	Checking place-self: first baseline unsafe end
+Pass	Checking place-self: first baseline safe end
+Pass	Checking place-self: first baseline unsafe flex-start
+Pass	Checking place-self: first baseline safe center
+Pass	Checking place-self: last baseline left
+Pass	Checking place-self: last baseline right
+Pass	Checking place-self: last baseline auto
+Pass	Checking place-self: last baseline normal
+Pass	Checking place-self: last baseline stretch
+Pass	Checking place-self: last baseline start
+Pass	Checking place-self: last baseline end
+Pass	Checking place-self: last baseline self-start
+Pass	Checking place-self: last baseline self-end
+Pass	Checking place-self: last baseline center
+Pass	Checking place-self: last baseline flex-start
+Pass	Checking place-self: last baseline flex-end
+Pass	Checking place-self: last baseline baseline
+Pass	Checking place-self: last baseline first baseline
+Pass	Checking place-self: last baseline last baseline
+Pass	Checking place-self: last baseline safe flex-end
+Pass	Checking place-self: last baseline unsafe end
+Pass	Checking place-self: last baseline safe end
+Pass	Checking place-self: last baseline unsafe flex-start
+Pass	Checking place-self: last baseline safe center
+Pass	Checking place-self: safe flex-end left
+Pass	Checking place-self: safe flex-end right
+Pass	Checking place-self: safe flex-end auto
+Pass	Checking place-self: safe flex-end normal
+Pass	Checking place-self: safe flex-end stretch
+Pass	Checking place-self: safe flex-end start
+Pass	Checking place-self: safe flex-end end
+Pass	Checking place-self: safe flex-end self-start
+Pass	Checking place-self: safe flex-end self-end
+Pass	Checking place-self: safe flex-end center
+Pass	Checking place-self: safe flex-end flex-start
+Pass	Checking place-self: safe flex-end flex-end
+Pass	Checking place-self: safe flex-end baseline
+Pass	Checking place-self: safe flex-end first baseline
+Pass	Checking place-self: safe flex-end last baseline
+Pass	Checking place-self: safe flex-end safe flex-end
+Pass	Checking place-self: safe flex-end unsafe end
+Pass	Checking place-self: safe flex-end safe end
+Pass	Checking place-self: safe flex-end unsafe flex-start
+Pass	Checking place-self: safe flex-end safe center
+Pass	Checking place-self: unsafe end left
+Pass	Checking place-self: unsafe end right
+Pass	Checking place-self: unsafe end auto
+Pass	Checking place-self: unsafe end normal
+Pass	Checking place-self: unsafe end stretch
+Pass	Checking place-self: unsafe end start
+Pass	Checking place-self: unsafe end end
+Pass	Checking place-self: unsafe end self-start
+Pass	Checking place-self: unsafe end self-end
+Pass	Checking place-self: unsafe end center
+Pass	Checking place-self: unsafe end flex-start
+Pass	Checking place-self: unsafe end flex-end
+Pass	Checking place-self: unsafe end baseline
+Pass	Checking place-self: unsafe end first baseline
+Pass	Checking place-self: unsafe end last baseline
+Pass	Checking place-self: unsafe end safe flex-end
+Pass	Checking place-self: unsafe end unsafe end
+Pass	Checking place-self: unsafe end safe end
+Pass	Checking place-self: unsafe end unsafe flex-start
+Pass	Checking place-self: unsafe end safe center
+Pass	Checking place-self: safe end left
+Pass	Checking place-self: safe end right
+Pass	Checking place-self: safe end auto
+Pass	Checking place-self: safe end normal
+Pass	Checking place-self: safe end stretch
+Pass	Checking place-self: safe end start
+Pass	Checking place-self: safe end end
+Pass	Checking place-self: safe end self-start
+Pass	Checking place-self: safe end self-end
+Pass	Checking place-self: safe end center
+Pass	Checking place-self: safe end flex-start
+Pass	Checking place-self: safe end flex-end
+Pass	Checking place-self: safe end baseline
+Pass	Checking place-self: safe end first baseline
+Pass	Checking place-self: safe end last baseline
+Pass	Checking place-self: safe end safe flex-end
+Pass	Checking place-self: safe end unsafe end
+Pass	Checking place-self: safe end safe end
+Pass	Checking place-self: safe end unsafe flex-start
+Pass	Checking place-self: safe end safe center
+Pass	Checking place-self: unsafe flex-start left
+Pass	Checking place-self: unsafe flex-start right
+Pass	Checking place-self: unsafe flex-start auto
+Pass	Checking place-self: unsafe flex-start normal
+Pass	Checking place-self: unsafe flex-start stretch
+Pass	Checking place-self: unsafe flex-start start
+Pass	Checking place-self: unsafe flex-start end
+Pass	Checking place-self: unsafe flex-start self-start
+Pass	Checking place-self: unsafe flex-start self-end
+Pass	Checking place-self: unsafe flex-start center
+Pass	Checking place-self: unsafe flex-start flex-start
+Pass	Checking place-self: unsafe flex-start flex-end
+Pass	Checking place-self: unsafe flex-start baseline
+Pass	Checking place-self: unsafe flex-start first baseline
+Pass	Checking place-self: unsafe flex-start last baseline
+Pass	Checking place-self: unsafe flex-start safe flex-end
+Pass	Checking place-self: unsafe flex-start unsafe end
+Pass	Checking place-self: unsafe flex-start safe end
+Pass	Checking place-self: unsafe flex-start unsafe flex-start
+Pass	Checking place-self: unsafe flex-start safe center
+Pass	Checking place-self: safe center left
+Pass	Checking place-self: safe center right
+Pass	Checking place-self: safe center auto
+Pass	Checking place-self: safe center normal
+Pass	Checking place-self: safe center stretch
+Pass	Checking place-self: safe center start
+Pass	Checking place-self: safe center end
+Pass	Checking place-self: safe center self-start
+Pass	Checking place-self: safe center self-end
+Pass	Checking place-self: safe center center
+Pass	Checking place-self: safe center flex-start
+Pass	Checking place-self: safe center flex-end
+Pass	Checking place-self: safe center baseline
+Pass	Checking place-self: safe center first baseline
+Pass	Checking place-self: safe center last baseline
+Pass	Checking place-self: safe center safe flex-end
+Pass	Checking place-self: safe center unsafe end
+Pass	Checking place-self: safe center safe end
+Pass	Checking place-self: safe center unsafe flex-start
+Pass	Checking place-self: safe center safe center

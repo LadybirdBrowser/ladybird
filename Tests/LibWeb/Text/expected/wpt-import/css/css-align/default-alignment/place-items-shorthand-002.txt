@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 374 tests
 
-120 Pass
-254 Fail
+374 Pass
 Pass	Checking place-items: normal left
 Pass	Checking place-items: normal right
-Fail	Checking place-items: normal legacy left
-Fail	Checking place-items: normal legacy center
-Fail	Checking place-items: normal legacy right
+Pass	Checking place-items: normal legacy left
+Pass	Checking place-items: normal legacy center
+Pass	Checking place-items: normal legacy right
 Pass	Checking place-items: normal normal
 Pass	Checking place-items: normal stretch
 Pass	Checking place-items: normal start
@@ -19,18 +18,18 @@ Pass	Checking place-items: normal center
 Pass	Checking place-items: normal flex-start
 Pass	Checking place-items: normal flex-end
 Pass	Checking place-items: normal baseline
-Fail	Checking place-items: normal first baseline
-Fail	Checking place-items: normal last baseline
-Fail	Checking place-items: normal safe flex-end
-Fail	Checking place-items: normal unsafe end
-Fail	Checking place-items: normal safe end
-Fail	Checking place-items: normal unsafe flex-start
-Fail	Checking place-items: normal safe center
+Pass	Checking place-items: normal first baseline
+Pass	Checking place-items: normal last baseline
+Pass	Checking place-items: normal safe flex-end
+Pass	Checking place-items: normal unsafe end
+Pass	Checking place-items: normal safe end
+Pass	Checking place-items: normal unsafe flex-start
+Pass	Checking place-items: normal safe center
 Pass	Checking place-items: stretch left
 Pass	Checking place-items: stretch right
-Fail	Checking place-items: stretch legacy left
-Fail	Checking place-items: stretch legacy center
-Fail	Checking place-items: stretch legacy right
+Pass	Checking place-items: stretch legacy left
+Pass	Checking place-items: stretch legacy center
+Pass	Checking place-items: stretch legacy right
 Pass	Checking place-items: stretch normal
 Pass	Checking place-items: stretch stretch
 Pass	Checking place-items: stretch start
@@ -41,18 +40,18 @@ Pass	Checking place-items: stretch center
 Pass	Checking place-items: stretch flex-start
 Pass	Checking place-items: stretch flex-end
 Pass	Checking place-items: stretch baseline
-Fail	Checking place-items: stretch first baseline
-Fail	Checking place-items: stretch last baseline
-Fail	Checking place-items: stretch safe flex-end
-Fail	Checking place-items: stretch unsafe end
-Fail	Checking place-items: stretch safe end
-Fail	Checking place-items: stretch unsafe flex-start
-Fail	Checking place-items: stretch safe center
+Pass	Checking place-items: stretch first baseline
+Pass	Checking place-items: stretch last baseline
+Pass	Checking place-items: stretch safe flex-end
+Pass	Checking place-items: stretch unsafe end
+Pass	Checking place-items: stretch safe end
+Pass	Checking place-items: stretch unsafe flex-start
+Pass	Checking place-items: stretch safe center
 Pass	Checking place-items: start left
 Pass	Checking place-items: start right
-Fail	Checking place-items: start legacy left
-Fail	Checking place-items: start legacy center
-Fail	Checking place-items: start legacy right
+Pass	Checking place-items: start legacy left
+Pass	Checking place-items: start legacy center
+Pass	Checking place-items: start legacy right
 Pass	Checking place-items: start normal
 Pass	Checking place-items: start stretch
 Pass	Checking place-items: start start
@@ -63,18 +62,18 @@ Pass	Checking place-items: start center
 Pass	Checking place-items: start flex-start
 Pass	Checking place-items: start flex-end
 Pass	Checking place-items: start baseline
-Fail	Checking place-items: start first baseline
-Fail	Checking place-items: start last baseline
-Fail	Checking place-items: start safe flex-end
-Fail	Checking place-items: start unsafe end
-Fail	Checking place-items: start safe end
-Fail	Checking place-items: start unsafe flex-start
-Fail	Checking place-items: start safe center
+Pass	Checking place-items: start first baseline
+Pass	Checking place-items: start last baseline
+Pass	Checking place-items: start safe flex-end
+Pass	Checking place-items: start unsafe end
+Pass	Checking place-items: start safe end
+Pass	Checking place-items: start unsafe flex-start
+Pass	Checking place-items: start safe center
 Pass	Checking place-items: end left
 Pass	Checking place-items: end right
-Fail	Checking place-items: end legacy left
-Fail	Checking place-items: end legacy center
-Fail	Checking place-items: end legacy right
+Pass	Checking place-items: end legacy left
+Pass	Checking place-items: end legacy center
+Pass	Checking place-items: end legacy right
 Pass	Checking place-items: end normal
 Pass	Checking place-items: end stretch
 Pass	Checking place-items: end start
@@ -85,18 +84,18 @@ Pass	Checking place-items: end center
 Pass	Checking place-items: end flex-start
 Pass	Checking place-items: end flex-end
 Pass	Checking place-items: end baseline
-Fail	Checking place-items: end first baseline
-Fail	Checking place-items: end last baseline
-Fail	Checking place-items: end safe flex-end
-Fail	Checking place-items: end unsafe end
-Fail	Checking place-items: end safe end
-Fail	Checking place-items: end unsafe flex-start
-Fail	Checking place-items: end safe center
+Pass	Checking place-items: end first baseline
+Pass	Checking place-items: end last baseline
+Pass	Checking place-items: end safe flex-end
+Pass	Checking place-items: end unsafe end
+Pass	Checking place-items: end safe end
+Pass	Checking place-items: end unsafe flex-start
+Pass	Checking place-items: end safe center
 Pass	Checking place-items: self-start left
 Pass	Checking place-items: self-start right
-Fail	Checking place-items: self-start legacy left
-Fail	Checking place-items: self-start legacy center
-Fail	Checking place-items: self-start legacy right
+Pass	Checking place-items: self-start legacy left
+Pass	Checking place-items: self-start legacy center
+Pass	Checking place-items: self-start legacy right
 Pass	Checking place-items: self-start normal
 Pass	Checking place-items: self-start stretch
 Pass	Checking place-items: self-start start
@@ -107,18 +106,18 @@ Pass	Checking place-items: self-start center
 Pass	Checking place-items: self-start flex-start
 Pass	Checking place-items: self-start flex-end
 Pass	Checking place-items: self-start baseline
-Fail	Checking place-items: self-start first baseline
-Fail	Checking place-items: self-start last baseline
-Fail	Checking place-items: self-start safe flex-end
-Fail	Checking place-items: self-start unsafe end
-Fail	Checking place-items: self-start safe end
-Fail	Checking place-items: self-start unsafe flex-start
-Fail	Checking place-items: self-start safe center
+Pass	Checking place-items: self-start first baseline
+Pass	Checking place-items: self-start last baseline
+Pass	Checking place-items: self-start safe flex-end
+Pass	Checking place-items: self-start unsafe end
+Pass	Checking place-items: self-start safe end
+Pass	Checking place-items: self-start unsafe flex-start
+Pass	Checking place-items: self-start safe center
 Pass	Checking place-items: self-end left
 Pass	Checking place-items: self-end right
-Fail	Checking place-items: self-end legacy left
-Fail	Checking place-items: self-end legacy center
-Fail	Checking place-items: self-end legacy right
+Pass	Checking place-items: self-end legacy left
+Pass	Checking place-items: self-end legacy center
+Pass	Checking place-items: self-end legacy right
 Pass	Checking place-items: self-end normal
 Pass	Checking place-items: self-end stretch
 Pass	Checking place-items: self-end start
@@ -129,18 +128,18 @@ Pass	Checking place-items: self-end center
 Pass	Checking place-items: self-end flex-start
 Pass	Checking place-items: self-end flex-end
 Pass	Checking place-items: self-end baseline
-Fail	Checking place-items: self-end first baseline
-Fail	Checking place-items: self-end last baseline
-Fail	Checking place-items: self-end safe flex-end
-Fail	Checking place-items: self-end unsafe end
-Fail	Checking place-items: self-end safe end
-Fail	Checking place-items: self-end unsafe flex-start
-Fail	Checking place-items: self-end safe center
+Pass	Checking place-items: self-end first baseline
+Pass	Checking place-items: self-end last baseline
+Pass	Checking place-items: self-end safe flex-end
+Pass	Checking place-items: self-end unsafe end
+Pass	Checking place-items: self-end safe end
+Pass	Checking place-items: self-end unsafe flex-start
+Pass	Checking place-items: self-end safe center
 Pass	Checking place-items: center left
 Pass	Checking place-items: center right
-Fail	Checking place-items: center legacy left
-Fail	Checking place-items: center legacy center
-Fail	Checking place-items: center legacy right
+Pass	Checking place-items: center legacy left
+Pass	Checking place-items: center legacy center
+Pass	Checking place-items: center legacy right
 Pass	Checking place-items: center normal
 Pass	Checking place-items: center stretch
 Pass	Checking place-items: center start
@@ -151,18 +150,18 @@ Pass	Checking place-items: center center
 Pass	Checking place-items: center flex-start
 Pass	Checking place-items: center flex-end
 Pass	Checking place-items: center baseline
-Fail	Checking place-items: center first baseline
-Fail	Checking place-items: center last baseline
-Fail	Checking place-items: center safe flex-end
-Fail	Checking place-items: center unsafe end
-Fail	Checking place-items: center safe end
-Fail	Checking place-items: center unsafe flex-start
-Fail	Checking place-items: center safe center
+Pass	Checking place-items: center first baseline
+Pass	Checking place-items: center last baseline
+Pass	Checking place-items: center safe flex-end
+Pass	Checking place-items: center unsafe end
+Pass	Checking place-items: center safe end
+Pass	Checking place-items: center unsafe flex-start
+Pass	Checking place-items: center safe center
 Pass	Checking place-items: flex-start left
 Pass	Checking place-items: flex-start right
-Fail	Checking place-items: flex-start legacy left
-Fail	Checking place-items: flex-start legacy center
-Fail	Checking place-items: flex-start legacy right
+Pass	Checking place-items: flex-start legacy left
+Pass	Checking place-items: flex-start legacy center
+Pass	Checking place-items: flex-start legacy right
 Pass	Checking place-items: flex-start normal
 Pass	Checking place-items: flex-start stretch
 Pass	Checking place-items: flex-start start
@@ -173,18 +172,18 @@ Pass	Checking place-items: flex-start center
 Pass	Checking place-items: flex-start flex-start
 Pass	Checking place-items: flex-start flex-end
 Pass	Checking place-items: flex-start baseline
-Fail	Checking place-items: flex-start first baseline
-Fail	Checking place-items: flex-start last baseline
-Fail	Checking place-items: flex-start safe flex-end
-Fail	Checking place-items: flex-start unsafe end
-Fail	Checking place-items: flex-start safe end
-Fail	Checking place-items: flex-start unsafe flex-start
-Fail	Checking place-items: flex-start safe center
+Pass	Checking place-items: flex-start first baseline
+Pass	Checking place-items: flex-start last baseline
+Pass	Checking place-items: flex-start safe flex-end
+Pass	Checking place-items: flex-start unsafe end
+Pass	Checking place-items: flex-start safe end
+Pass	Checking place-items: flex-start unsafe flex-start
+Pass	Checking place-items: flex-start safe center
 Pass	Checking place-items: flex-end left
 Pass	Checking place-items: flex-end right
-Fail	Checking place-items: flex-end legacy left
-Fail	Checking place-items: flex-end legacy center
-Fail	Checking place-items: flex-end legacy right
+Pass	Checking place-items: flex-end legacy left
+Pass	Checking place-items: flex-end legacy center
+Pass	Checking place-items: flex-end legacy right
 Pass	Checking place-items: flex-end normal
 Pass	Checking place-items: flex-end stretch
 Pass	Checking place-items: flex-end start
@@ -195,18 +194,18 @@ Pass	Checking place-items: flex-end center
 Pass	Checking place-items: flex-end flex-start
 Pass	Checking place-items: flex-end flex-end
 Pass	Checking place-items: flex-end baseline
-Fail	Checking place-items: flex-end first baseline
-Fail	Checking place-items: flex-end last baseline
-Fail	Checking place-items: flex-end safe flex-end
-Fail	Checking place-items: flex-end unsafe end
-Fail	Checking place-items: flex-end safe end
-Fail	Checking place-items: flex-end unsafe flex-start
-Fail	Checking place-items: flex-end safe center
+Pass	Checking place-items: flex-end first baseline
+Pass	Checking place-items: flex-end last baseline
+Pass	Checking place-items: flex-end safe flex-end
+Pass	Checking place-items: flex-end unsafe end
+Pass	Checking place-items: flex-end safe end
+Pass	Checking place-items: flex-end unsafe flex-start
+Pass	Checking place-items: flex-end safe center
 Pass	Checking place-items: baseline left
 Pass	Checking place-items: baseline right
-Fail	Checking place-items: baseline legacy left
-Fail	Checking place-items: baseline legacy center
-Fail	Checking place-items: baseline legacy right
+Pass	Checking place-items: baseline legacy left
+Pass	Checking place-items: baseline legacy center
+Pass	Checking place-items: baseline legacy right
 Pass	Checking place-items: baseline normal
 Pass	Checking place-items: baseline stretch
 Pass	Checking place-items: baseline start
@@ -217,164 +216,164 @@ Pass	Checking place-items: baseline center
 Pass	Checking place-items: baseline flex-start
 Pass	Checking place-items: baseline flex-end
 Pass	Checking place-items: baseline baseline
-Fail	Checking place-items: baseline first baseline
-Fail	Checking place-items: baseline last baseline
-Fail	Checking place-items: baseline safe flex-end
-Fail	Checking place-items: baseline unsafe end
-Fail	Checking place-items: baseline safe end
-Fail	Checking place-items: baseline unsafe flex-start
-Fail	Checking place-items: baseline safe center
-Fail	Checking place-items: first baseline left
-Fail	Checking place-items: first baseline right
-Fail	Checking place-items: first baseline legacy left
-Fail	Checking place-items: first baseline legacy center
-Fail	Checking place-items: first baseline legacy right
-Fail	Checking place-items: first baseline normal
-Fail	Checking place-items: first baseline stretch
-Fail	Checking place-items: first baseline start
-Fail	Checking place-items: first baseline end
-Fail	Checking place-items: first baseline self-start
-Fail	Checking place-items: first baseline self-end
-Fail	Checking place-items: first baseline center
-Fail	Checking place-items: first baseline flex-start
-Fail	Checking place-items: first baseline flex-end
-Fail	Checking place-items: first baseline baseline
-Fail	Checking place-items: first baseline first baseline
-Fail	Checking place-items: first baseline last baseline
-Fail	Checking place-items: first baseline safe flex-end
-Fail	Checking place-items: first baseline unsafe end
-Fail	Checking place-items: first baseline safe end
-Fail	Checking place-items: first baseline unsafe flex-start
-Fail	Checking place-items: first baseline safe center
-Fail	Checking place-items: last baseline left
-Fail	Checking place-items: last baseline right
-Fail	Checking place-items: last baseline legacy left
-Fail	Checking place-items: last baseline legacy center
-Fail	Checking place-items: last baseline legacy right
-Fail	Checking place-items: last baseline normal
-Fail	Checking place-items: last baseline stretch
-Fail	Checking place-items: last baseline start
-Fail	Checking place-items: last baseline end
-Fail	Checking place-items: last baseline self-start
-Fail	Checking place-items: last baseline self-end
-Fail	Checking place-items: last baseline center
-Fail	Checking place-items: last baseline flex-start
-Fail	Checking place-items: last baseline flex-end
-Fail	Checking place-items: last baseline baseline
-Fail	Checking place-items: last baseline first baseline
-Fail	Checking place-items: last baseline last baseline
-Fail	Checking place-items: last baseline safe flex-end
-Fail	Checking place-items: last baseline unsafe end
-Fail	Checking place-items: last baseline safe end
-Fail	Checking place-items: last baseline unsafe flex-start
-Fail	Checking place-items: last baseline safe center
-Fail	Checking place-items: safe flex-end left
-Fail	Checking place-items: safe flex-end right
-Fail	Checking place-items: safe flex-end legacy left
-Fail	Checking place-items: safe flex-end legacy center
-Fail	Checking place-items: safe flex-end legacy right
-Fail	Checking place-items: safe flex-end normal
-Fail	Checking place-items: safe flex-end stretch
-Fail	Checking place-items: safe flex-end start
-Fail	Checking place-items: safe flex-end end
-Fail	Checking place-items: safe flex-end self-start
-Fail	Checking place-items: safe flex-end self-end
-Fail	Checking place-items: safe flex-end center
-Fail	Checking place-items: safe flex-end flex-start
-Fail	Checking place-items: safe flex-end flex-end
-Fail	Checking place-items: safe flex-end baseline
-Fail	Checking place-items: safe flex-end first baseline
-Fail	Checking place-items: safe flex-end last baseline
-Fail	Checking place-items: safe flex-end safe flex-end
-Fail	Checking place-items: safe flex-end unsafe end
-Fail	Checking place-items: safe flex-end safe end
-Fail	Checking place-items: safe flex-end unsafe flex-start
-Fail	Checking place-items: safe flex-end safe center
-Fail	Checking place-items: unsafe end left
-Fail	Checking place-items: unsafe end right
-Fail	Checking place-items: unsafe end legacy left
-Fail	Checking place-items: unsafe end legacy center
-Fail	Checking place-items: unsafe end legacy right
-Fail	Checking place-items: unsafe end normal
-Fail	Checking place-items: unsafe end stretch
-Fail	Checking place-items: unsafe end start
-Fail	Checking place-items: unsafe end end
-Fail	Checking place-items: unsafe end self-start
-Fail	Checking place-items: unsafe end self-end
-Fail	Checking place-items: unsafe end center
-Fail	Checking place-items: unsafe end flex-start
-Fail	Checking place-items: unsafe end flex-end
-Fail	Checking place-items: unsafe end baseline
-Fail	Checking place-items: unsafe end first baseline
-Fail	Checking place-items: unsafe end last baseline
-Fail	Checking place-items: unsafe end safe flex-end
-Fail	Checking place-items: unsafe end unsafe end
-Fail	Checking place-items: unsafe end safe end
-Fail	Checking place-items: unsafe end unsafe flex-start
-Fail	Checking place-items: unsafe end safe center
-Fail	Checking place-items: safe end left
-Fail	Checking place-items: safe end right
-Fail	Checking place-items: safe end legacy left
-Fail	Checking place-items: safe end legacy center
-Fail	Checking place-items: safe end legacy right
-Fail	Checking place-items: safe end normal
-Fail	Checking place-items: safe end stretch
-Fail	Checking place-items: safe end start
-Fail	Checking place-items: safe end end
-Fail	Checking place-items: safe end self-start
-Fail	Checking place-items: safe end self-end
-Fail	Checking place-items: safe end center
-Fail	Checking place-items: safe end flex-start
-Fail	Checking place-items: safe end flex-end
-Fail	Checking place-items: safe end baseline
-Fail	Checking place-items: safe end first baseline
-Fail	Checking place-items: safe end last baseline
-Fail	Checking place-items: safe end safe flex-end
-Fail	Checking place-items: safe end unsafe end
-Fail	Checking place-items: safe end safe end
-Fail	Checking place-items: safe end unsafe flex-start
-Fail	Checking place-items: safe end safe center
-Fail	Checking place-items: unsafe flex-start left
-Fail	Checking place-items: unsafe flex-start right
-Fail	Checking place-items: unsafe flex-start legacy left
-Fail	Checking place-items: unsafe flex-start legacy center
-Fail	Checking place-items: unsafe flex-start legacy right
-Fail	Checking place-items: unsafe flex-start normal
-Fail	Checking place-items: unsafe flex-start stretch
-Fail	Checking place-items: unsafe flex-start start
-Fail	Checking place-items: unsafe flex-start end
-Fail	Checking place-items: unsafe flex-start self-start
-Fail	Checking place-items: unsafe flex-start self-end
-Fail	Checking place-items: unsafe flex-start center
-Fail	Checking place-items: unsafe flex-start flex-start
-Fail	Checking place-items: unsafe flex-start flex-end
-Fail	Checking place-items: unsafe flex-start baseline
-Fail	Checking place-items: unsafe flex-start first baseline
-Fail	Checking place-items: unsafe flex-start last baseline
-Fail	Checking place-items: unsafe flex-start safe flex-end
-Fail	Checking place-items: unsafe flex-start unsafe end
-Fail	Checking place-items: unsafe flex-start safe end
-Fail	Checking place-items: unsafe flex-start unsafe flex-start
-Fail	Checking place-items: unsafe flex-start safe center
-Fail	Checking place-items: safe center left
-Fail	Checking place-items: safe center right
-Fail	Checking place-items: safe center legacy left
-Fail	Checking place-items: safe center legacy center
-Fail	Checking place-items: safe center legacy right
-Fail	Checking place-items: safe center normal
-Fail	Checking place-items: safe center stretch
-Fail	Checking place-items: safe center start
-Fail	Checking place-items: safe center end
-Fail	Checking place-items: safe center self-start
-Fail	Checking place-items: safe center self-end
-Fail	Checking place-items: safe center center
-Fail	Checking place-items: safe center flex-start
-Fail	Checking place-items: safe center flex-end
-Fail	Checking place-items: safe center baseline
-Fail	Checking place-items: safe center first baseline
-Fail	Checking place-items: safe center last baseline
-Fail	Checking place-items: safe center safe flex-end
-Fail	Checking place-items: safe center unsafe end
-Fail	Checking place-items: safe center safe end
-Fail	Checking place-items: safe center unsafe flex-start
-Fail	Checking place-items: safe center safe center
+Pass	Checking place-items: baseline first baseline
+Pass	Checking place-items: baseline last baseline
+Pass	Checking place-items: baseline safe flex-end
+Pass	Checking place-items: baseline unsafe end
+Pass	Checking place-items: baseline safe end
+Pass	Checking place-items: baseline unsafe flex-start
+Pass	Checking place-items: baseline safe center
+Pass	Checking place-items: first baseline left
+Pass	Checking place-items: first baseline right
+Pass	Checking place-items: first baseline legacy left
+Pass	Checking place-items: first baseline legacy center
+Pass	Checking place-items: first baseline legacy right
+Pass	Checking place-items: first baseline normal
+Pass	Checking place-items: first baseline stretch
+Pass	Checking place-items: first baseline start
+Pass	Checking place-items: first baseline end
+Pass	Checking place-items: first baseline self-start
+Pass	Checking place-items: first baseline self-end
+Pass	Checking place-items: first baseline center
+Pass	Checking place-items: first baseline flex-start
+Pass	Checking place-items: first baseline flex-end
+Pass	Checking place-items: first baseline baseline
+Pass	Checking place-items: first baseline first baseline
+Pass	Checking place-items: first baseline last baseline
+Pass	Checking place-items: first baseline safe flex-end
+Pass	Checking place-items: first baseline unsafe end
+Pass	Checking place-items: first baseline safe end
+Pass	Checking place-items: first baseline unsafe flex-start
+Pass	Checking place-items: first baseline safe center
+Pass	Checking place-items: last baseline left
+Pass	Checking place-items: last baseline right
+Pass	Checking place-items: last baseline legacy left
+Pass	Checking place-items: last baseline legacy center
+Pass	Checking place-items: last baseline legacy right
+Pass	Checking place-items: last baseline normal
+Pass	Checking place-items: last baseline stretch
+Pass	Checking place-items: last baseline start
+Pass	Checking place-items: last baseline end
+Pass	Checking place-items: last baseline self-start
+Pass	Checking place-items: last baseline self-end
+Pass	Checking place-items: last baseline center
+Pass	Checking place-items: last baseline flex-start
+Pass	Checking place-items: last baseline flex-end
+Pass	Checking place-items: last baseline baseline
+Pass	Checking place-items: last baseline first baseline
+Pass	Checking place-items: last baseline last baseline
+Pass	Checking place-items: last baseline safe flex-end
+Pass	Checking place-items: last baseline unsafe end
+Pass	Checking place-items: last baseline safe end
+Pass	Checking place-items: last baseline unsafe flex-start
+Pass	Checking place-items: last baseline safe center
+Pass	Checking place-items: safe flex-end left
+Pass	Checking place-items: safe flex-end right
+Pass	Checking place-items: safe flex-end legacy left
+Pass	Checking place-items: safe flex-end legacy center
+Pass	Checking place-items: safe flex-end legacy right
+Pass	Checking place-items: safe flex-end normal
+Pass	Checking place-items: safe flex-end stretch
+Pass	Checking place-items: safe flex-end start
+Pass	Checking place-items: safe flex-end end
+Pass	Checking place-items: safe flex-end self-start
+Pass	Checking place-items: safe flex-end self-end
+Pass	Checking place-items: safe flex-end center
+Pass	Checking place-items: safe flex-end flex-start
+Pass	Checking place-items: safe flex-end flex-end
+Pass	Checking place-items: safe flex-end baseline
+Pass	Checking place-items: safe flex-end first baseline
+Pass	Checking place-items: safe flex-end last baseline
+Pass	Checking place-items: safe flex-end safe flex-end
+Pass	Checking place-items: safe flex-end unsafe end
+Pass	Checking place-items: safe flex-end safe end
+Pass	Checking place-items: safe flex-end unsafe flex-start
+Pass	Checking place-items: safe flex-end safe center
+Pass	Checking place-items: unsafe end left
+Pass	Checking place-items: unsafe end right
+Pass	Checking place-items: unsafe end legacy left
+Pass	Checking place-items: unsafe end legacy center
+Pass	Checking place-items: unsafe end legacy right
+Pass	Checking place-items: unsafe end normal
+Pass	Checking place-items: unsafe end stretch
+Pass	Checking place-items: unsafe end start
+Pass	Checking place-items: unsafe end end
+Pass	Checking place-items: unsafe end self-start
+Pass	Checking place-items: unsafe end self-end
+Pass	Checking place-items: unsafe end center
+Pass	Checking place-items: unsafe end flex-start
+Pass	Checking place-items: unsafe end flex-end
+Pass	Checking place-items: unsafe end baseline
+Pass	Checking place-items: unsafe end first baseline
+Pass	Checking place-items: unsafe end last baseline
+Pass	Checking place-items: unsafe end safe flex-end
+Pass	Checking place-items: unsafe end unsafe end
+Pass	Checking place-items: unsafe end safe end
+Pass	Checking place-items: unsafe end unsafe flex-start
+Pass	Checking place-items: unsafe end safe center
+Pass	Checking place-items: safe end left
+Pass	Checking place-items: safe end right
+Pass	Checking place-items: safe end legacy left
+Pass	Checking place-items: safe end legacy center
+Pass	Checking place-items: safe end legacy right
+Pass	Checking place-items: safe end normal
+Pass	Checking place-items: safe end stretch
+Pass	Checking place-items: safe end start
+Pass	Checking place-items: safe end end
+Pass	Checking place-items: safe end self-start
+Pass	Checking place-items: safe end self-end
+Pass	Checking place-items: safe end center
+Pass	Checking place-items: safe end flex-start
+Pass	Checking place-items: safe end flex-end
+Pass	Checking place-items: safe end baseline
+Pass	Checking place-items: safe end first baseline
+Pass	Checking place-items: safe end last baseline
+Pass	Checking place-items: safe end safe flex-end
+Pass	Checking place-items: safe end unsafe end
+Pass	Checking place-items: safe end safe end
+Pass	Checking place-items: safe end unsafe flex-start
+Pass	Checking place-items: safe end safe center
+Pass	Checking place-items: unsafe flex-start left
+Pass	Checking place-items: unsafe flex-start right
+Pass	Checking place-items: unsafe flex-start legacy left
+Pass	Checking place-items: unsafe flex-start legacy center
+Pass	Checking place-items: unsafe flex-start legacy right
+Pass	Checking place-items: unsafe flex-start normal
+Pass	Checking place-items: unsafe flex-start stretch
+Pass	Checking place-items: unsafe flex-start start
+Pass	Checking place-items: unsafe flex-start end
+Pass	Checking place-items: unsafe flex-start self-start
+Pass	Checking place-items: unsafe flex-start self-end
+Pass	Checking place-items: unsafe flex-start center
+Pass	Checking place-items: unsafe flex-start flex-start
+Pass	Checking place-items: unsafe flex-start flex-end
+Pass	Checking place-items: unsafe flex-start baseline
+Pass	Checking place-items: unsafe flex-start first baseline
+Pass	Checking place-items: unsafe flex-start last baseline
+Pass	Checking place-items: unsafe flex-start safe flex-end
+Pass	Checking place-items: unsafe flex-start unsafe end
+Pass	Checking place-items: unsafe flex-start safe end
+Pass	Checking place-items: unsafe flex-start unsafe flex-start
+Pass	Checking place-items: unsafe flex-start safe center
+Pass	Checking place-items: safe center left
+Pass	Checking place-items: safe center right
+Pass	Checking place-items: safe center legacy left
+Pass	Checking place-items: safe center legacy center
+Pass	Checking place-items: safe center legacy right
+Pass	Checking place-items: safe center normal
+Pass	Checking place-items: safe center stretch
+Pass	Checking place-items: safe center start
+Pass	Checking place-items: safe center end
+Pass	Checking place-items: safe center self-start
+Pass	Checking place-items: safe center self-end
+Pass	Checking place-items: safe center center
+Pass	Checking place-items: safe center flex-start
+Pass	Checking place-items: safe center flex-end
+Pass	Checking place-items: safe center baseline
+Pass	Checking place-items: safe center first baseline
+Pass	Checking place-items: safe center last baseline
+Pass	Checking place-items: safe center safe flex-end
+Pass	Checking place-items: safe center unsafe end
+Pass	Checking place-items: safe center safe end
+Pass	Checking place-items: safe center unsafe flex-start
+Pass	Checking place-items: safe center safe center
