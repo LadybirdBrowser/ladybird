@@ -118,8 +118,6 @@ public:
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
     bool detached_close_pending() const { return m_detached_close_pending; }
     void set_detached_close_pending(bool pending) { m_detached_close_pending = pending; }
-    void set_needs_beforeunload_check(bool needs_beforeunload_check) { m_needs_beforeunload_check = needs_beforeunload_check; }
-    void clear_history_recorded_url_for_current_load() { m_history_recorded_url_for_current_load.clear(); }
 
     void begin_top_level_load(URL::URL const&);
     void begin_navigation_unload_check(CanonicalNavigable&, Utf16String const& navigation_id);
