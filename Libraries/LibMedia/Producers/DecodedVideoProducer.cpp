@@ -588,7 +588,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
 
                         // If we've reached EOS without producing any output, restart the seek targeting the last frame
                         // we saw to produce just that last frame.
-                        if (!has_clamped_target && last_frame == nullptr && !decoding_for_output && greatest_coded_timestamp > AK::Duration::zero()) {
+                        if (!has_clamped_target && !decoding_for_output && greatest_coded_timestamp > AK::Duration::zero()) {
                             auto locker = take_lock();
                             if (m_seek_id == seek_id) {
                                 has_clamped_target = true;
