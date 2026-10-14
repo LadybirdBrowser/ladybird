@@ -307,6 +307,7 @@ fn install(
         memory,
         compiled.entry_offset,
         &compiled.osr_entries,
+        compiled.osr_loop_back_edges,
         compiled.sites,
         embedded_cells,
         snapshot,

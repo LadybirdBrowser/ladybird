@@ -130,6 +130,7 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
         } else {
             Vec::new()
         },
+        osr_loop_back_edges: graph.osr_loop_back_edges,
         embedded_cells: graph.embedded_cells,
         dependencies: graph.dependencies,
         invalidation_patches: generated.invalidation_patches,

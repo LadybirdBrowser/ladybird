@@ -24,6 +24,9 @@ pub struct CompiledCode {
     /// can continue there, with the same calling convention as the entry
     /// point.
     pub osr_entries: Vec<(u32, u32)>,
+    /// The loop back edges from where a frame running in the interpreter
+    /// reaches one of the `osr_entries` without leaving the loop it is in.
+    pub osr_loop_back_edges: Vec<u32>,
     /// The sites of the code, by index: exit and leave stubs pass the index of
     /// theirs to the runtime, and calls in inlined callees name theirs.
     pub sites: Vec<Site>,

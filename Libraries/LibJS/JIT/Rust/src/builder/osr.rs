@@ -124,6 +124,7 @@ impl GraphBuilder<'_> {
                     });
             }
             self.graph.osr_entries.push((pc, block));
+            self.record_osr_loop_back_edges(pc);
 
             // NB: The loops the entry leads into other than at their header may
             //     only be reached from here over their back edges.
@@ -136,5 +137,35 @@ impl GraphBuilder<'_> {
             }
         }
         Ok(())
+    }
+
+    /// Records the loop back edges in the loop of the back edge at `pc`, which
+    /// has an entry. A frame running in the interpreter at one of them reaches
+    /// the entry once its inner loops finish an iteration.
+    fn record_osr_loop_back_edges(&mut self, pc: u32) {
+        let cfg = &self.function.cfg;
+        let Some(back_edge_block) = cfg.block_for_pc(pc) else {
+            return;
+        };
+        // NB: The loop of a back edge is the innermost loop it is in. Its
+        //     header may be the block of the back edge itself, like the test
+        //     at the bottom of a for loop.
+        let Some(entered_loop) = cfg
+            .loops
+            .iter()
+            .filter(|current_loop| current_loop.blocks.contains(&back_edge_block))
+            .min_by_key(|current_loop| current_loop.blocks.len())
+        else {
+            return;
+        };
+        for &block in &entered_loop.blocks {
+            for instruction in &self.function.instructions[cfg.blocks[block].instructions.clone()] {
+                if is_loop_back_edge(instruction.instruction.opcode())
+                    && !self.graph.osr_loop_back_edges.contains(&instruction.pc)
+                {
+                    self.graph.osr_loop_back_edges.push(instruction.pc);
+                }
+            }
+        }
     }
 }

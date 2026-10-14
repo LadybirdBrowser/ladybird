@@ -1904,6 +1904,10 @@ pub struct Graph {
     /// already running in the interpreter enters compiled code, with the pc of
     /// the loop back edge each one starts at. The frame holds every value.
     pub osr_entries: Vec<(u32, BlockId)>,
+    /// The pcs of the loop back edges in the loops of the on-stack
+    /// replacement entries (including those of the entries), from where a
+    /// frame running in the interpreter reaches an entry.
+    pub osr_loop_back_edges: Vec<u32>,
     /// The register-saving `CallSlowPath` nodes that may run before the
     /// frame is initialized, and so initialize it first if it is not.
     pub slow_paths_initializing_frame: Vec<NodeId>,

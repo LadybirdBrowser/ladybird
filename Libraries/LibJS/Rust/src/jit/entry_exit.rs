@@ -85,8 +85,9 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
     let code = executable.jit_code().expect("the executable has JIT code");
     let Some(entry) = code.osr_entry(pc) else {
         // NB: A fixed budget can keep expiring at the same back edge in nested loops, missing the code's OSR entry
-        //     forever. Try the next back edge when the code has an entry at another loop.
-        if code.has_osr_entries() {
+        //     forever. Try the next back edge when the code has an entry at a loop this one is in. Frames in other
+        //     loops would check at every back edge without ever reaching an entry.
+        if code.reaches_osr_entry_from(pc) {
             executable.head.tier_up_budget.set(tier_up_costs::LOOP_ITERATION);
         }
         return None;
