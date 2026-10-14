@@ -517,10 +517,11 @@ impl TransitionDecision {
         let after_overlay = after_overlay.or(record_after_overlay);
         let mut context = crate::css::animation::FfiAnimationContext {
             allow_discrete: false,
-            current_color: after_table
-                .effective_value(after_overlay, crate::css::property_metadata::property_id::COLOR, true)
-                .value
-                .cast(),
+            current_color: Some(
+                after_table
+                    .effective_value_handle(after_overlay, crate::css::property_metadata::property_id::COLOR, true)
+                    .0,
+            ),
             has_length_resolution_context: length_resolution_context.is_some(),
             length_resolution_context: length_resolution_context.unwrap_or_default(),
             has_transform_reference_box: false,
@@ -1032,21 +1033,18 @@ impl FreshTransitionSample {
     /// Answers the host's sample `input`, where it samples what this one did: the transitions the step started, over
     /// the record it moved its element to, each at the key this one sampled it at. Writes the overlay into the working
     /// set and answers what the sample found, with the timing each effect was sampled with, which the engine keeps.
-    ///
-    /// # Safety
-    /// As for `rust_sample_animation_effects`.
-    pub(crate) unsafe fn answer(
+    pub(crate) fn answer(
         self,
-        input: &crate::css::style_compute::FfiHostAnimationSample,
+        input: &crate::css::style_compute::AnimationSampleInput,
+        host: &mut dyn crate::css::style_compute::AnimationSampleHost,
     ) -> Option<(
         crate::css::style_compute::FfiHostAnimationSampleResult,
         crate::css::style::animations::SampledEffectTimings,
     )> {
-        if input.style_record != self.after || !input.animated_overlay.is_null() {
+        if input.style_record != self.after || input.has_animated_overlay {
             return None;
         }
-        // SAFETY: Guaranteed by the caller.
-        let effects = unsafe { crate::css::custom_properties::ffi_slice(input.effects, input.effect_count) };
+        let effects = input.effects.as_slice();
         if effects.len() != self.keys.len() {
             return None;
         }
@@ -1057,7 +1055,7 @@ impl FreshTransitionSample {
                     effect.identity,
                     crate::css::style::animations::EffectTiming {
                         timing: effect.timing,
-                        // SAFETY: As above.
+                        // SAFETY: The host's easings are live for as long as its effects are borrowed.
                         easing: unsafe { crate::css::easing::Easing::from_descriptor(&effect.easing) },
                     },
                 )
@@ -1076,10 +1074,7 @@ impl FreshTransitionSample {
             return None;
         }
         if self.result.outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Evaluated {
-            // SAFETY: As above.
-            let overlay = unsafe { (input.prepare_overlay_for_mutation)(input.callback_context) };
-            // SAFETY: The working set hands over its overlay, uniquely owned for the sample.
-            unsafe { *overlay.cast::<crate::css::animated_overlay::AnimatedOverlay>() = self.overlay };
+            *host.overlay_for_mutation() = self.overlay;
         }
         Some((self.result, timings))
     }
@@ -1557,7 +1552,7 @@ pub unsafe extern "C" fn rust_transition_has_matching_entries(
 mod tests {
     use super::*;
 
-    fn animation_context() -> crate::css::animation::FfiAnimationContext {
+    fn animation_context() -> crate::css::animation::FfiAnimationContext<'static> {
         let font_metrics = || crate::css::animation::FfiAnimationFontMetrics {
             font_size: 0.0,
             x_height: 0.0,
@@ -1567,7 +1562,7 @@ mod tests {
         };
         crate::css::animation::FfiAnimationContext {
             allow_discrete: false,
-            current_color: std::ptr::null(),
+            current_color: None,
             has_length_resolution_context: false,
             length_resolution_context: crate::css::animation::FfiAnimationLengthResolutionContext {
                 viewport_width: 0.0,

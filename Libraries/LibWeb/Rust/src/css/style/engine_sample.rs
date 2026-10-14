@@ -23,8 +23,9 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::property_metadata::property_id as prop;
 use crate::css::style_compute::{
-    FfiAnimationLengthContexts, FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiHostAnimationSample,
-    FfiLengthResolutionContext, FfiStyleComputationEnvironment, keyword, px_length_unit,
+    AnimationSampleInput, FfiAnimationLengthContexts, FfiEffectiveColorSchemeInput, FfiFontMetrics,
+    FfiLengthResolutionContext, FfiStyleComputationEnvironment, HostSampledEffects, keyword, px_length_unit,
+    working_set_current_color,
 };
 use crate::css::style_value::StyleValueData;
 use crate::css::table_group_builder::{FfiFontGroupBuildInputs, TableGroupBuildInputs, group_index};
@@ -352,14 +353,6 @@ fn post_compute_adjusts(property: u16, facts: u32) -> bool {
 }
 
 /// The overlay a sample writes, which the host's working set would hold.
-extern "C" fn overlay_for_mutation(overlay: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
-    overlay
-}
-
-extern "C" fn no_host_length_contexts(_: *mut std::ffi::c_void, _: u8, _: *mut FfiAnimationLengthContexts) {
-    unreachable!("a sample without the host builds its length contexts itself");
-}
-
 impl super::StyleEngine {
     /// Samples the animations of the element `node` names over `record`, the record the host installed
     /// for it, with their timelines at `samples`, and composes them into a record no element holds,
@@ -612,12 +605,13 @@ impl super::StyleEngine {
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         timeline_samples: super::animations::AnimationTimelineSamples<'_>,
     ) -> Result<crate::css::style_compute::FfiHostAnimationSampleResult, NeedsHost> {
-        let table = HostShared::from_option(
+        let table = HostShared::new(std::ptr::from_ref(
             self.computed_group_sets
                 .style_record_view(record)
                 .ok_or(NeedsHost)?
-                .longhand_table,
-        );
+                .longhand_table
+                .ok_or(NeedsHost)?,
+        ));
         // A keyframe substitutes against the custom properties of the element and of its parent, as the host's
         // sample does, from the stores the engine holds for their environments throughout the sample.
         let inheritance_parent = self.tree.inheritance_parent(node);
@@ -658,40 +652,38 @@ impl super::StyleEngine {
             initial_font_size_raw: inputs.initial_font_size_raw,
             default_font_size_raw: inputs.default_font_size_raw,
         };
-        let overlay_pointer = std::ptr::from_mut(overlay).cast::<std::ffi::c_void>();
-        let input = FfiHostAnimationSample {
-            host: std::ptr::null(),
+        // SAFETY: The record's table is frozen, and the record the caller holds keeps it alive throughout the
+        //         sample, which writes only `overlay` and what the engine keeps of the element's animations.
+        let table = unsafe { table.deref() };
+        let input = AnimationSampleInput {
             style_node: node.raw(),
             pseudo_kind: crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
-            effects: std::ptr::null(),
-            effect_count: 0,
-            longhand_table: table.cast_mut().cast_const().cast(),
-            animated_overlay: overlay_pointer.cast_const(),
+            effects: HostSampledEffects::none(),
+            longhand_table: table,
+            has_animated_overlay: true,
+            current_color: working_set_current_color(table, Some(overlay)),
             style_record: record,
-            custom_property_store: store,
-            // A sample that animates a custom property is the host's, so none composes over the element's own.
-            base_custom_property_store: store,
-            inheritance_custom_property_store: inheritance_store,
-            element_declares_own_custom_properties: false,
+            stores: crate::css::animation::KeyframeStores {
+                substitution: store,
+                // A sample that animates a custom property is the host's, so none composes over the element's own.
+                base: store,
+                inheritance: inheritance_store,
+                element_declares_custom_properties: false,
+            },
             custom_property_environments,
             inheritance_parent_style_record,
-            environment: &raw const environment,
+            environment: &environment,
             element_box_slot: crate::layout::node_data::NodeSlotId::INVALID.index,
-            callback_context: overlay_pointer,
-            prepare_overlay_for_mutation: overlay_for_mutation,
-            length_contexts: no_host_length_contexts,
         };
-        // SAFETY: Everything `input` names lives until the sample returns.
-        unsafe {
-            crate::css::style_compute::sample_without_host(
-                &input,
-                self,
-                fresh,
-                composed,
-                transform_reference_box,
-                timeline_samples,
-            )
-        }
+        crate::css::style_compute::sample_without_host(
+            &input,
+            overlay,
+            self,
+            fresh,
+            composed,
+            transform_reference_box,
+            timeline_samples,
+        )
     }
 
     /// The elements whose style a size query or container-relative unit decided below `container`, whose content box a

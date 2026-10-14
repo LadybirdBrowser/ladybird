@@ -2787,28 +2787,6 @@ pub struct FfiDocumentLonghandInput {
     pub viewport_height: f64,
 }
 
-#[repr(C)]
-pub struct FfiAnimationKeyframeLonghandInput {
-    pub underlying_longhand_table: *const ComputedLonghandTable,
-    pub style_engine: crate::css::style::StyleEngineHandle,
-    pub inheritance_parent_style_record: u64,
-    pub resolved_properties: *const c_void,
-    pub property_count: usize,
-    pub environment: *const FfiStyleComputationEnvironment,
-    pub font_length_resolution_context: *const FfiLengthResolutionContext,
-    pub line_height_length_resolution_context: *const FfiLengthResolutionContext,
-    pub remaining_length_resolution_context: *const FfiLengthResolutionContext,
-    pub custom_property_values: *const *const c_void,
-}
-
-#[repr(C)]
-pub struct FfiAnimationKeyframeLonghandResult {
-    pub value_count: usize,
-    pub depends_on_viewport_metrics: bool,
-    pub font_metrics_depend_on_viewport_metrics: bool,
-    pub storage: *mut c_void,
-}
-
 impl FfiEffectiveColorSchemeInput {
     /// # Safety
     /// The document-supported scheme storage must be valid for the returned
@@ -3070,21 +3048,26 @@ impl<'a> ParentSnapshot<'a> {
     }
 
     fn value(&self, property_id: u16) -> Option<&StyleValueData> {
+        self.value_handle(property_id).map(RetainedStyleValueData::data)
+    }
+
+    /// The handle that owns what [`Self::value`] answers.
+    fn value_handle(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
         if let Some(entry) = self
             .inherited_value_overlay
             .and_then(|overlay| overlay.get(property_id))
             && overlay_wins(entry, self.is_important(property_id))
         {
-            return Some(entry.value());
+            return Some(entry.value_handle());
         }
         for (property, value) in self.table.retained_inheritance_dependent_values() {
             if property == property_id
                 && crate::css::style_value::style_value_dependency_flags(value.pointer()) & 1 != 0
             {
-                return Some(value.data());
+                return Some(value);
             }
         }
-        self.table.get(property_id).map(RetainedStyleValueData::data)
+        self.table.get(property_id)
     }
 }
 
@@ -5140,65 +5123,47 @@ pub unsafe extern "C" fn rust_intern_document_style(
     })
 }
 
+/// The values the keyframes of a sample compute to, one per resolved property, and what they read.
+pub(crate) struct AnimationKeyframeLonghands {
+    pub(crate) values: Vec<RetainedStyleValueData>,
+    pub(crate) depends_on_viewport_metrics: bool,
+    pub(crate) font_metrics_depend_on_viewport_metrics: bool,
+}
+
 /// Computes every selected keyframe longhand through the Rust longhand driver.
 /// Each keyframe gets a temporary table and the driver's coordination inputs
 /// from the underlying style, then all of that keyframe's specified values are
-/// cascaded together before its selected properties are evaluated.
-///
-/// # Safety
-/// `input` and every range and pointer it contains must remain valid for the
-/// duration of the call. Every returned value transfers one strong reference
-/// to the caller.
-pub(crate) unsafe fn compute_animation_keyframe_longhands(
-    input: &FfiAnimationKeyframeLonghandInput,
-) -> FfiAnimationKeyframeLonghandResult {
+/// cascaded together before its selected properties are evaluated. A custom
+/// property's value is the one `custom_property_values` holds at its index.
+pub(crate) fn compute_animation_keyframe_longhands(
+    underlying_longhand_table: &ComputedLonghandTable,
+    style_engine: &crate::css::style::StyleEngine,
+    inheritance_parent_style_record: u64,
+    properties: &[crate::css::animation::ResolvedAnimationProperty],
+    environment: &FfiStyleComputationEnvironment,
+    length_contexts: &FfiAnimationLengthContexts,
+    custom_property_values: &[Option<RetainedStyleValueData>],
+) -> AnimationKeyframeLonghands {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationKeyframeLonghandEntry);
     use crate::css::property_metadata::{
         FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
     };
 
-    let properties = if input.property_count == 0 {
-        &[][..]
-    } else {
-        unsafe {
-            std::slice::from_raw_parts(
-                input
-                    .resolved_properties
-                    .cast::<crate::css::animation::FfiResolvedAnimationProperty>(),
-                input.property_count,
-            )
-        }
-    };
     if properties.is_empty() {
-        return FfiAnimationKeyframeLonghandResult {
-            value_count: 0,
+        return AnimationKeyframeLonghands {
+            values: Vec::new(),
             depends_on_viewport_metrics: false,
             font_metrics_depend_on_viewport_metrics: false,
-            storage: std::ptr::null_mut(),
         };
     }
-    assert!(!input.underlying_longhand_table.is_null());
-    assert!(!input.environment.is_null());
-    assert!(!input.font_length_resolution_context.is_null());
-    assert!(!input.line_height_length_resolution_context.is_null());
-    assert!(!input.remaining_length_resolution_context.is_null());
-    let underlying_longhand_table = unsafe { &*input.underlying_longhand_table };
-    let parent_snapshot = if input.inheritance_parent_style_record == 0 {
-        None
-    } else {
-        let style_engine = unsafe { input.style_engine.get() };
-        Some(keyframe_parent_snapshot_for_style_record(
-            style_engine,
-            input.inheritance_parent_style_record,
-        ))
-    };
+    let parent_snapshot = (inheritance_parent_style_record != 0)
+        .then(|| keyframe_parent_snapshot_for_style_record(style_engine, inheritance_parent_style_record));
     let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
     for (index, property) in properties.iter().enumerate() {
         if property.custom_name_id != 0 {
             continue;
         }
         assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property.physical_property_id));
-        assert!(!property.value.is_null());
         longhands_by_keyframe
             .entry(property.keyframe_index)
             .or_default()
@@ -5213,14 +5178,10 @@ pub(crate) unsafe fn compute_animation_keyframe_longhands(
         if property.custom_name_id == 0 {
             continue;
         }
-        assert!(!input.custom_property_values.is_null());
-        let value = unsafe { *input.custom_property_values.add(index) };
-        assert!(!value.is_null());
-        values[index] = Some(unsafe {
-            crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
-                crate::css::style_value::retain_style_value(value.cast()),
-            )
-        });
+        let value = custom_property_values[index]
+            .clone()
+            .expect("a custom property's keyframe has a computed value");
+        values[index] = Some(value);
     }
     let mut depends_on_viewport_metrics = false;
     let mut font_metrics_depend_on_viewport_metrics = false;
@@ -5254,32 +5215,17 @@ pub(crate) unsafe fn compute_animation_keyframe_longhands(
 
             let property = &properties[index];
             let value = match property.value_source {
-                FfiAnimationSpecifiedValueSource::Value => unsafe {
-                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                        property.value.cast(),
-                    ))
-                },
-                FfiAnimationSpecifiedValueSource::Initial => unsafe {
-                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                        initial_value_data(property.source_longhand_id).cast(),
-                    ))
-                },
+                FfiAnimationSpecifiedValueSource::Value => property.value.clone(),
+                FfiAnimationSpecifiedValueSource::Initial => initial_value_handle(property.source_longhand_id).clone(),
                 FfiAnimationSpecifiedValueSource::Underlying => underlying_longhand_table
                     .get(property.source_longhand_id)
                     .expect("an animated longhand must have an underlying value")
                     .clone_retained(),
-                FfiAnimationSpecifiedValueSource::Inherited => {
-                    let inherited = parent_snapshot
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.value(property.source_longhand_id));
-                    let inherited =
-                        inherited.unwrap_or_else(|| unsafe { &*initial_value_data(property.source_longhand_id) });
-                    unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                            std::ptr::from_ref(inherited).cast(),
-                        ))
-                    }
-                }
+                FfiAnimationSpecifiedValueSource::Inherited => parent_snapshot
+                    .as_ref()
+                    .and_then(|snapshot| snapshot.value_handle(property.source_longhand_id))
+                    .unwrap_or_else(|| initial_value_handle(property.source_longhand_id))
+                    .clone(),
             };
             if property.is_transition {
                 values[index] = Some(value);
@@ -5311,7 +5257,7 @@ pub(crate) unsafe fn compute_animation_keyframe_longhands(
         if selected_longhands.iter().all(|word| *word == 0) {
             continue;
         }
-        let mut environment = unsafe { *input.environment };
+        let mut environment = *environment;
         environment.style_sheet_resource_contexts = style_sheet_resource_contexts.as_ptr();
         environment.style_sheet_resource_context_count = style_sheet_resource_contexts.len();
 
@@ -5324,10 +5270,10 @@ pub(crate) unsafe fn compute_animation_keyframe_longhands(
             LONGHAND_DRIVE_PHASE_REMAINING,
         ] {
             let length_resolution_context = match phase {
-                LONGHAND_DRIVE_PHASE_FONT => input.font_length_resolution_context,
-                LONGHAND_DRIVE_PHASE_LINE_HEIGHT => input.line_height_length_resolution_context,
-                LONGHAND_DRIVE_PHASE_COLOR_SCHEME => std::ptr::null(),
-                LONGHAND_DRIVE_PHASE_REMAINING => input.remaining_length_resolution_context,
+                LONGHAND_DRIVE_PHASE_FONT => Some(&length_contexts.font),
+                LONGHAND_DRIVE_PHASE_LINE_HEIGHT => Some(&length_contexts.line_height),
+                LONGHAND_DRIVE_PHASE_COLOR_SCHEME => None,
+                LONGHAND_DRIVE_PHASE_REMAINING => Some(&length_contexts.remaining),
                 _ => unreachable!(),
             };
             unsafe {
@@ -5339,7 +5285,7 @@ pub(crate) unsafe fn compute_animation_keyframe_longhands(
                     &environment,
                     Some(&selected_longhands),
                     phase,
-                    length_resolution_context.as_ref(),
+                    length_resolution_context,
                     None,
                     &mut results,
                     &mut effective_color_scheme,
@@ -5360,17 +5306,13 @@ pub(crate) unsafe fn compute_animation_keyframe_longhands(
         }
     }
 
-    let values = Box::new(
-        values
+    AnimationKeyframeLonghands {
+        values: values
             .into_iter()
             .map(|value| value.expect("the keyframe longhand drive must produce every requested value"))
-            .collect::<Vec<_>>(),
-    );
-    FfiAnimationKeyframeLonghandResult {
-        value_count: values.len(),
+            .collect(),
         depends_on_viewport_metrics,
         font_metrics_depend_on_viewport_metrics,
-        storage: Box::into_raw(values).cast(),
     }
 }
 
@@ -5596,39 +5538,74 @@ pub(crate) fn animation_length_resolution_context(
     }
 }
 
-impl FfiHostAnimationSample {
-    /// The working set's longhand table and its overlay before this sample.
-    ///
+/// The effects a host samples, whose easings stay live for as long as the effects are borrowed.
+#[derive(Clone, Copy)]
+pub(crate) struct HostSampledEffects<'a>(&'a [FfiSampledAnimationEffect]);
+
+impl<'a> HostSampledEffects<'a> {
     /// # Safety
-    /// The sample's table and overlay must be live.
-    unsafe fn working_set(&self) -> (&ComputedLonghandTable, Option<&AnimatedOverlay>) {
-        // SAFETY: Guaranteed by the caller.
-        unsafe {
-            (
-                &*self.longhand_table.cast::<ComputedLonghandTable>(),
-                self.animated_overlay.cast::<AnimatedOverlay>().as_ref(),
-            )
-        }
+    /// The linear points each effect's easing names must be live for `'a`.
+    pub(crate) unsafe fn new(effects: &'a [FfiSampledAnimationEffect]) -> Self {
+        Self(effects)
     }
 
+    pub(crate) fn none() -> Self {
+        Self(&[])
+    }
+
+    pub(crate) fn as_slice(&self) -> &'a [FfiSampledAnimationEffect] {
+        self.0
+    }
+}
+
+/// What a sample reads of the element it samples and of the working set it samples over.
+pub(crate) struct AnimationSampleInput<'a> {
+    pub(crate) style_node: u32,
+    /// The pseudo-element sampled, or `NO_PSEUDO_ELEMENT` for the element itself.
+    pub(crate) pseudo_kind: u8,
+    pub(crate) effects: HostSampledEffects<'a>,
+    /// The working set's longhand table, which the animations compose over.
+    pub(crate) longhand_table: &'a ComputedLonghandTable,
+    /// Whether the working set held an overlay before this sample.
+    pub(crate) has_animated_overlay: bool,
+    /// The working set's color before this sample, which `currentcolor` interpolates as.
+    pub(crate) current_color: RetainedStyleValueData,
+    /// The record the host holds for the element where the working set was reconstructed from it,
+    /// which the engine builds the length contexts over, or zero where the host builds them.
+    pub(crate) style_record: u64,
+    pub(crate) stores: crate::css::animation::KeyframeStores,
+    /// The identities of the element's custom-property environment and the one it inherits, under
+    /// which values substituted against the element hold.
+    pub(crate) custom_property_environments: [u64; 2],
+    pub(crate) inheritance_parent_style_record: u64,
+    /// The document's side of the environment keyframes compute in.
+    pub(crate) environment: &'a FfiStyleComputationEnvironment,
+    /// The slot of the row of the box of the sampled element, invalid where it has none.
+    pub(crate) element_box_slot: u32,
+}
+
+/// The color of a working set, as its longhand table and its overlay hold it.
+pub(crate) fn working_set_current_color(
+    table: &ComputedLonghandTable,
+    overlay: Option<&AnimatedOverlay>,
+) -> RetainedStyleValueData {
+    table
+        .effective_value_handle(overlay, crate::css::property_metadata::property_id::COLOR, true)
+        .0
+        .clone()
+}
+
+impl AnimationSampleInput<'_> {
     /// The context the effects evaluate in, resolving lengths against `length_resolution_context`
     /// where there is one, and transforms against `reference_box`.
-    ///
-    /// # Safety
-    /// As for [`Self::working_set`].
-    unsafe fn animation_context(
+    fn animation_context(
         &self,
         length_resolution_context: Option<&FfiLengthResolutionContext>,
         reference_box: Option<CssPixelRect>,
-    ) -> crate::css::animation::FfiAnimationContext {
-        // SAFETY: Guaranteed by the caller.
-        let (table, overlay) = unsafe { self.working_set() };
+    ) -> crate::css::animation::FfiAnimationContext<'_> {
         let mut context = crate::css::animation::FfiAnimationContext {
             allow_discrete: length_resolution_context.is_some(),
-            current_color: table
-                .effective_value(overlay, crate::css::property_metadata::property_id::COLOR, true)
-                .value
-                .cast(),
+            current_color: Some(&self.current_color),
             has_length_resolution_context: length_resolution_context.is_some(),
             length_resolution_context: length_resolution_context
                 .map(animation_length_resolution_context)
@@ -5639,6 +5616,90 @@ impl FfiHostAnimationSample {
         };
         context.set_transform_reference_box(reference_box);
         context
+    }
+
+    fn pseudo(&self) -> Option<u8> {
+        (self.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(self.pseudo_kind)
+    }
+}
+
+/// Whoever holds the working set a sample writes into.
+pub(crate) trait AnimationSampleHost {
+    /// Makes the working set's overlay writable and hands it over, the moment a value is written.
+    fn overlay_for_mutation(&mut self) -> &mut AnimatedOverlay;
+
+    /// The element's length-resolution contexts, with the container bases `unit_mask` asks for.
+    fn length_contexts(&mut self, unit_mask: u8) -> FfiAnimationLengthContexts;
+}
+
+/// The host's side of a sample, through the callbacks its input names.
+struct HostSampleCallbacks {
+    context: *mut c_void,
+    prepare_overlay_for_mutation: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    length_contexts: unsafe extern "C" fn(*mut c_void, u8, *mut FfiAnimationLengthContexts),
+}
+
+impl AnimationSampleHost for HostSampleCallbacks {
+    fn overlay_for_mutation(&mut self) -> &mut AnimatedOverlay {
+        // SAFETY: The callbacks come from a host's input, whose callback hands over the working set's overlay,
+        //         uniquely owned for the sample. The overlay is borrowed for as long as this is.
+        unsafe { &mut *(self.prepare_overlay_for_mutation)(self.context).cast::<AnimatedOverlay>() }
+    }
+
+    fn length_contexts(&mut self, unit_mask: u8) -> FfiAnimationLengthContexts {
+        let mut length_contexts = std::mem::MaybeUninit::<FfiAnimationLengthContexts>::uninit();
+        // SAFETY: The callbacks come from a host's input, whose callback writes every context.
+        unsafe {
+            (self.length_contexts)(self.context, unit_mask, length_contexts.as_mut_ptr());
+            length_contexts.assume_init()
+        }
+    }
+}
+
+impl FfiHostAnimationSample {
+    /// What the sample reads, and the callbacks through which it asks the host.
+    ///
+    /// # Safety
+    /// Every pointer and callback the input names must be live for the sample, and nothing but the
+    /// sample may write the working set's overlay while it runs.
+    unsafe fn adopt(&self) -> (AnimationSampleInput<'_>, HostSampleCallbacks) {
+        // SAFETY: Guaranteed by the caller.
+        let (longhand_table, animated_overlay, effects, environment) = unsafe {
+            (
+                &*self.longhand_table.cast::<ComputedLonghandTable>(),
+                self.animated_overlay.cast::<AnimatedOverlay>().as_ref(),
+                HostSampledEffects::new(crate::css::custom_properties::ffi_slice(
+                    self.effects,
+                    self.effect_count,
+                )),
+                &*self.environment,
+            )
+        };
+        let input = AnimationSampleInput {
+            style_node: self.style_node,
+            pseudo_kind: self.pseudo_kind,
+            effects,
+            longhand_table,
+            has_animated_overlay: animated_overlay.is_some(),
+            current_color: working_set_current_color(longhand_table, animated_overlay),
+            style_record: self.style_record,
+            stores: crate::css::animation::KeyframeStores {
+                substitution: self.custom_property_store,
+                base: self.base_custom_property_store,
+                inheritance: self.inheritance_custom_property_store,
+                element_declares_custom_properties: self.element_declares_own_custom_properties,
+            },
+            custom_property_environments: self.custom_property_environments,
+            inheritance_parent_style_record: self.inheritance_parent_style_record,
+            environment,
+            element_box_slot: self.element_box_slot,
+        };
+        let callbacks = HostSampleCallbacks {
+            context: self.callback_context,
+            prepare_overlay_for_mutation: self.prepare_overlay_for_mutation,
+            length_contexts: self.length_contexts,
+        };
+        (input, callbacks)
     }
 }
 
@@ -5660,19 +5721,15 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
 
     // SAFETY: Guaranteed by the caller.
-    // SAFETY: As above.
-    let host = unsafe { document_host(input.host) };
+    let (host, (sample, mut callbacks)) = unsafe { (document_host(input.host), input.adopt()) };
     // The first sample of the transitions a step just started rides the style job that decided the step.
-    // SAFETY: As above.
-    if let Some(result) = unsafe { host.answer_fresh_transition_sample(input) } {
+    if let Some(result) = host.answer_fresh_transition_sample(&sample, &mut callbacks) {
         return result;
     }
-    // SAFETY: As above.
-    let step = with_engine_and_arena(read, host, |engine, arena| unsafe {
-        sample_in_engine(input, engine, arena)
+    let step = with_engine_and_arena(read, host, |engine, arena| {
+        sample_in_engine(&sample, &mut callbacks, engine, arena)
     });
-    // SAFETY: As above.
-    unsafe { finish_sample_with_host(input, read, step) }
+    finish_sample_with_host(&sample, &mut callbacks, host, read, step)
 }
 
 /// Sample each of `count` elements' animation effects onto its working set's overlay, as
@@ -5703,25 +5760,25 @@ pub unsafe extern "C" fn rust_sample_animation_effects_each(
     // SAFETY: As above.
     let host = unsafe { document_host(first.host) };
     // SAFETY: As above.
+    let mut samples: Vec<_> = inputs.iter().map(|input| unsafe { input.adopt() }).collect();
     let steps: Vec<_> = with_engine_and_arena(read, host, |engine, arena| {
-        inputs
-            .iter()
-            .map(|input| unsafe { sample_in_engine(input, engine, arena) })
+        samples
+            .iter_mut()
+            .map(|(sample, callbacks)| sample_in_engine(sample, callbacks, engine, arena))
             .collect()
     });
-    for (index, (input, step)) in inputs.iter().zip(steps).enumerate() {
+    for (index, ((sample, callbacks), step)) in samples.iter_mut().zip(steps).enumerate() {
+        let result = finish_sample_with_host(sample, callbacks, host, read, step);
         // SAFETY: As above.
-        unsafe { results.add(index).write(finish_sample_with_host(input, read, step)) };
+        unsafe { results.add(index).write(result) };
     }
 }
 
 /// Take the sample `input` asks for as far as one call of the engine goes: to its end, or to the
 /// length contexts the host builds.
-///
-/// # Safety
-/// As for [`rust_sample_animation_effects`].
-unsafe fn sample_in_engine(
-    input: &FfiHostAnimationSample,
+fn sample_in_engine(
+    input: &AnimationSampleInput,
+    host: &mut dyn AnimationSampleHost,
     engine: &mut crate::css::style::StyleEngine,
     arena: &crate::layout::LayoutNodeArena,
 ) -> AnimationSampleStep {
@@ -5730,66 +5787,52 @@ unsafe fn sample_in_engine(
         index: input.element_box_slot,
     };
     let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        let composed = host_sampled_effects(input, engine);
-        match begin_animation_sample(
-            input,
-            engine,
-            described_effects(input, engine),
-            composed,
-            reference_box,
-            Default::default(),
-        ) {
-            AnimationSampleStep::Resolved(sample) => match engine_length_contexts(input, engine, &sample) {
-                Some(length_contexts) => AnimationSampleStep::Sampled(finish_animation_sample(
-                    input,
-                    engine,
-                    sample,
-                    &length_contexts,
-                    reference_box,
-                )),
-                None => AnimationSampleStep::Resolved(sample),
-            },
-            sampled => sampled,
-        }
+    let composed = host_sampled_effects(input, engine);
+    match begin_animation_sample(
+        input,
+        host,
+        engine,
+        described_effects(input, engine),
+        composed,
+        reference_box,
+        Default::default(),
+    ) {
+        AnimationSampleStep::Resolved(sample) => match engine_length_contexts(input, engine, &sample) {
+            Some(length_contexts) => AnimationSampleStep::Sampled(finish_animation_sample(
+                input,
+                host,
+                engine,
+                sample,
+                &length_contexts,
+                reference_box,
+            )),
+            None => AnimationSampleStep::Resolved(sample),
+        },
+        sampled => sampled,
     }
 }
 
 /// Finish a sample one call of the engine took to `step`: building the length contexts may read
 /// the engine, so the host builds them between two calls of it, over what the first one resolved.
-///
-/// # Safety
-/// As for [`rust_sample_animation_effects`].
-unsafe fn finish_sample_with_host(
-    input: &FfiHostAnimationSample,
+fn finish_sample_with_host(
+    input: &AnimationSampleInput,
+    host: &mut dyn AnimationSampleHost,
+    document_host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     step: AnimationSampleStep,
 ) -> FfiHostAnimationSampleResult {
-    use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
-
     let sample = match step {
         AnimationSampleStep::Sampled(result) => return result,
         AnimationSampleStep::Resolved(sample) => sample,
     };
-    let mut length_contexts = std::mem::MaybeUninit::<FfiAnimationLengthContexts>::uninit();
-    // SAFETY: Guaranteed by the caller. The host writes every context.
-    let length_contexts = unsafe {
-        (input.length_contexts)(
-            input.callback_context,
-            sample.resolved.container_relative_length_unit_mask,
-            length_contexts.as_mut_ptr(),
-        );
-        length_contexts.assume_init()
-    };
+    let length_contexts = host.length_contexts(sample.resolved.container_relative_length_unit_mask);
     let element_box = crate::layout::node_data::NodeSlotId {
         index: input.element_box_slot,
     };
-    // SAFETY: As above.
-    with_engine_and_arena(read, unsafe { document_host(input.host) }, |engine, arena| unsafe {
+    crate::css::style::engine_calls::with_engine_and_arena(read, document_host, |engine, arena| {
         let reference_box =
             crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
-        finish_animation_sample(input, engine, sample, &length_contexts, reference_box)
+        finish_animation_sample(input, host, engine, sample, &length_contexts, reference_box)
     })
 }
 
@@ -5807,15 +5850,14 @@ enum AnimationSampleStep {
 /// need a container base: resolving one marks the container asked about and, before layout, has it
 /// evaluated again after.
 fn engine_length_contexts(
-    input: &FfiHostAnimationSample,
+    input: &AnimationSampleInput,
     engine: &crate::css::style::StyleEngine,
     sample: &ResolvedAnimationSample,
 ) -> Option<FfiAnimationLengthContexts> {
     if input.style_record == 0 || sample.resolved.container_relative_length_unit_mask != 0 {
         return None;
     }
-    let pseudo = (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
-    engine.animation_sample_length_contexts(sample.node, pseudo, input.style_record)
+    engine.animation_sample_length_contexts(sample.node, input.pseudo(), input.style_record)
 }
 
 /// A sample whose declarations are resolved, which computes its keyframe values over the element's
@@ -5830,24 +5872,19 @@ struct ResolvedAnimationSample {
 
 /// The effects the host samples that the sample composes, each at the key its timing gives at the time
 /// the host sampled its timeline, keeping each timing for a sample at another time.
-///
-/// # Safety
-/// As for [`rust_sample_animation_effects`].
-unsafe fn host_sampled_effects(
-    input: &FfiHostAnimationSample,
-    engine: &mut crate::css::style::StyleEngine,
-) -> SampledEffects {
+fn host_sampled_effects(input: &AnimationSampleInput, engine: &mut crate::css::style::StyleEngine) -> SampledEffects {
     use crate::css::animation as anim;
 
     let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
         return SampledEffects::new();
     };
     let slot = animation_slot(input.pseudo_kind);
-    let sampled = unsafe { crate::css::custom_properties::ffi_slice(input.effects, input.effect_count) };
-    sampled
+    input
+        .effects
+        .as_slice()
         .iter()
         .filter_map(|effect| {
-            // SAFETY: The host's easings are live for the call.
+            // SAFETY: The host's easings are live for as long as its effects are borrowed.
             let key = unsafe {
                 engine.time_element_animation_effect(
                     node,
@@ -5880,7 +5917,7 @@ unsafe fn host_sampled_effects(
 
 /// The effects the engine describes for the element or pseudo-element `input` samples.
 fn described_effects<'a>(
-    input: &FfiHostAnimationSample,
+    input: &AnimationSampleInput,
     engine: &'a crate::css::style::StyleEngine,
 ) -> &'a [crate::css::style::effect_descriptions::PublishedEffect] {
     crate::css::style::tree::StyleNodeID::from_raw(input.style_node).map_or(&[], |node| {
@@ -5919,11 +5956,9 @@ fn implicit_will_change_properties(
 
 /// Take a sample of `composed`, effects `descriptions` describes, as far as the style engine goes
 /// without the host: to its end, or to the length contexts its keyframes compute over.
-///
-/// # Safety
-/// As for [`rust_sample_animation_effects`].
-unsafe fn begin_animation_sample(
-    input: &FfiHostAnimationSample,
+fn begin_animation_sample(
+    input: &AnimationSampleInput,
+    host: &mut dyn AnimationSampleHost,
     engine: &crate::css::style::StyleEngine,
     descriptions: &[crate::css::style::effect_descriptions::PublishedEffect],
     composed: SampledEffects,
@@ -5937,8 +5972,8 @@ unsafe fn begin_animation_sample(
     let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
         return finished(Cleared);
     };
-    let pseudo = (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
-    let table = unsafe { input.working_set() }.0;
+    let pseudo = input.pseudo();
+    let table = input.longhand_table;
     let (writing_mode, direction) = computed_writing_mode_and_direction(table);
     let description = |identity| descriptions.iter().find(|description| description.identity == identity);
     let new_implicit_will_change_properties =
@@ -5946,8 +5981,7 @@ unsafe fn begin_animation_sample(
     if composed.is_empty() && new_implicit_will_change_properties.is_empty() {
         return finished(Cleared);
     }
-    let mutated_overlay =
-        unsafe { &mut *(input.prepare_overlay_for_mutation)(input.callback_context).cast::<AnimatedOverlay>() };
+    let mutated_overlay = host.overlay_for_mutation();
     if composed.is_empty() {
         *mutated_overlay = mutated_overlay.clone_inherited();
     }
@@ -5966,33 +6000,22 @@ unsafe fn begin_animation_sample(
     // A preparation the overlay already holds for exactly these effects needs no declarations and
     // no keyframe values at all.
     if anim::animation_preparation_matches(Some(mutated_overlay), &composed, input.custom_property_environments) {
-        let batch = anim::FfiComputedAnimationBatch {
-            context: unsafe { input.animation_context(None, reference_box) },
-            sampled_effects: composed.as_ptr(),
-            sampled_effect_count: composed.len(),
+        anim::evaluate_animations(anim::ComputedAnimationBatch {
+            context: input.animation_context(None, reference_box),
+            sampled_effects: &composed,
             custom_property_environments: input.custom_property_environments,
             cache_preparation: true,
             preparation_reads_custom_property_environments: false,
-            resolved_animation_storage: std::ptr::null_mut(),
-            computed_keyframe_storage: std::ptr::null_mut(),
+            preparation_inputs: None,
             underlying_longhand_table: input.longhand_table,
-            overlay: unsafe { (input.prepare_overlay_for_mutation)(input.callback_context) },
-            custom_underlying_values: std::ptr::null(),
-            custom_initial_values: std::ptr::null(),
-            custom_value_count: 0,
-            custom_results: std::ptr::null_mut(),
-            custom_result_count: std::ptr::null_mut(),
-        };
-        unsafe { anim::evaluate_animations(&batch) };
+            overlay: mutated_overlay,
+            custom_underlying_values: &[],
+            custom_initial_values: &[],
+        });
         return finished(Evaluated);
     }
 
-    let stores = anim::KeyframeStores {
-        substitution: input.custom_property_store,
-        base: input.base_custom_property_store,
-        inheritance: input.inheritance_custom_property_store,
-        element_declares_custom_properties: input.element_declares_own_custom_properties,
-    };
+    let stores = input.stores;
     let selected: smallvec::SmallVec<[anim::SelectedEffect; 4]> = composed
         .iter()
         .filter_map(|composed| {
@@ -6057,11 +6080,9 @@ unsafe fn begin_animation_sample(
 
 /// Compute a resolved sample's keyframe values over the element's length contexts, and evaluate its
 /// effects onto the working set's overlay.
-///
-/// # Safety
-/// As for [`rust_sample_animation_effects`].
-unsafe fn finish_animation_sample(
-    input: &FfiHostAnimationSample,
+fn finish_animation_sample(
+    input: &AnimationSampleInput,
+    host: &mut dyn AnimationSampleHost,
     engine: &mut crate::css::style::StyleEngine,
     sample: ResolvedAnimationSample,
     length_contexts: &FfiAnimationLengthContexts,
@@ -6076,7 +6097,7 @@ unsafe fn finish_animation_sample(
         custom_properties,
         mut result,
     } = sample;
-    let (table, _) = unsafe { input.working_set() };
+    let table = input.longhand_table;
 
     // The element's own side of the environment: its place among its siblings, and the random base
     // value each random function a keyframe holds draws.
@@ -6086,18 +6107,12 @@ unsafe fn finish_animation_sample(
     let random_base_values = resolved
         .unfixed_random_sharings
         .iter()
-        .map(|sharing| {
-            let StyleValueData::RandomValueSharing { has_name, name, .. } = (unsafe { &*sharing.source }) else {
-                unreachable!("an unfixed random sharing names its sharing value");
-            };
-            let name = if *has_name { name.units() } else { &[] };
-            FfiRandomBaseValue {
-                source: sharing.source.cast(),
-                value: engine.ensure_random_base_value(Some(node), name, sharing.element_shared),
-            }
+        .map(|sharing| FfiRandomBaseValue {
+            source: sharing.source.cast(),
+            value: engine.ensure_random_base_value(Some(node), &sharing.name, sharing.element_shared),
         })
         .collect::<Vec<_>>();
-    let mut environment = unsafe { std::ptr::read(input.environment) };
+    let mut environment = *input.environment;
     environment.has_tree_counting_context = sibling_position.is_some();
     environment.sibling_count = sibling_position.map_or(0, |(count, _)| u64::from(count));
     environment.sibling_index = sibling_position.map_or(0, |(_, index)| u64::from(index));
@@ -6121,33 +6136,17 @@ unsafe fn finish_animation_sample(
             _ => Some(custom_properties.computed_value(registry, property, &finalization)),
         })
         .collect::<Vec<_>>();
-    let custom_value_pointers = custom_values
-        .iter()
-        .map(|value| value.as_ref().map_or(std::ptr::null(), |value| value.pointer().cast()))
-        .collect::<Vec<*const c_void>>();
     let (underlying_values, initial_values) = custom_properties.underlying_and_initial_values(registry);
-    let underlying_pointers = underlying_values
-        .iter()
-        .map(RetainedStyleValueData::pointer)
-        .collect::<Vec<_>>();
-    let initial_pointers = initial_values
-        .iter()
-        .map(RetainedStyleValueData::pointer)
-        .collect::<Vec<_>>();
 
-    let keyframe_input = FfiAnimationKeyframeLonghandInput {
-        underlying_longhand_table: input.longhand_table.cast(),
-        style_engine: crate::css::style::StyleEngineHandle::from_raw(engine),
-        inheritance_parent_style_record: input.inheritance_parent_style_record,
-        resolved_properties: resolved.properties.as_ptr().cast(),
-        property_count: resolved.properties.len(),
-        environment: &raw const environment,
-        font_length_resolution_context: &raw const length_contexts.font,
-        line_height_length_resolution_context: &raw const length_contexts.line_height,
-        remaining_length_resolution_context: &raw const length_contexts.remaining,
-        custom_property_values: custom_value_pointers.as_ptr(),
-    };
-    let computed_keyframes = unsafe { compute_animation_keyframe_longhands(&keyframe_input) };
+    let computed_keyframes = compute_animation_keyframe_longhands(
+        input.longhand_table,
+        engine,
+        input.inheritance_parent_style_record,
+        &resolved.properties,
+        &environment,
+        length_contexts,
+        &custom_values,
+    );
     result.depends_on_viewport_metrics = computed_keyframes.depends_on_viewport_metrics;
     result.font_metrics_depend_on_viewport_metrics = computed_keyframes.font_metrics_depend_on_viewport_metrics;
     // A custom property's keyframe that asks where the element sits among its siblings makes the
@@ -6156,17 +6155,10 @@ unsafe fn finish_animation_sample(
         || resolved.properties.iter().any(|property| {
             property.custom_name_id != 0
                 && property.value_source == anim::FfiAnimationSpecifiedValueSource::Value
-                && matches!(unsafe { &*property.value }, StyleValueData::Unresolved { components, .. }
+                && matches!(property.value.data(), StyleValueData::Unresolved { components, .. }
                     if crate::css::parser::value_parser::contains_tree_counting_function(components.as_slice()))
         });
 
-    let mut custom_results = (0..custom_properties.len())
-        .map(|_| anim::FfiAnimatedCustomProperty {
-            custom_name_id: 0,
-            value: std::ptr::null(),
-        })
-        .collect::<Vec<_>>();
-    let mut custom_result_count = 0_usize;
     // A preparation cached under these effects must hold for as long as they stand, so one that
     // read anything outside them is not kept, and one that substituted against the element's
     // custom-property environments is kept only under those.
@@ -6175,35 +6167,26 @@ unsafe fn finish_animation_sample(
         && resolved.container_relative_length_unit_mask == 0
         && !resolved.needs_document_base_url
         && resolved.unfixed_random_sharings.is_empty();
-    let batch = anim::FfiComputedAnimationBatch {
-        context: unsafe { input.animation_context(Some(&length_contexts.remaining), reference_box) },
-        sampled_effects: composed.as_ptr(),
-        sampled_effect_count: composed.len(),
+    let custom_results = anim::evaluate_animations(anim::ComputedAnimationBatch {
+        context: input.animation_context(Some(&length_contexts.remaining), reference_box),
+        sampled_effects: &composed,
         custom_property_environments: input.custom_property_environments,
         cache_preparation,
         preparation_reads_custom_property_environments: result.substitution_marks != 0,
-        resolved_animation_storage: Box::into_raw(resolved).cast(),
-        computed_keyframe_storage: computed_keyframes.storage,
+        preparation_inputs: Some(anim::AnimationPreparationInputs {
+            resolved,
+            computed_keyframe_values: computed_keyframes.values,
+        }),
         underlying_longhand_table: input.longhand_table,
-        overlay: unsafe { (input.prepare_overlay_for_mutation)(input.callback_context) },
-        custom_underlying_values: underlying_pointers.as_ptr(),
-        custom_initial_values: initial_pointers.as_ptr(),
-        custom_value_count: underlying_pointers.len(),
-        custom_results: custom_results.as_mut_ptr(),
-        custom_result_count: &raw mut custom_result_count,
-    };
-    unsafe { anim::evaluate_animations(&batch) };
+        overlay: host.overlay_for_mutation(),
+        custom_underlying_values: &underlying_values,
+        custom_initial_values: &initial_values,
+    });
     result.outcome = FfiHostAnimationSampleOutcome::Evaluated;
-    if custom_result_count != 0 {
-        let retained = custom_results[..custom_result_count]
-            .iter()
-            .map(|result| {
-                (
-                    custom_properties.name(result.custom_name_id).clone(),
-                    // SAFETY: the evaluation transfers one reference per written result.
-                    unsafe { RetainedStyleValueData::from_retained_pointer(result.value) },
-                )
-            })
+    if !custom_results.is_empty() {
+        let retained = custom_results
+            .into_iter()
+            .map(|(custom_name_id, value)| (custom_properties.name(custom_name_id).clone(), value))
             .collect::<Vec<_>>();
         let rows = retained
             .iter()
@@ -6229,11 +6212,9 @@ unsafe fn finish_animation_sample(
 /// size, a style query, an animated custom property, a document URL or a random base value. The effects
 /// are the element's, or `fresh` ones the engine does not describe yet. What a keyframe substitutes the
 /// host notes as its own sample substitutes it again.
-///
-/// # Safety
-/// As for [`rust_sample_animation_effects`], with `input` naming no callback but the overlay's.
-pub(crate) unsafe fn sample_without_host(
-    input: &FfiHostAnimationSample,
+pub(crate) fn sample_without_host(
+    input: &AnimationSampleInput,
+    overlay: &mut AnimatedOverlay,
     engine: &mut crate::css::style::StyleEngine,
     fresh: Option<&[crate::css::style::effect_descriptions::PublishedEffect]>,
     composed: SampledEffects,
@@ -6242,14 +6223,20 @@ pub(crate) unsafe fn sample_without_host(
 ) -> Result<FfiHostAnimationSampleResult, crate::css::style::engine_sample::NeedsHost> {
     use crate::css::style::engine_sample::NeedsHost;
 
+    let mut host = EngineSampleHost(overlay);
     let descriptions = fresh.unwrap_or_else(|| described_effects(input, engine));
-    // SAFETY: Guaranteed by the caller.
-    let sample =
-        match unsafe { begin_animation_sample(input, engine, descriptions, composed, reference_box, timeline_samples) }
-        {
-            AnimationSampleStep::Sampled(result) => return Ok(result),
-            AnimationSampleStep::Resolved(sample) => sample,
-        };
+    let sample = match begin_animation_sample(
+        input,
+        &mut host,
+        engine,
+        descriptions,
+        composed,
+        reference_box,
+        timeline_samples,
+    ) {
+        AnimationSampleStep::Sampled(result) => return Ok(result),
+        AnimationSampleStep::Resolved(sample) => sample,
+    };
     if !sample.result.style_query_dependencies.is_null() {
         // SAFETY: The sample transferred the dependencies it resolved to its result.
         drop(unsafe {
@@ -6272,18 +6259,23 @@ pub(crate) unsafe fn sample_without_host(
     {
         return Err(NeedsHost);
     }
-    // SAFETY: As above.
-    let result = unsafe { finish_animation_sample(input, engine, sample, &length_contexts, reference_box) };
+    let result = finish_animation_sample(input, &mut host, engine, sample, &length_contexts, reference_box);
     debug_assert!(result.animated_custom_properties_storage.is_null());
     Ok(result)
 }
 
-/// # Safety
-/// `storage` must be returned by `compute_animation_keyframe_longhands`
-/// and must not have been consumed before.
-pub(crate) unsafe fn take_animation_keyframe_longhand_values(storage: *mut c_void) -> Vec<RetainedStyleValueData> {
-    assert!(!storage.is_null());
-    *unsafe { Box::from_raw(storage.cast::<Vec<RetainedStyleValueData>>()) }
+/// The engine's side of a sample without the host, which holds the overlay the sample writes, and
+/// builds the length contexts itself.
+struct EngineSampleHost<'a>(&'a mut AnimatedOverlay);
+
+impl AnimationSampleHost for EngineSampleHost<'_> {
+    fn overlay_for_mutation(&mut self) -> &mut AnimatedOverlay {
+        self.0
+    }
+
+    fn length_contexts(&mut self, _: u8) -> FfiAnimationLengthContexts {
+        unreachable!("a sample without the host builds its length contexts itself");
+    }
 }
 
 fn apply_post_compute_adjustments(

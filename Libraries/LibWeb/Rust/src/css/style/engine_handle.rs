@@ -37,6 +37,7 @@ impl StyleEngineHandle {
     }
 
     /// A handle for an engine that its caller owns and keeps alive while the handle is used.
+    #[cfg(test)]
     pub fn from_raw(engine: *mut StyleEngine) -> Self {
         Self(engine)
     }

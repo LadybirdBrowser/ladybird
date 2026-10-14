@@ -1226,19 +1226,16 @@ impl DocumentHost {
 
     /// Answers the sample `input` from the transaction's first sample of the transitions the step the host read last
     /// started, where it is the host's sample of them, and has the engine keep the timing each was sampled with.
-    ///
-    /// # Safety
-    /// As for `rust_sample_animation_effects`.
-    pub(crate) unsafe fn answer_fresh_transition_sample(
+    pub(crate) fn answer_fresh_transition_sample(
         &self,
-        input: &crate::css::style_compute::FfiHostAnimationSample,
+        input: &crate::css::style_compute::AnimationSampleInput,
+        host: &mut dyn crate::css::style_compute::AnimationSampleHost,
     ) -> Option<crate::css::style_compute::FfiHostAnimationSampleResult> {
         let (node, sample) = self.fresh_transition_sample.take()?;
         if node != input.style_node || input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
             return None;
         }
-        // SAFETY: Guaranteed by the caller.
-        let (result, timings) = unsafe { sample.answer(input) }?;
+        let (result, timings) = sample.answer(input, host)?;
         self.queue_change(ArenaChange::Engine(
             crate::css::style::engine_calls::EngineWrite::AnimationEffectTimings {
                 node: crate::css::style::tree::StyleNodeID::from_raw(node)?,
