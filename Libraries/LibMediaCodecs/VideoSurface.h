@@ -10,29 +10,38 @@
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Platform.h>
+#include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibMediaCodecs/Export.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibCore/IOSurface.h>
 #endif
+#ifdef AK_OS_LINUX
+#    include <LibGfx/LinuxDmaBufHandle.h>
+#endif
 
 namespace Media {
 
-class VideoSurfaceUse;
+// What the process that decoded into a surface holds to keep those pixels from being decoded over, for as long as
+// the frame slot they were handed out in is held anywhere.
+class VideoSurfaceContents : public AtomicRefCounted<VideoSurfaceContents> {
+public:
+    virtual ~VideoSurfaceContents() = default;
+};
 
 // A frame's pixels in memory that a GPU can sample without a copy. Hardware decoders allocate these and recycle a
-// bounded set of them, so each carries the identity its recycling can be recognized by. Holding one keeps it alive
-// and keeps that identity unambiguous, which is what lets a recycled surface be recognized as the one it was;
-// begin_use() is what says its pixels are being read or written.
+// bounded set of them, so each carries the identity its recycling is recognized by. The hold on the frame slot a
+// surface was handed out in is what keeps its pixels from being decoded over, wherever they are shown.
 class MEDIACODECS_API VideoSurface : public AtomicRefCounted<VideoSurface> {
 public:
     ~VideoSurface();
 
     u32 id() const { return m_id; }
 
-    [[nodiscard]] VideoSurfaceUse begin_use();
-    bool is_in_use() const;
+    // Reads the pixels back into memory, which works only where the platform lets this process map the surface.
+    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> read_back_bitmap(CodingIndependentCodePoints const&) const;
 
 #ifdef AK_OS_MACOS
     static ErrorOr<NonnullRefPtr<VideoSurface>> create(Core::IOSurfaceHandle);
@@ -41,9 +50,15 @@ public:
     Core::IOSurfaceHandle const& io_surface() const { return m_io_surface; }
 #endif
 
-private:
-    friend class VideoSurfaceUse;
+#ifdef AK_OS_LINUX
+    // The decoder assigns the ID, since the memory behind an image can be exported as any number of file
+    // descriptors. The size is the image's, which can exceed the frames decoded into it.
+    static ErrorOr<NonnullRefPtr<VideoSurface>> create_from_dma_buf(u32 id, Gfx::LinuxDmaBufHandle);
 
+    Gfx::LinuxDmaBufHandle const& dma_buf() const { return m_dma_buf; }
+#endif
+
+private:
 #ifdef AK_OS_MACOS
     VideoSurface(Core::IOSurfaceHandle io_surface, u32 id)
         : m_io_surface(move(io_surface))
@@ -54,27 +69,17 @@ private:
     Core::IOSurfaceHandle m_io_surface;
 #endif
 
+#ifdef AK_OS_LINUX
+    VideoSurface(u32 id, Gfx::LinuxDmaBufHandle dma_buf)
+        : m_dma_buf(move(dma_buf))
+        , m_id(id)
+    {
+    }
+
+    Gfx::LinuxDmaBufHandle m_dma_buf;
+#endif
+
     u32 m_id { 0 };
-};
-
-// Says that a surface's pixels are being read or written for as long as it exists. The decoder that allocated the
-// surface will not decode into it again while any of these are alive.
-class MEDIACODECS_API VideoSurfaceUse {
-    AK_MAKE_NONCOPYABLE(VideoSurfaceUse);
-
-public:
-    VideoSurfaceUse() = default;
-    VideoSurfaceUse(VideoSurfaceUse&&);
-    VideoSurfaceUse& operator=(VideoSurfaceUse&&);
-    ~VideoSurfaceUse();
-
-private:
-    friend class VideoSurface;
-
-    explicit VideoSurfaceUse(VideoSurface&);
-    void release();
-
-    RefPtr<VideoSurface> m_surface;
 };
 
 }

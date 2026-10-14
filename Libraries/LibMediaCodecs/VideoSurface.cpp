@@ -4,34 +4,29 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Bitmap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
-namespace Media {
-
 #ifdef AK_OS_MACOS
+#    include <LibGfx/VideoSurfaceImage.h>
+#endif
+
+namespace Media {
 
 VideoSurface::~VideoSurface() = default;
 
-bool VideoSurface::is_in_use() const
+ErrorOr<NonnullRefPtr<Gfx::Bitmap>> VideoSurface::read_back_bitmap([[maybe_unused]] CodingIndependentCodePoints const& cicp) const
 {
-    return m_io_surface.is_in_use();
+#ifdef AK_OS_MACOS
+    return Gfx::bitmap_from_video_surface(m_io_surface, cicp);
+#else
+    return Error::from_string_literal("This process cannot read the video surface's pixels back");
+#endif
 }
 
-VideoSurfaceUse::VideoSurfaceUse(VideoSurface& surface)
-    : m_surface(surface)
-{
-    m_surface->m_io_surface.increment_use_count();
-}
-
-void VideoSurfaceUse::release()
-{
-    if (m_surface == nullptr)
-        return;
-    m_surface->m_io_surface.decrement_use_count();
-    m_surface = nullptr;
-}
+#ifdef AK_OS_MACOS
 
 ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create(Core::IOSurfaceHandle io_surface)
 {
@@ -44,50 +39,16 @@ ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_mach_port(Core::M
     return create(TRY(Core::IOSurfaceHandle::from_mach_port(port)));
 }
 
-#else
+#endif
 
-VideoSurface::~VideoSurface() = default;
+#ifdef AK_OS_LINUX
 
-bool VideoSurface::is_in_use() const
+ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_dma_buf(u32 id, Gfx::LinuxDmaBufHandle dma_buf)
 {
-    return false;
-}
-
-VideoSurfaceUse::VideoSurfaceUse(VideoSurface& surface)
-    : m_surface(surface)
-{
-}
-
-void VideoSurfaceUse::release()
-{
-    m_surface = nullptr;
+    return adopt_nonnull_ref_or_enomem(new (nothrow) VideoSurface(id, move(dma_buf)));
 }
 
 #endif
-
-VideoSurfaceUse VideoSurface::begin_use()
-{
-    return VideoSurfaceUse { *this };
-}
-
-VideoSurfaceUse::VideoSurfaceUse(VideoSurfaceUse&& other)
-    : m_surface(move(other.m_surface))
-{
-}
-
-VideoSurfaceUse& VideoSurfaceUse::operator=(VideoSurfaceUse&& other)
-{
-    if (this != &other) {
-        release();
-        m_surface = move(other.m_surface);
-    }
-    return *this;
-}
-
-VideoSurfaceUse::~VideoSurfaceUse()
-{
-    release();
-}
 
 }
 
@@ -100,8 +61,12 @@ ErrorOr<void> encode(Encoder& encoder, RefPtr<Media::VideoSurface> const& surfac
     if (surface == nullptr)
         return {};
 
-#ifdef AK_OS_MACOS
+#if defined(AK_OS_MACOS)
     TRY(encoder.append_attachment(Attachment::from_mach_port(surface->create_mach_port(), Core::MachPort::MessageRight::MoveSend)));
+    return {};
+#elif defined(AK_OS_LINUX)
+    TRY(encoder.encode(surface->id()));
+    TRY(encoder.encode(surface->dma_buf()));
     return {};
 #else
     return Error::from_string_literal("This platform has no video surfaces to encode");
@@ -114,11 +79,15 @@ ErrorOr<RefPtr<Media::VideoSurface>> decode(Decoder& decoder)
     if (!TRY(decoder.decode<bool>()))
         return RefPtr<Media::VideoSurface> {};
 
-#ifdef AK_OS_MACOS
+#if defined(AK_OS_MACOS)
     auto attachment = TRY(decoder.attachments().try_dequeue());
     if (attachment.message_right() != Core::MachPort::MessageRight::MoveSend)
         return Error::from_string_literal("VideoSurface attachment is not a moved send right");
     return TRY(Media::VideoSurface::create_from_mach_port(attachment.release_mach_port()));
+#elif defined(AK_OS_LINUX)
+    auto id = TRY(decoder.decode<u32>());
+    auto dma_buf = TRY(decoder.decode<Gfx::LinuxDmaBufHandle>());
+    return TRY(Media::VideoSurface::create_from_dma_buf(id, move(dma_buf)));
 #else
     return Error::from_string_literal("This platform has no video surfaces to decode");
 #endif

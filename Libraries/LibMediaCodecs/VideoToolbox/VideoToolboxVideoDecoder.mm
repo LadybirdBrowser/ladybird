@@ -81,6 +81,19 @@ private:
     T m_ref { nullptr };
 };
 
+// The media engine recycles a pixel buffer once nothing retains it, so retaining it is what keeps its surface's
+// pixels in place while they are shown.
+class PixelBufferContents final : public VideoSurfaceContents {
+public:
+    explicit PixelBufferContents(CVPixelBufferRef pixel_buffer)
+        : m_pixel_buffer(CVPixelBufferRetain(pixel_buffer))
+    {
+    }
+
+private:
+    RetainedRef<CVPixelBufferRef> m_pixel_buffer;
+};
+
 // How many frames the media engine may be decoding before it has to hand one back.
 constexpr size_t MAXIMUM_FRAMES_IN_FLIGHT = 4;
 
@@ -785,12 +798,13 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndepen
     if (m_decode_failure.has_value())
         return;
 
-    auto surface = surface_or_error.release_value();
-    auto surface_use = surface->begin_use();
+    auto contents_or_error = try_make_ref_counted<PixelBufferContents>(pixel_buffer);
+    if (contents_or_error.is_error())
+        return;
 
     DecodedOutput output {
-        .surface = move(surface),
-        .surface_use = move(surface_use),
+        .surface = surface_or_error.release_value(),
+        .contents = contents_or_error.release_value(),
         .timestamp = timestamp,
         .duration = duration,
         .size = { static_cast<int>(CVPixelBufferGetWidth(pixel_buffer)), static_cast<int>(CVPixelBufferGetHeight(pixel_buffer)) },
@@ -930,7 +944,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output
 {
     auto const& output = m_outputs[index];
 
-    auto acquired_slot = m_surface_pool->try_acquire(output.surface);
+    auto acquired_slot = m_surface_pool->try_acquire(output.surface, output.contents);
     if (!acquired_slot.has_value())
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
 

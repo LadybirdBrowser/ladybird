@@ -6,11 +6,19 @@
 
 #include <Compositor/VideoFrameSkia.h>
 #include <LibGfx/YUVData.h>
+#include <LibMediaCodecs/VideoSurface.h>
 
 #include <core/SkYUVAInfo.h>
 #include <core/SkYUVAPixmaps.h>
 
 namespace Compositor {
+
+#ifndef AK_OS_MACOS
+sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const&, Media::CodingIndependentCodePoints, Gfx::SkiaBackendContext&)
+{
+    return nullptr;
+}
+#endif
 
 SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints cicp)
 {

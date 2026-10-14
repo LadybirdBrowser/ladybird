@@ -50,9 +50,9 @@ private:
     struct Session;
     struct DecodedOutput {
         NonnullRefPtr<VideoSurface> surface;
-        // An output waiting on the reorder window is not in a slot yet, so this is what keeps the media engine from
-        // decoding over it before it is.
-        VideoSurfaceUse surface_use;
+        // Keeps the media engine from decoding over the surface, from the reorder window until the slot the frame
+        // goes out in is released.
+        NonnullRefPtr<VideoSurfaceContents> contents;
         AK::Duration timestamp;
         AK::Duration duration;
         Gfx::IntSize size;

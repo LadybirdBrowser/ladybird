@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Bitmap.h>
 #include <LibMediaCodecs/VideoFramePool.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
@@ -46,6 +47,16 @@ Optional<Gfx::YUVData> VideoFrame::yuv_data() const
     if (yuv_data.is_error())
         return {};
     return yuv_data.release_value();
+}
+
+ErrorOr<NonnullRefPtr<Gfx::Bitmap>> VideoFrame::to_bitmap() const
+{
+    if (auto surface = this->surface())
+        return surface->read_back_bitmap(m_cicp);
+    auto yuv_data = this->yuv_data();
+    if (!yuv_data.has_value())
+        return Error::from_string_literal("Video frame has no pixels to read");
+    return yuv_data->to_bitmap();
 }
 
 VideoFrame::~VideoFrame() = default;

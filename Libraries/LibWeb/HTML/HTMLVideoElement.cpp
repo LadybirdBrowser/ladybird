@@ -9,10 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/VideoSurfaceImage.h>
-#include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoSurface.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
@@ -404,16 +401,7 @@ Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame()
     if (!current_frame)
         return {};
 
-    auto bitmap_or_error = [&] -> ErrorOr<NonnullRefPtr<Gfx::Bitmap>> {
-#ifdef AK_OS_MACOS
-        if (auto surface = current_frame->surface())
-            return Gfx::bitmap_from_video_surface(surface->io_surface(), current_frame->cicp());
-#endif
-        auto yuv_data = current_frame->yuv_data();
-        if (!yuv_data.has_value())
-            return Error::from_string_literal("Video frame has no pixels to read");
-        return yuv_data->to_bitmap();
-    }();
+    auto bitmap_or_error = current_frame->to_bitmap();
     if (bitmap_or_error.is_error()) {
         dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
         return {};

@@ -23,7 +23,7 @@ namespace Media {
 
 // The decoding end of the connection between a VideoDecoderServer and its client, hosting the decoders it is given in
 // priority order. Each decoder the client creates runs on a thread of its own, reading the coded frames submitted to
-// it out of a shared-memory ring. A decoded frame's slot stays held here until the client releases it.
+// it out of a shared-memory ring. Every frame handed out of a slot stays held here until the client releases it.
 class MEDIACODECS_API VideoDecoderServerConnection final
     : public IPC::ConnectionFromClient<VideoDecoderClientEndpoint, VideoDecoderServerEndpoint>
     , public ThreadSafeWeakable<VideoDecoderServerConnection> {
@@ -73,7 +73,7 @@ private:
     HashMap<u64, NonnullRefPtr<DecoderSession>> m_sessions;
 
     Mutex m_held_frames_mutex;
-    HashMap<HeldSlot, NonnullRefPtr<VideoFrame>, HeldSlotTraits> m_held_frames;
+    HashMap<HeldSlot, Vector<NonnullRefPtr<VideoFrame>>, HeldSlotTraits> m_held_frames_by_slot;
 
     Atomic<u32> m_frames_until_close { 0 };
 };

@@ -13,6 +13,7 @@
 #include <LibGfx/MetalContext.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/VideoSurfaceImage.h>
+#include <LibMediaCodecs/VideoSurface.h>
 #include <LibTest/TestCase.h>
 
 #include <LibGfx/YUVData.h>
@@ -200,7 +201,7 @@ TEST_CASE(imports_an_eight_bit_surface_as_a_gpu_image)
     auto surface = create_decoder_shaped_surface(64, 48, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange);
     VERIFY(surface.has_value());
 
-    auto image = Compositor::sk_image_from_video_surface(*surface, {}, *context);
+    auto image = Compositor::sk_image_from_video_surface(MUST(Media::VideoSurface::create(surface.release_value())), {}, *context);
     EXPECT(image != nullptr);
     EXPECT_EQ(image->width(), 64);
     EXPECT_EQ(image->height(), 48);
@@ -217,7 +218,7 @@ TEST_CASE(imports_a_ten_bit_surface_as_a_gpu_image)
     auto surface = create_decoder_shaped_surface(64, 48, kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange);
     VERIFY(surface.has_value());
 
-    auto image = Compositor::sk_image_from_video_surface(*surface, {}, *context);
+    auto image = Compositor::sk_image_from_video_surface(MUST(Media::VideoSurface::create(surface.release_value())), {}, *context);
     EXPECT(image != nullptr);
     EXPECT_EQ(image->width(), 64);
     EXPECT_EQ(image->height(), 48);
@@ -231,7 +232,7 @@ TEST_CASE(refuses_a_surface_that_holds_no_video_planes)
         return;
     }
 
-    auto surface = Core::IOSurfaceHandle::create(16, 16);
+    auto surface = MUST(Media::VideoSurface::create(Core::IOSurfaceHandle::create(16, 16)));
     EXPECT(Compositor::sk_image_from_video_surface(surface, {}, *context) == nullptr);
 }
 
@@ -248,7 +249,7 @@ TEST_CASE(a_surface_and_separate_planes_of_the_same_samples_render_alike)
     VERIFY(surface.has_value());
     fill_biplanar_surface(*surface, TEST_SAMPLE);
 
-    auto surface_image = Compositor::sk_image_from_video_surface(*surface, {}, *context);
+    auto surface_image = Compositor::sk_image_from_video_surface(MUST(Media::VideoSurface::create(surface.release_value())), {}, *context);
     VERIFY(surface_image != nullptr);
     auto surface_color = center_pixel_of(surface_image, gr_context);
     VERIFY(surface_color.has_value());
