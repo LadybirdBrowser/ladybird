@@ -225,6 +225,31 @@ struct ChangedSlot {
     source_slot: i32,
 }
 
+/// The slot values of a table in slot order: a delta's changes, which are kept in slot order, are
+/// merged over its base as the walk reaches them.
+struct SlotValues<'a> {
+    base: &'a [RetainedStyleValueData; LONGHAND_COUNT],
+    changes: &'a [ChangedSlot],
+    index: usize,
+}
+
+impl<'a> Iterator for SlotValues<'a> {
+    type Item = &'a RetainedStyleValueData;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.index;
+        let base = self.base.get(index)?;
+        self.index += 1;
+        match self.changes.split_first() {
+            Some((change, rest)) if usize::from(change.index) == index => {
+                self.changes = rest;
+                Some(change.value.as_ref().unwrap_or(base))
+            }
+            _ => Some(base),
+        }
+    }
+}
+
 // NB: Inline changes avoid a separate allocation for each sparse drive.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
@@ -378,13 +403,41 @@ impl SlotStorage {
         result
     }
 
+    /// Every slot's value, in slot order, without locating each change by rank.
+    fn values(&self) -> SlotValues<'_> {
+        let (base, changes) = match self {
+            Self::Dense(storage) => (&storage.slots, &[][..]),
+            Self::Delta { base, changes, .. } => (&base.slots, &changes[..]),
+        };
+        debug_assert!(changes.windows(2).all(|pair| pair[0].index < pair[1].index));
+        SlotValues {
+            base,
+            changes,
+            index: 0,
+        }
+    }
+
     /// Compare only the slot values, ignoring the cascade source slots that publication ignores.
     ///
     /// Two deltas over one base already agree on every slot neither of them changed, so a shared
-    /// base reduces the comparison to the union of the two change lists. Two tables sharing dense
-    /// storage agree everywhere.
+    /// base reduces the comparison to the union of the two change lists, and a delta agrees with
+    /// its own base everywhere but in its changes. Two tables sharing dense storage agree
+    /// everywhere.
     fn values_are_equal(&self, other: &Self, equal: impl Fn(*const c_void, *const c_void) -> bool) -> bool {
         match (self, other) {
+            (Self::Dense(dense), Self::Delta { base, changes, .. })
+            | (Self::Delta { base, changes, .. }, Self::Dense(dense))
+                if Arc::ptr_eq(dense, base) =>
+            {
+                changes.iter().all(|change| {
+                    change.value.as_ref().is_none_or(|value| {
+                        equal(
+                            value.pointer().cast(),
+                            base.slots[usize::from(change.index)].pointer().cast(),
+                        )
+                    })
+                })
+            }
             (Self::Dense(first), Self::Dense(second)) => {
                 Arc::ptr_eq(first, second)
                     || first
@@ -428,12 +481,10 @@ impl SlotStorage {
                 }
                 true
             }
-            _ => (0..LONGHAND_COUNT).all(|index| {
-                equal(
-                    self.slot(index).0.pointer().cast(),
-                    other.slot(index).0.pointer().cast(),
-                )
-            }),
+            _ => self
+                .values()
+                .zip(other.values())
+                .all(|(first, second)| equal(first.pointer().cast(), second.pointer().cast())),
         }
     }
 
@@ -1693,6 +1744,53 @@ mod tests {
         assert_eq!(Arc::strong_count(&value), owners);
         drop(delta);
         assert_eq!(Arc::strong_count(&value), owners - 1);
+    }
+
+    #[test]
+    fn slot_values_compare_over_a_shared_base_and_across_bases() {
+        let equal = |first: *const c_void, second: *const c_void| {
+            first == second
+                || (!first.is_null()
+                    && !second.is_null()
+                    && unsafe { crate::css::style_value::rust_style_value_equals(first.cast(), second.cast()) })
+        };
+        let mut base = ComputedLonghandTable::new();
+        base.set(property_id::OPACITY, retained_number(0.5), -1);
+        base.set(property_id::Z_INDEX, retained_number(7.0), -1);
+        base.freeze();
+
+        let mut kept = ComputedLonghandTable::copied_for_drive(&base);
+        kept.set_or_keep_equal(property_id::Z_INDEX, retained_number(7.0), -1);
+        kept.set(property_id::OPACITY, retained_number(0.5), -1);
+        kept.finish_delta();
+        assert!(matches!(kept.storage, SlotStorage::Delta { .. }));
+        assert!(base.storage.values_are_equal(&kept.storage, equal));
+        assert!(kept.storage.values_are_equal(&base.storage, equal));
+
+        let mut moved = ComputedLonghandTable::copied_for_drive(&base);
+        moved.set(property_id::Z_INDEX, retained_number(8.0), -1);
+        moved.finish_delta();
+        assert!(!base.storage.values_are_equal(&moved.storage, equal));
+        assert!(!moved.storage.values_are_equal(&base.storage, equal));
+
+        // Tables over separate storage compare slot by slot, a delta's changes merged in order.
+        let mut other_base = ComputedLonghandTable::new();
+        other_base.set(property_id::OPACITY, retained_number(0.5), -1);
+        other_base.set(property_id::Z_INDEX, retained_number(8.0), -1);
+        other_base.freeze();
+        assert!(other_base.storage.values_are_equal(&moved.storage, equal));
+        assert!(moved.storage.values_are_equal(&other_base.storage, equal));
+        assert!(!other_base.storage.values_are_equal(&kept.storage, equal));
+        let mut other_moved = ComputedLonghandTable::copied_for_drive(&other_base);
+        other_moved.set(property_id::OPACITY, retained_number(0.25), -1);
+        other_moved.finish_delta();
+        assert!(!other_moved.storage.values_are_equal(&moved.storage, equal));
+        let mut moved_again = ComputedLonghandTable::copied_for_drive(&base);
+        moved_again.set(property_id::Z_INDEX, retained_number(8.0), -1);
+        moved_again.set(property_id::OPACITY, retained_number(0.25), -1);
+        moved_again.finish_delta();
+        assert!(other_moved.storage.values_are_equal(&moved_again.storage, equal));
+        assert_eq!(moved_again.storage.values().count(), LONGHAND_COUNT);
     }
 
     #[test]
