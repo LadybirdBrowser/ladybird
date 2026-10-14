@@ -31,6 +31,7 @@
 #include <AK/Assertions.h>
 #include <AK/Atomic.h>
 #include <AK/BitCast.h>
+#include <AK/Memory.h>
 #include <AK/Noncopyable.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Span.h>
@@ -243,6 +244,7 @@ private:
         void init_and_swap(u8* destination, size_t size) final override
         {
             VERIFY(size >= sizeof(CallableWrapper));
+            zero_callable_storage(destination, size);
             new (destination) CallableWrapper { move(m_callable) };
         }
 
@@ -264,6 +266,17 @@ private:
         Outline,
         Block,
     };
+
+    // A callable is constructed into zeroed storage, since its bytes get scanned conservatively: GC::Function and the
+    // other cells that visit raw_capture_range() take every pointer-sized word in it that points at a cell for an edge.
+    // So padding, and storage the callable doesn't use, must not keep whatever the memory held before — a stale pointer
+    // there would keep alive the cell it points at, and everything that cell reaches. And secure_zero() keeps a
+    // compiler from dropping the zeroing as a dead store, as GCC's -flifetime-dse otherwise does, since the constructor
+    // that follows starts the object's lifetime.
+    static void zero_callable_storage(void* storage, size_t size)
+    {
+        secure_zero(storage, size);
+    }
 
     CallableWrapperBase* callable_wrapper() const
     {
@@ -333,10 +346,17 @@ private:
         }
 
         if constexpr (alignof(Callable) > inline_alignment || sizeof(WrapperType) > inline_capacity) {
-            *bit_cast<CallableWrapperBase**>(&m_storage) = new WrapperType(forward<Callable>(callable));
+            void* storage;
+            if constexpr (alignof(WrapperType) > __STDCPP_DEFAULT_NEW_ALIGNMENT__)
+                storage = WrapperType::operator new(sizeof(WrapperType), std::align_val_t { alignof(WrapperType) });
+            else
+                storage = WrapperType::operator new(sizeof(WrapperType));
+            zero_callable_storage(storage, sizeof(WrapperType));
+            *bit_cast<CallableWrapperBase**>(&m_storage) = new (storage) WrapperType(forward<Callable>(callable));
             m_kind = FunctionKind::Outline;
         } else {
             static_assert(sizeof(WrapperType) <= inline_capacity);
+            zero_callable_storage(m_storage, inline_capacity);
             if constexpr (IsBlockClosure<Callable>) {
                 if constexpr (Detail::HaveObjcArc) {
                     new (m_storage) WrapperType(forward<Callable>(callable));

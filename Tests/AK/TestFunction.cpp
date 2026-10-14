@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/Vector.h>
 
 namespace {
 
@@ -89,4 +90,84 @@ TEST_CASE(outline_wrapper_respects_callable_alignment)
 
     Function<bool()> moved = move(function);
     EXPECT(moved());
+}
+
+// The GC scans a callable's bytes conservatively (raw_capture_range()), so the padding between captures, and storage
+// a callable doesn't use, must not keep whatever stale data the memory held before.
+static bool capture_range_holds(ReadonlyBytes range, u8 byte)
+{
+    for (auto value : range) {
+        if (value == byte)
+            return true;
+    }
+    return false;
+}
+
+static constexpr u8 stale_byte = 0xaa;
+
+TEST_CASE(inline_callable_padding_is_zeroed)
+{
+    alignas(Function<u64()>) u8 buffer[sizeof(Function<u64()>)];
+    __builtin_memset(buffer, stale_byte, sizeof(buffer));
+
+    // A bool followed by a u64 leaves padding between them.
+    auto* function = new (buffer) Function<u64()>([flag = true, number = 0x1122334455667788ull]() {
+        return flag ? number : 0;
+    });
+    EXPECT_EQ((*function)(), 0x1122334455667788ull);
+    EXPECT(!capture_range_holds(function->raw_capture_range(), stale_byte));
+    function->~Function();
+}
+
+TEST_CASE(moved_inline_callable_padding_is_zeroed)
+{
+    alignas(Function<u64()>) u8 source_buffer[sizeof(Function<u64()>)];
+    __builtin_memset(source_buffer, stale_byte, sizeof(source_buffer));
+    auto* source = new (source_buffer) Function<u64()>([flag = true, number = 0x1122334455667788ull]() {
+        return flag ? number : 0;
+    });
+
+    alignas(Function<u64()>) u8 buffer[sizeof(Function<u64()>)];
+    __builtin_memset(buffer, stale_byte, sizeof(buffer));
+    auto* destination = new (buffer) Function<u64()>(move(*source));
+    EXPECT_EQ((*destination)(), 0x1122334455667788ull);
+    EXPECT(!capture_range_holds(destination->raw_capture_range(), stale_byte));
+    destination->~Function();
+    source->~Function();
+}
+
+TEST_CASE(outline_callable_padding_is_zeroed)
+{
+    int instance_count = 0;
+    // The padding after the bool sits before a member with a copy constructor of its own, so no copy of the captures
+    // writes it: It keeps whatever the wrapper's storage held.
+    struct Captures {
+        bool flag { true };
+        CopyOnly counted;
+        u64 numbers[6] { 1, 2, 3, 4, 5, 6 };
+    };
+    static constexpr size_t wrapper_size = sizeof(void*) + sizeof(Captures);
+
+    // Fill enough blocks of the wrapper's size class with stale bytes, and free them, that the allocator hands one of
+    // them back for the wrapper.
+    Vector<void*> stale_blocks;
+    for (size_t i = 0; i < 4096; ++i) {
+        auto* block = kmalloc(HeapPartition::General, wrapper_size);
+        __builtin_memset(block, stale_byte, wrapper_size);
+        stale_blocks.append(block);
+    }
+    for (auto* block : stale_blocks)
+        kfree(block);
+
+    Function<Captures const*()> function = [captures = Captures { true, CopyOnly(instance_count) }]() {
+        return &captures;
+    };
+    auto const* captures = function();
+    EXPECT_EQ(captures->numbers[5], 6u);
+
+    // Check just the padding, since the reference's bytes are an address, and any of them could be the stale byte.
+    auto const* start = reinterpret_cast<u8 const*>(captures);
+    auto padding_size = static_cast<size_t>(reinterpret_cast<u8 const*>(&captures->counted) - start) - sizeof(bool);
+    EXPECT(padding_size > 0);
+    EXPECT(!capture_range_holds({ start + sizeof(bool), padding_size }, stale_byte));
 }
