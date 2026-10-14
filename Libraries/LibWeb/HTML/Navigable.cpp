@@ -85,6 +85,12 @@ GC::Ptr<DOM::Node> Navigable::currently_focused_area_shown_by_focused_navigable(
     return nullptr;
 }
 
+void Navigable::set_parent(GC::Ptr<Navigable> parent)
+{
+    m_parent = parent;
+    DOM::Document::invalidate_full_activity();
+}
+
 // AD-HOC: Destroying a child navigable detaches its subtree from the traversable, although the documents in that
 //         subtree keep their navigable until the destruction's unload steps complete. The spec destroys each of those
 //         documents from a queued task, so the node navigable of a removed iframe's documents stays non-null — leaving

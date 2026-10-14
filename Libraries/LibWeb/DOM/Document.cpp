@@ -4919,7 +4919,16 @@ void Document::set_referrer(Utf16String referrer)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#fully-active
-bool Document::is_fully_active() const
+u64 Document::s_full_activity_epoch = 1;
+
+bool Document::update_is_fully_active() const
+{
+    m_is_fully_active = compute_is_fully_active();
+    m_full_activity_epoch = s_full_activity_epoch;
+    return m_is_fully_active;
+}
+
+bool Document::compute_is_fully_active() const
 {
     // A Document d is said to be fully active when d is the active document of a navigable navigable, and either
     // navigable is a top-level traversable or navigable's container document is fully active.
@@ -6223,6 +6232,7 @@ void Document::unload(GC::Ptr<Document> new_document)
 
     // 8. Increase oldDocument's unload counter by 1.
     m_unload_counter += 1;
+    invalidate_full_activity();
 
     // 9. If intendToKeepInBfcache is false, then set oldDocument's salvageable state to false.
     if (!intend_to_store_in_bfcache)
@@ -6299,6 +6309,7 @@ void Document::unload(GC::Ptr<Document> new_document)
 
     // 21. Decrease oldDocument's unload counter by 1.
     m_unload_counter -= 1;
+    invalidate_full_activity();
 
     // 22. If newDocument is given, newDocument's was created via cross-origin redirects is false, and newDocument's
     //     origin is the same as oldDocument's origin, then set newDocument's previous document unload timing to
@@ -10219,6 +10230,7 @@ void Document::set_navigable(GC::Ptr<HTML::LocalNavigable> navigable)
 
     GC::Ptr<Page> previous_page = m_navigable ? &m_navigable->page() : nullptr;
     m_navigable = navigable.ptr();
+    invalidate_full_activity();
     HTML::main_thread_event_loop().document_navigable_did_change({});
 
     if (previous_page)
@@ -10671,6 +10683,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
 
     // 2. Increase the document's unload counter by 1.
     m_unload_counter++;
+    invalidate_full_activity();
 
     // 3. Increase document's relevant agent's event loop's termination nesting level by 1.
     auto& event_loop = *HTML::relevant_agent(*this).event_loop;
@@ -10715,6 +10728,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
 
     // 7. Decrease document's unload counter by 1.
     m_unload_counter--;
+    invalidate_full_activity();
 
     // 8. Return (unloadPromptShown, unloadPromptCanceled).
     return { unload_prompt_shown, unload_prompt_canceled };

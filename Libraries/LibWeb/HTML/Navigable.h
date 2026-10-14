@@ -106,7 +106,7 @@ public:
 protected:
     explicit Navigable(GC::Ref<Page>);
     void set_id(CrossProcessId id) { m_id = id; }
-    void set_parent(GC::Ptr<Navigable> parent) { m_parent = parent; }
+    void set_parent(GC::Ptr<Navigable>);
 
     virtual WebIDL::ExceptionOr<void> continue_navigation_in_active_document_agent(PreparedNavigation) = 0;
 
