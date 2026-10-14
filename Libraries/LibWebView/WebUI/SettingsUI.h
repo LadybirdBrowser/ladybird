@@ -50,6 +50,7 @@ private:
     void set_filter_list_updates_enabled(JsonValue const&);
     void update_content_blocker_lists(JsonValue const&);
     void set_content_blocker_enabled(JsonValue const&);
+    void set_show_content_blocker_count(JsonValue const&);
     void set_content_blocker_list_enabled(JsonValue const&);
     void add_custom_content_blocker_subscription(JsonValue const&);
     void remove_content_blocker_list(JsonValue const&);

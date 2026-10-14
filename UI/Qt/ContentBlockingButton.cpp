@@ -31,9 +31,17 @@ void ContentBlockingButton::set_snapshot(WebView::ContentBlockingSnapshot const&
     update();
 }
 
+void ContentBlockingButton::set_show_count_badge(bool show)
+{
+    if (m_show_count_badge == show)
+        return;
+    m_show_count_badge = show;
+    update();
+}
+
 QString ContentBlockingButton::badge_text() const
 {
-    if (!m_snapshot.enabled() || m_snapshot.blocked_request_count == 0)
+    if (!m_show_count_badge || !m_snapshot.enabled() || m_snapshot.blocked_request_count == 0)
         return {};
     return m_snapshot.blocked_request_count > 99 ? "99+" : qformatted("{}", m_snapshot.blocked_request_count);
 }

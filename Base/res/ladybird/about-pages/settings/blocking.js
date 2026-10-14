@@ -12,8 +12,12 @@ const localListStatus = document.querySelector("#local-content-blocker-list-stat
 const customFilters = document.querySelector("#custom-content-blocker-filters");
 const saveCustomFilters = document.querySelector("#save-custom-content-blocker-filters");
 const customFiltersStatus = document.querySelector("#custom-content-blocker-filters-status");
-const maximumCustomFilterSize = 4 * 1024 * 1024;
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
+const showContentBlockerCount = document.querySelector("#show-content-blocker-count");
+const showContentBlockerCountSetting = document.querySelector("#show-content-blocker-count-setting");
+
+const maximumCustomFilterSize = 4 * 1024 * 1024;
+
 let updateTimer;
 let savedCustomFilters = "";
 
@@ -71,12 +75,17 @@ function showEmptyState(container, message) {
     container.append(emptyState);
 }
 
+function loadFeatures(features) {
+    showContentBlockerCountSetting.classList.toggle("hidden", !features?.contentBlockingControls);
+}
+
 function loadSettings(settings) {
     const contentBlockers = settings.contentBlockers;
     if (!contentBlockers) {
         return;
     }
     enableContentBlocking.checked = contentBlockers.enabled;
+    showContentBlockerCount.checked = contentBlockers.showBlockedCount ?? true;
 
     for (const container of [builtInLists, languageLists, customSubscriptions, localLists]) {
         container.replaceChildren();
@@ -174,8 +183,14 @@ saveCustomFilters.addEventListener("click", () => {
     customFiltersStatus.innerText = "Saved";
 });
 
+showContentBlockerCount.addEventListener("change", () => {
+    ladybird.sendMessage("setShowContentBlockerCount", showContentBlockerCount.checked);
+});
+
 document.addEventListener("WebUIMessage", event => {
-    if (event.detail.name === "loadSettings") {
+    if (event.detail.name === "loadFeatures") {
+        loadFeatures(event.detail.data);
+    } else if (event.detail.name === "loadSettings") {
         loadSettings(event.detail.data);
     } else if (event.detail.name === "contentBlockerResult") {
         const result = event.detail.data;

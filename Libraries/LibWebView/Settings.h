@@ -126,6 +126,7 @@ public:
     virtual void geolocation_settings_changed() { }
     virtual void background_networking_settings_changed() { }
     virtual void content_blocker_settings_changed() { }
+    virtual void content_blocker_count_visibility_changed() { }
 };
 
 class WEBVIEW_API Settings {
@@ -204,6 +205,9 @@ public:
     bool content_blocker_enabled() const { return m_content_blocker_enabled; }
     void set_content_blocker_enabled(bool);
 
+    bool show_content_blocker_count() const { return m_show_content_blocker_count; }
+    void set_show_content_blocker_count(bool);
+
     HashTable<String> const& content_blocker_disabled_sites() const { return m_content_blocker_disabled_sites; }
     bool content_blocker_enabled_for_site(StringView) const;
     ErrorOr<void> set_content_blocker_enabled_for_site(StringView, bool enabled);
@@ -260,6 +264,7 @@ private:
     bool m_background_networking_enabled { true };
     bool m_filter_list_updates_enabled { false };
     bool m_content_blocker_enabled { false };
+    bool m_show_content_blocker_count { true };
     HashTable<String> m_content_blocker_disabled_sites;
     Vector<ContentBlockerList> m_content_blocker_lists;
     String m_custom_content_blocker_filters;

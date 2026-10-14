@@ -21,6 +21,8 @@ public:
     explicit ContentBlockingButton(QWidget* parent);
 
     void set_snapshot(WebView::ContentBlockingSnapshot const&);
+    void set_show_count_badge(bool);
+
     QString badge_text() const;
 
 private:
@@ -29,6 +31,7 @@ private:
 
     QIcon m_logo { ":/Icons/ladybird.png" };
     WebView::ContentBlockingSnapshot m_snapshot;
+    bool m_show_count_badge { true };
 };
 
 }

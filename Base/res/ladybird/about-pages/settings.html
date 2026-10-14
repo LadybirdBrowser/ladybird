@@ -647,12 +647,18 @@
 
         <div class="tab-panel" id="tab-blocking">
             <div class="card card-body">
-                <div class="inline-container">
+                <div class="card-group inline-container">
                     <label for="enable-content-blocking">
                         Enable ad blocking
                         <p class="description">Use filter lists to block ads, trackers, and other unwanted content.</p>
                     </label>
                     <input id="enable-content-blocking" type="checkbox" switch />
+                </div>
+                <div class="card-group inline-container hidden" id="show-content-blocker-count-setting">
+                    <label for="show-content-blocker-count">
+                        Show the number of blocked requests on the ad blocking icon
+                    </label>
+                    <input id="show-content-blocker-count" type="checkbox" switch />
                 </div>
             </div>
             <template id="filter-list-row">
