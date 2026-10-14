@@ -101,6 +101,20 @@ if (BUILD_TESTING AND NOT WIN32)
     set_tests_properties(TestWebDriverHTTPErrorResponses PROPERTIES TIMEOUT 120)
 endif()
 
+# The check reads the symbols of the build's objects with nm, which can't see into an LTO build's bitcode objects and
+# isn't the toolchain's symbol reader on Windows.
+if (BUILD_TESTING AND NOT WIN32 AND NOT CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+    add_test(
+        NAME TestDeadRustExports
+        COMMAND ${Python3_EXECUTABLE} ${LADYBIRD_SOURCE_DIR}/Meta/check-dead-rust-exports.py
+            --nm ${CMAKE_NM}
+            --compile-commands ${CMAKE_BINARY_DIR}/compile_commands.json
+            --source-root ${LADYBIRD_SOURCE_DIR}
+            $<TARGET_FILE:libweb_bindings_rust>
+            $<TARGET_FILE:libweb_content_blocker_rust>
+    )
+endif()
+
 target_link_libraries(TestInlineStyle PRIVATE LibCore LibGC LibGfx LibJS LibURL)
 
 add_subdirectory("AccessibilityBridge")
