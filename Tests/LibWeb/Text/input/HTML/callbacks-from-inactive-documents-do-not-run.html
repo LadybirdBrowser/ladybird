@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function addFrame(srcdoc) {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = srcdoc;
+        return new Promise(resolve => {
+            frame.addEventListener("load", () => resolve(frame), { once: true });
+            document.body.append(frame);
+        });
+    }
+
+    function navigateFrame(frame, srcdoc) {
+        return new Promise(resolve => {
+            frame.addEventListener("load", resolve, { once: true });
+            frame.srcdoc = srcdoc;
+        });
+    }
+
+    // Resolves once a timer set on the given window after this call has run, so every timer set on it earlier, with
+    // the same timeout, has had its turn.
+    function afterPendingTimers(win) {
+        return new Promise(resolve => win.setTimeout(resolve, 0));
+    }
+
+    asyncTest(async done => {
+        window.ran = [];
+
+        // A live window's timer, holding a callback from an iframe that's since been removed.
+        const removed = await addFrame("<script>const ran = parent.ran; parent.removedCallback = () => ran.push('removed');<\/script>");
+        const { removedCallback } = window;
+        removed.remove();
+        setTimeout(removedCallback, 0);
+        await afterPendingTimers(window);
+        println(`Callback from a removed iframe: ${ran.includes("removed") ? "ran" : "did not run"}`);
+
+        // A navigated-away document's code, scheduling through its WindowProxy: The timer lands on the new document's
+        // Window, which is fully active, but the callback is still the old document's.
+        const navigated = await addFrame("<script>const ran = parent.ran; parent.rearm = () => window.setTimeout(() => ran.push('navigated'), 0);<\/script>");
+        const { rearm } = window;
+        await navigateFrame(navigated, "<p>New document</p>");
+        rearm();
+        await afterPendingTimers(navigated.contentWindow);
+        println(`Callback from a navigated-away document: ${ran.includes("navigated") ? "ran" : "did not run"}`);
+
+        // A custom element constructor from an iframe that's since been removed, constructing an element here.
+        const constructorFrame = await addFrame("<script>const ran = parent.ran; parent.RemovedElement = class extends HTMLElement { constructor() { ran.push('constructed'); super(); } };<\/script>");
+        const { RemovedElement } = window;
+        constructorFrame.remove();
+        customElements.define("removed-iframe-element", RemovedElement);
+        document.createElement("removed-iframe-element");
+        println(`Constructor from a removed iframe: ${ran.includes("constructed") ? "ran" : "did not run"}`);
+
+        done();
+    });
+</script>

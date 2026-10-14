@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -163,8 +164,26 @@ inline JS::Completion clean_up_on_return(HTML::EnvironmentSettingsObject& stored
     return JS::Value { rejected_promise->promise() };
 }
 
+// AD-HOC: None of invoking a callback function, constructing one, or calling a user object's operation checks that the
+//         callback's realm can still run script, so a callback from a page that's been navigated away from (or an
+//         iframe that's been removed) would keep running wherever a live object holds it — a timer on the new page's
+//         Window, e.g., which lets the old page's code re-arm itself there and keep the whole old page alive. So refuse
+//         to call into a realm whose global object is a Window whose associated Document isn't fully active.
+//         See https://github.com/whatwg/webidl/issues/993.
+static bool is_settings_object_of_inactive_window(HTML::EnvironmentSettingsObject& relevant_settings)
+{
+    // Only a Window's settings object has a responsible document: the Window's associated Document.
+    auto document = relevant_settings.responsible_document();
+    return document && !document->is_fully_active();
+}
+
+static JS::Completion refuse_callback_from_inactive_window(JS::Realm& realm)
+{
+    return throw_completion(realm, NotSupportedError::create(realm, "Cannot run a callback from a window whose document is not fully active"_utf16));
+}
+
 // https://webidl.spec.whatwg.org/#call-a-user-objects-operation
-JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args)
+JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args, RefuseCallbackFromInactiveWindow refuse_from_inactive_window)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -191,6 +210,10 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
         auto& caller_realm = *object->vm().current_realm();
         return throw_completion(caller_realm, WebIDL::SecurityError::create(caller_realm, "Cannot invoke a callback on a cross-origin object"_utf16));
     }
+
+    // AD-HOC: See is_settings_object_of_inactive_window().
+    if (refuse_from_inactive_window == RefuseCallbackFromInactiveWindow::Yes && is_settings_object_of_inactive_window(relevant_settings))
+        return refuse_callback_from_inactive_window(realm);
 
     // 7. Prepare to run script with relevant settings.
     HTML::prepare_to_run_script(relevant_settings);
@@ -303,6 +326,10 @@ static auto invoke_callback_impl(CallbackType& callback, Optional<JS::Value> thi
 
     // 7. Let stored settings be callable’s callback context.
     auto& stored_settings = callback.callback_context;
+
+    // AD-HOC: See is_settings_object_of_inactive_window().
+    if (is_settings_object_of_inactive_window(relevant_settings))
+        return return_steps(realm, refuse_callback_from_inactive_window(realm));
 
     // 8. Prepare to run script with relevant realm.
     HTML::prepare_to_run_script(relevant_settings);
@@ -427,6 +454,10 @@ JS::Completion construct(CallbackType& callable, ReadonlySpan<JS::Value> args)
 
     // 6. Let stored settings be callable’s callback context.
     auto& stored_settings = callable.callback_context;
+
+    // AD-HOC: See is_settings_object_of_inactive_window().
+    if (is_settings_object_of_inactive_window(relevant_settings))
+        return refuse_callback_from_inactive_window(realm);
 
     // 7. Prepare to run script with relevant settings.
     HTML::prepare_to_run_script(relevant_settings);

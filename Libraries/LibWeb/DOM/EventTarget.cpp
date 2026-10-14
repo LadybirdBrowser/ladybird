@@ -180,7 +180,8 @@ JS::Completion invoke_event_listener(WebIDL::CallbackType& callback, DOM::Event&
     auto wrapped_event = Bindings::event(event_realm, GC::Ref { event });
 
     static Utf16FlyString const& handle_event = *new Utf16FlyString("handleEvent"_utf16_fly_string);
-    return WebIDL::call_user_object_operation(callback, handle_event, this_value.ptr(), { { wrapped_event } });
+    // Inner invoke has just skipped the listener if its callback's Window has a document that isn't fully active.
+    return WebIDL::call_user_object_operation(callback, handle_event, this_value.ptr(), { { wrapped_event } }, WebIDL::RefuseCallbackFromInactiveWindow::No);
 }
 
 JS::Completion invoke_event_handler(WebIDL::CallbackType& callback, DOM::Event& event, bool special_error_event_handling)

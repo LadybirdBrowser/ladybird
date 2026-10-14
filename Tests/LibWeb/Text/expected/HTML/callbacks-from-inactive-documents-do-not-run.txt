@@ -1,0 +1,3 @@
+Callback from a removed iframe: did not run
+Callback from a navigated-away document: did not run
+Constructor from a removed iframe: did not run
