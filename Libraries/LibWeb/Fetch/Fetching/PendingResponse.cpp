@@ -62,7 +62,12 @@ void PendingResponse::run_callback()
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
         VERIFY(m_callback);
         VERIFY(m_response);
-        m_callback->function()(*m_response);
+        // NB: The callback runs only once, so let go of it as it runs. A pending response can live for as long as its
+        //     fetch streams, and the closure would otherwise keep what it captured alive all that time, including
+        //     anything that stale bytes in its padding happen to point to, since its captures are visited
+        //     conservatively.
+        auto callback = exchange(m_callback, nullptr);
+        callback->function()(*m_response);
         m_request->remove_pending_response({}, *this);
     }));
 }
