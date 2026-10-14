@@ -1,0 +1,4 @@
+# Rust exports of LibWeb that no object of the build calls, one per line, with the reason each may stay.
+
+ladybird_init_rust_panic_libweb_rust  # libweb_rust only ships in libweb_bindings_rust's archive, whose initializer runs instead
+ladybird_init_rust_demangle_libweb_rust  # libweb_rust only ships in libweb_bindings_rust's archive, whose initializer runs instead
