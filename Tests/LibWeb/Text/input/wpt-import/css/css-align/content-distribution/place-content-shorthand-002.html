@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>CSS Box Alignment: place-content shorthand - multiple values specified</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com" />
+<link rel="help" href="http://www.w3.org/TR/css3-align/#propdef-place-content" />
+<meta name="assert" content="Check that setting two values to place-content sets the first one to 'align-content' and the second one to 'justify-content'." />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/css-align/resources/alignment-parsing-utils.js"></script>
+<div id="log"></div>
+<script>
+    let classes = Object.assign({"Normal":"normal"}, contentPositionClasses, distributionClasses, baselineClasses,
+                                overflowClasses);
+    for (var key1 in classes) {
+        let alignValue = classes[key1];
+        let classes2 = Object.assign({"Normal":"normal", "Left":"left", "Right":"right"}, contentPositionClasses,
+                                     distributionClasses);
+        for (var key2 in classes2) {
+            let justifyValue = classes2[key2];
+            test(function() {
+                checkPlaceShorthandLonghands("place-content", "align-content", "justify-content", alignValue, justifyValue);
+            }, "Checking place-content: " + alignValue + " " + justifyValue);
+        }
+    }
+</script>

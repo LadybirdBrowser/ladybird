@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Box Alignment Level 3: getComputedStyle().placeItems</title>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-place-items">
+<meta name="assert" content="place-items computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #grandparent {
+    justify-items: legacy center;
+  }
+  #parent {
+    justify-items: legacy;
+  }
+</style>
+</head>
+<body>
+<div id="grandparent">
+  <div id="parent">
+    <div id="target"></div>
+  </div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(document.documentElement).placeItems, "normal");
+}, "Initial value");
+
+test_computed_value("place-items", "normal");
+test_computed_value("place-items", "stretch stretch", "stretch");
+
+test_computed_value("place-items", "first baseline", "baseline");
+test_computed_value("place-items", "last baseline last baseline", "last baseline");
+
+test_computed_value("place-items", "center");
+test_computed_value("place-items", "end end", "end");
+test_computed_value("place-items", "self-start");
+test_computed_value("place-items", "flex-end", "flow-end");
+test_computed_value("place-items", "unsafe center unsafe center", "unsafe center");
+test_computed_value("place-items", "safe self-end");
+test_computed_value("place-items", "flow-start");
+test_computed_value("place-items", "flow-start flow-end");
+
+test_computed_value("place-items", "stretch baseline");
+test_computed_value("place-items", "last baseline center");
+test_computed_value("place-items", "safe self-end normal");
+
+test_computed_value("place-items", "normal right");
+test_computed_value("place-items", "baseline unsafe left");
+
+// When specified justify-items is legacy, computed value depends on inherited value.
+test_computed_value("place-items", "flex-end legacy", "flow-end legacy center");
+test_computed_value("place-items", "stretch legacy left");
+test_computed_value("place-items", "first baseline right legacy", "baseline legacy right");
+</script>
+</body>
+</html>

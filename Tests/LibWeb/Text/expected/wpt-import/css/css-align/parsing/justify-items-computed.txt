@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+9 Pass
+15 Fail
+Pass	Property justify-items value 'normal'
+Pass	Property justify-items value 'stretch'
+Pass	Property justify-items value 'baseline'
+Fail	Property justify-items value 'last baseline'
+Pass	Property justify-items value 'center'
+Pass	Property justify-items value 'start'
+Pass	Property justify-items value 'end'
+Pass	Property justify-items value 'self-start'
+Pass	Property justify-items value 'self-end'
+Fail	Property justify-items value 'flex-start'
+Fail	Property justify-items value 'flex-end'
+Fail	Property justify-items value 'flow-start'
+Fail	Property justify-items value 'flow-end'
+Fail	Property justify-items value 'safe flow-start'
+Fail	Property justify-items value 'unsafe flow-end'
+Fail	Property justify-items value 'unsafe center'
+Fail	Property justify-items value 'safe self-end'
+Pass	Property justify-items value 'right'
+Fail	Property justify-items value 'safe left'
+Fail	Property justify-items value 'legacy'
+Fail	Property justify-items value 'legacy left'
+Fail	Property justify-items value 'legacy right'
+Fail	Property justify-items value 'legacy center'
+Fail	justify-items legacy depends on inherited value
