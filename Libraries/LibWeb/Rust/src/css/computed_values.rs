@@ -3567,6 +3567,34 @@ impl FontValues {
     }
 }
 
+// Layout only needs the position keyword, which is the last one in a list such as `safe center`. Last baseline
+// alignment, and baseline alignment of content, are not implemented. They resolve to `unsupported`, the initial value
+// of the property, which is what layout used when it could not parse them.
+fn alignment_position_keyword(data: &RetainedStyleValueData, is_content: bool, unsupported: u16) -> Option<u16> {
+    use crate::css::css_enums::keyword as k;
+    use crate::css::style_value::StyleValueData;
+
+    match data.optional_data()? {
+        StyleValueData::Keyword { keyword: k::BASELINE } if is_content => Some(unsupported),
+        StyleValueData::Keyword { keyword } => Some(*keyword),
+        StyleValueData::ValueList { values, .. } => match values.as_slice() {
+            [first, _]
+                if matches!(
+                    first.optional_data(),
+                    Some(StyleValueData::Keyword { keyword: k::LAST })
+                ) =>
+            {
+                Some(unsupported)
+            }
+            values => match values.last()?.optional_data()? {
+                StyleValueData::Keyword { keyword } => Some(*keyword),
+                _ => None,
+            },
+        },
+        _ => None,
+    }
+}
+
 /// Builds the complete alignment group from its computed property values.
 ///
 /// The returned payload carries one reference for the caller; fresh payloads
@@ -3592,6 +3620,7 @@ pub(crate) fn rust_build_alignment_group(
     row_gap: &RetainedStyleValueData,
     parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
+    use crate::css::css_enums::{self, keyword as k};
     use crate::css::style_value::StyleValueData;
 
     let build_or_reuse_group_payload = || {
@@ -3601,6 +3630,10 @@ pub(crate) fn rust_build_alignment_group(
                 _ => None,
             }
         };
+        let alignment_code =
+            |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>, is_content: bool, unsupported: u16| {
+                map(alignment_position_keyword(data, is_content, unsupported)?)
+            };
         let built = AlignmentValues {
             webkit_box_orient: keyword_code(webkit_box_orient, crate::css::css_enums::keyword_to_webkit_box_orient)?,
             flex_direction: keyword_code(flex_direction, crate::css::css_enums::keyword_to_flex_direction)?,
@@ -3609,12 +3642,12 @@ pub(crate) fn rust_build_alignment_group(
             flex_grow,
             flex_shrink,
             order,
-            align_content: keyword_code(align_content, crate::css::css_enums::keyword_to_align_content)?,
-            align_items: keyword_code(align_items, crate::css::css_enums::keyword_to_align_items)?,
-            align_self: keyword_code(align_self, crate::css::css_enums::keyword_to_align_self)?,
-            justify_content: keyword_code(justify_content, crate::css::css_enums::keyword_to_justify_content)?,
-            justify_items: keyword_code(justify_items, crate::css::css_enums::keyword_to_justify_items)?,
-            justify_self: keyword_code(justify_self, crate::css::css_enums::keyword_to_justify_self)?,
+            align_content: alignment_code(align_content, css_enums::keyword_to_align_content, true, k::NORMAL)?,
+            align_items: alignment_code(align_items, css_enums::keyword_to_align_items, false, k::NORMAL)?,
+            align_self: alignment_code(align_self, css_enums::keyword_to_align_self, false, k::AUTO)?,
+            justify_content: alignment_code(justify_content, css_enums::keyword_to_justify_content, true, k::NORMAL)?,
+            justify_items: alignment_code(justify_items, css_enums::keyword_to_justify_items, false, k::LEGACY)?,
+            justify_self: alignment_code(justify_self, css_enums::keyword_to_justify_self, false, k::AUTO)?,
             column_gap: ComputedGap::from_data(column_gap),
             row_gap: ComputedGap::from_data(row_gap),
         };

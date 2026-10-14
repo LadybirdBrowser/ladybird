@@ -710,6 +710,9 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
             if !child_facts.is_flow_layout_participant() || child_facts.is_floating() {
                 continue;
             }
+            if facts.is_fieldset_box() && facts.rendered_legend() == child {
+                continue;
+            }
             if !table_formatting_context::child_participates_in_table_run(container_display, &child_facts) {
                 continue;
             }

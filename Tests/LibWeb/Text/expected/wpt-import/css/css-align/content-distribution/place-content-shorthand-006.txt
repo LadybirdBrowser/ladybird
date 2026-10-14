@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 156 tests
 
-80 Pass
-76 Fail
+110 Pass
+46 Fail
 Pass	Checking place-content: normal normal
 Pass	Checking place-content: normal left
 Pass	Checking place-content: normal right
@@ -124,39 +124,39 @@ Pass	Checking place-content: space-evenly stretch
 Pass	Checking place-content: space-evenly space-around
 Pass	Checking place-content: space-evenly space-between
 Pass	Checking place-content: space-evenly space-evenly
-Fail	Checking place-content: baseline normal
-Fail	Checking place-content: baseline left
-Fail	Checking place-content: baseline right
-Fail	Checking place-content: baseline start
-Fail	Checking place-content: baseline end
-Fail	Checking place-content: baseline center
+Pass	Checking place-content: baseline normal
+Pass	Checking place-content: baseline left
+Pass	Checking place-content: baseline right
+Pass	Checking place-content: baseline start
+Pass	Checking place-content: baseline end
+Pass	Checking place-content: baseline center
 Fail	Checking place-content: baseline flex-start
 Fail	Checking place-content: baseline flex-end
-Fail	Checking place-content: baseline stretch
-Fail	Checking place-content: baseline space-around
-Fail	Checking place-content: baseline space-between
-Fail	Checking place-content: baseline space-evenly
-Fail	Checking place-content: first baseline normal
-Fail	Checking place-content: first baseline left
-Fail	Checking place-content: first baseline right
-Fail	Checking place-content: first baseline start
-Fail	Checking place-content: first baseline end
-Fail	Checking place-content: first baseline center
+Pass	Checking place-content: baseline stretch
+Pass	Checking place-content: baseline space-around
+Pass	Checking place-content: baseline space-between
+Pass	Checking place-content: baseline space-evenly
+Pass	Checking place-content: first baseline normal
+Pass	Checking place-content: first baseline left
+Pass	Checking place-content: first baseline right
+Pass	Checking place-content: first baseline start
+Pass	Checking place-content: first baseline end
+Pass	Checking place-content: first baseline center
 Fail	Checking place-content: first baseline flex-start
 Fail	Checking place-content: first baseline flex-end
-Fail	Checking place-content: first baseline stretch
-Fail	Checking place-content: first baseline space-around
-Fail	Checking place-content: first baseline space-between
-Fail	Checking place-content: first baseline space-evenly
-Fail	Checking place-content: last baseline normal
-Fail	Checking place-content: last baseline left
-Fail	Checking place-content: last baseline right
-Fail	Checking place-content: last baseline start
-Fail	Checking place-content: last baseline end
-Fail	Checking place-content: last baseline center
+Pass	Checking place-content: first baseline stretch
+Pass	Checking place-content: first baseline space-around
+Pass	Checking place-content: first baseline space-between
+Pass	Checking place-content: first baseline space-evenly
+Pass	Checking place-content: last baseline normal
+Pass	Checking place-content: last baseline left
+Pass	Checking place-content: last baseline right
+Pass	Checking place-content: last baseline start
+Pass	Checking place-content: last baseline end
+Pass	Checking place-content: last baseline center
 Fail	Checking place-content: last baseline flex-start
 Fail	Checking place-content: last baseline flex-end
-Fail	Checking place-content: last baseline stretch
-Fail	Checking place-content: last baseline space-around
-Fail	Checking place-content: last baseline space-between
-Fail	Checking place-content: last baseline space-evenly
+Pass	Checking place-content: last baseline stretch
+Pass	Checking place-content: last baseline space-around
+Pass	Checking place-content: last baseline space-between
+Pass	Checking place-content: last baseline space-evenly

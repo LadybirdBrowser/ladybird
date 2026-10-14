@@ -2,26 +2,26 @@ Harness status: OK
 
 Found 21 tests
 
-7 Pass
-14 Fail
+16 Pass
+5 Fail
 Fail	Initial value
 Pass	Property place-items value 'normal'
 Pass	Property place-items value 'stretch stretch'
-Fail	Property place-items value 'first baseline'
-Fail	Property place-items value 'last baseline last baseline'
+Pass	Property place-items value 'first baseline'
+Pass	Property place-items value 'last baseline last baseline'
 Pass	Property place-items value 'center'
 Pass	Property place-items value 'end end'
 Pass	Property place-items value 'self-start'
 Fail	Property place-items value 'flex-end'
-Fail	Property place-items value 'unsafe center unsafe center'
-Fail	Property place-items value 'safe self-end'
+Pass	Property place-items value 'unsafe center unsafe center'
+Pass	Property place-items value 'safe self-end'
 Fail	Property place-items value 'flow-start'
 Fail	Property place-items value 'flow-start flow-end'
 Pass	Property place-items value 'stretch baseline'
-Fail	Property place-items value 'last baseline center'
-Fail	Property place-items value 'safe self-end normal'
+Pass	Property place-items value 'last baseline center'
+Pass	Property place-items value 'safe self-end normal'
 Pass	Property place-items value 'normal right'
-Fail	Property place-items value 'baseline unsafe left'
+Pass	Property place-items value 'baseline unsafe left'
 Fail	Property place-items value 'flex-end legacy'
-Fail	Property place-items value 'stretch legacy left'
-Fail	Property place-items value 'first baseline right legacy'
+Pass	Property place-items value 'stretch legacy left'
+Pass	Property place-items value 'first baseline right legacy'

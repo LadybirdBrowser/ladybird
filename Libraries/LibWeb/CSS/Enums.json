@@ -10,6 +10,7 @@
     "xxx-large"
   ],
   "align-content": [
+    "baseline",
     "normal",
     "start",
     "flex-start",
