@@ -224,7 +224,7 @@ pub mod dependencies {
 
     /// What JIT code may depend on, which the runtime notes when it stops holding.
     pub enum Dependency {
-        PrototypeChainValid(CellId),
+        WatchpointSetValid(CellId),
         GlobalDeclarations { environment: CellId, serial: u64 },
         GlobalBindingUnassigned { environment: CellId, index: u32 },
         StableShape(CellId),

@@ -10,7 +10,7 @@ use super::accessor::Accessor;
 use super::buffer::InterpreterBuffer;
 use super::cell::{CellHeader, Gc};
 use super::object::Object;
-use super::shape::{PrototypeChainValidity, Shape};
+use super::shape::{Shape, WatchpointSet};
 use super::value::Value;
 use crate::layout_forward::ObjectPropertyIteratorCacheDataStorage;
 
@@ -42,7 +42,7 @@ pub struct PropertyLookupCacheEntry {
     pub from_shape: Cell<Option<Gc<Shape>>>,
     pub shape: Cell<Option<Gc<Shape>>>,
     pub prototype: Cell<Option<Gc<Object>>>,
-    pub prototype_chain_validity: Cell<Option<Gc<PrototypeChainValidity>>>,
+    pub prototype_chain_validity: Cell<Option<Gc<WatchpointSet>>>,
     /// The encoded string or symbol Value whose property this entry describes, for the caches of keyed accesses like
     /// GetByValue, or 0 for the caches of named accesses like GetById, whose instruction determines the property. Like
     /// the cells above, the key is not kept alive by the cache.
@@ -65,7 +65,7 @@ pub struct KeyedPropertyLookupCacheEntryLayout {
     pub shape_dictionary_generation: u32,
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
-    pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    pub prototype_chain_validity: Option<Gc<WatchpointSet>>,
     pub new_shape: Option<Gc<Shape>>,
     /// The identity of the name of the property, the word of a fly string, or 0.
     pub property_name: u64,
@@ -118,7 +118,7 @@ pub struct ObjectPropertyIteratorCacheData {
     pub indexed_property_count: Cell<u32>,
     pub shape_dictionary_generation: Cell<u32>,
     pub shape: Cell<Option<Gc<Shape>>>,
-    pub prototype_chain_validity: Cell<Option<Gc<PrototypeChainValidity>>>,
+    pub prototype_chain_validity: Cell<Option<Gc<WatchpointSet>>>,
     pub property_values: InterpreterBuffer<Value>,
     pub storage: ObjectPropertyIteratorCacheDataStorage,
 }

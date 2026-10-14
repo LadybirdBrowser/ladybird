@@ -31,7 +31,7 @@ define_class_ids! {
     BigInt,
     Accessor,
     Shape,
-    PrototypeChainValidity,
+    WatchpointSet,
     Fuse,
     DescriptorArray,
     ValueStorage,

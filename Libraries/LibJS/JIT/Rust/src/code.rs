@@ -119,8 +119,8 @@ pub enum ExitKind {
 /// path breaking it needs first, so fast paths never break it unnoticed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Dependency {
-    /// The `PrototypeChainValidity` cell stays valid.
-    PrototypeChainValid(CellId),
+    /// The `WatchpointSet` cell stays valid.
+    WatchpointSetValid(CellId),
     /// The global declarative environment `environment` keeps the serial
     /// number `serial`: it gets no bindings, which could shadow properties of
     /// the global object.

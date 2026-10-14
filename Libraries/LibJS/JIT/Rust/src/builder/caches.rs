@@ -37,7 +37,7 @@ use crate::snapshot::PropertyCacheKind;
 pub(super) enum Holder {
     /// In the object the access is on.
     Receiver,
-    /// In `prototype`, while the `PrototypeChainValidity` cell `validity` is
+    /// In `prototype`, while the `WatchpointSet` cell `validity` is
     /// valid (and it was valid when the snapshot was taken if `valid`).
     Prototype {
         prototype: CellId,

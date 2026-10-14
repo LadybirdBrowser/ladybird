@@ -1355,7 +1355,7 @@ pub struct RuntimeOffsets {
     pub object_named_properties: u32,
     /// `Shape::dictionary_generation` (u32).
     pub shape_dictionary_generation: u32,
-    /// `PrototypeChainValidity::valid` (bool).
+    /// `WatchpointSet::valid` (bool).
     pub prototype_chain_validity_valid: u32,
     /// `Accessor::getter` and `Accessor::setter` (cell pointers, null if
     /// none).

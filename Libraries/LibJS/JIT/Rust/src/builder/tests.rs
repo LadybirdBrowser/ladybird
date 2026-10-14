@@ -1103,7 +1103,7 @@ pub(crate) mod property_access {
         assert_eq!(text.matches("AssumeValid").count(), 1, "{text}");
         assert_eq!(
             graph.dependencies,
-            vec![crate::code::Dependency::PrototypeChainValid(CellId(0x8000))]
+            vec![crate::code::Dependency::WatchpointSetValid(CellId(0x8000))]
         );
     }
 

@@ -111,13 +111,13 @@ impl GraphBuilder<'_> {
         )
     }
 
-    /// Makes sure that the `PrototypeChainValidity` cell `validity` is still
+    /// Makes sure that the `WatchpointSet` cell `validity` is still
     /// valid: the code depends on it staying valid if it was when the
     /// snapshot was taken (`valid`), and checks it otherwise.
     pub(super) fn check_prototype_chain(&mut self, validity: CellId, valid: bool) {
         self.embed(validity);
         if valid {
-            self.assume(Dependency::PrototypeChainValid(validity));
+            self.assume(Dependency::WatchpointSetValid(validity));
             return;
         }
         self.emit_checked(Op::CheckPrototypeChainValid { validity }, Vec::new(), None);

@@ -30,7 +30,7 @@ use crate::gc::root::MarkedVec;
 use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::shape::{PrototypeChainValidity, Shape};
+use crate::layout::shape::{Shape, WatchpointSet};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::function_object_as_object;
 use crate::runtime::array::Array;
@@ -905,7 +905,7 @@ struct FastPropertyNameIteratorData<'vm> {
     indexed_property_count: u32,
     receiver_has_magical_length_property: bool,
     shape: Gc<Shape>,
-    prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    prototype_chain_validity: Option<Gc<WatchpointSet>>,
 }
 
 fn shape_has_enumerable_string_property(shape: &Shape) -> bool {

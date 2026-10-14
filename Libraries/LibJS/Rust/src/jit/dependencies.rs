@@ -28,7 +28,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::DeclarativeEnvironment;
 use crate::layout::object::Object;
-use crate::layout::shape::PrototypeChainValidity;
+use crate::layout::shape::WatchpointSet;
 use crate::runtime::realm_fuses::Fuse;
 use crate::runtime::shape::Shape;
 
@@ -76,7 +76,7 @@ impl Dependents {
                     declarative_environment(*environment).set_has_dependent_code();
                 }
                 Dependency::StableShape(shape) => shape_of(*shape).set_has_dependent_code(),
-                Dependency::PrototypeChainValid(_)
+                Dependency::WatchpointSetValid(_)
                 | Dependency::GlobalPropertyUnassigned { .. }
                 | Dependency::NoHtmlDdaObjects
                 | Dependency::Fuse(_) => {}
@@ -154,9 +154,9 @@ fn declarative_environment(environment: CellId) -> &'static DeclarativeEnvironme
 /// Whether `dependency` still holds.
 pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
     match dependency {
-        Dependency::PrototypeChainValid(validity) => {
+        Dependency::WatchpointSetValid(validity) => {
             // SAFETY: Code that depends on the cell embeds it, which keeps it alive.
-            unsafe { &*(validity.0 as *const PrototypeChainValidity) }.is_valid()
+            unsafe { &*(validity.0 as *const WatchpointSet) }.is_valid()
         }
         Dependency::GlobalDeclarations { environment, serial } => {
             declarative_environment(*environment).environment_serial_number() == *serial
