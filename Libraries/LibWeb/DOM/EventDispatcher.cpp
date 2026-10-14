@@ -51,6 +51,10 @@ bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListene
     // 1. Let found be false.
     bool found = false;
 
+    // NB: Event's currentTarget stays the same while its listeners run, so it's only checked once for being a node —
+    //     and not at all when it has no listeners for the event, as most targets in an event's path don't.
+    auto* current_target_node = listeners.is_empty() ? nullptr : as_if<Node>(event.current_target().ptr());
+
     // 2. For each listener of listeners, whose removed is false:
     for (auto& listener : listeners) {
         if (listener->removed)
@@ -75,30 +79,47 @@ bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListene
         if (listener->once)
             event.current_target()->remove_an_event_listener(*listener);
 
-        // 6. Let global be listener callback’s associated Realm’s global object.
         auto& callback = listener->callback->callback();
 
-        // 7. Let currentEvent be undefined.
-        Event* current_event = nullptr;
+        // 6. Let targetGlobal be event's currentTarget's node document's relevant global object if event's currentTarget
+        //    is a node; otherwise event's currentTarget's relevant global object.
+        auto* target_global = current_target_node
+            ? current_target_node->document().relevant_global_event_target().ptr()
+            : Bindings::current_target_global(callback, event);
 
-        // 8. If global is a Window object, then:
-        auto* window = Bindings::window_from_callback(callback);
-        if (window) {
-            // 1. Set currentEvent to global’s current event.
-            current_event = window->current_event();
+        // 7. Let listenerGlobal be listener callback's associated realm's global object.
+        auto* listener_window = Bindings::window_from_callback(callback);
 
-            // 2. If invocationTargetInShadowTree is false, then set global’s current event to event.
-            if (!invocation_target_in_shadow_tree)
-                window->set_current_event(&event);
+        // 8. If targetGlobal or listenerGlobal is a Window object whose associated Document is not fully active, then
+        //    continue.
+        if (listener_window && !listener_window->associated_document().is_fully_active())
+            continue;
+        // NB: Mostly, targetGlobal is listenerGlobal, which was just checked.
+        if (target_global != listener_window) {
+            if (auto* target_window = as_if<HTML::Window>(target_global); target_window && !target_window->associated_document().is_fully_active())
+                continue;
         }
 
-        // 9. If listener’s passive is true, then set event’s in passive listener flag.
+        // 9. Let currentEvent be undefined.
+        Event* current_event = nullptr;
+
+        // 10. If listenerGlobal is a Window object:
+        if (listener_window) {
+            // 1. Set currentEvent to listenerGlobal's current event.
+            current_event = listener_window->current_event();
+
+            // 2. If invocationTargetInShadowTree is false, then set listenerGlobal's current event to event.
+            if (!invocation_target_in_shadow_tree)
+                listener_window->set_current_event(&event);
+        }
+
+        // 11. If listener’s passive is true, then set event’s in passive listener flag.
         if (listener->passive == true)
             event.set_in_passive_listener(true);
 
-        // FIXME: 10. If global is a Window object, then record timing info for event listener given event and listener.
+        // FIXME: 12. If listenerGlobal is a Window object, then record timing info for event listener given event and listener.
 
-        // 11. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value.
+        // 13. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value.
         auto result = Bindings::invoke_event_listener(callback, event);
 
         // If this throws an exception, then:
@@ -110,14 +131,14 @@ bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListene
             legacy_output_did_listeners_throw = true;
         }
 
-        // 12. Unset event’s in passive listener flag.
+        // 14. Unset event’s in passive listener flag.
         event.set_in_passive_listener(false);
 
-        // 13. If global is a Window object, then set global’s current event to currentEvent.
-        if (window)
-            window->set_current_event(current_event);
+        // 15. If listenerGlobal is a Window object, then set listenerGlobal's current event to currentEvent.
+        if (listener_window)
+            listener_window->set_current_event(current_event);
 
-        // 14. If event’s stop immediate propagation flag is set, then break.
+        // 16. If event’s stop immediate propagation flag is set, then break.
         if (event.should_stop_immediate_propagation())
             break;
     }

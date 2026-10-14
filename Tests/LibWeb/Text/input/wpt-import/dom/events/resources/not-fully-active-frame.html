@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Helper frame for the "not fully active" event listener tests</title>
+<div id="target"></div>
+<script>
+"use strict";
+
+// Everything here is created in this document's realm, for this document. The
+// test document grabs what it needs before making this document not fully
+// active. (This is exposed on top rather than parent as this frame is also
+// used nested inside another frame.)
+top.frameAPI = {
+  document,
+  element: document.getElementById("target"),
+  createEventTarget: () => new EventTarget(),
+  createElement: () => document.createElement("div"),
+};
+</script>

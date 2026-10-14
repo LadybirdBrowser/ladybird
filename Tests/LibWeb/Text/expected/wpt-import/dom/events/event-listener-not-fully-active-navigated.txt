@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Targets in a document that its iframe has navigated away from
+Pass	Targets in a nested iframe whose parent document is no longer fully active
+Pass	Targets in a nested iframe whose parent iframe was removed

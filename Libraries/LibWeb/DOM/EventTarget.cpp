@@ -146,6 +146,22 @@ HTML::Window* window_from_callback(WebIDL::CallbackType& callback)
     return HTML::window_from_global_object(realm.global_object());
 }
 
+// targetGlobal in https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke for an event whose currentTarget isn't
+// a node, if it's a Window: event's currentTarget's relevant global object.
+DOM::EventTarget* current_target_global(WebIDL::CallbackType& callback, DOM::Event const& event)
+{
+    auto current_target = event.current_target();
+    if (auto* window = as_if<HTML::Window>(current_target.ptr()))
+        return window;
+
+    // Any other target's relevant realm is its wrapper's: the realm it was created in.
+    auto& callback_realm = callback.callback->shape().realm();
+    auto wrapper = current_target_wrapper(callback_realm, event);
+    if (!wrapper)
+        return nullptr;
+    return HTML::window_from_global_object(this_value_realm(callback_realm, wrapper).global_object());
+}
+
 void report_exception_for_callback(WebIDL::CallbackType& callback, JS::Value exception)
 {
     auto& realm = callback.callback->shape().realm();
@@ -926,18 +942,26 @@ void EventTarget::erase_all_event_listeners_and_handlers()
 // https://html.spec.whatwg.org/multipage/webappapis.html#the-event-handler-processing-algorithm
 JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(Utf16FlyString const& name, Event& event)
 {
-    // 1. Let callback be the result of getting the current value of the event handler given eventTarget and name.
+    // FIXME: 1. If the result of WebDriver BiDi scripting is enabled with eventTarget's relevant settings object is false,
+    //           then return.
+
+    // 2. Let callback be the result of getting the current value of the event handler given eventTarget and name.
     auto* callback = get_current_value_of_event_handler(name);
 
-    // 2. If callback is null, then return.
+    // 3. If callback is null, then return.
     if (!callback)
         return {};
 
-    // 3. Let special error event handling be true if event is an ErrorEvent object, event's type is error, and event's currentTarget implements the WindowOrWorkerGlobalScope mixin.
+    // 4. If callback's associated realm's global object is a Window object whose associated Document is not fully
+    //    active, then return.
+    if (auto* window = Bindings::window_from_callback(*callback); window && !window->associated_document().is_fully_active())
+        return {};
+
+    // 5. Let special error event handling be true if event is an ErrorEvent object, event's type is error, and event's currentTarget implements the WindowOrWorkerGlobalScope mixin.
     //    Otherwise, let special error event handling be false.
     bool special_error_event_handling = is<HTML::ErrorEvent>(event) && event.type() == HTML::EventNames::error && is<HTML::WindowOrWorkerGlobalScopeMixin>(event.current_target().ptr());
 
-    // 4. Process the Event object event as follows:
+    // 6. Process the Event object event as follows:
     JS::Completion return_value_or_error;
 
     return_value_or_error = Bindings::invoke_event_handler(*callback, event, special_error_event_handling);
@@ -951,7 +975,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(Utf16Fl
 
     auto is_beforeunload = event.type() == HTML::EventNames::beforeunload;
 
-    // 5. Process return value as follows:
+    // 7. Process return value as follows:
     if (is<HTML::BeforeUnloadEvent>(event) && is_beforeunload) {
         // ->  If event is a BeforeUnloadEvent object and event's type is "beforeunload"
         //         If return value is not null, then:

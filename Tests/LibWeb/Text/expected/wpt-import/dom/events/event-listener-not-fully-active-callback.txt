@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Function callback from a removed iframe, with a fully active target
+Pass	handleEvent() callback from a removed iframe, with a fully active target
+Pass	Event handler attribute set to a function from a removed iframe
+Pass	Listener added from a removed iframe, with a fully active target and callback

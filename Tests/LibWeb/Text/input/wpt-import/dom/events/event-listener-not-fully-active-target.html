@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Event listeners are not invoked when the target's document is not fully active</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke">
+<link rel="help" href="https://github.com/whatwg/dom/issues/1084">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/not-fully-active-helpers.js"></script>
+<body>
+<script>
+"use strict";
+
+// "Inner invoke" skips a listener when the event target's global object is a
+// Window whose associated Document is not fully active. Removing an iframe
+// from the document tree destroys its Document, which makes that Document no
+// longer fully active.
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.target = new EventTarget();<\/script>`);
+  const { target } = window;
+  let count = 0;
+  target.addEventListener("x", () => count++);
+
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 1, "listener runs while the iframe is attached");
+
+  frame.remove();
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 1, "listener does not run once the iframe is removed");
+}, "EventTarget created in a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>
+    parent.target = new EventTarget();
+    parent.frameEvent = new Event("x");
+  <\/script>`);
+  const { target, frameEvent } = window;
+  let count = 0;
+  target.addEventListener("x", () => count++);
+
+  frame.remove();
+  target.dispatchEvent(frameEvent);
+  assert_equals(count, 0);
+}, "EventTarget created in a removed iframe, with an event from that iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.target = new EventTarget();<\/script>`);
+  const { target } = window;
+  frame.remove();
+
+  // The listener is added after the iframe was removed; it must not run
+  // either.
+  let count = 0;
+  target.addEventListener("x", () => count++);
+  target.dispatchEvent(new Event("x"));
+  assert_equals(count, 0);
+}, "EventTarget created in a removed iframe, with a listener added after removal");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.target = new EventTarget();<\/script>`);
+  const { target } = window;
+  frame.remove();
+  assert_true(target.dispatchEvent(new Event("x", { cancelable: true })));
+}, "dispatchEvent() on an EventTarget in a removed iframe returns true");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.target = new EventTarget();<\/script>`);
+  const { target } = window;
+  const event = new Event("x", { cancelable: true });
+  target.addEventListener("x", e => e.preventDefault());
+  frame.remove();
+
+  // The dispatchEvent() return value is checked by the previous test; keeping
+  // it out of this one means these assertions are still reached when an
+  // implementation gets that wrong.
+  target.dispatchEvent(event);
+  assert_false(event.defaultPrevented, "defaultPrevented");
+  assert_equals(event.target, target, "target");
+  assert_equals(event.currentTarget, null, "currentTarget");
+  assert_equals(event.eventPhase, Event.NONE, "eventPhase");
+}, "Dispatch still happens for an EventTarget in a removed iframe, only the listeners are skipped");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.target = new EventTarget();<\/script>`);
+  const { target } = window;
+  let accessed = false;
+  target.addEventListener("x", { get handleEvent() { accessed = true; return () => {}; } });
+  frame.remove();
+
+  target.dispatchEvent(new Event("x"));
+  assert_false(accessed);
+}, "handleEvent is not looked up for an EventTarget in a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.target = new EventTarget();<\/script>`);
+  const { target } = window;
+  const order = [];
+  target.addEventListener("x", () => { order.push("first"); frame.remove(); });
+  target.addEventListener("x", () => order.push("second"));
+
+  target.dispatchEvent(new Event("x"));
+  assert_array_equals(order, ["first"]);
+}, "Removing the iframe from within a listener skips the remaining listeners on the same target");
+
+promise_test(async t => {
+  const frame = await addFrame(t);
+  const doc = frame.contentDocument;
+  const element = doc.createElement("div");
+  doc.body.append(element);
+
+  const order = [];
+  doc.addEventListener("x", () => { order.push("capture"); frame.remove(); }, true);
+  element.addEventListener("x", () => order.push("target"));
+  doc.addEventListener("x", () => order.push("bubble"));
+
+  element.dispatchEvent(new Event("x", { bubbles: true }));
+  assert_array_equals(order, ["capture"]);
+}, "Removing the iframe during the capture phase skips the remaining objects in the event path");
+
+promise_test(async t => {
+  const frame = await addFrame(t);
+  const win = frame.contentWindow;
+  let count = 0;
+  win.addEventListener("x", () => count++);
+  frame.remove();
+
+  win.dispatchEvent(new Event("x"));
+  assert_equals(count, 0);
+}, "Window of a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t);
+  const doc = frame.contentDocument;
+  let count = 0;
+  doc.addEventListener("x", () => count++);
+  frame.remove();
+
+  doc.dispatchEvent(new Event("x"));
+  assert_equals(count, 0);
+}, "Document of a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t);
+  const doc = frame.contentDocument;
+  const element = doc.createElement("div");
+  doc.body.append(element);
+  let count = 0;
+  element.addEventListener("x", () => count++);
+  doc.addEventListener("x", () => count++);
+  frame.remove();
+
+  element.dispatchEvent(new Event("x", { bubbles: true }));
+  assert_equals(count, 0);
+}, "Element of a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t);
+  const doc = frame.contentDocument;
+  const element = doc.createElement("div");
+  doc.body.append(element);
+
+  let count = 0;
+  element.onclick = () => count++;
+  assert_equals(typeof element.onclick, "function", "the handler is set");
+  frame.remove();
+
+  element.dispatchEvent(new Event("click"));
+  assert_equals(count, 0);
+}, "Event handler IDL attribute on an element in a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t);
+  const doc = frame.contentDocument;
+  const element = doc.createElement("div");
+  doc.body.append(element);
+  t.add_cleanup(() => { delete window.contentAttributeHandlerRan; });
+
+  element.setAttribute("onclick", "top.contentAttributeHandlerRan = true;");
+  // Compile the handler while the iframe is still attached, so that this tests
+  // the event handler processing algorithm rather than the compilation step.
+  assert_equals(typeof element.onclick, "function", "the handler is compiled");
+  frame.remove();
+
+  element.dispatchEvent(new Event("click"));
+  assert_equals(window.contentAttributeHandlerRan, undefined);
+}, "Compiled event handler content attribute on an element in a removed iframe");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.controller = new AbortController();<\/script>`);
+  const { controller } = window;
+  frame.remove();
+
+  controller.abort();
+  assert_true(controller.signal.aborted);
+}, "AbortSignal from a removed iframe is still aborted");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.controller = new AbortController();<\/script>`);
+  const { controller } = window;
+  let count = 0;
+  controller.signal.addEventListener("abort", () => count++);
+  controller.signal.onabort = () => count++;
+  frame.remove();
+
+  controller.abort();
+  assert_equals(count, 0);
+}, "Abort listeners on an AbortSignal from a removed iframe do not run");
+
+promise_test(async t => {
+  const frame = await addFrame(t, `<script>parent.frameEvent = new Event("x");<\/script>`);
+  const { frameEvent } = window;
+  const target = new EventTarget();
+  let count = 0;
+  target.addEventListener("x", () => count++);
+  frame.remove();
+
+  target.dispatchEvent(frameEvent);
+  assert_equals(count, 1);
+}, "It is the target's global that matters, not the event's");
+</script>
