@@ -99,7 +99,7 @@ void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> d
         });
     }
 
-    update_natural_dimensions();
+    update_representation();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-video-videowidth
@@ -134,8 +134,10 @@ u32 HTMLVideoElement::video_height() const
     return 0;
 }
 
-void HTMLVideoElement::update_natural_dimensions()
+void HTMLVideoElement::update_representation()
 {
+    auto representation = current_representation();
+
     // https://html.spec.whatwg.org/multipage/media.html#concept-video-intrinsic-width
     // The natural width of a video element's playback area is the natural width of the poster frame, if that is
     // available and the element currently represents its poster frame; otherwise, it is the natural width of the video
@@ -146,17 +148,22 @@ void HTMLVideoElement::update_natural_dimensions()
     // resource, if that is available; otherwise the natural height is missing.
     auto natural_dimensions = m_intrinsic_video_dimensions.map([](Gfx::Size<u32> size) { return size.to_type<CSSPixels>(); });
 
-    if (current_representation() == Representation::PosterFrame && m_poster_frame.has_value())
+    Optional<u64> poster_frame_id;
+    if (representation == Representation::PosterFrame && m_poster_frame.has_value()) {
         natural_dimensions = m_poster_frame->size().to_type<CSSPixels>();
-
-    if (natural_dimensions == m_natural_dimensions) {
-        Painting::push_video_paint_facts(*this);
-        return;
+        poster_frame_id = m_poster_frame->id();
     }
 
-    set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementNaturalDimensionsChanged);
-    m_natural_dimensions = natural_dimensions;
-    CSS::record_element_replaced_content_input(*this);
+    if (representation == m_representation && poster_frame_id == m_represented_poster_frame_id && natural_dimensions == m_natural_dimensions)
+        return;
+    m_representation = representation;
+    m_represented_poster_frame_id = poster_frame_id;
+
+    if (natural_dimensions != m_natural_dimensions) {
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementNaturalDimensionsChanged);
+        m_natural_dimensions = natural_dimensions;
+        CSS::record_element_replaced_content_input(*this);
+    }
     Painting::push_video_paint_facts(*this);
 }
 
@@ -185,7 +192,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             self.m_poster_frame = Gfx::DecodedImageFrame { *poster_frame };
         self.m_load_event_delayer.clear();
         self.m_fetch_controller = nullptr;
-        self.update_natural_dimensions();
+        self.update_representation();
     };
 
     // 2. If the poster attribute's value is the empty string or if the attribute is absent, then there is no poster

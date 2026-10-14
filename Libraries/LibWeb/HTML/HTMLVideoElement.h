@@ -33,7 +33,7 @@ public:
     u32 video_width() const;
     u32 video_height() const;
 
-    virtual void update_natural_dimensions() override;
+    virtual void update_representation() override;
     Optional<Gfx::Size<u32>> natural_media_size() const;
     Optional<CSSPixelSize> natural_element_size() const;
 
@@ -79,6 +79,8 @@ private:
 
     Optional<Gfx::Size<u32>> m_intrinsic_video_dimensions;
     Optional<CSSPixelSize> m_natural_dimensions;
+    Optional<Representation> m_representation;
+    Optional<u64> m_represented_poster_frame_id;
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
