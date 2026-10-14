@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const style = document.createElement("div").style;
+    for (const [property, source] of [
+        ["grid", "grid: none; grid-auto-flow: var(--flow)"],
+        ["grid", "grid: none; grid-auto-flow: var(--flow); grid-auto-rows: 20px"],
+        ["flex", "flex: 1 1 auto; flex-grow: var(--grow)"],
+        ["margin", "margin: 1px; margin-left: var(--left)"],
+        ["grid", "grid-template: var(--template); grid-auto-flow: column; grid-auto-rows: auto; grid-auto-columns: 20px"],
+        ["grid", "grid: var(--grid)"],
+    ]) {
+        style.cssText = source;
+        println(source);
+        println(`${property}: "${style.getPropertyValue(property)}"`);
+        println(`cssText: ${style.cssText}`);
+    }
+});
+</script>

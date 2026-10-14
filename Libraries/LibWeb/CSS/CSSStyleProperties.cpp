@@ -1781,6 +1781,13 @@ Utf16String CSSStyleProperties::serialize_a_css_value_to_utf16(Vector<StylePrope
     if (!shorthand.has_value())
         return {};
 
+    // https://drafts.csswg.org/css-values-5/#pending-substitution-value
+    // If any of the component longhand properties for a given shorthand are pending-substitution
+    // values, or contain arbitrary substitution functions of their own that have not yet been substituted, the
+    // shorthand property must serialize to the empty string.
+    if (any_of(list, [](auto const& declaration) { return declaration.value->is_pending_substitution() || declaration.value->is_unresolved(); }))
+        return {};
+
     // 3. Otherwise, serialize a CSS value from a hypothetical declaration of the property shorthand with its value representing the combined values of the declarations in list.
     Function<ValueComparingNonnullRefPtr<ShorthandStyleValue const>(PropertyID)> make_shorthand_value = [&](PropertyID shorthand_id) {
         auto longhand_ids = longhands_for_shorthand(shorthand_id);
