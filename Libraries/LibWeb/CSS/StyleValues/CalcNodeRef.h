@@ -56,14 +56,6 @@ public:
     // simplification entry points.
     static CalcNodeRef adopt(StyleValueFFI::CalcNode const* node) { return CalcNodeRef { node }; }
 
-    // Retains an additional reference to a borrowed node, for example the root
-    // stored in a calculated style value's data.
-    static CalcNodeRef retain(StyleValueFFI::CalcNode const* node)
-    {
-        StyleValueFFI::rust_calc_node_retain(node);
-        return CalcNodeRef { node };
-    }
-
     static CalcNodeRef numeric(NumericValue const&);
 
     static CalcNodeRef sum(Vector<CalcNodeRef>);

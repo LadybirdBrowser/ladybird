@@ -122,16 +122,6 @@ pub unsafe extern "C" fn rust_compiled_function_retain(function: *const Compiled
     function
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_compiled_function_identity(function: &CompiledFunction) -> u64 {
-    function.identity
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_compiled_function_signature(function: &CompiledFunction) -> *const FunctionSignature {
-    Arc::as_ptr(&function.signature)
-}
-
 /// The functions a style sheet's top-level `@function` rules compile to, in order, with no rule
 /// owner left alive.
 #[cfg(test)]

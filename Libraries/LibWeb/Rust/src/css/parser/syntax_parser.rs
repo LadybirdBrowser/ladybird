@@ -3707,11 +3707,6 @@ pub unsafe extern "C" fn rust_page_selector_list_release(list: *const PageSelect
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_page_selector_list_count(list: &PageSelectorList) -> usize {
-    list.selectors.len()
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_page_selector_list_serialize(
     list: &PageSelectorList,
     context: *mut c_void,

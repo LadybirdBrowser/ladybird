@@ -6,8 +6,9 @@
 
 //! The host's plain writes and reads of a document's style engine, one row each in the table below. A write row names
 //! the [`StyleChange`] its entry queues for the document's render state, which applies the change in the order the host
-//! made them; a read is answered in place while the host waits. A row is exported as `style_engine_` and its name, and
-//! does what the engine method of that name does unless the row says otherwise.
+//! made them; a read is answered in place while the host waits. A row of `writes` or `reads` is exported as
+//! `style_engine_` and its name, and does what the engine method of that name does unless the row says otherwise. A row
+//! of `unexported_writes` names a change only Rust queues, so it has no entry.
 //!
 //! cbindgen does not expand macros, so the C++ declarations of the entries are written by hand in
 //! `CSS/StyleEngineBridge.h`, and a test checks each against its row.
@@ -129,11 +130,16 @@ macro_rules! style_boundary {
     (
         |$engine:ident|
         writes { $($write:ident => $Change:ident $({ $($field:ident: $type:ty),+ })? $(=> $apply:expr)?;)+ }
+        unexported_writes {
+            $($unexported_write:ident => $UnexportedChange:ident
+                $({ $($unexported_field:ident: $unexported_type:ty),+ })? $(=> $unexported_apply:expr)?;)+
+        }
         reads { $($read:ident($($argument:ident: $argument_type:ty),*) -> $answer:ty $(=> $ask:expr)?;)+ }
     ) => {
-        /// A write of the host to the document's style engine, which the render state applies to it.
+        /// A write of the host or of Rust to the document's style engine, which the render state applies to it.
         pub(crate) enum StyleChange {
             $($Change $({ $($field: <$type as Carried>::Held),+ })?,)+
+            $($UnexportedChange $({ $($unexported_field: <$unexported_type as Carried>::Held),+ })?,)+
         }
 
         impl StyleChange {
@@ -142,6 +148,14 @@ macro_rules! style_boundary {
                     $(Self::$Change $({ $($field),+ })? => {
                         $($(let Some($field) = <$type>::applied($field) else { return };)+)?
                         style_boundary!(@apply $engine $write($($($field),+)?) $($apply)?);
+                    })+
+                    $(Self::$UnexportedChange $({ $($unexported_field),+ })? => {
+                        $($(
+                            let Some($unexported_field) = <$unexported_type>::applied($unexported_field) else { return };
+                        )+)?
+                        style_boundary!(
+                            @apply $engine $unexported_write($($($unexported_field),+)?) $($unexported_apply)?
+                        );
                     })+
                 }
             }
@@ -248,9 +262,6 @@ style_boundary! {
         set_element_custom_states => SetElementCustomStates { node: StyleNodeID, states: Box<[StyleAtomID]> } =>
             engine.set_element_custom_states(node, &states);
         end_deferred_geometry_transaction_flush => EndDeferredGeometryTransactionFlush;
-        begin_cold_matching_batch => BeginColdMatchingBatch { root: StyleNodeID };
-        begin_adaptive_cold_matching_batch => BeginAdaptiveColdMatchingBatch { root: StyleNodeID };
-        end_cold_matching_batch => EndColdMatchingBatch;
         record_container_query_input => RecordContainerQueryInput { node: StyleNodeID };
         note_children_explicitly_inherit => NoteChildrenExplicitlyInherit { node: StyleNodeID, groups: u32 };
         record_derived_element_style_input => RecordDerivedElementStyleInput {
@@ -274,7 +285,6 @@ style_boundary! {
         } => engine.set_element_replaced_content_input(node, ReplacedContentInput::from_raw(kind, present, values));
         set_element_heading_level => SetElementHeadingLevel { node: StyleNodeID, level: u8 };
         acknowledge_engine_computed_record => AcknowledgeEngineComputedRecord { node: StyleNodeID };
-        abandon_demanded_records => AbandonDemandedRecords { node: StyleNodeID };
         record_transition_baseline => RecordTransitionBaseline {
             node: StyleNodeID, pseudo_kind: u8, style_record: u64
         };
@@ -317,6 +327,13 @@ style_boundary! {
         set_sheet_conditions_hold => SetSheetConditionsHold { sheet: SheetID, conditions_hold: bool };
     }
 
+    unexported_writes {
+        begin_cold_matching_batch => BeginColdMatchingBatch { root: StyleNodeID };
+        begin_adaptive_cold_matching_batch => BeginAdaptiveColdMatchingBatch { root: StyleNodeID };
+        end_cold_matching_batch => EndColdMatchingBatch;
+        abandon_demanded_records => AbandonDemandedRecords { node: StyleNodeID };
+    }
+
     reads {
         connected_element_count() -> u32;
         has_suspended_style_pass() -> bool;
@@ -327,8 +344,6 @@ style_boundary! {
         match_document(root: Option<StyleNodeID>) -> usize =>
             root.and_then(|root| engine.match_document(root).ok()).unwrap_or(usize::MAX);
         layer_index(tree_scope: TreeScopeID, layer: CascadeLayerID) -> u32;
-        node_declares_custom_properties(node: Option<StyleNodeID>) -> bool =>
-            node.is_some_and(|node| engine.node_declares_custom_properties(node));
         size_query_container_scan_visits(reset: bool) -> u64;
         ensure_random_base_value(node: Option<StyleNodeID>, name: FfiSpan<u16>, element_shared: bool) -> u64 => {
             // SAFETY: The host lends the name for the call.

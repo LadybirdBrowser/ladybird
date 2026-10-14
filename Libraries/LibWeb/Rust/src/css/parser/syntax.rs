@@ -444,12 +444,6 @@ pub unsafe extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_
     Arc::into_raw(Arc::new(syntax)).cast()
 }
 
-/// Returns an owned universal-syntax handle.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_syntax_create_universal() -> *const c_void {
-    Arc::into_raw(Arc::new(SyntaxNode::Universal)).cast()
-}
-
 /// # Safety
 /// `syntax` must be a live parsed-syntax handle.
 #[unsafe(no_mangle)]

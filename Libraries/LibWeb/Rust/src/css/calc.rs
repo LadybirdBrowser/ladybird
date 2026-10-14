@@ -1159,16 +1159,6 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
     drop(unsafe { Arc::from_raw(node) });
 }
 
-/// Retains an additional strong reference to a calculation node, so the C++
-/// side can take ownership of a borrowed node.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_retain(node: *const CalcNode) {
-    unsafe { Arc::increment_strong_count(node) };
-}
-
 /// https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
 /// Determines the type of the calculation rooted at `node` under the given
 /// resolve-as target. The result's valid flag is false when the tree does not

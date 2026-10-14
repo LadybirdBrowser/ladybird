@@ -81,8 +81,6 @@ public:
     {
     }
     ~RustCompiledFunction() { Parser::ValueParserFFI::rust_compiled_function_release(m_function); }
-    u64 identity() const { return Parser::ValueParserFFI::rust_compiled_function_identity(m_function); }
-    Parser::ValueParserFFI::FunctionSignature const* signature() const { return Parser::ValueParserFFI::rust_compiled_function_signature(m_function); }
     auto* handle() const { return m_function; }
 
 private:

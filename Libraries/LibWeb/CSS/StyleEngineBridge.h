@@ -65,9 +65,6 @@ void style_engine_set_element_part_exposure(DocumentHost const*, StyleNodeID nod
 void style_engine_set_element_directionality(DocumentHost const*, StyleNodeID node, StyleAtomID directionality);
 void style_engine_set_element_custom_states(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> states);
 void style_engine_end_deferred_geometry_transaction_flush(DocumentHost const*);
-void style_engine_begin_cold_matching_batch(DocumentHost const*, StyleNodeID root);
-void style_engine_begin_adaptive_cold_matching_batch(DocumentHost const*, StyleNodeID root);
-void style_engine_end_cold_matching_batch(DocumentHost const*);
 void style_engine_record_container_query_input(DocumentHost const*, StyleNodeID node);
 void style_engine_note_children_explicitly_inherit(DocumentHost const*, StyleNodeID node, u32 groups);
 void style_engine_record_derived_element_style_input(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups);
@@ -81,7 +78,6 @@ void style_engine_set_element_box_kind(DocumentHost const*, StyleNodeID node, u8
 void style_engine_set_element_replaced_content_input(DocumentHost const*, StyleNodeID node, u8 kind, u8 present, u32 const* values);
 void style_engine_set_element_heading_level(DocumentHost const*, StyleNodeID node, u8 level);
 void style_engine_acknowledge_engine_computed_record(DocumentHost const*, StyleNodeID node);
-void style_engine_abandon_demanded_records(DocumentHost const*, StyleNodeID node);
 void style_engine_record_transition_baseline(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, u64 style_record);
 void style_engine_release_transition_baselines(DocumentHost const*);
 void style_engine_pin_style_record(DocumentHost const*, u64 style_record);
@@ -111,7 +107,6 @@ bool style_engine_begin_deferred_geometry_transaction_flush(DocumentHost const*,
 bool style_engine_has_deferred_geometry_transaction(DocumentHost const*, BegunRead const*);
 size_t style_engine_match_document(DocumentHost const*, BegunRead const*, StyleNodeID root);
 u32 style_engine_layer_index(DocumentHost const*, BegunRead const*, TreeScopeID tree_scope, u32 layer);
-bool style_engine_node_declares_custom_properties(DocumentHost const*, BegunRead const*, StyleNodeID node);
 u64 style_engine_size_query_container_scan_visits(DocumentHost const*, BegunRead const*, bool reset);
 u64 style_engine_ensure_random_base_value(DocumentHost const*, BegunRead const*, StyleNodeID node, ReadonlySpan<u16> name, bool element_shared);
 }
@@ -382,7 +377,6 @@ public:
     // The transaction that flew knows an element that arrived or was removed beside it as it was sealed: the drain
     // leaves its change, and what inherits from it, to the next transaction.
     void note_style_node_arrived_or_retired(StyleNodeID);
-    [[nodiscard]] bool style_node_arrived_or_retired_beside_flown_transaction(StyleNodeID style_node) const { return StyleEngineFFI::style_engine_style_node_is_beside_flown_transaction(host(), style_node.value()); }
     // The transaction that flew decided which of its rows the host composes from the animations each element had as it
     // was sealed: an element whose animations changed beside it holds them composed from the next transaction on.
     void note_animations_changed(StyleNodeID);
