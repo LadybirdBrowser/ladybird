@@ -1735,7 +1735,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             calc_length_context.resolved_viewport_relative_length = &raw mut tracked;
             let outcome = crate::css::calc::absolutize_calculation_value(
                 value,
-                (&raw const calc_length_context).cast(),
+                &calc_length_context,
                 context.tree_counting,
                 context.random_base_values,
             );
