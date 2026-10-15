@@ -773,8 +773,8 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host_i
     }
 
     auto& page = *host->page(page_id);
-    if (traversable.view().has_value())
-        Application::the().apply_content_blocking_policy(page);
+    if (auto view = traversable.view(); view.has_value())
+        view->prepare_page_for_navigable(page);
     return page;
 }
 

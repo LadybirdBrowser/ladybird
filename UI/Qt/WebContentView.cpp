@@ -1745,9 +1745,9 @@ void WebContentView::update_screen_rects(WebView::WebContentPage& page)
     }
 }
 
-void WebContentView::prepare_page_for_tab(WebView::WebContentPage& page)
+void WebContentView::prepare_page_for_navigable(WebView::WebContentPage& page)
 {
-    ViewImplementation::prepare_page_for_tab(page);
+    ViewImplementation::prepare_page_for_navigable(page);
 
     update_compositor_display_metadata(page);
     update_screen_rects(page);

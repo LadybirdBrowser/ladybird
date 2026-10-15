@@ -115,7 +115,11 @@ public:
     Optional<u64> owner_view_id() const { return m_owner_view_id; }
 
     CanonicalTraversable& traversable() const;
-    virtual void prepare_page_for_tab(WebContentPage&);
+    // A page that comes to host any navigable of the tab gets the tab's settings: the spoofed User-Agent and
+    // navigator compatibility mode, the preferred languages and color scheme, the window geometry, and the rest of
+    // what the UI decides for the tab. A page that displays the tab gets its viewport and focus on top of that.
+    virtual void prepare_page_for_navigable(WebContentPage&);
+    void prepare_page_for_tab(WebContentPage&);
     void did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page);
     void did_cancel_loading(Badge<CanonicalNavigable>, bool canceled_navigation);
     void did_stop_loading(Badge<CanonicalTraversable>, bool stopped_navigation);
