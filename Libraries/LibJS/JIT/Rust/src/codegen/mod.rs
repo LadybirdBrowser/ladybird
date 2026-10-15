@@ -2194,7 +2194,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             | BranchCondition::Builtin(_)
             | BranchCondition::PropertyIteratorCacheValid
             | BranchCondition::BindingMutable { .. }
-            | BranchCondition::NextBindingOfShape { .. } => {
+            | BranchCondition::NextBindingOfShape { .. }
+            | BranchCondition::HoleFillableArray => {
                 // NB: These take several tests, which go to `yes` or `no`.
                 let other = self.masm.new_label();
                 let (yes, no) = if invert { (other, target) } else { (target, other) };
@@ -2214,6 +2215,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     }
                     BranchCondition::NextBindingOfShape { name, flags } => {
                         self.emit_next_binding_of_shape_test(node, input, name, flags, no);
+                        self.masm.jump(yes);
+                    }
+                    BranchCondition::HoleFillableArray => {
+                        self.branch_unless_plain_array(input, self.temp(node, 0), no);
                         self.masm.jump(yes);
                     }
                     _ => unreachable!(),

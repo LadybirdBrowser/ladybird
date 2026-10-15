@@ -129,6 +129,13 @@ pub enum BranchCondition {
     MagicalLength,
     /// The input is the `Repr::Pointer` of an object: is it extensible?
     Extensible,
+    /// The input is the `Repr::Pointer` of an object: is it an array that a
+    /// `[[Set]]` of an element it does not have defines that element on
+    /// without running any code, because it is extensible, does not
+    /// interfere with indexed access, is no proxy target, and its prototype
+    /// chain is the realm's default one without indexed properties (like
+    /// `Op::CheckAppendableArray` checks, whatever its length and storage)?
+    HoleFillableArray,
     /// The input is the `Repr::Pointer` of an object: is it an array
     /// iterator over values, like `%Array.prototype.values%` makes?
     ArrayIterator,

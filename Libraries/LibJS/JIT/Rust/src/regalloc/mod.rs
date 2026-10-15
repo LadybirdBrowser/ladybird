@@ -422,6 +422,11 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
             condition: BranchCondition::BindingMutable { .. } | BranchCondition::NextBindingOfShape { .. },
             ..
         } => constraints.temps = 2,
+        // The array's prototypes.
+        Op::Branch {
+            condition: BranchCondition::HoleFillableArray,
+            ..
+        } => constraints.temps = 1,
         // The environment's binding values (and their count).
         Op::StoreEnvironmentBinding { .. } | Op::AppendEnvironmentBinding => constraints.temps = 1,
         // The array, then its prototypes.

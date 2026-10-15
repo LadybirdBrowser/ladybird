@@ -15,7 +15,8 @@
 //! chain has no indexed properties. Strings give the
 //! strings of their ASCII characters. Other keys probe the property lookup
 //! caches. Everything else takes the instruction's slow path, and all paths
-//! join after the instruction. `PutByValue` is built the same way.
+//! join after the instruction. `PutByValue` is built the same way, and
+//! fills holes of arrays where that runs no code.
 
 use super::Flow;
 use super::GenericInfo;
@@ -27,6 +28,7 @@ use crate::bytecode::Operand;
 use crate::bytecode::PUT_KIND_NORMAL;
 use crate::code::ExitKind;
 use crate::code::Repr;
+use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
 use crate::ir::Comparison;
@@ -342,10 +344,11 @@ impl GraphBuilder<'_> {
             return self.build_generic(instruction, info);
         };
 
-        // NB: Appends check that the prototype chain is the realm's default
-        //     one, and exit for arrays that push could not append to.
+        // NB: Appends and hole fills check that the prototype chain is the
+        //     realm's default one. Appends exit for arrays that push could
+        //     not append to, and hole fills take the slow path.
         let appends = self.may_speculate(ExitKind::SlowPath);
-        if appends {
+        if appends || kinds.contains(&ElementsKind::Holey) {
             self.embed(self.runtime.array_prototype);
             self.embed(self.runtime.object_prototype);
         }
@@ -371,10 +374,9 @@ impl GraphBuilder<'_> {
                     } else {
                         builder.element_index_in_bounds(slow_paths, kind, address, index)
                     };
-                    // NB: Holes are filled by the slow path.
                     if kind == ElementsKind::Holey {
-                        let old = builder.emit(Op::LoadElementAt { kind }, vec![storage, index], Some(Repr::Tagged));
-                        builder.branch_if_empty(slow_paths, old);
+                        builder.store_holey_element(slow_paths, address, index, stored);
+                        return;
                     }
                     builder.store_element(kind, storage, index, stored);
                     builder.end_hot_path(slow_paths, Vec::new());
@@ -394,6 +396,38 @@ impl GraphBuilder<'_> {
         }
         self.join_hot_paths(slow_paths);
         Ok(Flow::Continue)
+    }
+
+    /// Stores `value` at the checked `index` of the holey elements of the
+    /// object at `address`. A hole takes a new element, which runs no code
+    /// where the object is an array with a plain prototype chain (see
+    /// `BranchCondition::HoleFillableArray`); other holes take a slow path.
+    fn store_holey_element(&mut self, slow_paths: &mut SlowPaths, address: NodeId, index: NodeId, value: NodeId) {
+        let kind = ElementsKind::Holey;
+        let old = self.emit(Op::LoadElementAt { kind }, vec![address, index], Some(Repr::Tagged));
+        let empty = self.constant(value::EMPTY);
+        let (hole, element) = self.branch_both_ways(BranchCondition::TaggedEquals { equal: true }, vec![old, empty]);
+
+        self.block = hole;
+        self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, vec![address], true);
+        // NB: A store to the last index may make the elements packed, which
+        //     the slow path does. The index is below the length, so the
+        //     length is not 0.
+        let length = self.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
+        let one = self.int32_constant(1);
+        let last = self.emit(
+            Op::Int32WrappingBinary { op: BinaryOp::Sub },
+            vec![length, one],
+            Some(Repr::Int32),
+        );
+        let index_before_last =
+            self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, last], true);
+        self.store_element(kind, address, index_before_last, value);
+        self.end_hot_path(slow_paths, Vec::new());
+
+        self.block = element;
+        self.store_element(kind, address, index, value);
+        self.end_hot_path(slow_paths, Vec::new());
     }
 
     /// `value` as elements of `kind` store it, taking a slow path for
