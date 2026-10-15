@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	caption
+Fail	icon
+Fail	menu
+Fail	message-box
+Fail	small-caption
+Fail	status-bar

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts Test: Serialization of system fonts</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#valdef-font-caption">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<div id="target"></div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+const target = document.getElementById("target");
+target.style.font = "initial";
+const fontLonghands = [...target.style];
+
+const cs = getComputedStyle(target);
+function copyComputedStyle() {
+  const data = {};
+  data.font = cs.font;
+  for (const longhand of fontLonghands) {
+    data[longhand] = cs[longhand];
+  }
+  return data;
+}
+
+function check(systemFont) {
+  target.style.cssText = "";
+  target.style.font = systemFont;
+
+  assert_equals(target.style.font, systemFont, "System font serializes as-is");
+  assert_array_equals([...target.style], fontLonghands, "System font sets all longhands");
+  for (const longhand of fontLonghands) {
+    assert_equals(target.style[longhand], "", `Longhand '${longhand}' serializes as empty string`);
+  }
+
+  const copy = copyComputedStyle();
+  for (const longhand of fontLonghands) {
+    const resolvedStyle = cs[longhand];
+    assert_not_equals(resolvedStyle, "");
+
+    target.style[longhand] = resolvedStyle;
+    assert_equals(target.style[longhand], resolvedStyle, `Can set longhand '${longhand}'`);
+
+    assert_equals(target.style.font, "", `Shorthand serializes as empty string after setting '${longhand}'`);
+    assert_object_equals(copyComputedStyle(), copy, `Other longhands still work  after setting '${longhand}'`);
+
+    target.style.font = systemFont;
+  }
+}
+
+// Standard system fonts
+const systemFonts = ["caption", "icon", "menu", "message-box", "small-caption", "status-bar"];
+
+// Some browsers also support these non-standard system fonts
+const extras = ["-webkit-mini-control", "-webkit-small-control", "-webkit-control"];
+
+for (const extra of extras) {
+  if (CSS.supports("font", extra)) {
+    systemFonts.push(extra);
+  }
+}
+
+for (let systemFont of systemFonts) {
+  test(() => check(systemFont), systemFont);
+}
+</script>

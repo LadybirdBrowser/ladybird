@@ -1,0 +1,7 @@
+caption: system-ui 13px 400 normal normal
+icon: system-ui 13px 400 normal normal
+menu: system-ui 13px 400 normal normal
+message-box: system-ui 13px 400 normal normal
+small-caption: system-ui 11px 400 normal normal
+status-bar: system-ui 10px 400 normal normal
+caption serif: rejected system-ui

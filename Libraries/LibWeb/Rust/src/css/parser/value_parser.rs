@@ -4812,12 +4812,73 @@ fn parse_font_variant_shorthand(context: &ParseContext, values: &[ComponentValue
     )))
 }
 
+/// The family and size a system font keyword stands for: the font the platform draws that part of its UI with.
+/// https://drafts.csswg.org/css-fonts-4/#system-font-family-name-value
+fn system_font_for_keyword(ident: &[u16]) -> Option<(&'static [u8], &'static [u8])> {
+    // AD-HOC: The sizes are the ones macOS draws its controls, menus, dialogs, small labels, and status bars with
+    // (13px, 13px, 13px, 13px, 11px, 10px), on every platform, and the family is always the platform's UI font.
+    const SYSTEM_FONTS: [(&[u8], &[u8]); 6] = [
+        (b"caption", b"13px"),
+        (b"icon", b"13px"),
+        (b"menu", b"13px"),
+        (b"message-box", b"13px"),
+        (b"small-caption", b"11px"),
+        (b"status-bar", b"10px"),
+    ];
+    SYSTEM_FONTS
+        .iter()
+        .find(|(keyword, _)| equals_ascii_case_insensitive(ident, keyword))
+        .map(|&(_, size)| (b"system-ui" as &[u8], size))
+}
+
 fn parse_font_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
     let components = values
         .iter()
         .filter(|value| !value.is_whitespace())
         .cloned()
         .collect::<Vec<_>>();
+    // A system font keyword on its own sets every longhand: the keyword's family and size, and the initial value of
+    // the rest.
+    if let [component] = components.as_slice()
+        && let Some(ident) = component.ident()
+        && let Some((family, size)) = system_font_for_keyword(ident)
+    {
+        let parse = |property: u16, source: &[u8]| {
+            let values = consume_a_list_of_component_values(tokenize_for_parser(source)).ok()?;
+            parse_slice_for_property(context, property, &values)
+        };
+        let (Some(font_family), Some(font_size)) = (
+            parse(property_id::FONT_FAMILY, family),
+            parse(property_id::FONT_SIZE, size),
+        ) else {
+            return ParseOutcome::Invalid;
+        };
+        // font-variant is a shorthand of its own, so its "normal" comes from its own parser.
+        let font_variant = consume_a_list_of_component_values(tokenize_for_parser(b"normal"))
+            .ok()
+            .and_then(|values| match parse_font_variant_shorthand(context, &values) {
+                ParseOutcome::Parsed(value) => Some((*value).clone()),
+                _ => None,
+            });
+        let longhands = longhands_for_shorthand(property_id::FONT);
+        let Some(output) = longhands
+            .iter()
+            .map(|&longhand| match longhand {
+                property_id::FONT_FAMILY => Some(font_family.clone()),
+                property_id::FONT_SIZE => Some(font_size.clone()),
+                property_id::FONT_VARIANT => font_variant.clone(),
+                _ => parse_initial_longhand(context, longhand),
+            })
+            .collect::<Option<Vec<_>>>()
+        else {
+            return ParseOutcome::Invalid;
+        };
+        return ParseOutcome::Parsed(shared_style_value(shorthand_value(
+            property_id::FONT,
+            longhands.to_vec(),
+            output,
+        )));
+    }
     let mut font_style = None;
     let mut font_variant = None;
     let mut font_weight = None;

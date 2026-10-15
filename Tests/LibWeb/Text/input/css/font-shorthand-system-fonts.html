@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    // A system font keyword in the font shorthand resolves to the platform's UI font at the size that part of the UI
+    // uses, and resets the other font longhands.
+    test(() => {
+        const target = document.getElementById("target");
+        for (const keyword of ["caption", "icon", "menu", "message-box", "small-caption", "status-bar"]) {
+            target.style.cssText = "font-weight: bold; font-style: italic; line-height: 3";
+            target.style.font = keyword;
+            const style = getComputedStyle(target);
+            println(`${keyword}: ${style.fontFamily} ${style.fontSize} ${style.fontWeight} ${style.fontStyle} ${style.lineHeight}`);
+        }
+        // A system font keyword stands alone, so "caption serif" is invalid and leaves the declared font as it was.
+        const before = target.style.font;
+        target.style.font = "caption serif";
+        println(`caption serif: ${target.style.font === before ? "rejected" : "accepted"} ${getComputedStyle(target).fontFamily}`);
+    });
+</script>
