@@ -1,6 +1,6 @@
 --- a/web/viewer.html
 +++ b/web/viewer.html
-@@ -22,18 +22,19 @@
+@@ -22,6 +22,7 @@
  -->
  <html dir="ltr" mozdisallowselectionprint>
    <head>
@@ -8,31 +8,37 @@
      <meta charset="utf-8" />
      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
      <meta name="google" content="notranslate" />
-     <title>PDF.js viewer</title>
- 
+@@ -29,16 +30,16 @@
+
+   <meta
+       http-equiv="Content-Security-Policy"
+-      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self'; img-src 'self' blob: data:; media-src blob:; font-src 'self' data:; connect-src * blob: data:; base-uri 'none'; form-action 'none';"
++      content="default-src 'none'; script-src 'self' resource: 'wasm-unsafe-eval'; worker-src 'self' resource: blob:; style-src 'self' resource:; img-src 'self' resource: blob: data:; media-src blob:; font-src 'self' resource: data:; connect-src * resource: blob: data:; base-uri resource:; form-action 'none';"
+     />
+
  <!-- This snippet is used in production (included from viewer.html) -->
 -<link rel="resource" type="application/l10n" href="locale/locale.json" />
  <script src="../build/pdf.mjs" type="module"></script>
- 
+
      <link rel="stylesheet" href="viewer.css" />
- 
+
    <script src="viewer.mjs" type="module"></script>
 +  <script src="pdfjs-ladybird-transport.mjs" type="module"></script>
    </head>
- 
+
    <body tabindex="0">
 --- a/web/viewer.mjs
 +++ b/web/viewer.mjs
-@@ -18255,7 +18255,7 @@
+@@ -19279,7 +19279,7 @@
      let file;
      const queryString = document.location.search.substring(1);
      const params = parseQueryString(queryString);
 -    file = params.get("file") ?? AppOptions.get("defaultUrl");
 +    file = params.get("file") ?? "";
-     try {
-       file = new URL(file).href;
-     } catch {
-@@ -18886,7 +18886,6 @@
+     file = URL.parse(file)?.href ?? file.replaceAll("#", "%23");
+     validateFileURL(file);
+     const fileInput = this._openFileInput = document.createElement("input");
+@@ -19935,7 +19935,6 @@
      this.metadata = metadata;
      this._contentDispositionFilename ??= contentDispositionFilename;
      this._contentLength ??= contentLength;

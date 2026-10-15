@@ -705,13 +705,13 @@
         {
           "type": "git",
           "url": "https://github.com/mozilla/pdf.js.git",
-          "tag": "v5.6.205",
+          "tag": "v6.4.299",
           "dest": "pdfjs-src"
         },
         {
           "type": "archive",
-          "url": "https://github.com/mozilla/pdf.js/releases/download/v5.6.205/pdfjs-5.6.205-dist.zip",
-          "sha256": "0555ef47464e456125dcd0b9742cfa2aaed6d282e804e4dd1f1b99316b46ac00",
+          "url": "https://github.com/mozilla/pdf.js/releases/download/v6.4.299/pdfjs-6.4.299-dist.zip",
+          "sha256": "f2245eb7ef3f674c872fe568a177bfec15874f5c034613e55d8e307f93ebd86d",
           "dest": ".",
           "strip-components": 0
         },

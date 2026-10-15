@@ -4,7 +4,7 @@ set(VCPKG_BUILD_TYPE release)
 vcpkg_download_distfile(ARCHIVE
     URLS "https://github.com/mozilla/pdf.js/releases/download/v${VERSION}/pdfjs-${VERSION}-dist.zip"
     FILENAME "pdfjs-${VERSION}-dist.zip"
-    SHA512 66fecdb8a80d013b592c361e85abd7eeea5bc35f0131b771cc25a1878d7737704458dc715670aace3c7d3437f85388dff04796fe117eef01be81fd0d192f73a2
+    SHA512 ed520ebaa60242f68c27c47eece48887fb862bea977f873212f1bf7556ef562adcb33e4a1daac9fbb63e5fe882dc16ba9226e29d467fda25ee0101ba2ea930de
 )
 
 vcpkg_extract_source_archive_ex(
@@ -13,7 +13,7 @@ vcpkg_extract_source_archive_ex(
     NO_REMOVE_ONE_LEVEL
 )
 
-# Patch viewer.mjs so the internal Ladybird PDF viewer origin is accepted.
+# Integrate the viewer with Ladybird's resource URLs and PDF transport.
 z_vcpkg_apply_patches(
     SOURCE_PATH "${SOURCE_PATH}"
     PATCHES 0001-ladybird-embed.patch
