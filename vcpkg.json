@@ -250,7 +250,7 @@
   "overrides": [
     {
       "name": "angle",
-      "version": "chromium_7258#0"
+      "version": "chromium_7258#2"
     },
     {
       "name": "brotli",

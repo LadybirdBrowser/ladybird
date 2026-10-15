@@ -38,9 +38,9 @@ if ("metal" IN_LIST FEATURES)
 endif()
 
 # chromium/7258
-set(ANGLE_COMMIT 79ac1a8cd767a32cce6401203e20c4bd4ca4d539)
+set(ANGLE_COMMIT d9fc4a372074b1079c193c422fc4a180e79b6636)
 set(ANGLE_VERSION 7258)
-set(ANGLE_SHA512 a3d5d09460f05f1f1c081411bf15f585bb8add5f3db7c4854dc2cf2ef1fd22dd5b2dd5d3de78bfb8bcdae8459dd9581f7dce331acd34053c87c84cfe6c3d134c)
+set(ANGLE_SHA512 483f29b6eaac5c657a3aeb238e5da48b9dd92aaa0b5eb3b4f95ebd771360cea84249ef6870dac9e1fc3b6f6c8686fa46a7a45a89a912f9b4fc258575065a28c7)
 set(ANGLE_THIRDPARTY_ZLIB_COMMIT 4028ebf8710ee39d2286cb0f847f9b95c59f84d8)
 
 vcpkg_from_github(
@@ -125,35 +125,6 @@ vcpkg_download_distfile(WK_ANGLE_INCLUDE_CMAKELISTS
     SHA512 a7ddf3c6df7565e232f87ec651cc4fd84240b8866609e23e3e6e41d22532fd34c70e0f3b06120fd3d6d930ca29c1d0d470d4c8cb7003a66f8c1a840a42f32949
 )
 configure_file("${WK_ANGLE_INCLUDE_CMAKELISTS}" "${SOURCE_PATH}/include/CMakeLists.txt" COPYONLY)
-
-vcpkg_download_distfile(WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS
-    URLS "https://github.com/WebKit/WebKit/raw/${ANGLE_WEBKIT_BUILDSYSTEM_COMMIT}/Source/cmake/WebKitCompilerFlags.cmake"
-    FILENAME "WebKitCompilerFlags.cmake"
-    SHA512 8b281ffcf9209c845a5fdae48a4e05f08ca677c37a7fb00d9270de81bd103160d26e091724ce8df8d428ad604900b5202b221fed5bafffd4bf00025718ef9d8e
-)
-
-if (VCPKG_TARGET_IS_BSD)
-    # Ladybird: Remove -Wl,--no-undefined as it breaks the build on OpenBSD
-    file(READ "${WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS}" _wk_compilerflags_content)
-    string(REPLACE "-Wl,--no-undefined" "" _wk_compilerflags_content "${_wk_compilerflags_content}")
-    file(WRITE "${WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS}" "${_wk_compilerflags_content}")
-endif()
-
-file(COPY "${WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS}" DESTINATION "${SOURCE_PATH}/cmake")
-
-vcpkg_download_distfile(WK_ANGLE_CMAKE_DETECTSSE2
-    URLS "https://github.com/WebKit/WebKit/raw/${ANGLE_WEBKIT_BUILDSYSTEM_COMMIT}/Source/cmake/DetectSSE2.cmake"
-    FILENAME "DetectSSE2.cmake"
-    SHA512 219a4c8591ee31d11eb3d1e4803cc3c9d4573984bb25ecac6f2c76e6a3dab598c00b0157d0f94b18016de6786e49d8b29a161693a5ce23d761c8fe6a798c1bca
-)
-file(COPY "${WK_ANGLE_CMAKE_DETECTSSE2}" DESTINATION "${SOURCE_PATH}/cmake")
-
-vcpkg_download_distfile(WK_ANGLE_CMAKE_WEBKITMACROS
-    URLS "https://github.com/WebKit/WebKit/raw/${ANGLE_WEBKIT_BUILDSYSTEM_COMMIT}/Source/cmake/WebKitMacros.cmake"
-    FILENAME "WebKitMacros.cmake"
-    SHA512 565175443d5d1b8119af504164bf93840e8c786fc479e45feb98ca542351b91d2ea00265d7f8dfa6960975de81802bc43b2a2af2c90fc44bda1ae46d96c89247
-)
-file(COPY "${WK_ANGLE_CMAKE_WEBKITMACROS}" DESTINATION "${SOURCE_PATH}/cmake")
 
 # Copy additional custom CMake buildsystem into appropriate folders
 file(GLOB MAIN_BUILDSYSTEM "${CMAKE_CURRENT_LIST_DIR}/cmake-buildsystem/CMakeLists.txt" "${CMAKE_CURRENT_LIST_DIR}/cmake-buildsystem/*.cmake")

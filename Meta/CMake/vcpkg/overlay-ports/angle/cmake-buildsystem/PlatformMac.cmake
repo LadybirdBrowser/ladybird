@@ -38,9 +38,15 @@ if(USE_OPENGL)
     list(APPEND ANGLE_SOURCES
         ${angle_translator_glsl_base_sources}
         ${angle_translator_glsl_sources}
+        ${angle_translator_glsl_apple_sources}
     )
     # Enable GLSL compiler output.
-    list(APPEND ANGLE_DEFINITIONS ANGLE_ENABLE_GLSL ANGLE_ENABLE_GL_DESKTOP_BACKEND ANGLE_ENABLE_APPLE_WORKAROUNDS)
+    list(APPEND ANGLE_DEFINITIONS ANGLE_ENABLE_GLSL ANGLE_ENABLE_GL_DESKTOP_BACKEND ANGLE_ENABLE_APPLE_WORKAROUNDS ANGLE_ENABLE_CGL)
+
+    # Still need to link with Metal as we call MTLCreateSystemDefaultDevice even if USE_METAL is not defined
+    list(APPEND ANGLEGLESv2_LIBRARIES
+        "-framework Metal"
+    )
 endif()
 
 if(USE_OPENGL OR ENABLE_WEBGL)

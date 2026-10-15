@@ -99,7 +99,7 @@ index 739f3ca4c3..e697e3cd64 100644
  
 -#    elif defined(ANGLE_PLATFORM_LINUX)
 +#    elif defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
- #        if defined(ANGLE_USE_GBM)
+ #        if defined(ANGLE_USE_GBM) || defined(ANGLE_USE_WAYLAND)
              if (platformType == 0)
              {
 @@ -468,7 +468,7 @@ rx::DisplayImpl *CreateDisplayFromAttribs(EGLAttrib displayType,
@@ -108,7 +108,7 @@ index 739f3ca4c3..e697e3cd64 100644
              impl = new rx::DisplayWGL(state);
 -#    elif defined(ANGLE_PLATFORM_LINUX)
 +#    elif defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
- #        if defined(ANGLE_USE_GBM)
+ #        if defined(ANGLE_USE_GBM) || defined(ANGLE_USE_WAYLAND)
              if (platformType == 0)
              {
 @@ -519,7 +519,7 @@ rx::DisplayImpl *CreateDisplayFromAttribs(EGLAttrib displayType,
