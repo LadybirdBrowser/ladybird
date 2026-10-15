@@ -18,11 +18,14 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::get_iterator_values;
+use crate::runtime::keyed_collections::canonicalize_keyed_collection_key;
 use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::set::Set;
+use crate::runtime::set_prototype;
 
 #[repr(C)]
 #[derive(Trace)]
@@ -115,6 +118,8 @@ impl SetConstructor {
             );
         }
         let adder = adder.as_function();
+        // OPTIMIZATION: Calling %Set.prototype.add% with the set as its this value only adds the value.
+        let adder_is_intrinsic = is_raw_native_function_running(vm, adder, set_prototype::ADD_FUNCTION);
 
         // 7. Let iteratorRecord be ? GetIterator(iterable, sync).
         // 8. Repeat,
@@ -123,6 +128,10 @@ impl SetConstructor {
             // b. If next is DONE, return set.
             // c. Let status be Completion(Call(adder, set, « nextValue »)).
             // d. IfAbruptCloseIterator(status, iteratorRecord).
+            if adder_is_intrinsic {
+                set.set_add(vm, canonicalize_keyed_collection_key(next));
+                return None;
+            }
             call_function_object(vm, adder, Value::from_object(set), &[next])
                 .err()
                 .map(Completion::from)

@@ -26,10 +26,12 @@ use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::get_iterator_values;
 use crate::runtime::keyed_collections::canonicalize_keyed_collection_key;
 use crate::runtime::map::Map;
+use crate::runtime::map_prototype;
 use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::value::same_value;
 use crate::runtime::value_traits::value_traits_hash;
 use crate::utf16::utf16_formatted;
@@ -198,6 +200,8 @@ impl MapConstructor {
             );
         }
         let adder = adder.as_function();
+        // OPTIMIZATION: Calling %Map.prototype.set% with the map as its this value only sets the entry.
+        let adder_is_intrinsic = is_raw_native_function_running(vm, adder, map_prototype::SET_FUNCTION);
 
         let add_entry = |iterator_value: Value| -> ThrowCompletionOr<()> {
             if !iterator_value.is_object() {
@@ -210,7 +214,11 @@ impl MapConstructor {
 
             let key = iterator_value.as_object().get(vm, &PropertyKey::from(0))?;
             let value = iterator_value.as_object().get(vm, &PropertyKey::from(1))?;
-            call_function_object(vm, adder, Value::from_object(map), &[key, value])?;
+            if adder_is_intrinsic {
+                map.map_set(vm, canonicalize_keyed_collection_key(key), value);
+            } else {
+                call_function_object(vm, adder, Value::from_object(map), &[key, value])?;
+            }
 
             Ok(())
         };

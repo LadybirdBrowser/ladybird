@@ -13,6 +13,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::call;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
@@ -30,6 +31,9 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::prototype_object::typed_this_object;
 use crate::runtime::realm::Realm;
+
+/// %Map.prototype.set%, which the Map constructor calls directly when it finds it as the adder.
+pub(crate) static SET_FUNCTION: RawNativeFunctionPointer = raw_native!(MapPrototype::set);
 
 /// %Map.prototype%.
 #[repr(C)]
@@ -98,7 +102,7 @@ impl MapPrototype {
         );
         define_native_function(&names.has, raw_native!(MapPrototype::has), 1);
         define_native_function(&names.keys, raw_native!(MapPrototype::keys), 0);
-        define_native_function(&names.set, raw_native!(MapPrototype::set), 2);
+        define_native_function(&names.set, SET_FUNCTION, 2);
         define_native_function(&names.values, raw_native!(MapPrototype::values), 0);
 
         object.define_native_accessor(
