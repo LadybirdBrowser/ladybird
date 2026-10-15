@@ -48,20 +48,14 @@ static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWi
 
 ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::CanvasSurfaceRegistry const& canvas_surface_registry, Function<void(Gfx::IntRect)> schedule_caret_repaint)
     : m_web_content_client(web_content_client)
-    , m_canvas_surface_registry(canvas_surface_registry)
     , m_context_id(context_id)
     , m_page_id(page_id)
+    , m_presenter(m_scene, canvas_surface_registry, page_id.has_value())
     , m_caret_blink_timer([this] { return damage_rect_of_blinking_carets(); }, move(schedule_caret_repaint))
 {
-    if (page_id.has_value())
-        m_presents_to_client = true;
 }
 
-ContextState::~ContextState()
-{
-    stop_backing_store_shrink_timer();
-    stop_surplus_backing_store_retirement_timer();
-}
+ContextState::~ContextState() = default;
 
 bool ContextState::is_owned_by(CompositorStateWebContentClient const& web_content_client) const
 {
@@ -106,7 +100,7 @@ void ContextState::stop_presenting_to_client()
 {
     end_keyboard_scroll_gesture();
     m_elastic_overscroll_controller.forget();
-    m_presents_to_client = false;
+    m_presenter.stop_presenting_to_client();
 }
 
 void ContextState::set_parent_context(Optional<Web::CompositorContextId> parent_context_id)
@@ -167,14 +161,14 @@ Gfx::IntRect ContextState::damage_rect_of_blinking_carets()
             return;
         auto rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.template to_type<float>(), presented_scroll_state_snapshot);
         if (!isfinite(rect.x()) || !isfinite(rect.y()) || !isfinite(rect.width()) || !isfinite(rect.height())) {
-            damage_rect = { {}, m_viewport_size };
+            damage_rect = { {}, m_presenter.viewport_size() };
             return;
         }
-        rect.intersect(Gfx::IntRect { {}, m_viewport_size }.to_type<float>());
+        rect.intersect(Gfx::IntRect { {}, m_presenter.viewport_size() }.to_type<float>());
         if (!rect.is_empty())
             damage_rect.unite(Gfx::enclosing_int_rect(rect).inflated(1, 1, 1, 1));
     });
-    damage_rect.intersect({ {}, m_viewport_size });
+    damage_rect.intersect({ {}, m_presenter.viewport_size() });
     return damage_rect;
 }
 
@@ -254,7 +248,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
 
-    if (!presents_to_client() || m_paused_debugger_overlay_visible
+    if (!presents_to_client() || m_presenter.paused_debugger_overlay_visible()
         || m_visibility != Compositing::ContextVisibility::Visible
         || !Web::is_keyboard_scroll_key(event.key, event.modifiers)
         || !m_keyboard_scroll_controller.has_target()
@@ -1222,208 +1216,33 @@ bool ContextState::has_pending_async_scroll_updates() const
     return m_async_scroll_update_outbox.has_updates(user_scroll_gesture_in_progress());
 }
 
-static Gfx::FloatSize bounded_composited_raster_scale(Gfx::FloatSize scale, Gfx::IntSize viewport_size)
-{
-    if (viewport_size.is_empty())
-        return { 1, 1 };
-
-    scale = { clamp(scale.width(), 0.25f, 5.0f), clamp(scale.height(), 0.25f, 5.0f) };
-    // Reserve a pixel on each axis for fractional placement. The two backing stores together use at most
-    // 128 MiB, even when an embedding transform magnifies a large iframe.
-    constexpr float maximum_dimension = 16384;
-    constexpr float maximum_pixels = 16 * 1024 * 1024;
-    scale.set_width(min(scale.width(), (maximum_dimension - 1) / viewport_size.width()));
-    scale.set_height(min(scale.height(), (maximum_dimension - 1) / viewport_size.height()));
-    auto pixel_count = (viewport_size.width() * scale.width()) * (viewport_size.height() * scale.height());
-    constexpr float maximum_content_pixels = maximum_pixels - 2 * maximum_dimension - 1;
-    if (pixel_count > maximum_content_pixels)
-        scale.scale_by(sqrtf(maximum_content_pixels / pixel_count));
-    return scale;
-}
-
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     m_scene.forget_whether_animated_content_may_affect_viewport();
-    if (m_viewport_size != viewport_size)
+    if (m_presenter.viewport_size() != viewport_size)
         m_keyboard_scroll_controller.forget_target();
-    m_viewport_size = viewport_size;
     auto is_page_presentation_context = m_page_id.has_value() && !m_parent_context_id.has_value();
-    m_window_resize_in_progress = is_page_presentation_context
-        ? window_resize_in_progress
-        : Compositing::WindowResizingInProgress::No;
+    m_presenter.set_viewport_size(viewport_size, is_page_presentation_context ? window_resize_in_progress : Compositing::WindowResizingInProgress::No);
 }
 
 bool ContextState::set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action)
 {
     VERIFY(device_pixel_ratio > 0);
-    if (m_paused_debugger_overlay_visible == visible
-        && m_paused_debugger_overlay_device_pixel_ratio == device_pixel_ratio
-        && m_paused_debugger_overlay_font_family == font_family
-        && m_paused_debugger_overlay_hovered_action == hovered_action)
+    PausedDebuggerOverlayState paused_debugger_overlay { visible, device_pixel_ratio, move(font_family), hovered_action };
+    if (m_presenter.paused_debugger_overlay() == paused_debugger_overlay)
         return false;
 
     if (visible)
         end_keyboard_scroll_gesture();
-    m_paused_debugger_overlay_visible = visible;
-    m_paused_debugger_overlay_device_pixel_ratio = device_pixel_ratio;
-    m_paused_debugger_overlay_font_family = move(font_family);
-    m_paused_debugger_overlay_hovered_action = hovered_action;
+    m_presenter.set_paused_debugger_overlay(move(paused_debugger_overlay));
     return true;
-}
-
-Optional<Gfx::IntRect> ContextState::viewport_rect_for_ui_overlay() const
-{
-    if (m_viewport_size.is_empty())
-        return {};
-
-    auto viewport_rect = m_pending_present_frame.has_value()
-        ? m_pending_present_frame->viewport_rect
-        : m_presented_frame.value_or(Gfx::IntRect {});
-    viewport_rect.set_size(m_viewport_size);
-    return viewport_rect;
-}
-
-bool ContextState::should_shrink_backing_stores_after_resize() const
-{
-    return m_window_resize_in_progress == Compositing::WindowResizingInProgress::Yes;
-}
-
-void ContextState::schedule_backing_store_shrink(Function<void()> on_timeout)
-{
-    if (!m_backing_store_shrink_timer)
-        m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, move(on_timeout));
-    m_backing_store_shrink_timer->restart();
-}
-
-void ContextState::schedule_surplus_backing_store_retirement(Function<void()> on_timeout)
-{
-    if (!m_surplus_backing_store_retirement_timer)
-        m_surplus_backing_store_retirement_timer = Core::Timer::create_single_shot(3000, move(on_timeout));
-    if (!m_surplus_backing_store_retirement_timer->is_active())
-        m_surplus_backing_store_retirement_timer->start();
-}
-
-void ContextState::finish_window_resize()
-{
-    m_window_resize_in_progress = Compositing::WindowResizingInProgress::No;
-}
-
-Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, BackingStoreManager::GpuSharing gpu_sharing)
-{
-    if (m_backing_store_manager.is_rendering())
-        return {};
-    if (!presents_to_client()) {
-        // A resize can arrive before the parent's next replay supplies the new embedding transform.
-        // Bound the existing scale before allocating backing stores for the new viewport.
-        auto scale = bounded_composited_raster_scale(m_raster_scale, m_viewport_size);
-        if (m_raster_scale != scale) {
-            m_raster_scale = scale;
-            m_latest_rendered_surface = nullptr;
-            m_last_rasterized_frame.clear();
-        }
-    }
-    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress, presents_to_client());
-    if (!allocation.has_value())
-        return {};
-    m_latest_rendered_surface = nullptr;
-    m_last_rasterized_frame.clear();
-    return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, presents_to_client(), gpu_sharing);
-}
-
-Optional<BackingStoreManager::Publication> ContextState::add_backing_store_for_pending_frame_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
-{
-    if (!presents_to_client() || !m_pending_present_frame.has_value() || !can_render_frame())
-        return {};
-    return m_backing_store_manager.add_backing_store_if_window_server_still_reads_every_released_store(skia_backend_context);
-}
-
-bool ContextState::update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& transform)
-{
-    if (presents_to_client() || m_backing_store_manager.is_rendering() || m_viewport_size.is_empty() || destination_rect.is_empty())
-        return false;
-
-    // Display list coordinates already include device scale and page zoom. Only the embedding transform and
-    // the viewport-to-destination mapping belong here; neither changes the child's layout or scroll geometry.
-    auto has_perspective = transform[3, 0] != 0 || transform[3, 1] != 0 || transform[3, 3] != 1;
-    float scale_x = 1;
-    float scale_y = 1;
-    if (!has_perspective) {
-        scale_x = hypotf(transform[0, 0], transform[1, 0]) * destination_rect.width() / m_viewport_size.width();
-        scale_y = hypotf(transform[0, 1], transform[1, 1]) * destination_rect.height() / m_viewport_size.height();
-    }
-    if (!isfinite(scale_x) || !isfinite(scale_y))
-        return false;
-
-    // Perspective keeps the native resolution until we can choose a scale from the visible projected region.
-    auto scale = bounded_composited_raster_scale({ scale_x, scale_y }, m_viewport_size);
-
-    Gfx::FloatPoint translation;
-    if (!has_perspective && transform[0, 1] == 0 && transform[1, 0] == 0 && scale.width() == scale_x && scale.height() == scale_y) {
-        auto x = transform[0, 0] * destination_rect.x() + transform[0, 3];
-        auto y = transform[1, 1] * destination_rect.y() + transform[1, 3];
-        if (!isfinite(x) || !isfinite(y))
-            return false;
-        // Mirrored placements need the opposite fractional phase so the remaining image transform still
-        // lands on integer device pixels.
-        if (transform[0, 0] < 0)
-            x = -x;
-        if (transform[1, 1] < 0)
-            y = -y;
-        translation = { x - floorf(x), y - floorf(y) };
-    }
-
-    if (m_raster_scale == scale && m_raster_translation == translation)
-        return false;
-    m_raster_scale = scale;
-    m_raster_translation = translation;
-    m_latest_rendered_surface = nullptr;
-    m_last_rasterized_frame.clear();
-    return true;
-}
-
-Gfx::IntSize ContextState::raster_size() const
-{
-    if (m_viewport_size.is_empty())
-        return {};
-    if (presents_to_client())
-        return m_viewport_size;
-    return {
-        static_cast<int>(ceilf(m_viewport_size.width() * m_raster_scale.width() + m_raster_translation.x())),
-        static_cast<int>(ceilf(m_viewport_size.height() * m_raster_scale.height() + m_raster_translation.y())),
-    };
-}
-
-Gfx::IntRect ContextState::raster_damage_rect(Gfx::IntRect damage_rect) const
-{
-    if (damage_rect.is_empty())
-        return {};
-    if (damage_rect.contains(Gfx::IntRect { {}, m_viewport_size }))
-        return { {}, raster_size() };
-    auto rect = damage_rect.to_type<float>();
-    rect.scale_by(m_raster_scale.width(), m_raster_scale.height());
-    rect.translate_by(m_raster_translation);
-    return Gfx::enclosing_int_rect(rect).intersected(Gfx::IntRect { {}, raster_size() });
-}
-
-Compositing::CompositedContextSurface ContextState::composited_surface() const
-{
-    if (!m_latest_rendered_surface || !m_last_rasterized_frame.has_value())
-        return {};
-    auto size = m_last_rasterized_frame->viewport_size.to_type<float>();
-    size.scale_by(m_raster_scale.width(), m_raster_scale.height());
-    return { m_latest_rendered_surface, { m_raster_translation, size } };
-}
-
-void ContextState::invalidate_backing_stores()
-{
-    m_backing_store_manager.invalidate();
 }
 
 bool ContextState::set_display_metadata(Optional<u64> display_id, double refresh_rate)
 {
     m_display_id = display_id;
     m_display_refresh_rate = refresh_rate;
-    return m_pending_present_frame_scheduled;
+    return m_presenter.pending_present_frame_scheduled();
 }
 
 bool ContextState::set_visibility(Compositing::ContextVisibility visibility)
@@ -1450,164 +1269,33 @@ Vector<Web::CompositorScrollOffset> ContextState::scroll_offsets() const
     return scroll_offsets;
 }
 
-Optional<Gfx::IntRect> ContextState::pending_present_frame_viewport_rect() const
-{
-    if (!m_pending_present_frame.has_value())
-        return {};
-    return m_pending_present_frame->viewport_rect;
-}
-
-void ContextState::queue_present_frame(PendingFrame pending_frame)
-{
-    if (!m_pending_present_frame.has_value()) {
-        m_pending_present_frame = pending_frame;
-        return;
-    }
-
-    if (m_pending_present_frame->viewport_rect.size() != pending_frame.viewport_rect.size()) {
-        m_pending_present_frame = PendingFrame::repainting_everything(pending_frame.viewport_rect);
-        return;
-    }
-
-    m_pending_present_frame->viewport_rect = pending_frame.viewport_rect;
-    m_pending_present_frame->forced_damage_rect.unite(pending_frame.forced_damage_rect);
-}
-
-void ContextState::mark_pending_present_frame_scheduled()
-{
-    m_pending_present_frame_scheduled = true;
-}
-
 bool ContextState::has_pending_present_frame_scheduled_on(Optional<u64> display_id) const
 {
-    return m_pending_present_frame_scheduled && m_display_id == display_id;
+    return m_presenter.pending_present_frame_scheduled() && m_display_id == display_id;
 }
 
-bool ContextState::can_schedule_pending_present_frame_if_unblocked() const
+ContextPresenter::FrameContent ContextState::frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const* composited_context_resolver) const
 {
-    if (is_present_blocked())
-        return false;
-    if (!m_pending_present_frame.has_value())
-        return false;
-    if (m_pending_present_frame_scheduled)
-        return false;
-    return true;
-}
-
-Optional<ContextState::PendingFrame> ContextState::take_pending_present_frame_if_unblocked()
-{
-    if (is_present_blocked())
-        return {};
-    m_pending_present_frame_scheduled = false;
-    if (!m_pending_present_frame.has_value())
-        return {};
-    return m_pending_present_frame.release_value();
-}
-
-bool ContextState::needs_rasterization() const
-{
-    return m_pending_present_frame.has_value()
-        || (!m_latest_rendered_surface && m_presented_frame.has_value());
-}
-
-Optional<Gfx::IntRect> ContextState::frame_rect_to_repaint() const
-{
-    if (m_pending_present_frame.has_value())
-        return m_pending_present_frame->viewport_rect;
-    return m_presented_frame;
-}
-
-Optional<Gfx::IntRect> ContextState::self_present_rect() const
-{
-    if (m_presented_frame.has_value())
-        return m_presented_frame;
-    if (!m_viewport_size.is_empty())
-        return Gfx::IntRect { {}, m_viewport_size };
-    return {};
-}
-
-bool ContextState::draws_canvas(Compositing::CanvasId canvas_id) const
-{
-    return m_last_rasterized_frame.has_value() && m_last_rasterized_frame->canvas_content_generations.contains(canvas_id);
-}
-
-Optional<ContextState::PreparedFrame> ContextState::prepare_frame(DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
-{
-    if (is_present_blocked()) {
-        queue_present_frame(pending_frame);
-        return {};
-    }
-
-    if (!can_render_frame()) {
-        m_presented_frame = pending_frame.viewport_rect;
-        return {};
-    }
-
-    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
-    auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
-
-    auto damage_rect = frame_damage_for(pending_frame, presented_scroll_state_snapshot);
-    // NB: A changed content rect must still reach the client even if the pixels are identical.
-    if (damage_rect.is_empty() && m_presented_frame == pending_frame.viewport_rect) {
-        remember_rasterized_frame(pending_frame.viewport_rect.size(), presented_scroll_state_snapshot);
-        return {};
-    }
-    auto render_target = m_backing_store_manager.acquire_render_target(raster_damage_rect(damage_rect));
-    if (!render_target.has_value()) {
-        queue_present_frame(pending_frame);
-        return {};
-    }
-    auto& back_store = render_target->surface;
-    paint_current_display_list(display_list_player, back_store, composited_context_resolver, presented_scroll_state_snapshot, render_target->damage_rect);
-    remember_rasterized_frame(pending_frame.viewport_rect.size(), presented_scroll_state_snapshot);
-
-    return PreparedFrame {
-        .rendered_surface = &back_store,
-        .bitmap_id = render_target->bitmap_id,
-        .damage_rect = damage_rect,
+    return {
+        .presented_scroll_state_snapshot = presented_scroll_state_snapshot,
+        .scrollbar_controller = m_scrollbar_controller,
+        .viewport_scroll_node_index = m_async_scroll_tree.viewport_scroll_node_id().map([](auto const& node_id) { return node_id.scroll_node_index; }),
+        .composited_context_resolver = composited_context_resolver,
     };
 }
 
-void ContextState::did_submit_prepared_frame(Gfx::IntRect viewport_rect)
+Optional<PreparedFrame> ContextState::prepare_frame(DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
 {
-    m_presented_frame = viewport_rect;
+    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
+    auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
+    return m_presenter.prepare_frame(display_list_player, pending_frame, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
 }
 
 bool ContextState::present_synchronously(DisplayListPlayerSkia& display_list_player, CompositedContextResolver const* composited_context_resolver)
 {
-    if (!can_render_frame())
-        return false;
-    // Don't race an async present already in flight for this context; its own completion will update the output.
-    if (is_present_blocked())
-        return false;
-
-    Optional<PendingFrame> pending_frame = m_pending_present_frame;
-    if (!pending_frame.has_value() && m_presented_frame.has_value())
-        pending_frame = PendingFrame::repainting_everything(*m_presented_frame);
-    if (!pending_frame.has_value())
-        return false;
-
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
-
-    auto render_target = m_backing_store_manager.acquire_render_target(raster_damage_rect(frame_damage_for(*pending_frame, presented_scroll_state_snapshot)));
-    if (!render_target.has_value())
-        return false;
-    auto& back_store = render_target->surface;
-    paint_current_display_list(display_list_player, back_store, composited_context_resolver, presented_scroll_state_snapshot, render_target->damage_rect);
-    remember_rasterized_frame(pending_frame->viewport_rect.size(), presented_scroll_state_snapshot);
-    display_list_player.flush(back_store);
-    m_backing_store_manager.complete_rendering(render_target->bitmap_id, false);
-    m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
-    m_presented_frame = pending_frame->viewport_rect;
-    m_pending_present_frame.clear();
-    m_pending_present_frame_scheduled = false;
-    return true;
-}
-
-bool ContextState::can_paint_screenshot(Gfx::ShareableBitmap& target_bitmap) const
-{
-    return m_scene.display_list() && target_bitmap.is_valid() && target_bitmap.bitmap();
+    return m_presenter.present_synchronously(display_list_player, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
 }
 
 void ContextState::paint_screenshot(DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap, CompositedContextResolver const* composited_context_resolver)
@@ -1619,37 +1307,12 @@ void ContextState::paint_screenshot(DisplayListPlayerSkia& display_list_player, 
 
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
-
-    auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
-    paint_current_display_list(display_list_player, *target_surface, composited_context_resolver, presented_scroll_state_snapshot, {}, PaintUIOverlay::No, false);
-    display_list_player.flush(*target_surface);
+    m_presenter.paint_screenshot(display_list_player, target_bitmap, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
 }
 
-bool ContextState::acknowledge_presented_bitmap(i32 bitmap_id)
+bool ContextState::can_paint_screenshot(Gfx::ShareableBitmap& target_bitmap) const
 {
-    return m_backing_store_manager.release_buffer(bitmap_id);
-}
-
-void ContextState::did_finish_gpu_present(i32 bitmap_id)
-{
-    m_backing_store_manager.complete_rendering(bitmap_id, presents_to_client());
-    m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
-}
-
-void ContextState::stop_backing_store_shrink_timer()
-{
-    if (!m_backing_store_shrink_timer)
-        return;
-    m_backing_store_shrink_timer->on_timeout = {};
-    m_backing_store_shrink_timer->stop();
-}
-
-void ContextState::stop_surplus_backing_store_retirement_timer()
-{
-    if (!m_surplus_backing_store_retirement_timer)
-        return;
-    m_surplus_backing_store_retirement_timer->on_timeout = {};
-    m_surplus_backing_store_retirement_timer->stop();
+    return m_scene.display_list() && target_bitmap.is_valid() && target_bitmap.bitmap();
 }
 
 Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_viewport_scroll_delta(Gfx::FloatPoint delta)
@@ -1851,7 +1514,7 @@ void ContextState::end_scroll_step_gestures_whose_input_ran_out(MonotonicTime no
     schedule_end_of_scroll_step_gestures(now);
 }
 
-Optional<ContextState::PendingFrame> ContextState::apply_scrollbar_drag(ScrollbarController::Drag const& drag)
+Optional<PendingFrame> ContextState::apply_scrollbar_drag(ScrollbarController::Drag const& drag)
 {
     auto dragged_to = m_scrollbar_controller.scroll_offset_for_drag(m_async_scroll_tree, m_scroll_state_snapshot, drag);
     if (!dragged_to.has_value())
@@ -1895,164 +1558,14 @@ void ContextState::rebuild_wheel_hit_test_targets()
         m_scroll_state_snapshot);
 }
 
-bool ContextState::is_present_blocked() const
-{
-    return m_backing_store_manager.is_rendering()
-        || !m_backing_store_manager.has_available_buffer();
-}
-
-bool ContextState::can_render_frame() const
-{
-    return m_scene.display_list() && m_backing_store_manager.is_valid();
-}
-
-Gfx::IntRect ContextState::frame_damage_for(PendingFrame const& pending_frame, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot)
-{
-    Gfx::IntRect viewport_rect { {}, pending_frame.viewport_rect.size() };
-    auto forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
-    if (forced_damage_rect.contains(viewport_rect))
-        return viewport_rect;
-    auto damage_rect = damage_since_last_raster(viewport_rect.size(), presented_scroll_state_snapshot);
-    damage_rect.unite(forced_damage_rect);
-    return damage_rect;
-}
-
-Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot)
-{
-    Gfx::IntRect viewport_rect { {}, viewport_size };
-    if (!m_last_rasterized_frame.has_value())
-        return viewport_rect;
-    auto const& last_frame = *m_last_rasterized_frame;
-    if (last_frame.viewport_size != viewport_size)
-        return viewport_rect;
-    if (last_frame.display_list->surface_clear_color() != m_scene.display_list()->surface_clear_color())
-        return viewport_rect;
-    if (auto viewport_scroll_node_id = m_async_scroll_tree.viewport_scroll_node_id(); viewport_scroll_node_id.has_value()) {
-        auto index = viewport_scroll_node_id->scroll_node_index;
-        if (last_frame.scroll_state_snapshot.device_offset_for_index(index) != presented_scroll_state_snapshot.device_offset_for_index(index))
-            return viewport_rect;
-    }
-
-    auto const& visual_context_tree = m_scene.visual_context_tree_for_compositing();
-    auto display_list_damage = Compositing::compute_display_list_damage(
-        *last_frame.display_list,
-        last_frame.visual_context_tree,
-        last_frame.scroll_state_snapshot,
-        *m_scene.display_list(),
-        visual_context_tree,
-        presented_scroll_state_snapshot,
-        viewport_rect);
-    if (!display_list_damage.has_value())
-        return viewport_rect;
-
-    auto damage_rect = *display_list_damage;
-    for (auto const& scrollbar : m_scrollbar_controller.scrollbars()) {
-        if (!scrollbar.is_painted_by_compositor)
-            continue;
-        if (last_frame.scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index) == presented_scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index))
-            continue;
-        damage_rect.unite(scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect));
-    }
-    m_scene.display_list()->for_each_drawn_canvas([&](auto context, auto bounding_rect, auto const& draw_canvas) {
-        auto last_content_generation = last_frame.canvas_content_generations.get(draw_canvas.canvas_id);
-        if (last_content_generation.has_value() && *last_content_generation == m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id))
-            return;
-        auto canvas_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.template to_type<float>(), presented_scroll_state_snapshot);
-        if (!isfinite(canvas_rect.x()) || !isfinite(canvas_rect.y()) || !isfinite(canvas_rect.width()) || !isfinite(canvas_rect.height())) {
-            damage_rect = viewport_rect;
-            return;
-        }
-        canvas_rect.intersect(viewport_rect.to_type<float>());
-        if (canvas_rect.is_empty())
-            return;
-        damage_rect.unite(Gfx::enclosing_int_rect(canvas_rect).inflated(1, 1, 1, 1));
-    });
-    damage_rect.intersect(viewport_rect);
-    return damage_rect;
-}
-
-void ContextState::remember_rasterized_frame(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot)
-{
-    HashMap<Compositing::CanvasId, u64> canvas_content_generations;
-    m_scene.display_list()->for_each_drawn_canvas([&](auto, auto, auto const& draw_canvas) {
-        canvas_content_generations.set(draw_canvas.canvas_id, m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id));
-    });
-    m_last_rasterized_frame = RasterizedFrame {
-        .display_list = NonnullRefPtr { *m_scene.display_list() },
-        .visual_context_tree = m_scene.visual_context_tree_for_compositing(),
-        .scroll_state_snapshot = presented_scroll_state_snapshot,
-        .viewport_size = viewport_size,
-        .canvas_content_generations = move(canvas_content_generations),
-    };
-}
-
 bool ContextState::visual_animations_need_frame()
 {
-    return m_scene.visual_animations_need_frame(m_scroll_state_snapshot, m_viewport_size);
+    return m_scene.visual_animations_need_frame(m_scroll_state_snapshot, m_presenter.viewport_size());
 }
 
 bool ContextState::advance_visual_animations(MonotonicTime now)
 {
     return m_scene.advance_visual_animations(now);
-}
-
-void ContextState::paint_current_display_list(DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay, bool apply_raster_transform)
-{
-    VERIFY(m_scene.display_list());
-    auto surface_clear_color = Gfx::to_skia_color(m_scene.display_list()->surface_clear_color().value_or(Gfx::Color::Transparent));
-    auto paint_display_list = [&](Gfx::PaintingSurface& target_surface) {
-        display_list_player.execute(
-            *m_scene.display_list(),
-            m_scene.visual_context_tree_for_compositing(),
-            m_scene.resource_storage(),
-            m_scene.raster_cache(),
-            presented_scroll_state_snapshot,
-            target_surface,
-            &m_canvas_surface_registry,
-            composited_context_resolver);
-        m_scrollbar_controller.paint(target_surface, display_list_player, presented_scroll_state_snapshot);
-        if (paint_ui_overlay == PaintUIOverlay::Yes && m_paused_debugger_overlay_visible)
-            paint_paused_debugger_overlay(target_surface, m_viewport_size, m_paused_debugger_overlay_device_pixel_ratio, m_paused_debugger_overlay_font_family, m_paused_debugger_overlay_hovered_action);
-    };
-
-    if (damage_rect.has_value() && !damage_rect->is_empty() && presents_to_client() && damage_rect->size() != surface.size() && surface.skia_backend_context()) {
-        if (!m_damage_surface || m_damage_surface->size() != damage_rect->size()) {
-            m_damage_surface = Gfx::PaintingSurface::create_with_size(
-                damage_rect->size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, surface.skia_backend_context());
-        }
-
-        auto& damage_canvas = m_damage_surface->canvas();
-        damage_canvas.clear(surface_clear_color);
-        damage_canvas.save();
-        damage_canvas.translate(-damage_rect->x(), -damage_rect->y());
-        paint_display_list(*m_damage_surface);
-        damage_canvas.restore();
-
-        auto image = m_damage_surface->sk_image_snapshot<sk_sp<SkImage>>();
-        SkPaint paint;
-        paint.setBlendMode(SkBlendMode::kSrc);
-        surface.canvas().drawImageRect(
-            image.get(),
-            SkRect::MakeWH(damage_rect->width(), damage_rect->height()),
-            SkRect::MakeXYWH(damage_rect->x(), damage_rect->y(), damage_rect->width(), damage_rect->height()),
-            SkSamplingOptions {},
-            &paint,
-            SkCanvas::kStrict_SrcRectConstraint);
-        return;
-    }
-
-    auto& canvas = surface.canvas();
-    auto save_count = canvas.save();
-    if (damage_rect.has_value()) {
-        canvas.clipIRect(SkIRect::MakeXYWH(damage_rect->x(), damage_rect->y(), damage_rect->width(), damage_rect->height()));
-        canvas.clear(surface_clear_color);
-    }
-    if (apply_raster_transform) {
-        canvas.translate(m_raster_translation.x(), m_raster_translation.y());
-        canvas.scale(m_raster_scale.width(), m_raster_scale.height());
-    }
-    paint_display_list(surface);
-    canvas.restoreToCount(save_count);
 }
 
 }

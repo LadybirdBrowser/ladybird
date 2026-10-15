@@ -15,10 +15,9 @@
 #include <AK/Span.h>
 #include <AK/Vector.h>
 #include <Compositor/AsyncScrollUpdateOutbox.h>
-#include <Compositor/BackingStoreManager.h>
 #include <Compositor/CaretBlinkTimer.h>
+#include <Compositor/ContextPresenter.h>
 #include <Compositor/ContextScene.h>
-#include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/ElasticOverscrollController.h>
 #include <Compositor/Forward.h>
 #include <Compositor/FramePacer.h>
@@ -64,14 +63,6 @@ class ContextState {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    struct PendingFrame {
-        Gfx::IntRect viewport_rect;
-        Gfx::IntRect forced_damage_rect;
-
-        static PendingFrame repainting_everything(Gfx::IntRect viewport_rect) { return { viewport_rect, { {}, viewport_rect.size() } }; }
-        static PendingFrame repainting_changes(Gfx::IntRect viewport_rect) { return { viewport_rect, {} }; }
-    };
-
     struct AsyncScrollResult {
         Compositing::AsyncScrollEnqueueResult enqueue_result;
         Optional<PendingFrame> frame_to_present;
@@ -82,12 +73,6 @@ public:
         Optional<PendingFrame> frame_to_present;
         bool should_request_rendering_update { false };
         Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
-    };
-
-    struct PreparedFrame {
-        Gfx::PaintingSurface* rendered_surface { nullptr };
-        i32 bitmap_id { 0 };
-        Gfx::IntRect damage_rect;
     };
 
     ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::CanvasSurfaceRegistry const&, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
@@ -102,14 +87,13 @@ public:
     bool scrolled_since_last_frame() const;
     bool can_dispatch_input_to_web_content() const { return m_page_id.has_value(); }
 
-    bool presents_to_client() const { return m_presents_to_client; }
+    bool presents_to_client() const { return m_presenter.presents_to_client(); }
     void stop_presenting_to_client();
 
     void set_parent_context(Optional<Web::CompositorContextId>);
     Optional<Web::CompositorContextId> parent_context_id() const { return m_parent_context_id; }
-    RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
-    bool update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
-    Compositing::CompositedContextSurface composited_surface() const;
+    ContextPresenter& presenter() { return m_presenter; }
+    ContextPresenter const& presenter() const { return m_presenter; }
 
     void apply_display_list_resource_transaction(Compositing::DisplayListResourceTransaction&&);
     void install_display_list_update(
@@ -171,17 +155,6 @@ public:
 
     void viewport_size_updated(Gfx::IntSize, Compositing::WindowResizingInProgress);
     bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action);
-    bool paused_debugger_overlay_visible() const { return m_paused_debugger_overlay_visible; }
-    Optional<Gfx::IntRect> viewport_rect_for_ui_overlay() const;
-    bool should_shrink_backing_stores_after_resize() const;
-    void schedule_backing_store_shrink(Function<void()>);
-    void finish_window_resize();
-    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing);
-    void invalidate_backing_stores();
-    Optional<BackingStoreManager::Publication> add_backing_store_for_pending_frame_if_needed(RefPtr<Gfx::SkiaBackendContext> const&);
-    bool has_surplus_backing_stores() const { return m_backing_store_manager.has_surplus_backing_stores(); }
-    Vector<i32> retire_idle_surplus_backing_stores() { return m_backing_store_manager.retire_idle_surplus_backing_stores(); }
-    void schedule_surplus_backing_store_retirement(Function<void()>);
 
     bool set_display_metadata(Optional<u64> display_id, double refresh_rate);
     Optional<u64> display_id() const { return m_display_id; }
@@ -191,8 +164,6 @@ public:
 
     bool request_rendering_opportunity(double maximum_frames_per_second) { return m_rendering_opportunity_request.request(maximum_frames_per_second); }
     bool rendering_opportunity_requested() const { return m_rendering_opportunity_request.is_requested(); }
-    bool window_resize_in_progress() const { return m_window_resize_in_progress == Compositing::WindowResizingInProgress::Yes; }
-    bool is_present_blocked() const;
     double rendering_opportunity_frame_interval(double display_refresh_rate) const { return m_rendering_opportunity_request.frame_interval(display_refresh_rate); }
     bool rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_rendering_opportunity_request.is_due(frame_time, display_refresh_rate); }
     void did_deliver_rendering_opportunity(MonotonicTime frame_time) { m_rendering_opportunity_request.did_deliver(frame_time); }
@@ -206,24 +177,11 @@ public:
     Vector<Web::CompositorScrollOffset> scroll_offsets() const;
     bool display_tick_requested() const { return rendering_opportunity_requested() || clock_tick_requested(); }
 
-    void queue_present_frame(PendingFrame);
-    Optional<Gfx::IntRect> pending_present_frame_viewport_rect() const;
-    void mark_pending_present_frame_scheduled();
-    void unschedule_pending_present_frame() { m_pending_present_frame_scheduled = false; }
     bool has_pending_present_frame_scheduled_on(Optional<u64> display_id) const;
-    bool can_schedule_pending_present_frame_if_unblocked() const;
-    Optional<PendingFrame> take_pending_present_frame_if_unblocked();
-    bool needs_rasterization() const;
-    Optional<Gfx::IntRect> frame_rect_to_repaint() const;
-    Optional<Gfx::IntRect> self_present_rect() const;
-    bool draws_canvas(Compositing::CanvasId) const;
     Optional<PreparedFrame> prepare_frame(DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
-    void did_submit_prepared_frame(Gfx::IntRect);
     bool present_synchronously(DisplayListPlayerSkia&, CompositedContextResolver const*);
     bool can_paint_screenshot(Gfx::ShareableBitmap&) const;
     void paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, CompositedContextResolver const*);
-    bool acknowledge_presented_bitmap(i32 bitmap_id);
-    void did_finish_gpu_present(i32 bitmap_id);
 
 private:
     struct ActiveSmoothScrollAnimation {
@@ -239,16 +197,6 @@ private:
         Gfx::FloatPoint consumed_delta;
     };
 
-    struct RasterizedFrame {
-        NonnullRefPtr<Compositing::DisplayList const> display_list;
-        Compositing::AccumulatedVisualContextTree visual_context_tree;
-        Compositing::ScrollStateSnapshot scroll_state_snapshot;
-        Gfx::IntSize viewport_size;
-        HashMap<Compositing::CanvasId, u64> canvas_content_generations;
-    };
-
-    void stop_backing_store_shrink_timer();
-    void stop_surplus_backing_store_retirement_timer();
     void end_keyboard_scroll_gesture();
     Compositing::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
     void adopt_keyboard_scroll_state(Compositing::KeyboardScrollState);
@@ -310,35 +258,18 @@ private:
     void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
     Optional<PendingFrame> apply_scrollbar_drag(ScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
-    bool can_render_frame() const;
-    enum class PaintUIOverlay : u8 {
-        No,
-        Yes,
-    };
-    void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
-    Gfx::IntSize raster_size() const;
-    Gfx::IntRect raster_damage_rect(Gfx::IntRect) const;
-    Gfx::IntRect frame_damage_for(PendingFrame const&, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
-    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
-    void remember_rasterized_frame(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
+    ContextPresenter::FrameContent frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const*) const;
     Gfx::IntRect damage_rect_of_blinking_carets();
 
     CompositorStateWebContentClient& m_web_content_client;
-    Compositing::CanvasSurfaceRegistry const& m_canvas_surface_registry;
     Web::CompositorContextId m_context_id;
     Optional<u64> m_page_id;
 
-    bool m_presents_to_client { false };
     Optional<Web::CompositorContextId> m_parent_context_id;
 
     ContextScene m_scene;
+    ContextPresenter m_presenter;
     Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
-    BackingStoreManager m_backing_store_manager;
-    RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
-    RefPtr<Gfx::PaintingSurface> m_damage_surface;
-    Optional<RasterizedFrame> m_last_rasterized_frame;
-    Gfx::FloatSize m_raster_scale { 1, 1 };
-    Gfx::FloatPoint m_raster_translation;
 
     Compositing::AsyncScrollTree m_async_scroll_tree;
     ScrollbarController m_scrollbar_controller;
@@ -354,14 +285,6 @@ private:
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
 
-    Gfx::IntSize m_viewport_size;
-    bool m_paused_debugger_overlay_visible { false };
-    double m_paused_debugger_overlay_device_pixel_ratio { 1.0 };
-    Optional<String> m_paused_debugger_overlay_font_family;
-    Optional<Compositing::PausedDebuggerOverlayAction> m_paused_debugger_overlay_hovered_action;
-    Compositing::WindowResizingInProgress m_window_resize_in_progress { Compositing::WindowResizingInProgress::No };
-    RefPtr<Core::Timer> m_backing_store_shrink_timer;
-    RefPtr<Core::Timer> m_surplus_backing_store_retirement_timer;
     CaretBlinkTimer m_caret_blink_timer;
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
@@ -369,10 +292,6 @@ private:
 
     PacedTickRequest m_rendering_opportunity_request;
     PacedTickRequest m_clock_tick_request;
-
-    Optional<PendingFrame> m_pending_present_frame;
-    bool m_pending_present_frame_scheduled { false };
-    Optional<Gfx::IntRect> m_presented_frame;
 };
 
 }
