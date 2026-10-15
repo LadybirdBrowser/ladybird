@@ -51,11 +51,6 @@ enum class UnloadPromptShown : bool {
     Yes,
 };
 
-enum class UnloadDisplayedDocument : bool {
-    No,
-    Yes,
-};
-
 enum class ChildNavigableDestruction : bool {
     No,
     Yes,
