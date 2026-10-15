@@ -882,6 +882,11 @@ protected:
     Gfx::Color m_page_background_color { 255, 255, 255 };
     Gfx::Color m_system_canvas_background_color { 255, 255, 255 };
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
+    // The geometry of the window the view sits in, as the UI last reported it. Every page the tab comes to be
+    // hosted by is told it, so a page created after the window was last resized or moved answers outerWidth,
+    // outerHeight, screenX and screenY like the pages before it.
+    Optional<Gfx::IntPoint> m_window_position;
+    Optional<Gfx::IntSize> m_window_size;
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::Auto };
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::Auto };
     Optional<String> m_user_style_sheet;
