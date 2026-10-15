@@ -671,6 +671,10 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 
 )~~~"sv));
 
+    // Core::System::pipe2() uses the native syscall on macOS 27. Older Seatbelt versions do not know this syscall.
+    if (__builtin_available(macOS 27.0, *))
+        TRY(profile.try_append("(allow syscall-unix (syscall-number SYS_pipe2))\n"sv));
+
     if (options.network_access == NetworkAccess::Allowed) {
         TRY(profile.try_append(R"~~~(
 ; Connect to hosts on the network and to the system's network daemons, but not to local sockets of other processes.
