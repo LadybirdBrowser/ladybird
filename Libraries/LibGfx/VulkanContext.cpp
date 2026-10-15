@@ -176,6 +176,22 @@ static ErrorOr<VkCommandBuffer> allocate_command_buffer(VkDevice logical_device,
 }
 #endif
 
+GpuDeviceIdentity gpu_device_identity_of(VkPhysicalDevice physical_device)
+{
+    VkPhysicalDeviceIDProperties id_properties {};
+    id_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
+    VkPhysicalDeviceProperties2 properties {};
+    properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    properties.pNext = &id_properties;
+    vkGetPhysicalDeviceProperties2(physical_device, &properties);
+
+    // Memory exported from one device imports only where both the device and the driver match.
+    GpuDeviceIdentity identity;
+    identity.bytes.append(id_properties.deviceUUID, VK_UUID_SIZE);
+    identity.bytes.append(id_properties.driverUUID, VK_UUID_SIZE);
+    return identity;
+}
+
 ErrorOr<VulkanContext> create_vulkan_context()
 {
     uint32_t const api_version = VK_API_VERSION_1_1; // v1.1 needed for vkGetPhysicalDeviceFormatProperties2
@@ -205,6 +221,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
         .api_version = api_version,
         .instance = instance,
         .physical_device = physical_device,
+        .device_identity = gpu_device_identity_of(physical_device),
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
         .graphics_queue_family = graphics_queue_family,
