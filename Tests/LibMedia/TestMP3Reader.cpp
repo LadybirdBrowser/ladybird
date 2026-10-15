@@ -34,7 +34,7 @@ static NonnullRefPtr<Media::ReadonlyBytesCursor> create_cursor(ReadonlyBytes byt
 
 static Optional<Media::MP3::Reader> read(Vector<u8> const& bytes)
 {
-    return Media::MP3::Reader::from_stream(create_cursor(bytes));
+    return MUST(Media::MP3::Reader::from_stream(create_cursor(bytes)));
 }
 
 static ByteBuffer read_fixture(StringView path)
@@ -46,7 +46,7 @@ static ByteBuffer read_fixture(StringView path)
 TEST_CASE(reader_takes_an_exact_duration_from_a_stream_info_frame)
 {
     auto data = read_fixture("buffered-ranges/tone.mp3"sv);
-    auto reader = Media::MP3::Reader::from_stream(create_cursor(data));
+    auto reader = MUST(Media::MP3::Reader::from_stream(create_cursor(data)));
     EXPECT(reader.has_value());
 
     EXPECT(reader->stream_info().has_value());
@@ -63,7 +63,7 @@ TEST_CASE(reader_takes_an_exact_duration_from_a_stream_info_frame)
 TEST_CASE(reader_estimates_a_duration_without_a_stream_info_frame)
 {
     auto data = read_fixture("bbb_without_stream_info.mp3"sv);
-    auto reader = Media::MP3::Reader::from_stream(create_cursor(data));
+    auto reader = MUST(Media::MP3::Reader::from_stream(create_cursor(data)));
     EXPECT(reader.has_value());
 
     EXPECT(!reader->stream_info().has_value());
@@ -84,7 +84,7 @@ TEST_CASE(frame_iterator_walks_every_frame_of_a_stream)
 
     size_t frame_count = 0;
     u64 sample_count = 0;
-    for (auto frame = iterator.next(); frame.has_value(); frame = iterator.next()) {
+    for (auto frame = MUST(iterator.next()); frame.has_value(); frame = MUST(iterator.next())) {
         frame_count++;
         sample_count += frame->header.sample_count;
     }
@@ -103,9 +103,9 @@ TEST_CASE(frame_iterator_stops_where_a_frame_header_can_no_longer_be_read)
     // third frame is all that has to be missing for the walk to end.
     auto truncated = bytes.span().trim(2 * FRAME_BYTE_SIZE + 2);
     Media::MP3::FrameIterator iterator { create_cursor(truncated), 0, Media::MP3::FrameIterator::Resynchronize::No };
-    EXPECT(iterator.next().has_value());
-    EXPECT(iterator.next().has_value());
-    EXPECT(!iterator.next().has_value());
+    EXPECT(MUST(iterator.next()).has_value());
+    EXPECT(MUST(iterator.next()).has_value());
+    EXPECT(!MUST(iterator.next()).has_value());
     EXPECT_EQ(iterator.position(), 2u * FRAME_BYTE_SIZE);
 }
 
@@ -121,7 +121,7 @@ TEST_CASE(reader_reports_what_it_scanned_of_a_stream_of_an_unknown_size)
     cursor->set_is_blocking(false);
 
     // Nothing says how long the stream is, so the frames the scan walked are all there is to go on.
-    auto reader = Media::MP3::Reader::from_stream(cursor);
+    auto reader = MUST(Media::MP3::Reader::from_stream(cursor));
     EXPECT(reader.has_value());
     EXPECT(reader->duration_is_estimated());
     EXPECT_EQ(reader->duration(), AK::Duration::from_time_units(3 * 1152, 1, 48'000));
@@ -211,10 +211,10 @@ TEST_CASE(backward_search_reads_back_through_bytes_holding_no_frames)
     auto target = bytes.size() - 1;
 
     // The last two frames lack the run of frames after them that would rule out a false sync code.
-    auto boundary = Media::MP3::Reader::find_frame_boundary_at_or_before(create_cursor(bytes), target, 0, bytes.size());
+    auto boundary = MUST(Media::MP3::Reader::find_frame_boundary_at_or_before(create_cursor(bytes), target, 0, bytes.size()));
     EXPECT_EQ(boundary.value_or(0), 7 * FRAME_BYTE_SIZE);
 
     // The search goes no further back than its lower bound.
-    boundary = Media::MP3::Reader::find_frame_boundary_at_or_before(create_cursor(bytes), target, audio_end, bytes.size());
+    boundary = MUST(Media::MP3::Reader::find_frame_boundary_at_or_before(create_cursor(bytes), target, audio_end, bytes.size()));
     EXPECT(!boundary.has_value());
 }

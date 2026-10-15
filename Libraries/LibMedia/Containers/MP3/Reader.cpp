@@ -14,45 +14,47 @@ static constexpr size_t SYNC_SCAN_CHUNK_SIZE = 4096;
 static constexpr size_t BITRATE_SCAN_BYTE_COUNT = 4096;
 static constexpr size_t FRAME_COUNT_RULING_OUT_A_FALSE_SYNC_CODE = 3;
 
-static size_t read_available(MediaStreamCursor& cursor, size_t position, Bytes buffer)
+static DecoderErrorOr<size_t> read_available(MediaStreamCursor& cursor, size_t position, Bytes buffer)
 {
-    if (cursor.seek_to_position(position).is_error())
+    auto result = [&]() -> DecoderErrorOr<size_t> {
+        TRY(cursor.seek_to_position(position));
+        return cursor.read_into(buffer);
+    }();
+    // Data that ends early reads short, but an aborted read has to reach the reader that will retry it.
+    if (result.is_error() && result.error().category() != DecoderErrorCategory::Aborted)
         return 0;
-    auto result = cursor.read_into(buffer);
-    if (result.is_error())
-        return 0;
-    return result.value();
+    return result;
 }
 
-static bool read_exact(MediaStreamCursor& cursor, size_t position, Bytes buffer)
+static DecoderErrorOr<bool> read_exact(MediaStreamCursor& cursor, size_t position, Bytes buffer)
 {
-    return read_available(cursor, position, buffer) == buffer.size();
+    return TRY(read_available(cursor, position, buffer)) == buffer.size();
 }
 
-Optional<FrameIterator::Frame> FrameIterator::read_frame()
+DecoderErrorOr<Optional<FrameIterator::Frame>> FrameIterator::read_frame()
 {
     Array<u8, FrameHeader::SIZE> frame_header_data;
-    if (!read_exact(*m_cursor, m_position, frame_header_data))
-        return {};
+    if (!TRY(read_exact(*m_cursor, m_position, frame_header_data)))
+        return Optional<Frame> {};
 
     auto header = FrameHeader::parse(frame_header_data);
     if (!header.has_value())
-        return {};
+        return Optional<Frame> {};
 
     Frame frame { m_position, *header };
     m_position += header->frame_byte_size;
     return frame;
 }
 
-Optional<FrameIterator::Frame> FrameIterator::next()
+DecoderErrorOr<Optional<FrameIterator::Frame>> FrameIterator::next()
 {
-    auto frame = read_frame();
+    auto frame = TRY(read_frame());
     if (frame.has_value() || m_resynchronize == Resynchronize::No)
         return frame;
 
-    auto boundary = Reader::find_frame_boundary_at_or_after(m_cursor, m_position + 1, NumericLimits<size_t>::max());
+    auto boundary = TRY(Reader::find_frame_boundary_at_or_after(m_cursor, m_position + 1, NumericLimits<size_t>::max()));
     if (!boundary.has_value())
-        return {};
+        return Optional<Frame> {};
 
     m_position = *boundary;
     return read_frame();
@@ -64,12 +66,25 @@ DecoderErrorOr<FixedArray<u8>> FrameIterator::read_frame_data(Frame const& frame
     return TRY(m_cursor->read_bytes(frame.header.frame_byte_size));
 }
 
-static size_t skip_identification_tags(MediaStreamCursor& cursor)
+DecoderErrorOr<Optional<FrameIterator::FrameWithData>> FrameIterator::read_next_frame()
+{
+    auto frame = TRY(next());
+    if (!frame.has_value())
+        return Optional<FrameWithData> {};
+    auto data = read_frame_data(*frame);
+    if (data.is_error()) {
+        m_position = frame->position;
+        return data.release_error();
+    }
+    return FrameWithData { frame->header, data.release_value() };
+}
+
+static DecoderErrorOr<size_t> skip_identification_tags(MediaStreamCursor& cursor)
 {
     size_t position = 0;
     while (true) {
         Array<u8, ID3::VERSION_2_HEADER_SIZE> tag_header;
-        if (!read_exact(cursor, position, tag_header))
+        if (!TRY(read_exact(cursor, position, tag_header)))
             break;
         auto tag_size = ID3::version_2_tag_size(tag_header);
         if (!tag_size.has_value())
@@ -87,13 +102,13 @@ struct FrameScan {
     size_t byte_count { 0 };
 };
 
-static Optional<FrameScan> scan_frames_at(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t position)
+static DecoderErrorOr<Optional<FrameScan>> scan_frames_at(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t position)
 {
     FrameIterator iterator { cursor, position, FrameIterator::Resynchronize::No };
 
     FrameScan scan;
     while (scan.frame_count < FRAME_COUNT_RULING_OUT_A_FALSE_SYNC_CODE || scan.byte_count < BITRATE_SCAN_BYTE_COUNT) {
-        auto frame = iterator.next();
+        auto frame = TRY(iterator.next());
         if (!frame.has_value())
             break;
         if (scan.frame_count == 0) {
@@ -106,7 +121,7 @@ static Optional<FrameScan> scan_frames_at(NonnullRefPtr<MediaStreamCursor> const
     }
 
     if (scan.frame_count == 0)
-        return {};
+        return Optional<FrameScan> {};
     return scan;
 }
 
@@ -120,18 +135,18 @@ static bool headers_describe_the_same_stream(FrameHeader const& first, FrameHead
         && first.channel_count == second.channel_count;
 }
 
-static bool begins_a_frame(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t position)
+static DecoderErrorOr<bool> begins_a_frame(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t position)
 {
-    return FrameIterator { cursor, position, FrameIterator::Resynchronize::No }.next().has_value();
+    return TRY(FrameIterator(cursor, position, FrameIterator::Resynchronize::No).next()).has_value();
 }
 
-static bool begins_a_frame_sequence(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t position)
+static DecoderErrorOr<bool> begins_a_frame_sequence(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t position)
 {
     FrameIterator iterator { cursor, position, FrameIterator::Resynchronize::No };
 
     Optional<FrameHeader> previous_header;
     for (size_t frame_count = 0; frame_count < FRAME_COUNT_RULING_OUT_A_FALSE_SYNC_CODE; frame_count++) {
-        auto frame = iterator.next();
+        auto frame = TRY(iterator.next());
         if (!frame.has_value())
             return false;
         if (previous_header.has_value() && !headers_describe_the_same_stream(*previous_header, frame->header))
@@ -148,22 +163,22 @@ static bool has_sync_code_at(ReadonlyBytes bytes, size_t index)
     return FrameHeader::has_sync_code(static_cast<u16>((bytes[index] << 8) | bytes[index + 1]));
 }
 
-Optional<size_t> Reader::find_frame_boundary_at_or_after(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t start_byte, size_t upper_bound)
+DecoderErrorOr<Optional<size_t>> Reader::find_frame_boundary_at_or_after(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t start_byte, size_t upper_bound)
 {
     auto scan_position = start_byte;
 
     Array<u8, SYNC_SCAN_CHUNK_SIZE> buffer;
     while (scan_position + FrameHeader::SIZE <= upper_bound) {
         auto chunk = buffer.span().trim(min(SYNC_SCAN_CHUNK_SIZE, upper_bound - scan_position));
-        chunk = chunk.trim(read_available(*cursor, scan_position, chunk));
+        chunk = chunk.trim(TRY(read_available(*cursor, scan_position, chunk)));
         if (chunk.size() < 2)
             break;
 
         for (size_t index = 0; index + 1 < chunk.size(); index++) {
             if (!has_sync_code_at(chunk, index))
                 continue;
-            if (begins_a_frame_sequence(cursor, scan_position + index))
-                return scan_position + index;
+            if (TRY(begins_a_frame_sequence(cursor, scan_position + index)))
+                return Optional<size_t> { scan_position + index };
         }
 
         if (chunk.size() < SYNC_SCAN_CHUNK_SIZE)
@@ -171,10 +186,10 @@ Optional<size_t> Reader::find_frame_boundary_at_or_after(NonnullRefPtr<MediaStre
         scan_position += chunk.size() - 1;
     }
 
-    return {};
+    return Optional<size_t> {};
 }
 
-Optional<size_t> Reader::find_frame_boundary_at_or_before(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t target_byte, size_t lower_bound, size_t upper_bound)
+DecoderErrorOr<Optional<size_t>> Reader::find_frame_boundary_at_or_before(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t target_byte, size_t lower_bound, size_t upper_bound)
 {
     VERIFY(target_byte <= upper_bound);
 
@@ -186,8 +201,8 @@ Optional<size_t> Reader::find_frame_boundary_at_or_before(NonnullRefPtr<MediaStr
         chunk_start = max(chunk_start, lower_bound);
 
         auto chunk = buffer.span().trim(chunk_end - chunk_start);
-        if (!read_exact(*cursor, chunk_start, chunk))
-            return {};
+        if (!TRY(read_exact(*cursor, chunk_start, chunk)))
+            return Optional<size_t> {};
 
         for (size_t index = chunk.size(); index-- > 0;) {
             if (!has_sync_code_at(chunk, index))
@@ -195,8 +210,8 @@ Optional<size_t> Reader::find_frame_boundary_at_or_before(NonnullRefPtr<MediaStr
             auto candidate = chunk_start + index;
             if (candidate > target_byte)
                 continue;
-            if (begins_a_frame_sequence(cursor, candidate))
-                return candidate;
+            if (TRY(begins_a_frame_sequence(cursor, candidate)))
+                return Optional<size_t> { candidate };
         }
 
         if (chunk_start == lower_bound)
@@ -204,46 +219,46 @@ Optional<size_t> Reader::find_frame_boundary_at_or_before(NonnullRefPtr<MediaStr
         chunk_end = chunk_start + 1;
     }
 
-    return {};
+    return Optional<size_t> {};
 }
 
 // A stream carries its frames from where its identification tags end, but one that was cut can have
 // junk in between, so the frames are searched for when they do not begin there.
-static Optional<size_t> find_first_frame_position(NonnullRefPtr<MediaStreamCursor> const& cursor)
+static DecoderErrorOr<Optional<size_t>> find_first_frame_position(NonnullRefPtr<MediaStreamCursor> const& cursor)
 {
-    auto position = skip_identification_tags(*cursor);
-    if (begins_a_frame(cursor, position))
-        return position;
+    auto position = TRY(skip_identification_tags(*cursor));
+    if (TRY(begins_a_frame(cursor, position)))
+        return Optional<size_t> { position };
     return Reader::find_frame_boundary_at_or_after(cursor, position, position + Reader::MAXIMUM_SYNC_SEARCH_BYTE_COUNT);
 }
 
-static Optional<FrameScan> scan_first_frames(NonnullRefPtr<MediaStreamCursor> const& cursor)
+static DecoderErrorOr<Optional<FrameScan>> scan_first_frames(NonnullRefPtr<MediaStreamCursor> const& cursor)
 {
-    auto position = find_first_frame_position(cursor);
+    auto position = TRY(find_first_frame_position(cursor));
     if (!position.has_value())
-        return {};
+        return Optional<FrameScan> {};
     return scan_frames_at(cursor, *position);
 }
 
-static Optional<StreamInfo> read_stream_info(MediaStreamCursor& cursor, FrameScan const& scan)
+static DecoderErrorOr<Optional<StreamInfo>> read_stream_info(MediaStreamCursor& cursor, FrameScan const& scan)
 {
     Vector<u8> frame;
     frame.resize(scan.header.frame_byte_size);
-    if (!read_exact(cursor, scan.position, frame))
-        return {};
+    if (!TRY(read_exact(cursor, scan.position, frame)))
+        return Optional<StreamInfo> {};
     return StreamInfo::parse(frame, scan.header);
 }
 
-Optional<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> const& cursor)
+DecoderErrorOr<Optional<Reader>> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> const& cursor)
 {
-    auto scan = scan_first_frames(cursor);
+    auto scan = TRY(scan_first_frames(cursor));
     if (!scan.has_value())
-        return {};
+        return Optional<Reader> {};
 
     Reader reader;
     reader.m_frame_header = scan->header;
     reader.m_first_audio_frame_position = scan->position;
-    reader.m_stream_info = read_stream_info(*cursor, scan.value());
+    reader.m_stream_info = TRY(read_stream_info(*cursor, scan.value()));
 
     // A frame describing the stream carries no audio, so it counts towards neither the timeline nor
     // the bitrate the remaining frames establish.
