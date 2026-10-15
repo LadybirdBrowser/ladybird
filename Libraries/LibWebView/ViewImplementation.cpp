@@ -265,12 +265,18 @@ void ViewImplementation::release_backing_store(i32 bitmap_id)
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)
 {
-    page().async_set_window_position(position.to_type<Web::DevicePixels>());
+    m_window_position = position;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.async_set_window_position(position.to_type<Web::DevicePixels>());
+    });
 }
 
 void ViewImplementation::set_window_size(Gfx::IntSize size)
 {
-    page().async_set_window_size(size.to_type<Web::DevicePixels>());
+    m_window_size = size;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.async_set_window_size(size.to_type<Web::DevicePixels>());
+    });
 }
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
@@ -2858,6 +2864,10 @@ void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
     page.async_set_window_handle(m_window_handle);
     page.async_set_zoom_level(m_zoom_level);
     page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    if (m_window_position.has_value())
+        page.async_set_window_position(m_window_position->to_type<Web::DevicePixels>());
+    if (m_window_size.has_value())
+        page.async_set_window_size(m_window_size->to_type<Web::DevicePixels>());
     page.async_set_maximum_frames_per_second(m_maximum_frames_per_second);
     page.async_set_has_focus(traversable().has_system_focus());
     if (auto focused_navigable_id = traversable().focused_navigable_id(); focused_navigable_id.has_value())

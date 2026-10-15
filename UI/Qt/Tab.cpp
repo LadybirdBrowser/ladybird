@@ -546,6 +546,10 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     };
 
     m_view = new WebContentView(this, traversable, AK::move(view_initial_state));
+    // The window reports its geometry to its tabs as it is moved and resized, so a tab opened later has to be told
+    // where the window stands now.
+    m_view->set_window_position({ window->x(), window->y() });
+    m_view->set_window_size({ window->width(), window->height() });
     m_javascript_dialog = new JavaScriptDialog(m_view);
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
@@ -1223,6 +1227,10 @@ void Tab::set_window(BrowserWindow& window)
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
     connect_hamburger_menu();
     recreate_toolbar_icons();
+
+    // The tab's pages hold the geometry of the window that hosted them until now.
+    m_view->set_window_position({ window.x(), window.y() });
+    m_view->set_window_size({ window.width(), window.height() });
 }
 
 void Tab::set_vertical_tabs_enabled(bool enabled)
