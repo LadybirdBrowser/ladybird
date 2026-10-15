@@ -2428,9 +2428,6 @@ fn resolve_function_styles<'a>(
     // - Only the custom property registrations in registrations are visible; all other custom properties are treated as
     //   unregistered.
     //
-    // FIXME: A registration miss in the current function can fall through to outer-function or document registrations.
-    //        The specification says those registrations are treated as unregistered here.
-    //
     // - The inherited value of calling context's property is the guaranteed-invalid value.
     //
     // AD-HOC: We treat references to the calling property as cycles to match Chrome's behavior.
