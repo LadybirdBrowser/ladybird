@@ -519,6 +519,17 @@ void Node::bump_character_data_version()
         holder->m_character_data_version = ++s_last_tree_version;
 }
 
+// OPTIMIZATION: Computing a node's index walks all preceding siblings, so the live range steps defer it until a live
+//               range actually needs it.
+static auto lazy_index_of(Node const& node)
+{
+    return [&node, index = Optional<size_t> {}]() mutable {
+        if (!index.has_value())
+            index = node.index();
+        return *index;
+    };
+}
+
 // https://dom.spec.whatwg.org/#dom-node-normalize
 WebIDL::ExceptionOr<void> Node::normalize()
 {
@@ -1278,7 +1289,7 @@ void Node::live_range_pre_remove()
     VERIFY(parent);
 
     // 3. Let index be node’s index.
-    auto index = this->index();
+    auto index = lazy_index_of(*this);
 
     // 4. For each live range whose start node is an inclusive descendant of node, set its start to (parent, index).
     // 5. For each live range whose end node is an inclusive descendant of node, set its end to (parent, index).
@@ -1288,12 +1299,12 @@ void Node::live_range_pre_remove()
     // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
     for (auto& range : document().live_ranges()) {
         if (range.start_container()->is_inclusive_descendant_of(*this))
-            MUST(range.set_start(*parent, index));
+            MUST(range.set_start(*parent, index()));
         if (range.end_container()->is_inclusive_descendant_of(*this))
-            MUST(range.set_end(*parent, index));
-        if (range.start_container().ptr() == parent && range.start_offset() > index)
+            MUST(range.set_end(*parent, index()));
+        if (range.start_container().ptr() == parent && range.start_offset() > index())
             range.decrease_start_offset(1);
-        if (range.end_container().ptr() == parent && range.end_offset() > index)
+        if (range.end_container().ptr() == parent && range.end_offset() > index())
             range.decrease_end_offset(1);
     }
 }
