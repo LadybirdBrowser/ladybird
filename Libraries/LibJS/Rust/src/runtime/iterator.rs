@@ -467,7 +467,15 @@ fn iterator_step_impl(
         if let Some(builtin_iterator_next) = iterator.as_builtin_iterator_if_next_is_not_redefined(next_method) {
             let mut value = Value::UNDEFINED;
             let mut done = false;
-            builtin_iterator_next(&iterator, vm, &mut done, &mut value)?;
+            if let Err(throw) = builtin_iterator_next(&iterator, vm, &mut done, &mut value) {
+                // 7.4.6 IteratorNext ( iteratorRecord [ , value ] ), https://tc39.es/ecma262/#sec-iteratornext
+                // 3. If result is a throw completion, then
+                // a. Set iteratorRecord.[[Done]] to true.
+                iterator_record.set_done(true);
+
+                // b. Return ? result.
+                return Err(throw);
+            }
 
             if done {
                 iterator_record.set_done(true);
