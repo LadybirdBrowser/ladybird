@@ -1,0 +1,13 @@
+diff --git a/configure b/configure
+index 85b6a69fbb..450d1bb45f 100755
+--- a/configure
++++ b/configure
+@@ -8146,7 +8146,7 @@ elif enabled_any msvc icl; then
+         check_cflags -d2SSAOptimizer-
+     # enable utf-8 source processing on VS2015 U2 and newer
+     test_cpp_condition windows.h "_MSC_FULL_VER >= 190023918" &&
+-        add_cflags -utf-8
++        add_allcflags -utf-8
+ fi
+
+ for pfx in "" host_; do

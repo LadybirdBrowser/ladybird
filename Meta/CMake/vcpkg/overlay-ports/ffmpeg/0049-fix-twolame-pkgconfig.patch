@@ -1,0 +1,15 @@
+diff --git a/configure b/configure
+index 6d66d1e..3a54b6c 100644
+--- a/configure
++++ b/configure
+@@ -7384,8 +7384,8 @@ enabled libtheora         && require libtheora theora/theoraenc.h th_info_init -
+ enabled libtls            && require_pkg_config libtls libtls tls.h tls_configure &&
+                              { enabled gpl && ! enabled nonfree && die "ERROR: LibreSSL is incompatible with the gpl"; }
+ enabled libtorch          && check_cxxflags -std=c++17 && require_cxx libtorch torch/torch.h "torch::Tensor" -ltorch -lc10 -ltorch_cpu -lstdc++ -lpthread
+-enabled libtwolame        && require libtwolame twolame.h twolame_init -ltwolame &&
+-                             { check_lib libtwolame twolame.h twolame_encode_buffer_float32_interleaved -ltwolame ||
++enabled libtwolame        && require_pkg_config libtwolame twolame twolame.h twolame_init &&
++                             { check_lib libtwolame twolame.h twolame_encode_buffer_float32_interleaved $libtwolame_extralibs ||
+                                die "ERROR: libtwolame must be installed and version must be >= 0.3.10"; }
+ enabled libuavs3d         && require_pkg_config libuavs3d "uavs3d >= 1.1.41" uavs3d.h uavs3d_decode
+ enabled libv4l2           && require_pkg_config libv4l2 libv4l2 libv4l2.h v4l2_ioctl

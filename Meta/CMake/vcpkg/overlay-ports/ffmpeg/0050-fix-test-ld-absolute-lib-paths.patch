@@ -1,0 +1,15 @@
+diff --git a/configure b/configure
+index 1111111..2222222 100755
+--- a/configure
++++ b/configure
+@@ -1289,8 +1289,8 @@ test_ld(){
+     log test_ld "$@"
+     type=$1
+     shift 1
+-    flags=$(filter_out '-l*|*.so' $@)
+-    libs=$(filter '-l*|*.so' $@)
++    flags=$(filter_out '-l*|*.so|*.a|*.dylib' $@)
++    libs=$(filter '-l*|*.so|*.a|*.dylib' $@)
+     test_$type $($cflags_filter $flags) || return
+     flags=$($ldflags_filter $flags)
+     libs=$($ldflags_filter $libs)

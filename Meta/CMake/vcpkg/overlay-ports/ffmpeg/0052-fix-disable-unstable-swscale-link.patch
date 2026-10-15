@@ -1,0 +1,40 @@
+diff --git a/libswscale/format.c b/libswscale/format.c
+index 0f0639f..30cb3cc 100644
+--- a/libswscale/format.c
++++ b/libswscale/format.c
+@@ -1339,6 +1339,8 @@ linear_mat3(const AVRational m00, const AVRational m01, const AVRational m02,
+     return c;
+ }
+
++#endif
++
+ void ff_sws_chroma_pos(const SwsFormat *fmt, bool *incomplete,
+                        int *out_x_pos, int *out_y_pos)
+ {
+@@ -1375,6 +1377,8 @@ void ff_sws_chroma_pos(const SwsFormat *fmt, bool *incomplete,
+     *out_x_pos = x_pos;
+     *out_y_pos = y_pos;
+ }
++
++#if CONFIG_UNSTABLE
+
+ int ff_sws_decode_colors(SwsContext *ctx, SwsPixelType type,
+                          SwsOpList *ops, const SwsFormat *fmt, bool *incomplete)
+diff --git a/libswscale/graph.c b/libswscale/graph.c
+index 5b14a9c..e3e0736 100644
+--- a/libswscale/graph.c
++++ b/libswscale/graph.c
+@@ -36,6 +36,13 @@
+ #include "graph.h"
+ #include "ops.h"
+ #include "ops_dispatch.h"
++
++/* The Vulkan swscale objects are built only when unstable is enabled. */
++#if CONFIG_VULKAN && !CONFIG_UNSTABLE
++#undef CONFIG_VULKAN
++#define CONFIG_VULKAN 0
++#endif
++
+ #if CONFIG_VULKAN
+ #include "vulkan/ops.h"
+ #endif

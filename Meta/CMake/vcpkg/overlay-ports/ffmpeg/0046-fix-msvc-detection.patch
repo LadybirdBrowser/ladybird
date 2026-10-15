@@ -1,0 +1,29 @@
+diff --git a/configure b/configure
+index 1759694..60e0f24 100644
+--- a/configure
++++ b/configure
+@@ -5365,12 +5365,12 @@ probe_cc(){
+         _flags_filter=msvc_flags_link
+         _ld_lib='%.lib'
+         _ld_path='-libpath:'
+-    elif VSLANG=1033 $_cc -nologo- 2>&1 | grep -q ^Microsoft || { $_cc -v 2>&1 | grep -q clang && $_cc -? > /dev/null 2>&1; }; then
++    elif VSLANG=1033 $_cc -nologo- 2>&1 | grep -qi Microsoft || { $_cc -v 2>&1 | grep -q clang && $_cc -? > /dev/null 2>&1; }; then
+         _type=msvc
+-        if VSLANG=1033 $_cc -nologo- 2>&1 | grep -q ^Microsoft; then
++        if VSLANG=1033 $_cc -nologo- 2>&1 | grep -qi Microsoft; then
+             # Depending on the tool (cl.exe or link.exe), the version number
+             # is printed on the first line of stderr or stdout
+-            _ident=$(VSLANG=1033 $_cc 2>&1 | grep ^Microsoft | head -n1 | tr -d '\r')
++            _ident=$(VSLANG=1033 $_cc 2>&1 | grep -i Microsoft | head -n1 | tr -d '\r')
+         else
+             _ident=$($_cc --version 2>/dev/null | head -n1 | tr -d '\r')
+         fi
+@@ -5486,7 +5486,7 @@ if [ -z "$CC_DEPFLAGS" ] && [ "$dep_cc" != "$cc" ]; then
+     DEPCXXFLAGS=$_flags $_cxxflags
+ fi
+
+-if VSLANG=1033 $ar 2>&1 | grep -q ^Microsoft; then
++if VSLANG=1033 $ar 2>&1 | grep -qi Microsoft; then
+     arflags="-nologo"
+     ar_o='-out:$@'
+ elif $ar 2>&1 | grep -q "\[D\] "; then

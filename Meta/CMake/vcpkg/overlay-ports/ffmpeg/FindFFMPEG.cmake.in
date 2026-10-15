@@ -55,7 +55,7 @@ function(append_dependencies out)
     endif()
     set(pass_through
         ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES}
-        advapi32 bcrypt crypt32 gdi32 mfuuid ole32 oleaut32 psapi secur32 shlwapi strmiids user32 uuid vfw32 ws2_32 usp10 cfgmgr32 rpcrt4
+        advapi32 bcrypt crypt32 gdi32 mfuuid ncrypt ole32 oleaut32 psapi secur32 shlwapi strmiids user32 uuid vfw32 ws2_32 usp10 cfgmgr32 rpcrt4
         -pthread -pthreads pthread atomic m
     )
     cmake_policy(SET CMP0057 NEW)
@@ -108,9 +108,6 @@ if(@ENABLE_AVFORMAT@)
 endif()
 if(@ENABLE_AVCODEC@)
   FFMPEG_FIND(libavcodec    avcodec    avcodec.h)
-endif()
-if(@ENABLE_POSTPROC@)
-  FFMPEG_FIND(libpostproc   postproc   postprocess.h)
 endif()
 if(@ENABLE_SWRESAMPLE@)
   FFMPEG_FIND(libswresample swresample swresample.h)

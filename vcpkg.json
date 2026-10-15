@@ -281,7 +281,7 @@
     },
     {
       "name": "ffmpeg",
-      "version": "7.1.1#5"
+      "version": "9.0.2#1"
     },
     {
       "name": "fmt",

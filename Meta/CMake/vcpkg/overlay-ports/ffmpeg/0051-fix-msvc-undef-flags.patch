@@ -1,0 +1,12 @@
+diff --git a/configure b/configure
+index 1759694..0ac07ba 100755
+--- a/configure
++++ b/configure
+@@ -5019,6 +5019,7 @@ msvc_common_flags(){
+             -L*) [ "$_flags_type" != "link" ] || echo -libpath:${flag#-L} ;;
+             -I*) [ "$_flags_type" = "link" ] || echo $flag ;;
+             -D*) [ "$_flags_type" = "link" ] || echo $flag ;;
++            -U*) [ "$_flags_type" = "link" ] || echo $flag ;;
+             -Wl,*)                ;;
+             *)                    echo $flag ;;
+         esac
