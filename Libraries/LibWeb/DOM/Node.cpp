@@ -603,7 +603,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
             //    its end node to node and its end offset to length.
             // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
             auto* current_node_parent = current_node->parent();
-            auto current_node_index = current_node->index();
+            auto current_node_index = lazy_index_of(*current_node);
             for (auto& range : document().live_ranges()) {
                 if (range.start_container().ptr() == current_node) {
                     range.increase_start_offset(length);
@@ -613,11 +613,11 @@ WebIDL::ExceptionOr<void> Node::normalize()
                     range.increase_end_offset(length);
                     range.set_end_node(node);
                 }
-                if (range.start_container().ptr() == current_node_parent && range.start_offset() == current_node_index) {
+                if (range.start_container().ptr() == current_node_parent && range.start_offset() == current_node_index()) {
                     range.set_start_node(node);
                     range.set_start_offset(length);
                 }
-                if (range.end_container().ptr() == current_node_parent && range.end_offset() == current_node_index) {
+                if (range.end_container().ptr() == current_node_parent && range.end_offset() == current_node_index()) {
                     range.set_end_node(node);
                     range.set_end_offset(length);
                 }
@@ -969,11 +969,11 @@ void Node::adjust_live_ranges_for_insertion(Node& child, size_t count)
     // 2. For each live range whose end node is parent and end offset is greater than child’s index:
     //    increase its end offset by count.
     // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-    auto child_index = child.index();
+    auto child_index = lazy_index_of(child);
     for (auto& range : document().live_ranges()) {
-        if (range.start_container().ptr() == this && range.start_offset() > child_index)
+        if (range.start_container().ptr() == this && range.start_offset() > child_index())
             range.increase_start_offset(count);
-        if (range.end_container().ptr() == this && range.end_offset() > child_index)
+        if (range.end_container().ptr() == this && range.end_offset() > child_index())
             range.increase_end_offset(count);
     }
 }
@@ -2050,11 +2050,11 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         // 2. For each live range whose end node is newParent and end offset is greater than child’s index:
         //    increase its end offset by 1.
         // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-        auto child_index = child->index();
+        auto child_index = lazy_index_of(*child);
         for (auto& range : new_parent.document().live_ranges()) {
-            if (range.start_container().ptr() == &new_parent && range.start_offset() > child_index)
+            if (range.start_container().ptr() == &new_parent && range.start_offset() > child_index())
                 range.increase_start_offset(1);
-            if (range.end_container().ptr() == &new_parent && range.end_offset() > child_index)
+            if (range.end_container().ptr() == &new_parent && range.end_offset() > child_index())
                 range.increase_end_offset(1);
         }
     }
