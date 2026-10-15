@@ -8,7 +8,9 @@
 #pragma once
 
 #include <AK/Platform.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Vector.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 
 namespace Web {
@@ -123,5 +125,11 @@ constexpr auto default_user_agent = "Mozilla/5.0 (" UA_PLATFORM_STRING ") " BROW
 
 constexpr auto default_platform = NAVIGATOR_PLATFORM_STRING ""sv;
 constexpr auto default_navigator_compatibility_mode = NavigatorCompatibilityMode::Chrome;
+
+// The languages a navigator reports, and the Accept-Language header carries, until the user's own list arrives.
+inline Vector<String> default_preferred_languages()
+{
+    return { "en-US"_string, "en"_string };
+}
 
 }

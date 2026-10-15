@@ -144,7 +144,8 @@ class WEBVIEW_API Settings {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static Settings create(ByteString settings_path);
+    // The platform's languages stand in for the user's list until the settings file carries one.
+    static Settings create(ByteString settings_path, Vector<String> platform_languages = {});
 
     JsonValue serialize_json() const;
 

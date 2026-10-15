@@ -35,6 +35,7 @@
 #include <QFileOpenEvent>
 #include <QFont>
 #include <QKeySequence>
+#include <QLocale>
 #include <QLoggingCategory>
 #include <QMenu>
 #include <QMenuBar>
@@ -607,6 +608,15 @@ bool Application::platform_scrolls_elastically() const
     if (!m_application)
         return false;
     return QGuiApplication::platformName() == QStringLiteral("cocoa");
+}
+
+Vector<String> Application::platform_preferred_languages() const
+{
+    // The system's UI languages, most preferred first, as BCP 47 tags ("en-US", then "en").
+    Vector<String> languages;
+    for (auto const& language : QLocale::system().uiLanguages())
+        languages.append(ak_string_from_qstring(language));
+    return languages;
 }
 
 #if !defined(AK_OS_MACOS)

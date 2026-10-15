@@ -75,7 +75,7 @@ ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestCl
     : m_heap(heap)
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
     , m_platform(MUST(String::from_utf8(default_platform)))
-    , m_preferred_languages({ "en-US"_string })
+    , m_preferred_languages(default_preferred_languages())
     , m_navigator_compatibility_mode(default_navigator_compatibility_mode)
 {
     set_client(move(request_client));

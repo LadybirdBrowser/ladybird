@@ -168,6 +168,7 @@ private:
 
     virtual bool platform_reports_scroll_momentum() const override;
     virtual bool platform_scrolls_elastically() const override;
+    virtual Vector<String> platform_preferred_languages() const override;
 
     virtual void update_tabs_display() const override;
 
