@@ -93,7 +93,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     set_site_compatibility_data(JsonValue data) =|
 
     update_system_theme(Web::PageId page_id, Core::AnonymousBuffer theme_buffer) =|
-    update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|
+    update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect> rects, Vector<Web::DevicePixelRect> available_rects, u32 main_screen_index) =|
 
     populate_navigation(Web::PageId page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result) =|
     stop_loading(Web::PageId page_id) =|

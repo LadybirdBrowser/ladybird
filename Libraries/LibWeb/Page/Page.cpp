@@ -279,9 +279,8 @@ Gfx::Palette Page::palette() const
     return m_client->palette();
 }
 
-static CSSPixelRect screen_rect_in_css_pixels_ignoring_zoom(PageClient const& client)
+static CSSPixelRect device_pixel_rect_in_css_pixels_ignoring_zoom(PageClient const& client, DevicePixelRect device_pixel_rect)
 {
-    auto device_pixel_rect = client.screen_rect();
     auto scale = client.device_pixel_ratio();
     return {
         device_pixel_rect.x().value() / scale,
@@ -304,7 +303,7 @@ CSSPixelRect Page::web_exposed_screen_area() const
     // NB: This is the area of the output device in CSS pixels at a zoom level of 1. Like Chrome and Safari, we leave the
     //     page zoom out of it, so zooming in doesn't make sites switch to their tablet or phone layouts.
     //     See: https://github.com/LadybirdBrowser/ladybird/pull/4084
-    return screen_rect_in_css_pixels_ignoring_zoom(*m_client);
+    return device_pixel_rect_in_css_pixels_ignoring_zoom(*m_client, m_client->screen_rect());
 }
 
 // https://drafts.csswg.org/cssom-view-1/#web-exposed-available-screen-area
@@ -318,8 +317,8 @@ CSSPixelRect Page::web_exposed_available_screen_area() const
     //    - The available area of the rendering surface of the output device, in CSS pixels.
     //    - The area of the output device, in CSS pixels.
     //    - The area of the viewport, in CSS pixels.
-    // NB: This is the area of the output device. See note in web_exposed_screen_area().
-    return screen_rect_in_css_pixels_ignoring_zoom(*m_client);
+    // NB: This is the available area of the output device, at a zoom level of 1 like web_exposed_screen_area().
+    return device_pixel_rect_in_css_pixels_ignoring_zoom(*m_client, m_client->available_screen_rect());
 }
 
 CSS::PreferredColorScheme Page::preferred_color_scheme() const

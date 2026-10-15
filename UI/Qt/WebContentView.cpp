@@ -143,9 +143,13 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
         update_screen_rects();
     });
 
-    QObject::connect(qGuiApp, &QGuiApplication::screenAdded, this, [this](QScreen*) {
+    QObject::connect(qGuiApp, &QGuiApplication::screenAdded, this, [this](QScreen* screen) {
+        watch_screen_geometry(*screen);
         update_screen_rects();
     });
+
+    for (auto* screen : QGuiApplication::screens())
+        watch_screen_geometry(*screen);
 
     QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
         QTimer::singleShot(0, this, [this] {
@@ -1696,9 +1700,23 @@ void WebContentView::accessibilityActiveChanged(bool active)
 }
 #endif
 
+// A screen's geometry changes when its resolution or scale does, and its available geometry when the dock or a
+// taskbar changes size, so each is reported as it happens.
+void WebContentView::watch_screen_geometry(QScreen& screen)
+{
+    QObject::connect(&screen, &QScreen::geometryChanged, this, [this](QRect const&) {
+        update_screen_rects();
+    });
+    QObject::connect(&screen, &QScreen::availableGeometryChanged, this, [this](QRect const&) {
+        update_screen_rects();
+    });
+}
+
 void WebContentView::update_screen_rects()
 {
-    update_screen_rects(page());
+    traversable().for_each_hosting_page([&](WebView::WebContentPage& page) {
+        update_screen_rects(page);
+    });
 }
 
 void WebContentView::update_screen_rects(WebView::WebContentPage& page)
@@ -1707,18 +1725,23 @@ void WebContentView::update_screen_rects(WebView::WebContentPage& page)
 
     if (!screens.empty()) {
         Vector<Web::DevicePixelRect> screen_rects;
+        Vector<Web::DevicePixelRect> available_screen_rects;
         for (auto const& screen : screens) {
             // NOTE: QScreen::geometry() returns the 'device-independent pixels', we multiply
             //       by the device pixel ratio to get the 'physical pixels' of the display.
-            auto geometry = screen->geometry();
             auto device_pixel_ratio = screen->devicePixelRatio();
-            screen_rects.append(Web::DevicePixelRect(geometry.x() * device_pixel_ratio, geometry.y() * device_pixel_ratio, geometry.width() * device_pixel_ratio, geometry.height() * device_pixel_ratio));
+            auto to_device_pixels = [&](QRect const& geometry) {
+                return Web::DevicePixelRect(geometry.x() * device_pixel_ratio, geometry.y() * device_pixel_ratio, geometry.width() * device_pixel_ratio, geometry.height() * device_pixel_ratio);
+            };
+            screen_rects.append(to_device_pixels(screen->geometry()));
+            // The available geometry leaves out what the system keeps for itself, such as a menu bar or a dock.
+            available_screen_rects.append(to_device_pixels(screen->availableGeometry()));
         }
 
         // NOTE: The first item in QGuiApplication::screens is always the primary screen.
         //       This is not specified in the documentation but QGuiApplication::primaryScreen
         //       always returns the first item in the list if it isn't empty.
-        page.async_update_screen_rects(screen_rects, 0);
+        page.async_update_screen_rects(screen_rects, available_screen_rects, 0);
     }
 }
 

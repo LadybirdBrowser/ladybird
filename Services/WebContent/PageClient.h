@@ -76,9 +76,10 @@ public:
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport(Web::DevicePixelSize const&, double device_pixel_ratio);
     void set_hosted_root_viewport(Web::HTML::CrossProcessId, Web::DevicePixelSize const&, Web::DevicePixelRect const& viewport_intersection, double device_pixel_ratio);
-    void set_screen_rects(Vector<Web::DevicePixelRect> const& rects, size_t main_screen_index)
+    void set_screen_rects(Vector<Web::DevicePixelRect> const& rects, Vector<Web::DevicePixelRect> const& available_rects, size_t main_screen_index)
     {
         m_all_screen_rects = rects;
+        m_all_available_screen_rects = available_rects;
         m_main_screen_index = main_screen_index;
     }
     void set_zoom_level(double zoom_level);
@@ -214,6 +215,12 @@ private:
     virtual void send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url) override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override { return m_all_screen_rects[m_main_screen_index]; }
+    virtual Web::DevicePixelRect available_screen_rect() const override
+    {
+        if (m_main_screen_index < m_all_available_screen_rects.size())
+            return m_all_available_screen_rects[m_main_screen_index];
+        return screen_rect();
+    }
     virtual size_t screen_count() const override { return m_all_screen_rects.size(); }
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return m_preferred_color_scheme; }
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
@@ -389,6 +396,7 @@ private:
     GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Vector<Web::DevicePixelRect> m_all_screen_rects { Web::DevicePixelRect {} };
+    Vector<Web::DevicePixelRect> m_all_available_screen_rects { Web::DevicePixelRect {} };
     size_t m_main_screen_index { 0 };
     Web::DevicePixelSize m_viewport_size;
     double m_device_pixel_ratio { 1.0 };

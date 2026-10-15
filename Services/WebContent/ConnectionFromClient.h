@@ -120,7 +120,7 @@ private:
     virtual void set_site_compatibility_data(JsonValue data) override;
     virtual void compositor_process_reconnected() override;
     virtual void update_system_theme(Web::PageId page_id, Core::AnonymousBuffer) override;
-    virtual void update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect>, u32) override;
+    virtual void update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect>, Vector<Web::DevicePixelRect>, u32) override;
     virtual void populate_navigation(Web::PageId page_id, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
     virtual void stop_loading(Web::PageId page_id) override;
     virtual void cancel_download(Web::PageId page_id, u64 download_id) override;
