@@ -43,6 +43,8 @@ static bool should_show_config_variable(ConfigVariableID id)
 {
     if (id == ConfigVariableID::UseClientSideWindowDecorations)
         return Application::the().supports_client_side_window_decorations();
+    if (id == ConfigVariableID::VerticalTabsHoverExpandDelay || id == ConfigVariableID::VerticalTabsHoverExpandAnimationDuration)
+        return Application::the().supports_vertical_tabs();
     return true;
 }
 
