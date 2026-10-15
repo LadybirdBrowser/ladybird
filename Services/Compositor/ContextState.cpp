@@ -772,12 +772,9 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
     };
     auto stretch_before_step = presented_stretch_of_latched_scroller();
 
-    if (step_can_stretch_elastically) {
-        m_elastic_overscroll_velocity_tracker.add_step(step_delta, now);
-        // Momentum only arrives once the fingers have lifted, and its first step can be the first sign that they did.
-        if (scroll_gesture_phase == Web::ScrollGesturePhase::Momentum)
-            release_elastic_overscrolls_held_by_fingers(now);
-    }
+    // Momentum only arrives once the fingers have lifted, and its first step can be the first sign that they did.
+    if (step_can_stretch_elastically && scroll_gesture_phase == Web::ScrollGesturePhase::Momentum)
+        release_elastic_overscrolls_held_by_fingers(now);
     if (momentum_can_bounce_latched_scroller && elastic_overscroll_of(latched_node->stable_node_id)) {
         // The fingers lifted from a stretched scroller, which this momentum already springs back with.
         m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = true;
@@ -1182,20 +1179,47 @@ ContextState::ContextUpdateResult ContextState::handle_wheel_event(Web::MouseEve
     return scroll_for_wheel_event(event, now);
 }
 
-ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::MouseEvent const& event, MonotonicTime now)
+static Gfx::FloatPoint wheel_event_position(Web::MouseEvent const& event)
+{
+    return {
+        static_cast<float>(event.position.x().value()),
+        static_cast<float>(event.position.y().value()),
+    };
+}
+
+Gfx::FloatPoint ContextState::wheel_event_delta_in_device_pixels(Web::MouseEvent const& event) const
 {
     auto wheel_delta_x = event.wheel_delta_x;
     auto wheel_delta_y = event.wheel_delta_y;
     if (event.modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
         swap(wheel_delta_x, wheel_delta_y);
+    return Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }
+        .scaled(static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
+}
 
-    auto position = Gfx::FloatPoint {
-        static_cast<float>(event.position.x().value()),
-        static_cast<float>(event.position.y().value()),
-    };
-    auto delta_in_device_pixels = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }
-                                      .scaled(static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
-    return async_scroll_by(position, delta_in_device_pixels, event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now);
+ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::MouseEvent const& event, MonotonicTime now)
+{
+    return async_scroll_by(wheel_event_position(event), wheel_event_delta_in_device_pixels(event), event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now);
+}
+
+void ContextState::note_wheel_event_from_ui(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
+{
+    VERIFY(event.type == Web::MouseEvent::Type::MouseWheel);
+    auto now = now_for_testing.value_or(MonotonicTime::now());
+    auto position = wheel_event_position(event);
+    auto phase = event.scroll_gesture_phase;
+    auto position_slop_in_device_pixels = Compositing::wheel_gesture_position_slop_in_css_pixels * static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel());
+    if (m_wheel_gesture_from_ui.has_value() && m_wheel_gesture_from_ui->is_continued_by(position, phase, event.modifiers, now, position_slop_in_device_pixels)) {
+        m_wheel_gesture_from_ui->advance_to(phase, now);
+    } else {
+        // The end of the gesture before this one may never have arrived.
+        end_gesture_that_stretches_elastically(now);
+        m_wheel_gesture_from_ui = Compositing::WheelGestureIdentity::started_by(position, phase, event.modifiers, now);
+    }
+
+    // Fling steps are not timed here, which leaves them out of the velocity; no platform both flings and stretches.
+    if (wheel_step_can_stretch_elastically(event.wheel_delta_precision, phase))
+        m_elastic_overscroll_velocity_tracker.add_step(wheel_event_delta_in_device_pixels(event).scaled(1.0f / visual_viewport_magnification()), now);
 }
 
 static bool is_touchpad_step(Web::MouseEvent const& event)
@@ -1321,9 +1345,6 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
 
     m_scroll_snap_controller.note_gesture_phase(scroll_gesture_phase);
     auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
-    // The end of the gesture before this one may never have arrived.
-    if (!latched_node_id.has_value())
-        end_gesture_that_stretches_elastically(now);
 
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
         if (!snap_at_gesture_end(now).has_value())

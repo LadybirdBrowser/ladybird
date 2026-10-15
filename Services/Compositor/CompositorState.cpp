@@ -543,6 +543,8 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
 
     auto is_wheel_event = event.type == Web::MouseEvent::Type::MouseWheel;
     if (is_wheel_event) {
+        context->note_wheel_event_from_ui(event);
+
         // The UI can send the end of a gesture more than once. An end that arrives during a fling belongs to the
         // flicked gesture, so it does not stop the fling.
         if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->has_active_scroll_fling()) {
