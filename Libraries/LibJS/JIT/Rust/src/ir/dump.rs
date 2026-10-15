@@ -75,6 +75,7 @@ fn condition_text(condition: BranchCondition) -> String {
         BranchCondition::MagicalLength => "MagicalLength".to_string(),
         BranchCondition::Extensible => "Extensible".to_string(),
         BranchCondition::ArrayIterator => "ArrayIterator".to_string(),
+        BranchCondition::PlainArrayPrototypeChain => "PlainArrayPrototypeChain".to_string(),
         BranchCondition::Shape(shape) => format!("Shape {}", shapes_text(std::iter::once(&shape))),
         BranchCondition::NonNegativeInt32 => "NonNegativeInt32".to_string(),
         BranchCondition::Int32(comparison) => format!("Int32{comparison:?}"),

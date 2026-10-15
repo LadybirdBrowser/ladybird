@@ -2160,6 +2160,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             BranchCondition::Shape(_) => unreachable!("only refinements of shape switch cases test one shape"),
             BranchCondition::Float64(_) => unreachable!("float64 comparisons branch above"),
             BranchCondition::ArrayIterator => self.emit_branch_on_array_iterator(input, target, invert),
+            BranchCondition::PlainArrayPrototypeChain => {
+                self.emit_branch_on_plain_array_prototype_chain(node, input, target, invert);
+            }
             BranchCondition::MagicalLength | BranchCondition::Extensible => {
                 let flag = match condition {
                     BranchCondition::MagicalLength => self.runtime.layout.object_flag_has_magical_length,
