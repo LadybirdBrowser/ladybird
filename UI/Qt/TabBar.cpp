@@ -80,6 +80,8 @@ static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 4.0;
 static constexpr int TAB_CARD_SHAPE_VERTICAL_INSET = 3;
 static constexpr int HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE = 32;
 static constexpr int TAB_CONTENT_HORIZONTAL_INSET = 8;
+static constexpr int VERTICAL_TABS_HOVER_EXPAND_DELAY_MS = 100;
+static constexpr int VERTICAL_TABS_HOVER_EXPAND_ANIMATION_DURATION_MS = 100;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 static constexpr int TAB_PREVIEW_HOVER_DELAY_MS = 350;
 static constexpr int TAB_PREVIEW_THUMBNAIL_WIDTH = 320;
@@ -767,7 +769,7 @@ void TabBar::paintEvent(QPaintEvent*)
         if (auto* right_button = tabButton(index, QTabBar::RightSide); right_button && right_button->isVisible())
             contents_rect.setRight(min(contents_rect.right(), right_button->geometry().left() - 6));
 
-        if (contents_rect.width() > 26) {
+        if (is_vertical || contents_rect.width() > 26) {
             QRect icon_rect {
                 contents_rect.left(),
                 contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
@@ -1394,13 +1396,6 @@ void TabBar::update_tab_button_geometry()
             return;
         prepare_button(button, false);
 
-        auto should_be_visible = position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index;
-        bool did_update_button = false;
-        if (button->isVisible() != should_be_visible) {
-            button->setVisible(should_be_visible);
-            did_update_button = true;
-        }
-
         auto button_size = button->size();
         if (button_size.isEmpty())
             button_size = button->sizeHint();
@@ -1408,6 +1403,25 @@ void TabBar::update_tab_button_geometry()
             return;
 
         auto x = position == QTabBar::RightSide ? shape_rect.right() - button_size.width() - 6 : shape_rect.left() + 6;
+        auto icon_left = shape_rect.left() + TAB_CONTENT_HORIZONTAL_INSET;
+        if (position == QTabBar::RightSide) {
+            if (auto* left_button = tabButton(index, QTabBar::LeftSide); left_button && left_button->isVisible())
+                icon_left = max(icon_left, left_button->geometry().right() + 6);
+        }
+
+        // The expanded layout is also used at narrow widths during hover expansion. Keep buttons from covering the
+        // favicon while the sidebar grows.
+        auto has_room_for_icon = position == QTabBar::RightSide
+            ? x - 6 >= icon_left + TAB_ICON_SIZE
+            : x + button_size.width() + 6 + TAB_ICON_SIZE <= shape_rect.right() - TAB_CONTENT_HORIZONTAL_INSET;
+
+        auto should_be_visible = has_room_for_icon && (position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index);
+        auto did_update_button = false;
+        if (button->isVisible() != should_be_visible) {
+            button->setVisible(should_be_visible);
+            did_update_button = true;
+        }
+
         auto y = shape_rect.top() + ((shape_rect.height() - button_size.height()) / 2);
         QRect button_geometry { { x, y }, button_size };
         if (button->geometry() != button_geometry) {
@@ -1587,6 +1601,26 @@ TabWidget::TabWidget(QWidget* parent)
     m_vertical_tabs_resize_handle->setCursor(Qt::SizeHorCursor);
     m_vertical_tabs_resize_handle->installEventFilter(this);
     m_vertical_tabs_resize_handle->hide();
+
+    m_vertical_tabs_hover_expand_timer = new QTimer(this);
+    m_vertical_tabs_hover_expand_timer->setSingleShot(true);
+    m_vertical_tabs_hover_expand_timer->setTimerType(Qt::PreciseTimer);
+    m_vertical_tabs_hover_expand_timer->setInterval(VERTICAL_TABS_HOVER_EXPAND_DELAY_MS);
+    connect(m_vertical_tabs_hover_expand_timer, &QTimer::timeout, this, [this]() {
+        if (cursor_is_over_vertical_tabs())
+            set_vertical_tabs_hover_expanded(true);
+    });
+
+    m_vertical_tabs_hover_expand_animation = new QVariantAnimation(this);
+    m_vertical_tabs_hover_expand_animation->setDuration(VERTICAL_TABS_HOVER_EXPAND_ANIMATION_DURATION_MS);
+    m_vertical_tabs_hover_expand_animation->setEasingCurve(QEasingCurve::OutCubic);
+    m_vertical_tabs_hover_expand_animation->setStartValue(0.0);
+    m_vertical_tabs_hover_expand_animation->setEndValue(1.0);
+    connect(m_vertical_tabs_hover_expand_animation, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
+        m_vertical_tabs_hover_expand_progress = value.toReal();
+        update_tab_layout();
+        update_vertical_tabs_content_overlay();
+    });
 
     m_vertical_tabs_hover_collapse_timer = new QTimer(this);
     m_vertical_tabs_hover_collapse_timer->setInterval(VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS);
@@ -1904,7 +1938,8 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 
     if (is_vertical_tabs_hover_target) {
         if (event->type() == QEvent::Enter) {
-            set_vertical_tabs_hover_expanded(true);
+            if (can_expand_vertical_tabs_on_hover() && !m_vertical_tabs_hover_expanded && !m_vertical_tabs_hover_expand_timer->isActive())
+                m_vertical_tabs_hover_expand_timer->start();
         } else if (event->type() == QEvent::Leave) {
             defer_update_vertical_tabs_hover_expanded();
         }
@@ -2018,7 +2053,7 @@ bool TabWidget::vertical_tabs_effectively_expanded() const
 
 bool TabWidget::can_expand_vertical_tabs_on_hover() const
 {
-    return m_vertical_tabs_enabled && m_vertical_tabs_expand_on_hover && !m_vertical_tabs_expanded;
+    return m_tab_bar_visible && m_vertical_tabs_enabled && m_vertical_tabs_expand_on_hover && !m_vertical_tabs_expanded;
 }
 
 bool TabWidget::cursor_is_over_vertical_tabs() const
@@ -2172,6 +2207,9 @@ void TabWidget::rebuild_page_column()
 
 int TabWidget::current_vertical_tabs_width() const
 {
+    if (m_vertical_tabs_hover_expanded)
+        return VERTICAL_TABS_COLLAPSED_WIDTH + qRound((m_vertical_tabs_expanded_width - VERTICAL_TABS_COLLAPSED_WIDTH) * m_vertical_tabs_hover_expand_progress);
+
     return vertical_tabs_effectively_expanded() ? m_vertical_tabs_expanded_width : VERTICAL_TABS_COLLAPSED_WIDTH;
 }
 
@@ -2404,11 +2442,14 @@ void TabWidget::update_vertical_tabs_overlay_geometry()
 
 void TabWidget::set_vertical_tabs_hover_expanded(bool expanded)
 {
+    m_vertical_tabs_hover_expand_timer->stop();
     expanded &= can_expand_vertical_tabs_on_hover();
     if (m_vertical_tabs_hover_expanded == expanded)
         return;
 
     m_vertical_tabs_hover_expanded = expanded;
+    m_vertical_tabs_hover_expand_animation->stop();
+    m_vertical_tabs_hover_expand_progress = 0.0;
     if (m_vertical_tabs_hover_expanded)
         m_vertical_tabs_hover_collapse_timer->start();
     else
@@ -2416,6 +2457,9 @@ void TabWidget::set_vertical_tabs_hover_expanded(bool expanded)
 
     update_vertical_tabs_hover_layout();
     update_vertical_tabs_content_overlay();
+
+    if (m_vertical_tabs_hover_expanded)
+        m_vertical_tabs_hover_expand_animation->start();
 }
 
 void TabWidget::update_vertical_tabs_content_overlay()
@@ -2444,7 +2488,7 @@ void TabWidget::defer_update_vertical_tabs_hover_expanded()
 
 void TabWidget::update_vertical_tabs_hover_expanded()
 {
-    if (!m_vertical_tabs_hover_expanded)
+    if (!m_vertical_tabs_hover_expanded && !m_vertical_tabs_hover_expand_timer->isActive())
         return;
 
     if (!cursor_is_over_vertical_tabs())
