@@ -281,7 +281,7 @@ if("ladybird-components" IN_LIST FEATURES)
     set(OPTIONS "${OPTIONS} --disable-everything --disable-network")
     set(OPTIONS "${OPTIONS} --enable-decoder=vp8,vp9,libdav1d,theora,vorbis,opus,flac,mp3float,pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_alaw,pcm_mulaw")
     set(OPTIONS "${OPTIONS} --enable-parser=vp8,vp9,av1,flac,mpegaudio")
-    set(OPTIONS "${OPTIONS} --enable-demuxer=ogg,flac")
+    set(OPTIONS "${OPTIONS} --enable-demuxer=ogg")
 endif()
 
 if("swscale" IN_LIST FEATURES)
