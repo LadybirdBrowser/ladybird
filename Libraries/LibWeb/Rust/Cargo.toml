@@ -16,7 +16,7 @@ thread-sanitizer = []
 ak = { path = "../../../AK/Rust" }
 chardetng = "1.0.0"
 foldhash = "0.2"
-hashbrown = "0.16.1"
+hashbrown = "0.17.1"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libcompositing_rust = { path = "../../LibCompositing/Rust" }
 libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
