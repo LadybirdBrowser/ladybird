@@ -126,8 +126,7 @@ public:
         Optional<Web::HTML::CrossProcessId> initiator_to_check,
         Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params,
         Web::HTML::UserNavigationInvolvement user_involvement,
-        Optional<Web::Bindings::NavigationType> navigation_type,
-        Function<void(Web::HTML::HistoryStepResult)> on_complete);
+        Optional<Web::Bindings::NavigationType> navigation_type);
     ~ApplyHistoryStep();
 
     void apply_the_history_step();
@@ -138,7 +137,6 @@ public:
     Optional<i32> committed_step() const { return m_committed_step; }
 
     HistoryOperation& operation() const { return m_operation; }
-    Web::HTML::CrossProcessId operation_id() const { return m_operation_id; }
     Web::HTML::UserNavigationInvolvement user_involvement() const { return m_user_involvement; }
     Optional<Web::Bindings::NavigationType> navigation_type() const { return m_navigation_type; }
     Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot_params() const { return m_source_snapshot_params; }
@@ -180,7 +178,6 @@ private:
     Optional<Web::HTML::NavigationSourceSnapshot> const m_source_snapshot_params;
     Web::HTML::UserNavigationInvolvement const m_user_involvement;
     Optional<Web::Bindings::NavigationType> const m_navigation_type;
-    Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.
     i32 m_target_step { 0 };

@@ -2092,13 +2092,7 @@ void CanonicalTraversable::enqueue_browser_history_traversal(i32 target_step, bo
 void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params)
 {
     VERIFY(!operation.algorithm);
-    auto operation_id = operation.operation_id;
-    operation.algorithm = make<ApplyHistoryStep>(
-        *this, operation, operation_id, operation.sequence_number,
-        step, check_for_cancelation, initiator_to_check, move(source_snapshot_params), user_involvement, navigation_type,
-        [this, &operation](Web::HTML::HistoryStepResult result) {
-            finish_history_operation(operation.operation_id, result);
-        });
+    operation.algorithm = make<ApplyHistoryStep>(*this, operation, operation.operation_id, operation.sequence_number, step, check_for_cancelation, initiator_to_check, move(source_snapshot_params), user_involvement, navigation_type);
     operation.algorithm->apply_the_history_step();
 }
 
@@ -2605,8 +2599,8 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     if (auto view = this->view(); view.has_value())
         view->run_webdriver_commands_waiting_for_a_document({});
 
-    // The completion callback that brought us here can be running inside the algorithm object; destroy the
-    // operation only once the stack has unwound.
+    // NB: The run of apply the history step that finished the operation can be on the stack; destroy the operation
+    //     only once the stack has unwound.
     Core::deferred_invoke([operation = move(operation)] { });
 }
 

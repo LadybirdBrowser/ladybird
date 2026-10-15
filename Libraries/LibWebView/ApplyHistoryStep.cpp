@@ -21,8 +21,7 @@ ApplyHistoryStep::ApplyHistoryStep(
     Optional<Web::HTML::CrossProcessId> initiator_to_check,
     Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params,
     Web::HTML::UserNavigationInvolvement user_involvement,
-    Optional<Web::Bindings::NavigationType> navigation_type,
-    Function<void(Web::HTML::HistoryStepResult)> on_complete)
+    Optional<Web::Bindings::NavigationType> navigation_type)
     : m_traversable(traversable)
     , m_session_history(traversable.m_session_history)
     , m_session_history_traversal_queue(traversable.m_history_traversal_queue)
@@ -36,7 +35,6 @@ ApplyHistoryStep::ApplyHistoryStep(
     , m_source_snapshot_params(move(source_snapshot_params))
     , m_user_involvement(user_involvement)
     , m_navigation_type(navigation_type)
-    , m_on_complete(move(on_complete))
     , m_generation(++m_traversable_state.generation_counter)
 {
 }
@@ -460,7 +458,7 @@ void ApplyHistoryStep::abandon()
 
 void ApplyHistoryStep::return_result(Web::HTML::HistoryStepResult result)
 {
-    m_on_complete(result);
+    m_traversable.finish_history_operation(m_operation_id, result);
 }
 
 Web::HTML::SessionHistoryEntryDescriptor ChangingNavigable::target_entry_descriptor() const
