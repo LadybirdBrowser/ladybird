@@ -234,6 +234,7 @@ private:
     bool should_retry_without_alternative_service(int curl_result_code) const;
     u16 connect_port() const;
     void handle_retrieve_cookie_state();
+    ByteString impersonation_user_agent() const;
     void handle_connect_state();
     void handle_fetch_state();
     void handle_read_imported_state();

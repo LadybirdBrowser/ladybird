@@ -4,6 +4,7 @@ set(SOURCES
     ConnectionFromClient.cpp
     ControlConnectionFromClient.cpp
     CURL.cpp
+    Impersonation.cpp
     Request.cpp
     RequestPipe.cpp
     Resolver.cpp
@@ -42,6 +43,16 @@ add_executable(RequestServer main.cpp)
 
 target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
+
+# The curl port carries curl-impersonate's browser profiles everywhere but on Windows; its curl_easy_impersonate()
+# is how RequestServer sends a browser's TLS handshake and HTTP/2 preface.
+include(CheckSymbolExists)
+set(CMAKE_REQUIRED_LIBRARIES CURL::libcurl)
+check_symbol_exists(curl_easy_impersonate "curl/curl.h" HAVE_CURL_EASY_IMPERSONATE)
+unset(CMAKE_REQUIRED_LIBRARIES)
+if (HAVE_CURL_EASY_IMPERSONATE)
+    target_compile_definitions(requestserverservice PUBLIC REQUESTSERVER_CURL_IMPERSONATE=1)
+endif()
 
 target_link_libraries(RequestServer PRIVATE requestserverservice LibFileSystem)
 target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibHTTP LibIPC LibMain LibRequests LibSandbox LibTLS LibWebSocket LibURL LibTextCodec CURL::libcurl)

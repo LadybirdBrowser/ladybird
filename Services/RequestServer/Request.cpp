@@ -22,6 +22,7 @@
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/ControlConnectionFromClient.h>
+#include <RequestServer/Impersonation.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
@@ -956,7 +957,7 @@ void Request::start_aia_fetch_and_retry()
         Optional<ByteString> resolve_entry;
         if (m_dns_result)
             resolve_entry = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
-        m_client->probe_certificate_chain({}, m_url, m_request_id, m_proxy, move(resolve_entry));
+        m_client->probe_certificate_chain({}, m_url, m_request_id, impersonation_user_agent(), m_proxy, move(resolve_entry));
         return;
     }
 
@@ -1432,6 +1433,16 @@ void Request::handle_retrieve_cookie_state()
     }
 }
 
+// The User-Agent the request's TLS handshake is shaped after: the request's own, or the one its client last sent
+// for a preconnect, which carries no headers. libcurl reuses a connection only for a handle whose TLS configuration
+// matches, so a preconnect shaped any other way would be a connection nothing reuses.
+ByteString Request::impersonation_user_agent() const
+{
+    if (auto user_agent = m_request_headers->get("User-Agent"sv); user_agent.has_value())
+        return user_agent.release_value();
+    return m_client ? m_client->last_user_agent() : ByteString {};
+}
+
 void Request::handle_connect_state()
 {
     m_curl_easy_handle = curl_easy_init();
@@ -1448,6 +1459,8 @@ void Request::handle_connect_state()
     set_option(CURLOPT_PRIVATE, this);
 
     set_option(CURLOPT_NOSIGNAL, 1L);
+
+    impersonate_user_agent(m_curl_easy_handle, impersonation_user_agent());
 
     set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
 
@@ -1503,6 +1516,10 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_PRIVATE, this);
 
     set_option(CURLOPT_NOSIGNAL, 1L);
+
+    // Before the request's own HTTP version, which stays in charge: the profile only fills the version in when
+    // the request leaves it open.
+    impersonate_user_agent(m_curl_easy_handle, impersonation_user_agent());
 
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());

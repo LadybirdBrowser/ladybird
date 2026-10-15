@@ -79,6 +79,7 @@ public:
     bool websocket_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 websocket_id, u64 cookie_request_id, String cookie);
 
     IsPrivate is_private() const { return m_is_private; }
+    ByteString const& last_user_agent() const { return m_last_user_agent; }
 
     // Lets a bound client make requests for documents of frame_site under a top-level document of top_level_site. A
     // frame site of nothing stands for documents with opaque origins.
@@ -87,7 +88,7 @@ public:
     void start_revalidation_request(Badge<Request>, HTTP::NetworkIsolationKey, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials);
     void request_complete(Badge<Request>, Request const&);
     void fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id);
-    void probe_certificate_chain(Badge<Request>, URL::URL const&, u64 for_request_id, Optional<HTTP::Proxy> const&, Optional<ByteString> resolve_entry);
+    void probe_certificate_chain(Badge<Request>, URL::URL const&, u64 for_request_id, ByteString const& user_agent, Optional<HTTP::Proxy> const&, Optional<ByteString> resolve_entry);
 
 private:
     ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, SiteBinding, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>);
@@ -175,6 +176,9 @@ private:
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
 
     NonnullRefPtr<Resolver> m_resolver;
+
+    // The User-Agent of the client's last request, which its preconnects are shaped after.
+    ByteString m_last_user_agent;
 
     u64 m_next_revalidation_request_id { 0 };
 

@@ -28,6 +28,7 @@
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/ControlConnectionFromClient.h>
+#include <RequestServer/Impersonation.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
@@ -307,6 +308,13 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
+
+    for (auto const& header : request_headers) {
+        if (header.name.equals_ignoring_ascii_case("User-Agent"sv)) {
+            m_last_user_agent = header.value;
+            break;
+        }
+    }
 
     if (is_live_request_id(request_id)) {
         did_misbehave("reused live request ID");
@@ -702,7 +710,7 @@ void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString con
     m_aia_fetches.set(easy_handle, move(fetch));
 }
 
-void ConnectionFromClient::probe_certificate_chain(Badge<Request>, URL::URL const& url, u64 for_request_id, Optional<HTTP::Proxy> const& proxy, Optional<ByteString> resolve_entry)
+void ConnectionFromClient::probe_certificate_chain(Badge<Request>, URL::URL const& url, u64 for_request_id, ByteString const& user_agent, Optional<HTTP::Proxy> const& proxy, Optional<ByteString> resolve_entry)
 {
     auto fail = [&] {
         if (auto request = m_active_requests.get(for_request_id); request.has_value())
@@ -739,6 +747,7 @@ void ConnectionFromClient::probe_certificate_chain(Badge<Request>, URL::URL cons
     set_option(CURLOPT_SSL_VERIFYHOST, 0L);
     set_option(CURLOPT_CERTINFO, 1L);
     set_option(CURLOPT_PROXY, proxy.has_value() ? proxy->to_curl_url().characters() : "");
+    impersonate_user_agent(easy_handle, user_agent);
 
     if (resolve_entry.has_value()) {
         if (curl_slist* resolve_list = curl_slist_append(nullptr, resolve_entry->characters())) {

@@ -7,6 +7,7 @@
 #include <LibCore/Notifier.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Impersonation.h>
 #include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
@@ -61,6 +62,7 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
     };
 
     set_option(CURLOPT_PRIVATE, reinterpret_cast<uintptr_t>(this) | websocket_private_tag);
+    impersonate_user_agent(m_easy_handle, info.headers().get("User-Agent"sv).value_or({}));
     set_option(CURLOPT_WS_OPTIONS, CURLWS_RAW_MODE);
     set_option(CURLOPT_CONNECT_ONLY, 2); // WebSocket mode
 
