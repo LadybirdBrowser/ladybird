@@ -86,6 +86,7 @@ realm_intrinsic_accessors! {
         throw_type_error_accessor: Accessor,
         throw_type_error_function: FunctionObject,
         array_prototype_values_function: FunctionObject,
+        generator_prototype_next_function: FunctionObject,
         eval_function: FunctionObject,
         array_iterator_prototype: Object,
     }
