@@ -1,0 +1,14 @@
+{
+  "name": "nghttp3-impersonate",
+  "version": "1.15.0",
+  "description": "nghttp3 with curl-impersonate's HTTP/3 fingerprint patch, built static with hidden symbols for the curl port alone",
+  "homepage": "https://github.com/ngtcp2/nghttp3",
+  "license": "MIT",
+  "supports": "!windows",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ]
+}

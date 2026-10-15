@@ -1,0 +1,24 @@
+diff --git a/lib/vtls/openssl.c b/lib/vtls/openssl.c
+index a65c5dd..6d28273 100644
+--- a/lib/vtls/openssl.c
++++ b/lib/vtls/openssl.c
+@@ -5872,8 +5872,19 @@ static CURLcode ossl_recv(struct Curl_cfilter *cf,
+           result = octx->io_result;
+         }
+         else if(connssl->peer_closed) {
++#ifdef OPENSSL_IS_BORINGSSL
++          /* Ladybird: a transport EOF after the handshake, without a
++             close_notify alert, is the end of the data, as the
++             SSL_OP_IGNORE_UNEXPECTED_EOF option makes it with OpenSSL;
++             BoringSSL has no such option. HTTP framing still catches a
++             body cut short. */
++          CURL_TRC_CF(data, cf, "TLS EOF without close_notify, taken as "
++                      "the end of the data");
++          result = CURLE_OK;
++#else
+           failf(data, "Connection closed abruptly");
+           result = CURLE_RECV_ERROR;
++#endif
+         }
+         else {
+           /* We should no longer get here nowadays, but handle

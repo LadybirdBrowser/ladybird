@@ -59,7 +59,8 @@ static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context,
 #if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
     // Some HTTPS servers, including the Python server used by WPT, close the connection without sending the
     // mandatory TLS close-notify alert. Other browsers treat such a post-handshake transport EOF as a clean TLS EOF
-    // for compatibility. Do the same while leaving curl responsible for detecting incomplete HTTP framing.
+    // for compatibility. Do the same while leaving curl responsible for detecting incomplete HTTP framing. A libcurl
+    // on BoringSSL, which has no such option, does the same through the curl port's patch.
     if (curl_uses_openssl)
         SSL_CTX_set_options(static_cast<SSL_CTX*>(ssl_context), SSL_OP_IGNORE_UNEXPECTED_EOF);
 #endif

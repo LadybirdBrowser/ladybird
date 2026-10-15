@@ -1,0 +1,398 @@
+diff --git a/lib/includes/nghttp3/nghttp3.h b/lib/includes/nghttp3/nghttp3.h
+index c38f5e8..62c2c70 100644
+--- a/lib/includes/nghttp3/nghttp3.h
++++ b/lib/includes/nghttp3/nghttp3.h
+@@ -1741,6 +1741,53 @@ typedef struct nghttp3_conn nghttp3_conn;
+ #define NGHTTP3_SETTINGS_V4 4
+ #define NGHTTP3_SETTINGS_VERSION NGHTTP3_SETTINGS_V4
+ 
++/**
++ * @macro
++ *
++ * :macro:`NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE` is the HTTP/3
++ * SETTINGS identifier for MAX_FIELD_SECTION_SIZE.
++ */
++#define NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE 0x06
++/**
++ * @macro
++ *
++ * :macro:`NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY` is the
++ * HTTP/3 SETTINGS identifier for QPACK_MAX_TABLE_CAPACITY.
++ */
++#define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
++/**
++ * @macro
++ *
++ * :macro:`NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS` is the HTTP/3
++ * SETTINGS identifier for QPACK_BLOCKED_STREAMS.
++ */
++#define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
++/**
++ * @macro
++ *
++ * :macro:`NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL` is the HTTP/3
++ * SETTINGS identifier for ENABLE_CONNECT_PROTOCOL.
++ */
++#define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08
++/**
++ * @macro
++ *
++ * :macro:`NGHTTP3_SETTINGS_ID_H3_DATAGRAM` is the HTTP/3 SETTINGS
++ * identifier for H3_DATAGRAM.
++ */
++#define NGHTTP3_SETTINGS_ID_H3_DATAGRAM 0x33
++
++/**
++ * @struct
++ *
++ * :type:`nghttp3_settings_entry` is an HTTP/3 SETTINGS identifier and
++ * value pair.
++ */
++typedef struct nghttp3_settings_entry {
++  uint64_t id;
++  uint64_t value;
++} nghttp3_settings_entry;
++
+ /**
+  * @struct
+  *
+@@ -2412,6 +2459,33 @@ NGHTTP3_EXTERN int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn,
+                                                    int64_t qenc_stream_id,
+                                                    int64_t qdec_stream_id);
+ 
++/**
++ * @function
++ *
++ * `nghttp3_conn_submit_settings` submits SETTINGS entries to be sent
++ * on the control stream in the same order as |iv|.  The entries are
++ * copied by this function, and |iv| does not have to be kept after
++ * this function returns.  |iv| may be NULL if |niv| is 0.  |flags|
++ * is currently ignored and should be 0.
++ *
++ * This function must be called before
++ * `nghttp3_conn_bind_control_stream`.
++ *
++ * This function returns 0 if it succeeds, or one of the following
++ * negative error codes:
++ *
++ * :macro:`NGHTTP3_ERR_INVALID_STATE`
++ *     Control stream has already been bound.
++ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
++ *     |iv| is NULL but |niv| is not 0.
++ * :macro:`NGHTTP3_ERR_NOMEM`
++ *     Out of memory.
++ */
++NGHTTP3_EXTERN int nghttp3_conn_submit_settings(nghttp3_conn *conn,
++                                                uint8_t flags,
++                                                const nghttp3_settings_entry *iv,
++                                                size_t niv);
++
+ /**
+  * @function
+  *
+diff --git a/lib/nghttp3_conn.c b/lib/nghttp3_conn.c
+index a305be2..0c2d4f3 100644
+--- a/lib/nghttp3_conn.c
++++ b/lib/nghttp3_conn.c
+@@ -438,6 +438,7 @@ void nghttp3_conn_del(nghttp3_conn *conn) {
+   nghttp3_objalloc_free(&conn->stream_objalloc);
+   nghttp3_objalloc_free(&conn->out_chunk_objalloc);
+ 
++  nghttp3_mem_free(conn->mem, conn->local.settings_iv);
+   nghttp3_mem_free(conn->mem, conn->rx.originbuf);
+ 
+   nghttp3_mem_free(conn->mem, conn);
+@@ -2172,6 +2173,13 @@ int nghttp3_conn_bind_control_stream(nghttp3_conn *conn, int64_t stream_id) {
+     .type = NGHTTP3_FRAME_SETTINGS,
+     .local_settings = &conn->local.settings,
+   };
++  if (conn->local.settings_submitted) {
++    fr.settings = (nghttp3_frame_settings){
++      .type = NGHTTP3_FRAME_SETTINGS,
++      .niv = conn->local.settings_niv,
++      .iv = conn->local.settings_iv,
++    };
++  }
+ 
+   rv = nghttp3_stream_frq_add(stream, &fr);
+   if (rv != 0) {
+@@ -2195,6 +2203,41 @@ int nghttp3_conn_bind_control_stream(nghttp3_conn *conn, int64_t stream_id) {
+   return 0;
+ }
+ 
++int nghttp3_conn_submit_settings(nghttp3_conn *conn, uint8_t flags,
++                                 const nghttp3_settings_entry *iv,
++                                 size_t niv) {
++  nghttp3_settings_entry *niv_copy = NULL;
++  (void)flags;
++
++  if (conn->tx.ctrl) {
++    return NGHTTP3_ERR_INVALID_STATE;
++  }
++
++  if (niv && iv == NULL) {
++    return NGHTTP3_ERR_INVALID_ARGUMENT;
++  }
++
++  if (niv > SIZE_MAX / sizeof(*niv_copy)) {
++    return NGHTTP3_ERR_NOMEM;
++  }
++
++  if (niv) {
++    niv_copy = nghttp3_mem_malloc(conn->mem, sizeof(*niv_copy) * niv);
++    if (niv_copy == NULL) {
++      return NGHTTP3_ERR_NOMEM;
++    }
++
++    memcpy(niv_copy, iv, sizeof(*niv_copy) * niv);
++  }
++
++  nghttp3_mem_free(conn->mem, conn->local.settings_iv);
++  conn->local.settings_iv = niv_copy;
++  conn->local.settings_niv = niv;
++  conn->local.settings_submitted = 1;
++
++  return 0;
++}
++
+ int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn, int64_t qenc_stream_id,
+                                     int64_t qdec_stream_id) {
+   nghttp3_stream *stream;
+diff --git a/lib/nghttp3_conn.h b/lib/nghttp3_conn.h
+index 4f7f68f..26ca444 100644
+--- a/lib/nghttp3_conn.h
++++ b/lib/nghttp3_conn.h
+@@ -100,6 +100,11 @@ struct nghttp3_conn {
+        object is initialized as server.  settings.origin_list may
+        point to the address of this field. */
+     nghttp3_vec origin_list;
++    /* settings_iv points to a copied settings array passed to
++       nghttp3_conn_submit_settings(). */
++    nghttp3_settings_entry *settings_iv;
++    size_t settings_niv;
++    uint8_t settings_submitted;
+     nghttp3_settings settings;
+     struct {
+       /* max_pushes is the number of push IDs that local endpoint can
+diff --git a/lib/nghttp3_frame.h b/lib/nghttp3_frame.h
+index a8b706a..948e539 100644
+--- a/lib/nghttp3_frame.h
++++ b/lib/nghttp3_frame.h
+@@ -71,22 +71,11 @@ typedef struct nghttp3_frame_headers {
+   size_t nvlen;
+ } nghttp3_frame_headers;
+ 
+-#define NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE 0x06
+-#define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
+-#define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
+-#define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08
+-#define NGHTTP3_SETTINGS_ID_H3_DATAGRAM 0x33
+-
+ #define NGHTTP3_H2_SETTINGS_ID_ENABLE_PUSH 0x2
+ #define NGHTTP3_H2_SETTINGS_ID_MAX_CONCURRENT_STREAMS 0x3
+ #define NGHTTP3_H2_SETTINGS_ID_INITIAL_WINDOW_SIZE 0x4
+ #define NGHTTP3_H2_SETTINGS_ID_MAX_FRAME_SIZE 0x5
+ 
+-typedef struct nghttp3_settings_entry {
+-  uint64_t id;
+-  uint64_t value;
+-} nghttp3_settings_entry;
+-
+ typedef struct nghttp3_frame_settings {
+   int64_t type;
+   size_t niv;
+diff --git a/lib/nghttp3_stream.c b/lib/nghttp3_stream.c
+index 6a6deaa..eab2893 100644
+--- a/lib/nghttp3_stream.c
++++ b/lib/nghttp3_stream.c
+@@ -337,43 +337,47 @@ int nghttp3_stream_write_settings(nghttp3_stream *stream,
+   nghttp3_buf *chunk;
+   nghttp3_typed_buf tbuf;
+   nghttp3_settings_entry ents[16];
+-  nghttp3_frame_settings fr = {
+-    .type = NGHTTP3_FRAME_SETTINGS,
+-    .niv = 3,
+-    .iv = ents,
+-  };
++  nghttp3_frame_settings fr = *infr;
+   const nghttp3_settings *local_settings = infr->local_settings;
+   int64_t payloadlen;
+ 
+-  ents[0] = (nghttp3_settings_entry){
+-    .id = NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE,
+-    .value = local_settings->max_field_section_size,
+-  };
+-  ents[1] = (nghttp3_settings_entry){
+-    .id = NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY,
+-    .value = local_settings->qpack_max_dtable_capacity,
+-  };
+-  ents[2] = (nghttp3_settings_entry){
+-    .id = NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS,
+-    .value = local_settings->qpack_blocked_streams,
+-  };
++  if (local_settings) {
++    fr = (nghttp3_frame_settings){
++      .type = NGHTTP3_FRAME_SETTINGS,
++      .niv = 3,
++      .iv = ents,
++    };
+ 
+-  if (local_settings->h3_datagram) {
+-    ents[fr.niv] = (nghttp3_settings_entry){
+-      .id = NGHTTP3_SETTINGS_ID_H3_DATAGRAM,
+-      .value = 1,
++    ents[0] = (nghttp3_settings_entry){
++      .id = NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE,
++      .value = local_settings->max_field_section_size,
++    };
++    ents[1] = (nghttp3_settings_entry){
++      .id = NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY,
++      .value = local_settings->qpack_max_dtable_capacity,
++    };
++    ents[2] = (nghttp3_settings_entry){
++      .id = NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS,
++      .value = local_settings->qpack_blocked_streams,
+     };
+ 
+-    ++fr.niv;
+-  }
++    if (local_settings->h3_datagram) {
++      ents[fr.niv] = (nghttp3_settings_entry){
++        .id = NGHTTP3_SETTINGS_ID_H3_DATAGRAM,
++        .value = 1,
++      };
+ 
+-  if (local_settings->enable_connect_protocol) {
+-    ents[fr.niv] = (nghttp3_settings_entry){
+-      .id = NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL,
+-      .value = 1,
+-    };
++      ++fr.niv;
++    }
++
++    if (local_settings->enable_connect_protocol) {
++      ents[fr.niv] = (nghttp3_settings_entry){
++        .id = NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL,
++        .value = 1,
++      };
+ 
+-    ++fr.niv;
++      ++fr.niv;
++    }
+   }
+ 
+   len = nghttp3_frame_write_settings_len(&payloadlen, &fr);
+diff --git a/tests/nghttp3_conn_test.c b/tests/nghttp3_conn_test.c
+index 8c76646..2472fce 100644
+--- a/tests/nghttp3_conn_test.c
++++ b/tests/nghttp3_conn_test.c
+@@ -40,6 +40,7 @@
+ static const MunitTest tests[] = {
+   munit_void_test(test_nghttp3_conn_read_control),
+   munit_void_test(test_nghttp3_conn_write_control),
++  munit_void_test(test_nghttp3_conn_submit_settings),
+   munit_void_test(test_nghttp3_conn_submit_request),
+   munit_void_test(test_nghttp3_conn_http_request),
+   munit_void_test(test_nghttp3_conn_http_resp_header),
+@@ -1396,6 +1397,89 @@ void test_nghttp3_conn_write_control(void) {
+   nghttp3_conn_del(conn);
+ }
+ 
++void test_nghttp3_conn_submit_settings(void) {
++  const nghttp3_mem *mem = nghttp3_mem_default();
++  nghttp3_conn *conn;
++  nghttp3_callbacks callbacks;
++  nghttp3_settings settings;
++  nghttp3_settings_entry ents[4];
++  nghttp3_settings_entry sent_ents[16];
++  nghttp3_vec vec[256];
++  nghttp3_frame fr;
++  nghttp3_ssize sveccnt, nread;
++  int64_t stream_id;
++  int fin;
++  int rv;
++
++  memset(&callbacks, 0, sizeof(callbacks));
++  nghttp3_settings_default(&settings);
++
++  rv = nghttp3_conn_server_new(&conn, &callbacks, &settings, mem, NULL);
++
++  assert_int(0, ==, rv);
++
++  ents[0] = (nghttp3_settings_entry){
++    .id = NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL,
++    .value = 1,
++  };
++  ents[1] = (nghttp3_settings_entry){
++    .id = NGHTTP3_SETTINGS_ID_H3_DATAGRAM,
++    .value = 1,
++  };
++  ents[2] = (nghttp3_settings_entry){
++    .id = NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS,
++    .value = 111,
++  };
++  ents[3] = (nghttp3_settings_entry){
++    .id = NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE,
++    .value = 999,
++  };
++
++  rv = nghttp3_conn_submit_settings(conn, 0, NULL, 1);
++
++  assert_int(NGHTTP3_ERR_INVALID_ARGUMENT, ==, rv);
++
++  rv = nghttp3_conn_submit_settings(conn, 0, ents, nghttp3_arraylen(ents));
++
++  assert_int(0, ==, rv);
++
++  rv = nghttp3_conn_bind_control_stream(conn, 3);
++
++  assert_int(0, ==, rv);
++
++  sveccnt = nghttp3_conn_writev_stream(conn, &stream_id, &fin, vec,
++                                       nghttp3_arraylen(vec));
++
++  assert_int64(3, ==, stream_id);
++  assert_ptrdiff(1, ==, sveccnt);
++  assert_size(1, <, vec[0].len);
++  assert_uint8(NGHTTP3_STREAM_TYPE_CONTROL, ==, vec[0].base[0]);
++
++  ++vec[0].base;
++  --vec[0].len;
++
++  fr.settings.iv = sent_ents;
++  nread = nghttp3_decode_settings_frame(&fr.settings, vec, 1);
++
++  assert_ptrdiff((nghttp3_ssize)vec[0].len, ==, nread);
++  assert_size(nghttp3_arraylen(ents), ==, fr.settings.niv);
++
++  assert_uint64(ents[0].id, ==, fr.settings.iv[0].id);
++  assert_uint64(ents[0].value, ==, fr.settings.iv[0].value);
++  assert_uint64(ents[1].id, ==, fr.settings.iv[1].id);
++  assert_uint64(ents[1].value, ==, fr.settings.iv[1].value);
++  assert_uint64(ents[2].id, ==, fr.settings.iv[2].id);
++  assert_uint64(ents[2].value, ==, fr.settings.iv[2].value);
++  assert_uint64(ents[3].id, ==, fr.settings.iv[3].id);
++  assert_uint64(ents[3].value, ==, fr.settings.iv[3].value);
++
++  rv = nghttp3_conn_submit_settings(conn, 0, ents, nghttp3_arraylen(ents));
++
++  assert_int(NGHTTP3_ERR_INVALID_STATE, ==, rv);
++
++  nghttp3_conn_del(conn);
++}
++
+ void test_nghttp3_conn_submit_request(void) {
+   nghttp3_conn *conn;
+   nghttp3_callbacks callbacks = {
+diff --git a/tests/nghttp3_conn_test.h b/tests/nghttp3_conn_test.h
+index f03c365..088844c 100644
+--- a/tests/nghttp3_conn_test.h
++++ b/tests/nghttp3_conn_test.h
+@@ -37,6 +37,7 @@ extern const MunitSuite conn_suite;
+ 
+ munit_void_test_decl(test_nghttp3_conn_read_control)
+ munit_void_test_decl(test_nghttp3_conn_write_control)
++munit_void_test_decl(test_nghttp3_conn_submit_settings)
+ munit_void_test_decl(test_nghttp3_conn_submit_request)
+ munit_void_test_decl(test_nghttp3_conn_http_request)
+ munit_void_test_decl(test_nghttp3_conn_http_resp_header)

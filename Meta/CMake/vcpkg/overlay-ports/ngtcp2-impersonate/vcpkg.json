@@ -1,0 +1,15 @@
+{
+  "name": "ngtcp2-impersonate",
+  "version": "1.20.0",
+  "description": "ngtcp2 with curl-impersonate's QUIC fingerprint patch, on the BoringSSL the curl port carries, built static with hidden symbols for that port alone",
+  "homepage": "https://github.com/ngtcp2/ngtcp2",
+  "license": "MIT",
+  "supports": "!windows",
+  "dependencies": [
+    "boringssl-impersonate",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ]
+}

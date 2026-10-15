@@ -1,0 +1,14 @@
+{
+  "name": "boringssl-impersonate",
+  "version-string": "156c7b75",
+  "description": "BoringSSL at the commit curl-impersonate pins, with its browser-fingerprint patch, built static with hidden symbols for the curl port alone",
+  "homepage": "https://github.com/lexiforest/curl-impersonate",
+  "license": "Apache-2.0 AND ISC AND MIT AND OpenSSL",
+  "supports": "!windows",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ]
+}

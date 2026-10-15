@@ -1,0 +1,14 @@
+{
+  "name": "nghttp2-impersonate",
+  "version": "1.63.0",
+  "description": "nghttp2 at the last version with the stream priority API curl-impersonate's HTTP/2 fingerprints need, built static with hidden symbols for the curl port alone",
+  "homepage": "https://nghttp2.org/",
+  "license": "MIT",
+  "supports": "!windows",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ]
+}

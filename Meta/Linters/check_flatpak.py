@@ -65,6 +65,14 @@ vcpkg_not_linux = [
     "pthread",
 ]
 
+# Built into vcpkg's libcurl alone, for its browser TLS fingerprints; the runtime's libcurl brings its own stacks.
+vcpkg_libcurl_internals = [
+    "boringssl-impersonate",
+    "nghttp2-impersonate",
+    "nghttp3-impersonate",
+    "ngtcp2-impersonate",
+]
+
 
 class DepMatch(Enum):
     Match = (0,)
@@ -203,7 +211,7 @@ def check_vcpkg_vs_flatpak_versioning(vcpkg_repo: Path):
                     flatpak.append(name)
 
         # Remove excluded dependencies from the vcpkg list
-        for name in flatpak_runtime_libs + vcpkg_not_linux:
+        for name in flatpak_runtime_libs + vcpkg_not_linux + vcpkg_libcurl_internals:
             if name in vcpkg:
                 del vcpkg[name]
 

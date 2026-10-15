@@ -1,0 +1,85 @@
+diff --git b/CMake/FindNGHTTP2.cmake a/CMake/FindNGHTTP2.cmake
+index 3be4831..bca7cf8 100644
+--- b/CMake/FindNGHTTP2.cmake
++++ a/CMake/FindNGHTTP2.cmake
+@@ -39,8 +39,6 @@ set(_nghttp2_pc_requires "libnghttp2")
+ 
+ if(NOT DEFINED NGHTTP2_INCLUDE_DIR AND
+    NOT DEFINED NGHTTP2_LIBRARY)
+-endif()
+-if(1)
+   if(CURL_USE_PKGCONFIG)
+     find_package(PkgConfig QUIET)
+     pkg_check_modules(_nghttp2 ${_nghttp2_pc_requires})
+@@ -60,9 +58,6 @@ if(_nghttp2_FOUND)
+     set(_nghttp2_LIBRARIES    "${_nghttp2_STATIC_LIBRARIES}")
+   endif()
+   message(STATUS "Found NGHTTP2 (via pkg-config): ${_nghttp2_INCLUDE_DIRS} (found version \"${NGHTTP2_VERSION}\")")
+-elseif(1)
+-  include(FindPackageHandleStandardArgs)
+-  find_package_handle_standard_args(NGHTTP2 REQUIRED_VARS _nghttp2_FOUND)
+ elseif(nghttp2_CONFIG)
+   set(NGHTTP2_FOUND TRUE)
+   set(NGHTTP2_VERSION ${nghttp2_VERSION})
+@@ -115,6 +110,7 @@ if(NGHTTP2_FOUND)
+       INTERFACE_LIBCURL_PC_MODULES "${_nghttp2_pc_requires}"
+       INTERFACE_COMPILE_OPTIONS "${_nghttp2_CFLAGS}"
+       INTERFACE_INCLUDE_DIRECTORIES "${_nghttp2_INCLUDE_DIRS}"
+-      INTERFACE_LINK_LIBRARIES "${_nghttp2_LINK_LIBRARIES}")
++      INTERFACE_LINK_DIRECTORIES "${_nghttp2_LIBRARY_DIRS}"
++      INTERFACE_LINK_LIBRARIES "${_nghttp2_LIBRARIES}")
+   endif()
+ endif()
+diff --git b/CMake/FindNGHTTP3.cmake a/CMake/FindNGHTTP3.cmake
+index ba94f23..ed671b7 100644
+--- b/CMake/FindNGHTTP3.cmake
++++ a/CMake/FindNGHTTP3.cmake
+@@ -39,10 +39,9 @@ set(_nghttp3_pc_requires "libnghttp3")
+ 
+ if(NOT DEFINED NGHTTP3_INCLUDE_DIR AND
+    NOT DEFINED NGHTTP3_LIBRARY)
+-endif()
+-if(1)
+   if(CURL_USE_PKGCONFIG)
+     find_package(PkgConfig QUIET)
++    pkg_check_modules(_nghttp3 ${_nghttp3_pc_requires})
+   endif()
+   if(NOT _nghttp3_FOUND AND CURL_USE_CMAKECONFIG)
+     find_package(nghttp3 CONFIG QUIET)
+@@ -68,9 +67,6 @@ elseif(nghttp3_CONFIG)
+     set(_nghttp3_LIBRARIES nghttp3::nghttp3)
+   endif()
+   message(STATUS "Found NGHTTP3 (via CMake Config): ${nghttp3_CONFIG} (found version \"${NGHTTP3_VERSION}\")")
+-elseif(1)
+-  include(FindPackageHandleStandardArgs)
+-  find_package_handle_standard_args(NGHTTP3 REQUIRED_VARS nghttp3_CONFIG)
+ else()
+   find_path(NGHTTP3_INCLUDE_DIR NAMES "nghttp3/nghttp3.h")
+   if(NGHTTP3_USE_STATIC_LIBS)
+diff --git b/CMake/FindNGTCP2.cmake a/CMake/FindNGTCP2.cmake
+index de40a63..bf2f488 100644
+--- b/CMake/FindNGTCP2.cmake
++++ a/CMake/FindNGTCP2.cmake
+@@ -77,10 +77,10 @@ endif()
+ set(_tried_pkgconfig FALSE)
+ if(NOT DEFINED NGTCP2_INCLUDE_DIR AND
+    NOT DEFINED NGTCP2_LIBRARY)
+-endif()
+-if(1)
+   if(CURL_USE_PKGCONFIG)
+     find_package(PkgConfig QUIET)
++    pkg_check_modules(_ngtcp2 ${_ngtcp2_pc_requires})
++    set(_tried_pkgconfig TRUE)
+   endif()
+   if(NOT _ngtcp2_FOUND AND CURL_USE_CMAKECONFIG AND NGTCP2_CRYPTO_BACKEND)
+     find_package(ngtcp2 CONFIG QUIET)
+@@ -112,9 +112,6 @@ elseif(ngtcp2_CONFIG)
+     set(_ngtcp2_LIBRARIES ngtcp2::ngtcp2 ngtcp2::${_crypto_library_lower})
+   endif()
+   message(STATUS "Found NGTCP2 (via CMake Config): ${ngtcp2_CONFIG} (found version \"${NGTCP2_VERSION}\")")
+-elseif(1)
+-  include(FindPackageHandleStandardArgs)
+-  find_package_handle_standard_args(NGTCP2 REQUIRED_VARS ngtcp2_CONFIG)
+ else()
+   find_path(NGTCP2_INCLUDE_DIR NAMES "ngtcp2/ngtcp2.h")
+   if(NGTCP2_USE_STATIC_LIBS)

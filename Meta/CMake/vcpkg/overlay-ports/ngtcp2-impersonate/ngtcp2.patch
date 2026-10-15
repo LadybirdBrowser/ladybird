@@ -1,0 +1,534 @@
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 00000000..70c8763a
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,40 @@
++# Repository Guidelines
++
++## Project Structure & Module Organization
++- `lib/` contains the core QUIC implementation in C; installed public headers are under `lib/includes/ngtcp2/`.
++- `crypto/` contains backend adapters: `quictls`, `ossl`, `gnutls`, `boringssl`, `wolfssl`, and `picotls`.
++- `tests/` holds Munit-based unit tests (`ngtcp2_*_test.c`) linked into `tests/main`.
++- `examples/` provides client/server programs and simulation code (`sim.cc`, `sim_test.cc`); Python interop tests live in `examples/tests/`.
++- `fuzz/` stores libFuzzer targets and corpora; `doc/source/` contains Sphinx docs; automation lives in `ci/`, `interop/`, and `.github/workflows/`.
++- `third-party/http-parser/` is vendored code; avoid style or behavior changes there unless intentionally syncing upstream.
++
++## Build, Test, and Development Commands
++- Initialize dependencies: `git submodule update --init`.
++- Autotools flow: `autoreconf -i && ./configure --disable-dependency-tracking [flags] && make -j"$(nproc)" && make -j"$(nproc)" check`.
++- Library-only build: add `--enable-lib-only` to `./configure` to skip examples.
++- CMake flow: `cmake -B build -DENABLE_WERROR=ON [flags] && cmake --build build && cmake --build build --target check`.
++- Interop pytest suite: `pytest -v examples/tests` (filter with `-k`, for example `-k 'quictls-wolfssl'`).
++- Format sources: `make clang-format`.
++
++## Coding Style & Naming Conventions
++- Follow `.clang-format` exactly: 2-space indent, 80-column limit, no tabs.
++- Keep core protocol logic in `lib/`; TLS/provider integration belongs in `crypto/<backend>/`.
++- Use existing naming patterns: `ngtcp2_<module>.c/.h` and `ngtcp2_<module>_test.c/.h`.
++- Prefer small, focused patches; separate refactors from behavior changes.
++
++## Testing Guidelines
++- Add or update `tests/ngtcp2_*_test.c` for any library behavior change.
++- Run at least one local full pass: `make check` (autotools) or `cmake --build build --target check` (CMake).
++- For client/server, transport, or TLS changes, run `pytest -v examples/tests`.
++- There is no fixed coverage percentage target; coverage is enforced by meaningful regression tests across C tests and/or pytest interop tests.
++
++## Commit & Pull Request Guidelines
++- Follow recent history: concise, imperative subject lines, often with a scope prefix (examples: `ksl: ...`, `tests: ...`, `examples: ...`, `doc: ...`, `Bump ...`).
++- Keep commits logically grouped and buildable; avoid mixing unrelated subsystems.
++- PRs should state motivation, key design choices, linked issue (if applicable), and exact commands used to validate.
++- If behavior or build flags change, update `README.rst` and relevant docs in `doc/source/`.
++
++## Security & Configuration Tips
++- Follow `SECURITY.md` for vulnerability reporting.
++- Never commit certificates, keys, or local config secrets.
++- For local integration runs, generate temporary certs with `ci/gen-certificate.sh`.
+diff --git a/crypto/boringssl/libngtcp2_crypto_boringssl.pc.in b/crypto/boringssl/libngtcp2_crypto_boringssl.pc.in
+index d0b13824..cf6ebbca 100644
+--- a/crypto/boringssl/libngtcp2_crypto_boringssl.pc.in
++++ b/crypto/boringssl/libngtcp2_crypto_boringssl.pc.in
+@@ -31,4 +31,4 @@ URL: https://github.com/ngtcp2/ngtcp2
+ Version: @VERSION@
+ Libs: -L${libdir} -lngtcp2_crypto_boringssl
+ Cflags: -I${includedir}
+-Requires.private: libngtcp2, openssl
++Requires.private: libngtcp2
+diff --git a/export.sh b/export.sh
+new file mode 100755
+index 00000000..55f76ef2
+--- /dev/null
++++ b/export.sh
+@@ -0,0 +1,10 @@
++#!/bin/bash
++
++# TODO: use cmake to generate mingw makefile, see:
++#
++# 1. https://github.com/curl/curl/pull/13244/files
++# 2. https://everything.curl.dev/build/windows.html
++
++git df v1.20.0 > ngtcp2.patch
++mv ngtcp2.patch ../curl-impersonate/patches/ngtcp2.patch
++
+diff --git a/lib/includes/ngtcp2/ngtcp2.h b/lib/includes/ngtcp2/ngtcp2.h
+index a09ceea3..b847c4ee 100644
+--- a/lib/includes/ngtcp2/ngtcp2.h
++++ b/lib/includes/ngtcp2/ngtcp2.h
+@@ -1406,6 +1406,25 @@ typedef struct ngtcp2_version_info {
+ #define NGTCP2_TRANSPORT_PARAMS_V1 1
+ #define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V1
+ 
++/**
++ * @struct
++ *
++ * :type:`ngtcp2_transport_params_raw` represents the raw serialized
++ * QUIC transport parameters.
++ */
++typedef struct ngtcp2_transport_params_raw {
++  /**
++   * :member:`base` points to the beginning of serialized transport
++   * parameters.
++   */
++  const uint8_t *base;
++  /**
++   * :member:`len` is the number of bytes pointed by
++   * :member:`base`.
++   */
++  size_t len;
++} ngtcp2_transport_params_raw;
++
+ /**
+  * @struct
+  *
+@@ -1499,7 +1518,7 @@ typedef struct ngtcp2_transport_params {
+    * :member:`active_connection_id_limit` is the maximum number of
+    * Connection ID that sender can store.  If specified, it must be in
+    * the range of [:macro:`NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT`,
+-   * 8], inclusive.
++   * 64], inclusive.
+    */
+   uint64_t active_connection_id_limit;
+   /**
+@@ -4335,6 +4354,36 @@ NGTCP2_EXTERN int ngtcp2_conn_set_local_transport_params_versioned(
+   ngtcp2_conn *conn, int transport_params_version,
+   const ngtcp2_transport_params *params);
+ 
++/**
++ * @function
++ *
++ * `ngtcp2_conn_set_local_transport_params_raw` sets pre-serialized
++ * local transport parameters.  If this function succeeds,
++ * `ngtcp2_conn_encode_local_transport_params` returns exactly the
++ * serialized bytes specified by |params|.
++ *
++ * This function does not update local transport parameters returned
++ * by `ngtcp2_conn_get_local_transport_params`.
++ *
++ * This function must be called before
++ * `ngtcp2_conn_install_tx_handshake_key`.
++ *
++ * This function returns 0 if it succeeds, or one of the following
++ * negative error codes:
++ *
++ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
++ *     |params| is NULL, or |params->base| is NULL when
++ *     |params->len| is not 0.
++ * :macro:`NGTCP2_ERR_INVALID_STATE`
++ *     `ngtcp2_conn_install_tx_handshake_key` has been called.
++ * :macro:`NGTCP2_ERR_NOMEM`
++ *     Out of memory.
++ * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
++ *     The input is malformed.
++ */
++NGTCP2_EXTERN int ngtcp2_conn_set_local_transport_params_raw(
++  ngtcp2_conn *conn, const ngtcp2_transport_params_raw *params);
++
+ /**
+  * @function
+  *
+diff --git a/lib/ngtcp2_conn.c b/lib/ngtcp2_conn.c
+index 84a41943..7291a16f 100644
+--- a/lib/ngtcp2_conn.c
++++ b/lib/ngtcp2_conn.c
+@@ -1063,6 +1063,11 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
+   p->version_info_present = 1;
+ }
+ 
++static void conn_clear_local_transport_params_raw(ngtcp2_conn *conn) {
++  ngtcp2_mem_free(conn->mem, (uint8_t *)conn->local.transport_params_raw.base);
++  conn->local.transport_params_raw = (ngtcp2_transport_params_raw){0};
++}
++
+ static void conn_update_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
+   const int64_t min_gap = 3;
+   uint8_t r;
+@@ -1712,6 +1717,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
+   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
+   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_hp_buf.base);
+   ngtcp2_mem_free(conn->mem, (uint8_t *)conn->local.settings.token);
++  ngtcp2_mem_free(conn->mem, (uint8_t *)conn->local.transport_params_raw.base);
+ 
+   ngtcp2_crypto_km_del(conn->crypto.key_update.old_rx_ckm, conn->mem);
+   ngtcp2_crypto_km_del(conn->crypto.key_update.new_rx_ckm, conn->mem);
+@@ -11753,11 +11759,51 @@ int ngtcp2_conn_set_local_transport_params_versioned(
+     return NGTCP2_ERR_INVALID_STATE;
+   }
+ 
++  conn_clear_local_transport_params_raw(conn);
+   conn_set_local_transport_params(conn, params);
+ 
+   return 0;
+ }
+ 
++int ngtcp2_conn_set_local_transport_params_raw(
++  ngtcp2_conn *conn, const ngtcp2_transport_params_raw *params) {
++  uint8_t *buf;
++  ngtcp2_transport_params paramsbuf;
++  int rv;
++
++  if (params == NULL || (params->len && params->base == NULL)) {
++    return NGTCP2_ERR_INVALID_ARGUMENT;
++  }
++
++  if (conn->hs_pktns == NULL || conn->hs_pktns->crypto.tx.ckm) {
++    return NGTCP2_ERR_INVALID_STATE;
++  }
++
++  if (params->len == 0) {
++    conn_clear_local_transport_params_raw(conn);
++    return 0;
++  }
++
++  rv = ngtcp2_transport_params_decode(&paramsbuf, params->base, params->len);
++  if (rv != 0) {
++    return rv;
++  }
++
++  buf = ngtcp2_mem_malloc(conn->mem, params->len);
++  if (buf == NULL) {
++    return NGTCP2_ERR_NOMEM;
++  }
++
++  memcpy(buf, params->base, params->len);
++
++  conn_clear_local_transport_params_raw(conn);
++
++  conn->local.transport_params_raw.base = buf;
++  conn->local.transport_params_raw.len = params->len;
++
++  return 0;
++}
++
+ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
+   const ngtcp2_mem *mem = conn->mem;
+   ngtcp2_transport_params *params = &conn->local.transport_params;
+@@ -11813,6 +11859,16 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn) {
+ ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(ngtcp2_conn *conn,
+                                                        uint8_t *dest,
+                                                        size_t destlen) {
++  if (conn->local.transport_params_raw.len) {
++    if (destlen < conn->local.transport_params_raw.len) {
++      return NGTCP2_ERR_NOBUF;
++    }
++
++    memcpy(dest, conn->local.transport_params_raw.base,
++           conn->local.transport_params_raw.len);
++    return (ngtcp2_ssize)conn->local.transport_params_raw.len;
++  }
++
+   return ngtcp2_transport_params_encode(dest, destlen,
+                                         &conn->local.transport_params);
+ }
+diff --git a/lib/ngtcp2_conn.h b/lib/ngtcp2_conn.h
+index a6f7616e..b4467a50 100644
+--- a/lib/ngtcp2_conn.h
++++ b/lib/ngtcp2_conn.h
+@@ -462,6 +462,9 @@ struct ngtcp2_conn {
+     /* transport_params is the local transport parameters.  It is used
+        for Short packet only. */
+     ngtcp2_transport_params transport_params;
++    /* transport_params_raw contains serialized local transport
++       parameters, if they are specified. */
++    ngtcp2_transport_params_raw transport_params_raw;
+     struct {
+       /* max_streams is the maximum number of bidirectional streams which
+          the local endpoint can open. */
+diff --git a/lib/ngtcp2_dcidtr.h b/lib/ngtcp2_dcidtr.h
+index 63043427..dee2c838 100644
+--- a/lib/ngtcp2_dcidtr.h
++++ b/lib/ngtcp2_dcidtr.h
+@@ -42,7 +42,7 @@
+ /* NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE is the maximum number of
+    Destination Connection ID the remote endpoint provides to store.
+    It must be the power of 2. */
+-#define NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE 8
++#define NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE 64
+ /* NGTCP2_DCIDTR_MAX_RETIRED_DCID_SIZE is the maximum number of
+    retired Destination Connection ID kept to catch in-flight packet on
+    a retired path.  It must be the power of 2. */
+diff --git a/tests/ngtcp2_conn_test.c b/tests/ngtcp2_conn_test.c
+index 50ee2c05..13549bfb 100644
+--- a/tests/ngtcp2_conn_test.c
++++ b/tests/ngtcp2_conn_test.c
+@@ -43,6 +43,7 @@
+ #include "ngtcp2_settings.h"
+ 
+ static const MunitTest tests[] = {
++  munit_void_test(test_ngtcp2_conn_large_active_connection_id_limit),
+   munit_void_test(test_ngtcp2_conn_stream_open_close),
+   munit_void_test(test_ngtcp2_conn_stream_rx_flow_control),
+   munit_void_test(test_ngtcp2_conn_stream_rx_flow_control_error),
+@@ -94,6 +95,7 @@ static const MunitTest tests[] = {
+   munit_void_test(test_ngtcp2_conn_recv_version_negotiation),
+   munit_void_test(test_ngtcp2_conn_send_initial_token),
+   munit_void_test(test_ngtcp2_conn_set_remote_transport_params),
++  munit_void_test(test_ngtcp2_conn_set_local_transport_params_raw),
+   munit_void_test(test_ngtcp2_conn_write_connection_close),
+   munit_void_test(test_ngtcp2_conn_write_application_close),
+   munit_void_test(test_ngtcp2_conn_rtb_reclaim_on_pto),
+@@ -1343,6 +1345,27 @@ static void setup_early_client(ngtcp2_conn **pconn) {
+   setup_early_client_with_options(pconn, opts);
+ }
+ 
++void test_ngtcp2_conn_large_active_connection_id_limit(void) {
++  ngtcp2_conn *conn;
++  ngtcp2_transport_params params;
++  conn_options opts;
++
++  client_default_transport_params(&params);
++  params.active_connection_id_limit = 64;
++  opts = (conn_options){
++    .params = &params,
++  };
++
++  conn_client_new(&conn, opts);
++
++  assert_not_null(conn);
++  assert_uint64(
++    64, ==,
++    ngtcp2_conn_get_local_transport_params(conn)->active_connection_id_limit);
++
++  ngtcp2_conn_del(conn);
++}
++
+ void test_ngtcp2_conn_stream_open_close(void) {
+   ngtcp2_conn *conn;
+   uint8_t buf[2048];
+@@ -9229,7 +9252,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
+   ngtcp2_dcid *dcid;
+   int rv;
+   ngtcp2_frame_chain *frc;
+-  size_t i;
++  size_t i, j;
+   ngtcp2_tpe tpe;
+   ngtcp2_transport_params params;
+   conn_options opts;
+@@ -9722,42 +9745,33 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
+ 
+   assert_int(0, ==, rv);
+ 
+-  for (i = 0; i < 8; ++i) {
+-    frs[i].new_connection_id = (ngtcp2_new_connection_id){
+-      .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+-      .seq = i + 8,
+-      .retire_prior_to = 8,
+-    };
+-    ngtcp2_cid_init(&frs[i].new_connection_id.cid, cid, sizeof(cid));
+-    frs[i].new_connection_id.cid.data[0] = (uint8_t)(i + 8);
+-    memcpy(frs[i].new_connection_id.stateless_reset_token, token,
+-           sizeof(token));
+-  }
+-
+-  for (i = 0; i < 8; ++i) {
+-    frs[i + 8].new_connection_id = (ngtcp2_new_connection_id){
+-      .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+-      .seq = i + 16,
+-      .retire_prior_to = 16,
+-    };
+-    ngtcp2_cid_init(&frs[i + 8].new_connection_id.cid, cid, sizeof(cid));
+-    frs[i + 8].new_connection_id.cid.data[0] = (uint8_t)(i + 16);
+-    memcpy(frs[i + 8].new_connection_id.stateless_reset_token, token,
+-           sizeof(token));
+-  }
++  for (j = 0; j < NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE * 2; j += 8) {
++    for (i = 0; i < 8; ++i) {
++      frs[i].new_connection_id = (ngtcp2_new_connection_id){
++        .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
++        .seq = i + j + 8,
++        .retire_prior_to = j + 8,
++      };
++      ngtcp2_cid_init(&frs[i].new_connection_id.cid, cid, sizeof(cid));
++      frs[i].new_connection_id.cid.data[0] = (uint8_t)(i + j + 8);
++      memcpy(frs[i].new_connection_id.stateless_reset_token, token,
++             sizeof(token));
++    }
+ 
+-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 16);
+-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
++    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 8);
++    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+ 
+-  assert_int(0, ==, rv);
++    assert_int(0, ==, rv);
++  }
+ 
+   frs[0].new_connection_id = (ngtcp2_new_connection_id){
+     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+-    .seq = 24,
+-    .retire_prior_to = 17,
++    .seq = NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE * 2 + 8,
++    .retire_prior_to = NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE * 2 + 1,
+   };
+   ngtcp2_cid_init(&frs[0].new_connection_id.cid, cid, sizeof(cid));
+-  frs[0].new_connection_id.cid.data[0] = (uint8_t)(i + 24);
++  frs[0].new_connection_id.cid.data[0] =
++    NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE * 2 + 8;
+   memcpy(frs[0].new_connection_id.stateless_reset_token, token, sizeof(token));
+ 
+   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+@@ -12333,6 +12347,88 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
+   ngtcp2_conn_del(conn);
+ }
+ 
++void test_ngtcp2_conn_set_local_transport_params_raw(void) {
++  ngtcp2_conn *conn;
++  ngtcp2_transport_params params, decoded_params;
++  ngtcp2_transport_params_raw raw_params;
++  ngtcp2_crypto_aead_ctx aead_ctx = {0};
++  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
++  uint8_t encoded[1024];
++  uint8_t rawbuf[1024];
++  uint8_t out[1024];
++  uint8_t malformed[] = {0x01};
++  uint8_t *p;
++  ngtcp2_ssize nwrite;
++  size_t rawlen;
++  int rv;
++  conn_options opts = {0};
++
++  conn_server_new(&conn, opts);
++
++  server_default_transport_params(&params);
++
++  nwrite = ngtcp2_transport_params_encode(encoded, sizeof(encoded), &params);
++  assert_ptrdiff(0, <, nwrite);
++
++  p = rawbuf;
++  p = ngtcp2_put_uvarint(p, 0x173e);
++  p = ngtcp2_put_uvarint(p, 0);
++
++  memcpy(p, encoded, (size_t)nwrite);
++  p += (size_t)nwrite;
++  rawlen = (size_t)(p - rawbuf);
++
++  raw_params = (ngtcp2_transport_params_raw){
++    .base = rawbuf,
++    .len = rawlen,
++  };
++
++  rv = ngtcp2_conn_set_local_transport_params_raw(conn, &raw_params);
++  assert_int(0, ==, rv);
++
++  nwrite = ngtcp2_conn_encode_local_transport_params(conn, out, sizeof(out));
++  assert_ptrdiff((ngtcp2_ssize)rawlen, ==, nwrite);
++  assert_memory_equal(rawlen, rawbuf, out);
++
++  params.initial_max_data += 1000;
++  rv = ngtcp2_conn_set_local_transport_params(conn, &params);
++  assert_int(0, ==, rv);
++
++  nwrite = ngtcp2_conn_encode_local_transport_params(conn, out, sizeof(out));
++  assert_ptrdiff(0, <, nwrite);
++
++  rv = ngtcp2_transport_params_decode(&decoded_params, out, (size_t)nwrite);
++  assert_int(0, ==, rv);
++  assert_uint64(params.initial_max_data, ==, decoded_params.initial_max_data);
++
++  raw_params = (ngtcp2_transport_params_raw){
++    .base = NULL,
++    .len = sizeof(malformed),
++  };
++  rv = ngtcp2_conn_set_local_transport_params_raw(conn, &raw_params);
++  assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
++
++  raw_params = (ngtcp2_transport_params_raw){
++    .base = malformed,
++    .len = sizeof(malformed),
++  };
++  rv = ngtcp2_conn_set_local_transport_params_raw(conn, &raw_params);
++  assert_int(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM, ==, rv);
++
++  rv = ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
++                                            sizeof(null_iv), &hp_ctx);
++  assert_int(0, ==, rv);
++
++  raw_params = (ngtcp2_transport_params_raw){
++    .base = rawbuf,
++    .len = rawlen,
++  };
++  rv = ngtcp2_conn_set_local_transport_params_raw(conn, &raw_params);
++  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
++
++  ngtcp2_conn_del(conn);
++}
++
+ void test_ngtcp2_conn_write_connection_close(void) {
+   ngtcp2_conn *conn;
+   uint8_t buf[1200];
+diff --git a/tests/ngtcp2_conn_test.h b/tests/ngtcp2_conn_test.h
+index dfe96bd3..12e4942c 100644
+--- a/tests/ngtcp2_conn_test.h
++++ b/tests/ngtcp2_conn_test.h
+@@ -37,6 +37,7 @@ void init_static_path(void);
+ 
+ extern const MunitSuite conn_suite;
+ 
++munit_void_test_decl(test_ngtcp2_conn_large_active_connection_id_limit)
+ munit_void_test_decl(test_ngtcp2_conn_stream_open_close)
+ munit_void_test_decl(test_ngtcp2_conn_stream_rx_flow_control)
+ munit_void_test_decl(test_ngtcp2_conn_stream_rx_flow_control_error)
+@@ -88,6 +89,7 @@ munit_void_test_decl(test_ngtcp2_conn_get_active_dcid)
+ munit_void_test_decl(test_ngtcp2_conn_recv_version_negotiation)
+ munit_void_test_decl(test_ngtcp2_conn_send_initial_token)
+ munit_void_test_decl(test_ngtcp2_conn_set_remote_transport_params)
++munit_void_test_decl(test_ngtcp2_conn_set_local_transport_params_raw)
+ munit_void_test_decl(test_ngtcp2_conn_write_connection_close)
+ munit_void_test_decl(test_ngtcp2_conn_write_application_close)
+ munit_void_test_decl(test_ngtcp2_conn_rtb_reclaim_on_pto)
+diff --git a/tests/ngtcp2_dcidtr_test.c b/tests/ngtcp2_dcidtr_test.c
+index 3a80e89b..390cd6b7 100644
+--- a/tests/ngtcp2_dcidtr_test.c
++++ b/tests/ngtcp2_dcidtr_test.c
+@@ -721,11 +721,13 @@ void test_ngtcp2_dcidtr_len(void) {
+     assert_int(0, ==, rv);
+   }
+ 
+-  assert_size(4, ==, ngtcp2_dcidtr_unused_len(&dtr));
++  assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE -
++                NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE,
++              ==, ngtcp2_dcidtr_unused_len(&dtr));
+   assert_size(NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE, ==,
+               ngtcp2_dcidtr_bound_len(&dtr));
+   assert_size(0, ==, ngtcp2_dcidtr_retired_len(&dtr));
+-  assert_size(4 + NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE, ==,
++  assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE, ==,
+               ngtcp2_dcidtr_inactive_len(&dtr));
+   assert_false(ngtcp2_dcidtr_unused_empty(&dtr));
+   assert_false(ngtcp2_dcidtr_unused_full(&dtr));
+@@ -739,12 +741,14 @@ void test_ngtcp2_dcidtr_len(void) {
+     assert_int(0, ==, rv);
+   }
+ 
+-  assert_size(4, ==, ngtcp2_dcidtr_unused_len(&dtr));
++  assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE -
++                NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE,
++              ==, ngtcp2_dcidtr_unused_len(&dtr));
+   assert_size(NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE, ==,
+               ngtcp2_dcidtr_bound_len(&dtr));
+   assert_size(NGTCP2_DCIDTR_MAX_RETIRED_DCID_SIZE, ==,
+               ngtcp2_dcidtr_retired_len(&dtr));
+-  assert_size(4 + NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE, ==,
++  assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE, ==,
+               ngtcp2_dcidtr_inactive_len(&dtr));
+   assert_false(ngtcp2_dcidtr_unused_empty(&dtr));
+   assert_false(ngtcp2_dcidtr_unused_full(&dtr));

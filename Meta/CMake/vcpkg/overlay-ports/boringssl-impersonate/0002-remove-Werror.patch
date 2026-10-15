@@ -1,0 +1,22 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 87e554c..309a083 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -431,7 +431,7 @@ endif()
+ #
+ # TODO(crbug.com/389897612): Should these be set on a per-target basis?
+ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
+-  set(C_CXX_WARNINGS -Werror -Wformat=2 -Wmissing-field-initializers -Wshadow
++  set(C_CXX_WARNINGS -Wformat=2 -Wmissing-field-initializers -Wshadow
+       -Wsign-compare -Wtype-limits -Wvla -Wwrite-strings -Wimplicit-fallthrough)
+   set(C_WARNINGS -Wold-style-definition -Wstrict-prototypes)
+   set(CXX_WARNING -Wnon-virtual-dtor)
+@@ -521,7 +521,7 @@ elseif(MSVC)
+       "-wd4706" # assignment within conditional expression
+       )
+   add_compile_options(
+-    "$<$<COMPILE_LANGUAGE:C,CXX>:-W4;-WX;${MSVC_DISABLED_WARNINGS_LIST}>")
++    "$<$<COMPILE_LANGUAGE:C,CXX>:-W4;${MSVC_DISABLED_WARNINGS_LIST}>")
+ endif()
+ 
+ if(OPENSSL_ASM)
