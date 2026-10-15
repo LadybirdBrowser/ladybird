@@ -23,22 +23,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     pub(in crate::codegen) fn emit_check_appendable_array(&mut self, node: NodeId) {
         let exit = self.exit_site(node);
         let scratch = self.pinned.scratch;
-        let offsets = self.runtime.offsets;
         let layout = self.runtime.layout;
         let receiver = self.input(node, 0);
         let (array, prototype) = (self.temp(node, 0), self.temp(node, 1));
 
         self.unbox_object_or_branch(array, receiver, exit);
-        self.masm
-            .load16(scratch, &Address::new(array, offsets.object_flags as i32));
-        let flags = layout.object_flag_has_magical_length | layout.object_flag_is_extensible;
-        self.masm
-            .and32_imm(scratch, scratch, u32::from(flags | layout.object_flag_may_interfere));
-        self.masm
-            .branch32_imm(Condition::NotEqual, scratch, i32::from(flags), exit);
-        self.masm
-            .load8(scratch, &Address::new(array, layout.array_is_proxy_target as i32));
-        self.masm.branch_test32(Condition::NonZero, scratch, 0xFF, exit);
+        self.branch_unless_plain_array(array, prototype, exit);
         self.masm
             .load8(scratch, &Address::new(array, layout.array_length_writable as i32));
         self.masm.branch_test32(Condition::Zero, scratch, 0xFF, exit);
@@ -59,12 +49,32 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             exit,
         );
         self.masm.bind(known_kind);
+    }
 
-        // The realm's default prototype chain, without indexed properties.
+    /// Branches to `fail` unless the object at `array` is an array that
+    /// can get a new element without any observable step: an extensible
+    /// array that does not interfere with indexed access, no proxy target,
+    /// whose prototype chain is the realm's default one without indexed
+    /// properties. Keeps `array`, and clobbers `prototype`.
+    pub(super) fn branch_unless_plain_array(&mut self, array: Gpr, prototype: Gpr, fail: Label) {
+        let scratch = self.pinned.scratch;
+        let offsets = self.runtime.offsets;
+        let layout = self.runtime.layout;
+        self.masm
+            .load16(scratch, &Address::new(array, offsets.object_flags as i32));
+        let flags = layout.object_flag_has_magical_length | layout.object_flag_is_extensible;
+        self.masm
+            .and32_imm(scratch, scratch, u32::from(flags | layout.object_flag_may_interfere));
+        self.masm
+            .branch32_imm(Condition::NotEqual, scratch, i32::from(flags), fail);
+        self.masm
+            .load8(scratch, &Address::new(array, layout.array_is_proxy_target as i32));
+        self.masm.branch_test32(Condition::NonZero, scratch, 0xFF, fail);
+
         // NB: %Object.prototype% is an immutable prototype exotic object,
         //     so the chain ends there.
-        self.branch_unless_plain_prototype(array, self.runtime.array_prototype.0, prototype, exit);
-        self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype.0, array, exit);
+        self.branch_unless_plain_prototype(array, self.runtime.array_prototype.0, prototype, fail);
+        self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype.0, prototype, fail);
     }
 
     /// A branch on `BranchCondition::PlainArrayPrototypeChain`: to `target`
@@ -140,7 +150,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     }
 
     /// Puts the prototype of `object` in `dst`, or branches to `fail`
-    /// unless it is `expected` and has no indexed properties.
+    /// unless it is `expected` and has no indexed properties. `dst` may be
+    /// `object`.
     pub(super) fn branch_unless_plain_prototype(&mut self, object: Gpr, expected: u64, dst: Gpr, fail: Label) {
         let scratch = self.pinned.scratch;
         let offsets = self.runtime.offsets;
