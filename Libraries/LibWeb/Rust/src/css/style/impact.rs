@@ -107,8 +107,9 @@ impl ImpactRegion {
     /// Widen a region by one inverse relation step.
     ///
     /// Each case answers "where can this relation reach, starting from everything already in the
-    /// region". Sibling steps applied to a region wider than a single node escape upwards, because
-    /// the siblings of a subtree's root lie outside that subtree.
+    /// region". Sibling steps applied to a region that holds a subtree's root escape upwards,
+    /// because the siblings of that root lie outside the subtree. A region below its root keeps
+    /// them inside, since siblings share a parent.
     #[must_use]
     pub fn step(self, step: InverseStep, tree: &StyleNodeTree) -> Self {
         match (self, step) {
@@ -116,21 +117,35 @@ impl ImpactRegion {
             (Self::Document, _) => Self::Document,
             (Self::TreeScope(scope), _) => Self::TreeScope(scope),
 
-            (Self::StrictSubtree(node), _) => Self::Subtree(node).step(step, tree),
-            (Self::Node(node), InverseStep::Descendants) => Self::Subtree(node),
+            (Self::Node(node), InverseStep::Descendants) => Self::StrictSubtree(node),
             (Self::Node(node), InverseStep::Children) => Self::Children(node),
             (Self::Node(node), InverseStep::NextSibling) => Self::NextSibling(node),
             (Self::Node(node), InverseStep::FollowingSiblings) => Self::FollowingSiblings(node),
             (Self::Node(node), InverseStep::SiblingSequence) => Self::SiblingSequence(node),
 
-            // Children of a node's children, and everything below them, stay inside its subtree.
-            (Self::Children(node), InverseStep::Descendants | InverseStep::Children) => Self::Subtree(node),
+            // Children of a node's children, and everything below them, stay below the node.
+            (Self::Children(node), InverseStep::Descendants | InverseStep::Children) => Self::StrictSubtree(node),
             (Self::Subtree(node), InverseStep::Descendants | InverseStep::Children) => Self::Subtree(node),
 
-            // A sibling step from anywhere inside a subtree can leave it through the root, so it
-            // widens to the parent's subtree.
+            // The siblings of a node's children are its children, and the siblings of anything below
+            // a node are below it too.
             (
-                Self::Children(node) | Self::Subtree(node),
+                Self::Children(node),
+                InverseStep::NextSibling | InverseStep::FollowingSiblings | InverseStep::SiblingSequence,
+            ) => Self::Children(node),
+            (
+                Self::StrictSubtree(node),
+                InverseStep::Descendants
+                | InverseStep::Children
+                | InverseStep::NextSibling
+                | InverseStep::FollowingSiblings
+                | InverseStep::SiblingSequence,
+            ) => Self::StrictSubtree(node),
+
+            // A sibling step from a subtree can leave it through the root, so it widens to the
+            // parent's subtree.
+            (
+                Self::Subtree(node),
                 InverseStep::NextSibling | InverseStep::FollowingSiblings | InverseStep::SiblingSequence,
             ) => match tree.parent(node) {
                 Some(parent) => Self::Subtree(parent),
@@ -993,28 +1008,28 @@ impl ImpactRegions {
         self.exact_node_history_start_generation = self.exact_node_generation;
     }
 
-    fn insert_covered_subtree(&mut self, root: StyleNodeID) {
-        let Some(interval) = self
-            .topology
-            .as_ref()
-            .and_then(|topology| topology.subtree_interval(root))
-            .map(|(start, end)| PreorderInterval { start, end })
-        else {
-            return;
+    /// The preorder interval a subtree-shaped region covers, which leaves out the root of a strict subtree.
+    fn covered_interval(&self, region: ImpactRegion) -> Option<PreorderInterval> {
+        let (root, strict) = match region {
+            ImpactRegion::Subtree(root) => (root, false),
+            ImpactRegion::StrictSubtree(root) => (root, true),
+            _ => return None,
         };
-        Self::insert_covered_interval(&mut self.covered_subtrees, interval);
+        let (start, end) = self.topology.as_ref()?.subtree_interval(root)?;
+        let start = if strict { start + 1 } else { start };
+        (start < end).then_some(PreorderInterval { start, end })
     }
 
-    fn insert_full_covered_subtree(&mut self, root: StyleNodeID) {
-        let Some(interval) = self
-            .topology
-            .as_ref()
-            .and_then(|topology| topology.subtree_interval(root))
-            .map(|(start, end)| PreorderInterval { start, end })
-        else {
-            return;
-        };
-        Self::insert_covered_interval(&mut self.full_covered_subtrees, interval);
+    fn insert_covered_subtree(&mut self, region: ImpactRegion) {
+        if let Some(interval) = self.covered_interval(region) {
+            Self::insert_covered_interval(&mut self.covered_subtrees, interval);
+        }
+    }
+
+    fn insert_full_covered_subtree(&mut self, region: ImpactRegion) {
+        if let Some(interval) = self.covered_interval(region) {
+            Self::insert_covered_interval(&mut self.full_covered_subtrees, interval);
+        }
     }
 
     fn insert_covered_interval(covered: &mut Vec<PreorderInterval>, interval: PreorderInterval) {
@@ -1040,9 +1055,7 @@ impl ImpactRegions {
         for index in 0..self.regions.len() {
             let region = self.regions[index];
             self.region_index.insert(region);
-            if let ImpactRegion::Subtree(root) = region {
-                self.insert_covered_subtree(root);
-            }
+            self.insert_covered_subtree(region);
         }
     }
 
@@ -1050,9 +1063,7 @@ impl ImpactRegions {
         if !matches!(region, ImpactRegion::Empty | ImpactRegion::Node(_)) {
             self.unattributed.push(region);
         }
-        if let ImpactRegion::Subtree(root) = region {
-            self.insert_full_covered_subtree(root);
-        }
+        self.insert_full_covered_subtree(region);
         self.add_recorded(region);
     }
 
@@ -1095,9 +1106,7 @@ impl ImpactRegions {
         if !self.region_index.insert(region) {
             return;
         }
-        if let ImpactRegion::Subtree(root) = region {
-            self.insert_covered_subtree(root);
-        }
+        self.insert_covered_subtree(region);
         if matches!(region, ImpactRegion::Node(_)) {
             self.exact_node_generation = self.exact_node_generation.wrapping_add(1);
         }
@@ -1789,16 +1798,16 @@ mod tests {
 
         assert_eq!(
             ImpactRegion::follow(node, &[InverseStep::Descendants], &fixture.tree),
-            ImpactRegion::Subtree(node)
+            ImpactRegion::StrictSubtree(node)
         );
         assert_eq!(
             ImpactRegion::follow(node, &[InverseStep::Children], &fixture.tree),
             ImpactRegion::Children(node)
         );
-        // `.a > .b .c`: children, then their descendants, which stays inside the subtree.
+        // `.a > .b .c`: children, then their descendants, which stays below the node.
         assert_eq!(
             ImpactRegion::follow(node, &[InverseStep::Children, InverseStep::Descendants], &fixture.tree),
-            ImpactRegion::Subtree(node)
+            ImpactRegion::StrictSubtree(node)
         );
         // An empty path is the changed node itself.
         assert_eq!(ImpactRegion::follow(node, &[], &fixture.tree), ImpactRegion::Node(node));
@@ -1849,15 +1858,40 @@ mod tests {
     #[test]
     fn a_sibling_step_out_of_a_subtree_widens_to_the_parent() {
         let fixture = Fixture::new();
-        // Siblings of a descendant of `a` can lie outside `a`, so the region climbs.
+        // Siblings of `a` itself lie outside `a`, so the region climbs.
+        assert_eq!(
+            ImpactRegion::Subtree(fixture.nodes[1]).step(InverseStep::FollowingSiblings, &fixture.tree),
+            ImpactRegion::Subtree(fixture.nodes[0])
+        );
+    }
+
+    #[test]
+    fn a_sibling_step_below_a_node_stays_below_it() {
+        let fixture = Fixture::new();
+        let a = fixture.nodes[1];
+        // `.a .b ~ .c` and `.a > .b + .c`: siblings of something below `a` share a parent below or at `a`.
         assert_eq!(
             ImpactRegion::follow(
-                fixture.nodes[1],
+                a,
                 &[InverseStep::Descendants, InverseStep::FollowingSiblings],
                 &fixture.tree
             ),
-            ImpactRegion::Subtree(fixture.nodes[0])
+            ImpactRegion::StrictSubtree(a)
         );
+        assert_eq!(
+            ImpactRegion::follow(a, &[InverseStep::Children, InverseStep::NextSibling], &fixture.tree),
+            ImpactRegion::Children(a)
+        );
+        // `.a > * > .b + .c`: the shape of `li.done > div > .toggle + label`.
+        assert_eq!(
+            ImpactRegion::follow(
+                a,
+                &[InverseStep::Children, InverseStep::Children, InverseStep::NextSibling],
+                &fixture.tree
+            ),
+            ImpactRegion::StrictSubtree(a)
+        );
+        assert_eq!(fixture.collect(ImpactRegion::StrictSubtree(a)), vec![4, 5]);
     }
 
     #[test]
