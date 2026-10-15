@@ -275,7 +275,7 @@
         {
           "type": "git",
           "url": "https://github.com/GNOME/libxml2.git",
-          "tag": "v2.15.3"
+          "tag": "v2.15.4"
         }
       ],
       "config-opts": [
