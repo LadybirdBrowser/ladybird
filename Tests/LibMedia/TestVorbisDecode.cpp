@@ -18,8 +18,7 @@ TEST_SETUP
 
 TEST_CASE(44_1Khz_stereo)
 {
-    // FIXME: 96 samples are marked to be discarded, but DecodedAudioProducer currently is not aware of this.
-    decode_audio("vorbis/44_1Khz_stereo.ogg"sv, 44100, 2, 352800 + 96);
+    decode_audio("vorbis/44_1Khz_stereo.ogg"sv, 44100, 2, 352800);
 }
 
 TEST_CASE(input_after_the_end_of_stream_is_rejected_until_flushed)

@@ -44,7 +44,6 @@
       "default-features": false,
       "features": [
         "avcodec",
-        "avformat",
         "swresample",
         "dav1d",
         "zlib",
