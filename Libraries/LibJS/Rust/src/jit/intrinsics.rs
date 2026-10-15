@@ -23,7 +23,7 @@ use crate::runtime::array::Array;
 use crate::runtime::module_namespace_object::ModuleNamespaceObject;
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_object::ProxyObject;
-use crate::runtime::realm_fuses;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::typed_array::{ContentType, TypedArrayBase};
 use crate::utf16::{has_fly_string_storage, to_utf16_fly_string};
@@ -224,7 +224,7 @@ pub extern "C" fn libjs_jit_open_array_iteration(vm: &Vm, iterable: u64) -> u64 
     // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property. The cached
     //     lookups of own properties run no code.
     let realm = vm.current_realm().expect("JIT code runs in a realm");
-    if !realm_fuses::array_iterators_have_builtin_next(&realm) {
+    if !realm_watchpoints::array_iterators_have_builtin_next(vm, realm) {
         return Value::EMPTY.0;
     }
     let array_prototype = realm.array_prototype();

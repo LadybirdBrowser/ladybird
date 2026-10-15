@@ -228,7 +228,6 @@ pub mod dependencies {
         GlobalDeclarations { environment: CellId, serial: u64 },
         GlobalBindingUnassigned { environment: CellId, index: u32 },
         StableShape(CellId),
-        Fuse(CellId),
     }
 
     pub struct Dependents;

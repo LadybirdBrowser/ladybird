@@ -4564,12 +4564,12 @@ handler IteratorClose(
     # An iterator without a return method closes without doing anything, for every completion type: the
     # instruction that follows a close for a throw completion throws it again.
 
-    # In fast array mode, the iterator register holds a number. The return fuse of the realm tells if array
+    # In fast array mode, the iterator register holds a number. A watchpoint set of the realm tells if array
     # iterators have a return method.
     if extract_tag(load(iterator_object)) == INT32_TAG {
-        let return_fuse = exec_ctx.realm.array_iterator_return_fuse;
-        guard return_fuse != 0 else slow;
-        guard return_fuse.intact else slow;
+        let return_watchpoint_set = exec_ctx.realm.array_iterator_return_watchpoint_set;
+        guard return_watchpoint_set != 0 else slow;
+        guard return_watchpoint_set.valid else slow;
         dispatch_next;
     }
 

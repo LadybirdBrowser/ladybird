@@ -274,7 +274,9 @@ the prologue's resumption in the interpreter publishes it inline.
 Compiled code may assume facts that hold until a rare runtime event (`code::Dependency`): a
 prototype chain stays valid, a shape stays stable, a global binding or a property of the global
 object is never assigned, the global declarative environment gets no bindings, no `[[IsHTMLDDA]]`
-object exists, a fuse of a realm stays intact (`runtime/realm_fuses.rs`).
+object exists. Each of the first and the last kinds is a `WatchpointSet` that stays valid
+(`runtime/watchpoint_set.rs`), such as one of a realm for the iterator protocol
+(`runtime/realm_watchpoints.rs`).
 
 - The builder and check elimination record the dependencies they rely on in
   `Graph::dependencies`.

@@ -74,14 +74,14 @@ impl GraphBuilder<'_> {
         let iterator = self.read(iterator_object)?;
 
         // NB: In fast array mode, the iterator operand holds the index of the
-        //     next element (see `try_build_get_iterator()`), and the return
-        //     fuse tells if array iterators have a return method.
-        if let Some(return_fuse) = self.runtime.array_iterator_return_fuse {
+        //     next element (see `try_build_get_iterator()`), and a watchpoint
+        //     set of the realm tells if array iterators have a return method.
+        if let Some(return_watchpoint_set) = self.runtime.array_iterator_return_watchpoint_set {
             let (fast_array_mode, iterator_object) =
                 self.branch_both_ways(BranchCondition::NonNegativeInt32, vec![iterator]);
             self.block = fast_array_mode;
-            self.embed(return_fuse);
-            self.assume(Dependency::Fuse(return_fuse));
+            self.embed(return_watchpoint_set);
+            self.assume(Dependency::WatchpointSetValid(return_watchpoint_set));
             self.end_hot_path(&mut slow_paths, Vec::new());
             self.block = iterator_object;
         }

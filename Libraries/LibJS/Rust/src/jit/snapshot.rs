@@ -1170,8 +1170,12 @@ pub fn capture_snapshot(
     builder.cell(realm.array_prototype());
     builder.cell(realm.object_prototype());
     runtime.array_iterator_next = builder.optional_cell(array_iterator_next(vm, realm));
-    runtime.array_iterator_return_fuse =
-        builder.optional_cell(realm.array_iterator_return_fuse.get().filter(|fuse| fuse.is_intact()));
+    runtime.array_iterator_return_watchpoint_set = builder.optional_cell(
+        realm
+            .array_iterator_return_watchpoint_set
+            .get()
+            .filter(|set| set.is_valid()),
+    );
     let options = &vm.jit.options;
     let snapshot = Snapshot {
         executables,
