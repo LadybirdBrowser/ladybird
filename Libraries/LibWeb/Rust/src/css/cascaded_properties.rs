@@ -341,103 +341,13 @@ thread_local! {
     static STORE_POOL: RefCell<Vec<CascadedPropertyStore>> = const { RefCell::new(Vec::new()) };
 }
 
-struct CallbackFreeParseInput {
-    in_quirks_mode: bool,
-    is_svg_presentation_attribute: bool,
-    contains_attr_tainted_values: bool,
-    is_ua_style_sheet: bool,
-    document_url: Vec<u8>,
-    document_base_url: Vec<u8>,
-    property_id: u16,
-    source: Vec<u16>,
-}
-
-pub(crate) struct CallbackFreeParseOutcome {
-    pub(crate) outcome: ParseOutcome,
-    pub(crate) source: Vec<u16>,
-}
-
-#[allow(clippy::arc_with_non_send_sync)]
-pub(crate) fn parse_substituted_without_callbacks(
-    base_context: &ParseContext,
-    property_id: u16,
-    source: Vec<u16>,
-    contains_attr_tainted_values: bool,
-) -> CallbackFreeParseOutcome {
-    let input = CallbackFreeParseInput {
-        in_quirks_mode: base_context.in_quirks_mode,
-        is_svg_presentation_attribute: base_context.is_svg_presentation_attribute,
-        contains_attr_tainted_values,
-        is_ua_style_sheet: base_context.is_ua_style_sheet,
-        document_url: unsafe { crate::bytes_from_raw(base_context.document_url, base_context.document_url_length) }
-            .unwrap_or_default()
-            .to_vec(),
-        document_base_url: unsafe {
-            crate::bytes_from_raw(base_context.document_base_url, base_context.document_base_url_length)
-        }
-        .unwrap_or_default()
-        .to_vec(),
-        property_id,
-        source,
-    };
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionCallbackFreeParse);
-    let mut random_function_index = 0;
-    let value_context = FfiValueParsingContext {
-        kind: FfiValueParsingContextKind::Property,
-        value: input.property_id,
-        secondary_value: 0,
-        name: Default::default(),
-    };
-    let context = ParseContext {
-        in_quirks_mode: input.in_quirks_mode,
-        is_svg_presentation_attribute: input.is_svg_presentation_attribute,
-        is_substituted_value: true,
-        contains_attr_tainted_values: input.contains_attr_tainted_values,
-        is_ua_style_sheet: input.is_ua_style_sheet,
-        value_contexts: &raw const value_context,
-        value_context_count: 1,
-        declared_namespaces: std::ptr::null(),
-        document_url: input.document_url.as_ptr(),
-        document_url_length: input.document_url.len(),
-        document_base_url: input.document_base_url.as_ptr(),
-        document_base_url_length: input.document_base_url.len(),
-        length_resolution_context: std::ptr::null(),
-        random_function_index: &raw mut random_function_index,
-    };
-    let outcome = match parse_css_value_from_source(&context, input.property_id, &input.source) {
-        // A callback-free parse can report Invalid when an Option-returning grammar could not
-        // retain a string. Report that as unhandled so the caller can retry with the callbacks.
-        ParseOutcome::Invalid => ParseOutcome::NotHandled,
-        outcome => outcome,
-    };
-    CallbackFreeParseOutcome {
-        outcome,
-        source: input.source,
-    }
-}
-
-#[allow(clippy::arc_with_non_send_sync)]
-fn parse_substituted_with_callbacks(
+pub(crate) fn parse_substituted_value(
     base_context: &ParseContext,
     property_id: u16,
     source: &[u16],
     contains_attr_tainted_values: bool,
-) -> std::sync::Arc<StyleValueData> {
-    match parse_substituted_source(base_context, property_id, source, contains_attr_tainted_values) {
-        ParseOutcome::Parsed(value) => value,
-        ParseOutcome::Invalid | ParseOutcome::NotHandled => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
-    }
-}
-
-/// Parses a substituted source as a property's value, with the base context's callbacks: what
-/// the grammar makes of it, or that the grammar is not one the Rust parser handles.
-pub(crate) fn parse_substituted_source(
-    base_context: &ParseContext,
-    property_id: u16,
-    source: &[u16],
-    contains_attr_tainted_values: bool,
-) -> ParseOutcome {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionCallbackParseRequest);
+) -> RetainedStyleValueData {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionParse);
     let mut random_function_index = 0;
     let value_context = FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Property,
@@ -451,7 +361,12 @@ pub(crate) fn parse_substituted_source(
     context.value_contexts = &raw const value_context;
     context.value_context_count = 1;
     context.random_function_index = &raw mut random_function_index;
-    parse_css_value_from_source(&context, property_id, source)
+    match parse_css_value_from_source(&context, property_id, source) {
+        ParseOutcome::Parsed(value) => RetainedStyleValueData::from_arc(value),
+        ParseOutcome::Invalid | ParseOutcome::NotHandled => {
+            RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
+        }
+    }
 }
 
 /// What resolving substituted values inside the Rust cascade reads beyond the values themselves.
@@ -597,7 +512,6 @@ pub(crate) unsafe fn resolve_declared_custom_properties(
 /// Sentinel passed when cascading for an element rather than a pseudo-element.
 pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn resolve_cascade_value(
     resolution_context: &mut CascadeResolutionContext,
     resolution_environment: &mut crate::css::custom_properties::VarResolutionEnvironment,
@@ -616,7 +530,7 @@ fn resolve_cascade_value(
         final_custom_properties,
     );
 
-    let parsed = match native_resolution {
+    match native_resolution {
         crate::css::custom_properties::NativeVarResolution::Resolved {
             source,
             contains_attr_tainted_values,
@@ -632,24 +546,13 @@ fn resolve_cascade_value(
                         ..
                     }
                 );
-            let CallbackFreeParseOutcome { outcome, source } =
-                parse_substituted_without_callbacks(base_context, property_id, source, contains_attr_tainted_values);
-            match outcome {
-                ParseOutcome::Parsed(value) => value,
-                ParseOutcome::Invalid => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
-                ParseOutcome::NotHandled => {
-                    parse_substituted_with_callbacks(base_context, property_id, &source, contains_attr_tainted_values)
-                }
-            }
+            parse_substituted_value(base_context, property_id, &source, contains_attr_tainted_values)
         }
-        crate::css::custom_properties::NativeVarResolution::Invalid => {
-            std::sync::Arc::new(StyleValueData::GuaranteedInvalid)
+        crate::css::custom_properties::NativeVarResolution::Invalid
+        | crate::css::custom_properties::NativeVarResolution::NotHandled => {
+            RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
         }
-        crate::css::custom_properties::NativeVarResolution::NotHandled => {
-            std::sync::Arc::new(StyleValueData::GuaranteedInvalid)
-        }
-    };
-    RetainedStyleValueData::from_arc(parsed)
+    }
 }
 
 fn custom_property_components(inputs: &[UnresolvedStyleValue]) -> (Vec<Vec<u32>>, bool) {

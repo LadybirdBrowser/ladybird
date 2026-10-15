@@ -20,8 +20,7 @@ use std::sync::Arc;
 use super::publication::{Drive, Unanswered};
 use super::*;
 use crate::css::cascaded_properties::{
-    CallbackFreeParseOutcome, CascadeResolutionContext, parse_substituted_source, parse_substituted_without_callbacks,
-    resolve_declared_custom_properties,
+    CascadeResolutionContext, parse_substituted_value, resolve_declared_custom_properties,
 };
 use crate::css::custom_properties::{
     CustomPropertyFinalization, CustomPropertyStore, FfiSubstitutionFunctionVisibility, NativeVarResolution,
@@ -29,7 +28,6 @@ use crate::css::custom_properties::{
     prepare_var_resolution_environment,
 };
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
-use crate::css::parser::value_parser::ParseOutcome;
 use crate::css::rule::CompiledFunction;
 use crate::css::style_value::{
     RetainedStyleValueData, StyleValueData, custom_property_references, utf16_equals_ascii_case_insensitive,
@@ -1900,27 +1898,12 @@ fn substitute_against_stores(
         style_query_references.as_deref_mut(),
         None,
     );
-    // The substituted source parses as the C++ cascade parses it: without callbacks first,
-    // then with the parse context's.
     let invalid = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
     match resolution {
         NativeVarResolution::Resolved {
             source,
             contains_attr_tainted_values,
-        } => {
-            let CallbackFreeParseOutcome { outcome, source } =
-                parse_substituted_without_callbacks(&parse_context, property, source, contains_attr_tainted_values);
-            let outcome = match outcome {
-                ParseOutcome::NotHandled => {
-                    parse_substituted_source(&parse_context, property, &source, contains_attr_tainted_values)
-                }
-                outcome => outcome,
-            };
-            match outcome {
-                ParseOutcome::Parsed(value) => RetainedStyleValueData::from_arc(value),
-                ParseOutcome::Invalid | ParseOutcome::NotHandled => invalid(),
-            }
-        }
+        } => parse_substituted_value(&parse_context, property, &source, contains_attr_tainted_values),
         NativeVarResolution::Invalid | NativeVarResolution::NotHandled => invalid(),
     }
 }

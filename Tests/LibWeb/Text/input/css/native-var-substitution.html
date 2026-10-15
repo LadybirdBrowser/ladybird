@@ -31,8 +31,7 @@
         println(`fallback outside cycle used: ${computed.backgroundColor}`);
 
         const nativeCounters = internals.styleFfiCounters();
-        println(`native callback-free parses: ${nativeCounters.substitutionCallbackFreeParses > 0}`);
-        println(`native callback parse requests: ${nativeCounters.substitutionCallbackParseRequests}`);
+        println(`native substitution parses: ${nativeCounters.substitutionParses > 0}`);
 
         CSS.registerProperty({
             name: "--registered-native-fallback",
@@ -62,8 +61,7 @@
         println(`registered universal initial: ${getComputedStyle(registered).marginLeft}`);
 
         const registeredCounters = internals.styleFfiCounters();
-        println(`registered callback-free parses: ${registeredCounters.substitutionCallbackFreeParses > 0}`);
-        println(`registered callback parse requests: ${registeredCounters.substitutionCallbackParseRequests}`);
+        println(`registered substitution parses: ${registeredCounters.substitutionParses > 0}`);
 
         const stringBearing = document.createElement("div");
         stringBearing.style.cssText = "--family: LadybirdCallbackFallback; font-family: var(--family)";
@@ -71,6 +69,6 @@
         println(`string-bearing family: ${getComputedStyle(stringBearing).fontFamily}`);
 
         const stringBearingCounters = internals.styleFfiCounters();
-        println(`string-bearing callback parse requests: ${stringBearingCounters.substitutionCallbackParseRequests - registeredCounters.substitutionCallbackParseRequests}`);
+        println(`string-bearing substitution parses: ${stringBearingCounters.substitutionParses > registeredCounters.substitutionParses}`);
     });
 </script>
