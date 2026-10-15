@@ -140,9 +140,6 @@ pub enum Dependency {
     /// The shape stays stable: no object leaves it, so objects that have it
     /// keep it while other code runs.
     StableShape(CellId),
-    /// The fuse cell stays intact: the properties of the intrinsics of its
-    /// realm that it watches do not change.
-    Fuse(CellId),
 }
 
 /// A point of compiled code where the runtime may translate its state into

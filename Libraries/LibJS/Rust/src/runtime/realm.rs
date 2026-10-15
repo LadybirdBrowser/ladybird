@@ -46,8 +46,8 @@ unsafe impl Trace for Realm {
         self.global_declarative_environment.trace(visitor);
         self.host_defined.trace(visitor);
         self.storage.embedder_data.trace(visitor);
-        self.array_iterator_next_fuse.trace(visitor);
-        self.array_iterator_return_fuse.trace(visitor);
+        self.array_iterator_next_watchpoint_set.trace(visitor);
+        self.array_iterator_return_watchpoint_set.trace(visitor);
     }
 }
 
@@ -122,8 +122,8 @@ impl Realm {
             global_environment: Cell::new(None),
             intrinsics: Cell::new(None),
             host_defined: ForeignCellSlot::empty(),
-            array_iterator_next_fuse: Cell::new(None),
-            array_iterator_return_fuse: Cell::new(None),
+            array_iterator_next_watchpoint_set: Cell::new(None),
+            array_iterator_return_watchpoint_set: Cell::new(None),
             storage: RealmStorage::default(),
         })
     }

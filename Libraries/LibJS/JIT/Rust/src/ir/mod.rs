@@ -1472,8 +1472,10 @@ impl Op {
                 allocates: true,
                 ..P::PURE
             },
+            // NB: The runtime watches the intrinsics anew with new watchpoint sets once the old ones fired.
             Op::OpenArrayIteration => P {
                 reads: Locations::ALL,
+                allocates: true,
                 ..P::PURE
             },
             Op::LoadArrayIteratorArray | Op::LoadArrayIteratorIndex => P {

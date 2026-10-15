@@ -143,7 +143,7 @@ pub mod proxy_constructor;
 pub mod proxy_object;
 pub mod raw_json_object;
 pub mod realm;
-pub mod realm_fuses;
+pub mod realm_watchpoints;
 pub mod reference;
 pub mod reflect_object;
 pub mod regexp_constructor;

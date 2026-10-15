@@ -111,7 +111,7 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_constructor::ProxyConstructor;
 use crate::runtime::realm::Realm;
-use crate::runtime::realm_fuses;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::reflect_object::ReflectObject;
 use crate::runtime::regexp_constructor::RegExpConstructor;
 use crate::runtime::regexp_prototype::RegExpPrototype;
@@ -1090,7 +1090,7 @@ impl Intrinsics {
         // 3. Perform AddRestrictedFunctionProperties(realmRec.[[Intrinsics]].[[%Function.prototype%]], realmRec).
         add_restricted_function_properties(vm, &realm.intrinsics().function_prototype(vm), realm);
 
-        realm_fuses::arm(vm, realm);
+        realm_watchpoints::arm(vm, realm);
 
         // 4. Return unused.
         intrinsics

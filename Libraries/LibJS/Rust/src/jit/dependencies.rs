@@ -29,7 +29,6 @@ use crate::layout::cell::Gc;
 use crate::layout::environment::DeclarativeEnvironment;
 use crate::layout::object::Object;
 use crate::layout::shape::WatchpointSet;
-use crate::runtime::realm_fuses::Fuse;
 use crate::runtime::shape::Shape;
 
 /// Installed code that depends on something, as its executable and its id. Once the executable died or has other
@@ -78,8 +77,7 @@ impl Dependents {
                 Dependency::StableShape(shape) => shape_of(*shape).set_has_dependent_code(),
                 Dependency::WatchpointSetValid(_)
                 | Dependency::GlobalPropertyUnassigned { .. }
-                | Dependency::NoHtmlDdaObjects
-                | Dependency::Fuse(_) => {}
+                | Dependency::NoHtmlDdaObjects => {}
             }
             code.entry(*dependency).or_default().push(DependentCode {
                 executable: weak_executable.clone(),
@@ -170,10 +168,6 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
         }
         Dependency::NoHtmlDdaObjects => !vm.jit.htmldda_objects_exist(),
         Dependency::StableShape(shape) => shape_of(*shape).is_stable(),
-        Dependency::Fuse(fuse) => {
-            // SAFETY: Code that depends on the cell embeds it, which keeps it alive.
-            unsafe { &*(fuse.0 as *const Fuse) }.is_intact()
-        }
     }
 }
 

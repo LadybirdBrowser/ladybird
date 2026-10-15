@@ -216,7 +216,6 @@ define_named_types! {
         ObjectPropertyIteratorCacheData => "ObjectPropertyIteratorCacheData", Some(8), true;
         ObjectPropertyIteratorCache => "ObjectPropertyIteratorCache", Some(8), true;
         WatchpointSet => "WatchpointSet", Some(8), true;
-        Fuse => "Fuse", Some(8), true;
         Accessor => "Accessor", Some(8), true;
         FunctionObject => "FunctionObject", Some(8), true;
         ECMAScriptFunctionObject => "ECMAScriptFunctionObject", Some(8), true;

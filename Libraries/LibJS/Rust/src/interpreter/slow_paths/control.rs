@@ -37,7 +37,7 @@ use crate::runtime::object::{IndexedStorageKind, IntegrityLevel, PropertyKind};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::realm_fuses;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::regexp_object::RegExpObject;
 use crate::runtime::set::Set;
 use crate::runtime::set_iterator::set_iteration_is_unobservable;
@@ -221,7 +221,7 @@ pub fn array_append(
             if let Some(rhs_array) = rhs_array
                 && iterator_method == realm.array_prototype_values_function()
                 && rhs_array.is_simple_packed_array()
-                && realm_fuses::array_iterators_have_builtin_next(&realm)
+                && realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
                 && rhs_array.indexed_packed_element_count() <= u32::MAX - lhs_size
             {
                 lhs_array.indexed_append_packed_elements_of(&rhs_array);
@@ -396,7 +396,9 @@ fn fast_array_mode_array(vm: &Vm, iterable: Value, method: Gc<FunctionObject>) -
         return None;
     }
     let realm = current_realm(vm);
-    if method != realm.array_prototype_values_function() || !realm_fuses::array_iterators_have_builtin_next(&realm) {
+    if method != realm.array_prototype_values_function()
+        || !realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
+    {
         return None;
     }
     let array = iterable.as_object();
@@ -467,7 +469,7 @@ pub fn iterator_close_slow_path(
     let iterator_record = if let Some(index) = fast_array_mode_index(values.iterator_object) {
         // NB: Without a return method, closing an array iterator does nothing.
         let realm = current_realm(vm);
-        if realm_fuses::array_iterators_have_no_return(&realm) {
+        if realm_watchpoints::array_iterators_have_no_return(vm, realm) {
             return SlowPathControl::continue_at(pc + op::IteratorClose::LENGTH);
         }
 

@@ -32,7 +32,6 @@ define_class_ids! {
     Accessor,
     Shape,
     WatchpointSet,
-    Fuse,
     SpecialPropertyCache,
     DescriptorArray,
     ValueStorage,

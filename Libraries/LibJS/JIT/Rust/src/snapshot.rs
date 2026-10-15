@@ -987,10 +987,11 @@ pub struct RuntimeInfo {
     /// compiled code, if `%ArrayIteratorPrototype%` holds it. Code that
     /// embeds it must list it in `CompiledCode::embedded_cells`.
     pub array_iterator_next: Option<CellId>,
-    /// The fuse of the realm of the compiled code that stays intact while
-    /// its array iterators have no `return` method, if it was intact. Code
-    /// that depends on it must list it in `CompiledCode::embedded_cells`.
-    pub array_iterator_return_fuse: Option<CellId>,
+    /// The watchpoint set of the realm of the compiled code that stays valid
+    /// while its array iterators have no `return` method, if it was valid.
+    /// Code that depends on it must list it in
+    /// `CompiledCode::embedded_cells`.
+    pub array_iterator_return_watchpoint_set: Option<CellId>,
     /// The realm of the compiled code.
     pub realm: CellId,
     /// `%Array.prototype%` and `%Object.prototype%` of the realm of the
