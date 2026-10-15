@@ -1229,7 +1229,7 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
-    // state for the committed document without changing the newer navigation's transaction.
+    // state for the committed document, and leave the newer navigation alone.
     if (!commits_ongoing_navigation)
         return;
 

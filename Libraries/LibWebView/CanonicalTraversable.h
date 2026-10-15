@@ -189,11 +189,10 @@ private:
 
     HistoryOperation* find_history_operation(Web::HTML::CrossProcessId operation_id);
     ApplyHistoryStep* find_history_step_run(Web::HTML::CrossProcessId operation_id);
-    bool navigation_transaction_matches(HistoryOperation const&, WebContentPage&, Optional<Web::HTML::CrossProcessId> reply_navigable_id = {}) const;
     RefPtr<CanonicalNavigation> finalized_navigation(HistoryOperation const&) const;
     bool update_session_history_entry_persisted_state(CanonicalNavigable&, Web::HTML::SessionHistoryEntryPersistedState const&);
     void add_history_operation_completion_endpoint(HistoryOperation&, NonnullRefPtr<WebContentPage>);
-    void did_fail_history_navigation_population(HistoryOperation&, ChangingNavigable&, WebContentPage&);
+    void did_fail_history_navigation_population(HistoryOperation&, ChangingNavigable&);
     void continue_history_navigation_population(HistoryOperation&, ChangingNavigable&);
     void send_changing_navigable_continuation_task(HistoryOperation&, ChangingNavigable&);
     void send_displayed_document_unload_task(HistoryOperation&, ChangingNavigable&);

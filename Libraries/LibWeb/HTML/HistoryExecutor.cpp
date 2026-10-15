@@ -350,8 +350,7 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         // 2. Let targetEntry be navigable's current session history entry.
         // AD-HOC: A synchronous navigation that jumps the queue during this run's apply-history-step re-claims the
         //         navigable before this task runs. The run still applies its claimed target entry once the jumped
-        //         navigation's nested run completes. A navigation proven newer completes the job as stale before this
-        //         task is queued.
+        //         navigation's nested run completes.
         auto target_entry = navigable->current_session_history_entry();
         if (target_entry != claimed_target_entry) {
             if (!target_entry) {
