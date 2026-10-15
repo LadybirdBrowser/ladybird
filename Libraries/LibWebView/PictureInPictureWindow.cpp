@@ -69,8 +69,17 @@ Gfx::IntSize PictureInPictureWindow::size_for_video_size(Gfx::IntSize window_siz
     return size_with_width(aspect_ratio(video_size), window_size.width());
 }
 
+void PictureInPictureWindow::close_page()
+{
+    if (!m_page_view)
+        return;
+    if (auto& page = m_page_view->page(); page.is_open())
+        page.async_request_close_without_prompting();
+}
+
 void PictureInPictureWindow::report_page_close_of(ViewImplementation& view)
 {
+    m_page_view = &view;
     view.on_close = [this] {
         if (on_page_close)
             on_page_close();

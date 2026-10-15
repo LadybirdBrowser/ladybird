@@ -65,6 +65,17 @@ void PictureInPictureManager::close_window(WebContentPage& page)
         retire_window(*index);
 }
 
+// A page that is closed before its process unloads it never runs the unloading steps that close its window's page, so
+// that page is closed here, or it would keep the process running.
+void PictureInPictureManager::close_window_and_its_page(WebContentPage& page)
+{
+    auto index = index_of_window_for(page);
+    if (!index.has_value())
+        return;
+    m_windows[*index].window->close_page();
+    retire_window(*index);
+}
+
 void PictureInPictureManager::video_size_did_change(WebContentPage& page, Gfx::IntSize video_size)
 {
     if (auto index = index_of_window_for(page); index.has_value())

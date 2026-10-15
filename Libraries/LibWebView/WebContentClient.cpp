@@ -38,6 +38,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -283,6 +284,7 @@ void WebContentClient::close_page_of_closed_tab(Web::PageId page_id)
         // e.g. because the user requested a forced close.
         if (page->needs_beforeunload_check())
             page->set_detached_close_pending(false);
+        PictureInPictureManager::the().close_window_and_its_page(*page);
         page->close();
     }
     // Forgotten once the page is closed, so nothing registers it again.
