@@ -685,7 +685,7 @@
         {
           "type": "git",
           "url": "https://github.com/google/wuffs-mirror-release-c.git",
-          "tag": "v0.3.4"
+          "tag": "v0.3.5"
         }
       ]
     },
