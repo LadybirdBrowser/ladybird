@@ -19,7 +19,7 @@ use std::ffi::c_void;
 use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
 
-use crate::css::custom_properties::CustomPropertyStore;
+use crate::css::custom_properties::{CustomPropertyStore, finalize_element_custom_property};
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_from_source,
 };
@@ -466,30 +466,8 @@ pub(crate) unsafe fn resolve_declared_custom_properties(
             }
         })
         .collect();
-    let registry = resolution_context
-        .inputs
-        .registry
-        .unwrap_or_else(|| crate::css::custom_properties::CustomPropertyRegistry::shared_empty());
-    let inherited = resolution_context.inputs.inheritance_store;
     let mut reads = crate::css::custom_properties::RegisteredValueReads::default();
-    let mut finalize_component = |members: &[u32], outputs: &mut [RetainedStyleValueData]| {
-        for &member in members {
-            let name_raw = names[member as usize];
-            let substituted = std::mem::replace(&mut outputs[member as usize], RetainedStyleValueData::none());
-            let (finalized, value_reads) = registry
-                .finalize_custom_property_value(
-                    inherited,
-                    name_raw,
-                    &own_entry(&name_raw).name,
-                    substituted,
-                    &finalization,
-                )
-                .unwrap_or_else(|fallback| (fallback, Default::default()));
-            reads |= value_reads;
-            outputs[member as usize] = finalized;
-        }
-    };
-    let outputs = resolve_unresolved_style_values(resolution_context, &inputs, Some(&mut finalize_component));
+    let outputs = resolve_unresolved_style_values(resolution_context, &inputs, &finalization, &mut reads);
     // SAFETY: Guaranteed by the caller.
     let resolved_parent = unsafe { resolved_parent_store.cast::<CustomPropertyStore>().as_ref() };
     let resolved_values: Vec<_> = names
@@ -644,16 +622,13 @@ fn custom_property_components(inputs: &[UnresolvedStyleValue]) -> (Vec<Vec<u32>>
     (components, has_own_reference)
 }
 
-/// Finalizes the values of one component of custom properties, by their indices among the outputs.
-type FinalizeComponent<'a> = dyn FnMut(&[u32], &mut [RetainedStyleValueData]) + 'a;
-
-/// Resolves and parses unresolved values outside the longhand cascade, one output per input. When
-/// a finalizer is supplied, custom properties are resolved in dependency order and each component
-/// is finalized before later components can read it.
+/// Resolves and parses custom properties in dependency order, finalizing each component before
+/// later components can read it.
 fn resolve_unresolved_style_values(
     resolution_context: &mut CascadeResolutionContext,
     inputs: &[UnresolvedStyleValue],
-    mut finalize_component: Option<&mut FinalizeComponent>,
+    finalization: &crate::css::custom_properties::CustomPropertyFinalization,
+    reads: &mut crate::css::custom_properties::RegisteredValueReads,
 ) -> Vec<RetainedStyleValueData> {
     let mut outputs: Vec<_> = inputs.iter().map(|_| RetainedStyleValueData::none()).collect();
     let mut resolution_environment = crate::css::custom_properties::prepare_var_resolution_environment(
@@ -662,11 +637,15 @@ fn resolve_unresolved_style_values(
         resolution_context.custom_function_scope_identity,
         resolution_context.custom_function_visibilities,
     );
-    let (components, use_final_custom_properties) = if finalize_component.is_some() {
-        custom_property_components(inputs)
-    } else {
-        ((0..inputs.len() as u32).map(|index| vec![index]).collect(), false)
-    };
+    let (components, use_final_custom_properties) = custom_property_components(inputs);
+    let registry = resolution_context
+        .inputs
+        .registry
+        .unwrap_or_else(|| crate::css::custom_properties::CustomPropertyRegistry::shared_empty());
+    let store = resolution_context
+        .inputs
+        .store
+        .expect("declared custom properties have an element store");
     let mut final_custom_properties = HashMap::new();
     for mut component in components {
         component.sort_unstable();
@@ -685,14 +664,20 @@ fn resolve_unresolved_style_values(
                 use_final_custom_properties.then_some(&final_custom_properties),
             );
         }
-        if let Some(finalize_component) = finalize_component.as_deref_mut() {
-            finalize_component(&component, &mut outputs);
-            for &member in &component {
-                final_custom_properties.insert(
-                    inputs[member as usize].root_custom_property_name.to_vec(),
-                    outputs[member as usize].clone(),
-                );
-            }
+        for &member in &component {
+            let index = member as usize;
+            let name = inputs[index].root_custom_property_name;
+            let substituted = std::mem::replace(&mut outputs[index], RetainedStyleValueData::none());
+            outputs[index] = finalize_element_custom_property(
+                registry,
+                resolution_context.inputs.inheritance_store,
+                finalization,
+                reads,
+                store.declared_names[index],
+                name,
+                substituted,
+            );
+            final_custom_properties.insert(name.to_vec(), outputs[index].clone());
         }
     }
     outputs
