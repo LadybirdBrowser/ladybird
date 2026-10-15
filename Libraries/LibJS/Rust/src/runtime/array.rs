@@ -272,6 +272,11 @@ impl Array {
         Ok(true)
     }
 
+    /// The realm whose intrinsics default_prototype_chain_intact() compares the prototype chain with.
+    pub fn realm(&self) -> Gc<Realm> {
+        self.realm.get()
+    }
+
     pub fn default_prototype_chain_intact(&self) -> bool {
         let realm = self.realm.get();
         let Some(array_prototype) = self.shape().prototype() else {
