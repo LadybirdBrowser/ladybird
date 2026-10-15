@@ -30,6 +30,7 @@ set(TEST_SOURCES
     TestMediaTime.cpp
     TestParseMatroska.cpp
     TestPipelineNodes.cpp
+    TestPlaybackManager.cpp
     TestRemoteVideoNode.cpp
     TestSourceBufferDemuxer.cpp
     TestTimeRanges.cpp

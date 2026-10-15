@@ -18,8 +18,9 @@ void BufferingStateHandler::on_pipeline_status_changed(PipelineStatus status)
         return;
     }
 
-    if (status != PipelineStatus::Blocked)
-        resume();
+    if (!resolves_seek(status))
+        return;
+    resume();
 }
 
 }
