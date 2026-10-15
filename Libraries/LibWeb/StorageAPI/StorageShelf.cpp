@@ -38,20 +38,16 @@ u64 StorageShelf::storage_usage() const
     return m_page->client().page_did_request_storage_usage(m_environment_id);
 }
 
+// https://storage.spec.whatwg.org/#storage-quota
 u64 StorageShelf::storage_quota() const
 {
-    u64 quota_in_bytes = 0;
-    for (auto const& [_, bucket] : m_bucket_map) {
-        for (auto bottle : bucket->bottle_map()) {
-            if (!bottle)
-                continue;
-
-            if (bottle->quota().has_value()) {
-                quota_in_bytes += *bottle->quota();
-            }
-        }
-    }
-    return quota_in_bytes;
+    // "The storage quota of a storage shelf is an implementation-defined conservative estimate of the total amount of
+    //  bytes it can hold. This amount should be less than the total storage space on the device. It must not be a
+    //  function of the available storage space on the device."
+    // The bottles with a quota of their own (localStorage, sessionStorage) hold a few MiB each, and the rest (Cache
+    // Storage, IndexedDB, service worker registrations) are unbounded, so the shelf reports the 10 GiB a site may
+    // reasonably put in those. Nothing about the device goes into the figure.
+    return 10 * GiB;
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-local-storage-shelf
