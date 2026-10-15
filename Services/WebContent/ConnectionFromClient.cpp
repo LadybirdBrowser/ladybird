@@ -622,17 +622,10 @@ void ConnectionFromClient::run_changing_navigable_history_job(Web::PageId page_i
     }));
 }
 
-void ConnectionFromClient::prepare_changing_navigable_for_unload(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::clear_ongoing_history_traversal(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
 {
-    auto page = this->page(page_id);
-    if (!page.has_value()) {
-        async_changing_navigable_unload_preparation_complete(page_id, operation_id, navigable_id);
-        return;
-    }
-
-    page->page().history_executor().prepare_ui_changing_navigable_for_unload(operation_id, navigable_id, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id] {
-        async_changing_navigable_unload_preparation_complete(page_id, operation_id, navigable_id);
-    }));
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().history_executor().clear_ui_changing_navigable_ongoing_traversal(operation_id, navigable_id);
 }
 
 void ConnectionFromClient::apply_changing_navigable_continuation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity target_entry, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api)

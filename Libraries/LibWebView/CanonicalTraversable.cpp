@@ -1240,7 +1240,6 @@ void CanonicalTraversable::did_not_receive_reply(OwedReply const& owed)
         return;
     }
     case OwedReply::Kind::ChangingJob:
-    case OwedReply::Kind::UnloadPreparation:
     case OwedReply::Kind::ContinuationApplied: {
         auto* operation = find_history_operation(owed.id);
         if (!operation || awaits_crash_recovery)
@@ -1511,7 +1510,6 @@ void CanonicalTraversable::send_displayed_document_unload_task(HistoryOperation&
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#deactivate-a-document-for-a-cross-document-navigation
 void CanonicalTraversable::deactivate_a_document_for_cross_document_navigation(HistoryOperation& operation, ChangingNavigable& changing_navigable)
 {
-
     // 1. Let navigable be displayedDocument's node navigable.
     // 2. Let potentiallyTriggerViewTransition be false.
     // FIXME: 3. Let isBrowserUINavigation be true if userNavigationInvolvement is "browser UI"; otherwise false.
@@ -1524,13 +1522,21 @@ void CanonicalTraversable::deactivate_a_document_for_cross_document_navigation(H
     //            1. Fire the pageswap event given displayedDocument, targetEntry, navigationType, and null.
 
     // 2. Set navigable's ongoing navigation to null.
-    // NB: The process running the job applies this step to its projection of the navigable, and reports back before
-    //     step 3 runs in unload_displayed_document_for_cross_document_navigation().
+    // NB: The process running the job also clears its projection of the navigable's ongoing navigation, before it runs
+    //     any unload task step 3 sends it.
     changing_navigable.navigable().clear_ongoing_navigation_traversal(operation.operation_id);
-
     auto endpoint = changing_job_endpoint(changing_navigable);
-    endpoint->owe_reply({ OwedReply::Kind::UnloadPreparation, operation.operation_id, changing_navigable.id });
-    endpoint->async_prepare_changing_navigable_for_unload(operation.operation_id, changing_navigable.id);
+    endpoint->async_clear_ongoing_history_traversal(operation.operation_id, changing_navigable.id);
+
+    // 3. Unload a document and its descendants given displayedDocument, targetEntry's document,
+    //    afterPotentialUnloads, and firePageSwapBeforeUnload.
+    unload_a_document_and_its_descendants(changing_navigable.navigable(), endpoint, Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id, navigable_id = changing_navigable.id](UnloadedInItsHost) {
+        // NB: The process running the job unloads the document it displays: displayedDocument, or the stand-in of a
+        //     host chosen for the new document.
+        auto* operation = find_history_operation(operation_id);
+        if (auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr)
+            send_displayed_document_unload_task(*operation, *changing_navigable);
+    });
 
     // FIXME: 6. Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to run the steps:
     //            1. Let proceedWithNavigationAfterViewTransitionCapture be the following step:
@@ -1541,21 +1547,6 @@ void CanonicalTraversable::deactivate_a_document_for_cross_document_navigation(H
     //               targetEntry's document, navigationType, and proceedWithNavigationAfterViewTransitionCapture.
     //            3. Fire the pageswap event given displayedDocument, targetEntry, navigationType, and viewTransition.
     //            4. If viewTransition is null, then run proceedWithNavigationAfterViewTransitionCapture.
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#deactivate-a-document-for-a-cross-document-navigation
-void CanonicalTraversable::unload_displayed_document_for_cross_document_navigation(HistoryOperation& operation, ChangingNavigable& changing_navigable)
-{
-    // 5. If potentiallyTriggerViewTransition is false, then:
-    // 3. Unload a document and its descendants given displayedDocument, targetEntry's document,
-    //    afterPotentialUnloads, and firePageSwapBeforeUnload.
-    unload_a_document_and_its_descendants(changing_navigable.navigable(), changing_job_endpoint(changing_navigable), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id, navigable_id = changing_navigable.id](UnloadedInItsHost) {
-        // NB: The process running the job unloads the document it displays: displayedDocument, or the stand-in of a
-        //     host chosen for the new document.
-        auto* operation = find_history_operation(operation_id);
-        if (auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr)
-            send_displayed_document_unload_task(*operation, *changing_navigable);
-    });
 }
 
 // The process running a changing navigable's job activated targetEntry's document and applied the continuation's
@@ -1713,15 +1704,6 @@ void CanonicalTraversable::complete_document_unload_task(Web::HTML::CrossProcess
 {
     if (auto after_unload = m_document_unload_tasks.take(unload_id); after_unload.has_value())
         (*after_unload)();
-}
-
-void CanonicalTraversable::did_receive_changing_navigable_unload_preparation_complete(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
-{
-    if (!source_page.take_owed_reply({ OwedReply::Kind::UnloadPreparation, operation_id, navigable_id }))
-        return;
-    auto* operation = find_history_operation(operation_id);
-    if (auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr)
-        unload_displayed_document_for_cross_document_navigation(*operation, *changing_navigable);
 }
 
 // Whether the page hosting the navigable's active document is unloading it, or has, for a document another page hosts.

@@ -1657,11 +1657,6 @@ void WebContentPage::changing_navigable_history_job_ready(Web::HTML::CrossProces
     traversable().did_receive_changing_navigable_history_job_ready(*this, operation_id, navigable_id, disposition, update_only, target_document_id);
 }
 
-void WebContentPage::changing_navigable_unload_preparation_complete(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
-{
-    traversable().did_receive_changing_navigable_unload_preparation_complete(*this, operation_id, navigable_id);
-}
-
 void WebContentPage::descendant_unload_task_complete(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
 {
     traversable().did_receive_descendant_unload_task_complete(*this, unload_id, navigable_id);

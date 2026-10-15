@@ -627,19 +627,15 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     }));
 }
 
-void HistoryExecutor::prepare_ui_changing_navigable_for_unload(CrossProcessId operation_id, CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete)
+// Step 5.2 of deactivate a document for a cross-document navigation: set navigable's ongoing navigation to null.
+// NB: This mirrors it for the navigable whose job this operation's continuation is, and leaves a newer navigation's.
+void HistoryExecutor::clear_ui_changing_navigable_ongoing_traversal(CrossProcessId operation_id, CrossProcessId navigable_id)
 {
     auto* operation = find_history_operation(operation_id);
     auto job = operation ? operation->changing_navigable_jobs.get(navigable_id) : OptionalNone {};
-    if (!job.has_value() || !job->continuation) {
-        on_complete->function()();
+    if (!job.has_value() || !job->continuation)
         return;
-    }
-
-    // Step 5.2 of deactivate a document for a cross-document navigation: set navigable's ongoing navigation to null.
-    if (auto navigable = local_navigable_with_id(navigable_id))
-        navigable->clear_ongoing_history_traversal();
-    on_complete->function()();
+    job->continuation->navigable->clear_ongoing_history_traversal();
 }
 
 // Steps 14.4 to 14.9 and step 14.12 of apply the history step, for the changing navigable continuation the UI process
