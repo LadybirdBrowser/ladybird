@@ -25,6 +25,7 @@ use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::global_object::{GlobalObject, set_default_global_bindings};
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::allocate_object;
+use crate::runtime::realm_watchpoints::WatchedCondition;
 use crate::runtime::shape::Shape;
 
 /// The parts of a realm the interpreter does not read.
@@ -33,6 +34,9 @@ pub struct RealmStorage {
     /// The cell that an embedder written in Rust keeps its data of the realm in, next to [[HostDefined]], which an
     /// embedder written in C++ sets.
     embedder_data: ForeignCellSlot,
+    /// Whether %RegExp.prototype% and %RegExp% have the properties the fast paths of RegExp skip reading as the realm
+    /// made them (see `runtime::realm_watchpoints`).
+    pub(crate) regexp_primordial_properties: WatchedCondition,
 }
 
 define_cell!(Realm, Other);
@@ -46,6 +50,7 @@ unsafe impl Trace for Realm {
         self.global_declarative_environment.trace(visitor);
         self.host_defined.trace(visitor);
         self.storage.embedder_data.trace(visitor);
+        self.storage.regexp_primordial_properties.trace(visitor);
         self.array_iterator_next_watchpoint_set.trace(visitor);
         self.array_iterator_return_watchpoint_set.trace(visitor);
     }
