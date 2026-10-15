@@ -272,7 +272,7 @@ void HeadlessWebView::prepare_page_for_tab(WebContentPage& page)
 {
     ViewImplementation::prepare_page_for_tab(page);
 
-    page.async_update_screen_rects({ { screen_rect } }, 0);
+    page.async_update_screen_rects({ { screen_rect } }, { { screen_rect } }, 0);
 }
 
 void HeadlessWebView::reset_viewport_size(Web::DevicePixelSize size)

@@ -57,6 +57,7 @@
 class QKeyEvent;
 class QLabel;
 class QPushButton;
+class QScreen;
 class QShortcut;
 class QSinglePointEvent;
 class QCursor;
@@ -210,6 +211,7 @@ private:
     void enqueue_native_event(Web::KeyEvent::Type, QKeyEvent const& event);
     void finish_handling_key_event(Web::KeyEvent const&);
 
+    void watch_screen_geometry(QScreen&);
     void update_screen_rects();
     void update_screen_rects(WebView::WebContentPage&);
 
