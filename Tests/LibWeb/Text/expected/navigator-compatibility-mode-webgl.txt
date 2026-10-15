@@ -1,0 +1,3 @@
+chrome: "WebKit" "WebKit WebGL" "WebGL 1.0 (OpenGL ES 2.0 Chromium)" "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)"
+gecko: "Mozilla" <device>, or similar "WebGL 1.0" "WebGL GLSL ES 1.0"
+webkit: "WebKit" "WebKit WebGL" "WebGL 1.0" "WebGL GLSL ES 1.0 (1.0)"

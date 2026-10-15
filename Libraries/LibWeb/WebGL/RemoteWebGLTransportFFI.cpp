@@ -14,6 +14,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/Limits.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 
 // The C ABI of RemoteWebGLTransport, for the WebGL command recorder in Libraries/LibWeb/Bindings/Rust/src/web_gl,
@@ -72,6 +73,7 @@ void web_webgl_transport_read_pixels_robust_angle(void* transport, i32 x, i32 y,
 bool web_webgl_transport_read_buffer_sub_data(void* transport, u32 target, i64 offset, i64 size, void const* data_anonymous_buffer);
 void* web_webgl_transport_read_back_drawing_buffer(void* transport, i32 x, i32 y, i32 width, i32 height);
 size_t web_webgl_max_frames_per_message();
+u8 web_navigator_compatibility_mode();
 void web_webgl_constants_restated_in_rust(ConstantsRestatedInRust* out_constants);
 void* web_webgl_anonymous_buffer_create(size_t size, u8** out_data);
 void web_webgl_anonymous_buffer_destroy(void* anonymous_buffer);
@@ -187,6 +189,12 @@ size_t web_webgl_max_frames_per_message()
     // NB: The bytes of the commands take one of the attachments of a message.
     static_assert(IPC::MAX_MESSAGE_FD_COUNT > 1);
     return IPC::MAX_MESSAGE_FD_COUNT - 1;
+}
+
+// The navigator compatibility mode, numbered as Web::NavigatorCompatibilityMode is: Chrome, Gecko, WebKit.
+u8 web_navigator_compatibility_mode()
+{
+    return to_underlying(Web::ResourceLoader::navigator_compatibility_mode());
 }
 
 void web_webgl_constants_restated_in_rust(ConstantsRestatedInRust* out_constants)
