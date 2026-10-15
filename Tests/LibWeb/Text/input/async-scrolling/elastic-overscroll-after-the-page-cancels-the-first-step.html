@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        let wheelEvents = 0;
+        let cancelableWheelEvents = 0;
+        window.addEventListener("wheel", event => {
+            ++wheelEvents;
+            if (event.cancelable)
+                ++cancelableWheelEvents;
+            if (wheelEvents === 1)
+                event.preventDefault();
+        }, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        // The page cancels the first step, which neither scrolls nor stretches anything.
+        await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
+        println(`after the canceled step: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);
+
+        // The page asks about the next step too, and the steps it lets through stretch the page.
+        await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
+        await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
+        println(`after the steps let through: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);
+        println(`wheel events the page could have canceled: ${cancelableWheelEvents} of ${wheelEvents}`);
+
+        await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ended");
+        while (internals.elasticOverscrollStretchY() !== 0)
+            await animationFrame();
+        println(`sprung back: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);
+    });
+</script>

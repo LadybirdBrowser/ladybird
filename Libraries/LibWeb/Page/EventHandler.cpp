@@ -944,7 +944,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     // Hands the wheel input to the compositor, which scrolls from the offsets it holds now; the operation it starts
     // for the input is the one a caller follows.
-    auto enqueue_async_scroll = [&](Gfx::FloatPoint delta_in_device_pixels) {
+    auto enqueue_async_scroll = [&](Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelStepDispatch wheel_step_dispatch) {
         // NB: Layout reads can remove scrolling boxes before their updated tree reaches the compositor.
         //     Only fall back when the presented display list refers to an older tree structure.
         auto local_root = m_navigable->local_root();
@@ -966,7 +966,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             ? Compositing::AsyncScrollOperationTracking::Yes
             : Compositing::AsyncScrollOperationTracking::No;
         auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
-            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
+            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, handling_input_event_id());
         if (enqueue_result.operation_id.has_value() && async_scroll_operation)
             *async_scroll_operation = AsyncScrollOperation { m_navigable, *enqueue_result.operation_id };
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll at {},{} with device delta {},{}",
@@ -979,7 +979,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     // The end of a gesture is reported to the compositor before the gesture settles here, so that a snap scroll
     // the compositor starts for it is the scroll the settlement finds in flight rather than one of its own.
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && !async_scroll_performed_default_action && can_attempt_async_scroll
-        && visual_viewport->scale() == 1.0 && enqueue_async_scroll({})) {
+        && visual_viewport->scale() == 1.0 && enqueue_async_scroll({}, Compositing::WheelStepDispatch::NotYetDispatched)) {
         async_scroll_performed_default_action = true;
         m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
     }
@@ -1041,15 +1041,15 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         return m_navigable->perform_a_snapped_momentum_scroll(scrolling_box, wheel_step_delta);
     };
 
+    auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
+    auto async_scroll_delta_in_device_pixels = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }.scaled(device_pixels_per_css_pixel);
     if (can_attempt_async_scroll && async_scroll_performed_default_action) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: default action already performed");
     } else if (can_attempt_async_scroll && visual_viewport->scale() != 1.0) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: visual viewport is scaled");
     } else if (can_attempt_async_scroll) {
         if (wheel_event_target_layout_node) {
-            auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
-            auto async_scroll_delta_in_device_pixels = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }.scaled(device_pixels_per_css_pixel);
-            async_scroll_performed_default_action = enqueue_async_scroll(async_scroll_delta_in_device_pixels);
+            async_scroll_performed_default_action = enqueue_async_scroll(async_scroll_delta_in_device_pixels, Compositing::WheelStepDispatch::NotYetDispatched);
         } else {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: no paintable target");
         }
@@ -1159,6 +1159,25 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         return viewport_scroll_result;
     };
 
+    // Blocking wheel event listeners hold the steps of a touchpad gesture back from the compositor until the page has
+    // dispatched them. A step the page did not cancel goes back to the compositor, which scrolls it as it scrolls the
+    // steps nothing holds back, so that the gesture also stretches the edges it pulls past.
+    auto hand_dispatched_touchpad_step_to_compositor = [&] {
+        if (!can_attempt_async_scroll || !wheel_event_has_delta)
+            return false;
+        bool is_touchpad_step = wheel_delta_precision == Web::WheelDeltaPrecision::Precise
+            && first_is_one_of(scroll_gesture_phase, Web::ScrollGesturePhase::Ongoing, Web::ScrollGesturePhase::Momentum);
+        if (!is_touchpad_step)
+            return false;
+        // A gesture that has moved a box on this thread keeps scrolling it here.
+        if (m_wheel_scroll_latch.has_value() && m_wheel_scroll_latch->scrolling_box.has_value())
+            return false;
+        // The listeners may have navigated away from the document, or zoomed it in.
+        if (m_navigable->active_document() != document || !document->is_fully_active() || visual_viewport->scale() != 1.0)
+            return false;
+        return enqueue_async_scroll(async_scroll_delta_in_device_pixels, Compositing::WheelStepDispatch::DispatchedAndNotCanceled);
+    };
+
     auto handled_event = EventResult::Dropped;
 
     if (wheel_event_target_node) {
@@ -1196,7 +1215,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (dispatch_result == EventResult::Cancelled)
             m_wheel_scroll_latch.clear();
         if (dispatch_result == EventResult::Accepted) {
-            if (async_scroll_performed_default_action)
+            if (async_scroll_performed_default_action || hand_dispatched_touchpad_step_to_compositor())
                 handled_event = EventResult::Handled;
             else
                 handled_event = perform_wheel_default_action();
