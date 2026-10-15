@@ -4,6 +4,7 @@
     // What only one engine has exists only while the navigator claims to be that engine: a realm created under each
     // navigator compatibility mode sees that mode's interfaces and attributes and none of the others'.
     asyncTest(async done => {
+        const logicalProcessors = navigator.hardwareConcurrency;
         const probe = async mode => {
             internals.setNavigatorCompatibilityMode(mode);
             const iframe = document.createElement("iframe");
@@ -14,7 +15,10 @@
             const { navigator } = iframe.contentWindow;
             println(`${mode}: WebGLObject ${typeof iframe.contentWindow.WebGLObject}, deviceMemory ${"deviceMemory" in navigator}, `
                 + `buildID ${"buildID" in navigator ? navigator.buildID : "absent"}, oscpu ${"oscpu" in navigator ? `${navigator.userAgent.includes(navigator.oscpu) ? "within" : "outside"} the User-Agent` : "absent"}, `
-                + `taintEnabled ${typeof navigator.taintEnabled}, vendor ${JSON.stringify(navigator.vendor)}`);
+                + `taintEnabled ${typeof navigator.taintEnabled}, vendor ${JSON.stringify(navigator.vendor)}, `
+                + `hardwareConcurrency ${mode === "webkit"
+                    ? `capped ${[4, 8].includes(navigator.hardwareConcurrency) && navigator.hardwareConcurrency <= logicalProcessors}`
+                    : `real ${navigator.hardwareConcurrency === logicalProcessors}`}`);
             iframe.remove();
         };
         try {

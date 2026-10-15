@@ -842,7 +842,9 @@ ErrorOr<int> poll(Span<struct pollfd> poll_fds, int timeout)
 
 unsigned hardware_concurrency()
 {
-    return sysconf(_SC_NPROCESSORS_ONLN);
+    // A count the system can't report is one processor, rather than the failure's -1 cast to a huge count.
+    auto count = sysconf(_SC_NPROCESSORS_ONLN);
+    return count < 1 ? 1 : count;
 }
 
 u64 physical_memory_bytes()

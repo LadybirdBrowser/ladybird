@@ -1,3 +1,3 @@
-chrome: WebGLObject function, deviceMemory true, buildID absent, oscpu absent, taintEnabled undefined, vendor "Google Inc."
-gecko: WebGLObject undefined, deviceMemory false, buildID 20181001000000, oscpu within the User-Agent, taintEnabled function, vendor ""
-webkit: WebGLObject undefined, deviceMemory false, buildID absent, oscpu absent, taintEnabled undefined, vendor "Apple Computer, Inc."
+chrome: WebGLObject function, deviceMemory true, buildID absent, oscpu absent, taintEnabled undefined, vendor "Google Inc.", hardwareConcurrency real true
+gecko: WebGLObject undefined, deviceMemory false, buildID 20181001000000, oscpu within the User-Agent, taintEnabled function, vendor "", hardwareConcurrency real true
+webkit: WebGLObject undefined, deviceMemory false, buildID absent, oscpu absent, taintEnabled undefined, vendor "Apple Computer, Inc.", hardwareConcurrency capped true
