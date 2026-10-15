@@ -1247,11 +1247,6 @@ bool ContextState::step_continues_touchpad_gesture_the_page_let_through(Optional
     return m_wheel_scroll_latch->wheel_event_listener_state_generation_the_page_let_the_gesture_through_at == m_wheel_event_listener_state_generation;
 }
 
-ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::MouseEvent const& event, MonotonicTime now)
-{
-    return async_scroll_by(wheel_event_position(event), wheel_event_delta_in_device_pixels(event), event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now);
-}
-
 void ContextState::note_wheel_event_from_ui(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
 {
     VERIFY(event.type == Web::MouseEvent::Type::MouseWheel);
@@ -1387,28 +1382,29 @@ Optional<ContextState::ScrollFlingStep> ContextState::end_scroll_fling(Monotonic
     return ScrollFlingStep { move(event), move(result) };
 }
 
-ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Optional<MonotonicTime> now_for_testing)
+ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::MouseEvent const& event, MonotonicTime now)
 {
     if (!presents_to_client())
         return {};
 
-    auto now = now_for_testing.value_or(MonotonicTime::now());
+    auto position = wheel_event_position(event);
+    auto delta = wheel_event_delta_in_device_pixels(event);
     // The end of a gesture lets go of the scroller it stretched even if the context has stopped taking wheel events.
-    if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended)
+    if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended)
         end_gesture_that_stretches_elastically(now);
 
-    auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
+    auto latched_node_id = resolve_wheel_scroll_latch(position, event.scroll_gesture_phase, event.modifiers, now);
 
     // A page without scroll nodes still has a visual viewport to pan once it is zoomed in.
     auto can_pan_zoomed_visual_viewport = m_wheel_routing_admission == Compositing::WheelRoutingAdmission::NoScrollNode
         && visual_viewport_scale_for_compositing().value_or(1.0f) > 1.0f;
     if (!admits_async_wheel(m_wheel_routing_admission) && !can_pan_zoomed_visual_viewport
-        && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, wheel_delta_precision, scroll_gesture_phase))
+        && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, event.wheel_delta_precision, event.scroll_gesture_phase))
         return {};
 
-    m_scroll_snap_controller.note_gesture_phase(scroll_gesture_phase);
+    m_scroll_snap_controller.note_gesture_phase(event.scroll_gesture_phase);
 
-    if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
+    if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
         if (!snap_at_gesture_end(now).has_value())
             return {};
         return { .accepted = true, .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect), .should_request_rendering_update = true };
@@ -1429,7 +1425,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     // A gesture is latched before its first step pans the visual viewport, so that the scroller it belongs to is known
     // for as long as the gesture only pans.
     if (is_first_step_of_gesture)
-        latched_node_id = hit_test_and_latch_wheel_gesture(position, delta.scaled(1.0f / visual_viewport_magnification()), wheel_delta_precision, scroll_gesture_phase, modifiers, now, {}, Compositing::WheelStepDispatch::NotYetDispatched);
+        latched_node_id = hit_test_and_latch_wheel_gesture(position, delta.scaled(1.0f / visual_viewport_magnification()), event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now, {}, Compositing::WheelStepDispatch::NotYetDispatched);
 
     // A zoomed page still pans its visual viewport by a gesture that no scroller takes.
     if (!latched_node_id.has_value()) {
@@ -1439,7 +1435,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     }
 
     auto scroll_chaining = is_first_step_of_gesture ? Compositing::ScrollChaining::ToScrollableAncestors : Compositing::ScrollChaining::None;
-    auto outcome = perform_wheel_scroll_of_node(*latched_node_id, delta, wheel_delta_precision, scroll_gesture_phase, Compositing::AsyncScrollOperationTracking::No, m_async_scrolling_viewport_rect, now, scroll_chaining, VisualViewportPanning::BeforeScrolling);
+    auto outcome = perform_wheel_scroll_of_node(*latched_node_id, delta, event.wheel_delta_precision, event.scroll_gesture_phase, Compositing::AsyncScrollOperationTracking::No, m_async_scrolling_viewport_rect, now, scroll_chaining, VisualViewportPanning::BeforeScrolling);
     return {
         .accepted = true,
         .frame_to_present = outcome.viewport_rect_to_present.map([](auto const& rect) { return PendingFrame::repainting_changes(rect); }),

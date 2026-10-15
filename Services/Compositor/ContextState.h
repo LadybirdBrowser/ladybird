@@ -143,7 +143,6 @@ public:
     AsyncScrollResult smooth_scroll_to(Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue);
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
-    bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
     bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || has_rebounding_elastic_overscroll() || visual_animations_need_frame(); }
 
     bool has_active_scroll_fling() const { return m_scroll_fling.has_value(); }
@@ -164,12 +163,8 @@ public:
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID) const;
     bool advance_visual_animations(MonotonicTime now);
     bool visual_animations_need_frame();
-    ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Optional<MonotonicTime> now_for_testing = {});
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
-    // A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
-    // that it settles the gesture then rather than on a clock of its own.
-    void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
 
     void viewport_size_updated(Gfx::IntSize, Compositing::WindowResizingInProgress);
     bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action);
@@ -328,6 +323,7 @@ private:
     Gfx::IntRect note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Optional<Compositing::AsyncScrollOffset> const&);
     Optional<Compositing::AsyncScrollOperationID> snap_at_gesture_end(MonotonicTime now);
     Compositing::AsyncScrollOperationID start_snap_scroll(Compositing::AsyncScrollNodeID, ScrollSnapController::SnapScrollStart&&, bool settles_gesture, MonotonicTime now);
+    bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
     void retire_smooth_scroll_animation(Web::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Compositing::AsyncScrollNodeID);
     void track_wheel_event_for_scroll_fling(Web::MouseEvent const&, MonotonicTime now);
@@ -357,6 +353,9 @@ private:
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_scrollbar);
     bool user_scroll_gesture_in_progress() const;
     void schedule_end_of_scroll_step_gestures(MonotonicTime now);
+    // A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
+    // that it settles the gesture then rather than on a clock of its own.
+    void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
     Optional<PendingFrame> apply_scrollbar_drag(ScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
     void discard_sampled_visual_context_tree();
