@@ -6,7 +6,7 @@
 
 #include <AK/Math.h>
 #include <Compositor/PausedDebuggerOverlay.h>
-#include <LibCompositing/PausedDebuggerOverlay.h>
+#include <LibCompositing/UIOverlays.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/PaintingSurface.h>
@@ -20,8 +20,11 @@
 
 namespace Compositor {
 
-void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize viewport_size, double device_pixel_ratio, Optional<String> const& font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action)
+void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::PausedDebuggerOverlayState const& state)
 {
+    auto const& font_family = state.font_family;
+    auto const& hovered_action = state.hovered_action;
+
     // These colors are equivalent to those produced by UI/Qt/ChromeStyle.cpp in light mode. The compositor cannot use
     // those colors directly because it does not depend on Qt, so we have to copy their resolved values here.
     static constexpr auto overlay_color = Color(0xee, 0xee, 0xef, 168);
@@ -40,7 +43,7 @@ void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize v
     paint.setColor(Gfx::to_skia_color(overlay_color));
     canvas.drawRect(SkRect::MakeWH(viewport_size.width(), viewport_size.height()), paint);
 
-    auto shadow_rect = geometry.toolbar.translated(0, max(1, static_cast<int>(round(2 * device_pixel_ratio))));
+    auto shadow_rect = geometry.toolbar.translated(0, Compositing::scaled_overlay_length(2, device_pixel_ratio));
     paint.setColor(Gfx::to_skia_color(shadow_color));
     canvas.drawRRect(SkRRect::MakeRectXY(Gfx::to_skia_rect(shadow_rect), radius, radius), paint);
 
@@ -64,7 +67,7 @@ void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize v
     canvas.drawRRect(SkRRect::MakeRectXY(Gfx::to_skia_rect(geometry.toolbar), radius, radius), paint);
     paint.setStyle(SkPaint::kFill_Style);
 
-    auto divider_inset = max(1, static_cast<int>(round(10 * device_pixel_ratio)));
+    auto divider_inset = Compositing::scaled_overlay_length(10, device_pixel_ratio);
     auto divider_x = geometry.step_over_button.left();
     canvas.drawLine(
         divider_x,

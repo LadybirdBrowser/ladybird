@@ -695,15 +695,15 @@ void CompositorState::publish_pending_async_scroll_updates(Web::CompositorContex
     context.web_content_client().async_scroll_updates(context_id, context.take_pending_async_scroll_updates());
 }
 
-void CompositorState::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void CompositorState::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     auto* context = context_if_present(context_id);
     if (!context)
         return;
 
-    context->viewport_size_updated(viewport_size, window_resize_in_progress);
+    context->viewport_size_updated(viewport_size, device_pixel_ratio, window_resize_in_progress);
     resize_backing_stores_if_needed(context_id, *context);
-    if (context->presenter().paused_debugger_overlay_visible()) {
+    if (context->presenter().ui_overlays().paused_debugger.has_value()) {
         if (auto viewport_rect = context->presenter().viewport_rect_for_ui_overlay(); viewport_rect.has_value())
             schedule_present_frame(context_id, *context, *viewport_rect);
     }
@@ -711,12 +711,12 @@ void CompositorState::viewport_size_updated(Web::CompositorContextId context_id,
         schedule_backing_store_shrink(context_id, *context);
 }
 
-void CompositorState::set_paused_debugger_overlay(Web::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action)
+void CompositorState::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)
 {
     auto* context = context_if_present(context_id);
     if (!context)
         return;
-    if (!context->set_paused_debugger_overlay(visible, device_pixel_ratio, move(font_family), hovered_action))
+    if (!context->set_ui_overlays(move(overlays)))
         return;
 
     if (auto viewport_rect = context->presenter().viewport_rect_for_ui_overlay(); viewport_rect.has_value())

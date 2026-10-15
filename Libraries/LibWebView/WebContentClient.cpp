@@ -483,10 +483,10 @@ void WebContentClient::replay_compositor_view_state_after_reconnect(Badge<Applic
         if (!m_compositor_contexts.contains(context_id))
             continue;
         auto& view = page->view();
-        Application::the().update_compositor_viewport(context_id, view.viewport_size().to_type<int>());
+        Application::the().update_compositor_viewport(context_id, view.viewport_size().to_type<int>(), view.device_pixel_ratio());
         Application::the().update_compositor_display_metadata(context_id, view.display_id(), view.maximum_frames_per_second());
         Application::the().update_compositor_context_visibility(context_id, view.traversable().system_visibility_state());
-        view.update_paused_debugger_overlay();
+        view.update_ui_overlays();
     }
 }
 

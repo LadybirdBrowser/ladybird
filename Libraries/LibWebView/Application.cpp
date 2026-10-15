@@ -1413,22 +1413,22 @@ ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web
     return {};
 }
 
-void Application::update_compositor_viewport(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void Application::update_compositor_viewport(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
     VERIFY(m_compositor_client);
 
-    m_compositor_client->async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
+    m_compositor_client->async_viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
 }
 
-void Application::update_compositor_paused_debugger_overlay(Web::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action)
+void Application::update_compositor_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays const& overlays)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
     VERIFY(m_compositor_client);
 
-    m_compositor_client->async_set_paused_debugger_overlay(context_id, visible, device_pixel_ratio, move(font_family), hovered_action);
+    m_compositor_client->async_set_ui_overlays(context_id, overlays);
 }
 
 void Application::update_compositor_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)

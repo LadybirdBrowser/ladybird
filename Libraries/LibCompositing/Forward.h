@@ -14,6 +14,8 @@
 namespace Compositing {
 
 enum class PausedDebuggerOverlayAction : u8;
+struct PausedDebuggerOverlayState;
+struct UIOverlays;
 
 class AccumulatedVisualContextTree;
 class Canvas2DCommandStream;

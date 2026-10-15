@@ -52,9 +52,10 @@ ContextPresenter::~ContextPresenter()
     stop_surplus_backing_store_retirement_timer();
 }
 
-void ContextPresenter::set_viewport_size(Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void ContextPresenter::set_viewport_size(Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     m_viewport_size = viewport_size;
+    m_device_pixel_ratio = device_pixel_ratio;
     m_window_resize_in_progress = window_resize_in_progress;
 }
 
@@ -75,9 +76,9 @@ void ContextPresenter::finish_window_resize()
     m_window_resize_in_progress = Compositing::WindowResizingInProgress::No;
 }
 
-void ContextPresenter::set_paused_debugger_overlay(PausedDebuggerOverlayState paused_debugger_overlay)
+void ContextPresenter::set_ui_overlays(Compositing::UIOverlays overlays)
 {
-    m_paused_debugger_overlay = move(paused_debugger_overlay);
+    m_ui_overlays = move(overlays);
 }
 
 Optional<Gfx::IntRect> ContextPresenter::viewport_rect_for_ui_overlay() const
@@ -488,8 +489,8 @@ void ContextPresenter::paint_current_display_list(DisplayListPlayerSkia& display
             &m_canvas_surface_registry,
             frame_content.composited_context_resolver);
         frame_content.scrollbar_controller.paint(target_surface, display_list_player, frame_content.presented_scroll_state_snapshot);
-        if (paint_ui_overlay == PaintUIOverlay::Yes && m_paused_debugger_overlay.visible)
-            paint_paused_debugger_overlay(target_surface, m_viewport_size, m_paused_debugger_overlay.device_pixel_ratio, m_paused_debugger_overlay.font_family, m_paused_debugger_overlay.hovered_action);
+        if (paint_ui_overlay == PaintUIOverlay::Yes && m_ui_overlays.paused_debugger.has_value())
+            paint_paused_debugger_overlay(target_surface, m_viewport_size, m_device_pixel_ratio, *m_ui_overlays.paused_debugger);
     };
 
     if (damage_rect.has_value() && !damage_rect->is_empty() && presents_to_client() && damage_rect->size() != surface.size() && surface.skia_backend_context()) {

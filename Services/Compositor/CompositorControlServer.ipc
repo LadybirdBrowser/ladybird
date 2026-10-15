@@ -1,5 +1,6 @@
 #include <AK/Optional.h>
 #include <LibCompositing/Types.h>
+#include <LibCompositing/UIOverlays.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/File.h>
@@ -16,8 +17,8 @@ endpoint CompositorControlServer
 
     create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id) => ()
 
-    viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress) =|
-    set_paused_debugger_overlay(Web::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) =|
+    viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress) =|
+    set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays) =|
     set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
 
     handle_key_event(Web::CompositorContextId context_id, Web::KeyEvent event) => (bool handled)

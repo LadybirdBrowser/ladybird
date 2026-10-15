@@ -15,6 +15,7 @@
 #include <AK/NonnullRawPtr.h>
 #include <AK/Optional.h>
 #include <AK/Variant.h>
+#include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
@@ -247,8 +248,8 @@ public:
     ErrorOr<IPC::TransportHandle> connect_new_compositor_canvas_client();
     void register_compositor_context(WebContentClient&, Web::CompositorContextId, Optional<Web::PageId> page_id);
     ErrorOr<void> try_register_compositor_context(WebContentClient&, Web::CompositorContextId, Optional<Web::PageId> page_id);
-    void update_compositor_viewport(Web::CompositorContextId, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress = Compositing::WindowResizingInProgress::No);
-    void update_compositor_paused_debugger_overlay(Web::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action);
+    void update_compositor_viewport(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress = Compositing::WindowResizingInProgress::No);
+    void update_compositor_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays const&);
     void update_compositor_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::CompositorContextId, Web::HTML::VisibilityState);
     bool handle_key_event_in_compositor(Web::CompositorContextId, Web::KeyEvent const&);

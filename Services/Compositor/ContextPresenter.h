@@ -12,7 +12,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
-#include <AK/String.h>
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/Forward.h>
@@ -22,6 +21,7 @@
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
+#include <LibCompositing/UIOverlays.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
@@ -54,15 +54,6 @@ struct PreparedFrame {
     Gfx::IntRect damage_rect;
 };
 
-struct PausedDebuggerOverlayState {
-    bool visible { false };
-    double device_pixel_ratio { 1.0 };
-    Optional<String> font_family;
-    Optional<Compositing::PausedDebuggerOverlayAction> hovered_action;
-
-    bool operator==(PausedDebuggerOverlayState const&) const = default;
-};
-
 // Rasterizes the scene of a context into its backing stores and keeps track of the frames it presents.
 class ContextPresenter {
     AK_MAKE_NONCOPYABLE(ContextPresenter);
@@ -84,15 +75,15 @@ public:
     void stop_presenting_to_client() { m_presents_to_client = false; }
 
     Gfx::IntSize viewport_size() const { return m_viewport_size; }
-    void set_viewport_size(Gfx::IntSize, Compositing::WindowResizingInProgress);
+    double device_pixel_ratio() const { return m_device_pixel_ratio; }
+    void set_viewport_size(Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     bool window_resize_in_progress() const { return m_window_resize_in_progress == Compositing::WindowResizingInProgress::Yes; }
     bool should_shrink_backing_stores_after_resize() const;
     void schedule_backing_store_shrink(Function<void()>);
     void finish_window_resize();
 
-    PausedDebuggerOverlayState const& paused_debugger_overlay() const { return m_paused_debugger_overlay; }
-    void set_paused_debugger_overlay(PausedDebuggerOverlayState);
-    bool paused_debugger_overlay_visible() const { return m_paused_debugger_overlay.visible; }
+    Compositing::UIOverlays const& ui_overlays() const { return m_ui_overlays; }
+    void set_ui_overlays(Compositing::UIOverlays);
     Optional<Gfx::IntRect> viewport_rect_for_ui_overlay() const;
 
     Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing);
@@ -154,8 +145,9 @@ private:
     bool m_presents_to_client { false };
 
     Gfx::IntSize m_viewport_size;
+    double m_device_pixel_ratio { 1.0 };
     Compositing::WindowResizingInProgress m_window_resize_in_progress { Compositing::WindowResizingInProgress::No };
-    PausedDebuggerOverlayState m_paused_debugger_overlay;
+    Compositing::UIOverlays m_ui_overlays;
 
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
