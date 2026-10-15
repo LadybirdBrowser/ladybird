@@ -160,7 +160,7 @@ static constexpr u32 most_connections_we_are_willing_to_open = 16;
 static u32 maximum_allowed_download_connections()
 {
     return min(
-        Application::settings().config_variable_as_u32(ConfigVariableID::MaximumConnectionsPerDownload),
+        Application::settings().config_variable_as_integer<u32>(ConfigVariableID::MaximumConnectionsPerDownload),
         most_connections_we_are_willing_to_open);
 }
 

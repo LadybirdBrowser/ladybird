@@ -159,9 +159,24 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
     },
 } };
 
-ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions()
+ReadonlySpan<ConfigVariableDefinition> config_variable_definitions()
 {
     return CONFIG_VARIABLE_DEFINITIONS;
+}
+
+ConfigVariableDefinition const& config_variable_definition(ConfigVariableID id)
+{
+    return config_variable_definitions()[static_cast<size_t>(id)];
+}
+
+Optional<ConfigVariableID> config_variable_id_from_name(StringView name)
+{
+    for (auto const& variable : config_variable_definitions()) {
+        if (variable.name == name)
+            return variable.id;
+    }
+
+    return {};
 }
 
 static StringView vertical_tabs_position_to_string(VerticalTabsPosition position)
@@ -182,21 +197,6 @@ static Optional<VerticalTabsPosition> vertical_tabs_position_from_string(StringV
     if (position == "right"sv)
         return VerticalTabsPosition::Right;
     return {};
-}
-
-Optional<ConfigVariableID> config_variable_id_from_name(StringView name)
-{
-    for (auto const& variable : config_variable_definitions()) {
-        if (variable.name == name)
-            return variable.id;
-    }
-
-    return {};
-}
-
-static ConfigVariableDefinition const& config_variable_definition(ConfigVariableID id)
-{
-    return config_variable_definitions()[static_cast<size_t>(id)];
 }
 
 static bool json_value_matches_type(JsonValue const& value, JsonValue::Type type)
@@ -1193,15 +1193,6 @@ bool Settings::config_variable_as_bool(ConfigVariableID id) const
     auto value = config_variable(id).get_bool();
     VERIFY(value.has_value());
     return *value;
-}
-
-u32 Settings::config_variable_as_u32(ConfigVariableID id) const
-{
-    auto const& variable = config_variable_definition(id);
-    VERIFY(variable.default_value.is_number());
-
-    auto value = config_variable(id).get_u32();
-    return value.value_or_lazy_evaluated([&] { return variable.default_value.get_u32().value(); });
 }
 
 void Settings::set_config_variable(ConfigVariableID id, JsonValue value)
