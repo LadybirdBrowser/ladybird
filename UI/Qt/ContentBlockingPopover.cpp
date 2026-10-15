@@ -17,7 +17,6 @@
 #include <QMouseEvent>
 #include <QScreen>
 #include <QSignalBlocker>
-#include <QStyleOptionFocusRect>
 #include <QStylePainter>
 #include <QVBoxLayout>
 
@@ -30,6 +29,7 @@ public:
     explicit ContentBlockingSwitch(QWidget* parent)
         : QCheckBox("Block ads on this site", parent)
     {
+        setAttribute(Qt::WA_MacShowFocusRect, false);
         setFocusPolicy(Qt::StrongFocus);
     }
 
@@ -48,7 +48,7 @@ private:
         if (!isEnabled())
             painter.setOpacity(0.45);
 
-        auto track = QStyle::visualRect(layoutDirection(), rect(), QRect(width() - 40, (height() - 22) / 2, 40, 22));
+        auto track = QStyle::visualRect(layoutDirection(), rect(), QRect(width() - 43, (height() - 22) / 2, 40, 22));
         auto track_color = isChecked() ? palette().color(QPalette::Active, QPalette::Highlight) : ChromeStyle::chrome_control_border(palette());
         if (underMouse() && isEnabled())
             track_color = ChromeStyle::mix(track_color, Qt::white, 0.12);
@@ -65,10 +65,9 @@ private:
         painter.drawItemText(text_rect, Qt::AlignLeading | Qt::AlignVCenter, palette(), isEnabled(), text(), QPalette::WindowText);
 
         if (hasFocus()) {
-            QStyleOptionFocusRect focus;
-            focus.initFrom(this);
-            focus.rect = rect();
-            painter.drawPrimitive(QStyle::PE_FrameFocusRect, focus);
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen(palette().color(QPalette::Active, QPalette::Highlight), 2));
+            painter.drawRoundedRect(QRectF(track).adjusted(-2, -2, 2, 2), 13, 13);
         }
     }
 };
