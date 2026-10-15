@@ -17,6 +17,9 @@
 //!   paths of RegExp skip reading as the realm made them (see `RegExpPrototype::primordial_properties_are_unchanged()`).
 //!   It depends on the sets that fire when either object changes, and when the values of those properties change. The
 //!   realm starts watching them when a fast path first asks, since it creates the RegExp intrinsics on demand.
+//! - `array_species`: %Array.prototype%.constructor is %Array%, whose @@species is the intrinsic getter, so that
+//!   ArraySpeciesCreate makes a plain array for an array of the realm that has no own constructor. It depends on the
+//!   sets that fire when either object changes, and when the values of those properties change.
 //!
 //! A change of an intrinsic fires the sets that depend on it, also one that leaves what they stand for in place, such
 //! as a new property of %Object.prototype%. The next query of a fired set checks whether what it stands for still
@@ -212,4 +215,36 @@ fn watch_regexp_primordial_properties(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<Wa
         ])
         .collect();
     watch_intrinsics(vm, &[regexp_prototype, regexp_constructor], &slots)
+}
+
+/// Whether ArraySpeciesCreate makes a plain array for an array of the realm that has no own constructor:
+/// %Array.prototype%.constructor is %Array%, whose @@species is the intrinsic getter.
+pub fn array_species_is_unchanged(vm: &Vm, realm: Gc<Realm>) -> bool {
+    realm.storage.array_species.holds(vm, realm, watch_array_species)
+}
+
+/// The set that stays valid while ArraySpeciesCreate makes a plain array for an array of the realm that has no own
+/// constructor, if it does.
+fn watch_array_species(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<WatchpointSet>> {
+    let array_prototype = realm.array_prototype();
+    let array_constructor = realm.intrinsics().array_constructor(vm);
+    let constructor = array_prototype
+        .shape()
+        .lookup(&vm.names.constructor)
+        .map(|metadata| array_prototype.get_direct(metadata.offset));
+    if constructor.is_none_or(|constructor| {
+        !constructor.is_object() || constructor.as_object() != array_constructor.upcast::<Object>()
+    }) || !array_constructor.has_intrinsic_symbol_species_getter(vm)
+    {
+        return None;
+    }
+    let array_constructor: Gc<Object> = array_constructor.upcast();
+    watch_intrinsics(
+        vm,
+        &[array_prototype, array_constructor],
+        &[
+            (array_prototype, vm.names.constructor.clone()),
+            (array_constructor, PropertyKey::from(vm.well_known_symbols().species)),
+        ],
+    )
 }

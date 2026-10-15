@@ -37,6 +37,8 @@ pub struct RealmStorage {
     /// Whether %RegExp.prototype% and %RegExp% have the properties the fast paths of RegExp skip reading as the realm
     /// made them (see `runtime::realm_watchpoints`).
     pub(crate) regexp_primordial_properties: WatchedCondition,
+    /// Whether ArraySpeciesCreate makes plain arrays (see `runtime::realm_watchpoints`).
+    pub(crate) array_species: WatchedCondition,
 }
 
 define_cell!(Realm, Other);
@@ -51,6 +53,7 @@ unsafe impl Trace for Realm {
         self.host_defined.trace(visitor);
         self.storage.embedder_data.trace(visitor);
         self.storage.regexp_primordial_properties.trace(visitor);
+        self.storage.array_species.trace(visitor);
         self.array_iterator_next_watchpoint_set.trace(visitor);
         self.array_iterator_return_watchpoint_set.trace(visitor);
     }
