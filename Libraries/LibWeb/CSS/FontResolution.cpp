@@ -294,8 +294,9 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
         }
 
 #ifdef AK_OS_MACOS
+        // Layout tests render system-ui with the test font, as every other platform does, so their dumps match.
         auto platform_family = font_family_name_for_platform(family);
-        if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(platform_family.bytes_as_string_view()); system_ui_font_kind.has_value()) {
+        if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(platform_family.bytes_as_string_view()); system_ui_font_kind.has_value() && !Platform::FontPlugin::the().is_layout_test_mode()) {
             if (auto system_font = find_macos_system_ui_font(system_ui_font_kind.value(), family))
                 return system_font;
         }
@@ -310,7 +311,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
     auto find_generic_font = [&](GenericFontFamily family) -> RefPtr<Gfx::FontCascadeList const> {
         auto font_id = to_keyword(family);
 #ifdef AK_OS_MACOS
-        if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(string_from_keyword(font_id)); system_ui_font_kind.has_value()) {
+        if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(string_from_keyword(font_id)); system_ui_font_kind.has_value() && !Platform::FontPlugin::the().is_layout_test_mode()) {
             auto family = utf16_fly_string_from_keyword(font_id);
             if (auto system_font = find_macos_system_ui_font(system_ui_font_kind.value(), family))
                 return system_font;
