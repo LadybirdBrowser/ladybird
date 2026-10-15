@@ -65,6 +65,7 @@ pub(crate) struct SelectionRange {
     pub start_offset: usize,
     pub end_offset: usize,
     pub text_states: std::collections::HashMap<NodeSlotId, u8>,
+    pub boxes_with_selection_state: Vec<NodeSlotId>,
 }
 
 fn invalidate_text_node(layout_arena: &PaintableRowsMut<'_>, node: NodeSlotId) {
@@ -76,32 +77,32 @@ fn invalidate_text_node(layout_arena: &PaintableRowsMut<'_>, node: NodeSlotId) {
     }
 }
 
-pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId) {
-    let previous = layout_arena.paint_state().borrow_mut().selection.take();
-    if let Some(previous) = previous {
-        for node in previous.text_states.keys() {
-            invalidate_text_node(layout_arena, *node);
-        }
+pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>) {
+    let Some(previous) = layout_arena.paint_state().borrow_mut().selection.take() else {
+        return;
+    };
+    for node in previous.text_states.keys() {
+        invalidate_text_node(layout_arena, *node);
     }
-    let mut slots = Vec::new();
-    crate::painting::paint_order::for_each_in_paint_subtree(layout_arena, viewport, |slot| {
-        slots.push(slot);
-    });
-    for current in slots {
-        if layout_arena.paintable_data(current).selection_state != SELECTION_STATE_NONE {
-            layout_arena.paintable_data_mut(current).selection_state = SELECTION_STATE_NONE;
-            layout_arena.push_paint_damage(current, PaintDamage::ALL_DRAW);
+    for &row in &previous.boxes_with_selection_state {
+        if layout_arena.paintable_row_is_populated(row)
+            && layout_arena.paintable_data(row).selection_state != SELECTION_STATE_NONE
+        {
+            layout_arena.paintable_data_mut(row).selection_state = SELECTION_STATE_NONE;
+            layout_arena.push_paint_damage(row, PaintDamage::ALL_DRAW);
         }
     }
 }
 
 pub(crate) fn apply(
     layout_arena: &mut PaintableRowsMut<'_>,
-    viewport: NodeSlotId,
     entries: &[FfiSelectionEntry],
-) -> std::collections::HashMap<NodeSlotId, u8> {
-    clear(layout_arena, viewport);
+    start_offset: usize,
+    end_offset: usize,
+) -> SelectionRange {
+    clear(layout_arena);
     let mut text_states = std::collections::HashMap::new();
+    let mut boxes_with_selection_state = Vec::new();
     for entry in entries {
         if entry.is_text_node_entry {
             for &node in layout_arena.text_fragments(entry.layout_node).as_slice() {
@@ -115,10 +116,16 @@ pub(crate) fn apply(
             if layout_arena.paintable_data(entry.layout_node).selection_state != entry.state {
                 layout_arena.paintable_data_mut(entry.layout_node).selection_state = entry.state;
                 layout_arena.push_paint_damage(entry.layout_node, PaintDamage::ALL_DRAW);
+                boxes_with_selection_state.push(entry.layout_node);
             }
         }
     }
-    text_states
+    SelectionRange {
+        start_offset,
+        end_offset,
+        text_states,
+        boxes_with_selection_state,
+    }
 }
 
 #[derive(Debug)]

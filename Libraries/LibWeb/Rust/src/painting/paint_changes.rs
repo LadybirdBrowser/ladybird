@@ -144,16 +144,13 @@ impl PaintChange {
                 if !arena.paintable_row_is_populated(viewport) {
                     return;
                 }
-                let text_states = super::selection::apply(&mut arena.paintable_rows_mut(), viewport, &entries);
-                arena.paint_state().borrow_mut().selection = Some(Arc::new(super::selection::SelectionRange {
-                    start_offset,
-                    end_offset,
-                    text_states,
-                }));
+                let selection =
+                    super::selection::apply(&mut arena.paintable_rows_mut(), &entries, start_offset, end_offset);
+                arena.paint_state().borrow_mut().selection = Some(Arc::new(selection));
             }
             Self::ClearSelection { viewport } => {
                 if arena.paintable_row_is_populated(viewport) {
-                    super::selection::clear(&mut arena.paintable_rows_mut(), viewport);
+                    super::selection::clear(&mut arena.paintable_rows_mut());
                 }
             }
             Self::ApplySearchText {
