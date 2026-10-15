@@ -23,6 +23,9 @@
 //! - `array_species`: %Array.prototype%.constructor is %Array%, whose @@species is the intrinsic getter, so that
 //!   ArraySpeciesCreate makes a plain array for an array of the realm that has no own constructor. It depends on the
 //!   sets that fire when either object changes, and when the values of those properties change.
+//! - `array_prototypes_without_is_concat_spreadable`: %Array.prototype% and %Object.prototype% have no
+//!   @@isConcatSpreadable, and %Array.prototype% inherits from %Object.prototype%, so that IsConcatSpreadable of an
+//!   array of the realm without an own one is true. It depends on the sets that fire when either object changes.
 //!
 //! A change of an intrinsic fires the sets that depend on it, also one that leaves what they stand for in place, such
 //! as a new property of %Object.prototype%. The next query of a fired set checks whether what it stands for still
@@ -291,4 +294,29 @@ pub fn array_is_iterated_unobservably(vm: &Vm, realm: Gc<Realm>, array: &Object)
         || shape
             .lookup(&PropertyKey::from(vm.well_known_symbols().iterator))
             .is_none()
+}
+
+/// Whether %Array.prototype% and %Object.prototype% of the realm have no @@isConcatSpreadable.
+pub fn array_prototypes_have_no_is_concat_spreadable(vm: &Vm, realm: Gc<Realm>) -> bool {
+    realm.storage.array_prototypes_without_is_concat_spreadable.holds(
+        vm,
+        realm,
+        watch_array_prototypes_without_is_concat_spreadable,
+    )
+}
+
+/// The set that stays valid while %Array.prototype% and %Object.prototype% of the realm have no @@isConcatSpreadable,
+/// if they have none.
+fn watch_array_prototypes_without_is_concat_spreadable(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<WatchpointSet>> {
+    let array_prototype = realm.array_prototype();
+    let object_prototype = realm.object_prototype();
+    let key = PropertyKey::from(vm.well_known_symbols().is_concat_spreadable);
+    // NB: %Object.prototype% has an immutable prototype.
+    if array_prototype.shape().prototype() != Some(object_prototype)
+        || array_prototype.shape().lookup(&key).is_some()
+        || object_prototype.shape().lookup(&key).is_some()
+    {
+        return None;
+    }
+    watch_intrinsics(vm, &[array_prototype, object_prototype], &[])
 }

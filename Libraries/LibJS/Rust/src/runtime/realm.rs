@@ -41,6 +41,9 @@ pub struct RealmStorage {
     pub(crate) array_species: WatchedCondition,
     /// Whether %Array.prototype%[@@iterator] is %Array.prototype.values% (see `runtime::realm_watchpoints`).
     pub(crate) array_iterator_method: WatchedCondition,
+    /// Whether %Array.prototype% and %Object.prototype% have no @@isConcatSpreadable (see
+    /// `runtime::realm_watchpoints`).
+    pub(crate) array_prototypes_without_is_concat_spreadable: WatchedCondition,
 }
 
 define_cell!(Realm, Other);
@@ -57,6 +60,9 @@ unsafe impl Trace for Realm {
         self.storage.regexp_primordial_properties.trace(visitor);
         self.storage.array_species.trace(visitor);
         self.storage.array_iterator_method.trace(visitor);
+        self.storage
+            .array_prototypes_without_is_concat_spreadable
+            .trace(visitor);
         self.array_iterator_next_watchpoint_set.trace(visitor);
         self.array_iterator_return_watchpoint_set.trace(visitor);
     }

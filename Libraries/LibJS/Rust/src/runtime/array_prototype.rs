@@ -267,7 +267,7 @@ impl ArrayPrototype {
         //               The result must not be one of the inputs, since we copy input storage into it.
         if let Some(array) = this_object.downcast::<Array>()
             && can_use_packed_or_empty_array_fast_path(&array)
-            && !this_object.has_property(vm, &concat_spreadable_key)?
+            && !has_is_concat_spreadable(vm, &array, &concat_spreadable_key)?
             && let Some(result_array) = fast_array_species_result(new_array)
             && result_array != array
             && result_array.indexed_array_like_size() == 0
@@ -292,7 +292,7 @@ impl ArrayPrototype {
                     all_fast_path_arguments = false;
                     break;
                 };
-                if argument_array.has_property(vm, &concat_spreadable_key)? {
+                if has_is_concat_spreadable(vm, &argument_array, &concat_spreadable_key)? {
                     all_fast_path_arguments = false;
                     break;
                 }
@@ -1874,6 +1874,20 @@ pub(crate) fn array_species_create(vm: &Vm, original_array: &Object, length: u64
 
 fn can_use_packed_array_fast_path(array: &Array) -> bool {
     array.is_simple_packed_array() && array.default_prototype_chain_intact()
+}
+
+/// Whether `array`, which the fast paths of concat take, has an own or inherited @@isConcatSpreadable.
+fn has_is_concat_spreadable(vm: &Vm, array: &Array, concat_spreadable_key: &PropertyKey) -> ThrowCompletionOr<bool> {
+    // OPTIMIZATION: An array whose prototype is %Array.prototype% inherits none while the realm watches its prototypes
+    //               have none, so only its own properties need asking.
+    let realm = array.realm();
+    if array.prototype() == Some(realm.array_prototype())
+        && realm_watchpoints::array_prototypes_have_no_is_concat_spreadable(vm, realm)
+    {
+        let shape = array.shape();
+        return Ok(shape.property_count() != 0 && shape.lookup(concat_spreadable_key).is_some());
+    }
+    array.has_property(vm, concat_spreadable_key)
 }
 
 fn can_use_packed_or_empty_array_fast_path(array: &Array) -> bool {
