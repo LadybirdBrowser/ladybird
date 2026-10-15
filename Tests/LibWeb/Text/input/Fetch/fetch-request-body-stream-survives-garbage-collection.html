@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A request body streamed from a ReadableStream can still be read after its response has arrived and nothing
+    // else holds the fetch.
+    promiseTest(async () => {
+        const url = await httpTestServer().createEcho("POST", "/fetch-request-body-stream-survives-garbage-collection", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+            body: "response",
+        });
+
+        let streamController;
+        const stream = new ReadableStream({
+            start(controller) {
+                streamController = controller;
+            },
+        });
+
+        const text = await fetch(url, { method: "POST", body: stream, duplex: "half" }).then(response => response.text());
+        println(`fetch: ${text}`);
+
+        for (let i = 0; i < 5; ++i)
+            await internals.gcAsync();
+
+        streamController.enqueue(new Uint8Array([1, 2, 3]));
+        streamController.close();
+        for (let i = 0; i < 5; ++i)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        println("The stream was read after the response");
+    });
+</script>

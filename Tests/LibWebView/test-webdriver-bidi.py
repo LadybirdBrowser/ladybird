@@ -209,6 +209,8 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
                 body = b"authentication required"
             else:
                 self.send_response(200)
+                if self.path.startswith("/network-interception/cors/"):
+                    self.send_header("Access-Control-Allow-Origin", "*")
                 with server.interception_lock:
                     body = json.dumps(server.interception_requests).encode()
             self.send_header("Content-Type", "application/json")
@@ -284,7 +286,8 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
                 pass
             return
         if self.path.startswith("/network-document/"):
-            truncated = self.path.rsplit("/", 1)[-1] == "truncated"
+            kind = self.path.rsplit("/", 1)[-1]
+            truncated = kind == "truncated"
             body = server.document_body
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
@@ -299,6 +302,15 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(body[:held_from])
                 self.wfile.flush()
                 server.document_headers_sent.set()
+                if kind in ["intercepted-fail", "intercepted-provide"]:
+                    # A failed or replaced response's transport closes while the rest of its body is held.
+                    self.connection.settimeout(30)
+                    try:
+                        if not self.connection.recv(1):
+                            server.interception_transport_closed.set()
+                    except ConnectionResetError:
+                        server.interception_transport_closed.set()
+                    return
                 if not server.release_document.wait(30):
                     raise TimeoutError("The test did not release the document response")
                 if not truncated:
@@ -1087,6 +1099,156 @@ def check_network_cancel_with_events_off(bidi, context, server, kind):
                 bidi.evaluate(context, "objectFrame.remove(); 0")
 
 
+def check_network_continue_after_gc(bidi, context, server):
+    subscription = bidi.command(
+        "session.subscribe",
+        {"events": ["network.beforeRequestSent", "network.responseStarted", "network.authRequired"]},
+    )["subscription"]
+    continue_commands = {
+        "beforeRequestSent": "network.continueRequest",
+        "responseStarted": "network.continueResponse",
+        "authRequired": "network.continueWithAuth",
+    }
+    server.release_preflight.set()
+    try:
+        for phase in [*continue_commands, "preflight"]:
+            if phase == "preflight":
+                # A cross-origin PUT blocks first for its preflight, then for itself.
+                url = f"http://localhost:{server.server_port}/network-interception/cors/continue-after-gc"
+                options = {"method": "PUT", "headers": {"X-BiDi": "1"}}
+                blocked = [("beforeRequestSent", "OPTIONS"), ("beforeRequestSent", "PUT")]
+            else:
+                auth = "auth/" if phase == "authRequired" else ""
+                url = f"http://127.0.0.1:{server.server_port}/network-interception/{auth}continue-after-gc-{phase}"
+                options = None
+                blocked = [(phase, "GET")]
+            intercept = bidi.command(
+                "network.addIntercept",
+                {
+                    "phases": sorted({blocked_phase for blocked_phase, _ in blocked}),
+                    "urlPatterns": [{"type": "string", "pattern": url}],
+                },
+            )["intercept"]
+            with server.interception_lock:
+                server.interception_requests.clear()
+            pending = send_fetch(bidi, context, url, options)
+            for blocked_phase, method in blocked:
+                event = intercepted_event(bidi, f"network.{blocked_phase}", url)
+                assert event["request"]["method"] == method, event
+                # A collection while the request is blocked keeps what its continuation needs.
+                bidi.evaluate(context, "internals.gc(); undefined")
+                params = {"request": event["request"]["request"]}
+                if blocked_phase == "authRequired":
+                    params["action"] = "provideCredentials"
+                    params["credentials"] = {"type": "password", "username": "user", "password": "pass"}
+                bidi.command(continue_commands[blocked_phase], params)
+            records = fetch_records(bidi, pending)
+            path = urllib.parse.urlsplit(url).path
+            expected = (
+                [(path, "PUT")] if phase == "preflight" else [(path, "GET")] * (2 if phase == "authRequired" else 1)
+            )
+            assert [(record["path"], record["method"]) for record in records] == expected, records
+            if phase == "authRequired":
+                authorization = [value for key, value in records[-1]["headers"] if key.lower() == "authorization"]
+                assert authorization == ["Basic dXNlcjpwYXNz"], records
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_intercepted_adopted_navigation(bidi, context, server, action):
+    # A cross-site navigation blocked at responseStarted commits its document in another process once continued.
+    terminal_methods = {"network.responseCompleted", "network.fetchError"}
+    origin = f"http://127.0.0.1:{server.server_port}"
+    url = f"http://localhost:{server.server_port}/network-document/intercepted-{action}"
+    provided = "<!doctype html><title>Provided document</title><p>Provided"
+    server.document_headers_sent.clear()
+    server.release_document.clear()
+    server.interception_transport_closed.clear()
+    subscription = bidi.command(
+        "session.subscribe",
+        {"events": ["network.responseStarted", *sorted(terminal_methods)], "contexts": [context]},
+    )["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {"phases": ["responseStarted"], "urlPatterns": [{"type": "string", "pattern": url}]},
+    )["intercept"]
+
+    def is_our_terminal_event(event):
+        return event["method"] in terminal_methods and event["params"].get("request", {}).get("url") == url
+
+    def next_terminal_event():
+        while True:
+            for index, event in enumerate(bidi.events):
+                if is_our_terminal_event(event):
+                    return bidi.events.pop(index)
+            bidi.read_message()
+
+    def wait_for_commit():
+        deadline = time.monotonic() + 10
+        while True:
+            result = bidi.response(
+                bidi.send(
+                    "script.evaluate",
+                    {"target": {"context": context}, "expression": "document.URL", "awaitPromise": False},
+                )
+            )
+            if result["type"] == "success" and result["result"]["result"].get("value") == url:
+                return
+            assert time.monotonic() < deadline, "The navigation did not commit its document"
+
+    try:
+        navigation = bidi.send("browsingContext.navigate", {"context": context, "url": url, "wait": "none"})
+        event = intercepted_event(bidi, "network.responseStarted", url)
+        request_id = event["request"]["request"]
+        assert server.document_headers_sent.wait(10)
+        expected_size = len(provided) if action == "provide" else len(server.document_body)
+        if action == "continue":
+            bidi.command("network.continueResponse", {"request": request_id})
+            wait_for_commit()
+            server.release_document.set()
+        elif action == "fail":
+            bidi.command("network.failRequest", {"request": request_id})
+        else:
+            bidi.command(
+                "network.provideResponse",
+                {"request": request_id, "body": {"type": "string", "value": provided}},
+            )
+            wait_for_commit()
+            assert bidi.evaluate(context, "document.title")["result"]["value"] == "Provided document"
+        # A failed navigation settles too, with an error document, before the next navigation starts.
+        result = bidi.response(navigation)
+        if action != "fail":
+            assert result["type"] == "success", result
+
+        terminal = next_terminal_event()
+        params = terminal["params"]
+        assert params["request"]["request"] == request_id, params
+        if action == "fail":
+            assert terminal["method"] == "network.fetchError", terminal
+        else:
+            assert terminal["method"] == "network.responseCompleted", terminal
+            assert params["response"]["bodySize"] == expected_size, params
+            assert params["response"]["content"]["size"] == expected_size, params
+        if action != "continue":
+            assert server.interception_transport_closed.wait(30), "The original response's transport stayed open"
+
+        # The navigation's body ends once, in whichever process holds it, and the process that handed it over reports
+        # nothing more for it, so a reply from the document that holds it follows every event of the request.
+        bidi.evaluate(context, "0")
+        assert not any(is_our_terminal_event(event) for event in bidi.events), bidi.events
+    finally:
+        server.release_document.set()
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+            bidi.command(
+                "browsingContext.navigate",
+                {"context": context, "url": f"{origin}/interception-page", "wait": "complete"},
+            )
+
+
 def check_network_provided_body_at_response_started(bidi, context, server):
     url = f"http://127.0.0.1:{server.server_port}/network-interception/fail-body"
     provided = "provided body"
@@ -1272,6 +1434,11 @@ def check_network_interception(bidi, context, server, case="all"):
     for kind in ["abort", "stop"]:
         if case in ["all", f"events-off-{kind}"]:
             check_network_cancel_with_events_off(bidi, context, server, kind)
+    if case in ["all", "continue-after-gc"]:
+        check_network_continue_after_gc(bidi, context, server)
+    for action in ["continue", "fail", "provide"]:
+        if case in ["all", f"adopted-navigation-{action}"]:
+            check_network_intercepted_adopted_navigation(bidi, context, server, action)
     for action in ["cancel", "default"]:
         if case in ["all", "auth-response-matrix", "auth-action-extras", f"auth-{action}-extra"]:
             for credentials in [{"type": "password", "username": "user", "password": "pass"}, {}]:
@@ -2423,6 +2590,10 @@ if __name__ == "__main__":
             "abort-after-gc",
             "events-off-abort",
             "events-off-stop",
+            "continue-after-gc",
+            "adopted-navigation-continue",
+            "adopted-navigation-fail",
+            "adopted-navigation-provide",
             "auth-gates",
             "auth-omit",
             "auth-cors",

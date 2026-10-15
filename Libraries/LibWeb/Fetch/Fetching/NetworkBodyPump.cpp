@@ -18,8 +18,9 @@ namespace Web::Fetch::Fetching {
 
 GC_DEFINE_ALLOCATOR(NetworkBodyPump);
 
-NetworkBodyPump::NetworkBodyPump(GC::Ptr<Infrastructure::FetchParams const> fetch_params, NonnullRefPtr<Engine::FetchByteChannel> channel, NonnullRefPtr<Engine::FetchBodyDeliveryGate> delivery_gate, RefPtr<HTTP::MemoryCache> http_cache)
-    : m_fetch_params(fetch_params)
+NetworkBodyPump::NetworkBodyPump(RefPtr<Infrastructure::FetchParams const> fetch_params, NonnullRefPtr<Engine::FetchByteChannel> channel, NonnullRefPtr<Engine::FetchBodyDeliveryGate> delivery_gate, RefPtr<HTTP::MemoryCache> http_cache)
+    : m_fetch_params(move(fetch_params))
+    , m_fetch_controller(m_fetch_params ? m_fetch_params->controller().ptr() : nullptr)
     , m_channel(move(channel))
     , m_delivery_gate(move(delivery_gate))
     , m_http_cache(move(http_cache))
@@ -46,7 +47,7 @@ void NetworkBodyPump::update_response_body_info()
 void NetworkBodyPump::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_fetch_params);
+    visitor.visit(m_fetch_controller);
 }
 
 // This implements the transmission steps of HTTP-network fetch.
@@ -118,8 +119,8 @@ void NetworkBodyPump::handle_network_complete(Optional<u64> encoded_body_size)
         update_response_body_info();
     finalize_cache_entry();
     m_channel->close();
-    if (m_fetch_params)
-        m_fetch_params->controller()->did_complete_network_body(*m_channel);
+    if (m_fetch_controller)
+        m_fetch_controller->did_complete_network_body(*m_channel);
 }
 
 void NetworkBodyPump::handle_network_error(StringView error_message)

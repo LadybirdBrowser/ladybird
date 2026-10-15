@@ -1,0 +1,1 @@
+The fetch reported its resource timing

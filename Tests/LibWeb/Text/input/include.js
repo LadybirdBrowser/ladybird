@@ -257,6 +257,16 @@ class HTTPTestServer {
     recordedRequestHeadersURL(echoURL) {
         return `${this.baseURL}/recorded-request-headers${new URL(echoURL).pathname}`;
     }
+    // Resolves once the echo server has seen a request for echoURL, query included.
+    async waitForRequest(echoURL) {
+        const url = new URL(echoURL);
+        const recordedURL = `${this.baseURL}/recorded-request-headers${url.pathname}${url.search}`;
+        for (;;) {
+            const response = await fetch(recordedURL).catch(() => null);
+            if (response?.ok) return;
+            await timeout(10);
+        }
+    }
     getStaticURL(path) {
         return `${this.baseURL}/static/${path}`;
     }

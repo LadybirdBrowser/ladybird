@@ -24,6 +24,8 @@ class PendingResponse : public JS::Cell {
 public:
     using Callback = Function<void(NonnullRefPtr<Infrastructure::Response>)>;
 
+    [[nodiscard]] static GC::Ref<PendingResponse> create(GC::Ref<Infrastructure::FetchController>);
+    [[nodiscard]] static GC::Ref<PendingResponse> create(GC::Ref<Infrastructure::FetchController>, NonnullRefPtr<Infrastructure::Response>);
     [[nodiscard]] static GC::Ref<PendingResponse> create(Infrastructure::FetchParams const&);
     [[nodiscard]] static GC::Ref<PendingResponse> create(Infrastructure::FetchParams const&, NonnullRefPtr<Infrastructure::Response>);
 

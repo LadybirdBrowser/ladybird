@@ -1,0 +1,2 @@
+fetch: response
+The stream was read after the response

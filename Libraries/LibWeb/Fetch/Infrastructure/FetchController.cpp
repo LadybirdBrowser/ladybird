@@ -79,7 +79,7 @@ void FetchController::report_webdriver_bidi_fetch_error(StringView error_text) c
 {
     if (!WebDriver::BiDi::g_network_events_enabled)
         return;
-    if (auto fetch_params = m_original_fetch_params.ptr())
+    if (auto fetch_params = m_original_fetch_params.strong_ref())
         WebDriver::BiDi::network_fetch_error(*fetch_params, error_text);
 }
 
@@ -91,9 +91,9 @@ void FetchController::cancel_webdriver_bidi_network_interception() const
         WebDriver::BiDi::cancel_network_interception(*fetch_params);
 }
 
-GC::Ptr<FetchParams> FetchController::original_fetch_params() const
+RefPtr<FetchParams> FetchController::original_fetch_params() const
 {
-    return m_original_fetch_params.ptr();
+    return m_original_fetch_params.strong_ref();
 }
 
 GC::Ref<FetchAlgorithms const> FetchController::algorithms() const

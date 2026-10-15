@@ -4,30 +4,29 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 
 namespace Web::Fetch::Infrastructure {
 
-GC_DEFINE_ALLOCATOR(FetchParams);
-
-FetchParams::FetchParams(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, GC::Ref<FetchController> controller, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
+FetchParams::FetchParams(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, FetchController& controller, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
     : m_request(move(request))
-    , m_controller(controller)
-    , m_control_block(controller->control_block())
+    , m_controller_token(controller.token())
+    , m_controller_registry(controller.registry())
+    , m_control_block(controller.control_block())
     , m_timing_info(move(timing_info))
     , m_loader_config(move(loader_config))
 {
-    m_controller->set_algorithms({}, algorithms);
-    m_controller->set_original_fetch_params({}, *this);
+    controller.set_algorithms({}, algorithms);
+    controller.set_original_fetch_params({}, *this);
 }
 
 FetchParams::FetchParams(FetchParams const& params)
-    : m_request(params.m_request)
+    : RefCounted()
+    , m_request(params.m_request)
     , m_cross_origin_isolated_capability(params.m_cross_origin_isolated_capability)
-    , m_controller(params.m_controller)
+    , m_controller_token(params.m_controller_token)
+    , m_controller_registry(params.m_controller_registry)
     , m_control_block(params.m_control_block)
     , m_timing_info(params.m_timing_info)
     , m_preloaded_response_candidate(params.m_preloaded_response_candidate)
@@ -37,20 +36,22 @@ FetchParams::FetchParams(FetchParams const& params)
 {
 }
 
-GC::Ref<FetchParams> FetchParams::create(FetchController& controller, NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
+NonnullRefPtr<FetchParams> FetchParams::create(FetchController& controller, NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
 {
-    return GC::Heap::the().allocate<FetchParams>(move(request), algorithms, controller, move(timing_info), move(loader_config));
+    return adopt_ref(*new FetchParams(move(request), algorithms, controller, move(timing_info), move(loader_config)));
 }
 
-GC::Ref<FetchParams> FetchParams::copy(FetchParams const& params)
+NonnullRefPtr<FetchParams> FetchParams::copy(FetchParams const& params)
 {
-    return GC::Heap::the().allocate<FetchParams>(params);
+    return adopt_ref(*new FetchParams(params));
 }
 
-void FetchParams::visit_edges(JS::Cell::Visitor& visitor)
+GC::Ref<FetchController> FetchParams::controller() const
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_controller);
+    VERIFY(m_controller_registry);
+    auto controller = m_controller_registry->find(m_controller_token);
+    VERIFY(controller);
+    return *controller;
 }
 
 // https://fetch.spec.whatwg.org/#fetch-params-aborted
