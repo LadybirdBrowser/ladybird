@@ -67,6 +67,39 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype.0, array, exit);
     }
 
+    /// A branch on `BranchCondition::PlainArrayPrototypeChain`: to `target`
+    /// where the object at `object` is an array whose prototype chain is the
+    /// realm's default one, without indexed properties, or where it is not,
+    /// with `invert`.
+    pub(in crate::codegen) fn emit_branch_on_plain_array_prototype_chain(
+        &mut self,
+        node: NodeId,
+        object: Gpr,
+        target: Label,
+        invert: bool,
+    ) {
+        let prototype = self.temp(node, 0);
+        let scratch = self.pinned.scratch;
+        let other = self.masm.new_label();
+        let fail = if invert { target } else { other };
+        self.masm
+            .load16(scratch, &Address::new(object, self.runtime.offsets.object_flags as i32));
+        self.masm.branch_test32(
+            Condition::Zero,
+            scratch,
+            u32::from(self.runtime.layout.object_flag_has_magical_length),
+            fail,
+        );
+        // NB: %Object.prototype% is an immutable prototype exotic object,
+        //     so the chain ends there.
+        self.branch_unless_plain_prototype(object, self.runtime.array_prototype.0, prototype, fail);
+        self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype.0, prototype, fail);
+        if !invert {
+            self.masm.jump(target);
+        }
+        self.masm.bind(other);
+    }
+
     /// `LoadElementsCapacity`: the capacity of packed or holey indexed
     /// storage, and 0 without storage.
     pub(in crate::codegen) fn emit_load_elements_capacity(&mut self, node: NodeId) {

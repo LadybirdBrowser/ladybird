@@ -132,6 +132,12 @@ pub enum BranchCondition {
     /// The input is the `Repr::Pointer` of an object: is it an array
     /// iterator over values, like `%Array.prototype.values%` makes?
     ArrayIterator,
+    /// The input is the `Repr::Pointer` of an object: is it an array whose
+    /// prototype is the realm's `%Array.prototype%`, and do that and
+    /// `%Object.prototype%` have no indexed properties and nothing that may
+    /// interfere with indexed property access, so that indices it has no
+    /// element at read undefined?
+    PlainArrayPrototypeChain,
     /// Input 0 is an object and input 1 its address: does it have the
     /// shape, like `Op::ShapeSwitch` cases test it? Only the refinements of
     /// those cases have this condition; no branch does.

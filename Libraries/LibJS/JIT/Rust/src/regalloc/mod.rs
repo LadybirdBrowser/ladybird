@@ -426,6 +426,11 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
         Op::StoreEnvironmentBinding { .. } | Op::AppendEnvironmentBinding => constraints.temps = 1,
         // The array, then its prototypes.
         Op::CheckAppendableArray => constraints.temps = 2,
+        // The object's prototypes.
+        Op::Branch {
+            condition: BranchCondition::PlainArrayPrototypeChain,
+            ..
+        } => constraints.temps = 1,
         // The object's elements.
         Op::LoadElementsCapacity | Op::AppendElement => constraints.temps = 1,
         // The object, then its elements or element address.

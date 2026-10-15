@@ -10,7 +10,9 @@
 //! A `GetByValue` with an int32 key branches on the elements kind of its
 //! object, one kind its feedback saw after the other, and loads the element:
 //! bounds checks against the element counts, the load, and for holey
-//! elements a check for a hole, each a node of its own. Strings give the
+//! elements a check for a hole, each a node of its own. Sites that saw
+//! holes or indices past the end read undefined there, where the prototype
+//! chain has no indexed properties. Strings give the
 //! strings of their ASCII characters. Other keys probe the property lookup
 //! caches. Everything else takes the instruction's slow path, and all paths
 //! join after the instruction. `PutByValue` is built the same way.
@@ -32,11 +34,13 @@ use crate::ir::ElementsKind;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::TypedArrayElement;
+use crate::ir::value;
 use crate::snapshot::Forwarding;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::keyed_feedback_bits::HOLEY;
 use crate::snapshot::keyed_feedback_bits::INT32_INDEX;
 use crate::snapshot::keyed_feedback_bits::OTHER_KEY;
+use crate::snapshot::keyed_feedback_bits::OUT_OF_BOUNDS;
 use crate::snapshot::keyed_feedback_bits::PACKED;
 use crate::snapshot::keyed_feedback_bits::STRING_KEY;
 use crate::snapshot::keyed_feedback_bits::SYMBOL_KEY;
@@ -175,6 +179,21 @@ impl GraphBuilder<'_> {
         self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, capacity], true)
     }
 
+    /// Ends the current block, where the object at `address` has no element
+    /// at a non-negative index, as a path that read undefined, if its
+    /// prototype chain has no indexed properties. Takes the slow path
+    /// otherwise.
+    fn read_missing_element(&mut self, slow_paths: &mut SlowPaths, address: NodeId) {
+        self.branch_to_slow_path(
+            slow_paths,
+            BranchCondition::PlainArrayPrototypeChain,
+            vec![address],
+            true,
+        );
+        let undefined = self.constant(value::UNDEFINED);
+        self.end_hot_path(slow_paths, vec![undefined]);
+    }
+
     /// Builds `GetByValue` (`Handling::Expanded`) for the keys and elements
     /// its feedback saw.
     pub(super) fn build_get_by_value(
@@ -197,6 +216,14 @@ impl GraphBuilder<'_> {
         let strings = bits & OTHER_KEY != 0 && self.runtime.layout.single_ascii_character_strings != 0;
         let indexed = !kinds.is_empty() || strings;
         let named = bits & (STRING_KEY | SYMBOL_KEY) != 0;
+        // NB: Holes and indices past the end read undefined where the
+        //     prototype chain is the realm's default one, without indexed
+        //     properties. Sites that saw any are built to read them.
+        let reads_missing_elements = bits & OUT_OF_BOUNDS != 0;
+        if reads_missing_elements {
+            self.embed(self.runtime.array_prototype);
+            self.embed(self.runtime.object_prototype);
+        }
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
         let object = self.read(base)?;
         let key = self.read(property)?;
@@ -219,13 +246,48 @@ impl GraphBuilder<'_> {
                 |builder, slow_paths, case, object| {
                     let kind = kinds[case];
                     let address = builder.cell_address(object);
-                    let (storage, index) = builder.element_index_in_bounds(slow_paths, kind, address, index);
-                    let element = builder.load_element(kind, storage, index);
-                    let mut element = builder.tagged(element);
-                    if kind == ElementsKind::Holey {
-                        element = builder.branch_if_empty(slow_paths, element);
+                    if !reads_missing_elements || matches!(kind, ElementsKind::TypedArray(_)) {
+                        let (storage, index) = builder.element_index_in_bounds(slow_paths, kind, address, index);
+                        let element = builder.load_element(kind, storage, index);
+                        let mut element = builder.tagged(element);
+                        if kind == ElementsKind::Holey {
+                            element = builder.branch_if_empty(slow_paths, element);
+                        }
+                        builder.end_hot_path(slow_paths, vec![element]);
+                        return;
                     }
-                    builder.end_hot_path(slow_paths, vec![element]);
+                    let (storage, bound) = builder.element_storage_and_bound(kind, address);
+                    let (inside, outside) =
+                        builder.branch_both_ways(BranchCondition::IndexInBounds, vec![index, bound]);
+                    builder.block = outside;
+                    let zero = builder.int32_constant(0);
+                    builder.branch_to_slow_path(
+                        slow_paths,
+                        BranchCondition::Int32(Comparison::GreaterThanEquals),
+                        vec![index, zero],
+                        true,
+                    );
+                    builder.read_missing_element(slow_paths, address);
+                    builder.block = inside;
+                    let index = builder.refine(BranchCondition::IndexInBounds, true, vec![index, bound]);
+                    let element = builder.load_element(kind, storage, index);
+                    let element = builder.tagged(element);
+                    if kind == ElementsKind::Holey {
+                        let empty = builder.constant(value::EMPTY);
+                        let (hole, present) = builder
+                            .branch_both_ways(BranchCondition::TaggedEquals { equal: true }, vec![element, empty]);
+                        builder.block = hole;
+                        builder.read_missing_element(slow_paths, address);
+                        builder.block = present;
+                        let element = builder.refine(
+                            BranchCondition::TaggedEquals { equal: true },
+                            false,
+                            vec![element, empty],
+                        );
+                        builder.end_hot_path(slow_paths, vec![element]);
+                    } else {
+                        builder.end_hot_path(slow_paths, vec![element]);
+                    }
                 },
             );
             // NB: The feedback counts the characters of strings as other keys.
