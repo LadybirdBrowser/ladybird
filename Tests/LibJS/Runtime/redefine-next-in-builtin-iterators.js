@@ -43,4 +43,22 @@ describe("redefine next() in built in iterators", () => {
         }
         expect(counter).toBe(4);
     });
+
+    test("redefine next() in %GeneratorPrototype%", () => {
+        function* generator() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+        let generatorPrototype = Object.getPrototypeOf(generator.prototype);
+        let originalNext = generatorPrototype.next;
+        let counter = 0;
+        generatorPrototype.next = function () {
+            counter++;
+            return originalNext.apply(this, arguments);
+        };
+        for (let v of generator()) {
+        }
+        expect(counter).toBe(4);
+    });
 });

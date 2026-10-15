@@ -26,8 +26,9 @@ use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
+use crate::runtime::iterator::{BuiltinIteratorNext, BuiltinIteratorStep};
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
-use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, ObjectMethods};
 use crate::runtime::shared_function_instance_data::FunctionKind;
 
 /// Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>>: the function whose body a
@@ -114,7 +115,12 @@ pub struct GeneratorObject {
     execute: GeneratorExecuteFunction,
 }
 
-define_cell!(GeneratorObject, Object, extends: [Object], finalize: finalize);
+pub static GENERATOR_OBJECT_METHODS: ObjectMethods = ObjectMethods {
+    as_builtin_iterator_if_next_is_not_redefined: GeneratorObject::as_builtin_iterator_if_next_is_not_redefined,
+    ..ORDINARY_OBJECT_METHODS
+};
+
+define_cell!(GeneratorObject, Object, extends: [Object], methods: GENERATOR_OBJECT_METHODS, finalize: finalize);
 
 impl Deref for GeneratorObject {
     type Target = Object;
@@ -204,6 +210,38 @@ impl GeneratorObject {
 
     pub fn as_gc(&self) -> Gc<GeneratorObject> {
         Gc::from_ref(self)
+    }
+
+    fn as_builtin_iterator_if_next_is_not_redefined(_: &Object, next_method: Value) -> Option<BuiltinIteratorNext> {
+        if next_method.is_function() {
+            let next_function = next_method.as_function();
+            if let Some(realm) = next_function.realm()
+                && next_function == realm.generator_prototype_next_function()
+            {
+                return Some(GeneratorObject::builtin_next);
+            }
+        }
+        None
+    }
+
+    fn builtin_next(object: &Object, vm: &Vm) -> ThrowCompletionOr<BuiltinIteratorStep> {
+        let generator_object = object
+            .as_gc()
+            .downcast::<GeneratorObject>()
+            .expect("the builtin step of a GeneratorObject steps a GeneratorObject");
+
+        // 27.5.1.2 Generator.prototype.next ( value ), https://tc39.es/ecma262/#sec-generator.prototype.next
+        // 1. Return ? GeneratorResume(this value, value, empty).
+        // NB: IteratorStep calls next without arguments, so value is undefined.
+        let iteration_result = generator_object.resume(vm, Value::UNDEFINED, None)?;
+
+        if iteration_result.done {
+            return Ok(BuiltinIteratorStep::Done);
+        }
+        if iteration_result.value_is_iterator_result {
+            return Ok(BuiltinIteratorStep::IteratorResult(iteration_result.value.as_object()));
+        }
+        Ok(BuiltinIteratorStep::Value(iteration_result.value))
     }
 
     /// [[GeneratorContext]]. It lives out of line until the generator is finalized, so the pointer stays valid for
