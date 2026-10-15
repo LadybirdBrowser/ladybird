@@ -9,6 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
 #include <LibGC/Root.h>
+#include <LibGC/Testing.h>
 #include <LibTest/TestCase.h>
 
 namespace {
@@ -24,13 +25,6 @@ private:
 };
 
 GC_DEFINE_ALLOCATOR(FreeListTestCell);
-
-NEVER_INLINE void scrub_stack()
-{
-    u8 volatile filler[8 * KiB];
-    for (size_t i = 0; i < sizeof(filler); ++i)
-        filler[i] = 0;
-}
 
 NEVER_INLINE void allocate_unreachable_cells(GC::Heap& heap, size_t count)
 {
@@ -50,7 +44,7 @@ TEST_CASE(a_corrupted_free_cell_link_leads_to_a_cell_of_the_same_block)
     auto cell_size = GC::HeapBlock::from_cell(first.ptr())->cell_size();
     auto address_of = [&](size_t index) { return bit_cast<FlatPtr>(first.ptr()) + index * cell_size; };
     allocate_unreachable_cells(heap, 4);
-    scrub_stack();
+    GC::scrub_stack_for_testing();
 
     // The sweep frees the four unreachable cells in address order, so the free list of the block leads from the last
     // of them to the first.
