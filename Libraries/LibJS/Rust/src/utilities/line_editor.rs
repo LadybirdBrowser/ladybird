@@ -163,8 +163,10 @@ fn strndup(string: &[u8]) -> *mut c_char {
 pub fn read_line_without_line_editor(prompt: &CStr) -> Option<Vec<u8>> {
     use std::io::BufRead;
 
-    crate::standard_output::out(prompt.to_bytes());
-    crate::standard_output::flush();
+    if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+        crate::standard_output::out(prompt.to_bytes());
+        crate::standard_output::flush();
+    }
 
     let mut line = Vec::new();
     let mut standard_input = std::io::stdin().lock();
