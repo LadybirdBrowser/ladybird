@@ -17,6 +17,7 @@
 #include <Compositor/AsyncScrollUpdateOutbox.h>
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/CaretBlinkTimer.h>
+#include <Compositor/ContextScene.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/ElasticOverscrollController.h>
 #include <Compositor/Forward.h>
@@ -118,7 +119,7 @@ public:
     void update_visual_context_tree(Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
     void update_scroll_state(Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState);
     void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::VideoSink>);
-    HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_display_list_resource_storage.video_sink_handles(); }
+    HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_scene.video_sink_handles(); }
 
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);
@@ -251,15 +252,10 @@ private:
     void end_keyboard_scroll_gesture();
     Compositing::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
     void adopt_keyboard_scroll_state(Compositing::KeyboardScrollState);
-    Compositing::AccumulatedVisualContextTree const& current_visual_context_tree() const;
-    Optional<float> visual_viewport_scale_for_compositing() const;
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
     // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
     // that part of the delta.
     Gfx::FloatPoint pan_visual_viewport_by(Gfx::FloatPoint delta_in_screen_pixels);
-    // How many screen pixels a zoomed visual viewport shows one pixel of the layout viewport with. Scrollers scroll and
-    // stretch in the pixels of the layout viewport.
-    float visual_viewport_magnification() const;
     Optional<Gfx::FloatPoint> reapply_unreconciled_async_scroll_offsets();
     void store_pending_async_scroll_offsets(ReadonlySpan<Compositing::AsyncScrollOffset>, Optional<Compositing::AsyncScrollOperationID> = {});
     enum class VisualViewportPanning : u8 {
@@ -314,10 +310,7 @@ private:
     void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
     Optional<PendingFrame> apply_scrollbar_drag(ScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
-    void discard_sampled_visual_context_tree();
-    void invalidate_visual_context_tree_for_compositing();
     bool can_render_frame() const;
-    Compositing::AccumulatedVisualContextTree const& visual_context_tree_for_compositing();
     enum class PaintUIOverlay : u8 {
         No,
         Yes,
@@ -338,14 +331,7 @@ private:
     bool m_presents_to_client { false };
     Optional<Web::CompositorContextId> m_parent_context_id;
 
-    RefPtr<Compositing::DisplayList const> m_display_list;
-    Optional<Compositing::AccumulatedVisualContextTree> m_visual_context_tree;
-    Optional<Compositing::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
-    Optional<Compositing::AccumulatedVisualContextTree> m_sampled_visual_context_tree;
-    bool m_has_active_visual_animations { false };
-    Optional<bool> m_animated_content_may_affect_viewport;
-    Compositing::DisplayListResourceStorage m_display_list_resource_storage;
-    DisplayListRasterCache m_raster_cache;
+    ContextScene m_scene;
     Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
@@ -367,8 +353,6 @@ private:
     ElasticOverscrollController m_elastic_overscroll_controller;
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
-    Optional<Compositing::TransformWithOrigin> m_async_visual_viewport_transform;
-    Optional<i64> m_visual_animation_sample_time_ns;
 
     Gfx::IntSize m_viewport_size;
     bool m_paused_debugger_overlay_visible { false };
