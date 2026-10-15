@@ -103,7 +103,8 @@ struct ConfigVariableDefinition {
     Optional<JsonValue::Type> array_element_type;
 };
 
-WEBVIEW_API ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions();
+WEBVIEW_API ReadonlySpan<ConfigVariableDefinition> config_variable_definitions();
+WEBVIEW_API ConfigVariableDefinition const& config_variable_definition(ConfigVariableID);
 WEBVIEW_API Optional<ConfigVariableID> config_variable_id_from_name(StringView);
 
 class WEBVIEW_API SettingsObserver {
@@ -226,9 +227,18 @@ public:
 
     JsonValue const& config_variable(ConfigVariableID) const;
     bool config_variable_as_bool(ConfigVariableID) const;
-    u32 config_variable_as_u32(ConfigVariableID) const;
     void set_config_variable(ConfigVariableID, JsonValue);
     void set_config_variable(StringView name, JsonValue const&);
+
+    template<Integral T>
+    T config_variable_as_integer(ConfigVariableID id) const
+    {
+        auto const& variable = config_variable_definition(id);
+        VERIFY(variable.default_value.is_number());
+
+        auto value = config_variable(id).get_integer<T>();
+        return value.value_or_lazy_evaluated([&] { return variable.default_value.get_integer<T>().value(); });
+    }
 
     static void add_observer(Badge<SettingsObserver>, SettingsObserver&);
     static void remove_observer(Badge<SettingsObserver>, SettingsObserver&);
