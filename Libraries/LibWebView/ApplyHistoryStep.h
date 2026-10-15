@@ -75,7 +75,13 @@ struct WEBVIEW_API ChangingNavigable {
     };
     Optional<Continuation> continuation;
 
-    Web::HTML::UnloadDisplayedDocument unload_displayed_document { Web::HTML::UnloadDisplayedDocument::No };
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#changing-navigable-continuation-state
+    // NB: Its target entry and navigable are the record's. The process running the job reports the rest.
+    RefPtr<CanonicalDocument> displayed_document;
+    bool update_only { false };
+    // targetEntry's document, as the job left it.
+    Optional<Web::HTML::CrossProcessId> target_document_id;
+
     RefPtr<NavigationLoader> population_loader;
     RefPtr<CanonicalDocument> populated_document;
 
