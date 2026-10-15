@@ -1,9 +1,7 @@
 classic: Error
-    at Error
     at blob:<origin>/[flaky-uuid-replaced]:3:36
 
 module: Error
-    at Error
     at blob:<origin>/[flaky-uuid-replaced]:3:36
     at <unknown>
 

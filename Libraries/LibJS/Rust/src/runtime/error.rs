@@ -154,6 +154,14 @@ impl Error {
         }
     }
 
+    /// An error an Error constructor is creating: its stack leaves out the constructor's own frame.
+    pub fn new_in_constructor(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Error {
+        Error {
+            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            error_data: ErrorData::new_in_constructor(vm),
+        }
+    }
+
     fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {
         let error_data = error_data_of_error(object).expect("an Error has error data");
         vm.heap()
@@ -226,6 +234,12 @@ macro_rules! define_native_errors {
                 pub fn new(vm: &Vm, prototype: Gc<Object>) -> $class {
                     $class {
                         base: Error::new(vm, Self::CLASS, prototype),
+                    }
+                }
+
+                pub fn new_in_constructor(vm: &Vm, prototype: Gc<Object>) -> $class {
+                    $class {
+                        base: Error::new_in_constructor(vm, Self::CLASS, prototype),
                     }
                 }
 

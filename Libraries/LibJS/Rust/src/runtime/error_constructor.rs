@@ -98,7 +98,7 @@ impl ErrorConstructor {
 
         // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%Error.prototype%", « [[ErrorData]] »).
         let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::error_prototype)?;
-        let error = realm.create_object(vm, Error::new(vm, Error::CLASS, prototype));
+        let error = realm.create_object(vm, Error::new_in_constructor(vm, Error::CLASS, prototype));
 
         // 3. If message is not undefined, then
         if !message.is_undefined() {
@@ -211,7 +211,7 @@ macro_rules! define_native_error_constructors {
 
                     // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%NativeError.prototype%", « [[ErrorData]] »).
                     let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::$prototype)?;
-                    let error = realm.create_object(vm, $class::new(vm, prototype));
+                    let error = realm.create_object(vm, $class::new_in_constructor(vm, prototype));
 
                     // 3. If message is not undefined, then
                     if !message.is_undefined() {

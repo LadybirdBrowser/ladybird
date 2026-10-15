@@ -5,7 +5,6 @@ const stackSetter = stackDescriptor.set;
 describe("getter - normal behavior", () => {
     test("basic functionality", () => {
         const stackFrames = [
-            /^    at .*Error$/,
             /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:\d+:\d+$/,
             /^    at test \(.+[\\/]test-common\.js:\d+:\d+\)$/,
             /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:6:9$/,
