@@ -39,6 +39,7 @@ set(TEST_SOURCES
     TestVorbisDecode.cpp
     TestVP9Decode.cpp
     TestWav.cpp
+    TestWAVDemuxer.cpp
 )
 
 if (APPLE)
@@ -63,6 +64,7 @@ target_link_libraries(TestDecodedAudioProducer PRIVATE LibGfx)
 target_link_libraries(TestDisplayingVideoSink PRIVATE LibGfx)
 target_link_libraries(TestVP9Decode PRIVATE LibGfx)
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
+target_link_libraries(TestWAVDemuxer PRIVATE LibThreading)
 target_link_libraries(TestISOBMFF PRIVATE LibThreading)
 target_link_libraries(TestMediaTime PRIVATE LibThreading)
 target_link_libraries(TestVideoFramePool PRIVATE LibThreading)
