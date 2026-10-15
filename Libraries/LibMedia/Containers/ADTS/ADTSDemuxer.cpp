@@ -20,24 +20,30 @@ public:
     {
         FrameIterator iterator { NonnullRefPtr { cursor }, position, FrameIterator::Resynchronize::Yes };
         auto frame = iterator.next();
-        if (!frame.has_value())
+        if (frame.is_error() || !frame.value().has_value())
             return {};
 
         return Frame {
-            .position = frame->position,
-            .byte_size = frame->header.frame_byte_size,
-            .duration = { frame->header.sample_count, frame->header.sample_rate },
+            .position = frame.value()->position,
+            .byte_size = frame.value()->header.frame_byte_size,
+            .duration = { frame.value()->header.sample_count, frame.value()->header.sample_rate },
         };
     }
 
     virtual Optional<size_t> find_boundary_at_or_after(MediaStreamCursor& cursor, size_t start_byte, size_t upper_bound) const override
     {
-        return Reader::find_frame_boundary_at_or_after(NonnullRefPtr { cursor }, start_byte, upper_bound);
+        auto boundary = Reader::find_frame_boundary_at_or_after(NonnullRefPtr { cursor }, start_byte, upper_bound);
+        if (boundary.is_error())
+            return {};
+        return boundary.release_value();
     }
 
     virtual Optional<size_t> find_boundary_at_or_before(MediaStreamCursor& cursor, size_t target_byte, size_t lower_bound, size_t upper_bound) const override
     {
-        return Reader::find_frame_boundary_at_or_before(NonnullRefPtr { cursor }, target_byte, lower_bound, upper_bound);
+        auto boundary = Reader::find_frame_boundary_at_or_before(NonnullRefPtr { cursor }, target_byte, lower_bound, upper_bound);
+        if (boundary.is_error())
+            return {};
+        return boundary.release_value();
     }
 };
 
@@ -88,7 +94,7 @@ static DecoderErrorOr<Track> create_track(Reader const& reader, ReadonlyBytes co
 
 DecoderErrorOr<NonnullRefPtr<Demuxer>> ADTSDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
-    auto reader = Reader::from_stream(stream->create_cursor());
+    auto reader = TRY(Reader::from_stream(stream->create_cursor()));
     if (!reader.has_value())
         return DecoderError::with_description(DecoderErrorCategory::UnrecognizedFormat, "Found no ADTS frames in the stream"sv);
 
@@ -184,14 +190,10 @@ DecoderErrorOr<CodedFrame> ADTSDemuxer::get_next_sample_for_track(Track const& t
     VERIFY(track == m_track);
     auto& status = track_status();
 
-    auto frame = status.iterator.next();
-    if (!frame.has_value()) {
-        if (status.iterator.cursor().is_aborted())
-            return DecoderError::with_description(DecoderErrorCategory::Aborted, "Read aborted"sv);
+    auto frame = TRY(status.iterator.read_next_frame());
+    if (!frame.has_value())
         return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of stream"sv);
-    }
 
-    auto data = TRY(status.iterator.read_frame_data(*frame));
     auto duration = AK::Duration::from_time_units(frame->header.sample_count, 1, frame->header.sample_rate);
     auto timestamp = status.next_timestamp;
     status.next_timestamp += duration;
@@ -203,7 +205,7 @@ DecoderErrorOr<CodedFrame> ADTSDemuxer::get_next_sample_for_track(Track const& t
     }
 
     // Every frame can begin decoding, so every frame is a keyframe to seek to.
-    return CodedFrame(CodecID::AAC, timestamp, timestamp, duration, FrameFlags::Keyframe, move(data), move(codec_configuration));
+    return CodedFrame(CodecID::AAC, timestamp, timestamp, duration, FrameFlags::Keyframe, move(frame->data), move(codec_configuration));
 }
 
 AK::Duration ADTSDemuxer::select_fast_seek_target_for_track(Track const&, AK::Duration target, SeekMode)

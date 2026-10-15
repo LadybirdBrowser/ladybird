@@ -36,7 +36,7 @@ static NonnullRefPtr<Media::ReadonlyBytesCursor> create_cursor(ReadonlyBytes byt
 
 static Optional<Media::ADTS::Reader> read(Vector<u8> const& bytes)
 {
-    return Media::ADTS::Reader::from_stream(create_cursor(bytes));
+    return MUST(Media::ADTS::Reader::from_stream(create_cursor(bytes)));
 }
 
 static ByteBuffer read_fixture(StringView path)
@@ -80,7 +80,7 @@ TEST_CASE(frame_iterator_walks_every_frame_of_a_stream)
     size_t frame_count = 0;
     size_t expected_position = 0;
     while (true) {
-        auto frame = iterator.next();
+        auto frame = MUST(iterator.next());
         if (!frame.has_value())
             break;
         EXPECT_EQ(frame->position, expected_position);
@@ -96,13 +96,12 @@ TEST_CASE(frame_iterator_reads_the_audio_without_the_framing_around_it)
     append_frames(bytes, 2);
 
     Media::ADTS::FrameIterator iterator { create_cursor(bytes), 0, Media::ADTS::FrameIterator::Resynchronize::No };
-    auto frame = iterator.next();
+    auto frame = MUST(iterator.read_next_frame());
     EXPECT(frame.has_value());
 
     // The header frames the audio rather than describing it, and a decoder configured from the
     // record the header implies expects the access unit alone.
-    auto data = MUST(iterator.read_frame_data(*frame));
-    EXPECT_EQ(data.size(), FRAME_BYTE_SIZE - Media::ADTS::FrameHeader::SIZE);
+    EXPECT_EQ(frame->data.size(), FRAME_BYTE_SIZE - Media::ADTS::FrameHeader::SIZE);
 }
 
 TEST_CASE(frame_iterator_resumes_at_the_frames_that_follow_damage)
@@ -115,7 +114,7 @@ TEST_CASE(frame_iterator_resumes_at_the_frames_that_follow_damage)
     Media::ADTS::FrameIterator iterator { create_cursor(bytes), 0, Media::ADTS::FrameIterator::Resynchronize::Yes };
 
     size_t frame_count = 0;
-    while (iterator.next().has_value())
+    while (MUST(iterator.next()).has_value())
         frame_count++;
     EXPECT_EQ(frame_count, 5u);
 }
@@ -129,7 +128,7 @@ TEST_CASE(frame_iterator_stops_where_a_frame_header_can_no_longer_be_read)
     Media::ADTS::FrameIterator iterator { create_cursor(bytes), 0, Media::ADTS::FrameIterator::Resynchronize::No };
 
     size_t frame_count = 0;
-    while (iterator.next().has_value())
+    while (MUST(iterator.next()).has_value())
         frame_count++;
     EXPECT_EQ(frame_count, 2u);
 }
@@ -143,12 +142,17 @@ TEST_CASE(frame_iterator_reports_a_frame_whose_audio_has_not_all_arrived)
     bytes.resize(bytes.size() - 4);
 
     Media::ADTS::FrameIterator iterator { create_cursor(bytes), 0, Media::ADTS::FrameIterator::Resynchronize::No };
-    EXPECT(iterator.next().has_value());
+    EXPECT(MUST(iterator.next()).has_value());
 
-    auto truncated = iterator.next();
+    auto truncated_frame_position = iterator.position();
+    auto truncated = MUST(iterator.next());
     EXPECT(truncated.has_value());
     EXPECT_EQ(truncated->header.frame_byte_size, FRAME_BYTE_SIZE);
-    EXPECT(iterator.read_frame_data(*truncated).is_error());
+
+    // Its data cannot be read in full, so reading it leaves the iterator at the frame.
+    Media::ADTS::FrameIterator data_iterator { create_cursor(bytes), truncated_frame_position, Media::ADTS::FrameIterator::Resynchronize::No };
+    EXPECT(data_iterator.read_next_frame().is_error());
+    EXPECT_EQ(data_iterator.position(), truncated_frame_position);
 }
 
 TEST_CASE(reader_searches_past_bytes_that_precede_the_audio)
@@ -210,7 +214,7 @@ TEST_CASE(backward_search_reads_back_through_bytes_holding_no_frames)
     bytes.resize(bytes.size() + 2000);
 
     auto cursor = create_cursor(bytes);
-    auto boundary = Media::ADTS::Reader::find_frame_boundary_at_or_before(cursor, bytes.size() - 1, 0, bytes.size());
+    auto boundary = MUST(Media::ADTS::Reader::find_frame_boundary_at_or_before(cursor, bytes.size() - 1, 0, bytes.size()));
     EXPECT(boundary.has_value());
 
     // The last frame that a run of frames reaches, not the bytes trailing them.
@@ -220,7 +224,7 @@ TEST_CASE(backward_search_reads_back_through_bytes_holding_no_frames)
 TEST_CASE(reader_reads_a_stream_that_an_encoder_produced)
 {
     auto data = read_fixture("bbb.adts"sv);
-    auto reader = Media::ADTS::Reader::from_stream(create_cursor(data));
+    auto reader = MUST(Media::ADTS::Reader::from_stream(create_cursor(data)));
     EXPECT(reader.has_value());
     EXPECT_EQ(reader->first_frame_position(), 0u);
     EXPECT_EQ(reader->frame_header().sample_rate, 44100u);
@@ -231,7 +235,7 @@ TEST_CASE(reader_reads_a_stream_that_an_encoder_produced)
     u64 sample_count = 0;
     size_t byte_count = 0;
     while (true) {
-        auto frame = iterator.next();
+        auto frame = MUST(iterator.next());
         if (!frame.has_value())
             break;
         frame_count++;

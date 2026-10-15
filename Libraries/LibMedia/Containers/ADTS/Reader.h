@@ -24,6 +24,14 @@ public:
         FrameHeader header;
     };
 
+    struct FrameWithData {
+        FrameHeader header;
+        // The audio of the frame, without the framing that ADTS wraps it in. A decoder is configured
+        // from the configuration record the header implies, so it is handed the same access units that
+        // a stream carrying that record in its container would hand it.
+        FixedArray<u8> data;
+    };
+
     // Whether to scan forward for a sync code upon finding an invalid frame.
     enum class Resynchronize : bool {
         No,
@@ -37,18 +45,16 @@ public:
     {
     }
 
-    Optional<Frame> next();
-
-    // The audio of the frame, without the framing that ADTS wraps it in. A decoder is configured
-    // from the configuration record the header implies, so it is handed the same access units that
-    // a stream carrying that record in its container would hand it.
-    DecoderErrorOr<FixedArray<u8>> read_frame_data(Frame const&);
+    DecoderErrorOr<Optional<Frame>> next();
+    // Moves past the frame only once its data has been read, so an interrupted read can be retried.
+    DecoderErrorOr<Optional<FrameWithData>> read_next_frame();
 
     size_t position() const { return m_position; }
     MediaStreamCursor& cursor() { return *m_cursor; }
 
 private:
-    Optional<Frame> read_frame();
+    DecoderErrorOr<Optional<Frame>> read_frame();
+    DecoderErrorOr<FixedArray<u8>> read_frame_data(Frame const&);
 
     NonnullRefPtr<MediaStreamCursor> m_cursor;
     size_t m_position { 0 };
@@ -64,11 +70,11 @@ public:
 
     // Finds the position of a frame that begins a run of valid frames, so that a false sync code in
     // the middle of a stream is not mistaken for a frame boundary.
-    static Optional<size_t> find_frame_boundary_at_or_after(NonnullRefPtr<MediaStreamCursor> const&, size_t start_byte, size_t upper_bound);
-    static Optional<size_t> find_frame_boundary_at_or_before(NonnullRefPtr<MediaStreamCursor> const&, size_t target_byte, size_t lower_bound, size_t upper_bound);
+    static DecoderErrorOr<Optional<size_t>> find_frame_boundary_at_or_after(NonnullRefPtr<MediaStreamCursor> const&, size_t start_byte, size_t upper_bound);
+    static DecoderErrorOr<Optional<size_t>> find_frame_boundary_at_or_before(NonnullRefPtr<MediaStreamCursor> const&, size_t target_byte, size_t lower_bound, size_t upper_bound);
 
     // Returns nothing until enough frames are available to tell audio apart from a false sync code.
-    static Optional<Reader> from_stream(NonnullRefPtr<MediaStreamCursor> const&);
+    static DecoderErrorOr<Optional<Reader>> from_stream(NonnullRefPtr<MediaStreamCursor> const&);
 
     size_t first_frame_position() const { return m_first_frame_position; }
     FrameHeader const& frame_header() const { return m_frame_header; }
