@@ -16,6 +16,7 @@
 #include <AK/Vector.h>
 #include <Compositor/AsyncScrollUpdateOutbox.h>
 #include <Compositor/BackingStoreManager.h>
+#include <Compositor/CaretBlinkTimer.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/ElasticOverscrollController.h>
 #include <Compositor/Forward.h>
@@ -346,9 +347,7 @@ private:
     Gfx::IntRect frame_damage_for(PendingFrame const&, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
     Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
     void remember_rasterized_frame(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
-    void update_caret_blink_timer();
-    void schedule_next_caret_blink();
-    Gfx::IntRect caret_damage_rect();
+    Gfx::IntRect damage_rect_of_blinking_carets();
 
     CompositorStateWebContentClient& m_web_content_client;
     Compositing::CanvasSurfaceRegistry const& m_canvas_surface_registry;
@@ -411,9 +410,7 @@ private:
     Compositing::WindowResizingInProgress m_window_resize_in_progress { Compositing::WindowResizingInProgress::No };
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
     RefPtr<Core::Timer> m_surplus_backing_store_retirement_timer;
-    Function<void(Gfx::IntRect)> m_schedule_caret_repaint;
-    RefPtr<Core::Timer> m_caret_blink_timer;
-    Optional<i64> m_caret_blink_cycle_start_time_ns;
+    CaretBlinkTimer m_caret_blink_timer;
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
     Compositing::ContextVisibility m_visibility { Compositing::ContextVisibility::Visible };

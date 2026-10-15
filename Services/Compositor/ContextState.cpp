@@ -91,7 +91,7 @@ ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> pa
     , m_canvas_surface_registry(canvas_surface_registry)
     , m_context_id(context_id)
     , m_page_id(page_id)
-    , m_schedule_caret_repaint(move(schedule_caret_repaint))
+    , m_caret_blink_timer([this] { return damage_rect_of_blinking_carets(); }, move(schedule_caret_repaint))
 {
     if (page_id.has_value())
         m_presents_to_client = true;
@@ -102,10 +102,6 @@ ContextState::~ContextState()
     discard_sampled_visual_context_tree();
     stop_backing_store_shrink_timer();
     stop_surplus_backing_store_retirement_timer();
-    if (m_caret_blink_timer) {
-        m_caret_blink_timer->on_timeout = {};
-        m_caret_blink_timer->stop();
-    }
 }
 
 bool ContextState::is_owned_by(CompositorStateWebContentClient const& web_content_client) const
@@ -178,7 +174,7 @@ void ContextState::install_display_list_update(
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     m_scroll_state_snapshot.set_node_count(m_visual_context_tree->spatial_node_count());
     m_async_scroll_update_outbox.retire_scroll_offsets_adopted_by(m_scroll_state_snapshot.adopted_async_scroll_sequence());
-    update_caret_blink_timer();
+    m_caret_blink_timer.did_install_display_list(*m_display_list);
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(m_visual_context_tree->visual_viewport_transform(), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
 
@@ -213,49 +209,7 @@ void ContextState::install_display_list_update(
         apply_keyboard_scroll_state(metadata->keyboard_scroll_state);
 }
 
-void ContextState::update_caret_blink_timer()
-{
-    Optional<i64> blink_cycle_start_time_ns;
-    m_display_list->for_each_caret([&](auto, auto, auto const& caret) {
-        if (caret.should_blink)
-            blink_cycle_start_time_ns = caret.blink_cycle_start_time_ns;
-    });
-
-    if (blink_cycle_start_time_ns == m_caret_blink_cycle_start_time_ns)
-        return;
-    m_caret_blink_cycle_start_time_ns = blink_cycle_start_time_ns;
-
-    if (m_caret_blink_timer)
-        m_caret_blink_timer->stop();
-    if (!m_caret_blink_cycle_start_time_ns.has_value() || !m_schedule_caret_repaint)
-        return;
-
-    if (!m_caret_blink_timer) {
-        m_caret_blink_timer = Core::Timer::create_single_shot(500, [this] {
-            auto damage_rect = caret_damage_rect();
-            if (!damage_rect.is_empty())
-                m_schedule_caret_repaint(damage_rect);
-            schedule_next_caret_blink();
-        });
-    }
-    schedule_next_caret_blink();
-}
-
-void ContextState::schedule_next_caret_blink()
-{
-    if (!m_caret_blink_cycle_start_time_ns.has_value() || !m_caret_blink_timer)
-        return;
-
-    auto now_ns = MonotonicTime::now().nanoseconds();
-    auto elapsed_ns = now_ns > *m_caret_blink_cycle_start_time_ns
-        ? now_ns - *m_caret_blink_cycle_start_time_ns
-        : 0;
-    auto delay_ns = Compositing::caret_blink_interval_ns - elapsed_ns % Compositing::caret_blink_interval_ns;
-    auto delay_ms = max(static_cast<int>((delay_ns + 999'999) / 1'000'000), 1);
-    m_caret_blink_timer->restart(delay_ms);
-}
-
-Gfx::IntRect ContextState::caret_damage_rect()
+Gfx::IntRect ContextState::damage_rect_of_blinking_carets()
 {
     if (!m_display_list || !m_visual_context_tree.has_value())
         return {};
