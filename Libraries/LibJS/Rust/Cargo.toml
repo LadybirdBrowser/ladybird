@@ -20,7 +20,7 @@ thread-sanitizer = []
 ak = { path = "../../../AK/Rust" }
 foldhash = "0.2"
 getrandom = "0.4"
-hashbrown = { version = "0.16.1", default-features = false }
+hashbrown = { version = "0.17.1", default-features = false }
 indexmap = "2"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libc = "0.2"
