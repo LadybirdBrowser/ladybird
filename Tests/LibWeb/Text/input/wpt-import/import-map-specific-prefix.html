@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script type="importmap">
+    {
+        "imports": {
+            "pkg/": "./resources/import-map-prefix-broad/",
+            "pkg/sensitive/": "./resources/import-map-prefix-narrow/"
+        }
+    }
+</script>
+<script type="module">
+    import selected from "pkg/sensitive/module.js";
+    test(() => assert_equals(selected, "narrow"), "The most specific import-map prefix wins");
+</script>
