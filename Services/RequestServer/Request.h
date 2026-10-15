@@ -17,6 +17,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <LibCore/Timer.h>
+#include <LibCrypto/OpenSSL.h>
 #include <LibDNS/Resolver.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/CacheRequest.h>
@@ -128,6 +129,7 @@ public:
     bool notify_stored_response_cookies_and_hsts_policy(Badge<ControlConnectionFromClient>, u64 store_request_id);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
     void retry_after_aia(Badge<ConnectionFromClient>);
+    void aia_chain_probed(Badge<ConnectionFromClient>, Vector<Crypto::OpenSSL_X509> chain);
     AIACollector* aia_collector() const { return m_aia_collector.ptr(); }
 
 private:
@@ -255,6 +257,7 @@ private:
     ErrorOr<void> inform_client_request_started();
     bool should_retry_after_fetching_aia_intermediate(int curl_result_code) const;
     void start_aia_fetch_and_retry();
+    void continue_after_aia();
     ErrorOr<void> send_request_pipe_to_client();
     ErrorOr<void> send_transferred_body_file_to_client();
     void transfer_headers_to_client_if_needed();
@@ -325,6 +328,10 @@ private:
 
     RefPtr<AIACollector> m_aia_collector;
     size_t m_aia_fetch_count { 0 };
+    // The chain the server presented, read back by a probe connection once verification failed; empty until then.
+    Vector<Crypto::OpenSSL_X509> m_aia_chain;
+    bool m_aia_chain_probed { false };
+    bool m_aia_chain_verified { false };
     bool m_notify_on_cache_miss { false };
     bool m_informed_client_requires_network { false };
     bool m_informed_client_request_started { false };

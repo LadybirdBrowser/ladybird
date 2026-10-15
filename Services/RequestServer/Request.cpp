@@ -47,7 +47,7 @@ static ByteString url_without_credentials(URL::URL url)
     return url.to_byte_string();
 }
 
-static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[maybe_unused]] void* aia_collector)
+static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, void*)
 {
     // Everything below casts ssl_context to an SSL_CTX, which only holds when curl is built against OpenSSL.
     [[maybe_unused]] static auto const curl_uses_openssl = [] {
@@ -62,13 +62,6 @@ static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context,
     // for compatibility. Do the same while leaving curl responsible for detecting incomplete HTTP framing.
     if (curl_uses_openssl)
         SSL_CTX_set_options(static_cast<SSL_CTX*>(ssl_context), SSL_OP_IGNORE_UNEXPECTED_EOF);
-#endif
-
-#ifndef AK_OS_MACOS
-    // curl keeps one SSL context callback per handle, and AIA has to run against the same SSL_CTX configured above. So
-    // both are applied here. The collector arrives as CURLOPT_SSL_CTX_DATA and is null on handles lacking AIA state.
-    if (curl_uses_openssl && aia_collector)
-        apply_aia_verification(static_cast<SSL_CTX*>(ssl_context), *static_cast<AIACollector*>(aia_collector));
 #endif
 
     return CURLE_OK;
@@ -920,17 +913,52 @@ bool Request::should_retry_without_alternative_service(int curl_result_code) con
     return true;
 }
 
+#ifndef AK_OS_MACOS
+// The trust store libcurl verifies against, as text, for the bundle a request hands libcurl once AIA has
+// intermediates to add to it.
+static ByteString const& default_certificate_bundle()
+{
+    static ByteString const bundle = [] {
+        auto const& path = default_certificate_path();
+        if (path.is_empty())
+            return ByteString {};
+        auto file = Core::File::open(path, Core::File::OpenMode::Read);
+        if (file.is_error())
+            return ByteString {};
+        auto contents = file.value()->read_until_eof();
+        if (contents.is_error())
+            return ByteString {};
+        return ByteString { contents.value().bytes() };
+    }();
+    return bundle;
+}
+#endif
+
+// A failed verification is worth a look as long as the chain hasn't been probed, or a probe left caIssuers URLs to
+// fetch, within the per-request fetch budget.
 bool Request::should_retry_after_fetching_aia_intermediate(int curl_result_code) const
 {
     return m_type == RequestType::Fetch
         && curl_result_code == CURLE_PEER_FAILED_VERIFICATION
         && m_aia_collector
-        && !m_aia_collector->pending_urls.is_empty()
+        && (!m_aia_chain_probed || !m_aia_collector->pending_urls.is_empty())
         && m_aia_fetch_count < max_aia_fetches_per_request;
 }
 
 void Request::start_aia_fetch_and_retry()
 {
+    // The verification ran inside libcurl, which keeps the chain to itself. A handshake-only probe reads it back;
+    // the request then verifies it locally to learn which issuer is missing, and where that issuer says it lives.
+    if (!m_aia_chain_probed) {
+        dbgln_if(REQUESTSERVER_DEBUG, "AIA: probing the certificate chain of {}", m_url);
+        transition_to_state(State::WaitForAIA);
+        Optional<ByteString> resolve_entry;
+        if (m_dns_result)
+            resolve_entry = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+        m_client->probe_certificate_chain({}, m_url, m_request_id, m_proxy, move(resolve_entry));
+        return;
+    }
+
     ++m_aia_fetch_count;
     auto url = m_aia_collector->pending_urls.take_first();
     m_aia_collector->attempted_urls.set(url);
@@ -941,10 +969,37 @@ void Request::start_aia_fetch_and_retry()
     m_client->fetch_aia_intermediate({}, url, m_request_id);
 }
 
+void Request::aia_chain_probed(Badge<ConnectionFromClient>, Vector<Crypto::OpenSSL_X509> chain)
+{
+    if (m_state != State::WaitForAIA)
+        return;
+    m_aia_chain_probed = true;
+    m_aia_chain = move(chain);
+    continue_after_aia();
+}
+
 void Request::retry_after_aia(Badge<ConnectionFromClient>)
 {
     if (m_state != State::WaitForAIA)
         return;
+    continue_after_aia();
+}
+
+void Request::continue_after_aia()
+{
+    // Verify the probed chain here first, with whatever has been fetched so far: a chain that still wants an issuer
+    // names the next URL to fetch, and one that verifies has nothing left to fetch before the retry.
+    if (m_aia_collector && !m_aia_chain.is_empty()) {
+        Vector<X509*> chain;
+        for (auto& certificate : m_aia_chain)
+            chain.append(certificate.ptr());
+        m_aia_collector->pending_urls.clear();
+        m_aia_chain_verified = verify_chain_for_aia(chain, *m_aia_collector, default_certificate_path());
+        if (!m_aia_chain_verified && !m_aia_collector->pending_urls.is_empty() && m_aia_fetch_count < max_aia_fetches_per_request) {
+            start_aia_fetch_and_retry();
+            return;
+        }
+    }
 
     // Frees curl_slist allocations from the previous attempt too: handle_fetch_state() builds a fresh header, resolve
     // and connect-to list every time, so keeping only the easy handle would strand them until the request is destroyed.
@@ -1455,7 +1510,16 @@ void Request::handle_fetch_state()
 #ifndef AK_OS_MACOS
     if (!m_aia_collector)
         m_aia_collector = make_ref_counted<AIACollector>(m_client->is_private());
-    set_option(CURLOPT_SSL_CTX_DATA, m_aia_collector.ptr());
+    // Once the probed chain has verified here, to a root of the trust store, libcurl gets the store with the
+    // intermediates that verification used alongside. A TLS backend may take anything in that bundle for a trust
+    // anchor, so the intermediates go in only after this verification has shown they chain to a real root.
+    if (m_aia_chain_verified) {
+        auto intermediates = aia_intermediates_pem(*m_aia_collector);
+        auto const& bundle = default_certificate_bundle();
+        auto blob_bytes = ByteString::formatted("{}\n{}", bundle, intermediates);
+        curl_blob blob { const_cast<char*>(blob_bytes.characters()), blob_bytes.length(), CURL_BLOB_COPY };
+        set_option(CURLOPT_CAINFO_BLOB, &blob);
+    }
 #endif
 
     if (m_content_decoding_disabled) {

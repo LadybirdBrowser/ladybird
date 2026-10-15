@@ -44,6 +44,15 @@ struct AIAFetch {
     curl_slist* resolve_list { nullptr };
 };
 
+// A handshake-only connection that reads back the certificate chain a server presents, for a request whose
+// verification failed; what AIA fetching decides from.
+struct ChainProbe {
+    AK_ALLOC_WITH_KMALLOC;
+
+    u64 request_id { 0 };
+    curl_slist* resolve_list { nullptr };
+};
+
 // Diagnostics hook shared with the control connection; only does anything under REQUESTSERVER_WIRE_DEBUG.
 void note_event_tick(StringView label);
 
@@ -78,6 +87,7 @@ public:
     void start_revalidation_request(Badge<Request>, HTTP::NetworkIsolationKey, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials);
     void request_complete(Badge<Request>, Request const&);
     void fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id);
+    void probe_certificate_chain(Badge<Request>, URL::URL const&, u64 for_request_id, Optional<HTTP::Proxy> const&, Optional<ByteString> resolve_entry);
 
 private:
     ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, SiteBinding, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>);
@@ -110,6 +120,7 @@ private:
     void cancel_owned_work();
     void check_active_requests();
     void complete_aia_fetch(void* easy_handle, int result_code);
+    void complete_chain_probe(void* easy_handle, int result_code);
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
     size_t websocket_count() const;
     size_t total_websocket_count() const;
@@ -145,6 +156,7 @@ private:
     void abandon_aia_lookup(ByteString const& url);
 
     HashMap<void*, NonnullOwnPtr<AIAFetch>> m_aia_fetches;
+    HashMap<void*, NonnullOwnPtr<ChainProbe>> m_chain_probes;
     // AIA URLs whose DNS lookup is still outstanding, mapped to the requests waiting on them. Keeps a second
     // request asking for the same URL from starting a duplicate lookup before m_aia_fetches has an entry.
     HashMap<ByteString, Vector<u64>> m_pending_aia_lookups;
@@ -172,5 +184,6 @@ private:
 
 constexpr inline uintptr_t websocket_private_tag = 0x1;
 constexpr inline uintptr_t aia_fetch_private_tag = 0x2;
+constexpr inline uintptr_t chain_probe_private_tag = 0x4;
 
 }

@@ -31,6 +31,7 @@
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
+#include <openssl/x509.h>
 
 namespace RequestServer {
 
@@ -192,6 +193,14 @@ void ConnectionFromClient::cancel_owned_work()
     }
     m_aia_fetches.clear();
     m_pending_aia_lookups.clear();
+
+    for (auto& probe : m_chain_probes) {
+        curl_multi_remove_handle(m_curl_multi, probe.key);
+        curl_easy_cleanup(probe.key);
+        if (probe.value->resolve_list)
+            curl_slist_free_all(probe.value->resolve_list);
+    }
+    m_chain_probes.clear();
 }
 
 void ConnectionFromClient::die()
@@ -551,6 +560,11 @@ void ConnectionFromClient::check_active_requests()
             continue;
         }
 
+        if (reinterpret_cast<uintptr_t>(application_private) & chain_probe_private_tag) {
+            complete_chain_probe(msg->easy_handle, msg->data.result);
+            continue;
+        }
+
         ++completions_drained;
         auto* request = static_cast<Request*>(application_private);
         request->notify_fetch_complete({}, msg->data.result);
@@ -686,6 +700,94 @@ void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString con
     VERIFY(result == CURLM_OK);
 
     m_aia_fetches.set(easy_handle, move(fetch));
+}
+
+void ConnectionFromClient::probe_certificate_chain(Badge<Request>, URL::URL const& url, u64 for_request_id, Optional<HTTP::Proxy> const& proxy, Optional<ByteString> resolve_entry)
+{
+    auto fail = [&] {
+        if (auto request = m_active_requests.get(for_request_id); request.has_value())
+            (*request)->aia_chain_probed({}, {});
+    };
+
+    auto* easy_handle = curl_easy_init();
+    if (!easy_handle) {
+        fail();
+        return;
+    }
+
+    auto probe = make<ChainProbe>();
+    probe->request_id = for_request_id;
+
+    auto set_option = [&](auto option, auto value) {
+        if (auto result = curl_easy_setopt(easy_handle, option, value); result != CURLE_OK)
+            dbgln("RequestServer: chain probe failed to set curl option: {}", curl_easy_strerror(result));
+    };
+    set_option(CURLOPT_PRIVATE, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(probe.ptr()) | chain_probe_private_tag));
+    auto probe_url = url;
+    probe_url.set_username(""sv);
+    probe_url.set_password(""sv);
+    auto probe_url_string = probe_url.to_byte_string();
+    set_option(CURLOPT_URL, probe_url_string.characters());
+    set_option(CURLOPT_PROTOCOLS_STR, "https");
+    set_option(CURLOPT_CONNECT_ONLY, 1L);
+    set_option(CURLOPT_CONNECTTIMEOUT, 10L);
+    set_option(CURLOPT_TIMEOUT, 10L);
+    set_option(CURLOPT_NOSIGNAL, 1L);
+    // The handshake has to complete for libcurl to read the chain back, so verification is off here. That makes
+    // this connection one no request can reuse: libcurl matches a connection's TLS configuration before reusing it.
+    set_option(CURLOPT_SSL_VERIFYPEER, 0L);
+    set_option(CURLOPT_SSL_VERIFYHOST, 0L);
+    set_option(CURLOPT_CERTINFO, 1L);
+    set_option(CURLOPT_PROXY, proxy.has_value() ? proxy->to_curl_url().characters() : "");
+
+    if (resolve_entry.has_value()) {
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, resolve_entry->characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            probe->resolve_list = resolve_list;
+        }
+    }
+
+    auto result = curl_multi_add_handle(m_curl_multi, easy_handle);
+    VERIFY(result == CURLM_OK);
+
+    m_chain_probes.set(easy_handle, move(probe));
+}
+
+void ConnectionFromClient::complete_chain_probe(void* easy_handle, int result_code)
+{
+    // libcurl hands the chain back as it was sent: one list of "Subject:", "Cert:" and other entries per certificate.
+    Vector<Crypto::OpenSSL_X509> chain;
+    if (result_code == CURLE_OK) {
+        curl_certinfo* certificates = nullptr;
+        if (curl_easy_getinfo(easy_handle, CURLINFO_CERTINFO, &certificates) == CURLE_OK && certificates) {
+            for (int i = 0; i < certificates->num_of_certs; ++i) {
+                for (auto* entry = certificates->certinfo[i]; entry; entry = entry->next) {
+                    StringView line { entry->data, strlen(entry->data) };
+                    if (!line.starts_with("Cert:"sv))
+                        continue;
+                    // parse_certificates() hands over one reference per certificate; the wrapper takes it, or frees it.
+                    for (auto* certificate : parse_certificates(line.substring_view(5).bytes())) {
+                        if (auto owned = Crypto::OpenSSL_X509::wrap(certificate); !owned.is_error())
+                            chain.append(owned.release_value());
+                        else
+                            X509_free(certificate);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    auto probe = m_chain_probes.take(easy_handle);
+    curl_multi_remove_handle(m_curl_multi, easy_handle);
+    curl_easy_cleanup(easy_handle);
+    if (!probe.has_value())
+        return;
+    if ((*probe)->resolve_list)
+        curl_slist_free_all((*probe)->resolve_list);
+
+    if (auto request = m_active_requests.get((*probe)->request_id); request.has_value())
+        (*request)->aia_chain_probed({}, move(chain));
 }
 
 void ConnectionFromClient::complete_aia_fetch(void* easy_handle, int result_code)

@@ -18,8 +18,8 @@
 
 namespace RequestServer {
 
-// Per-request state shared with (per-connection, possibly pooled and longer-lived) SSL_CTX during verification. Ref-
-// counted, so a connection outliving its originating request can't leave the verify callback with a dangling pointer.
+// Per-request AIA state: the caIssuers URLs still to fetch, and the intermediates fetched so far. Ref-counted, since
+// one fetch can serve several requests.
 class AIACollector : public RefCounted<AIACollector> {
 public:
     explicit AIACollector(IsPrivate is_private)
@@ -28,16 +28,23 @@ public:
     }
 
     IsPrivate const is_private;           // Which of the process-wide caches this request may use and add to.
-    Vector<ByteString> pending_urls;      // caIssuers URLs collected during verification, awaiting fetch.
+    Vector<ByteString> pending_urls;      // caIssuers URLs collected from the probed chain, awaiting fetch.
     HashTable<ByteString> attempted_urls; // URLs already fetched for this request, so they're not re-collected.
 
     // Only intermediates used in verified chains enter the shared cache, preventing unrelated-chain poisoning.
     Vector<Crypto::OpenSSL_X509> fetched_intermediates;
 };
 
-// During verification, any cert whose issuer we can't find locally or in the fetched-intermediate cache has its
-// caIssuers URLs appended to collector.pending_urls (skipping ones already attempted or recently known dead).
-void apply_aia_verification(SSL_CTX* ssl_context, AIACollector& collector);
+// Verifies the chain a server presented, leaf first, against the trust store at the path plus the fetched and cached
+// intermediates. A chain that fails for want of an issuer leaves that certificate's caIssuers URLs in
+// collector.pending_urls for the request to fetch (skipping ones already attempted or recently known dead), and one
+// that verifies promotes the fetched intermediates it used to the shared cache. Returns whether the chain verified.
+bool verify_chain_for_aia(ReadonlySpan<X509*> chain, AIACollector& collector, ByteString const& trust_store_path);
+
+// The fetched and cached intermediates as PEM, for libcurl to see next to the trust store's roots. A TLS backend may
+// take anything in that bundle for a trust anchor, so a request hands them over only once verify_chain_for_aia() has
+// shown its chain reaches a real root through them.
+ByteString aia_intermediates_pem(AIACollector const& collector);
 
 // Returns true if the body yielded a certificate.
 bool add_fetched_aia_intermediates(ReadonlyBytes body, ReadonlySpan<NonnullRefPtr<AIACollector>> collectors);

@@ -9,6 +9,7 @@
 
 #include <AK/AnyOf.h>
 #include <AK/ByteString.h>
+#include <AK/Format.h>
 #include <AK/HashMap.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
@@ -22,7 +23,6 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs7.h>
-#include <openssl/ssl.h>
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 #include <openssl/x509v3.h>
@@ -189,86 +189,90 @@ static void promote_fetched_intermediates(X509_STORE_CTX* context, AIACollector&
     }
 }
 
-// Installed via SSL_CTX_set_cert_verify_callback. On failure, we record the failing cert's caIssuers URLs for the
-// request layer to fetch and retry.
-static int verify_callback(X509_STORE_CTX* context, void* collector_data)
+// The trust store the local verification runs against, loaded once per path: the same bundle libcurl verifies with.
+static X509_STORE* trust_store_for(ByteString const& path)
 {
-    auto* collector = static_cast<AIACollector*>(collector_data);
-    auto is_private = collector ? collector->is_private : IsPrivate::No;
+    static HashMap<ByteString, X509_STORE*> stores;
+    return stores.ensure(path, [&]() -> X509_STORE* {
+        auto* store = X509_STORE_new();
+        if (store && !path.is_empty() && X509_STORE_load_locations(store, path.characters(), nullptr) != 1)
+            dbgln("AIA: failed to load the trust store at {}", path);
+        return store;
+    });
+}
 
-    // Add the fetched intermediates alongside the certs the server sent, as untrusted path-building material.
-    auto* server_untrusted = X509_STORE_CTX_get0_untrusted(context);
-    auto* untrusted = server_untrusted ? sk_X509_dup(server_untrusted) : sk_X509_new_null();
-    if (untrusted) {
-        for (auto& candidate : intermediate_cache(is_private))
-            sk_X509_push(untrusted, candidate.ptr());
-        if (collector) {
-            for (auto& candidate : collector->fetched_intermediates)
-                sk_X509_push(untrusted, candidate.ptr());
-        }
-        X509_STORE_CTX_set0_untrusted(context, untrusted);
+bool verify_chain_for_aia(ReadonlySpan<X509*> chain, AIACollector& collector, ByteString const& trust_store_path)
+{
+    if (chain.is_empty())
+        return false;
+    auto* store = trust_store_for(trust_store_path);
+    if (!store)
+        return false;
+
+    // The certificates the server sent beyond the leaf, the cached intermediates, and the fetched ones are the
+    // untrusted material the chain is built from.
+    auto* untrusted = sk_X509_new_null();
+    if (!untrusted)
+        return false;
+    for (size_t i = 1; i < chain.size(); ++i)
+        sk_X509_push(untrusted, chain[i]);
+    for (auto& candidate : intermediate_cache(collector.is_private))
+        sk_X509_push(untrusted, candidate.ptr());
+    for (auto& candidate : collector.fetched_intermediates)
+        sk_X509_push(untrusted, candidate.ptr());
+
+    auto* context = X509_STORE_CTX_new();
+    if (!context || X509_STORE_CTX_init(context, store, chain[0], untrusted) != 1) {
+        X509_STORE_CTX_free(context);
+        sk_X509_free(untrusted);
+        return false;
     }
 
     auto result = X509_verify_cert(context);
 
-    if (untrusted) {
-        X509_STORE_CTX_set0_untrusted(context, server_untrusted);
-        sk_X509_free(untrusted);
-    }
-
-    if (result > 0 && collector && !collector->fetched_intermediates.is_empty())
-        promote_fetched_intermediates(context, *collector);
+    if (result > 0 && !collector.fetched_intermediates.is_empty())
+        promote_fetched_intermediates(context, collector);
 
     // AIA can only repair a chain missing an intermediate issuer. For any other verification failure, fetching
-    // caIssuers is useless — so we leave the collector's pending URLs untouched.
+    // caIssuers is useless, so the collector's pending URLs stay as they are.
     auto const verify_error = X509_STORE_CTX_get_error(context);
     auto const issuer_is_missing = verify_error == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT || verify_error == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
 
-    if (result <= 0 && collector && issuer_is_missing) {
+    if (result <= 0 && issuer_is_missing) {
         if (auto* current = X509_STORE_CTX_get_current_cert(context)) {
             for (auto& url : ca_issuers_urls(current)) {
-                if (collector->attempted_urls.contains(url))
+                if (collector.attempted_urls.contains(url))
                     continue;
-                if (auto failed_at = failed_urls(is_private).get(url); failed_at.has_value()) {
+                if (auto failed_at = failed_urls(collector.is_private).get(url); failed_at.has_value()) {
                     if (MonotonicTime::now_coarse() - *failed_at < failed_url_retry_interval)
                         continue;
-                    failed_urls(is_private).remove(url);
+                    failed_urls(collector.is_private).remove(url);
                 }
-                if (!collector->pending_urls.contains_slow(url))
-                    collector->pending_urls.append(move(url));
+                if (!collector.pending_urls.contains_slow(url))
+                    collector.pending_urls.append(move(url));
             }
         }
     }
 
-    // X509_verify_cert() returns -1 in exceptional cases, and a negative return from a cert_verify_callback tells
-    // OpenSSL to suspend the handshake and retry it later. Collapse it to a plain pass/fail.
-    return result > 0 ? 1 : 0;
+    X509_STORE_CTX_free(context);
+    sk_X509_free(untrusted);
+    return result > 0;
 }
 
-// The SSL_CTX (per-connection, possibly pooled beyond the originating request) holds a strong reference to the
-// collector; this releases it when the SSL_CTX is destroyed.
-static void collector_ex_data_free(void*, void* ptr, CRYPTO_EX_DATA*, int, long, void*)
+ByteString aia_intermediates_pem(AIACollector const& collector)
 {
-    if (ptr)
-        static_cast<AIACollector*>(ptr)->unref();
-}
-
-static int collector_ex_data_index()
-{
-    static int index = SSL_CTX_get_ex_new_index(0, nullptr, nullptr, nullptr, collector_ex_data_free);
-    return index;
-}
-
-void apply_aia_verification(SSL_CTX* ssl_context, AIACollector& collector)
-{
-    // The ex-data slot owns the reference taken here, and collector_ex_data_free() releases it when the SSL_CTX
-    // goes away. On a failed set, the pointer isn't stored — so nothing would ever release it. Hand it back here.
-    collector.ref();
-    if (SSL_CTX_set_ex_data(ssl_context, collector_ex_data_index(), &collector) != 1) {
-        collector.unref();
-        return;
-    }
-    SSL_CTX_set_cert_verify_callback(ssl_context, verify_callback, &collector);
+    auto* bio = BIO_new(BIO_s_mem());
+    if (!bio)
+        return {};
+    for (auto& candidate : intermediate_cache(collector.is_private))
+        PEM_write_bio_X509(bio, candidate.ptr());
+    for (auto& candidate : collector.fetched_intermediates)
+        PEM_write_bio_X509(bio, candidate.ptr());
+    char* data = nullptr;
+    auto length = BIO_get_mem_data(bio, &data);
+    auto pem = ByteString { data, static_cast<size_t>(length) };
+    BIO_free(bio);
+    return pem;
 }
 
 }
