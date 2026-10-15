@@ -2509,18 +2509,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
 // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
 static void create_navigation_params_by_fetching(
-    URL::URL url,
-    DocumentResource document_resource,
-    Fetch::Infrastructure::Request::ReferrerType request_referrer,
-    ReferrerPolicy::ReferrerPolicy request_referrer_policy,
-    Optional<URL::Origin> initiator_origin,
-    Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
-    Optional<URL::URL> about_base_url,
-    Optional<URL::Origin> origin,
-    Utf16String navigable_target_name,
-    bool reload_pending,
-    bool ever_populated,
-    UserAgentInitiated user_agent_initiated,
+    PendingSessionHistoryEntryDescriptor const& entry,
     GC::Ptr<LocalNavigable> navigable,
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
@@ -2538,7 +2527,8 @@ static void create_navigation_params_by_fetching(
     // FIXME: 1. Assert: this is running in parallel.
 
     // 2. Let documentResource be entry's document state's resource.
-    // NOTE: documentResource is passed as a parameter.
+    auto const& document_state = entry.document_state;
+    auto const& document_resource = document_state.resource;
 
     // 3. Let request be a new request, with
     //    url: entry's URL
@@ -2553,7 +2543,7 @@ static void create_navigation_params_by_fetching(
     //    referrer policy: entry's document state's request referrer policy
     //    policy container: sourceSnapshotParams's source policy container
     auto request = Fetch::Infrastructure::Request::create(vm);
-    request->set_url(url);
+    request->set_url(entry.url);
     request->set_client(source_snapshot_params->fetch_client);
     request->set_destination(Fetch::Infrastructure::Request::Destination::Document);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
@@ -2561,8 +2551,8 @@ static void create_navigation_params_by_fetching(
     request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Manual);
     request->set_replaces_client_id(active_document.relevant_settings_object().id);
     request->set_mode(Fetch::Infrastructure::Request::Mode::Navigate);
-    request->set_referrer(request_referrer);
-    request->set_referrer_policy(request_referrer_policy);
+    request->set_referrer(document_state.request_referrer);
+    request->set_referrer_policy(document_state.request_referrer_policy);
     request->set_policy_container(source_snapshot_params->source_policy_container);
     request->set_text_directive_user_activation(source_snapshot_params->text_directive_user_activation);
     request->set_browsing_context_group_has_multiple_contexts(source_snapshot_params->browsing_context_group_has_multiple_contexts);
@@ -2571,7 +2561,7 @@ static void create_navigation_params_by_fetching(
     // 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
     //    document state's initiator origin.
     if (navigable->is_top_level_traversable())
-        request->set_top_level_navigation_initiator_origin(initiator_origin);
+        request->set_top_level_navigation_initiator_origin(document_state.initiator_origin);
 
     // 5. If request's client is null:
     if (request->client() == nullptr) {
@@ -2600,8 +2590,8 @@ static void create_navigation_params_by_fetching(
     // NB: For any other navigation, the entry's initiator origin is its source document's — the fetch client's. An
     //     opaque one is left to HTML's behavior: It's what a navigation from the browser's UI records — which sends
     //     Sec-Fetch-Site:none anyway, and must still reach a file: URL — as well as what a sandboxed document does.
-    if (initiator_origin.has_value() && !initiator_origin->is_opaque())
-        request->set_origin(*initiator_origin);
+    if (document_state.initiator_origin.has_value() && !document_state.initiator_origin->is_opaque())
+        request->set_origin(*document_state.initiator_origin);
 
     // 6. If documentResource is a POST resource:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
@@ -2640,7 +2630,7 @@ static void create_navigation_params_by_fetching(
     }
 
     // 7. If entry's document state's reload pending is true, then set request's reload-navigation flag.
-    if (reload_pending) {
+    if (document_state.reload_pending) {
         request->set_reload_navigation(true);
 
         // AD-HOC: The specs don't define HTTP cache behavior for reloads. But every major engine forces at least re-
@@ -2653,7 +2643,7 @@ static void create_navigation_params_by_fetching(
     }
 
     // 8. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
-    else if (ever_populated)
+    else if (document_state.ever_populated)
         request->set_history_navigation(true);
 
     // 9. If sourceSnapshotParams's has transient activation is true, then set request's user-activation to true.
@@ -2673,7 +2663,7 @@ static void create_navigation_params_by_fetching(
     //
     //         Blink GetInitiatorRelation() finds that the entry has no initiator, and Gecko
     //         IsUserTriggeredForSecFetchSite() that its triggering principal is the system's.
-    if (user_agent_initiated == UserAgentInitiated::Yes && navigable && navigable->is_top_level_traversable())
+    if (document_state.user_agent_initiated == UserAgentInitiated::Yes && navigable && navigable->is_top_level_traversable())
         request->set_user_agent_initiated(true);
 
     // 10. If navigable's container is non-null:
@@ -2718,7 +2708,7 @@ static void create_navigation_params_by_fetching(
         .url = active_document.url(),
         .origin = active_document.origin(),
         .opener_policy = active_document.opener_policy(),
-        .current_context_is_navigation_source = initiator_origin.has_value() && active_document.origin().is_same_origin(*initiator_origin)
+        .current_context_is_navigation_source = document_state.initiator_origin.has_value() && active_document.origin().is_same_origin(*document_state.initiator_origin)
     };
 
     // 15. Let finalSandboxFlags be an empty sandboxing flag set.
@@ -2729,9 +2719,9 @@ static void create_navigation_params_by_fetching(
     // 20. Let commitEarlyHints be null.
     // AD-HOC: Store required variables on the state holder to keep them alive whilst waiting on the fetch to complete.
     auto state_holder = realm.heap().allocate<NavigationParamsFetchStateHolder>(move(coop_enforcement_result), request->current_url(), request,
-        move(initiator_origin), move(history_policy_container), move(about_base_url), source_snapshot_params,
-        request_referrer, request_referrer_policy, move(origin), move(document_resource), ever_populated, user_agent_initiated,
-        move(navigable_target_name));
+        document_state.initiator_origin, document_state.history_policy_container, document_state.about_base_url, source_snapshot_params,
+        document_state.request_referrer, document_state.request_referrer_policy, document_state.origin, document_resource, document_state.ever_populated, document_state.user_agent_initiated,
+        document_state.navigable_target_name);
     state_holder->navigable = navigable;
     state_holder->csp_navigation_type = csp_navigation_type;
     state_holder->navigation_timing_type = navigation_timing_type;
@@ -2850,18 +2840,7 @@ using NavigationParamsCreationCompletion = GC::Function<void(GC::Ref<InternalNav
 
 static void create_navigation_params_for_population(
     LocalNavigable& navigable,
-    URL::URL url,
-    DocumentResource document_resource,
-    Fetch::Infrastructure::Request::ReferrerType request_referrer,
-    ReferrerPolicy::ReferrerPolicy request_referrer_policy,
-    Optional<URL::Origin> initiator_origin,
-    Optional<URL::Origin> origin,
-    Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
-    Optional<URL::URL> about_base_url,
-    Utf16String navigable_target_name,
-    bool reload_pending,
-    bool ever_populated,
-    UserAgentInitiated user_agent_initiated,
+    PendingSessionHistoryEntryDescriptor const& entry,
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
@@ -2884,12 +2863,13 @@ static void create_navigation_params_for_population(
         // 1. If documentResource is a string, then set navigationParams to the result of creating navigation params
         //    from a srcdoc resource given entry, navigable, targetSnapshotParams, userInvolvement, navigationId, and
         //    navTimingType.
-        if (document_resource.has<Utf16String>()) {
+        auto const& document_state = entry.document_state;
+        if (document_state.resource.has<Utf16String>()) {
             wrap_navigation_params(create_navigation_params_from_a_srcdoc_resource(
-                document_resource,
-                origin,
-                history_policy_container,
-                about_base_url,
+                document_state.resource,
+                document_state.origin,
+                document_state.history_policy_container,
+                document_state.about_base_url,
                 &navigable, source_snapshot_params, target_snapshot_params, user_involvement, navigation_id, navigation_timing_type));
         }
         // 2. Otherwise, if all of the following are true:
@@ -2899,20 +2879,9 @@ static void create_navigation_params_for_population(
         //    then set navigationParams to the result of creating navigation params by fetching given entry, navigable,
         //    sourceSnapshotParams, targetSnapshotParams, cspNavigationType, userInvolvement, navigationId, and
         //    navTimingType.
-        else if (Fetch::Infrastructure::is_fetch_scheme(url.scheme()) && (document_resource.has<Empty>() || allow_POST)) {
+        else if (Fetch::Infrastructure::is_fetch_scheme(entry.url.scheme()) && (document_state.resource.has<Empty>() || allow_POST)) {
             create_navigation_params_by_fetching(
-                url,
-                document_resource,
-                request_referrer,
-                request_referrer_policy,
-                initiator_origin,
-                history_policy_container,
-                about_base_url,
-                origin,
-                navigable_target_name,
-                reload_pending,
-                ever_populated,
-                user_agent_initiated,
+                entry,
                 &navigable,
                 source_snapshot_params,
                 target_snapshot_params,
@@ -2924,7 +2893,7 @@ static void create_navigation_params_for_population(
         }
         // 3. Otherwise, if entry's URL's scheme is not a fetch scheme, then set navigationParams to a new non-fetch
         //    scheme navigation params, with:
-        else if (!Fetch::Infrastructure::is_fetch_scheme(url.scheme())) {
+        else if (!Fetch::Infrastructure::is_fetch_scheme(entry.url.scheme())) {
             // - id: navigationId
             // - navigable: navigable
             // - URL: entry's URL
@@ -2936,10 +2905,10 @@ static void create_navigation_params_for_population(
             wrap_navigation_params(navigable.vm().heap().allocate<NonFetchSchemeNavigationParams>(
                 navigation_id,
                 &navigable,
-                url,
+                entry.url,
                 target_snapshot_params.sandboxing_flags,
                 source_snapshot_params->has_transient_activation,
-                *initiator_origin,
+                *document_state.initiator_origin,
                 navigation_timing_type,
                 user_involvement));
         }
@@ -2948,119 +2917,63 @@ static void create_navigation_params_for_population(
     }
 }
 
+// The navigation params a navigation or a history step created, as the UI process receives them.
+static void create_navigation_population_result(Window& window, GC::Ref<InternalNavigationResult> result, GC::Ref<GC::Function<void(NavigationPopulationResult)>> on_complete)
+{
+    auto& realm = window.principal_realm();
+    create_navigation_params_descriptor(realm, result->navigation_params, GC::create_function(realm.heap(), [result, on_complete](NavigationParamsVariantDescriptor navigation_params) {
+        Optional<SessionHistoryDocumentStateDescriptor> replacement_document_state;
+        if (result->replacement_document_state)
+            replacement_document_state = create_session_history_document_state_descriptor(*result->replacement_document_state);
+        on_complete->function()({
+            .navigation_params = move(navigation_params),
+            .redirected_url = move(result->redirected_url),
+            .redirect_replaced_fragment = result->redirect_replaced_fragment,
+            .classic_history_api_state = move(result->classic_history_api_state),
+            .replacement_document_state = move(replacement_document_state),
+            .resource_cleared = result->resource_cleared,
+        });
+    }));
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
-void LocalNavigable::populate_session_history_entry_document(
-    URL::URL url,
-    DocumentResource document_resource,
-    Fetch::Infrastructure::Request::ReferrerType request_referrer,
-    ReferrerPolicy::ReferrerPolicy request_referrer_policy,
-    Optional<URL::Origin> initiator_origin,
-    Optional<URL::Origin> origin,
-    Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
-    Optional<URL::URL> about_base_url,
-    Utf16String navigable_target_name,
-    bool reload_pending,
-    bool ever_populated,
-    UserAgentInitiated user_agent_initiated,
-    GC::Ref<SourceSnapshotParams> source_snapshot_params,
-    TargetSnapshotParams const& target_snapshot_params,
-    UserNavigationInvolvement user_involvement,
-    Optional<Utf16String> navigation_id,
-    NavigationParamsVariant navigation_params,
-    ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
-    bool allow_POST,
-    GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps,
-    GC::Ptr<GC::Function<void(NavigationPopulationResult)>> response_steps)
+// NB: This creates the navigation params for request's entry, and the UI process chooses the process that creates the
+//     document from them.
+void LocalNavigable::populate_session_history_entry_document(NavigationPopulationRequest const& request, GC::Ref<SourceSnapshotParams> source_snapshot_params, bool allow_POST, GC::Ref<GC::Function<void(NavigationPopulationResult)>> response_steps)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    auto respond_without_an_active_window = [response_steps] {
+        response_steps->function()({
+            .navigation_params = NavigationParamsNullOrError { "Navigable has no active window"_utf16 },
+            .redirected_url = {},
+            .classic_history_api_state = {},
+            .replacement_document_state = {},
+        });
+    };
     if (!active_window()) {
-        stop_or_resume_response_body_delivery(navigation_params);
-        if (response_steps) {
-            response_steps->function()({
-                .navigation_params = NavigationParamsNullOrError { "Navigable has no active window"_utf16 },
-                .redirected_url = {},
-                .classic_history_api_state = {},
-                .replacement_document_state = {},
-            });
-        }
+        respond_without_an_active_window();
         return;
     }
 
-    auto navigation_timing_type = reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
-    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, navigation_timing_type, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params, response_steps](GC::Ref<InternalNavigationResult> result) {
-        // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    auto received_navigation_params = GC::create_function(heap(), [this, response_steps, respond_without_an_active_window](GC::Ref<InternalNavigationResult> result) {
         if (!active_window()) {
             stop_or_resume_response_body_delivery(result->navigation_params);
-            if (response_steps) {
-                response_steps->function()({
-                    .navigation_params = NavigationParamsNullOrError { "Navigable has no active window"_utf16 },
-                    .redirected_url = {},
-                    .classic_history_api_state = {},
-                    .replacement_document_state = {},
-                });
-            }
+            respond_without_an_active_window();
             return;
         }
-
-        if (response_steps) {
-            auto& realm = active_window()->principal_realm();
-            create_navigation_params_descriptor(realm, result->navigation_params, GC::create_function(heap(), [result, response_steps](NavigationParamsVariantDescriptor params) {
-                Optional<SessionHistoryDocumentStateDescriptor> replacement_document_state;
-                if (result->replacement_document_state)
-                    replacement_document_state = create_session_history_document_state_descriptor(*result->replacement_document_state);
-                response_steps->function()({
-                    .navigation_params = move(params),
-                    .redirected_url = move(result->redirected_url),
-                    .classic_history_api_state = move(result->classic_history_api_state),
-                    .replacement_document_state = move(replacement_document_state),
-                    .resource_cleared = result->resource_cleared,
-                });
-            }));
-            return;
-        }
-
-        auto output = heap().allocate<PopulateSessionHistoryEntryDocumentOutput>();
-        // NB: result's redirect fields are moved into output here; population must read them from output rather than
-        //     the moved-from result.
-        output->redirected_url = move(result->redirected_url);
-        output->redirect_replaced_fragment = result->redirect_replaced_fragment;
-        output->classic_history_api_state = move(result->classic_history_api_state);
-        output->replacement_document_state = result->replacement_document_state;
-        output->resource_cleared = result->resource_cleared;
-
-        queue_navigation_and_traversal_task_for_session_history_entry_population(
-            url,
-            source_snapshot_params->allows_downloading,
-            source_snapshot_params->fetch_client ? Optional<URL::Origin> { source_snapshot_params->fetch_client->origin() } : Optional<URL::Origin> {},
-            user_involvement,
-            navigation_id,
-            move(result->navigation_params),
-            csp_navigation_type,
-            navigation_timing_type,
-            output,
-            completion_steps);
+        create_navigation_population_result(*active_window(), result, response_steps);
     });
 
+    auto navigation_timing_type = request.history_entry.document_state.reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
     create_navigation_params_for_population(
         *this,
-        move(url),
-        move(document_resource),
-        move(request_referrer),
-        request_referrer_policy,
-        move(initiator_origin),
-        move(origin),
-        move(history_policy_container),
-        move(about_base_url),
-        move(navigable_target_name),
-        reload_pending,
-        ever_populated,
-        user_agent_initiated,
+        request.history_entry,
         source_snapshot_params,
-        target_snapshot_params,
-        user_involvement,
-        move(navigation_id),
-        move(navigation_params),
-        csp_navigation_type,
+        request.target_snapshot_params,
+        request.user_involvement,
+        {},
+        NullOrError {},
+        request.csp_navigation_type,
         navigation_timing_type,
         allow_POST,
         received_navigation_params);
@@ -3299,44 +3212,18 @@ void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulatio
             return;
         }
 
-        auto& realm = active_window()->principal_realm();
-        create_navigation_params_descriptor(realm, result->navigation_params, GC::create_function(heap(), [this, request = move(request), navigation_id, result](NavigationParamsVariantDescriptor navigation_params) mutable {
+        create_navigation_population_result(*active_window(), result, GC::create_function(heap(), [this, request = move(request), navigation_id, result](NavigationPopulationResult population_result) mutable {
             if (!active_window() || ongoing_navigation() != navigation_id) {
                 stop_or_resume_response_body_delivery(result->navigation_params);
                 return;
             }
-
-            Optional<SessionHistoryDocumentStateDescriptor> replacement_document_state;
-            if (result->replacement_document_state)
-                replacement_document_state = create_session_history_document_state_descriptor(*result->replacement_document_state);
-
-            auto population_result = NavigationPopulationResult {
-                .navigation_params = move(navigation_params),
-                .redirected_url = move(result->redirected_url),
-                .redirect_replaced_fragment = result->redirect_replaced_fragment,
-                .classic_history_api_state = move(result->classic_history_api_state),
-                .replacement_document_state = move(replacement_document_state),
-                .resource_cleared = result->resource_cleared,
-            };
             page().client().navigation_params_creation_finished(*this, move(request), move(population_result));
         }));
     });
 
-    auto const& document_state = request.history_entry.document_state;
     create_navigation_params_for_population(
         *this,
-        request.history_entry.url,
-        document_state.resource,
-        document_state.request_referrer,
-        document_state.request_referrer_policy,
-        document_state.initiator_origin,
-        document_state.origin,
-        document_state.history_policy_container,
-        document_state.about_base_url,
-        document_state.navigable_target_name,
-        document_state.reload_pending,
-        document_state.ever_populated,
-        document_state.user_agent_initiated,
+        request.history_entry,
         source_snapshot_params,
         request.target_snapshot_params,
         request.user_involvement,
