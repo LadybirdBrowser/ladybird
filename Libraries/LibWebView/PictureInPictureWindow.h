@@ -34,6 +34,8 @@ public:
     virtual void hide() = 0;
     virtual void set_video_size(Gfx::IntSize) = 0;
 
+    void close_page();
+
     // The user closes the window to stop watching its video, or to go back to the video's tab and watch it there.
     enum class VideoKeepsPlaying : bool {
         No,
@@ -46,6 +48,9 @@ public:
 
 protected:
     void report_page_close_of(ViewImplementation&);
+
+private:
+    ViewImplementation* m_page_view { nullptr };
 };
 
 }

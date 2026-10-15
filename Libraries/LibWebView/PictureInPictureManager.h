@@ -33,6 +33,7 @@ public:
     // Returns the window's handle, or an empty string when no window could be opened.
     String open_window(WebContentPage& requesting_page, CanonicalNavigable& requesting_navigable, CanonicalTraversable&, Gfx::IntSize video_size);
     void close_window(WebContentPage&);
+    void close_window_and_its_page(WebContentPage&);
     void video_size_did_change(WebContentPage&, Gfx::IntSize);
 
     bool document_has_open_window(CanonicalNavigable const&) const;
