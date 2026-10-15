@@ -876,17 +876,6 @@ impl GuardedSubstitutionContexts {
         }
         true
     }
-
-    fn innermost_function(&self) -> Option<CustomFunctionIdentity> {
-        self.contexts
-            .borrow()
-            .iter()
-            .rev()
-            .find_map(|context| match &context.dependency {
-                SubstitutionContextDependency::Function(identity) => Some(*identity),
-                _ => None,
-            })
-    }
 }
 
 #[derive(Default)]
@@ -2726,13 +2715,13 @@ fn replace_a_dashed_function(
     // FIXME: Top-level calls use the element's style scope, but should use the relevant CSS rule's style scope. See the
     //        failing tests in function-shadow.html.
     let caller_scope_identity = context
-        .guarded_contexts
-        .innermost_function()
-        .and_then(|identity| {
+        .function_local_scopes
+        .last()
+        .and_then(|scope| {
             functions
                 .definitions
                 .iter()
-                .find(|definition| definition.identity == identity)
+                .find(|definition| definition.identity == scope.function_identity)
                 .map(|definition| definition.scope_identity)
         })
         .unwrap_or(functions.caller_scope_identity);
