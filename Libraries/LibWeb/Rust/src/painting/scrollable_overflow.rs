@@ -634,6 +634,7 @@ pub(crate) struct ScrollableOverflowState {
     pub(crate) geometry_changed: Cell<bool>,
     pub(crate) scrollability_changed: Cell<bool>,
     pub(crate) recalculations: Cell<u64>,
+    pub(crate) contained_box_index_refills: Cell<u64>,
     /// Rows whose overflow a read could find unmeasured: new rows, and rows whose measurement was
     /// invalidated. Reading overflow never measures it, so the pass measures these first.
     pub(crate) rows_to_measure: RefCell<Vec<NodeSlotId>>,
@@ -669,6 +670,8 @@ impl LayoutNodeArena {
         }
         let mut index = self.scrollable_overflow.non_child_boxes.borrow_mut();
         if let Some(viewport) = self.scrollable_overflow.viewport.get() {
+            let refills = &self.scrollable_overflow.contained_box_index_refills;
+            refills.set(refills.get() + 1);
             refill_contained_boxes_index(&self.paintable_rows(), viewport, &mut index);
         } else {
             index.clear();
