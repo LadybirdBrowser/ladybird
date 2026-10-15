@@ -1,4 +1,4 @@
 after the canceled step: viewport stretch=0 window.scrollY=0
 after the steps let through: viewport stretch=-20 window.scrollY=0
-wheel events the page could have canceled: 3 of 3
+wheel events the page could have canceled: 2 of 3
 sprung back: viewport stretch=0 window.scrollY=0

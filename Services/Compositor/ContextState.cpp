@@ -948,15 +948,19 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
         && first_is_one_of(scroll_gesture_phase, Web::ScrollGesturePhase::Ongoing, Web::ScrollGesturePhase::Momentum);
     bool only_blocking_wheel_event_listeners_hold_steps_back = first_is_one_of(m_wheel_routing_admission,
         Compositing::WheelRoutingAdmission::BlockingWheelEventListeners, Compositing::WheelRoutingAdmission::StaleWheelEventListeners);
-    if (!m_can_accept_async_wheel_events && !(page_let_touchpad_step_through && only_blocking_wheel_event_listeners_hold_steps_back))
-        return {};
 
-    m_scroll_snap_controller.note_gesture_phase(scroll_gesture_phase);
     auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
     // The end of the gesture before this one may never have arrived. Whether a step of the UI starts another gesture
     // was decided when the UI sent it.
     if (!latched_node_id.has_value() && !step_came_from_ui)
         end_gesture_that_stretches_elastically(now);
+
+    if (!m_can_accept_async_wheel_events
+        && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, wheel_delta_precision, scroll_gesture_phase)
+        && !(page_let_touchpad_step_through && only_blocking_wheel_event_listeners_hold_steps_back))
+        return {};
+
+    m_scroll_snap_controller.note_gesture_phase(scroll_gesture_phase);
 
     // The end of a gesture carries no delta to hit test; it snaps the boxes the gesture panned.
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
@@ -981,6 +985,8 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
         // which reports the same step with its own document.
         return {};
     }
+    if (page_let_touchpad_step_through)
+        m_wheel_scroll_latch->wheel_event_listener_state_generation_the_page_let_the_gesture_through_at = m_wheel_event_listener_state_generation;
 
     auto scroll_chaining = is_first_step_of_gesture ? Compositing::ScrollChaining::ToScrollableAncestors : Compositing::ScrollChaining::None;
     auto outcome = perform_wheel_scroll_of_node(*latched_node_id, delta, wheel_delta_precision, scroll_gesture_phase, operation_tracking, viewport_rect, now, scroll_chaining, VisualViewportPanning::No);
@@ -1237,6 +1243,15 @@ bool ContextState::wheel_step_was_overtaken_by_ui(Web::ScrollGesturePhase phase,
     VERIFY_NOT_REACHED();
 }
 
+bool ContextState::step_continues_touchpad_gesture_the_page_let_through(Optional<Compositing::AsyncScrollNodeID> const& latched_node_id, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase) const
+{
+    if (!latched_node_id.has_value() || !m_wheel_scroll_latch.has_value() || !presents_to_client())
+        return false;
+    if (wheel_delta_precision != Web::WheelDeltaPrecision::Precise || scroll_gesture_phase == Web::ScrollGesturePhase::None)
+        return false;
+    return m_wheel_scroll_latch->wheel_event_listener_state_generation_the_page_let_the_gesture_through_at == m_wheel_event_listener_state_generation;
+}
+
 ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::MouseEvent const& event, MonotonicTime now)
 {
     return async_scroll_by(wheel_event_position(event), wheel_event_delta_in_device_pixels(event), event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now);
@@ -1387,14 +1402,16 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended)
         end_gesture_that_stretches_elastically(now);
 
+    auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
+
     // A page without scroll nodes still has a visual viewport to pan once it is zoomed in.
     auto can_pan_zoomed_visual_viewport = m_wheel_routing_admission == Compositing::WheelRoutingAdmission::NoScrollNode
         && visual_viewport_scale_for_compositing().value_or(1.0f) > 1.0f;
-    if (!m_can_accept_async_wheel_events && !can_pan_zoomed_visual_viewport)
+    if (!m_can_accept_async_wheel_events && !can_pan_zoomed_visual_viewport
+        && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, wheel_delta_precision, scroll_gesture_phase))
         return {};
 
     m_scroll_snap_controller.note_gesture_phase(scroll_gesture_phase);
-    auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
 
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
         if (!snap_at_gesture_end(now).has_value())

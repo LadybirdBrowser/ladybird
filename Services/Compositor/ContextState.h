@@ -262,6 +262,10 @@ private:
         // The momentum of the gesture has gone into a rebound of the scroller. Momentum outlasts that rebound, and the
         // rest of it must not start another one.
         bool momentum_has_sprung_the_scroller_back { false };
+        // Set once the page dispatched a step of a touchpad gesture that blocking wheel event listeners held back, and
+        // did not cancel it. The rest of the gesture is scrolled here first, without asking the page again, for as long
+        // as no blocking listener has been added or removed since.
+        Optional<u64> wheel_event_listener_state_generation_the_page_let_the_gesture_through_at {};
     };
 
     // A scroller that a touchpad gesture holds past an edge of its scroll range, or that is springing back from there.
@@ -348,6 +352,7 @@ private:
     // Whether the UI sent a later wheel event that this step cannot come before in one gesture, which makes it a step
     // of a gesture this context has already ended or moved past.
     bool wheel_step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
+    bool step_continues_touchpad_gesture_the_page_let_through(Optional<Compositing::AsyncScrollNodeID> const& latched_node_id, Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
     Web::MouseEvent scroll_fling_event(Gfx::FloatPoint delta, Web::ScrollGesturePhase) const;
     Optional<Gfx::FloatPoint> in_flight_wheel_destination(Web::AsyncScrollNodeStableID) const;
     AsyncScrollResult smooth_wheel_scroll_by(Optional<Compositing::WheelScrollTarget> const&, Gfx::IntRect viewport_rect, MonotonicTime now);
