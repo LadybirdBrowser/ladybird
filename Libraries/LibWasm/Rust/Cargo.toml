@@ -7,10 +7,10 @@ edition = "2024"
 crate-type = ["rlib"]
 
 [dependencies]
-cranelift-codegen = "0.116"
-cranelift-frontend = "0.116"
-cranelift-module = "0.116"
-cranelift-native = "0.116"
+cranelift-codegen = "0.136"
+cranelift-frontend = "0.136"
+cranelift-module = "0.136"
+cranelift-native = "0.136"
 target-lexicon = "0.13"
 libc = "0.2"
 

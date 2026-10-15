@@ -20,7 +20,7 @@ use cranelift_codegen::ir::ExtFuncData;
 use cranelift_codegen::ir::ExternalName;
 use cranelift_codegen::ir::Function;
 use cranelift_codegen::ir::InstBuilder;
-use cranelift_codegen::ir::MemFlags;
+use cranelift_codegen::ir::MemFlagsData;
 use cranelift_codegen::ir::Signature;
 use cranelift_codegen::ir::StackSlotData;
 use cranelift_codegen::ir::StackSlotKind;
@@ -140,10 +140,7 @@ impl CraneliftCompiler {
 
         // Declare variables for virtual registers R0-R7.
         // We store everything as i64 and bitcast for floats.
-        let reg_vars: [Variable; REG_COUNT] = std::array::from_fn(|i| Variable::from_u32(i as u32));
-        for var in &reg_vars {
-            builder.declare_var(*var, types::I64);
-        }
+        let reg_vars: [Variable; REG_COUNT] = std::array::from_fn(|_| builder.declare_var(types::I64));
 
         let entry_block = builder.create_block();
         builder.append_block_params_for_function_params(entry_block);
@@ -161,7 +158,7 @@ impl CraneliftCompiler {
             let offset = regs_offset + (i as i32) * value_size;
             let val = builder
                 .ins()
-                .load(types::I64, MemFlags::trusted(), configuration_val, offset);
+                .load(types::I64, MemFlagsData::trusted(), configuration_val, offset);
             builder.def_var(*var, val);
         }
 
@@ -220,6 +217,7 @@ impl CraneliftCompiler {
                     name: ExternalName::user(user_ref),
                     signature: $sig,
                     colocated: false,
+                    patchable: false,
                 })
             }};
         }
@@ -248,19 +246,16 @@ impl CraneliftCompiler {
         let call_record_base_offset = layout.call_record_base_offset as i32;
         // Accesses to memory32 are unchecked and may fault; the fault handler turns
         // faults inside a memory's guarded reservation into wasm traps.
-        let wasm_memory_flags = MemFlags::new();
-        let interp_var = Variable::from_u32(8);
-        builder.declare_var(interp_var, ptr_type);
+        let wasm_memory_flags = MemFlagsData::new();
+        let interp_var = builder.declare_var(ptr_type);
         builder.def_var(interp_var, interpreter_val);
-        let config_var = Variable::from_u32(9);
-        builder.declare_var(config_var, ptr_type);
+        let config_var = builder.declare_var(ptr_type);
         builder.def_var(config_var, configuration_val);
-        let locals_base_var = Variable::from_u32(10);
-        builder.declare_var(locals_base_var, ptr_type);
+        let locals_base_var = builder.declare_var(ptr_type);
         let initial_locals_base =
             builder
                 .ins()
-                .load(ptr_type, MemFlags::trusted(), configuration_val, locals_base_offset);
+                .load(ptr_type, MemFlagsData::trusted(), configuration_val, locals_base_offset);
         builder.def_var(locals_base_var, initial_locals_base);
         let is_scalar_memory_access = |opcode: u64| {
             matches!(
@@ -305,10 +300,12 @@ impl CraneliftCompiler {
             // Each base address is stable for the whole call: memory32 storage reserves its
             // maximum (plus guard) up front, so growing commits in place and never moves it.
             let cage_base_storage = builder.ins().func_addr(ptr_type, h_primitive_storage_cage_base);
-            let cage_base = builder.ins().load(ptr_type, MemFlags::trusted(), cage_base_storage, 0);
+            let cage_base = builder
+                .ins()
+                .load(ptr_type, MemFlagsData::trusted(), cage_base_storage, 0);
             let memory_instances = builder.ins().load(
                 ptr_type,
-                MemFlags::trusted(),
+                MemFlagsData::trusted(),
                 configuration_val,
                 memory_instances_offset,
             );
@@ -319,10 +316,10 @@ impl CraneliftCompiler {
                 let memory_pointer_address = builder.ins().iadd(memory_instances, memory_pointer_offset);
                 let memory = builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), memory_pointer_address, 0);
+                    .load(ptr_type, MemFlagsData::trusted(), memory_pointer_address, 0);
                 let storage_offset = builder.ins().load(
                     types::I64,
-                    MemFlags::trusted(),
+                    MemFlagsData::trusted(),
                     memory,
                     memory_instance_data_offset + memory_buffer_storage_offset_offset,
                 );
@@ -348,7 +345,7 @@ impl CraneliftCompiler {
         if !used_global_indices.is_empty() {
             let globals = builder.ins().load(
                 ptr_type,
-                MemFlags::trusted(),
+                MemFlagsData::trusted(),
                 configuration_val,
                 global_instances_offset,
             );
@@ -359,7 +356,7 @@ impl CraneliftCompiler {
                 let global_pointer_address = builder.ins().iadd(globals, global_pointer_offset);
                 let global = builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), global_pointer_address, 0);
+                    .load(ptr_type, MemFlagsData::trusted(), global_pointer_address, 0);
                 global_instances.push((global_index, global));
             }
         }
@@ -378,11 +375,8 @@ impl CraneliftCompiler {
         let mut is_unreachable = false;
         let mut dirty_regs = [false; REG_COUNT];
         let mut stack_vars: Vec<Variable> = Vec::with_capacity(max_stack_depth);
-        const VSTACK_VAR_BASE: u32 = 12;
-
-        for i in 0..max_stack_depth {
-            let var = Variable::from_u32(VSTACK_VAR_BASE + i as u32);
-            builder.declare_var(var, types::I64);
+        for _ in 0..max_stack_depth {
+            let var = builder.declare_var(types::I64);
             let zero = builder.ins().iconst(types::I64, 0);
             builder.def_var(var, zero);
             stack_vars.push(var);
@@ -390,38 +384,12 @@ impl CraneliftCompiler {
         let mut sp: usize = 0;
 
         // If we allocate something on the stack, make sure to restore the stack at the end.
-        let initial_stack_size_var = Variable::from_u32(VSTACK_VAR_BASE + max_stack_depth as u32);
-        builder.declare_var(initial_stack_size_var, types::I64);
-        let mut next_var_id: u32 = VSTACK_VAR_BASE + max_stack_depth as u32 + 1;
+        let initial_stack_size_var = builder.declare_var(types::I64);
 
-        let reg_vars_f64: [Variable; REG_COUNT] = std::array::from_fn(|_| {
-            let v = Variable::from_u32(next_var_id);
-            next_var_id += 1;
-            builder.declare_var(v, types::F64);
-            v
-        });
-        let stack_vars_f64: Vec<Variable> = (0..max_stack_depth)
-            .map(|_| {
-                let v = Variable::from_u32(next_var_id);
-                next_var_id += 1;
-                builder.declare_var(v, types::F64);
-                v
-            })
-            .collect();
-        let reg_vars_f32: [Variable; REG_COUNT] = std::array::from_fn(|_| {
-            let v = Variable::from_u32(next_var_id);
-            next_var_id += 1;
-            builder.declare_var(v, types::F32);
-            v
-        });
-        let stack_vars_f32: Vec<Variable> = (0..max_stack_depth)
-            .map(|_| {
-                let v = Variable::from_u32(next_var_id);
-                next_var_id += 1;
-                builder.declare_var(v, types::F32);
-                v
-            })
-            .collect();
+        let reg_vars_f64: [Variable; REG_COUNT] = std::array::from_fn(|_| builder.declare_var(types::F64));
+        let stack_vars_f64: Vec<Variable> = (0..max_stack_depth).map(|_| builder.declare_var(types::F64)).collect();
+        let reg_vars_f32: [Variable; REG_COUNT] = std::array::from_fn(|_| builder.declare_var(types::F32));
+        let stack_vars_f32: Vec<Variable> = (0..max_stack_depth).map(|_| builder.declare_var(types::F32)).collect();
         let mut reg_ty = [Bank::Int; REG_COUNT];
         let mut stack_ty = vec![Bank::Int; max_stack_depth];
 
@@ -451,26 +419,21 @@ impl CraneliftCompiler {
         };
         let local_vars: Vec<Variable> = if num_locals <= max_promote_locals {
             (0..num_locals)
-                .map(|_| {
-                    let v = Variable::from_u32(next_var_id);
-                    next_var_id += 1;
-                    v
+                .map(|i| {
+                    let ty = if local_is_f64[i] {
+                        types::F64
+                    } else if local_is_f32[i] {
+                        types::F32
+                    } else {
+                        types::I64
+                    };
+                    builder.declare_var(ty)
                 })
                 .collect()
         } else {
             Vec::new()
         };
         let mut dirty_locals = vec![false; num_locals];
-        for (i, var) in local_vars.iter().enumerate() {
-            let ty = if local_is_f64[i] {
-                types::F64
-            } else if local_is_f32[i] {
-                types::F32
-            } else {
-                types::I64
-            };
-            builder.declare_var(*var, ty);
-        }
 
         // set_frame_lightweight verifies the stack-usage hint before these unchecked operations.
         macro_rules! emit_stack_push {
@@ -479,14 +442,14 @@ impl CraneliftCompiler {
                 let cfg = $builder.use_var(config_var);
                 let top = $builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
-                $builder.ins().store(MemFlags::trusted(), v, top, 0);
+                    .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_top_offset);
+                $builder.ins().store(MemFlagsData::trusted(), v, top, 0);
                 let zero_tag = $builder.ins().iconst(types::I64, 0);
-                $builder.ins().store(MemFlags::trusted(), zero_tag, top, 8);
-                let new_top = $builder.ins().iadd_imm(top, i64::from(value_size));
+                $builder.ins().store(MemFlagsData::trusted(), zero_tag, top, 8);
+                let new_top = $builder.ins().iadd_imm_s(top, i64::from(value_size));
                 $builder
                     .ins()
-                    .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
+                    .store(MemFlagsData::trusted(), new_top, cfg, value_stack_top_offset);
             }};
         }
         macro_rules! emit_stack_pop {
@@ -494,12 +457,14 @@ impl CraneliftCompiler {
                 let cfg = $builder.use_var(config_var);
                 let top = $builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
-                let new_top = $builder.ins().iadd_imm(top, -i64::from(value_size));
+                    .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_top_offset);
+                let new_top = $builder.ins().iadd_imm_s(top, -i64::from(value_size));
                 $builder
                     .ins()
-                    .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
-                $builder.ins().load(types::I64, MemFlags::trusted(), new_top, 0)
+                    .store(MemFlagsData::trusted(), new_top, cfg, value_stack_top_offset);
+                $builder
+                    .ins()
+                    .load(types::I64, MemFlagsData::trusted(), new_top, 0)
             }};
         }
         macro_rules! emit_stack_size {
@@ -507,12 +472,12 @@ impl CraneliftCompiler {
                 let cfg = $builder.use_var(config_var);
                 let top = $builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                    .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_top_offset);
                 let base = $builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_base_offset);
+                    .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_base_offset);
                 let bytes = $builder.ins().isub(top, base);
-                $builder.ins().ushr_imm(bytes, 4)
+                $builder.ins().ushr_imm_s(bytes, 4)
             }};
         }
         // Trim the real stack to `target_size + arity` values, keeping the top `arity` values
@@ -524,28 +489,30 @@ impl CraneliftCompiler {
                 let cfg = $builder.use_var(config_var);
                 let base = $builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_base_offset);
-                let target_bytes = $builder.ins().ishl_imm($target_size, 4);
+                    .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_base_offset);
+                let target_bytes = $builder.ins().ishl_imm_s($target_size, 4);
                 let trimmed_top = $builder.ins().iadd(base, target_bytes);
                 let new_top = if $arity as usize > 0 {
                     let top = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_top_offset);
                     let bits = $builder
                         .ins()
-                        .load(types::I64, MemFlags::trusted(), top, -value_size);
+                        .load(types::I64, MemFlagsData::trusted(), top, -value_size);
                     let tag = $builder
                         .ins()
-                        .load(types::I64, MemFlags::trusted(), top, -value_size + 8);
-                    $builder.ins().store(MemFlags::trusted(), bits, trimmed_top, 0);
-                    $builder.ins().store(MemFlags::trusted(), tag, trimmed_top, 8);
-                    $builder.ins().iadd_imm(trimmed_top, i64::from(value_size))
+                        .load(types::I64, MemFlagsData::trusted(), top, -value_size + 8);
+                    $builder
+                        .ins()
+                        .store(MemFlagsData::trusted(), bits, trimmed_top, 0);
+                    $builder.ins().store(MemFlagsData::trusted(), tag, trimmed_top, 8);
+                    $builder.ins().iadd_imm_s(trimmed_top, i64::from(value_size))
                 } else {
                     trimmed_top
                 };
                 $builder
                     .ins()
-                    .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
+                    .store(MemFlagsData::trusted(), new_top, cfg, value_stack_top_offset);
             }};
         }
 
@@ -576,9 +543,11 @@ impl CraneliftCompiler {
                     let cfg = $builder.use_var(config_var);
                     let base = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, call_record_base_offset);
                     let off = i32::from(src - CALLREC_BASE) * value_size;
-                    $builder.ins().load(types::I64, MemFlags::trusted(), base, off)
+                    $builder
+                        .ins()
+                        .load(types::I64, MemFlagsData::trusted(), base, off)
                 }
             }};
         }
@@ -590,20 +559,20 @@ impl CraneliftCompiler {
                     let cfg = $builder.use_var(config_var);
                     let top = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_top_offset);
                     let zero_tag = $builder.ins().iconst(types::I64, 0);
                     for i in 0..sp {
                         let val = $builder.use_var(stack_vars[i]);
                         let offset = (i as i32) * value_size;
-                        $builder.ins().store(MemFlags::trusted(), val, top, offset);
+                        $builder.ins().store(MemFlagsData::trusted(), val, top, offset);
                         $builder
                             .ins()
-                            .store(MemFlags::trusted(), zero_tag, top, offset + 8);
+                            .store(MemFlagsData::trusted(), zero_tag, top, offset + 8);
                     }
-                    let new_top = $builder.ins().iadd_imm(top, i64::from(sp as i32 * value_size));
+                    let new_top = $builder.ins().iadd_imm_s(top, i64::from(sp as i32 * value_size));
                     $builder
                         .ins()
-                        .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
+                        .store(MemFlagsData::trusted(), new_top, cfg, value_stack_top_offset);
                 }
                 sp = 0;
             }};
@@ -616,20 +585,20 @@ impl CraneliftCompiler {
                     let cfg = $builder.use_var(config_var);
                     let top = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, value_stack_top_offset);
                     let zero_tag = $builder.ins().iconst(types::I64, 0);
                     for i in 0..n {
                         let val = $builder.use_var(stack_vars[sp - n + i]);
                         let offset = (i as i32) * value_size;
-                        $builder.ins().store(MemFlags::trusted(), val, top, offset);
+                        $builder.ins().store(MemFlagsData::trusted(), val, top, offset);
                         $builder
                             .ins()
-                            .store(MemFlags::trusted(), zero_tag, top, offset + 8);
+                            .store(MemFlagsData::trusted(), zero_tag, top, offset + 8);
                     }
-                    let new_top = $builder.ins().iadd_imm(top, i64::from(n as i32 * value_size));
+                    let new_top = $builder.ins().iadd_imm_s(top, i64::from(n as i32 * value_size));
                     $builder
                         .ins()
-                        .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
+                        .store(MemFlagsData::trusted(), new_top, cfg, value_stack_top_offset);
                 }
             }};
         }
@@ -655,11 +624,13 @@ impl CraneliftCompiler {
                     let cfg = $builder.use_var(config_var);
                     let base = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, call_record_base_offset);
                     let off = i32::from(dst - CALLREC_BASE) * value_size;
-                    $builder.ins().store(MemFlags::trusted(), val, base, off);
+                    $builder.ins().store(MemFlagsData::trusted(), val, base, off);
                     let zero_tag = $builder.ins().iconst(types::I64, 0);
-                    $builder.ins().store(MemFlags::trusted(), zero_tag, base, off + 8);
+                    $builder
+                        .ins()
+                        .store(MemFlagsData::trusted(), zero_tag, base, off + 8);
                 }
             }};
         }
@@ -672,7 +643,7 @@ impl CraneliftCompiler {
                         $builder.use_var(reg_vars_f64[src as usize])
                     } else {
                         let raw = $builder.use_var(reg_vars[src as usize]);
-                        $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                        $builder.ins().bitcast(types::F64, MemFlagsData::new(), raw)
                     }
                 } else if src == STACK_MARKER {
                     if max_stack_depth > 0 && sp > 0 {
@@ -681,19 +652,21 @@ impl CraneliftCompiler {
                             $builder.use_var(stack_vars_f64[sp])
                         } else {
                             let raw = $builder.use_var(stack_vars[sp]);
-                            $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                            $builder.ins().bitcast(types::F64, MemFlagsData::new(), raw)
                         }
                     } else {
                         let raw = emit_stack_pop!($builder);
-                        $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                        $builder.ins().bitcast(types::F64, MemFlagsData::new(), raw)
                     }
                 } else {
                     let cfg = $builder.use_var(config_var);
                     let base = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, call_record_base_offset);
                     let off = i32::from(src - CALLREC_BASE) * value_size;
-                    $builder.ins().load(types::F64, MemFlags::trusted(), base, off)
+                    $builder
+                        .ins()
+                        .load(types::F64, MemFlagsData::trusted(), base, off)
                 }
             }};
         }
@@ -702,7 +675,7 @@ impl CraneliftCompiler {
             ($builder:expr, $dst:expr, $val:expr) => {{
                 let dst = $dst;
                 let val = $val;
-                let bits = $builder.ins().bitcast(types::I64, MemFlags::new(), val);
+                let bits = $builder.ins().bitcast(types::I64, MemFlagsData::new(), val);
                 if dst < STACK_MARKER {
                     $builder.def_var(reg_vars_f64[dst as usize], val);
                     $builder.def_var(reg_vars[dst as usize], bits);
@@ -721,11 +694,13 @@ impl CraneliftCompiler {
                     let cfg = $builder.use_var(config_var);
                     let base = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, call_record_base_offset);
                     let off = i32::from(dst - CALLREC_BASE) * value_size;
-                    $builder.ins().store(MemFlags::trusted(), bits, base, off);
+                    $builder.ins().store(MemFlagsData::trusted(), bits, base, off);
                     let zero_tag = $builder.ins().iconst(types::I64, 0);
-                    $builder.ins().store(MemFlags::trusted(), zero_tag, base, off + 8);
+                    $builder
+                        .ins()
+                        .store(MemFlagsData::trusted(), zero_tag, base, off + 8);
                 }
             }};
         }
@@ -739,7 +714,7 @@ impl CraneliftCompiler {
                     } else {
                         let raw = $builder.use_var(reg_vars[src as usize]);
                         let raw32 = $builder.ins().ireduce(types::I32, raw);
-                        $builder.ins().bitcast(types::F32, MemFlags::new(), raw32)
+                        $builder.ins().bitcast(types::F32, MemFlagsData::new(), raw32)
                     }
                 } else if src == STACK_MARKER {
                     if max_stack_depth > 0 && sp > 0 {
@@ -749,20 +724,22 @@ impl CraneliftCompiler {
                         } else {
                             let raw = $builder.use_var(stack_vars[sp]);
                             let raw32 = $builder.ins().ireduce(types::I32, raw);
-                            $builder.ins().bitcast(types::F32, MemFlags::new(), raw32)
+                            $builder.ins().bitcast(types::F32, MemFlagsData::new(), raw32)
                         }
                     } else {
                         let raw = emit_stack_pop!($builder);
                         let raw32 = $builder.ins().ireduce(types::I32, raw);
-                        $builder.ins().bitcast(types::F32, MemFlags::new(), raw32)
+                        $builder.ins().bitcast(types::F32, MemFlagsData::new(), raw32)
                     }
                 } else {
                     let cfg = $builder.use_var(config_var);
                     let base = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, call_record_base_offset);
                     let off = i32::from(src - CALLREC_BASE) * value_size;
-                    $builder.ins().load(types::F32, MemFlags::trusted(), base, off)
+                    $builder
+                        .ins()
+                        .load(types::F32, MemFlagsData::trusted(), base, off)
                 }
             }};
         }
@@ -773,7 +750,7 @@ impl CraneliftCompiler {
                 let val = $val;
                 // Keep the always-valid i64 copy in sync for bank-agnostic consumers: an f32 is 4
                 // bytes, so bitcast to i32 and sign-extend into the boxed slot.
-                let bits32 = $builder.ins().bitcast(types::I32, MemFlags::new(), val);
+                let bits32 = $builder.ins().bitcast(types::I32, MemFlagsData::new(), val);
                 let bits = $builder.ins().sextend(types::I64, bits32);
                 if dst < STACK_MARKER {
                     $builder.def_var(reg_vars_f32[dst as usize], val);
@@ -793,11 +770,13 @@ impl CraneliftCompiler {
                     let cfg = $builder.use_var(config_var);
                     let base = $builder
                         .ins()
-                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                        .load(ptr_type, MemFlagsData::trusted(), cfg, call_record_base_offset);
                     let off = i32::from(dst - CALLREC_BASE) * value_size;
-                    $builder.ins().store(MemFlags::trusted(), bits, base, off);
+                    $builder.ins().store(MemFlagsData::trusted(), bits, base, off);
                     let zero_tag = $builder.ins().iconst(types::I64, 0);
-                    $builder.ins().store(MemFlags::trusted(), zero_tag, base, off + 8);
+                    $builder
+                        .ins()
+                        .store(MemFlagsData::trusted(), zero_tag, base, off + 8);
                 }
             }};
         }
@@ -924,9 +903,9 @@ impl CraneliftCompiler {
                 if idx < local_vars.len() {
                     let v = $builder.use_var(local_vars[idx]);
                     if local_is_f64[idx] {
-                        $builder.ins().bitcast(types::I64, MemFlags::new(), v)
+                        $builder.ins().bitcast(types::I64, MemFlagsData::new(), v)
                     } else if local_is_f32[idx] {
-                        let bits32 = $builder.ins().bitcast(types::I32, MemFlags::new(), v);
+                        let bits32 = $builder.ins().bitcast(types::I32, MemFlagsData::new(), v);
                         $builder.ins().sextend(types::I64, bits32)
                     } else {
                         v
@@ -935,7 +914,7 @@ impl CraneliftCompiler {
                     let lb = $builder.use_var(locals_base_var);
                     $builder
                         .ins()
-                        .load(types::I64, MemFlags::trusted(), lb, (idx as i32) * value_size)
+                        .load(types::I64, MemFlagsData::trusted(), lb, (idx as i32) * value_size)
                 }
             }};
         }
@@ -946,12 +925,12 @@ impl CraneliftCompiler {
                     $builder.use_var(local_vars[idx])
                 } else if idx < local_vars.len() {
                     let v = $builder.use_var(local_vars[idx]);
-                    $builder.ins().bitcast(types::F64, MemFlags::new(), v)
+                    $builder.ins().bitcast(types::F64, MemFlagsData::new(), v)
                 } else {
                     let lb = $builder.use_var(locals_base_var);
                     $builder
                         .ins()
-                        .load(types::F64, MemFlags::trusted(), lb, (idx as i32) * value_size)
+                        .load(types::F64, MemFlagsData::trusted(), lb, (idx as i32) * value_size)
                 }
             }};
         }
@@ -963,12 +942,12 @@ impl CraneliftCompiler {
                 } else if idx < local_vars.len() {
                     let v = $builder.use_var(local_vars[idx]);
                     let v32 = $builder.ins().ireduce(types::I32, v);
-                    $builder.ins().bitcast(types::F32, MemFlags::new(), v32)
+                    $builder.ins().bitcast(types::F32, MemFlagsData::new(), v32)
                 } else {
                     let lb = $builder.use_var(locals_base_var);
                     $builder
                         .ins()
-                        .load(types::F32, MemFlags::trusted(), lb, (idx as i32) * value_size)
+                        .load(types::F32, MemFlagsData::trusted(), lb, (idx as i32) * value_size)
                 }
             }};
         }
@@ -978,10 +957,10 @@ impl CraneliftCompiler {
                 let v = $val;
                 if idx < local_vars.len() {
                     let stored = if local_is_f64[idx] {
-                        $builder.ins().bitcast(types::F64, MemFlags::new(), v)
+                        $builder.ins().bitcast(types::F64, MemFlagsData::new(), v)
                     } else if local_is_f32[idx] {
                         let v32 = $builder.ins().ireduce(types::I32, v);
-                        $builder.ins().bitcast(types::F32, MemFlags::new(), v32)
+                        $builder.ins().bitcast(types::F32, MemFlagsData::new(), v32)
                     } else {
                         v
                     };
@@ -990,9 +969,11 @@ impl CraneliftCompiler {
                 } else {
                     let lb = $builder.use_var(locals_base_var);
                     let offset = (idx as i32) * value_size;
-                    $builder.ins().store(MemFlags::trusted(), v, lb, offset);
+                    $builder.ins().store(MemFlagsData::trusted(), v, lb, offset);
                     let zero = $builder.ins().iconst(types::I64, 0);
-                    $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                    $builder
+                        .ins()
+                        .store(MemFlagsData::trusted(), zero, lb, offset + 8);
                 }
             }};
         }
@@ -1004,15 +985,17 @@ impl CraneliftCompiler {
                     $builder.def_var(local_vars[idx], v);
                     dirty_locals[idx] = true;
                 } else if idx < local_vars.len() {
-                    let bits = $builder.ins().bitcast(types::I64, MemFlags::new(), v);
+                    let bits = $builder.ins().bitcast(types::I64, MemFlagsData::new(), v);
                     $builder.def_var(local_vars[idx], bits);
                     dirty_locals[idx] = true;
                 } else {
                     let lb = $builder.use_var(locals_base_var);
                     let offset = (idx as i32) * value_size;
-                    $builder.ins().store(MemFlags::trusted(), v, lb, offset);
+                    $builder.ins().store(MemFlagsData::trusted(), v, lb, offset);
                     let zero = $builder.ins().iconst(types::I64, 0);
-                    $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                    $builder
+                        .ins()
+                        .store(MemFlagsData::trusted(), zero, lb, offset + 8);
                 }
             }};
         }
@@ -1024,7 +1007,7 @@ impl CraneliftCompiler {
                     $builder.def_var(local_vars[idx], v);
                     dirty_locals[idx] = true;
                 } else {
-                    let bits32 = $builder.ins().bitcast(types::I32, MemFlags::new(), v);
+                    let bits32 = $builder.ins().bitcast(types::I32, MemFlagsData::new(), v);
                     let bits = $builder.ins().sextend(types::I64, bits32);
                     write_local_inline!($builder, $idx_imm, bits);
                 }
@@ -1070,15 +1053,17 @@ impl CraneliftCompiler {
                         }
                         let v = $builder.use_var(local_vars[i]);
                         let stored = if local_is_f32[i] {
-                            let bits32 = $builder.ins().bitcast(types::I32, MemFlags::new(), v);
+                            let bits32 = $builder.ins().bitcast(types::I32, MemFlagsData::new(), v);
                             $builder.ins().sextend(types::I64, bits32)
                         } else {
                             v
                         };
                         let offset = (i as i32) * value_size;
-                        $builder.ins().store(MemFlags::trusted(), stored, lb, offset);
+                        $builder.ins().store(MemFlagsData::trusted(), stored, lb, offset);
                         let zero = $builder.ins().iconst(types::I64, 0);
-                        $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                        $builder
+                            .ins()
+                            .store(MemFlagsData::trusted(), zero, lb, offset + 8);
                     }
                 }
             }};
@@ -1090,7 +1075,7 @@ impl CraneliftCompiler {
             ($builder:expr, $sig:expr, $ptr:expr, $args:expr) => {{
                 let call = $builder.ins().call_indirect($sig, $ptr, $args);
                 let trapped = $builder.inst_results(call)[0];
-                let is_trap = $builder.ins().icmp_imm(IntCC::NotEqual, trapped, 0);
+                let is_trap = $builder.ins().icmp_imm_s(IntCC::NotEqual, trapped, 0);
                 let cont = $builder.create_block();
                 $builder.ins().brif(is_trap, trap_block, &[], cont, &[]);
                 $builder.switch_to_block(cont);
@@ -1099,7 +1084,7 @@ impl CraneliftCompiler {
                 let _cfg_for_lb = $builder.use_var(config_var);
                 let new_lb = $builder
                     .ins()
-                    .load(ptr_type, MemFlags::trusted(), _cfg_for_lb, locals_base_offset);
+                    .load(ptr_type, MemFlagsData::trusted(), _cfg_for_lb, locals_base_offset);
                 $builder.def_var(locals_base_var, new_lb);
             }};
         }
@@ -1113,7 +1098,7 @@ impl CraneliftCompiler {
                 ));
                 for (i, &byte) in msg.iter().enumerate() {
                     let b = $builder.ins().iconst(types::I8, i64::from(byte));
-                    $builder.ins().stack_store(b, ss, i as i32);
+                    $builder.ins().stack_store(ptr_type, b, ss, i as i32);
                 }
                 let msg_ptr = $builder.ins().stack_addr(ptr_type, ss, 0);
                 let msg_len = $builder.ins().iconst(types::I32, msg.len() as i64);
@@ -1158,8 +1143,10 @@ impl CraneliftCompiler {
                         let zero = $builder.ins().iconst(types::I64, 0);
                         for i in num_params..num_locals {
                             let offset = (i as i32) * value_size;
-                            $builder.ins().store(MemFlags::trusted(), zero, lb, offset);
-                            $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                            $builder.ins().store(MemFlagsData::trusted(), zero, lb, offset);
+                            $builder
+                                .ins()
+                                .store(MemFlagsData::trusted(), zero, lb, offset + 8);
                         }
                     }
                 } else {
@@ -1174,7 +1161,7 @@ impl CraneliftCompiler {
                                 types::I64
                             };
                             let offset = (i as i32) * value_size;
-                            let val = $builder.ins().load(ty, MemFlags::trusted(), lb, offset);
+                            let val = $builder.ins().load(ty, MemFlagsData::trusted(), lb, offset);
                             $builder.def_var(*var, val);
                         } else if local_is_f64[i] {
                             let zero = $builder.ins().f64const(0.0);
@@ -1203,7 +1190,7 @@ impl CraneliftCompiler {
                             types::I64
                         };
                         let offset = (i as i32) * value_size;
-                        let val = $builder.ins().load(ty, MemFlags::trusted(), lb, offset);
+                        let val = $builder.ins().load(ty, MemFlagsData::trusted(), lb, offset);
                         $builder.def_var(*var, val);
                     }
                 }
@@ -1220,7 +1207,7 @@ impl CraneliftCompiler {
             let dispatch = builder.create_block();
             let fresh = builder.create_block();
             let resume = builder.create_block();
-            let is_tier_up = builder.ins().icmp_imm(IntCC::NotEqual, tier_up_target_ip, 0);
+            let is_tier_up = builder.ins().icmp_imm_s(IntCC::NotEqual, tier_up_target_ip, 0);
             builder.ins().brif(is_tier_up, resume, &[], fresh, &[]);
 
             builder.switch_to_block(resume);
@@ -1272,11 +1259,9 @@ impl CraneliftCompiler {
                     let param_count = (insn.imm3 >> 16) as usize;
                     let after = builder.create_block();
                     let entry_real_depth_var = if max_stack_depth == 0 {
-                        let var = Variable::from_u32(next_var_id);
-                        next_var_id += 1;
-                        builder.declare_var(var, types::I64);
+                        let var = builder.declare_var(types::I64);
                         let cur = emit_stack_size!(builder);
-                        let entry = builder.ins().iadd_imm(cur, -(param_count as i64));
+                        let entry = builder.ins().iadd_imm_s(cur, -(param_count as i64));
                         builder.def_var(var, entry);
                         Some(var)
                     } else {
@@ -1300,11 +1285,9 @@ impl CraneliftCompiler {
                     let header = builder.create_block();
                     let after = builder.create_block();
                     let entry_real_depth_var = if max_stack_depth == 0 {
-                        let var = Variable::from_u32(next_var_id);
-                        next_var_id += 1;
-                        builder.declare_var(var, types::I64);
+                        let var = builder.declare_var(types::I64);
                         let cur = emit_stack_size!(builder);
-                        let entry = builder.ins().iadd_imm(cur, -(param_count as i64));
+                        let entry = builder.ins().iadd_imm_s(cur, -(param_count as i64));
                         builder.def_var(var, entry);
                         Some(var)
                     } else {
@@ -1335,13 +1318,11 @@ impl CraneliftCompiler {
                     let after = builder.create_block();
 
                     let cond_raw = read_src!(builder, insn.sources[0]);
-                    let cond = builder.ins().icmp_imm(IntCC::NotEqual, cond_raw, 0);
+                    let cond = builder.ins().icmp_imm_s(IntCC::NotEqual, cond_raw, 0);
                     let entry_real_depth_var = if max_stack_depth == 0 {
-                        let var = Variable::from_u32(next_var_id);
-                        next_var_id += 1;
-                        builder.declare_var(var, types::I64);
+                        let var = builder.declare_var(types::I64);
                         let cur = emit_stack_size!(builder);
-                        let entry = builder.ins().iadd_imm(cur, -(_param_count as i64));
+                        let entry = builder.ins().iadd_imm_s(cur, -(_param_count as i64));
                         builder.def_var(var, entry);
                         Some(var)
                     } else {
@@ -1467,7 +1448,7 @@ impl CraneliftCompiler {
                 op::BR_IF | op::SYNTHETIC_BR_IF_NOSTACK => {
                     let label_idx = insn.imm1 as usize;
                     let cond_raw = read_src!(builder, insn.sources[0]);
-                    let cond = builder.ins().icmp_imm(IntCC::NotEqual, cond_raw, 0);
+                    let cond = builder.ins().icmp_imm_s(IntCC::NotEqual, cond_raw, 0);
 
                     if label_idx < control_stack.len() {
                         let target_idx = control_stack.len() - 1 - label_idx;
@@ -1597,10 +1578,12 @@ impl CraneliftCompiler {
 
                 op::GLOBAL_GET => {
                     let global = inline_global_instance!(insn.imm1 as u32);
-                    let result =
-                        builder
-                            .ins()
-                            .load(types::I64, MemFlags::trusted(), global, global_instance_value_offset);
+                    let result = builder.ins().load(
+                        types::I64,
+                        MemFlagsData::trusted(),
+                        global,
+                        global_instance_value_offset,
+                    );
                     write_dst!(builder, insn.destination, result);
                 }
                 op::GLOBAL_SET => {
@@ -1608,11 +1591,11 @@ impl CraneliftCompiler {
                     let global = inline_global_instance!(insn.imm1 as u32);
                     builder
                         .ins()
-                        .store(MemFlags::trusted(), val, global, global_instance_value_offset);
+                        .store(MemFlagsData::trusted(), val, global, global_instance_value_offset);
                     let zero = builder.ins().iconst(types::I64, 0);
                     builder
                         .ins()
-                        .store(MemFlags::trusted(), zero, global, global_instance_value_offset + 8);
+                        .store(MemFlagsData::trusted(), zero, global, global_instance_value_offset + 8);
                 }
 
                 op::DROP => {
@@ -1626,7 +1609,7 @@ impl CraneliftCompiler {
                     let cond_raw = read_src!(builder, insn.sources[0]);
                     let rhs = read_src!(builder, insn.sources[1]);
                     let lhs = read_src!(builder, insn.sources[2]);
-                    let cond = builder.ins().icmp_imm(IntCC::NotEqual, cond_raw, 0);
+                    let cond = builder.ins().icmp_imm_s(IntCC::NotEqual, cond_raw, 0);
                     let result = builder.ins().select(cond, lhs, rhs);
                     write_dst!(builder, insn.destination, result);
                 }
@@ -1693,7 +1676,7 @@ impl CraneliftCompiler {
                     for (i, &label) in all_labels.iter().enumerate() {
                         let case_block = builder.create_block();
                         let next_fallthrough = builder.create_block();
-                        let compare = builder.ins().icmp_imm(IntCC::Equal, cond, i as i64);
+                        let compare = builder.ins().icmp_imm_s(IntCC::Equal, cond, i as i64);
                         builder.ins().brif(compare, case_block, &[], next_fallthrough, &[]);
 
                         builder.switch_to_block(case_block);
@@ -1753,7 +1736,7 @@ impl CraneliftCompiler {
                 op::I32_EQZ => {
                     let src_raw = read_src!(builder, insn.sources[0]);
                     let src = builder.ins().ireduce(types::I32, src_raw);
-                    let r = builder.ins().icmp_imm(IntCC::Equal, src, 0);
+                    let r = builder.ins().icmp_imm_s(IntCC::Equal, src, 0);
                     let result = builder.ins().uextend(types::I64, r);
                     write_dst!(builder, insn.destination, result);
                 }
@@ -1770,7 +1753,7 @@ impl CraneliftCompiler {
 
                 op::I64_EQZ => {
                     let src = read_src!(builder, insn.sources[0]);
-                    let r = builder.ins().icmp_imm(IntCC::Equal, src, 0);
+                    let r = builder.ins().icmp_imm_s(IntCC::Equal, src, 0);
                     let result = builder.ins().uextend(types::I64, r);
                     write_dst!(builder, insn.destination, result);
                 }
@@ -2284,7 +2267,7 @@ impl CraneliftCompiler {
                         let cv = builder.use_var(config_var);
                         let result = builder.ins().load(
                             types::I64,
-                            MemFlags::trusted(),
+                            MemFlagsData::trusted(),
                             cv,
                             compiled_call_result_scratch_offset,
                         );
@@ -2302,7 +2285,7 @@ impl CraneliftCompiler {
                         let cv2 = builder.use_var(config_var);
                         let result = builder.ins().load(
                             types::I64,
-                            MemFlags::trusted(),
+                            MemFlagsData::trusted(),
                             cv2,
                             compiled_call_result_scratch_offset,
                         );
@@ -2424,7 +2407,7 @@ impl CraneliftCompiler {
                             .branch_target;
                         let next_tail = builder.create_block();
                         builder.switch_to_block(tail);
-                        let matches = builder.ins().icmp_imm(IntCC::Equal, tier_up_target_ip, insn.imm1);
+                        let matches = builder.ins().icmp_imm_s(IntCC::Equal, tier_up_target_ip, insn.imm1);
                         builder.ins().brif(matches, header, &[], next_tail, &[]);
                         builder.seal_block(tail);
                         tier_up_dispatch_tail = Some(next_tail);
@@ -2482,7 +2465,7 @@ impl CraneliftCompiler {
         let ret_val = builder.ins().iconst(types::I64, outcome_return_value as i64);
         builder.ins().return_(&[ret_val]);
 
-        builder.finalize();
+        builder.finalize(isa.frontend_config());
 
         let mut ctx = Context::for_function(func);
         // Snapshot the code bytes + raw reloc list before we drop the borrow on ctx so we
@@ -2617,9 +2600,9 @@ impl CraneliftCompiler {
             }
             let val = builder.use_var(reg_vars[i]);
             let offset = regs_offset + (i as i32) * value_size;
-            builder.ins().store(MemFlags::trusted(), val, config, offset);
+            builder.ins().store(MemFlagsData::trusted(), val, config, offset);
             let zero = builder.ins().iconst(types::I64, 0);
-            builder.ins().store(MemFlags::trusted(), zero, config, offset + 8);
+            builder.ins().store(MemFlagsData::trusted(), zero, config, offset + 8);
         }
     }
 }
