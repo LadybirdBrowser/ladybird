@@ -218,23 +218,8 @@ pub extern "C" fn libjs_jit_open_array_iteration(vm: &Vm, iterable: u64) -> u64 
     if array.downcast::<Array>().is_none() {
         return Value::EMPTY.0;
     }
-    // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property, unless it
-    //     has an own @@iterator. Arrays without named properties have none.
     let realm = vm.current_realm().expect("JIT code runs in a realm");
-    if !realm_watchpoints::array_iterators_have_builtin_next(vm, realm) {
-        return Value::EMPTY.0;
-    }
-    if array.prototype() != Some(realm.array_prototype())
-        || !realm_watchpoints::arrays_have_builtin_iterator_method(vm, realm)
-    {
-        return Value::EMPTY.0;
-    }
-    let shape = array.shape();
-    if shape.property_count() != 0
-        && shape
-            .lookup(&PropertyKey::from(vm.well_known_symbols().iterator))
-            .is_some()
-    {
+    if !realm_watchpoints::array_is_iterated_unobservably(vm, realm, &array) {
         return Value::EMPTY.0;
     }
     iterable.0

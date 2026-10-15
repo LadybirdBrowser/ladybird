@@ -273,3 +273,22 @@ fn watch_array_iterator_method(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<Watchpoin
     }
     watch_intrinsics(vm, &[array_prototype], &[(array_prototype, iterator_key)])
 }
+
+/// Whether `array` is iterated with the array iterators of `realm` without anything observing them: it inherits
+/// %Array.prototype%[@@iterator] of the realm, which is its %Array.prototype.values%, and the iterators have the
+/// builtin `next` method.
+pub fn array_is_iterated_unobservably(vm: &Vm, realm: Gc<Realm>, array: &Object) -> bool {
+    if array.prototype() != Some(realm.array_prototype())
+        || !array_iterators_have_builtin_next(vm, realm)
+        || !arrays_have_builtin_iterator_method(vm, realm)
+    {
+        return false;
+    }
+    // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property, unless it
+    //     has an own @@iterator. Arrays without named properties have none.
+    let shape = array.shape();
+    shape.property_count() == 0
+        || shape
+            .lookup(&PropertyKey::from(vm.well_known_symbols().iterator))
+            .is_none()
+}
