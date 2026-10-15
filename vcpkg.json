@@ -22,7 +22,6 @@
       "default-features": false,
       "features": [
         "brotli",
-        "non-http",
         "http2",
         "http3",
         "openssl",
@@ -262,7 +261,7 @@
     },
     {
       "name": "curl",
-      "version": "8.21.0#1"
+      "version": "8.23.0#0"
     },
     {
       "name": "dav1d",
