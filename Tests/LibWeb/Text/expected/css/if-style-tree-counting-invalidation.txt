@@ -1,0 +1,6 @@
+count-equality: "MATCH", "NO MATCH", "NO MATCH", "NO MATCH", "MATCH", "NO MATCH"
+registered: "MATCH", "NO MATCH", "NO MATCH", "NO MATCH", "MATCH", "NO MATCH"
+unregistered: "MATCH", "MATCH", "NO MATCH", "MATCH", "MATCH", "MATCH"
+function-longhand: "MATCH", "NO MATCH", "NO MATCH", "NO MATCH", "MATCH", "NO MATCH"
+inline: "MATCH", "NO MATCH", "NO MATCH", "NO MATCH", "MATCH", "NO MATCH"
+animation-longhand: "MATCH", "NO MATCH", "NO MATCH", "NO MATCH", "MATCH", "NO MATCH"

@@ -461,17 +461,17 @@ pub(crate) struct CascadeResolutionContext<'a> {
     pub(crate) custom_functions: &'a [crate::css::custom_properties::SubstitutionFunctionDefinition],
     pub(crate) custom_function_scope_identity: usize,
     pub(crate) custom_function_visibilities: &'a [crate::css::custom_properties::FfiSubstitutionFunctionVisibility],
-    /// Where the custom properties style queries read are kept, if anywhere.
+    /// Where the custom properties and sibling position style queries read are kept, if anywhere.
     pub(crate) style_query_dependencies:
         Option<&'a mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
 }
 
-/// What a `style()` query in a substitution resolves against, as the queried element's style
-/// computes it: its lengths, and the color scheme and currentcolor its colors resolve with.
+/// Length, tree-counting and color inputs used when evaluating style queries.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FfiStyleQueryInputs {
     pub length: crate::css::style_compute::FfiLengthResolutionContext,
+    pub tree_counting: Option<(u64, u64)>,
     /// A PreferredColorScheme code.
     pub color_scheme: u8,
     /// The packed currentcolor, as the C++ Color::value() packs it.

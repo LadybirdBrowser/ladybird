@@ -3742,12 +3742,16 @@ impl RetainedState {
             self.note_container_effects_for_host(node, effects);
         }
         declarations.sort_by_key(|(priority, index, ..)| (*priority, *index));
-        let store = WinnerStore::new(
+        let mut store = WinnerStore::new(
             declarations
                 .into_iter()
                 .map(|(_, _, declaration)| declaration)
                 .collect(),
         );
+        store.reads_sibling_position = style_query_references
+            .borrow()
+            .as_ref()
+            .is_some_and(|dependencies| dependencies.sibling_position);
         // A store built to drive a record says whether that record rolls back; one built to admit a
         // row only adds to what the node's records are known to do.
         let bit = rolled_back_bit(pseudo_kind);

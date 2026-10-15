@@ -639,6 +639,7 @@ impl RetainedState {
         let retained = |value: &StyleValueData| unsafe {
             RetainedStyleValueData::from_retained_pointer(retain_style_value(value))
         };
+        let style_query_references = std::cell::RefCell::new(None);
         let mut style_query = None;
         let mut functions = None;
         let mut winners: Vec<WinnerDeclaration> = Vec::with_capacity(declarations.len());
@@ -698,7 +699,7 @@ impl RetainedState {
                             },
                             attributes: None,
                             style_query: style_query.as_ref().and_then(Option::as_ref),
-                            style_query_references: None,
+                            style_query_references: Some(&style_query_references),
                             functions: functions.as_ref(),
                         };
                         let substituted = Self::substitute_written_value(
@@ -737,7 +738,12 @@ impl RetainedState {
                 ));
             }
         }
-        Ok(WinnerStore::new(winners))
+        let mut store = WinnerStore::new(winners);
+        store.reads_sibling_position = style_query_references
+            .into_inner()
+            .as_ref()
+            .is_some_and(|dependencies| dependencies.sibling_position);
+        Ok(store)
     }
 }
 

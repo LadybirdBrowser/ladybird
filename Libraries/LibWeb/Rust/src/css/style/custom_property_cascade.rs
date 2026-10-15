@@ -1113,6 +1113,9 @@ impl RetainedState {
         target: computed::ComputedStyleTarget,
     ) -> Option<crate::css::cascaded_properties::FfiStyleQueryInputs> {
         let node = target.node();
+        let tree_counting = self
+            .element_sibling_position(node)
+            .map(|(count, index)| (u64::from(count), u64::from(index)));
         let parent_record = || {
             if target.pseudo_kind() == u8::MAX {
                 self.computed_group_sets
@@ -1134,12 +1137,14 @@ impl RetainedState {
             );
             return Some(crate::css::cascaded_properties::FfiStyleQueryInputs {
                 length,
+                tree_counting,
                 color_scheme: values.inherited_ui().color_scheme,
                 current_color: values.inherited_text().color,
             });
         }
         Some(crate::css::cascaded_properties::FfiStyleQueryInputs {
             length: *self.document_media.length()?,
+            tree_counting,
             color_scheme: self.document_style_computation_inputs.preferred_color_scheme,
             // Opaque black, the initial color.
             current_color: 0xff00_0000,
@@ -1626,9 +1631,13 @@ impl RetainedState {
         };
         drop(cascaded_store);
         self.counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
-        // What the registered values read beyond the element's fonts reaches the element's
-        // records as what they read themselves does: a sibling change, a container's size.
-        if reads.sibling_position {
+        // What the registered values and style queries read beyond the element's fonts reaches
+        // the element's records as what they read themselves does: a sibling change, a container's size.
+        if reads.sibling_position
+            || style_query_references
+                .as_ref()
+                .is_some_and(|dependencies| dependencies.sibling_position)
+        {
             *self.custom_declaration_reads.entry(node).or_default() |=
                 bridge::FfiNodeRecordReads::SiblingPosition as u8;
         }
