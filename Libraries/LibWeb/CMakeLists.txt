@@ -451,6 +451,7 @@ set(SOURCES
     HTML/CanvasGradient.cpp
     HTML/CanvasPattern.cpp
     HTML/CanvasRenderingContext2D.cpp
+    HTML/CheckUnloadingCanceledState.cpp
     HTML/CloseEvent.cpp
     HTML/CloseWatcher.cpp
     HTML/CloseWatcherManager.cpp
