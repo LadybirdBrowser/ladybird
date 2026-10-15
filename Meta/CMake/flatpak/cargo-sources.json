@@ -8,9 +8,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/adblock/adblock-0.12.5.crate",
-        "sha256": "db6fe7702c798519299bcbe011ff6f1dc9e3aedc1f3171178cddf71e1736bf95",
-        "dest": "cargo/vendor/adblock-0.12.5"
+        "url": "https://static.crates.io/crates/adblock/adblock-0.13.3.crate",
+        "sha256": "f44b96a666a23c12acad7c688bfe8638a7094e7eabe765b09a6864ab991c676d",
+        "dest": "cargo/vendor/adblock-0.13.3"
     },
     {
         "type": "archive",
@@ -540,9 +540,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/itertools/itertools-0.13.0.crate",
-        "sha256": "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186",
-        "dest": "cargo/vendor/itertools-0.13.0"
+        "url": "https://static.crates.io/crates/itertools/itertools-0.14.0.crate",
+        "sha256": "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285",
+        "dest": "cargo/vendor/itertools-0.14.0"
     },
     {
         "type": "archive",
@@ -802,13 +802,6 @@
         "url": "https://static.crates.io/crates/rustc-demangle/rustc-demangle-0.1.28.crate",
         "sha256": "b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb",
         "dest": "cargo/vendor/rustc-demangle-0.1.28"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/rustc-hash/rustc-hash-1.1.0.crate",
-        "sha256": "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2",
-        "dest": "cargo/vendor/rustc-hash-1.1.0"
     },
     {
         "type": "archive",
@@ -1247,7 +1240,7 @@
     {
         "type": "shell",
         "commands": [
-            "echo '{\"files\": {}, \"package\": \"db6fe7702c798519299bcbe011ff6f1dc9e3aedc1f3171178cddf71e1736bf95\"}' > cargo/vendor/adblock-0.12.5/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"f44b96a666a23c12acad7c688bfe8638a7094e7eabe765b09a6864ab991c676d\"}' > cargo/vendor/adblock-0.13.3/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a93b8a41dbe230ad5087cc721f8d41611de654542180586b315d9f4cf6b72bef\"}' > cargo/vendor/addr-0.15.6/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301\"}' > cargo/vendor/aho-corasick-1.1.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923\"}' > cargo/vendor/allocator-api2-0.2.21/.cargo-checksum.json",
@@ -1323,7 +1316,7 @@
             "echo '{\"files\": {}, \"package\": \"cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714\"}' > cargo/vendor/idna_adapter-1.2.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"45a8a2b9cb3e0b0c1803dbb0758ffac5de2f425b23c28f518faabd9d805342ff\"}' > cargo/vendor/indexmap-2.13.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695\"}' > cargo/vendor/is_terminal_polyfill-1.70.2/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186\"}' > cargo/vendor/itertools-0.13.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285\"}' > cargo/vendor/itertools-0.14.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682\"}' > cargo/vendor/itoa-1.0.18/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"2ceaf4c6c48465bead8cb6a0b7c4ee0c86ecbb31239032b9c66ab9a08d2f3ee1\"}' > cargo/vendor/ixdtf-0.6.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"7b36e70efc347a34540f61ae91b7dc304ab0bb69bd6ac62fae182389c2788016\"}' > cargo/vendor/jxl-0.6.0/.cargo-checksum.json",
@@ -1361,7 +1354,6 @@
             "echo '{\"files\": {}, \"package\": \"6e1dd4122fc1595e8162618945476892eefca7b88c52820e74af6262213cae8f\"}' > cargo/vendor/regex-automata-0.4.14/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a\"}' > cargo/vendor/regex-syntax-0.8.10/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb\"}' > cargo/vendor/rustc-demangle-0.1.28/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2\"}' > cargo/vendor/rustc-hash-1.1.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"94300abf3f1ae2e2b8ffb7b58043de3d399c73fa6f4b73826402a5c457614dbe\"}' > cargo/vendor/rustc-hash-2.1.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92\"}' > cargo/vendor/rustc_version-0.4.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190\"}' > cargo/vendor/rustix-1.1.4/.cargo-checksum.json",
