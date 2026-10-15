@@ -1,7 +1,7 @@
 {
   "name": "libtommath",
   "version": "1.3.0",
-  "port-version": 2,
+  "port-version": 3,
   "description": "LibTomMath is a free open source portable number theoretic multiple-precision integer library written entirely in C.",
   "homepage": "https://www.libtom.net/LibTomMath/",
   "dependencies": [
