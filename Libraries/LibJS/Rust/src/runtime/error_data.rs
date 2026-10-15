@@ -52,7 +52,16 @@ pub struct ErrorData {
 impl ErrorData {
     pub fn new(vm: &Vm) -> Self {
         Self {
-            traceback: Self::populate_stack(vm),
+            traceback: Self::populate_stack(vm, 0),
+            cached_string: Cell::new(None),
+        }
+    }
+
+    /// Error data captured by an Error constructor, whose own frame is the innermost one. A stack string shows the
+    /// code that called the constructor, never the constructor itself, so that frame is left out.
+    pub fn new_in_constructor(vm: &Vm) -> Self {
+        Self {
+            traceback: Self::populate_stack(vm, 1),
             cached_string: Cell::new(None),
         }
     }
@@ -70,10 +79,10 @@ impl ErrorData {
         self.traceback_storage_size() + function_names_size
     }
 
-    fn populate_stack(vm: &Vm) -> Vec<TracebackFrame> {
+    fn populate_stack(vm: &Vm, skipped_innermost_frames: usize) -> Vec<TracebackFrame> {
         let stack_trace = vm.stack_trace();
-        let mut traceback = Vec::with_capacity(stack_trace.len());
-        for element in stack_trace {
+        let mut traceback = Vec::with_capacity(stack_trace.len().saturating_sub(skipped_innermost_frames));
+        for element in stack_trace.into_iter().skip(skipped_innermost_frames) {
             traceback.push(TracebackFrame {
                 function_name: element
                     .function

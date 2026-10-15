@@ -38,6 +38,12 @@ impl AggregateError {
         }
     }
 
+    pub fn new_in_constructor(vm: &Vm, prototype: Gc<Object>) -> AggregateError {
+        AggregateError {
+            base: Error::new_in_constructor(vm, Self::CLASS, prototype),
+        }
+    }
+
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AggregateError> {
         realm.create_object(
             vm,

@@ -88,7 +88,7 @@ impl AggregateErrorConstructor {
 
         // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%AggregateError.prototype%", « [[ErrorData]] »).
         let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::aggregate_error_prototype)?;
-        let aggregate_error = realm.create_object(vm, AggregateError::new(vm, prototype));
+        let aggregate_error = realm.create_object(vm, AggregateError::new_in_constructor(vm, prototype));
 
         // 3. If message is not undefined, then
         if !message.is_undefined() {

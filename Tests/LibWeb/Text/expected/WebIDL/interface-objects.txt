@@ -79,6 +79,6 @@ Option.prototype: true
 HTMLImageElement.prototype.constructor: true
 new Image() instanceof HTMLImageElement: true
 Stack frames:
-new Event(): Error <- toString <- Event <- stackFrameNames
-new Option(): Error <- toString <- <unknown> <- stackFrameNames
-new Image(): Error <- valueOf <- <unknown> <- stackFrameNames
+new Event(): toString <- Event <- stackFrameNames
+new Option(): toString <- <unknown> <- stackFrameNames
+new Image(): valueOf <- <unknown> <- stackFrameNames
