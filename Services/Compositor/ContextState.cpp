@@ -59,6 +59,11 @@ static bool admits_async_pinch(Compositing::WheelRoutingAdmission wheel_routing_
     return first_is_one_of(wheel_routing_admission, Compositing::WheelRoutingAdmission::Accepted, Compositing::WheelRoutingAdmission::NoScrollNode);
 }
 
+static bool admits_async_wheel(Compositing::WheelRoutingAdmission wheel_routing_admission)
+{
+    return wheel_routing_admission == Compositing::WheelRoutingAdmission::Accepted;
+}
+
 static void update_visual_animation_sampling_state(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Optional<i64>& sample_time_ns, bool& has_active_animations)
 {
     auto now = MonotonicTime::now();
@@ -159,15 +164,7 @@ void ContextState::stop_presenting_to_client()
 {
     end_keyboard_scroll_gesture();
     forget_elastic_overscrolls();
-    auto was_presenting_to_client = m_presents_to_client;
     m_presents_to_client = false;
-    did_stop_presenting_to_client_if_needed(was_presenting_to_client, m_presents_to_client);
-}
-
-void ContextState::did_stop_presenting_to_client_if_needed(bool was_presenting_to_client, bool will_present_to_client)
-{
-    (void)was_presenting_to_client;
-    (void)will_present_to_client;
 }
 
 void ContextState::set_parent_context(Optional<Web::CompositorContextId> parent_context_id)
@@ -208,7 +205,6 @@ void ContextState::install_display_list_update(
         m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
 
     m_wheel_routing_admission = wheel_routing_admission;
-    m_can_accept_async_wheel_events = wheel_routing_admission == Compositing::WheelRoutingAdmission::Accepted;
     m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
     if (m_async_visual_viewport_transform.has_value() && (!admits_async_pinch(wheel_routing_admission) || m_has_blocking_wheel_event_listeners)) {
         invalidate_visual_context_tree_for_compositing();
@@ -355,7 +351,6 @@ void ContextState::invalidate_wheel_event_listener_state(u64 generation)
 {
     m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, generation);
     m_wheel_routing_admission = Compositing::WheelRoutingAdmission::StaleWheelEventListeners;
-    m_can_accept_async_wheel_events = false;
     m_has_blocking_wheel_event_listeners = true;
 }
 
@@ -955,7 +950,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     if (!latched_node_id.has_value() && !step_came_from_ui)
         end_gesture_that_stretches_elastically(now);
 
-    if (!m_can_accept_async_wheel_events
+    if (!admits_async_wheel(m_wheel_routing_admission)
         && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, wheel_delta_precision, scroll_gesture_phase)
         && !(page_let_touchpad_step_through && only_blocking_wheel_event_listeners_hold_steps_back))
         return {};
@@ -1407,7 +1402,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     // A page without scroll nodes still has a visual viewport to pan once it is zoomed in.
     auto can_pan_zoomed_visual_viewport = m_wheel_routing_admission == Compositing::WheelRoutingAdmission::NoScrollNode
         && visual_viewport_scale_for_compositing().value_or(1.0f) > 1.0f;
-    if (!m_can_accept_async_wheel_events && !can_pan_zoomed_visual_viewport
+    if (!admits_async_wheel(m_wheel_routing_admission) && !can_pan_zoomed_visual_viewport
         && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, wheel_delta_precision, scroll_gesture_phase))
         return {};
 
@@ -2281,13 +2276,6 @@ Optional<Compositing::AsyncScrollNodeID> ContextState::hit_test_and_latch_wheel_
     return node_id_to_latch;
 }
 
-Optional<Web::AsyncScrollNodeStableID> ContextState::latched_wheel_scroller_for_testing() const
-{
-    if (!m_wheel_scroll_latch.has_value())
-        return {};
-    return m_wheel_scroll_latch->stable_node_id;
-}
-
 void ContextState::report_started_user_scroll(Compositing::AsyncScrollOperationID operation_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint step_start_offset, Gfx::FloatPoint destination_offset, Compositing::ScrollAnimationKind animation_kind, bool is_absolute_scroll)
 {
     auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(stable_node_id);
@@ -2432,7 +2420,6 @@ Compositing::AccumulatedVisualContextTree const& ContextState::visual_context_tr
     if (m_async_visual_viewport_transform.has_value() && !m_visual_context_tree_for_compositing.has_value()) {
         discard_sampled_visual_context_tree();
         m_visual_context_tree_for_compositing = current_visual_context_tree().with_visual_viewport_transform(*m_async_visual_viewport_transform);
-        ++m_visual_context_tree_copy_count;
     }
 
     auto const& unsampled_tree = m_visual_context_tree_for_compositing.has_value()
