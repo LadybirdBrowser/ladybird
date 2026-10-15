@@ -19,7 +19,7 @@ thread-sanitizer = ["libjs_rust/thread-sanitizer", "libweb_rust/thread-sanitizer
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 ak = { path = "../../../../AK/Rust" }
-encoding_rs = "0.8.40"
+encoding_rs = "0.8.42"
 ladybird_allocator = { path = "../../../RustAllocator", optional = true }
 libjs_rust = { path = "../../../LibJS/Rust", default-features = false }
 liburl_rust = { path = "../../../LibURL/Rust", default-features = false }
