@@ -150,7 +150,7 @@ void ContextState::dispatch_key_event_to_web_content(Web::KeyEvent const& event)
 void ContextState::stop_presenting_to_client()
 {
     end_keyboard_scroll_gesture();
-    forget_elastic_overscrolls();
+    m_elastic_overscroll_controller.forget();
     m_presents_to_client = false;
 }
 
@@ -202,15 +202,7 @@ void ContextState::install_display_list_update(
     m_scrollbar_controller.set_scrollbars(async_scrolling_state.scrollbars);
     note_user_scroll_gesture_end_if_drag_ended(was_dragging_scrollbar);
     m_async_scroll_tree.set_state(move(async_scrolling_state));
-    m_elastic_overscrolls.remove_all_matching([&](auto const& active) {
-        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(active.stable_node_id);
-        auto const* node = node_id.has_value() ? m_async_scroll_tree.scroll_node_for_id(*node_id) : nullptr;
-        if (!node)
-            return true;
-        // A scroller that has been told not to stretch along an axis since it was pulled lets go at once.
-        auto stretch = active.overscroll.stretch();
-        return (stretch.x() != 0 && !node->shows_overscroll_effect_horizontally) || (stretch.y() != 0 && !node->shows_overscroll_effect_vertically);
-    });
+    m_elastic_overscroll_controller.did_install_scrolling_state(m_async_scroll_tree);
     m_scroll_snap_controller.did_install_scrolling_state(m_async_scroll_tree);
     if (auto viewport_scroll_offset = reapply_unreconciled_async_scroll_offsets(); viewport_scroll_offset.has_value())
         async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
@@ -749,15 +741,14 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
     auto presented_stretch_of_latched_scroller = [&]() -> Gfx::FloatPoint {
         if (!latched_node)
             return {};
-        auto const* active = elastic_overscroll_of(latched_node->stable_node_id);
-        return active ? active->overscroll.stretch() : Gfx::FloatPoint {};
+        return m_elastic_overscroll_controller.stretch_of(latched_node->stable_node_id);
     };
     auto stretch_before_step = presented_stretch_of_latched_scroller();
 
     // Momentum only arrives once the fingers have lifted, and its first step can be the first sign that they did.
     if (step_can_stretch_elastically && scroll_gesture_phase == Web::ScrollGesturePhase::Momentum)
-        release_elastic_overscrolls_held_by_fingers(now);
-    if (momentum_can_bounce_latched_scroller && elastic_overscroll_of(latched_node->stable_node_id)) {
+        m_elastic_overscroll_controller.release_held_by_fingers(now);
+    if (momentum_can_bounce_latched_scroller && m_elastic_overscroll_controller.has_active_overscroll_of(latched_node->stable_node_id)) {
         // The fingers lifted from a stretched scroller, which this momentum already springs back with.
         m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = true;
         momentum_can_bounce_latched_scroller = false;
@@ -769,7 +760,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
     if (fingers_can_stretch_latched_scroller) {
         if (m_wheel_scroll_latch.has_value())
             m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = false;
-        auto step_delta_left = relax_elastic_overscroll_by(*latched_node, step_delta);
+        auto step_delta_left = m_elastic_overscroll_controller.relax_by(latched_node->stable_node_id, step_delta);
         if (step_delta_left != step_delta)
             delta_left = step_delta_left.scaled(magnification);
     }
@@ -800,7 +791,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
         } else if (momentum_can_bounce_latched_scroller && pull_elastic_overscroll_by(*latched_node, step_delta, *delta_the_scroller_did_not_scroll_by)) {
             // Momentum that carries a scroller into its edge bounces it: the velocity it arrives with takes the
             // rebound out past the edge before the rebound brings it back.
-            release_elastic_overscrolls_held_by_fingers(now);
+            m_elastic_overscroll_controller.release_held_by_fingers(now);
             m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = true;
         }
     }
@@ -919,7 +910,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
 
     // The end of a gesture lets go of the scroller it stretched even if the context has stopped taking wheel events.
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended)
-        end_gesture_that_stretches_elastically(now);
+        m_elastic_overscroll_controller.end_gesture(now);
 
     // Blocking wheel event listeners have nothing left to hold back once the page has dispatched a step and did not
     // cancel it. The compositor then scrolls the step of a touchpad gesture, so that the gesture stretches the edges
@@ -935,7 +926,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     // The end of the gesture before this one may never have arrived. Whether a step of the UI starts another gesture
     // was decided when the UI sent it.
     if (!latched_node_id.has_value() && !step_came_from_ui)
-        end_gesture_that_stretches_elastically(now);
+        m_elastic_overscroll_controller.end_gesture(now);
 
     if (!admits_async_wheel(m_wheel_routing_admission)
         && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, wheel_delta_precision, scroll_gesture_phase)
@@ -1255,13 +1246,13 @@ void ContextState::note_wheel_event_from_ui(Web::MouseEvent const& event, Option
         m_wheel_gesture_from_ui->advance_to(phase, now);
     } else {
         // The end of the gesture before this one may never have arrived.
-        end_gesture_that_stretches_elastically(now);
+        m_elastic_overscroll_controller.end_gesture(now);
         m_wheel_gesture_from_ui = Compositing::WheelGestureIdentity::started_by(position, phase, event.modifiers, now);
     }
 
     // Fling steps are not timed here, which leaves them out of the velocity; no platform both flings and stretches.
     if (wheel_step_can_stretch_elastically(event.wheel_delta_precision, phase))
-        m_elastic_overscroll_velocity_tracker.add_step(wheel_event_delta_in_device_pixels(event).scaled(1.0f / visual_viewport_magnification()), now);
+        m_elastic_overscroll_controller.note_step_from_ui(wheel_event_delta_in_device_pixels(event).scaled(1.0f / visual_viewport_magnification()), now);
 }
 
 static bool is_touchpad_step(Web::MouseEvent const& event)
@@ -1378,7 +1369,7 @@ ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::Mous
     auto delta = wheel_event_delta_in_device_pixels(event);
     // The end of a gesture lets go of the scroller it stretched even if the context has stopped taking wheel events.
     if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended)
-        end_gesture_that_stretches_elastically(now);
+        m_elastic_overscroll_controller.end_gesture(now);
 
     auto latched_node_id = resolve_wheel_scroll_latch(position, event.scroll_gesture_phase, event.modifiers, now);
 
@@ -1432,32 +1423,7 @@ ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::Mous
 
 bool ContextState::wheel_step_can_stretch_elastically(Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase) const
 {
-    if (!m_scrolls_elastically || !presents_to_client())
-        return false;
-    // Only a touchpad gesture says when the fingers lift, which is when a stretch has to spring back.
-    if (wheel_delta_precision != Web::WheelDeltaPrecision::Precise)
-        return false;
-    return scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing || scroll_gesture_phase == Web::ScrollGesturePhase::Momentum;
-}
-
-ContextState::ActiveElasticOverscroll* ContextState::elastic_overscroll_of(Web::AsyncScrollNodeStableID stable_node_id)
-{
-    for (auto& active : m_elastic_overscrolls) {
-        if (active.stable_node_id == stable_node_id)
-            return &active;
-    }
-    return nullptr;
-}
-
-Gfx::FloatPoint ContextState::relax_elastic_overscroll_by(Compositing::AsyncScrollNode const& node, Gfx::FloatPoint step_delta)
-{
-    auto* active = elastic_overscroll_of(node.stable_node_id);
-    if (!active)
-        return step_delta;
-    auto delta_left_to_scroll_with = active->overscroll.relax_by(step_delta);
-    if (active->overscroll.is_at_rest())
-        m_elastic_overscrolls.remove_all_matching([&](auto const& candidate) { return candidate.stable_node_id == node.stable_node_id; });
-    return delta_left_to_scroll_with;
+    return presents_to_client() && m_elastic_overscroll_controller.step_can_stretch(wheel_delta_precision, scroll_gesture_phase);
 }
 
 bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const& node, Gfx::FloatPoint step_delta, Gfx::FloatPoint delta_the_scroller_did_not_scroll_by)
@@ -1465,117 +1431,29 @@ bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
     auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(node.node_id, m_scroll_state_snapshot);
     if (!scroll_offset.has_value())
         return false;
-
-    // A touchpad step is rarely along one axis exactly. Only its main direction pulls, so that a vertical pan next to
-    // a side edge does not creep past that edge.
-    Gfx::FloatPoint overscroll_delta;
-    bool step_is_mainly_vertical = AK::abs(step_delta.y()) >= AK::abs(step_delta.x());
-    if (step_is_mainly_vertical) {
-        auto delta_y = delta_the_scroller_did_not_scroll_by.y();
-        bool is_at_the_edge_the_delta_points_past = (delta_y < 0 && scroll_offset->y() <= node.min_scroll_offset.y())
-            || (delta_y > 0 && scroll_offset->y() >= node.max_scroll_offset.y());
-        if (node.can_be_wheel_scrolled_vertically && node.shows_overscroll_effect_vertically && is_at_the_edge_the_delta_points_past)
-            overscroll_delta.set_y(delta_y);
-    } else {
-        auto delta_x = delta_the_scroller_did_not_scroll_by.x();
-        bool is_at_the_edge_the_delta_points_past = (delta_x < 0 && scroll_offset->x() <= node.min_scroll_offset.x())
-            || (delta_x > 0 && scroll_offset->x() >= node.max_scroll_offset.x());
-        if (node.can_be_wheel_scrolled_horizontally && node.shows_overscroll_effect_horizontally && is_at_the_edge_the_delta_points_past)
-            overscroll_delta.set_x(delta_x);
-    }
-    if (overscroll_delta.is_zero())
-        return false;
-
-    auto* active = elastic_overscroll_of(node.stable_node_id);
-    if (!active) {
-        // A zoomed page shows only the part of the viewport's scrollport that its visual viewport is on, and that part
-        // is what bounds how far the viewport stretches.
-        auto magnification = visual_viewport_magnification();
-        auto scrollport_size = node.scrollport_rect.size().to_type<float>();
-        if (node.is_viewport)
-            scrollport_size.scale_by(1.0f / magnification);
-        m_elastic_overscrolls.append({ node.stable_node_id, Compositing::ElasticOverscroll { scrollport_size, magnification } });
-        active = &m_elastic_overscrolls.last();
-    }
-    active->overscroll.pull_by(overscroll_delta);
-    return true;
-}
-
-void ContextState::release_elastic_overscrolls_held_by_fingers(MonotonicTime now)
-{
-    auto velocity = m_elastic_overscroll_velocity_tracker.velocity_at_lift(now).value_or({});
-    for (auto& active : m_elastic_overscrolls)
-        active.overscroll.release(velocity, now);
-}
-
-void ContextState::end_gesture_that_stretches_elastically(MonotonicTime now)
-{
-    release_elastic_overscrolls_held_by_fingers(now);
-    m_elastic_overscroll_velocity_tracker.reset();
-}
-
-void ContextState::forget_elastic_overscrolls()
-{
-    m_elastic_overscrolls.clear();
-    m_elastic_overscroll_velocity_tracker.reset();
+    return m_elastic_overscroll_controller.pull_by(node, *scroll_offset, step_delta, delta_the_scroller_did_not_scroll_by, visual_viewport_magnification());
 }
 
 void ContextState::set_scrolls_elastically(bool scrolls_elastically)
 {
-    m_scrolls_elastically = scrolls_elastically;
-    if (!scrolls_elastically)
-        forget_elastic_overscrolls();
-}
-
-bool ContextState::has_rebounding_elastic_overscroll() const
-{
-    return any_of(m_elastic_overscrolls, [](auto const& active) { return active.overscroll.is_rebounding(); });
+    m_elastic_overscroll_controller.set_enabled(scrolls_elastically);
 }
 
 Optional<Gfx::IntRect> ContextState::advance_elastic_overscroll_rebounds(MonotonicTime frame_time)
 {
-    bool a_presented_stretch_changed = false;
-    m_elastic_overscrolls.remove_all_matching([&](auto& active) {
-        if (!active.overscroll.is_rebounding())
-            return false;
-        auto stretch_before = active.overscroll.stretch();
-        bool is_still_rebounding = active.overscroll.advance_rebound_to(frame_time);
-        if (active.overscroll.stretch() != stretch_before)
-            a_presented_stretch_changed = true;
-        return !is_still_rebounding;
-    });
-    if (!a_presented_stretch_changed)
+    if (!m_elastic_overscroll_controller.advance_rebounds(frame_time))
         return {};
     return m_async_scrolling_viewport_rect;
 }
 
 Gfx::FloatPoint ContextState::elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID stable_node_id) const
 {
-    for (auto const& active : m_elastic_overscrolls) {
-        if (active.stable_node_id == stable_node_id)
-            return active.overscroll.stretch();
-    }
-    return {};
+    return m_elastic_overscroll_controller.stretch_of(stable_node_id);
 }
 
 Optional<Compositing::ScrollStateSnapshot> ContextState::scroll_state_snapshot_stretched_by_elastic_overscrolls() const
 {
-    Optional<Compositing::ScrollStateSnapshot> stretched_scroll_state_snapshot;
-    for (auto const& active : m_elastic_overscrolls) {
-        auto stretch = active.overscroll.stretch();
-        if (stretch.is_zero())
-            continue;
-        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(active.stable_node_id);
-        if (!node_id.has_value())
-            continue;
-        if (!stretched_scroll_state_snapshot.has_value())
-            stretched_scroll_state_snapshot = m_scroll_state_snapshot;
-        // Only the scroller's own entry moves. The sticky boxes in it keep the shifts resolved for the scroll offset
-        // it really has, so they move with its content.
-        auto index = node_id->scroll_node_index;
-        stretched_scroll_state_snapshot->set_device_offset_for_index(index, stretched_scroll_state_snapshot->device_offset_for_index(index) - stretch);
-    }
-    return stretched_scroll_state_snapshot;
+    return m_elastic_overscroll_controller.stretched_scroll_state_snapshot(m_scroll_state_snapshot, m_async_scroll_tree);
 }
 
 Compositing::PendingAsyncScrollUpdates ContextState::take_pending_async_scroll_updates()
@@ -1801,7 +1679,7 @@ bool ContextState::set_visibility(Compositing::ContextVisibility visibility)
     m_visibility = visibility;
     if (visibility == Compositing::ContextVisibility::Hidden) {
         end_keyboard_scroll_gesture();
-        forget_elastic_overscrolls();
+        m_elastic_overscroll_controller.forget();
     }
     return true;
 }

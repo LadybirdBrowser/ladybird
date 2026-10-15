@@ -9,6 +9,7 @@ set(SOURCES
     DisplayListRasterCache.cpp
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
+    ElasticOverscrollController.cpp
     FramePacer.cpp
     HostWebGLContext.cpp
     OpenGLContext.cpp
