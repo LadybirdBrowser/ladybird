@@ -156,7 +156,7 @@ void ContextState::install_display_list_update(
 {
     VERIFY(display_list->compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     invalidate_visual_context_tree_for_compositing();
-    m_keyboard_scroll_state.target.clear();
+    m_keyboard_scroll_controller.forget_target();
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
     update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
@@ -187,7 +187,7 @@ void ContextState::install_display_list_update(
     m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
     m_has_async_scrolling_state = true;
     if (auto const& metadata = m_display_list->async_scrolling_metadata(); metadata.has_value())
-        apply_keyboard_scroll_state(metadata->keyboard_scroll_state);
+        adopt_keyboard_scroll_state(metadata->keyboard_scroll_state);
 }
 
 Gfx::IntRect ContextState::damage_rect_of_blinking_carets()
@@ -253,7 +253,7 @@ void ContextState::update_scroll_state(Compositing::ScrollStateSnapshot&& scroll
         reconciled_viewport_rect.set_location(reconciled_viewport_scroll_offset->to_type<int>());
         m_async_scrolling_viewport_rect = reconciled_viewport_rect;
     }
-    apply_keyboard_scroll_state(move(keyboard_scroll_state));
+    adopt_keyboard_scroll_state(move(keyboard_scroll_state));
 }
 
 void ContextState::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::VideoSink> sink)
@@ -268,26 +268,19 @@ void ContextState::invalidate_wheel_event_listener_state(u64 generation)
 
 void ContextState::invalidate_keyboard_scroll_state(u64 generation)
 {
-    if (generation < m_keyboard_scroll_state.generation)
-        return;
-    m_keyboard_scroll_state.generation = generation;
-    m_keyboard_scroll_state.target.clear();
+    m_keyboard_scroll_controller.invalidate_state(generation);
 }
 
-void ContextState::apply_keyboard_scroll_state(Compositing::KeyboardScrollState state)
+void ContextState::adopt_keyboard_scroll_state(Compositing::KeyboardScrollState state)
 {
-    if (state.generation < m_keyboard_scroll_state.generation)
-        return;
-    m_keyboard_scroll_state = move(state);
-    if (!m_keyboard_scroll_state.target.has_value())
+    if (m_keyboard_scroll_controller.adopt_state(move(state)) && !m_keyboard_scroll_controller.has_target())
         end_keyboard_scroll_gesture();
 }
 
 void ContextState::end_keyboard_scroll_gesture()
 {
-    if (m_held_scroll_keys.is_empty())
+    if (!m_keyboard_scroll_controller.release_all_keys())
         return;
-    m_held_scroll_keys.clear();
     m_async_scroll_update_outbox.note_user_scroll_gesture_ended();
     request_rendering_update();
 }
@@ -300,9 +293,10 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     // Release the key even if focus, modifiers, or routing eligibility changed while it was held. Other scroll
     // keys may still be held, so only end the gesture when the last one is released.
     if (event.type == Web::KeyEvent::Type::KeyUp) {
-        if (event.repeat || !m_held_scroll_keys.remove_first_matching([&](auto key) { return key == event.key; }))
+        auto release = m_keyboard_scroll_controller.release_key(event);
+        if (release == KeyboardScrollController::KeyRelease::Ignored)
             return {};
-        if (m_held_scroll_keys.is_empty())
+        if (release == KeyboardScrollController::KeyRelease::ReleasedLastHeldKey)
             m_async_scroll_update_outbox.note_user_scroll_gesture_ended();
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
@@ -310,45 +304,30 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     if (!presents_to_client() || m_paused_debugger_overlay_visible
         || m_visibility != Compositing::ContextVisibility::Visible
         || !Web::is_keyboard_scroll_key(event.key, event.modifiers)
-        || !m_keyboard_scroll_state.target.has_value()
+        || !m_keyboard_scroll_controller.has_target()
         || !m_visual_context_tree.has_value()
-        || m_keyboard_scroll_state.visual_context_tree_structural_epoch != current_visual_context_tree().structural_epoch())
+        || !m_keyboard_scroll_controller.state_matches_visual_context_tree_epoch(current_visual_context_tree().structural_epoch()))
         return {};
     // Keyboard scrolling has not yet been adapted to a separately panned visual viewport.
     if (visual_viewport_scale_for_compositing().value_or(1.0f) != 1.0f)
         return {};
 
-    auto modifiers_without_keypad = static_cast<u32>(event.modifiers) & ~Web::UIEvents::Mod_Keypad;
-    bool scrolls_to_start = event.key == Web::UIEvents::Key_Home || (event.key == Web::UIEvents::Key_Up && modifiers_without_keypad == Web::UIEvents::Mod_PlatformCtrl);
-    bool scrolls_to_end = event.key == Web::UIEvents::Key_End || (event.key == Web::UIEvents::Key_Down && modifiers_without_keypad == Web::UIEvents::Mod_PlatformCtrl);
-    bool scrolls_to_extent = scrolls_to_start || scrolls_to_end;
-    bool is_arrow = !scrolls_to_extent && first_is_one_of(event.key, Web::UIEvents::Key_Up, Web::UIEvents::Key_Down, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
-    Gfx::FloatPoint delta;
-    if (scrolls_to_extent) {
-        delta = m_async_scroll_tree.device_offset_from_css_pixels({ 0, scrolls_to_start ? -Web::CSSPixels::max() : Web::CSSPixels::max() });
-    } else {
-        auto distance = is_arrow ? m_keyboard_scroll_state.arrow_scroll_distance : m_keyboard_scroll_state.page_scroll_distance;
-        if (!isfinite(distance) || distance <= 0)
-            return {};
-        if (event.key == Web::UIEvents::KeyCode::Key_PageUp
-            || event.key == Web::UIEvents::KeyCode::Key_Up || event.key == Web::UIEvents::KeyCode::Key_Left
-            || (event.key == Web::UIEvents::KeyCode::Key_Space && (event.modifiers & Web::UIEvents::Mod_Shift)))
-            distance = -distance;
-        bool is_horizontal = first_is_one_of(event.key, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
-        delta = is_horizontal ? Gfx::FloatPoint { distance, 0 } : Gfx::FloatPoint { 0, distance };
-    }
+    auto key_step = m_keyboard_scroll_controller.step_for_key(event, m_async_scroll_tree);
+    if (!key_step.has_value())
+        return {};
+    auto delta = key_step->delta;
+    auto scrolls_to_extent = key_step->scrolls_to_extent;
     auto now = MonotonicTime::now();
     auto scroll_state_at_step_starts = scroll_state_snapshot_at_keyboard_step_starts();
-    auto target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(*m_keyboard_scroll_state.target, delta, scroll_state_at_step_starts);
+    auto target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(key_step->keyboard_scroll_target, delta, scroll_state_at_step_starts);
     // If every destination is at its boundary, consume repeats while a scrolling box can still move toward it.
     // Falling back would cancel the running animation and lose the steps already accumulated in its destination.
     if (!target.has_value())
-        target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(*m_keyboard_scroll_state.target, delta, m_scroll_state_snapshot);
+        target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(key_step->keyboard_scroll_target, delta, m_scroll_state_snapshot);
     if (!target.has_value())
         return {};
 
-    if (!m_held_scroll_keys.contains_slow(event.key))
-        m_held_scroll_keys.append(event.key);
+    m_keyboard_scroll_controller.hold_key(event.key);
 
     auto stable_node_id = m_async_scroll_tree.scroll_node_for_id(*target)->stable_node_id;
     Optional<Gfx::FloatPoint> scroll_in_flight_destination;
@@ -357,12 +336,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
             scroll_in_flight_destination = running_animation.animation.destination_offset();
     }
     auto css_scroll_in_flight_destination = scroll_in_flight_destination.map([&](auto offset) { return m_async_scroll_tree.css_pixels_from_device_offset(offset); });
-    auto snap_selection_intent = Compositing::SnapSelectionStrategy::Type::EndPositionAndDirection;
-    if (scrolls_to_extent)
-        snap_selection_intent = Compositing::SnapSelectionStrategy::Type::EndPosition;
-    else if (is_arrow)
-        snap_selection_intent = Compositing::SnapSelectionStrategy::Type::Direction;
-    if (auto decision = m_scroll_snap_controller.decide_key_step(m_async_scroll_tree, m_scroll_state_snapshot, *target, m_async_scroll_tree.css_pixels_from_device_offset(delta), snap_selection_intent, css_scroll_in_flight_destination, now); decision.has_value()) {
+    if (auto decision = m_scroll_snap_controller.decide_key_step(m_async_scroll_tree, m_scroll_state_snapshot, *target, m_async_scroll_tree.css_pixels_from_device_offset(delta), key_step->snap_selection_intent, css_scroll_in_flight_destination, now); decision.has_value()) {
         schedule_end_of_scroll_step_gestures(now);
         if (auto* snap_scroll = decision->get_pointer<ScrollSnapController::SnapScrollStart>()) {
             snap_scroll->is_absolute_scroll = scrolls_to_extent;
@@ -1319,7 +1293,7 @@ void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Compositing
 {
     m_animated_content_may_affect_viewport.clear();
     if (m_viewport_size != viewport_size)
-        m_keyboard_scroll_state.target.clear();
+        m_keyboard_scroll_controller.forget_target();
     m_viewport_size = viewport_size;
     auto is_page_presentation_context = m_page_id.has_value() && !m_parent_context_id.has_value();
     m_window_resize_in_progress = is_page_presentation_context
@@ -1918,7 +1892,7 @@ void ContextState::note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_
 bool ContextState::user_scroll_gesture_in_progress() const
 {
     return m_scrollbar_controller.has_captured_scrollbar()
-        || !m_held_scroll_keys.is_empty()
+        || m_keyboard_scroll_controller.has_held_keys()
         || m_scroll_snap_controller.has_gesture_awaiting_input();
 }
 

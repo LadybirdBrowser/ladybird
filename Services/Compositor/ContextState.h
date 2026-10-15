@@ -21,6 +21,7 @@
 #include <Compositor/ElasticOverscrollController.h>
 #include <Compositor/Forward.h>
 #include <Compositor/FramePacer.h>
+#include <Compositor/KeyboardScrollController.h>
 #include <Compositor/ScrollFlingController.h>
 #include <Compositor/ScrollSnapController.h>
 #include <Compositor/ScrollbarController.h>
@@ -249,7 +250,7 @@ private:
     void stop_surplus_backing_store_retirement_timer();
     void end_keyboard_scroll_gesture();
     Compositing::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
-    void apply_keyboard_scroll_state(Compositing::KeyboardScrollState);
+    void adopt_keyboard_scroll_state(Compositing::KeyboardScrollState);
     Compositing::AccumulatedVisualContextTree const& current_visual_context_tree() const;
     Optional<float> visual_viewport_scale_for_compositing() const;
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
@@ -358,8 +359,7 @@ private:
     ScrollSnapController m_scroll_snap_controller;
 
     AsyncScrollUpdateOutbox m_async_scroll_update_outbox;
-    Compositing::KeyboardScrollState m_keyboard_scroll_state;
-    Vector<Web::UIEvents::KeyCode, 3> m_held_scroll_keys;
+    KeyboardScrollController m_keyboard_scroll_controller;
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     WheelGestureRouting m_wheel_gesture_routing;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;

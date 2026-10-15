@@ -13,6 +13,7 @@ set(SOURCES
     ElasticOverscrollController.cpp
     FramePacer.cpp
     HostWebGLContext.cpp
+    KeyboardScrollController.cpp
     OpenGLContext.cpp
     PausedDebuggerOverlay.cpp
     RasterizeDisplayList.cpp
