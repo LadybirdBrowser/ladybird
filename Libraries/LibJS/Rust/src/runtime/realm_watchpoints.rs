@@ -17,6 +17,9 @@
 //!   paths of RegExp skip reading as the realm made them (see `RegExpPrototype::primordial_properties_are_unchanged()`).
 //!   It depends on the sets that fire when either object changes, and when the values of those properties change. The
 //!   realm starts watching them when a fast path first asks, since it creates the RegExp intrinsics on demand.
+//! - `array_iterator_method`: %Array.prototype%[@@iterator] is %Array.prototype.values% of the realm, so that arrays
+//!   of the realm without an own @@iterator are iterated with the array iterators of the realm. It depends on the sets
+//!   that fire when %Array.prototype% changes, and when the value of that property changes.
 //! - `array_species`: %Array.prototype%.constructor is %Array%, whose @@species is the intrinsic getter, so that
 //!   ArraySpeciesCreate makes a plain array for an array of the realm that has no own constructor. It depends on the
 //!   sets that fire when either object changes, and when the values of those properties change.
@@ -247,4 +250,26 @@ fn watch_array_species(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<WatchpointSet>> {
             (array_constructor, PropertyKey::from(vm.well_known_symbols().species)),
         ],
     )
+}
+
+/// Whether %Array.prototype%[@@iterator] of the realm is its %Array.prototype.values%.
+pub fn arrays_have_builtin_iterator_method(vm: &Vm, realm: Gc<Realm>) -> bool {
+    realm
+        .storage
+        .array_iterator_method
+        .holds(vm, realm, watch_array_iterator_method)
+}
+
+/// The set that stays valid while %Array.prototype%[@@iterator] of the realm is its %Array.prototype.values%, if it is.
+fn watch_array_iterator_method(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<WatchpointSet>> {
+    let array_prototype = realm.array_prototype();
+    let iterator_key = PropertyKey::from(vm.well_known_symbols().iterator);
+    let metadata = array_prototype.shape().lookup(&iterator_key)?;
+    let iterator_method = array_prototype.get_direct(metadata.offset);
+    if !iterator_method.is_object()
+        || iterator_method.as_object() != realm.array_prototype_values_function().upcast::<Object>()
+    {
+        return None;
+    }
+    watch_intrinsics(vm, &[array_prototype], &[(array_prototype, iterator_key)])
 }

@@ -10,10 +10,7 @@
 
 use ak::Utf16FlyString;
 
-use crate::bytecode::executable::{
-    KeyedPropertyLookup, KeyedPropertyLookupCache, PropertyLookupCacheEntryType, StaticPropertyLookupCacheSite,
-};
-use crate::bytecode::property_access::get_own_property_without_side_effects;
+use crate::bytecode::executable::{KeyedPropertyLookup, KeyedPropertyLookupCache, PropertyLookupCacheEntryType};
 use crate::gc::class::GcCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -221,31 +218,23 @@ pub extern "C" fn libjs_jit_open_array_iteration(vm: &Vm, iterable: u64) -> u64 
     if array.downcast::<Array>().is_none() {
         return Value::EMPTY.0;
     }
-    // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property. The cached
-    //     lookups of own properties run no code.
+    // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property, unless it
+    //     has an own @@iterator. Arrays without named properties have none.
     let realm = vm.current_realm().expect("JIT code runs in a realm");
     if !realm_watchpoints::array_iterators_have_builtin_next(vm, realm) {
         return Value::EMPTY.0;
     }
-    let array_prototype = realm.array_prototype();
-    let iterator_key = PropertyKey::from(vm.well_known_symbols().iterator);
-    let cache = |site| vm.static_property_lookup_cache(site);
-    if array.prototype() != Some(array_prototype)
-        || get_own_property_without_side_effects(
-            &array,
-            &iterator_key,
-            cache(StaticPropertyLookupCacheSite::OpenArrayIterationOwnIteratorMethod),
-        ) != Value::EMPTY
+    if array.prototype() != Some(realm.array_prototype())
+        || !realm_watchpoints::arrays_have_builtin_iterator_method(vm, realm)
     {
         return Value::EMPTY.0;
     }
-    let values = Value::from_object(realm.array_prototype_values_function().upcast::<Object>());
-    let iterator_method = get_own_property_without_side_effects(
-        &array_prototype,
-        &iterator_key,
-        cache(StaticPropertyLookupCacheSite::OpenArrayIterationIteratorMethod),
-    );
-    if iterator_method != values {
+    let shape = array.shape();
+    if shape.property_count() != 0
+        && shape
+            .lookup(&PropertyKey::from(vm.well_known_symbols().iterator))
+            .is_some()
+    {
         return Value::EMPTY.0;
     }
     iterable.0

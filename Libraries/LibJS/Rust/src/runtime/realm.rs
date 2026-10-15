@@ -39,6 +39,8 @@ pub struct RealmStorage {
     pub(crate) regexp_primordial_properties: WatchedCondition,
     /// Whether ArraySpeciesCreate makes plain arrays (see `runtime::realm_watchpoints`).
     pub(crate) array_species: WatchedCondition,
+    /// Whether %Array.prototype%[@@iterator] is %Array.prototype.values% (see `runtime::realm_watchpoints`).
+    pub(crate) array_iterator_method: WatchedCondition,
 }
 
 define_cell!(Realm, Other);
@@ -54,6 +56,7 @@ unsafe impl Trace for Realm {
         self.storage.embedder_data.trace(visitor);
         self.storage.regexp_primordial_properties.trace(visitor);
         self.storage.array_species.trace(visitor);
+        self.storage.array_iterator_method.trace(visitor);
         self.array_iterator_next_watchpoint_set.trace(visitor);
         self.array_iterator_return_watchpoint_set.trace(visitor);
     }

@@ -735,8 +735,6 @@ define_static_property_lookup_cache_sites! {
     IteratorValueValue,
     IteratorCloseReturn,
     ArrayAppendIteratorMethod,
-    OpenArrayIterationOwnIteratorMethod,
-    OpenArrayIterationIteratorMethod,
     ObjectPrototypeToStringToStringTag,
     ArrayFromIteratorMethod,
     ArraySpeciesCreateConstructor,
