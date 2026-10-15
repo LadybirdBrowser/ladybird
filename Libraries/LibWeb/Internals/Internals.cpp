@@ -1060,6 +1060,21 @@ WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTar
     return target.dispatch_event(event);
 }
 
+void Internals::set_navigator_compatibility_mode(Bindings::InternalsNavigatorCompatibilityMode mode)
+{
+    switch (mode) {
+    case Bindings::InternalsNavigatorCompatibilityMode::Chrome:
+        ResourceLoader::the().set_navigator_compatibility_mode(NavigatorCompatibilityMode::Chrome);
+        break;
+    case Bindings::InternalsNavigatorCompatibilityMode::Gecko:
+        ResourceLoader::the().set_navigator_compatibility_mode(NavigatorCompatibilityMode::Gecko);
+        break;
+    case Bindings::InternalsNavigatorCompatibilityMode::Webkit:
+        ResourceLoader::the().set_navigator_compatibility_mode(NavigatorCompatibilityMode::WebKit);
+        break;
+    }
+}
+
 void Internals::spoof_current_url(Utf16String const& url_string)
 {
     auto url = DOMURL::parse(url_string.utf16_view());

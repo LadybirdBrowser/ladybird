@@ -76,9 +76,15 @@ ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestCl
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
     , m_platform(MUST(String::from_utf8(default_platform)))
     , m_preferred_languages(default_preferred_languages())
-    , m_navigator_compatibility_mode(default_navigator_compatibility_mode)
 {
     set_client(move(request_client));
+}
+
+NavigatorCompatibilityMode ResourceLoader::s_navigator_compatibility_mode = default_navigator_compatibility_mode;
+
+void ResourceLoader::set_navigator_compatibility_mode(NavigatorCompatibilityMode mode)
+{
+    s_navigator_compatibility_mode = mode;
 }
 
 void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_client)

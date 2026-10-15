@@ -6,6 +6,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/HTML/NavigatorID.h>
 #include <LibWeb/Loader/ResourceLoader.h>
@@ -62,6 +63,32 @@ Utf16String NavigatorIDMixin::platform() const
 
     // FIXME: Use some portion of the user agent string to make spoofing work 100%
     return Utf16String::from_ascii_without_validation(ResourceLoader::the().platform().bytes());
+}
+
+// https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-oscpu
+Utf16String NavigatorIDMixin::oscpu() const
+{
+    // The oscpu attribute's getter must return either the empty string or a string representing the platform on which
+    // the browser is executing, e.g. "Windows NT 10.0; Win64; x64", "Linux x86_64".
+    // The platform tokens of the User-Agent string say what it claims to run on: the parenthesized list without the
+    // "Macintosh" and "X11" markers and without the "rv:" version, so "Intel Mac OS X 10.15" or "Linux x86_64".
+    auto user_agent = ResourceLoader::the().user_agent_for_url(navigator_id_url());
+    auto open = user_agent.find_byte_offset('(');
+    auto close = user_agent.find_byte_offset(')');
+    if (!open.has_value() || !close.has_value() || *close <= *open)
+        return {};
+
+    auto tokens = user_agent.bytes_as_string_view().substring_view(*open + 1, *close - *open - 1).split_view(';');
+    StringBuilder builder;
+    for (auto token : tokens) {
+        token = token.trim_whitespace();
+        if (token.is_empty() || token.is_one_of("Macintosh"sv, "X11"sv) || token.starts_with("rv:"sv))
+            continue;
+        if (!builder.is_empty())
+            builder.append("; "sv);
+        builder.append(token);
+    }
+    return Utf16String::from_utf8(builder.string_view());
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-productsub

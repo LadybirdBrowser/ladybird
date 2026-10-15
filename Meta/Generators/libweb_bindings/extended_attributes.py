@@ -27,6 +27,16 @@ def wrap_with_extended_attribute_exposure_checks(
     {text}    }}
 """
 
+    if "NavigatorCompatibilityMode" in extended_attributes:
+        # Only the named engine has this member, so it exists only while the navigator claims to be that engine.
+        includes.add("LibWeb/Loader/ResourceLoader.h")
+        includes.add("LibWebCommon/Loader/NavigatorCompatibilityMode.h")
+        mode = extended_attributes["NavigatorCompatibilityMode"]
+        text = text.replace("\n", "\n    ")
+        text = f"""    if (ResourceLoader::navigator_compatibility_mode() == NavigatorCompatibilityMode::{mode}) {{
+    {text}    }}
+"""
+
     if "Experimental" in extended_attributes:
         # The name is what a site-compatibility rule lists to expose this member for the sites it matches.
         if experimental_name is None:

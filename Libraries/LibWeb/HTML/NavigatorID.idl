@@ -9,4 +9,11 @@ interface mixin NavigatorID {
     readonly attribute DOMString userAgent;
     [Exposed=Window] readonly attribute DOMString vendor;
     [Exposed=Window] readonly attribute DOMString vendorSub; // constant ""
+
+    // If the navigator compatibility mode is Gecko, then the user agent must also support the following partial interface:
+    [Exposed=Window, NavigatorCompatibilityMode=Gecko] boolean taintEnabled(); // constant false
+    [Exposed=Window, NavigatorCompatibilityMode=Gecko] readonly attribute DOMString oscpu;
+
+    // AD-HOC: No standard defines buildID; a navigator that reports Gecko's product has it, and nothing else does.
+    [Exposed=Window, NavigatorCompatibilityMode=Gecko, ImplementedAs=build_id] readonly attribute DOMString buildID;
 };

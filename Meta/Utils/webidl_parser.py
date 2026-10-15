@@ -54,6 +54,8 @@ ALLOWED_EXTENDED_ATTRIBUTES = frozenset(
         "LegacyUnforgeable",
         "LegacyWindowAlias",
         "MissingValueDefault",
+        # The construct exists only while the navigator claims the named engine, which alone has it.
+        "NavigatorCompatibilityMode",
         "NeedsArgumentCount",
         "NeedsCallerRealm",
         "NewObject",

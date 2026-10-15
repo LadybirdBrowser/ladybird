@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // What only one engine has exists only while the navigator claims to be that engine: a realm created under each
+    // navigator compatibility mode sees that mode's interfaces and attributes and none of the others'.
+    asyncTest(async done => {
+        const probe = async mode => {
+            internals.setNavigatorCompatibilityMode(mode);
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = "<!DOCTYPE html>";
+            const loaded = new Promise(resolve => iframe.onload = resolve);
+            document.body.append(iframe);
+            await loaded;
+            const { navigator } = iframe.contentWindow;
+            println(`${mode}: WebGLObject ${typeof iframe.contentWindow.WebGLObject}, deviceMemory ${"deviceMemory" in navigator}, `
+                + `buildID ${"buildID" in navigator ? navigator.buildID : "absent"}, oscpu ${"oscpu" in navigator ? `${navigator.userAgent.includes(navigator.oscpu) ? "within" : "outside"} the User-Agent` : "absent"}, `
+                + `taintEnabled ${typeof navigator.taintEnabled}, vendor ${JSON.stringify(navigator.vendor)}`);
+            iframe.remove();
+        };
+        try {
+            for (const mode of ["chrome", "gecko", "webkit"])
+                await probe(mode);
+        } finally {
+            internals.setNavigatorCompatibilityMode("chrome");
+            done();
+        }
+    });
+</script>
