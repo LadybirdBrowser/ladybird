@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        let cancelableSteps = [];
+        window.addEventListener("wheel", event => {
+            if (event.deltaY !== 0)
+                cancelableSteps.push(event.cancelable);
+        }, { passive: false });
+        window.scrollTo(0, 500);
+        await animationFrame();
+        await animationFrame();
+
+        // The page lets the first step through, and the compositor scrolls the rest of the gesture without asking.
+        await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
+
+        // A blocking listener added during the gesture is asked about the next step, which the page could cancel.
+        document.addEventListener("wheel", () => {}, { passive: false });
+        // A synchronous call to the compositor, so that it has heard about the new listener before the next step.
+        internals.elasticOverscrollStretchY();
+        await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
+        println(`cancelable steps: ${cancelableSteps.join(", ")}`);
+        println(`window.scrollY: ${window.scrollY}`);
+
+        await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ended");
+    });
+</script>

@@ -18,7 +18,8 @@
         await animationFrame();
         await animationFrame();
 
-        // The page sees every step first, cancels none of them, and the page still stretches past its top.
+        // The page sees the first step before anything scrolls and does not cancel it. The compositor then stretches the
+        // page past its top, and scrolls the rest of the gesture without asking the page again.
         await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
         await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
         println(`pulled past the top: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);

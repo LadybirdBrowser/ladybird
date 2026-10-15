@@ -24,7 +24,8 @@
         await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
         println(`after the canceled step: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);
 
-        // The page asks about the next step too, and the steps it lets through stretch the page.
+        // The page can cancel the next step too. Once it lets a step through, that step and the rest of the gesture
+        // stretch the page without asking the page again.
         await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
         await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
         println(`after the steps let through: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);

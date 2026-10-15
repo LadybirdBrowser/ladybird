@@ -1,0 +1,2 @@
+cancelable steps: true, false, true, false
+window.scrollY: 700
