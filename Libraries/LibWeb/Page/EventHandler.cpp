@@ -2926,6 +2926,9 @@ Layout::Node* EventHandler::validated_wheel_scroll_latch_target_layout_node(Layo
         else if (auto* element = as_if<DOM::Element>(*target))
             layout_node = element->pseudo_element_layout_node(read, *pseudo_element);
     }
+    // A hit on text is a hit on the text's parent, which has the paintable row that events are dispatched from.
+    if (layout_node && layout_node->is_text_node())
+        layout_node = layout_node->parent();
     if (!layout_node)
         m_wheel_scroll_latch.clear();
     return layout_node;

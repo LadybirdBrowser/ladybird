@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #scroller {
+        width: 300px;
+        height: 200px;
+        overflow: auto;
+        font: 20px/30px sans-serif;
+    }
+</style>
+<div id="scroller"></div>
+<script>
+    for (let i = 0; i < 60; i++) {
+        const line = document.createElement("div");
+        line.innerHTML = `<span>Line ${i}</span>`;
+        scroller.appendChild(line);
+    }
+
+    promiseTest(async () => {
+        const targets = [];
+        // A blocking wheel event listener keeps the scrolling of these gestures on the main thread.
+        scroller.addEventListener("wheel", event => targets.push(event.target.tagName), { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        // Every step of a gesture that starts over text goes to the element around the text and scrolls the scroller.
+        for (let step = 0; step < 3; step++)
+            await internals.wheel(15, 15, 0, 10, true, "ongoing");
+        await internals.wheel(15, 15, 0, 0, true, "ended");
+
+        println(`wheel event targets: ${targets.join(",")}`);
+        println(`scroller.scrollTop: ${scroller.scrollTop}`);
+    });
+</script>
