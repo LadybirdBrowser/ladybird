@@ -38,11 +38,7 @@
 
         const received = [];
         window.addEventListener("message", event => received.push(event.data));
-        const waitFor = async what => {
-            for (let attempt = 0; attempt < 200 && !received.includes(what); ++attempt)
-                await timeout(25);
-            return received.includes(what);
-        };
+        const waitFor = what => waitForCondition(() => received.includes(what));
 
         const iframe = document.createElement("iframe");
         iframe.src = childUrl;
