@@ -268,9 +268,9 @@ void HeadlessWebView::send_system_theme_to_page(WebContentPage& page)
     page.async_update_system_theme(m_theme);
 }
 
-void HeadlessWebView::prepare_page_for_tab(WebContentPage& page)
+void HeadlessWebView::prepare_page_for_navigable(WebContentPage& page)
 {
-    ViewImplementation::prepare_page_for_tab(page);
+    ViewImplementation::prepare_page_for_navigable(page);
 
     page.async_update_screen_rects({ { screen_rect } }, { { screen_rect } }, 0);
 }

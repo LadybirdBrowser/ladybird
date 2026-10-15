@@ -1082,6 +1082,9 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
     }
 
     if (request == "set-force-dark") {
+        // Force dark is the traversable's, which only the page displaying the tab has.
+        if (!page->page().has_local_traversable())
+            return;
         bool state = argument == "on";
         auto traversable = page->page().local_traversable();
         traversable->set_force_dark_enabled(state);
@@ -1091,17 +1094,17 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
         return;
     }
 
+    // The debug overlays are drawn by the traversable, which only the page displaying the tab has; a page hosting a
+    // child frame of the tab gets the same requests and has nothing to draw them on.
     if (request == "set-line-box-borders") {
-        bool state = argument == "on";
-        auto traversable = page->page().local_traversable();
-        traversable->set_should_show_line_box_borders(state);
+        if (page->page().has_local_traversable())
+            page->page().local_traversable()->set_should_show_line_box_borders(argument == "on");
         return;
     }
 
     if (request == "set-caret-hit-test-debug-overlay") {
-        bool state = argument == "on";
-        auto traversable = page->page().local_traversable();
-        traversable->set_should_show_caret_hit_test_debug_overlay(state);
+        if (page->page().has_local_traversable())
+            page->page().local_traversable()->set_should_show_caret_hit_test_debug_overlay(argument == "on");
         return;
     }
 

@@ -305,6 +305,11 @@ if (BUILD_TESTING AND NOT WIN32)
         )
         set_tests_properties(TestWindowSizeReachesEveryPage PROPERTIES TIMEOUT 120)
         add_test(
+            NAME TestUserAgentPresetReachesChildFrames
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-user-agent-preset-reaches-child-frames.py $<TARGET_FILE:ladybird>
+        )
+        set_tests_properties(TestUserAgentPresetReachesChildFrames PROPERTIES TIMEOUT 120)
+        add_test(
             NAME TestMessagePortCollection
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-message-port-collection.py $<TARGET_FILE:WebDriver>
         )

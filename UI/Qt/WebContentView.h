@@ -168,7 +168,7 @@ signals:
 
 private:
     // ^WebView::ViewImplementation
-    virtual void prepare_page_for_tab(WebView::WebContentPage&) override;
+    virtual void prepare_page_for_navigable(WebView::WebContentPage&) override;
     virtual void send_system_theme_to_page(WebView::WebContentPage&) override;
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;

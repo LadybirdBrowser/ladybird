@@ -2859,11 +2859,9 @@ void ViewImplementation::run_webdriver_commands_waiting_for_a_document(Badge<Can
         run_webdriver_content_command(command_id, command.navigable_id, command.name, move(command.payload), move(command.arguments));
 }
 
-void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
+void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
 {
-    page.async_set_window_handle(m_window_handle);
     page.async_set_zoom_level(m_zoom_level);
-    page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     if (m_window_position.has_value())
         page.async_set_window_position(m_window_position->to_type<Web::DevicePixels>());
     if (m_window_size.has_value())
@@ -2872,7 +2870,6 @@ void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
     page.async_set_has_focus(traversable().has_system_focus());
     if (auto focused_navigable_id = traversable().focused_navigable_id(); focused_navigable_id.has_value())
         page.async_set_focused_navigable(*focused_navigable_id);
-    Application::the().update_compositor_viewport(page.compositor_context_id(), viewport_size().to_type<int>(), m_device_pixel_ratio);
     page.async_set_document_cookie_version_buffer(m_document_cookie_version_buffer);
     if (m_debugger_is_attached)
         page.async_attach_debugger();
@@ -2882,6 +2879,16 @@ void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
     Application::the().apply_view_options({}, *this, page);
     send_force_dark(page);
     send_preferences_to_page(page);
+}
+
+void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
+{
+    prepare_page_for_navigable(page);
+    // The window handle names the tab to WebDriver, and the viewport is the tab's: both belong to the page displaying
+    // it, whose traversable is local.
+    page.async_set_window_handle(m_window_handle);
+    page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    Application::the().update_compositor_viewport(page.compositor_context_id(), viewport_size().to_type<int>(), m_device_pixel_ratio);
 }
 
 void ViewImplementation::did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page)
