@@ -1164,9 +1164,8 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn paintable_row_cleared(&mut self, reset: PaintableRowReset) {
-        if !self.scrollable_overflow.non_child_boxes.borrow().is_empty() {
-            self.scrollable_overflow.contained_boxes_dirty.set(true);
-        }
+        // NB: The overflow index may keep listing this box. Overflow measurement passes over boxes without a row, and
+        //     populating the row again notes the box anew.
         self.reset_paintable_row(true, reset);
     }
 

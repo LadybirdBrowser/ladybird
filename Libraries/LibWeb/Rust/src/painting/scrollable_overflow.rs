@@ -664,6 +664,28 @@ impl LayoutNodeArena {
         }
     }
 
+    /// Notes that `root` is being linked into or out of the tree. The tree above a box decides its
+    /// containing block, so only boxes in this subtree can enter or leave the index, and only those
+    /// whose containing block differs from their parent are listed in it.
+    pub(crate) fn note_overflow_contained_boxes_may_move_with_subtree(&self, root: NodeSlotId) {
+        if self.scrollable_overflow.contained_boxes_dirty.get()
+            || self.scrollable_overflow.non_child_boxes.borrow().is_empty()
+        {
+            return;
+        }
+        let mut found = false;
+        self.for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
+            let data = self.data(node);
+            found = found
+                || (node_facts::kind_is_box(data.kind.get())
+                    && self.node_containing_block_if_live(node) != Some(data.parent.get()));
+            !found
+        });
+        if found {
+            self.scrollable_overflow.contained_boxes_dirty.set(true);
+        }
+    }
+
     pub(crate) fn ensure_overflow_contained_boxes(&self) {
         if !self.scrollable_overflow.contained_boxes_dirty.replace(false) {
             return;
