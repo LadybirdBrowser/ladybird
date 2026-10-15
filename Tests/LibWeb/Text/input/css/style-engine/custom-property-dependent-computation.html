@@ -1,0 +1,24 @@
+<!doctype html>
+<style>
+    @property --length {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 3px;
+    }
+
+    #relative {
+        font-size: 16px;
+        --length: 2em;
+        --consumer: if(else: var(--length));
+    }
+</style>
+<div id="relative"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const relative = document.getElementById("relative");
+        println(`consumer: ${getComputedStyle(relative).getPropertyValue("--consumer").trim()}`);
+        relative.style.fontSize = "20px";
+        println(`updated: ${getComputedStyle(relative).getPropertyValue("--consumer").trim()}`);
+    });
+</script>
