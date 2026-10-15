@@ -86,7 +86,7 @@ else
 fi
 
 case "@VCPKG_CMAKE_SYSTEM_NAME@" in
-    FreeBSD|OpenBSD)
+    *BSD)
         MAKE_BINARY="gmake"
         ;;
     *)

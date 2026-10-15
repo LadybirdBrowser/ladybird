@@ -1,0 +1,24 @@
+diff --git a/ffbuild/common.mak b/ffbuild/common.mak
+index 06d6f39..53862c3 100644
+--- a/ffbuild/common.mak
++++ b/ffbuild/common.mak
+@@ -21,8 +21,7 @@ LINK = $(if $(filter -lstdc++,$(1)),$(LDXX) $(filter-out -lstdc++,$(1)),$(LD) $(
+ endif
+ endif
+
+-BIN2CEXE = ffbuild/bin2c$(HOSTEXESUF)
+-BIN2C = $(BIN2CEXE)
++BIN2C = bin2c
+
+ ifndef V
+ Q      = @
+@@ -122,9 +121,6 @@ COMPILE_LASX = $(call COMPILE,CC,LASXFLAGS)
+ %.h.c:
+ 	$(Q)echo '#include "$*.h"' >$@
+
+-$(BIN2CEXE): ffbuild/bin2c_host.o
+-	$(HOSTLD) $(HOSTLDFLAGS) $(HOSTLD_O) $^ $(HOSTEXTRALIBS)
+-
+ RUN_BIN2C = $(BIN2C) $(patsubst $(SRC_PATH)/%,$(SRC_LINK)/%,$<) $@ $(subst .,_,$(basename $(notdir $@)))
+ RUN_GZIP  = $(M)gzip -nc9 $(patsubst $(SRC_PATH)/%,$(SRC_LINK)/%,$<) >$@
+ RUN_MINIFY = $(M)sed 's!/\\*.*\\*/!!g' $< | tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $$//' > $@
