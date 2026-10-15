@@ -367,7 +367,9 @@ pub unsafe extern "C" fn rust_content_blocker_create(rules: *const u8, rules_len
             return std::ptr::null_mut();
         };
 
-        let engine = adblock::engine::Engine::from_rules(rules.lines(), adblock::lists::ParseOptions::default());
+        let mut filter_set = adblock::lists::FilterSet::new(false);
+        filter_set.add_filter_list(rules.to_string(), adblock::lists::ParseOptions::default());
+        let engine = adblock::engine::Engine::new_with_filter_set(filter_set);
         let generic_selector_list_rules = GenericSelectorListRules::from_rules(rules);
         let engine = ContentBlockerEngine {
             engine,
@@ -415,11 +417,12 @@ pub unsafe extern "C" fn rust_content_blocker_matches(
             return false;
         };
 
-        let Ok(request) = adblock::request::Request::new(url, source_url, request_type) else {
+        // The content blocker interface does not currently provide the request method.
+        let Ok(request) = adblock::request::Request::new(url, source_url, request_type, "") else {
             return false;
         };
 
-        engine.engine.check_network_request(&request).matched
+        engine.engine.check_network_request(&request).should_block()
     })
 }
 
