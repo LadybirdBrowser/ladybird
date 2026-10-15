@@ -134,6 +134,22 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .array_element_type = {},
     },
     {
+        .id = ConfigVariableID::VerticalTabsHoverExpandDelay,
+        .name = "ui.tabs.vertical_tabs_hover_expand_delay_ms"sv,
+        .title = "Vertical tab hover expansion delay"sv,
+        .description = "Delay in milliseconds before collapsed vertical tabs begin expanding on hover. Set to 0 to expand immediately."sv,
+        .default_value = 100,
+        .array_element_type = {},
+    },
+    {
+        .id = ConfigVariableID::VerticalTabsHoverExpandAnimationDuration,
+        .name = "ui.tabs.vertical_tabs_hover_expand_animation_duration_ms"sv,
+        .title = "Vertical tab hover expansion animation duration"sv,
+        .description = "Duration in milliseconds of the vertical tab hover expansion animation. Set to 0 to disable the animation."sv,
+        .default_value = 100,
+        .array_element_type = {},
+    },
+    {
         .id = ConfigVariableID::MaximumConnectionsPerDownload,
         .name = "downloads.maximum_connections_per_download"sv,
         .title = "Maximum connections per download"sv,
@@ -235,6 +251,11 @@ static bool config_variable_value_is_valid(ConfigVariableDefinition const& varia
 {
     if (!json_value_matches_type(value, variable.default_value.type()))
         return false;
+
+    if (variable.id == ConfigVariableID::VerticalTabsHoverExpandDelay || variable.id == ConfigVariableID::VerticalTabsHoverExpandAnimationDuration) {
+        auto milliseconds = value.get_int();
+        return milliseconds.has_value() && *milliseconds >= 0 && value.get_double_with_precision_loss().value() == *milliseconds;
+    }
 
     if (variable.default_value.is_array() && variable.array_element_type.has_value())
         return json_array_contains_only_type(value.as_array(), *variable.array_element_type);

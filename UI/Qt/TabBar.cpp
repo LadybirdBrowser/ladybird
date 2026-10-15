@@ -80,8 +80,6 @@ static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 4.0;
 static constexpr int TAB_CARD_SHAPE_VERTICAL_INSET = 3;
 static constexpr int HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE = 32;
 static constexpr int TAB_CONTENT_HORIZONTAL_INSET = 8;
-static constexpr int VERTICAL_TABS_HOVER_EXPAND_DELAY_MS = 100;
-static constexpr int VERTICAL_TABS_HOVER_EXPAND_ANIMATION_DURATION_MS = 100;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 static constexpr int TAB_PREVIEW_HOVER_DELAY_MS = 350;
 static constexpr int TAB_PREVIEW_THUMBNAIL_WIDTH = 320;
@@ -1605,14 +1603,12 @@ TabWidget::TabWidget(QWidget* parent)
     m_vertical_tabs_hover_expand_timer = new QTimer(this);
     m_vertical_tabs_hover_expand_timer->setSingleShot(true);
     m_vertical_tabs_hover_expand_timer->setTimerType(Qt::PreciseTimer);
-    m_vertical_tabs_hover_expand_timer->setInterval(VERTICAL_TABS_HOVER_EXPAND_DELAY_MS);
     connect(m_vertical_tabs_hover_expand_timer, &QTimer::timeout, this, [this]() {
         if (cursor_is_over_vertical_tabs())
             set_vertical_tabs_hover_expanded(true);
     });
 
     m_vertical_tabs_hover_expand_animation = new QVariantAnimation(this);
-    m_vertical_tabs_hover_expand_animation->setDuration(VERTICAL_TABS_HOVER_EXPAND_ANIMATION_DURATION_MS);
     m_vertical_tabs_hover_expand_animation->setEasingCurve(QEasingCurve::OutCubic);
     m_vertical_tabs_hover_expand_animation->setStartValue(0.0);
     m_vertical_tabs_hover_expand_animation->setEndValue(1.0);
@@ -1938,8 +1934,10 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 
     if (is_vertical_tabs_hover_target) {
         if (event->type() == QEvent::Enter) {
-            if (can_expand_vertical_tabs_on_hover() && !m_vertical_tabs_hover_expanded && !m_vertical_tabs_hover_expand_timer->isActive())
-                m_vertical_tabs_hover_expand_timer->start();
+            if (can_expand_vertical_tabs_on_hover() && !m_vertical_tabs_hover_expanded && !m_vertical_tabs_hover_expand_timer->isActive()) {
+                auto delay = Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandDelay);
+                m_vertical_tabs_hover_expand_timer->start(delay);
+            }
         } else if (event->type() == QEvent::Leave) {
             defer_update_vertical_tabs_hover_expanded();
         }
@@ -2449,7 +2447,12 @@ void TabWidget::set_vertical_tabs_hover_expanded(bool expanded)
 
     m_vertical_tabs_hover_expanded = expanded;
     m_vertical_tabs_hover_expand_animation->stop();
-    m_vertical_tabs_hover_expand_progress = 0.0;
+
+    auto duration = m_vertical_tabs_hover_expanded
+        ? Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandAnimationDuration)
+        : 0;
+    m_vertical_tabs_hover_expand_progress = m_vertical_tabs_hover_expanded && duration == 0 ? 1.0 : 0.0;
+
     if (m_vertical_tabs_hover_expanded)
         m_vertical_tabs_hover_collapse_timer->start();
     else
@@ -2458,8 +2461,10 @@ void TabWidget::set_vertical_tabs_hover_expanded(bool expanded)
     update_vertical_tabs_hover_layout();
     update_vertical_tabs_content_overlay();
 
-    if (m_vertical_tabs_hover_expanded)
+    if (m_vertical_tabs_hover_expanded && duration > 0) {
+        m_vertical_tabs_hover_expand_animation->setDuration(duration);
         m_vertical_tabs_hover_expand_animation->start();
+    }
 }
 
 void TabWidget::update_vertical_tabs_content_overlay()

@@ -87,6 +87,8 @@ enum class ConfigVariableID : u8 {
     ShowAdvancedDebugMenu,
     ShowTabPerformanceMonitor,
     UseClientSideWindowDecorations,
+    VerticalTabsHoverExpandDelay,
+    VerticalTabsHoverExpandAnimationDuration,
     MaximumConnectionsPerDownload,
     SplitDownloadsWithoutValidators,
     RestartStalledConnections,
