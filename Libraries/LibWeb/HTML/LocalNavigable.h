@@ -197,28 +197,7 @@ public:
     void run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
 
-    void populate_session_history_entry_document(
-        URL::URL url,
-        DocumentResource document_resource,
-        Fetch::Infrastructure::Request::ReferrerType request_referrer,
-        ReferrerPolicy::ReferrerPolicy request_referrer_policy,
-        Optional<URL::Origin> initiator_origin,
-        Optional<URL::Origin> origin,
-        Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
-        Optional<URL::URL> about_base_url,
-        Utf16String navigable_target_name,
-        bool reload_pending,
-        bool ever_populated,
-        UserAgentInitiated user_agent_initiated,
-        GC::Ref<SourceSnapshotParams> source_snapshot_params,
-        TargetSnapshotParams const& target_snapshot_params,
-        UserNavigationInvolvement user_involvement,
-        Optional<Utf16String> navigation_id,
-        NavigationParamsVariant navigation_params,
-        ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
-        bool allow_POST,
-        GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps,
-        GC::Ptr<GC::Function<void(NavigationPopulationResult)>> response_steps = {});
+    void populate_session_history_entry_document(NavigationPopulationRequest const&, GC::Ref<SourceSnapshotParams>, bool allow_POST, GC::Ref<GC::Function<void(NavigationPopulationResult)>> response_steps);
 
     void queue_navigation_and_traversal_task_for_session_history_entry_population(
         URL::URL url,
