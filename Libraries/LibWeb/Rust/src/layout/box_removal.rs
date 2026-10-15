@@ -134,10 +134,11 @@ impl LayoutNodeArena {
             }
             // Once only anonymous wrappers would remain, a full rebuild would place their inline content directly in the
             // parent instead.
+            // OPTIMIZATION: One in-flow block-level sibling that remains settles it, so the scan stops at the first.
             let mut an_anonymous_inline_wrapper_remains = false;
             let mut an_in_flow_block_level_sibling_remains = false;
             let mut sibling = parent_data.first_child.get();
-            while !sibling.is_invalid() {
+            while !sibling.is_invalid() && !an_in_flow_block_level_sibling_remains {
                 let data = self.data(sibling);
                 let is_out_of_flow = node_kind_is_node_with_style(data.kind.get())
                     && node_facts::node_is_out_of_flow(data, self.node_style_if_live(sibling));
