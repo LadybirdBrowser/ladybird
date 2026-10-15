@@ -1,0 +1,7 @@
+translate(10px, 0px) to translateX(100px) runs on the compositor: true
+translateY(5px) to translate(0px, 50px) runs on the compositor: true
+translate(10px) to translateY(50px) runs on the compositor: true
+scale(2) to scaleX(3) runs on the compositor: true
+scaleY(2) to scale(3, 4) runs on the compositor: true
+translateZ(5px) to translate3d(0px, 0px, 50px) runs on the compositor: true
+transition retargeted from its current value runs on the compositor: true

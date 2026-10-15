@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 20px;
+        height: 20px;
+        transition: transform 1s linear;
+    }
+</style>
+<div id="target"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    async function renderFrameAfter(milliseconds) {
+        await new Promise(resolve => setTimeout(resolve, milliseconds));
+        internals.injectRenderingOpportunity(performance.now());
+        await nextTask();
+    }
+
+    function transitionRunsOnCompositor() {
+        internals.resetStyleInvalidationCounters();
+        internals.updateCompositorAnimations();
+        return internals.getStyleInvalidationCounters().compositorVisualAnimations === 1;
+    }
+
+    function cancelTransitions() {
+        for (const animation of document.getAnimations())
+            animation.cancel();
+        internals.updateCompositorAnimations();
+    }
+
+    function transitionBetweenRunsOnCompositor(from, to) {
+        target.style.transition = "none";
+        target.style.transform = from;
+        getComputedStyle(target).transform;
+        target.style.transition = "";
+        target.style.transform = to;
+        getComputedStyle(target).transform;
+        const runsOnCompositor = transitionRunsOnCompositor();
+        cancelTransitions();
+        return runsOnCompositor;
+    }
+
+    asyncTest(async done => {
+        for (const [from, to] of [
+            ["translate(10px, 0px)", "translateX(100px)"],
+            ["translateY(5px)", "translate(0px, 50px)"],
+            ["translate(10px)", "translateY(50px)"],
+            ["scale(2)", "scaleX(3)"],
+            ["scaleY(2)", "scale(3, 4)"],
+            ["translateZ(5px)", "translate3d(0px, 0px, 50px)"],
+        ])
+            println(`${from} to ${to} runs on the compositor: ${transitionBetweenRunsOnCompositor(from, to)}`);
+
+        target.style.transition = "none";
+        target.style.transform = "none";
+        getComputedStyle(target).transform;
+        target.style.transition = "";
+
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        await renderFrameAfter(0);
+
+        target.style.transform = "translateX(100px)";
+        await renderFrameAfter(0);
+
+        target.style.transform = "translateX(200px)";
+        await renderFrameAfter(20);
+        println(`transition retargeted from its current value runs on the compositor: ${transitionRunsOnCompositor()}`);
+
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

@@ -415,9 +415,20 @@ fn transform_operation(
         let angle = if axis < 0.0 { -lowered[3] } else { lowered[3] };
         lowered = vec![angle];
     }
-    if kind == Kind::Translate && lowered.len() == 1 {
-        kind = Kind::TranslateX;
-    }
+    // https://drafts.csswg.org/css-transforms-2/#transform-primitives
+    // Translations and scales take the operation of their primitive, through which the main thread interpolates two
+    // functions that share it, so that keyframes naming different ones line up as the same operation.
+    let primitive = match (kind, lowered.as_slice()) {
+        (Kind::Translate | Kind::TranslateX, &[x]) => Some((Kind::Translate, vec![x, 0.0])),
+        (Kind::TranslateY, &[y]) => Some((Kind::Translate, vec![0.0, y])),
+        (Kind::TranslateZ, &[z]) => Some((Kind::Translate3d, vec![0.0, 0.0, z])),
+        (Kind::Scale, &[scale]) => Some((Kind::Scale, vec![scale, scale])),
+        (Kind::ScaleX, &[x]) => Some((Kind::Scale, vec![x, 1.0])),
+        (Kind::ScaleY, &[y]) => Some((Kind::Scale, vec![1.0, y])),
+        (Kind::ScaleZ, &[z]) => Some((Kind::Scale3d, vec![1.0, 1.0, z])),
+        _ => None,
+    };
+    let (kind, lowered) = primitive.unwrap_or((kind, lowered));
     let operation = VisualAnimationTransformOperation::new(kind, &lowered)?;
     operation.is_valid().then_some(operation)
 }
@@ -492,16 +503,10 @@ fn transform_lists_only_translate_horizontally<'a>(
     let Some(first) = lists.next() else {
         return false;
     };
-    if !first
-        .iter()
-        .all(|operation| matches!(operation.kind, Kind::Translate | Kind::TranslateX))
-    {
+    if !first.iter().all(|operation| operation.kind == Kind::Translate) {
         return false;
     }
-    let translate_y = |operation: &VisualAnimationTransformOperation| match operation.kind {
-        Kind::Translate => operation.values().get(1).copied().unwrap_or(0.0),
-        _ => 0.0,
-    };
+    let translate_y = |operation: &VisualAnimationTransformOperation| operation.values().get(1).copied().unwrap_or(0.0);
     let mut list_count = 1;
     for list in lists {
         list_count += 1;
@@ -1256,7 +1261,7 @@ mod tests {
         );
         assert!(animation.is_valid());
 
-        // A single translation becomes the horizontal one, and a rotation about one axis the
+        // A translation takes its primitive's two values, and a rotation about one axis the
         // rotation about that axis, signed by the axis.
         let lowered = transform_operations_from_style_value(
             AnimatedProperty::Transform,
@@ -1275,8 +1280,8 @@ mod tests {
         assert_eq!(
             lowered,
             Some(vec![
-                operation(Kind::TranslateX, &[3.0]),
-                operation(Kind::TranslateX, &[200.0]),
+                operation(Kind::Translate, &[3.0, 0.0]),
+                operation(Kind::Translate, &[200.0, 0.0]),
                 operation(Kind::RotateZ, &[-std::f32::consts::FRAC_PI_2]),
             ])
         );
@@ -1302,6 +1307,51 @@ mod tests {
             None,
         );
         assert_eq!(matrix, None);
+    }
+
+    #[test]
+    fn transform_keyframes_naming_functions_of_one_primitive_interpolate_together() {
+        let builds = |from: StyleValueData, to: StyleValueData| {
+            let host = TestHost::default()
+                .with_value(0, AnimatedProperty::Transform, value_list(vec![from]))
+                .with_value(1, AnimatedProperty::Transform, value_list(vec![to]));
+            let ffi_host = host.ffi();
+            let keyframes = [
+                present(0.0, AnimatedProperty::Transform),
+                present(1.0, AnimatedProperty::Transform),
+            ];
+            let ffi_request = build_request(
+                FfiVisualAnimationTargetKind::Transform,
+                &keyframes,
+                TARGETED_TRANSFORM_PROPERTY_TRANSFORM,
+            );
+            let request = unsafe { Request::new(&ffi_request) };
+            let mut state = CompositorAnimationEffectState::default();
+            state.build(&request, &Host::new(&ffi_host), |_| vec![1]).built
+        };
+
+        assert!(builds(
+            transformation(transform_function::TRANSLATE, vec![px(1.0), px(0.0)]),
+            transformation(transform_function::TRANSLATE_X, vec![px(3.0)]),
+        ));
+        assert!(builds(
+            transformation(transform_function::TRANSLATE_Y, vec![px(1.0)]),
+            transformation(transform_function::TRANSLATE_X, vec![px(3.0)]),
+        ));
+        assert!(builds(
+            transformation(transform_function::SCALE_X, vec![number_value(2.0)]),
+            transformation(transform_function::SCALE, vec![number_value(3.0)]),
+        ));
+        assert!(builds(
+            transformation(transform_function::TRANSLATE_Z, vec![px(1.0)]),
+            transformation(transform_function::TRANSLATE3D, vec![px(0.0), px(0.0), px(3.0)]),
+        ));
+        // A 2D function and a 3D one interpolate through the 3D primitive, which the compositor leaves to the main
+        // thread.
+        assert!(!builds(
+            transformation(transform_function::TRANSLATE, vec![px(1.0)]),
+            transformation(transform_function::TRANSLATE3D, vec![px(0.0), px(0.0), px(3.0)]),
+        ));
     }
 
     #[test]
@@ -1340,8 +1390,8 @@ mod tests {
         assert_eq!(
             animation.keyframes[0].value,
             VisualAnimationValue::Transform(vec![
-                operation(Kind::Scale, &[1.0]),
-                operation(Kind::TranslateY, &[0.0])
+                operation(Kind::Scale, &[1.0, 1.0]),
+                operation(Kind::Translate, &[0.0, 0.0])
             ])
         );
         assert!(animation.is_valid());
@@ -1368,11 +1418,11 @@ mod tests {
         let animation = pending_animation(&state, FfiVisualAnimationTargetKind::Transform);
         assert_eq!(
             animation.keyframes[0].value,
-            VisualAnimationValue::Transform(vec![operation(Kind::Scale, &[1.0])])
+            VisualAnimationValue::Transform(vec![operation(Kind::Scale, &[1.0, 1.0])])
         );
         assert_eq!(
             animation.keyframes[1].value,
-            VisualAnimationValue::Transform(vec![operation(Kind::Scale, &[3.0])])
+            VisualAnimationValue::Transform(vec![operation(Kind::Scale, &[3.0, 3.0])])
         );
     }
 
