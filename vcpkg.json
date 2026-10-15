@@ -392,7 +392,7 @@
     },
     {
       "name": "simdjson",
-      "version": "4.6.4#0"
+      "version": "5.0.2#0"
     },
     {
       "name": "simdutf",
