@@ -1266,18 +1266,6 @@ ApplyHistoryStep* CanonicalTraversable::find_history_step_run(Web::HTML::CrossPr
     return operation ? operation->algorithm.ptr() : nullptr;
 }
 
-bool CanonicalTraversable::navigation_transaction_matches(HistoryOperation const& operation, WebContentPage& page, Optional<Web::HTML::CrossProcessId> reply_navigable_id) const
-{
-    if (!operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>())
-        return true;
-
-    auto const& parameters = operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
-    if (reply_navigable_id.has_value() && *reply_navigable_id != parameters.navigable_id)
-        return true;
-    auto navigation = finalized_navigation(operation);
-    return navigation && navigation->host() == &page;
-}
-
 void CanonicalTraversable::add_history_operation_completion_endpoint(HistoryOperation& operation, NonnullRefPtr<WebContentPage> endpoint)
 {
     if (any_of(operation.completion_endpoints, [&](auto const& completion_endpoint) { return completion_endpoint == endpoint; }))
@@ -1292,7 +1280,6 @@ void CanonicalTraversable::did_finish_history_navigation_params_creation(WebCont
     auto* operation = find_history_operation(operation_id);
     auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr;
     if (!changing_navigable || changing_navigable->population_loader
-        || !navigation_transaction_matches(*operation, source_page, navigable_id)
         || !source_page.take_owed_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id })) {
         discard();
         return;
@@ -1301,7 +1288,7 @@ void CanonicalTraversable::did_finish_history_navigation_params_creation(WebCont
     //     process a document created from another file: URL, and possibly with it local file access.
     if (population.request.history_entry.url.scheme() == "file"sv && population.request.history_entry.url != changing_navigable->target_entry->url) {
         discard();
-        did_fail_history_navigation_population(*operation, *changing_navigable, source_page);
+        did_fail_history_navigation_population(*operation, *changing_navigable);
         return;
     }
     // The document's sandboxing flags are at least those the UI process snapshots for the navigable.
@@ -1309,25 +1296,22 @@ void CanonicalTraversable::did_finish_history_navigation_params_creation(WebCont
     auto& loader = changing_navigable->population_loader;
     loader = NavigationLoader::create(source_page.client().is_private(), move(population.request));
     loader->did_finish_navigation_params_creation(move(population.result));
-    loader->acquire_response_body([this, operation_id, navigable_id, source_page = NonnullRefPtr<WebContentPage>(source_page)](bool succeeded) {
+    loader->acquire_response_body([this, operation_id, navigable_id](bool succeeded) {
         auto* operation = find_history_operation(operation_id);
         auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr;
         if (!changing_navigable)
             return;
         if (!succeeded) {
-            did_fail_history_navigation_population(*operation, *changing_navigable, *source_page);
+            did_fail_history_navigation_population(*operation, *changing_navigable);
             return;
         }
         continue_history_navigation_population(*operation, *changing_navigable);
     });
 }
 
-void CanonicalTraversable::did_fail_history_navigation_population(HistoryOperation& operation, ChangingNavigable& changing_navigable, WebContentPage& page)
+void CanonicalTraversable::did_fail_history_navigation_population(HistoryOperation& operation, ChangingNavigable& changing_navigable)
 {
-    auto disposition = navigation_transaction_matches(operation, page, changing_navigable.id)
-        ? Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped
-        : Web::HTML::ChangingNavigableHistoryStepJobDisposition::Stale;
-    operation.algorithm->changing_navigable_job_completed(changing_navigable, disposition);
+    operation.algorithm->changing_navigable_job_completed(changing_navigable, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
 }
 
 void CanonicalTraversable::continue_history_navigation_population(HistoryOperation& operation, ChangingNavigable& changing_navigable)
@@ -1351,7 +1335,7 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
         return;
     }
     if (host_or_error.is_error()) {
-        did_fail_history_navigation_population(operation, changing_navigable, *endpoint);
+        did_fail_history_navigation_population(operation, changing_navigable);
         return;
     }
     auto host = host_or_error.release_value();
@@ -1366,7 +1350,7 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
         if (!changing_navigable || !weak_loader || changing_navigable->population_loader.ptr() != weak_loader.ptr())
             return;
         if (!succeeded || !endpoint->is_open()) {
-            did_fail_history_navigation_population(*operation, *changing_navigable, *endpoint);
+            did_fail_history_navigation_population(*operation, *changing_navigable);
             return;
         }
         auto& loader = *changing_navigable->population_loader;
@@ -2720,16 +2704,10 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
     if (!changing_navigable)
         return;
 
-    if (!navigation_transaction_matches(*operation, source_page, navigable_id))
-        disposition = Web::HTML::ChangingNavigableHistoryStepJobDisposition::Stale;
-
     if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
         changing_navigable->update_only = update_only;
         changing_navigable->target_document_id = target_document_id;
-        operation->algorithm->changing_navigable_job_completed(*changing_navigable, disposition);
-        return;
     }
-
     operation->algorithm->changing_navigable_job_completed(*changing_navigable, disposition);
 }
 
