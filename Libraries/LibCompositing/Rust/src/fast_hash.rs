@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use std::hash::BuildHasher;
 
 use foldhash::fast::FixedState;
-pub use foldhash::fast::FoldHasher as FastHasher;
+pub type FastHasher = foldhash::fast::FoldHasher<'static>;
 
 pub fn fast_hasher() -> FastHasher {
     FixedState::default().build_hasher()

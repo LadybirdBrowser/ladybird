@@ -18,7 +18,7 @@ thread-sanitizer = []
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 ak = { path = "../../../AK/Rust" }
-foldhash = "0.1"
+foldhash = "0.2"
 getrandom = "0.4"
 hashbrown = { version = "0.16.1", default-features = false }
 indexmap = "2"

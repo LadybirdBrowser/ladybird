@@ -861,7 +861,7 @@ name = "libcompositing_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
- "foldhash 0.1.5",
+ "foldhash 0.2.0",
  "ladybird_allocator",
  "libgfx_rust",
  "rustc-demangle",
@@ -872,7 +872,7 @@ name = "libgfx_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
- "foldhash 0.1.5",
+ "foldhash 0.2.0",
  "ladybird_allocator",
  "rustc-demangle",
  "yuv",
@@ -927,7 +927,7 @@ dependencies = [
  "cc",
  "fARM64",
  "flapc",
- "foldhash 0.1.5",
+ "foldhash 0.2.0",
  "getrandom",
  "hashbrown 0.16.1",
  "iced-x86",
@@ -1049,7 +1049,7 @@ dependencies = [
  "ak",
  "cbindgen",
  "chardetng",
- "foldhash 0.1.5",
+ "foldhash 0.2.0",
  "hashbrown 0.16.1",
  "ladybird_allocator",
  "libcompositing_rust",
