@@ -19,7 +19,7 @@ use crate::runtime::array_buffer::Order;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
-use crate::runtime::iterator::BuiltinIteratorNext;
+use crate::runtime::iterator::{BuiltinIteratorNext, BuiltinIteratorStep};
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, PropertyKind, define_object_class,
 };
@@ -82,12 +82,15 @@ impl ArrayIterator {
         None
     }
 
-    fn builtin_next(object: &Object, vm: &Vm, done: &mut bool, value: &mut Value) -> ThrowCompletionOr<()> {
+    fn builtin_next(object: &Object, vm: &Vm) -> ThrowCompletionOr<BuiltinIteratorStep> {
+        let mut done = false;
+        let mut value = Value::UNDEFINED;
         object
             .as_gc()
             .downcast::<ArrayIterator>()
             .expect("the builtin step of an ArrayIterator steps an ArrayIterator")
-            .next(vm, done, value)
+            .next(vm, &mut done, &mut value)?;
+        Ok(BuiltinIteratorStep::from_done_and_value(done, value))
     }
 
     pub fn next(&self, vm: &Vm, done: &mut bool, value: &mut Value) -> ThrowCompletionOr<()> {

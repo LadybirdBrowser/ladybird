@@ -18,7 +18,7 @@ use crate::layout::value::Value;
 use crate::runtime::array::Array;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::function_object::FunctionObject;
-use crate::runtime::iterator::BuiltinIteratorNext;
+use crate::runtime::iterator::{BuiltinIteratorNext, BuiltinIteratorStep};
 use crate::runtime::map::{ConstIterator, Map};
 use crate::runtime::map_prototype::MapPrototype;
 use crate::runtime::object::{
@@ -100,12 +100,15 @@ impl MapIterator {
         None
     }
 
-    fn builtin_next(object: &Object, vm: &Vm, done: &mut bool, value: &mut Value) -> ThrowCompletionOr<()> {
+    fn builtin_next(object: &Object, vm: &Vm) -> ThrowCompletionOr<BuiltinIteratorStep> {
+        let mut done = false;
+        let mut value = Value::UNDEFINED;
         object
             .as_gc()
             .downcast::<MapIterator>()
             .expect("the builtin step of a MapIterator steps a MapIterator")
-            .next(vm, done, value)
+            .next(vm, &mut done, &mut value)?;
+        Ok(BuiltinIteratorStep::from_done_and_value(done, value))
     }
 
     #[allow(

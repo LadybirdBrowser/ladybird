@@ -150,9 +150,23 @@ pub enum PrimitiveHandling {
     RejectPrimitives,
 }
 
-/// The step of an iterator the runtime takes without calling its next method, given the iterator. It sets `done`, or
-/// the value the step produces.
-pub type BuiltinIteratorNext = fn(&Object, &Vm, &mut bool, &mut Value) -> ThrowCompletionOr<()>;
+/// What the step of a built-in iterator produces.
+#[derive(Clone, Copy)]
+pub enum BuiltinIteratorStep {
+    Done,
+    Value(Value),
+    /// An iterator result object, which IteratorStep reads done and value from as it does with the result of next.
+    IteratorResult(Gc<Object>),
+}
+
+impl BuiltinIteratorStep {
+    pub fn from_done_and_value(done: bool, value: Value) -> Self {
+        if done { Self::Done } else { Self::Value(value) }
+    }
+}
+
+/// The step of an iterator the runtime takes without calling its next method, given the iterator.
+pub type BuiltinIteratorNext = fn(&Object, &Vm) -> ThrowCompletionOr<BuiltinIteratorStep>;
 
 /// What IteratorStep produces: DONE, or a value.
 #[derive(Clone, Copy, Debug)]
@@ -465,24 +479,29 @@ fn iterator_step_impl(
     if next_method.is_function() && next_method.as_function().realm() == vm.current_realm() {
         let iterator = iterator_record.iterator();
         if let Some(builtin_iterator_next) = iterator.as_builtin_iterator_if_next_is_not_redefined(next_method) {
-            let mut value = Value::UNDEFINED;
-            let mut done = false;
-            if let Err(throw) = builtin_iterator_next(&iterator, vm, &mut done, &mut value) {
+            let step = match builtin_iterator_next(&iterator, vm) {
                 // 7.4.6 IteratorNext ( iteratorRecord [ , value ] ), https://tc39.es/ecma262/#sec-iteratornext
                 // 3. If result is a throw completion, then
-                // a. Set iteratorRecord.[[Done]] to true.
-                iterator_record.set_done(true);
+                Err(throw) => {
+                    // a. Set iteratorRecord.[[Done]] to true.
+                    iterator_record.set_done(true);
 
-                // b. Return ? result.
-                return Err(throw);
-            }
+                    // b. Return ? result.
+                    return Err(throw);
+                }
+                Ok(step) => step,
+            };
 
-            if done {
-                iterator_record.set_done(true);
-                return Ok(IterationResult::Done);
-            }
-
-            return Ok(IterationResult::Value(value));
+            return match step {
+                BuiltinIteratorStep::Done => {
+                    iterator_record.set_done(true);
+                    Ok(IterationResult::Done)
+                }
+                BuiltinIteratorStep::Value(value) => Ok(IterationResult::Value(value)),
+                BuiltinIteratorStep::IteratorResult(result) => {
+                    complete_iterator_step(vm, iterator_record, result, with_value)
+                }
+            };
         }
     }
 
@@ -490,6 +509,17 @@ fn iterator_step_impl(
     // 1. Let result be ? IteratorNext(iteratorRecord).
     let result = iterator_next(vm, iterator_record, None)?;
 
+    complete_iterator_step(vm, iterator_record, result, with_value)
+}
+
+/// The steps of IteratorStep and IteratorStepValue that follow IteratorNext, given its result.
+fn complete_iterator_step(
+    vm: &Vm,
+    iterator_record: &IteratorRecordImpl,
+    result: Gc<Object>,
+    with_value: WithValue,
+) -> ThrowCompletionOr<IterationResult> {
+    // 7.4.9 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
     // 2. Let done be Completion(IteratorComplete(result)).
     let done = iterator_complete(vm, result);
 
