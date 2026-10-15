@@ -48,8 +48,7 @@ define_ffi_ops! {
     // Computed longhand table copies, whose cost follows the table's width rather than a change.
     LonghandTableCopiedSlots => "longhandTableCopiedSlots",
     LonghandTableCopyRetains => "longhandTableCopyRetains",
-    SubstitutionCallbackFreeParse => "substitutionCallbackFreeParses",
-    SubstitutionCallbackParseRequest => "substitutionCallbackParseRequests",
+    SubstitutionParse => "substitutionParses",
     SizesAttributeParseEntry => "sizesAttributeParseEntries",
     // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
