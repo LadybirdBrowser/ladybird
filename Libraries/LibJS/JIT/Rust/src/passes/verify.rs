@@ -481,6 +481,7 @@ fn branch_input_reprs(condition: crate::ir::BranchCondition) -> Vec<Repr> {
         crate::ir::BranchCondition::ResolvedString
         | crate::ir::BranchCondition::MagicalLength
         | crate::ir::BranchCondition::Extensible
+        | crate::ir::BranchCondition::HoleFillableArray
         | crate::ir::BranchCondition::ArrayIterator
         | crate::ir::BranchCondition::PlainArrayPrototypeChain => vec![Repr::Pointer],
         crate::ir::BranchCondition::Shape(_) => vec![Repr::Tagged, Repr::Pointer],
