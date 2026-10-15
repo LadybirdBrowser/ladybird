@@ -44,6 +44,7 @@ private:
     u32 m_modifiers { 0 };
     MonotonicTime m_last_event_time;
     Optional<MonotonicTime> m_ended_at;
+    bool m_momentum_has_started { false };
 };
 
 }

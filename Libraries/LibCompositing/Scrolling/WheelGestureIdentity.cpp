@@ -38,6 +38,10 @@ bool WheelGestureIdentity::is_continued_by(Gfx::FloatPoint position, Web::Scroll
         return false;
     if (m_kind == Kind::PhaseLess)
         return modifiers == m_modifiers && position.distance_from(m_first_position) <= position_slop;
+    // Fingers that touch down while the momentum of the gesture runs start another gesture, whether or not the end of
+    // that momentum arrived first.
+    if (phase == Web::ScrollGesturePhase::Ongoing && m_momentum_has_started)
+        return false;
     if (!m_ended_at.has_value())
         return true;
     bool phase_may_follow_an_ended_gesture = phase == Web::ScrollGesturePhase::Momentum || phase == Web::ScrollGesturePhase::Ended;
@@ -47,6 +51,8 @@ bool WheelGestureIdentity::is_continued_by(Gfx::FloatPoint position, Web::Scroll
 void WheelGestureIdentity::advance_to(Web::ScrollGesturePhase phase, MonotonicTime now)
 {
     m_last_event_time = now;
+    if (phase == Web::ScrollGesturePhase::Momentum)
+        m_momentum_has_started = true;
     if (phase != Web::ScrollGesturePhase::Ended) {
         m_ended_at.clear();
         return;
