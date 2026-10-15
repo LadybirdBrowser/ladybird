@@ -376,15 +376,15 @@
     },
     {
       "name": "qtbase",
-      "version": "6.10.0#1"
+      "version": "6.10.2#0"
     },
     {
       "name": "qtpositioning",
-      "version": "6.10.0#0"
+      "version": "6.10.2#0"
     },
     {
       "name": "qtserialport",
-      "version": "6.10.0#0"
+      "version": "6.10.2#0"
     },
     {
       "name": "sdl3",
