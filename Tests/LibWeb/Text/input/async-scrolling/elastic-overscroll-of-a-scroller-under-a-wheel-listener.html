@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        height: 1000px;
+    }
+</style>
+<div id="scroller"><div></div></div>
+<script>
+    promiseTest(async () => {
+        let wheelEvents = 0;
+        let cancelableWheelEvents = 0;
+        scroller.addEventListener("wheel", event => {
+            ++wheelEvents;
+            if (event.cancelable)
+                ++cancelableWheelEvents;
+        }, { passive: false });
+        scroller.scrollTop = 50;
+        await animationFrame();
+        await animationFrame();
+
+        // The scroller sees the first step before anything scrolls. Once it lets the step through, the gesture scrolls
+        // the scroller to its top and stretches it past there, while the page neither scrolls nor stretches.
+        await internals.wheelThroughUIProcess(100, 100, 0, -100, true, "ongoing");
+        await internals.wheelThroughUIProcess(100, 100, 0, -100, true, "ongoing");
+        println(`pulled past the top: scroller stretch=${internals.elasticOverscrollStretchY(scroller)} viewport stretch=${internals.elasticOverscrollStretchY()}`);
+        println(`scroller.scrollTop=${scroller.scrollTop} window.scrollY=${window.scrollY}`);
+        println(`wheel events the page could have canceled: ${cancelableWheelEvents} of ${wheelEvents}`);
+
+        await internals.wheelThroughUIProcess(100, 100, 0, 0, true, "ended");
+        while (internals.elasticOverscrollStretchY(scroller) !== 0)
+            await animationFrame();
+        println(`sprung back: scroller stretch=${internals.elasticOverscrollStretchY(scroller)}`);
+    });
+</script>

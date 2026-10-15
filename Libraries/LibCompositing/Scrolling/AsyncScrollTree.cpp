@@ -407,7 +407,7 @@ bool AsyncScrollTree::blocks_wheel_event_at_position(Compositing::AccumulatedVis
     return false;
 }
 
-WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for) const
+WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, WheelStepDispatch wheel_step_dispatch) const
 {
     if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())
         return {};
@@ -416,7 +416,8 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
         return visual_context_tree.context_is_valid(context);
     };
 
-    if (m_has_blocking_wheel_event_region_covering_viewport)
+    bool blocking_wheel_event_listeners_hold_the_step_back = wheel_step_dispatch == WheelStepDispatch::NotYetDispatched;
+    if (blocking_wheel_event_listeners_hold_the_step_back && m_has_blocking_wheel_event_region_covering_viewport)
         return { {}, false, true };
 
     for (auto const& target : m_cached_main_thread_wheel_event_targets) {
@@ -429,7 +430,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
             return { {}, true };
     }
 
-    if (blocks_wheel_event_at_position(visual_context_tree, position))
+    if (blocking_wheel_event_listeners_hold_the_step_back && blocks_wheel_event_at_position(visual_context_tree, position))
         return { {}, false, true };
 
     // https://drafts.csswg.org/css-overscroll-1/#scroll-chaining-and-boundary-default-actions

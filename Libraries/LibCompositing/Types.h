@@ -98,6 +98,13 @@ enum class AsyncScrollOperationTracking {
     Yes,
 };
 
+// Blocking wheel event listeners hold a wheel step back from the compositor until the page has dispatched it. A step
+// that the page dispatched and did not cancel has nothing left to wait for.
+enum class WheelStepDispatch : u8 {
+    NotYetDispatched,
+    DispatchedAndNotCanceled,
+};
+
 // A later keyboard step continues from the destination of a smooth scroll the user started, rather than from its
 // presented offset.
 enum class SmoothScrollInitiator : u8 {
