@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The nested scroller reaches its extent, and the momentum of the flick keeps it latched.
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        await internals.wheel(50, 50, 0, 20, true, "momentum");
+        println(`nested.scrollTop after the flick: ${nested.scrollTop}`);
+        println(`window.scrollY after the flick: ${window.scrollY}`);
+
+        // Fingers that touch down during the momentum start a new gesture, even though the momentum never ended. It
+        // goes to the page, because the nested scroller under the cursor is at its extent.
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`window.scrollY after fingers touch down again: ${window.scrollY}`);
+        println(`nested.scrollTop after fingers touch down again: ${nested.scrollTop}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+    });
+</script>

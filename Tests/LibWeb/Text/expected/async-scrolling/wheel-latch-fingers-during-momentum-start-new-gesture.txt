@@ -1,0 +1,4 @@
+nested.scrollTop after the flick: 200
+window.scrollY after the flick: 0
+window.scrollY after fingers touch down again: 100
+nested.scrollTop after fingers touch down again: 200
