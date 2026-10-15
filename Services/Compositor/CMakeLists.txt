@@ -16,6 +16,7 @@ set(SOURCES
     PausedDebuggerOverlay.cpp
     RasterizeDisplayList.cpp
     RenderClockConnection.cpp
+    ScrollFlingController.cpp
     ScrollSnapController.cpp
     ScrollbarController.cpp
     VideoFrameSkia.cpp
