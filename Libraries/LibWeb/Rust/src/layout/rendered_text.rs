@@ -748,15 +748,14 @@ mod tests {
         use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_START_AND_END};
 
         let mut arena = LayoutNodeArena::new();
-        let viewport = arena.allocate_for_test().slot;
-        arena.populate_paintable_row(viewport);
         let (first, remainder) = first_letter_slices(&mut arena, 1, 4);
         let entries = [FfiSelectionEntry {
             is_text_node_entry: true,
             layout_node: remainder,
             state: SELECTION_STATE_START_AND_END,
         }];
-        let states = crate::painting::selection::apply(&mut arena.paintable_rows_mut(), viewport, &entries);
+        let selection = crate::painting::selection::apply(&mut arena.paintable_rows_mut(), &entries, 0, 4);
+        let states = &selection.text_states;
         assert_eq!(states.len(), 2);
         assert_eq!(states.get(&first), Some(&SELECTION_STATE_START_AND_END));
         assert_eq!(states.get(&remainder), Some(&SELECTION_STATE_START_AND_END));
