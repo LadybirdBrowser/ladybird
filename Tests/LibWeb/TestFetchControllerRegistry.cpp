@@ -7,6 +7,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
+#include <LibGC/Testing.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
@@ -52,8 +53,9 @@ TEST_CASE(a_collected_controller_is_not_found)
 {
     FetchControllerRegistry registry;
     auto token = create_unreferenced_controller(registry);
+    GC::scrub_stack_for_testing();
 
-    test_heap().collect_garbage(GC::Heap::CollectionType::CollectEverything);
+    test_heap().collect_garbage();
 
     EXPECT(!registry.find(token));
 }

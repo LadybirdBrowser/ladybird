@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A sync request reads a body several times the size its fetch buffers at once.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const body = "x".repeat(4 * 1024 * 1024);
+        const url = await server.createEcho("GET", "/sync-xhr-body-larger-than-high-watermark", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            body,
+        });
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url, false);
+        xhr.send();
+
+        println(`Status ${xhr.status}, ${xhr.responseText.length} bytes, ${xhr.responseText === body ? "intact" : "corrupted"}`);
+    });
+</script>

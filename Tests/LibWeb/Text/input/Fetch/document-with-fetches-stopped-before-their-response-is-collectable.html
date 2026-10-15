@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Navigating away from a document stops its fetch() and XMLHttpRequest fetches, and a fetch stopped before its
+    // response arrived keeps nothing of the document alive.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `document-with-fetches-stopped-before-their-response-${uniqueID()}`;
+
+        // The response arrives only once the token is unblocked, which happens after the documents are counted.
+        const blockedURL = await server.createEcho("GET", "/document-with-fetches-stopped-before-their-response-blocked", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            body: "xx",
+            wait_for_unblock: token,
+        });
+
+        // The page starts a fetch and an XMLHttpRequest of that response, and tells its parent once both are sent.
+        const pageURL = await server.createEcho("GET", "/document-with-fetches-stopped-before-their-response", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+<script>
+    const url = ${JSON.stringify(blockedURL)} + "?page=" + location.search.slice(1) + "&request=";
+    fetch(url + "fetch");
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url + "xhr");
+    xhr.send();
+    parent.postMessage("requests started", "*");
+<\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const navigate = async page => {
+            await new Promise(resolve => {
+                window.addEventListener("message", resolve, { once: true });
+                iframe.src = `${pageURL}?${page}`;
+            });
+            for (const request of ["fetch", "xhr"])
+                await server.waitForRequest(`${blockedURL}?page=${page}&request=${request}`);
+            await internals.gcAsync();
+        };
+
+        // The first document reuses the initial about:blank document's window, so the recording starts with the
+        // second. It runs in a nested function so that no document lingers in this function's frame.
+        const weakDocuments = await (async () => {
+            const weakDocuments = [];
+            await navigate(0);
+            await navigate(1);
+            for (let page = 2; page <= 6; page++) {
+                const unloadedDocument = iframe.contentDocument;
+                unloadedDocument.preserveWrapper = true;
+                weakDocuments.push(new WeakRef(unloadedDocument));
+                await navigate(page);
+            }
+            return weakDocuments;
+        })();
+
+        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
+        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakDocuments.every(weak => weak.deref() === undefined))
+                break;
+        }
+
+        const collected = weakDocuments.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakDocuments.length} documents with fetches stopped before their response`);
+        await fetch(`${server.baseURL}/unblock/${token}`);
+        iframe.remove();
+    });
+</script>

@@ -52,7 +52,8 @@ public:
     String request_id;
     String phase;
     JsonArray intercepts;
-    GC::Ptr<Fetch::Infrastructure::FetchParams const> fetch_params;
+    RefPtr<Fetch::Infrastructure::FetchParams const> fetch_params;
+    GC::Ptr<Fetch::Infrastructure::FetchController> controller;
     RefPtr<Fetch::Infrastructure::Request> original_request;
     RefPtr<Fetch::Infrastructure::Response> response;
 

@@ -8,6 +8,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/Testing.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -192,4 +193,38 @@ TEST_CASE(a_stop_leaves_the_algorithms_for_the_next_fetch)
     (void)harness.fetch_with(request, algorithms);
     harness.run_tasks_until([&] { return call_count == 3; });
     EXPECT_EQ(call_count, 3u);
+}
+
+static NEVER_INLINE void start_fetch_without_holding_its_controller(FetchHarness const& harness, Request& request, FetchAlgorithms::Input input)
+{
+    (void)harness.fetch(request, move(input));
+}
+
+static NEVER_INLINE void run_a_fetch_whose_controller_nothing_holds()
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    IGNORE_USE_IN_ESCAPING_LAMBDA FetchHarness harness;
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool consumed_body = false;
+    FetchAlgorithms::Input input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
+    input.process_response_consume_body = [&](GC::Ref<ResponseView>, FetchAlgorithms::BodyBytes) { consumed_body = true; };
+
+    // A worker's script fetch has no fetch record, so only its own steps hold its controller.
+    auto request = harness.create_request();
+    request->set_destination(Request::Destination::Worker);
+    start_fetch_without_holding_its_controller(harness, request, move(input));
+    GC::scrub_stack_for_testing();
+    harness.run_tasks_until([&] {
+        harness.realm->heap().collect_garbage();
+        return consumed_body;
+    });
+
+    EXPECT(consumed_body);
+}
+
+TEST_CASE(a_fetch_whose_controller_nothing_holds_still_runs_its_algorithms)
+{
+    GC::scrub_stack_for_testing();
+    run_a_fetch_whose_controller_nothing_holds();
 }

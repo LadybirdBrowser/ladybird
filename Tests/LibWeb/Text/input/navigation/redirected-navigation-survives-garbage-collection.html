@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation follows its redirects one hop at a time, and its fetch keeps going across a garbage collection
+    // while the next hop is under way.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `redirected-navigation-survives-garbage-collection-${uniqueID()}`;
+        const targetURL = await server.createEcho("GET", "/redirected-navigation-survives-garbage-collection-target", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: `<!DOCTYPE html><script>parent.postMessage("loaded", "*");<\/script>`,
+            wait_for_unblock: token,
+        });
+        const redirectURL = await server.createEcho("GET", "/redirected-navigation-survives-garbage-collection", {
+            status: 302,
+            headers: { "Location": targetURL, "Cache-Control": "no-store" },
+            body: "",
+        });
+
+        const loaded = new Promise(resolve => {
+            window.addEventListener("message", event => resolve(event.data), { once: true });
+        });
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        iframe.src = redirectURL;
+
+        await server.waitForRequest(targetURL);
+        for (let i = 0; i < 5; ++i)
+            await internals.gcAsync();
+        await fetch(`${server.baseURL}/unblock/${token}`);
+
+        println(`The redirected navigation ${await loaded}`);
+        iframe.remove();
+    });
+</script>

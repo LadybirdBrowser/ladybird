@@ -15,14 +15,24 @@ namespace Web::Fetch::Fetching {
 
 GC_DEFINE_ALLOCATOR(PendingResponse);
 
+GC::Ref<PendingResponse> PendingResponse::create(GC::Ref<Infrastructure::FetchController> fetch_controller)
+{
+    return GC::Heap::the().allocate<PendingResponse>(fetch_controller);
+}
+
+GC::Ref<PendingResponse> PendingResponse::create(GC::Ref<Infrastructure::FetchController> fetch_controller, NonnullRefPtr<Infrastructure::Response> response)
+{
+    return GC::Heap::the().allocate<PendingResponse>(fetch_controller, move(response));
+}
+
 GC::Ref<PendingResponse> PendingResponse::create(Infrastructure::FetchParams const& fetch_params)
 {
-    return GC::Heap::the().allocate<PendingResponse>(fetch_params.controller());
+    return create(fetch_params.controller());
 }
 
 GC::Ref<PendingResponse> PendingResponse::create(Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::Response> response)
 {
-    return GC::Heap::the().allocate<PendingResponse>(fetch_params.controller(), move(response));
+    return create(fetch_params.controller(), move(response));
 }
 
 PendingResponse::PendingResponse(GC::Ref<Infrastructure::FetchController> fetch_controller, RefPtr<Infrastructure::Response> response)

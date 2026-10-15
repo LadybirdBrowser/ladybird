@@ -11,7 +11,6 @@
 #include <AK/WeakPtr.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
-#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/VM.h>
@@ -45,6 +44,7 @@ public:
     [[nodiscard]] static GC::Ref<FetchController> create(FetchControllerRegistry&);
 
     [[nodiscard]] FetchControllerToken token() const { return m_token; }
+    [[nodiscard]] WeakPtr<FetchControllerRegistry> const& registry() const { return m_registry; }
     [[nodiscard]] FetchControlBlock& control_block() const { return *m_control_block; }
 
     void set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps);
@@ -70,7 +70,7 @@ public:
 
     // The fetch params created with the controller, for which WebDriver BiDi reports errors and intercepts requests.
     void set_original_fetch_params(Badge<FetchParams>, FetchParams const&);
-    [[nodiscard]] GC::Ptr<FetchParams> original_fetch_params() const;
+    [[nodiscard]] RefPtr<FetchParams> original_fetch_params() const;
 
     [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
     void set_task_destination(TaskDestination task_destination) { m_task_destination = move(task_destination); }
@@ -116,7 +116,7 @@ private:
     WeakPtr<FetchControllerRegistry> m_registry;
     FetchControllerToken m_token;
     NonnullRefPtr<FetchControlBlock> m_control_block;
-    GC::Weak<FetchParams> m_original_fetch_params;
+    WeakPtr<FetchParams> m_original_fetch_params;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // report timing steps (default null)

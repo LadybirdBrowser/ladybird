@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The page keeps nothing of this fetch, its response or the read of its body, so only the fetch's own steps and its
+    // fetch record keep it going until it reports its resource timing.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `dropped-fetch-reports-resource-timing-${uniqueID()}`;
+        const url = await server.createEcho("GET", "/dropped-fetch-reports-resource-timing", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            body: "xx",
+        });
+
+        // The response's first byte arrives at once, and the rest once the token is unblocked.
+        const requestURL = `${url}?chunks=1&chunk_unblock_tokens=${token}`;
+        const reported = new Promise(resolve => {
+            new PerformanceObserver((list, observer) => {
+                if (list.getEntries().some(entry => entry.name === requestURL)) {
+                    observer.disconnect();
+                    resolve();
+                }
+            }).observe({ type: "resource" });
+        });
+
+        (() => {
+            fetch(requestURL).then(response => {
+                response.text();
+            });
+        })();
+
+        await server.waitForRequest(url);
+        for (let i = 0; i < 5; ++i)
+            await internals.gcAsync();
+        await fetch(`${server.baseURL}/unblock/${token}`);
+
+        await reported;
+        println("The fetch reported its resource timing");
+    });
+</script>

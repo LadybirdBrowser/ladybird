@@ -49,7 +49,7 @@ void NetworkContinuation::finalize()
 void NetworkContinuation::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(fetch_params);
+    visitor.visit(controller);
     visitor.visit_possible_values(m_callback.raw_capture_range());
 }
 
@@ -68,6 +68,7 @@ void NetworkContinuation::clear_blocked_state()
     phase = {};
     intercepts = {};
     fetch_params = nullptr;
+    controller = nullptr;
     original_request = nullptr;
     response = nullptr;
 }
@@ -93,7 +94,7 @@ static GC::Ptr<NetworkContinuation> blocked_request(FetchController const& contr
     if (!fetch_params)
         return nullptr;
     auto blocked = blocked_request(*fetch_params->request());
-    return blocked && blocked->fetch_params->controller().ptr() == &controller ? blocked : nullptr;
+    return blocked && blocked->controller.ptr() == &controller ? blocked : nullptr;
 }
 
 static void share_blocked_request_identity(FetchParams const& fetch_params)
@@ -102,10 +103,10 @@ static void share_blocked_request_identity(FetchParams const& fetch_params)
         fetch_params.request()->set_webdriver_bidi_network_request(blocked->fetch_params->request()->webdriver_bidi_network_request());
 }
 
-static void stop_response_transport(FetchParams const& fetch_params, Response const& response)
+static void stop_response_transport(FetchController& controller, Response const& response)
 {
     response.release_request_transfer_lease();
-    fetch_params.controller()->stop_body_transport();
+    controller.stop_body_transport();
 }
 
 static void resume_blocked_request(String id, NetworkContinuationAction action, RefPtr<Fetch::Infrastructure::Response> response)
@@ -114,13 +115,13 @@ static void resume_blocked_request(String id, NetworkContinuationAction action, 
     if (it == blocked_requests().end())
         return;
     GC::Ptr<NetworkContinuation> continuation = it->value.ptr();
-    auto fetch_params = continuation->fetch_params;
+    auto controller = continuation->controller;
     auto original_response = continuation->response;
     // NB: Remove the entry before stopping transport or invoking a continuation, which can reenter Fetch.
     blocked_requests().remove(it);
     continuation->clear_blocked_state();
     if (action == NetworkContinuationAction::Fail && original_response)
-        stop_response_transport(*fetch_params, *original_response);
+        stop_response_transport(*controller, *original_response);
     continuation->invoke(action, response);
 }
 
@@ -535,7 +536,7 @@ void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infras
     auto state = request->webdriver_bidi_network_request();
     if (fetch_params.is_canceled() || fetch_params.control_block().state() == FetchControlBlock::State::Stopped) {
         if (response)
-            stop_response_transport(fetch_params, *response);
+            stop_response_transport(*fetch_params.controller(), *response);
         continuation->invoke(NetworkContinuationAction::Fail, Response::network_error("Intercepted fetch was stopped"_string));
         return;
     }
@@ -550,6 +551,7 @@ void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infras
     continuation->phase = move(phase);
     continuation->intercepts = move(intercepts);
     continuation->fetch_params = fetch_params;
+    continuation->controller = fetch_params.controller();
     continuation->original_request = original_request;
     continuation->response = response;
     if (original_request)
@@ -667,7 +669,7 @@ static ErrorOr<JsonValue, Error> continue_network_request_impl(StringView method
             // NB: A replacement body has no RequestServer transport to transfer to a new navigation process.
             if (blocked->response) {
                 blocked->response->release_request_transfer_lease();
-                blocked->fetch_params->controller()->stop_body_transport();
+                blocked->controller->stop_body_transport();
             }
             auto replacement = Response::create();
             replacement->set_url_list(response->url_list());

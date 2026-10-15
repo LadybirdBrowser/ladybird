@@ -10,7 +10,6 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
-#include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -75,9 +74,9 @@ void BodyStreamWakeSink::wake(Engine::WakeTicket ticket)
     });
 }
 
-BodyStreamPullSource::BodyStreamPullSource(JS::Realm& realm, GC::Ptr<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink)
+BodyStreamPullSource::BodyStreamPullSource(JS::Realm& realm, GC::Ptr<Infrastructure::FetchController> fetch_controller, GC::Ref<Streams::ReadableStream> stream, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink)
     : m_realm(realm)
-    , m_fetch_params(fetch_params)
+    , m_fetch_controller(fetch_controller)
     , m_stream(stream)
     , m_channel(move(channel))
     , m_registry_token(wake_sink.registry_token())
@@ -90,7 +89,7 @@ void BodyStreamPullSource::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_realm);
-    visitor.visit(m_fetch_params);
+    visitor.visit(m_fetch_controller);
     visitor.visit(m_stream);
     visitor.visit(m_pending_pull_promise);
     visitor.visit(m_on_resource_header);
@@ -137,8 +136,8 @@ GC::Ref<WebIDL::Promise> BodyStreamPullSource::cancel(JS::Value reason)
         on_resource_header->function()({}, Infrastructure::Body::SniffOutcome::Failed);
 
     // cancelAlgorithm: abort fetchParams's controller with reason, given reason.
-    if (m_fetch_params)
-        m_fetch_params->controller()->abort(realm, reason);
+    if (m_fetch_controller)
+        m_fetch_controller->abort(realm, reason);
     return WebIDL::create_resolved_promise(realm, JS::js_undefined());
 }
 
@@ -223,8 +222,8 @@ void BodyStreamPullSource::on_pull_wake()
     auto steps = GC::create_function(heap(), [this] {
         run_pull_task();
     });
-    if (m_fetch_params) {
-        Infrastructure::queue_fetch_task(m_fetch_params->controller()->task_destination(), steps);
+    if (m_fetch_controller) {
+        Infrastructure::queue_fetch_task(m_fetch_controller->task_destination(), steps);
         return;
     }
 
@@ -241,7 +240,7 @@ void BodyStreamPullSource::push_while_paused()
 {
     if (m_detached || m_pending_pull_promise || m_push_ticket.has_value() || !HTML::main_thread_event_loop().execution_paused())
         return;
-    if (!m_fetch_params || m_fetch_params->control_block().body_intent() != Engine::BodyIntent::SyncAccumulate)
+    if (!m_fetch_controller || m_fetch_controller->control_block().body_intent() != Engine::BodyIntent::SyncAccumulate)
         return;
     m_push_ticket = arm_waiter(Engine::FetchByteChannel::BufferedAtLeast { 1 });
 }
@@ -338,8 +337,8 @@ void BodyStreamPullSource::drain_into_stream()
             auto error = WebIDL::exception_to_throw_completion(realm.vm(), realm, pull_result.release_error());
             if (m_stream->is_readable())
                 m_stream->error(error.value());
-            if (m_fetch_params)
-                m_fetch_params->controller()->terminate();
+            if (m_fetch_controller)
+                m_fetch_controller->terminate();
             m_channel->cancel();
             m_detached = true;
             return;
@@ -347,8 +346,8 @@ void BodyStreamPullSource::drain_into_stream()
     }
 
     // 2. If stream is errored, then terminate fetchParams’s controller.
-    if (m_stream->is_errored() && m_fetch_params)
-        m_fetch_params->controller()->terminate();
+    if (m_stream->is_errored() && m_fetch_controller)
+        m_fetch_controller->terminate();
 
     settle_stream(result);
     if (result.state.has<Engine::FetchByteChannel::ConsumerCancelled>() || result.state.has<Engine::FetchByteChannel::Transferred>())
@@ -357,7 +356,7 @@ void BodyStreamPullSource::drain_into_stream()
 
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // NB: Steps 10 to 13 of HTTP-network fetch.
-GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr<Infrastructure::FetchParams const> fetch_params, NonnullRefPtr<Engine::FetchByteChannel> channel)
+GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr<Infrastructure::FetchController> fetch_controller, NonnullRefPtr<Engine::FetchByteChannel> channel)
 {
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -366,7 +365,7 @@ GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr
 
     // 10. Let stream be a new ReadableStream.
     auto stream = Streams::ReadableStream::create(realm);
-    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_params, stream, move(channel), *wake_sink);
+    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_controller, stream, move(channel), *wake_sink);
 
     // 11. Let pullAlgorithm be the following steps:
     auto pull_algorithm = GC::create_function(GC::Heap::the(), [pull_source]() {

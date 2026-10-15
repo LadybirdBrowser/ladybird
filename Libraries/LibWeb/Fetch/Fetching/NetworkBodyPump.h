@@ -41,14 +41,16 @@ public:
     void abandon_cache_entry();
 
 private:
-    NetworkBodyPump(GC::Ptr<Infrastructure::FetchParams const>, NonnullRefPtr<Engine::FetchByteChannel>, NonnullRefPtr<Engine::FetchBodyDeliveryGate>, RefPtr<HTTP::MemoryCache>);
+    NetworkBodyPump(RefPtr<Infrastructure::FetchParams const>, NonnullRefPtr<Engine::FetchByteChannel>, NonnullRefPtr<Engine::FetchBodyDeliveryGate>, RefPtr<HTTP::MemoryCache>);
 
     virtual void visit_edges(Visitor& visitor) override;
 
     void finalize_cache_entry();
     void update_response_body_info();
 
-    GC::Ptr<Infrastructure::FetchParams const> m_fetch_params;
+    RefPtr<Infrastructure::FetchParams const> m_fetch_params;
+    // The controller of m_fetch_params, which the pump keeps alive with them.
+    GC::Ptr<Infrastructure::FetchController> m_fetch_controller;
     RefPtr<Fetch::Infrastructure::Response> m_response;
 
     NonnullRefPtr<Engine::FetchByteChannel> m_channel;

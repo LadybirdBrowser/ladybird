@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An <object> element keeps nothing of its fetch, so only the fetch's own steps keep it going while its response
+    // is outstanding.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `object-fetch-survives-garbage-collection-${uniqueID()}`;
+        const url = await server.createEcho("GET", "/object-fetch-survives-garbage-collection", {
+            status: 200,
+            headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            body: "xx",
+        });
+
+        const object = document.createElement("object");
+        const loaded = new Promise(resolve => {
+            object.onload = () => resolve("load");
+            object.onerror = () => resolve("error");
+        });
+
+        // The response's first byte arrives at once, and the rest once the token is unblocked.
+        object.data = `${url}?chunks=1&chunk_unblock_tokens=${token}`;
+        document.body.append(object);
+
+        await server.waitForRequest(url);
+        for (let i = 0; i < 5; ++i)
+            await internals.gcAsync();
+        await fetch(`${server.baseURL}/unblock/${token}`);
+
+        println(`The object fired ${await loaded}`);
+        object.remove();
+    });
+</script>
