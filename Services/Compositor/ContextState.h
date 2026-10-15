@@ -100,7 +100,6 @@ public:
 
     bool presents_to_client() const { return m_presents_to_client; }
     void stop_presenting_to_client();
-    void did_stop_presenting_to_client_if_needed(bool was_presenting_to_client, bool will_present_to_client);
 
     void set_parent_context(Optional<Web::CompositorContextId>);
     Optional<Web::CompositorContextId> parent_context_id() const { return m_parent_context_id; }
@@ -164,10 +163,7 @@ public:
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID) const;
     bool advance_visual_animations(MonotonicTime now);
-    bool has_active_visual_animations() const { return m_has_active_visual_animations; }
     bool visual_animations_need_frame();
-    u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
-    Optional<Web::AsyncScrollNodeStableID> latched_wheel_scroller_for_testing() const;
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Optional<MonotonicTime> now_for_testing = {});
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
@@ -393,7 +389,6 @@ private:
     Optional<Compositing::AccumulatedVisualContextTree> m_visual_context_tree;
     Optional<Compositing::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
     Optional<Compositing::AccumulatedVisualContextTree> m_sampled_visual_context_tree;
-    u64 m_visual_context_tree_copy_count { 0 };
     bool m_has_active_visual_animations { false };
     Optional<bool> m_animated_content_may_affect_viewport;
     Compositing::DisplayListResourceStorage m_display_list_resource_storage;
@@ -449,7 +444,6 @@ private:
     Compositing::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
-    bool m_can_accept_async_wheel_events { false };
     bool m_has_blocking_wheel_event_listeners { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     Compositing::WheelRoutingAdmission m_wheel_routing_admission { Compositing::WheelRoutingAdmission::NoAsyncScrollingState };
