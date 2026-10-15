@@ -10,9 +10,9 @@
 #include <LibMedia/Containers/ISOBMFF/ISOBMFFDemuxer.h>
 #include <LibMedia/Containers/MP3/MP3Demuxer.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
+#include <LibMedia/Containers/Ogg/OggDemuxer.h>
 #include <LibMedia/Containers/WAV/WAVDemuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
-#include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/MediaStream.h>
 
 namespace Media {
@@ -32,7 +32,7 @@ static constexpr Array demuxers_in_priority_order {
     DemuxerRegistration { Matroska::MatroskaDemuxer::from_stream, Matroska::MatroskaDemuxer::supports_container_mime_type, Matroska::MatroskaDemuxer::supports_codec_in_container },
     DemuxerRegistration { WAV::WAVDemuxer::from_stream, WAV::WAVDemuxer::supports_container_mime_type, WAV::WAVDemuxer::supports_codec_in_container },
     DemuxerRegistration { FLAC::FLACDemuxer::from_stream, FLAC::FLACDemuxer::supports_container_mime_type, FLAC::FLACDemuxer::supports_codec_in_container },
-    DemuxerRegistration { FFmpeg::FFmpegDemuxer::from_stream, FFmpeg::FFmpegDemuxer::supports_container_mime_type, FFmpeg::FFmpegDemuxer::supports_codec_in_container },
+    DemuxerRegistration { Ogg::OggDemuxer::from_stream, Ogg::OggDemuxer::supports_container_mime_type, Ogg::OggDemuxer::supports_codec_in_container },
     DemuxerRegistration { MP3::MP3Demuxer::from_stream, MP3::MP3Demuxer::supports_container_mime_type, MP3::MP3Demuxer::supports_codec_in_container },
     DemuxerRegistration { ADTS::ADTSDemuxer::from_stream, ADTS::ADTSDemuxer::supports_container_mime_type, ADTS::ADTSDemuxer::supports_codec_in_container },
 };

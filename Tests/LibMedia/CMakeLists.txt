@@ -16,7 +16,6 @@ set(TEST_SOURCES
     TestDemuxerRegistry.cpp
     TestDisplayingVideoSink.cpp
     TestFFmpegAudioNormalization.cpp
-    TestFFmpegDemuxer.cpp
     TestFLACDemuxer.cpp
     TestID3.cpp
     TestIncrementallyPopulatedStream.cpp
@@ -29,6 +28,7 @@ set(TEST_SOURCES
     TestMP3StreamInfo.cpp
     TestMediaSupport.cpp
     TestMediaTime.cpp
+    TestOggDemuxer.cpp
     TestParseMatroska.cpp
     TestPipelineNodes.cpp
     TestPlaybackManager.cpp
@@ -65,9 +65,9 @@ target_link_libraries(TestDecodedAudioProducer PRIVATE LibGfx)
 target_link_libraries(TestDisplayingVideoSink PRIVATE LibGfx)
 target_link_libraries(TestVP9Decode PRIVATE LibGfx)
 target_link_libraries(TestADTSDemuxer PRIVATE LibThreading)
-target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
 target_link_libraries(TestFLACDemuxer PRIVATE LibThreading)
 target_link_libraries(TestMP3Demuxer PRIVATE LibThreading)
+target_link_libraries(TestOggDemuxer PRIVATE LibThreading LibGfx)
 target_link_libraries(TestWAVDemuxer PRIVATE LibThreading)
 target_link_libraries(TestISOBMFF PRIVATE LibThreading)
 target_link_libraries(TestMediaTime PRIVATE LibThreading)

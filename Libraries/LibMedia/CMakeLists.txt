@@ -15,7 +15,6 @@ set(SOURCES
     Containers/FLAC/Reader.cpp
     Containers/FrameScanTimeline.cpp
     Containers/ID3.cpp
-    Containers/IndexedContainerNavigator.cpp
     Containers/ISOBMFF/FragmentSampleIterator.cpp
     Containers/ISOBMFF/ISOBMFFDemuxer.cpp
     Containers/ISOBMFF/SampleIterator.cpp
@@ -30,7 +29,8 @@ set(SOURCES
     Containers/MP3/MP3Demuxer.cpp
     Containers/MP3/Reader.cpp
     Containers/MP3/StreamInfo.cpp
-    Containers/OggNavigator.cpp
+    Containers/Ogg/OggDemuxer.cpp
+    Containers/Ogg/Reader.cpp
     Containers/WAV/Reader.cpp
     Containers/WAV/WAVDemuxer.cpp
     DecodeAudioStream.cpp
@@ -98,13 +98,11 @@ target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegChannelLayout.cpp
-        FFmpeg/FFmpegDemuxer.cpp
-        FFmpeg/FFmpegIOContext.cpp
         FFmpeg/FFmpegVideoDecoder.cpp
 )
 
 if (NOT ANDROID)
-    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL PkgConfig::LIBSWRESAMPLE)
+    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVUTIL PkgConfig::LIBSWRESAMPLE)
 else()
     target_include_directories(LibMedia PRIVATE ${FFMPEG_INCLUDE_DIRS})
     target_link_directories(LibMedia PRIVATE ${FFMPEG_LIBRARY_DIRS})
