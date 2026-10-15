@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use ak::Utf16String;
 use libjs_rust::api::Value;
 
 use super::byte_ranges::gl_sizei_of_array_length;
@@ -67,6 +68,110 @@ use super::web_gl_rendering_context_base::{is_valid_framebuffer_attachment, is_v
 use super::web_gl_sampler::WebGLSampler;
 use super::web_gl_shader::WebGLShader;
 use super::web_gl_uniform_location::WebGLUniformLocation;
+
+unsafe extern "C" {
+    fn web_navigator_compatibility_mode() -> u8;
+}
+
+/// The navigator compatibility mode, numbered as Web::NavigatorCompatibilityMode is.
+const MODE_CHROME: u8 = 0;
+const MODE_GECKO: u8 = 1;
+const MODE_WEBKIT: u8 = 2;
+
+fn navigator_compatibility_mode() -> u8 {
+    // SAFETY: The function reads a process-wide setting and takes nothing.
+    unsafe { web_navigator_compatibility_mode() }
+}
+
+/// VENDOR, RENDERER, VERSION, and SHADING_LANGUAGE_VERSION name the browser's WebGL implementation rather than the
+/// GPU, whose own strings are only behind WEBGL_debug_renderer_info. Each engine words them its own way, so the answer
+/// follows the navigator compatibility mode.
+fn masked_string_parameter(context: &ContextState, cx: &CallContext, pname: u32) -> Value {
+    let mode = navigator_compatibility_mode();
+    let webgl2 = context.is_webgl2();
+    let text: &str = match (pname, mode) {
+        (GL_VENDOR, MODE_GECKO) => "Mozilla",
+        (GL_VENDOR, _) => "WebKit",
+        (GL_RENDERER, MODE_GECKO) => return string_value(cx, sanitized_renderer(context)),
+        (GL_RENDERER, _) => "WebKit WebGL",
+        (GL_VERSION, MODE_CHROME) if webgl2 => "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        (GL_VERSION, MODE_CHROME) => "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+        (GL_VERSION, _) if webgl2 => "WebGL 2.0",
+        (GL_VERSION, _) => "WebGL 1.0",
+        (GL_SHADING_LANGUAGE_VERSION, MODE_CHROME) if webgl2 => "WebGL GLSL ES 3.00 (OpenGL ES GLSL ES 3.0 Chromium)",
+        (GL_SHADING_LANGUAGE_VERSION, MODE_CHROME) => "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+        (GL_SHADING_LANGUAGE_VERSION, _) if webgl2 => "WebGL GLSL ES 3.00",
+        (GL_SHADING_LANGUAGE_VERSION, MODE_WEBKIT) => "WebGL GLSL ES 1.0 (1.0)",
+        (GL_SHADING_LANGUAGE_VERSION, _) => "WebGL GLSL ES 1.0",
+        _ => return string_parameter(context, cx, pname),
+    };
+    string_value(cx, Utf16String::from_ascii(text.as_bytes()))
+}
+
+/// The unmasked vendor: the GPU's, except that a navigator claiming WebKit on macOS answers as that engine does there,
+/// and one claiming Gecko answers with the vendor's bare name.
+fn unmasked_vendor(context: &ContextState, cx: &CallContext) -> Value {
+    let vendor = context.proxy.get_string(GL_VENDOR);
+    let text: Option<&str> = match navigator_compatibility_mode() {
+        MODE_WEBKIT if cfg!(target_os = "macos") => Some("Apple Inc."),
+        MODE_GECKO => gpu_vendor_name(&vendor, &context.proxy.get_string(GL_RENDERER)),
+        _ => None,
+    };
+    match text {
+        Some(text) => string_value(cx, Utf16String::from_ascii(text.as_bytes())),
+        None => string_value(cx, utf16_string_from_gl_string(&vendor)),
+    }
+}
+
+/// The unmasked renderer: the GPU's, except that a navigator claiming WebKit on macOS answers as that engine does
+/// there, and one claiming Gecko answers with a representative device of the GPU's family.
+fn unmasked_renderer(context: &ContextState, cx: &CallContext) -> Value {
+    match navigator_compatibility_mode() {
+        MODE_WEBKIT if cfg!(target_os = "macos") => string_value(cx, Utf16String::from_ascii(b"Apple GPU")),
+        MODE_GECKO => string_value(cx, sanitized_renderer(context)),
+        _ => string_parameter(context, cx, GL_RENDERER),
+    }
+}
+
+/// The GPU vendor's bare name, found in either GL string (an ANGLE renderer string names the vendor in its own
+/// way), or None for a vendor without one.
+fn gpu_vendor_name(vendor: &[u8], renderer: &[u8]) -> Option<&'static str> {
+    let contains = |needle: &str| {
+        let needle = needle.as_bytes();
+        [vendor, renderer]
+            .iter()
+            .any(|haystack| haystack.windows(needle.len()).any(|window| window == needle))
+    };
+    if contains("Apple") {
+        Some("Apple")
+    } else if contains("NVIDIA") {
+        Some("NVIDIA Corporation")
+    } else if contains("Intel") {
+        Some("Intel")
+    } else if contains("AMD") || contains("ATI") {
+        Some("AMD")
+    } else if contains("Qualcomm") {
+        Some("Qualcomm")
+    } else if contains("ARM") {
+        Some("ARM")
+    } else if contains("Mesa") || contains("X.Org") {
+        Some("Mesa")
+    } else {
+        None
+    }
+}
+
+/// A Gecko-shaped renderer string: a representative device for the GPU's family, marked ", or similar". An Apple GPU
+/// of any generation reads "Apple M1, or similar"; another GPU keeps its own string with the same marker.
+fn sanitized_renderer(context: &ContextState) -> Utf16String {
+    let renderer = context.proxy.get_string(GL_RENDERER);
+    if gpu_vendor_name(&context.proxy.get_string(GL_VENDOR), &renderer) == Some("Apple") {
+        return Utf16String::from_ascii(b"Apple M1, or similar");
+    }
+    let mut text = String::from_utf8_lossy(&renderer).into_owned();
+    text.push_str(", or similar");
+    Utf16String::from_utf8(&text)
+}
 use crate::bindings::interface::{Ref, wrap};
 use crate::bindings::{CallContext, WebIdlResult};
 
@@ -231,7 +336,9 @@ fn parameter_of_either_version(context: &ContextState, cx: &CallContext, pname: 
             context.boolean_array(cx, &result.map(|is_written| is_written != 0))
         }
 
-        GL_RENDERER | GL_SHADING_LANGUAGE_VERSION | GL_VENDOR | GL_VERSION => string_parameter(context, cx, pname),
+        GL_RENDERER | GL_SHADING_LANGUAGE_VERSION | GL_VENDOR | GL_VERSION => {
+            masked_string_parameter(context, cx, pname)
+        }
 
         GL_ARRAY_BUFFER_BINDING => object_or_null(cx, context.array_buffer_binding.get()),
         GL_CURRENT_PROGRAM => object_or_null(cx, context.current_program.get()),
@@ -243,14 +350,14 @@ fn parameter_of_either_version(context: &ContextState, cx: &CallContext, pname: 
 
         GL_UNMASKED_VENDOR_WEBGL => {
             if context.extension_enabled("WEBGL_debug_renderer_info") {
-                string_parameter(context, cx, GL_VENDOR)
+                unmasked_vendor(context, cx)
             } else {
                 null_with_invalid_enum_error(context)
             }
         }
         GL_UNMASKED_RENDERER_WEBGL => {
             if context.extension_enabled("WEBGL_debug_renderer_info") {
-                string_parameter(context, cx, GL_RENDERER)
+                unmasked_renderer(context, cx)
             } else {
                 null_with_invalid_enum_error(context)
             }

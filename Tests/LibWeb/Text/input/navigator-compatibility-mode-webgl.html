@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // WebGL's VENDOR, RENDERER, VERSION, and SHADING_LANGUAGE_VERSION name the engine the navigator claims, in that
+    // engine's own words, for a context created under each navigator compatibility mode.
+    asyncTest(async done => {
+        const probe = async mode => {
+            internals.setNavigatorCompatibilityMode(mode);
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = "<!DOCTYPE html>";
+            const loaded = new Promise(resolve => iframe.onload = resolve);
+            document.body.append(iframe);
+            await loaded;
+            const gl = iframe.contentDocument.createElement("canvas").getContext("webgl");
+            // The Gecko-shaped renderer names a representative of this machine's GPU family, so only its marker is stable.
+            const renderer = gl.getParameter(gl.RENDERER);
+            println(`${mode}: ${JSON.stringify(gl.getParameter(gl.VENDOR))} ${renderer.endsWith(", or similar") ? "<device>, or similar" : JSON.stringify(renderer)} `
+                + `${JSON.stringify(gl.getParameter(gl.VERSION))} ${JSON.stringify(gl.getParameter(gl.SHADING_LANGUAGE_VERSION))}`);
+            iframe.remove();
+        };
+        try {
+            for (const mode of ["chrome", "gecko", "webkit"])
+                await probe(mode);
+        } finally {
+            internals.setNavigatorCompatibilityMode("chrome");
+            done();
+        }
+    });
+</script>
