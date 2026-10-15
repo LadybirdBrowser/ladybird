@@ -33,6 +33,9 @@ public:
     static bool is_initialized();
     static ResourceLoader& the();
 
+    static void set_proxy_autoconfig_url(URL::URL);
+    static Optional<URL::URL> const& proxy_autoconfig_url();
+
     void set_client(NonnullRefPtr<Requests::RequestClient>);
 
     using OnHeadersReceived = GC::Function<void(Requests::Request*, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState cache_state)>;

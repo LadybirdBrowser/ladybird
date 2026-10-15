@@ -348,6 +348,9 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
         arguments.append("--default-time-zone");
         arguments.append(web_content_options.default_time_zone.value());
     }
+
+    if (web_content_options.proxy_autoconfig_url.has_value())
+        arguments.append(ByteString::formatted("--proxy-autoconfig-url={}", *web_content_options.proxy_autoconfig_url));
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
@@ -523,6 +526,8 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::Age
         arguments.append("--enable-http-memory-cache"sv);
     if (web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         arguments.append("--tuple-file-origins"sv);
+    if (web_content_options.proxy_autoconfig_url.has_value())
+        arguments.append(ByteString::formatted("--proxy-autoconfig-url={}", *web_content_options.proxy_autoconfig_url));
 
     arguments.append("--type"sv);
     switch (type) {

@@ -21,6 +21,7 @@
 #include <LibMain/Main.h>
 #include <LibMediaClient/Client.h>
 #include <LibRequests/RequestClient.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -82,6 +83,19 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "URL of a PAC file (not supported yet, requests fail)",
+        .long_name = "proxy-autoconfig-url",
+        .value_name = "url",
+        .accept_value = [&](StringView value) {
+            auto url = URL::Parser::basic_parse(value);
+            if (!url.has_value())
+                return false;
+            Web::ResourceLoader::set_proxy_autoconfig_url(url.release_value());
+            return true;
+        },
+    });
 
     args_parser.parse(arguments);
 
