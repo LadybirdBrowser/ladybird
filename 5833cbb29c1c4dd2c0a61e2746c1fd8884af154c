@@ -1,0 +1,13 @@
+When a listener’s callback, or the event target, belongs to a Window
+whose associated Document isn’t fully active, Ladybird skips the
+listener, as DOM’s inner invoke requires; and it skips an event handler
+whose callback belongs to such a Window, as HTML’s event handler
+processing algorithm does. The other engines refuse such listeners too,
+each by its own mechanism. Blink’s JSBasedEventListener::Invoke()
+returns early when the listener’s ScriptState fails ContextIsValid().
+WebKit’s JSEventListener::handleEvent() returns early unless the
+target document’s LocalDOMWindow isCurrentlyDisplayedInFrame(). Gecko’s
+CallSetup::GetActiveGlobalObjectForCall(), which every listener call
+goes through, refuses a callback whose window has no active document
+(HasActiveDocument()). And DOMEventTargetHelper::DisconnectFromOwner()
+drops a non-node target’s listeners when the target’s window goes away.
