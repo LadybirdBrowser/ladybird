@@ -284,6 +284,11 @@ void CSSTransition::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_keyframe_effect);
 }
 
+double CSSTransition::style_change_event_time() const
+{
+    return m_start_time - m_keyframe_effect->start_delay().value;
+}
+
 double CSSTransition::timing_function_output_at_time(double t) const
 {
     // AD-HOC: If the transition has an empty duration then we get NaN here,

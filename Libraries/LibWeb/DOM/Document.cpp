@@ -7593,10 +7593,9 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
 
         // OPTIMIZATION: A new CSS transition is play-pending until the next animation update. Start its compositor
         //               descriptor at the style change event time without resolving the Animation's pending task.
-        auto const& transition = as<CSS::CSSTransition>(*animation);
         auto style_change_event_time = Animations::TimeValue {
             Animations::TimeValue::Type::Milliseconds,
-            transition.transition_start_time() - effect.start_delay().value,
+            as<CSS::CSSTransition>(*animation).style_change_event_time(),
         };
         if (!timeline->can_convert_a_timeline_time_to_an_origin_relative_time())
             return {};

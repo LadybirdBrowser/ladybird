@@ -18,6 +18,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
+#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
@@ -1601,6 +1602,14 @@ void Animation::run_pending_play_task()
     // FIXME: We can get a more accurate time here if we record the actual instant we became ready rather than waiting
     //        to try and run this task
     auto ready_time = m_timeline->current_time().value();
+    // AD-HOC: A new CSS transition of properties the compositor may run stays pending past the rendering update of its
+    //         style change event, which already rendered it, on the compositor or here. It became ready at the time of
+    //         its style change event, from which the compositor runs it, so that a style change a frame later starts
+    //         the next transition from the value on the screen rather than from this transition's start value.
+    if (auto const* keyframe_effect = as_if<KeyframeEffect>(m_effect.ptr());
+        is_css_transition() && keyframe_effect && keyframe_effect->may_run_on_the_compositor()
+        && as<CSS::CSSTransition>(*this).previous_phase() == CSS::CSSTransition::Phase::Idle)
+        ready_time = { TimeValue::Type::Milliseconds, as<CSS::CSSTransition>(*this).style_change_event_time() };
 
     // 3. Perform the steps corresponding to the first matching condition below, if any:
 
