@@ -490,6 +490,7 @@ pub(crate) unsafe fn resolve_declared_custom_properties(
 /// Sentinel passed when cascading for an element rather than a pseudo-element.
 pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_cascade_value(
     resolution_context: &mut CascadeResolutionContext,
     resolution_environment: &mut crate::css::custom_properties::VarResolutionEnvironment,
@@ -497,6 +498,8 @@ fn resolve_cascade_value(
     root_custom_property_name: &[u16],
     unresolved: &StyleValueData,
     final_custom_properties: Option<&HashMap<Vec<u16>, RetainedStyleValueData>>,
+    finalization: &crate::css::custom_properties::CustomPropertyFinalization,
+    reads: &mut crate::css::custom_properties::RegisteredValueReads,
 ) -> RetainedStyleValueData {
     let native_resolution = crate::css::custom_properties::resolve_vars(
         &resolution_context.inputs,
@@ -506,6 +509,8 @@ fn resolve_cascade_value(
         resolution_environment,
         resolution_context.style_query_dependencies.as_deref_mut(),
         final_custom_properties,
+        *finalization,
+        Some(reads),
     );
 
     match native_resolution {
@@ -662,6 +667,8 @@ fn resolve_unresolved_style_values(
                 input.root_custom_property_name,
                 input.value.data(),
                 use_final_custom_properties.then_some(&final_custom_properties),
+                finalization,
+                reads,
             );
         }
         for &member in &component {
