@@ -43,9 +43,11 @@ pub enum SpecialPropertyKey {
     ValueOf,
     ToStringTag,
     ToJson,
+    Then,
+    Constructor,
 }
 
-const SPECIAL_PROPERTY_KEY_COUNT: usize = 5;
+const SPECIAL_PROPERTY_KEY_COUNT: usize = 7;
 
 impl SpecialPropertyKey {
     fn property_key(self, vm: &Vm) -> PropertyKey {
@@ -55,6 +57,8 @@ impl SpecialPropertyKey {
             Self::ValueOf => vm.names.valueOf.clone(),
             Self::ToStringTag => PropertyKey::from(vm.well_known_symbols().to_string_tag),
             Self::ToJson => vm.names.toJSON.clone(),
+            Self::Then => vm.names.then.clone(),
+            Self::Constructor => vm.names.constructor.clone(),
         }
     }
 
@@ -65,6 +69,8 @@ impl SpecialPropertyKey {
             Self::ValueOf => StaticPropertyLookupCacheSite::ObjectOrdinaryToPrimitiveValueOf,
             Self::ToStringTag => StaticPropertyLookupCacheSite::ObjectPrototypeToStringToStringTag,
             Self::ToJson => StaticPropertyLookupCacheSite::JSONSerializeToJSON,
+            Self::Then => StaticPropertyLookupCacheSite::PromiseResolveFunctionThen,
+            Self::Constructor => StaticPropertyLookupCacheSite::PromiseResolveConstructor,
         }
     }
 }

@@ -273,3 +273,65 @@ test("@@toStringTag getter that changes @@toStringTag", () => {
     expect(Object.prototype.toString.call(second)).toBe("[object X]");
     expect(`${first}`).toBe("[object X]");
 });
+
+describe("then and constructor in promise resolution", () => {
+    const resolveOften = (makeValue, count = 50) => {
+        const results = [];
+        for (let i = 0; i < count; ++i)
+            Promise.resolve()
+                .then(() => makeValue())
+                .then(value => results.push(value));
+        runQueuedPromiseJobs();
+        return results;
+    };
+
+    test("then added to Object.prototype", () => {
+        const results = resolveOften(() => ({ a: 1 }));
+        expect(results).toHaveLength(50);
+        expect(results[0]).toEqual({ a: 1 });
+        Object.prototype.then = function (resolve) {
+            resolve("from then");
+        };
+        try {
+            expect(resolveOften(() => ({ a: 1 }), 1)).toEqual(["from then"]);
+        } finally {
+            delete Object.prototype.then;
+        }
+        expect(resolveOften(() => ({ a: 1 }), 1)).toEqual([{ a: 1 }]);
+    });
+
+    test("Promise.prototype.then replaced", () => {
+        resolveOften(() => Promise.resolve(1));
+        const originalThen = Promise.prototype.then;
+        let calls = 0;
+        Promise.prototype.then = function (...args) {
+            ++calls;
+            return originalThen.apply(this, args);
+        };
+        try {
+            let result;
+            originalThen.call(
+                Promise.resolve().then(() => Promise.resolve(2)),
+                value => (result = value)
+            );
+            runQueuedPromiseJobs();
+            expect(result).toBe(2);
+            expect(calls).toBeGreaterThan(0);
+        } finally {
+            Promise.prototype.then = originalThen;
+        }
+    });
+
+    test("Promise.prototype.constructor replaced", () => {
+        const promise = Promise.resolve(3);
+        for (let i = 0; i < 50; ++i) expect(Promise.resolve(promise)).toBe(promise);
+        const originalConstructor = Promise.prototype.constructor;
+        Promise.prototype.constructor = function () {};
+        try {
+            expect(Promise.resolve(promise)).not.toBe(promise);
+        } finally {
+            Promise.prototype.constructor = originalConstructor;
+        }
+        expect(Promise.resolve(promise)).toBe(promise);
+    });
+});
