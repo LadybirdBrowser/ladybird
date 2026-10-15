@@ -1243,6 +1243,23 @@ pub(crate) fn prepare_var_resolution_environment(
     }
 }
 
+/// Finalizes an element-level custom property and accumulates its dependencies.
+pub(crate) fn finalize_element_custom_property(
+    registry: &CustomPropertyRegistry,
+    inherited: Option<&CustomPropertyStore>,
+    finalization: &CustomPropertyFinalization,
+    reads: &mut RegisteredValueReads,
+    name_raw: usize,
+    name: &[u16],
+    value: RetainedStyleValueData,
+) -> RetainedStyleValueData {
+    let (value, value_reads) = registry
+        .finalize_custom_property_value(inherited, name_raw, name, value, finalization)
+        .unwrap_or_else(|fallback| (fallback, Default::default()));
+    *reads |= value_reads;
+    value
+}
+
 fn registration_accepts_tokens(
     registry: &CustomPropertyRegistry,
     registration: &RegisteredCustomProperty,
