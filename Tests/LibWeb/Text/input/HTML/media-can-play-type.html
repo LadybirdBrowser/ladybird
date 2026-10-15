@@ -17,6 +17,12 @@
         println(`audio/mp4 underspecified AAC: "${audio.canPlayType('audio/mp4; codecs="mp4a.40"')}"`);
         println(`audio/mp4 unknown MPEG-4 audio: "${audio.canPlayType('audio/mp4; codecs="mp4a"')}"`);
         println(`audio/mpeg: "${audio.canPlayType("audio/mpeg")}"`);
+        println(`audio/aac: "${audio.canPlayType("audio/aac")}"`);
+        println(`audio/flac: "${audio.canPlayType("audio/flac")}"`);
+        println(`audio/x-m4a: "${audio.canPlayType("audio/x-m4a")}"`);
+        println(`audio/x-m4a AAC: "${audio.canPlayType('audio/x-m4a; codecs="mp4a.40.2"')}"`);
+        println(`video/quicktime: "${video.canPlayType("video/quicktime")}"`);
+        println(`video/quicktime H.264: "${video.canPlayType('video/quicktime; codecs="avc1.640028"')}"`);
         println(`audio/wav: "${audio.canPlayType("audio/wav")}"`);
         println(`audio/wav PCM: "${audio.canPlayType('audio/wav; codecs="1"')}"`);
         println(`audio/wav unsupported: "${audio.canPlayType('audio/wav; codecs="2"')}"`);

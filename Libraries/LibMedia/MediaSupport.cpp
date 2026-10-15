@@ -61,6 +61,10 @@ MediaSupportInfo file_media_support(MimeTypeView const& mime_type)
     if (!container.has_value() || !is_supported_file_container(*container))
         return {};
 
+    // https://html.spec.whatwg.org/multipage/media.html#dom-navigator-canplaytype
+    // "Generally, a user agent should never return "probably" for a type that allows the codecs parameter if that
+    //  parameter is not present."
+    // So a container that names its only codec answers "maybe" when that codec decodes, and nothing when it doesn't.
     auto codecs_iterator = mime_type.parameters.find("codecs"sv);
     if (codecs_iterator == mime_type.parameters.end()) {
         auto implied_codec = codec_implied_by_file_container(*container);
@@ -70,7 +74,7 @@ MediaSupportInfo file_media_support(MimeTypeView const& mime_type)
         auto capabilities = decoder_capabilities(ParsedCodec { *implied_codec });
         if (!capabilities.has_value())
             return {};
-        return { MediaSupport::Probably, *capabilities };
+        return { MediaSupport::Maybe, *capabilities };
     }
 
     auto codec_strings = codecs_iterator->value.bytes_as_string_view().split_view(',', SplitBehavior::KeepEmpty);
