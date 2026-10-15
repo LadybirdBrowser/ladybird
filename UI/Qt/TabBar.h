@@ -244,7 +244,9 @@ private:
     QWidget* m_vertical_tabs_content_separator { nullptr };
     QWidget* m_vertical_tabs_resize_handle { nullptr };
     QWidget* m_vertical_tabs_content { nullptr };
+    QTimer* m_vertical_tabs_hover_expand_timer { nullptr };
     QTimer* m_vertical_tabs_hover_collapse_timer { nullptr };
+    QVariantAnimation* m_vertical_tabs_hover_expand_animation { nullptr };
     QBoxLayout* m_main_layout { nullptr };
     QBoxLayout* m_tab_bar_row_layout { nullptr };
     QBoxLayout* m_page_column_layout { nullptr };
@@ -257,6 +259,7 @@ private:
     bool m_vertical_tabs_expand_on_hover { false };
     WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
     bool m_vertical_tabs_hover_expanded { false };
+    qreal m_vertical_tabs_hover_expand_progress { 0.0 };
     bool m_is_resizing_vertical_tabs { false };
     bool m_is_updating_chrome_style { false };
     int m_vertical_tabs_expanded_width { 0 };
