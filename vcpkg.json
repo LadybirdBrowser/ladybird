@@ -347,6 +347,11 @@
       "version": "2.15.3#0"
     },
     {
+      "name": "md4c",
+      "version": "0.5.3#0",
+      "$comment": "md4c 0.6.0 is incompatible with the pinned Qt 6.10.0 Markdown importer."
+    },
+    {
       "name": "mimalloc",
       "version": "2.2.7#0"
     },
