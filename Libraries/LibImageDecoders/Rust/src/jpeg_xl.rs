@@ -121,7 +121,12 @@ pub unsafe extern "C" fn jpegxl_rust_decoder_new(
             alpha_premultiplied,
             loop_count: basic_info.animation.as_ref().map_or(0, |animation| animation.num_loops),
         };
-        decoder.set_pixel_format(JxlPixelFormat::rgba8(basic_info.extra_channels.len()));
+        if decoder
+            .set_pixel_format(JxlPixelFormat::rgba8(basic_info.extra_channels.len()))
+            .is_err()
+        {
+            return std::ptr::null_mut();
+        }
 
         Box::into_raw(Box::new(JPEGXLDecoder {
             decoder: Some(decoder),

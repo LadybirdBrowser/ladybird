@@ -582,30 +582,30 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/jxl/jxl-0.6.0.crate",
-        "sha256": "7b36e70efc347a34540f61ae91b7dc304ab0bb69bd6ac62fae182389c2788016",
-        "dest": "cargo/vendor/jxl-0.6.0"
+        "url": "https://static.crates.io/crates/jxl/jxl-0.7.4.crate",
+        "sha256": "43b041e4bd5bb931cf73b271bc3304eb135bb473914877d64bf77fdf5b4d4687",
+        "dest": "cargo/vendor/jxl-0.7.4"
     },
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/jxl_macros/jxl_macros-0.6.0.crate",
-        "sha256": "96f637cf167445cc64f12f59869e2d2dd4225f1db7e37ec33d1738c2c334d448",
-        "dest": "cargo/vendor/jxl_macros-0.6.0"
+        "url": "https://static.crates.io/crates/jxl_macros/jxl_macros-0.7.4.crate",
+        "sha256": "7401c9c53e44e2efa17d7562c613f0972b93cf134aa91f08c14e00c8278ce663",
+        "dest": "cargo/vendor/jxl_macros-0.7.4"
     },
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/jxl_simd/jxl_simd-0.6.0.crate",
-        "sha256": "7fb521e862fff1898373196c7c884f563210d2dba066d5dc08f36fc6cab35f17",
-        "dest": "cargo/vendor/jxl_simd-0.6.0"
+        "url": "https://static.crates.io/crates/jxl_simd/jxl_simd-0.7.4.crate",
+        "sha256": "ba1f65c01a3f807385be7a1200f78b9d958bff1321b753b859ecfcba63a0642d",
+        "dest": "cargo/vendor/jxl_simd-0.7.4"
     },
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/jxl_transforms/jxl_transforms-0.6.0.crate",
-        "sha256": "77097b14a98fa6f8bde99bd16dcd19e15a8ecceaba42a8d539138090e92dcf27",
-        "dest": "cargo/vendor/jxl_transforms-0.6.0"
+        "url": "https://static.crates.io/crates/jxl_transforms/jxl_transforms-0.7.4.crate",
+        "sha256": "8f72e196c6c1e938a4c7e2175d7c83464fa9e7f587224d310cac15d83fc80a37",
+        "dest": "cargo/vendor/jxl_transforms-0.7.4"
     },
     {
         "type": "archive",
@@ -1329,10 +1329,10 @@
             "echo '{\"files\": {}, \"package\": \"2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285\"}' > cargo/vendor/itertools-0.14.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682\"}' > cargo/vendor/itoa-1.0.18/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"2ceaf4c6c48465bead8cb6a0b7c4ee0c86ecbb31239032b9c66ab9a08d2f3ee1\"}' > cargo/vendor/ixdtf-0.6.5/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"7b36e70efc347a34540f61ae91b7dc304ab0bb69bd6ac62fae182389c2788016\"}' > cargo/vendor/jxl-0.6.0/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"96f637cf167445cc64f12f59869e2d2dd4225f1db7e37ec33d1738c2c334d448\"}' > cargo/vendor/jxl_macros-0.6.0/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"7fb521e862fff1898373196c7c884f563210d2dba066d5dc08f36fc6cab35f17\"}' > cargo/vendor/jxl_simd-0.6.0/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"77097b14a98fa6f8bde99bd16dcd19e15a8ecceaba42a8d539138090e92dcf27\"}' > cargo/vendor/jxl_transforms-0.6.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"43b041e4bd5bb931cf73b271bc3304eb135bb473914877d64bf77fdf5b4d4687\"}' > cargo/vendor/jxl-0.7.4/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"7401c9c53e44e2efa17d7562c613f0972b93cf134aa91f08c14e00c8278ce663\"}' > cargo/vendor/jxl_macros-0.7.4/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"ba1f65c01a3f807385be7a1200f78b9d958bff1321b753b859ecfcba63a0642d\"}' > cargo/vendor/jxl_simd-0.7.4/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"8f72e196c6c1e938a4c7e2175d7c83464fa9e7f587224d310cac15d83fc80a37\"}' > cargo/vendor/jxl_transforms-0.7.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe\"}' > cargo/vendor/lazy_static-1.5.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2\"}' > cargo/vendor/leb128fmt-0.1.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78\"}' > cargo/vendor/libc-0.2.190/.cargo-checksum.json",
