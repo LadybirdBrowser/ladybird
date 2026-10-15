@@ -209,8 +209,8 @@ private:
         ContextState::ContextUpdateResult const&);
     void schedule_animation_frames_if_needed(ContextState&);
     void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<ContextState::ScrollFlingStep>);
-    void present_frame(Web::CompositorContextId, ContextState&, ContextState::PendingFrame);
-    void schedule_present_frame(Web::CompositorContextId, ContextState&, ContextState::PendingFrame);
+    void present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
+    void schedule_present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
     void schedule_pending_present_frame(Web::CompositorContextId, ContextState&);
     void schedule_pending_present_frame_on_vsync(Web::CompositorContextId, ContextState&);
