@@ -15,7 +15,6 @@
 #include <AK/Stream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
-#include <LibMedia/Containers/FLACNavigator.h>
 #include <LibMedia/Containers/IndexedContainerNavigator.h>
 #include <LibMedia/Containers/OggNavigator.h>
 #include <LibMedia/FFmpeg/FFmpegChannelLayout.h>
@@ -38,13 +37,12 @@ bool FFmpegDemuxer::supports_container_mime_type(ContainerMimeType mime_type)
         return true;
     case ContainerID::ISOBMFF:
         return mime_type.media_type != ContainerMediaType::Application;
-    case ContainerID::FLAC:
-        return mime_type.media_type == ContainerMediaType::Audio;
     case ContainerID::Matroska:
     case ContainerID::WebM:
     case ContainerID::ADTS:
     case ContainerID::MPEGAudio:
     case ContainerID::WAV:
+    case ContainerID::FLAC:
         return false;
     }
     VERIFY_NOT_REACHED();
@@ -57,13 +55,12 @@ bool FFmpegDemuxer::supports_codec_in_container(ContainerID container_id, CodecI
         return first_is_one_of(codec_id, CodecID::VP8, CodecID::VP9, CodecID::H264, CodecID::H265, CodecID::MP3, CodecID::AAC, CodecID::AV1, CodecID::Opus, CodecID::FLAC);
     case ContainerID::Ogg:
         return first_is_one_of(codec_id, CodecID::Theora, CodecID::Vorbis, CodecID::Opus, CodecID::FLAC);
-    case ContainerID::FLAC:
-        return codec_id == CodecID::FLAC;
     case ContainerID::ADTS:
     case ContainerID::Matroska:
     case ContainerID::WebM:
     case ContainerID::MPEGAudio:
     case ContainerID::WAV:
+    case ContainerID::FLAC:
         return false;
     }
     VERIFY_NOT_REACHED();
@@ -145,7 +142,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     AVDictionary* options = nullptr;
     ScopeGuard free_options = [&] { av_dict_free(&options); };
 
-    if (av_dict_set(&options, "format_whitelist", "flac,ogg", 0) < 0)
+    if (av_dict_set(&options, "format_whitelist", "ogg", 0) < 0)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg format whitelist"sv);
 
     auto const& codecs = codec_whitelist();
@@ -349,22 +346,6 @@ static inline i64 duration_to_time_units(AK::Duration duration, AVRational const
 OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigator(AVFormatContext& context, NonnullRefPtr<MediaStream> const& stream)
 {
     auto format_name = StringView(context.iformat->name, strlen(context.iformat->name));
-
-    if (format_name == "flac"sv && context.nb_streams == 1) {
-        auto& av_stream = *context.streams[0];
-        if (av_stream.codecpar->sample_rate > 0) {
-            auto sample_rate = static_cast<u32>(av_stream.codecpar->sample_rate);
-            AVPacket* packet = av_packet_alloc();
-            ScopeGuard free_packet = [&] { av_packet_free(&packet); };
-
-            if (av_read_frame(&context, packet) >= 0) {
-                VERIFY(packet->size >= 0);
-                auto cursor = stream->create_cursor();
-                cursor->set_is_blocking(false);
-                return FLACNavigator::create({ packet->data, static_cast<size_t>(packet->size) }, move(cursor), sample_rate);
-            }
-        }
-    }
 
     if (format_name == "ogg"sv) {
         if (context.nb_streams != 1)

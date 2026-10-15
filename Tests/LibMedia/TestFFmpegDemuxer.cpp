@@ -15,7 +15,7 @@
 
 TEST_CASE(rejects_formats_handled_by_other_demuxers)
 {
-    for (auto path : { "./vfr.mkv"sv, "./avc.mp4"sv, "./buffered-ranges/tone.wav"sv }) {
+    for (auto path : { "./vfr.mkv"sv, "./avc.mp4"sv, "./buffered-ranges/tone.wav"sv, "./buffered-ranges/tone.flac"sv }) {
         auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
         auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
         EXPECT(Media::FFmpeg::FFmpegDemuxer::from_stream(stream).is_error());
@@ -32,18 +32,17 @@ TEST_CASE(read_after_aborted_blocking_read)
     // The fix was to only return AVERROR_EOF from the IO context callbacks, and then determine whether to change
     // the error to an Aborted error within the FFmpegDemuxer on top of the avformat context that used the IO.
 
-    auto file = MUST(Core::File::open("./buffered-ranges/tone.flac"sv, Core::File::OpenMode::Read));
+    auto file = MUST(Core::File::open("./buffered-ranges/tone_vorbis.ogg"sv, Core::File::OpenMode::Read));
     auto file_data = MUST(file->read_until_eof());
 
-    // Feed only a portion of the file into the stream so that the demuxer will eventually block
-    // waiting for more data.
-    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    // Open the demuxer on the whole file, since opening an Ogg stream reads its end, then take the middle away so
+    // that the demuxer will eventually block waiting for it.
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
     auto initial_chunk_size = file_data.size() / 4;
-    stream->set_expected_size(file_data.size());
-    stream->add_chunk_at(0, file_data.bytes().trim(initial_chunk_size));
+    auto tail_start = file_data.size() / 4 * 3;
 
-    // Create the demuxer from the partial stream.
     IGNORE_USE_IN_ESCAPING_LAMBDA auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
+    stream->remove_byte_range(initial_chunk_size, tail_start);
     auto tracks = MUST(demuxer->get_tracks_for_type(Media::TrackType::Audio));
     VERIFY(tracks.size() == 1);
     IGNORE_USE_IN_ESCAPING_LAMBDA auto track = tracks.first();
@@ -100,8 +99,7 @@ TEST_CASE(read_after_aborted_blocking_read)
 
     // Reset the abort state and provide the rest of the file data.
     demuxer->reset_blocking_reads_aborted_for_track(track);
-    stream->add_chunk_at(initial_chunk_size, file_data.bytes().slice(initial_chunk_size));
-    stream->close();
+    stream->add_chunk_at(initial_chunk_size, file_data.bytes().slice(initial_chunk_size, tail_start - initial_chunk_size));
 
     // Wait for the reader thread to finish. It should successfully read all remaining frames
     // and then get EndOfStream.

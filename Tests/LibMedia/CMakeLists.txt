@@ -17,6 +17,7 @@ set(TEST_SOURCES
     TestDisplayingVideoSink.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
+    TestFLACDemuxer.cpp
     TestID3.cpp
     TestIncrementallyPopulatedStream.cpp
     TestISOBMFF.cpp
@@ -65,6 +66,7 @@ target_link_libraries(TestDisplayingVideoSink PRIVATE LibGfx)
 target_link_libraries(TestVP9Decode PRIVATE LibGfx)
 target_link_libraries(TestADTSDemuxer PRIVATE LibThreading)
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
+target_link_libraries(TestFLACDemuxer PRIVATE LibThreading)
 target_link_libraries(TestMP3Demuxer PRIVATE LibThreading)
 target_link_libraries(TestWAVDemuxer PRIVATE LibThreading)
 target_link_libraries(TestISOBMFF PRIVATE LibThreading)

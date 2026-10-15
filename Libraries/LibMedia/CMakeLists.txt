@@ -11,7 +11,8 @@ set(SOURCES
     Containers/ADTS/ADTSDemuxer.cpp
     Containers/ADTS/FrameHeader.cpp
     Containers/ADTS/Reader.cpp
-    Containers/FLACNavigator.cpp
+    Containers/FLAC/FLACDemuxer.cpp
+    Containers/FLAC/Reader.cpp
     Containers/FrameScanTimeline.cpp
     Containers/ID3.cpp
     Containers/IndexedContainerNavigator.cpp

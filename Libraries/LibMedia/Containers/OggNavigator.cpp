@@ -45,12 +45,12 @@ OwnPtr<OggNavigator> OggNavigator::create(ReadonlyBytes first_packet, NonnullRef
 
         auto frame_cursor = make_ref_counted<ReadonlyBytesCursor>(first_packet);
         auto frame_info = Codecs::FLAC::parse_frame_header(frame_cursor, sync_code, 0);
-        if (!frame_info.has_value())
+        if (frame_info.is_error() || !frame_info.value().has_value())
             return {};
 
         u16 fixed_block_size = 0;
         if ((sync_code & 1) == 0)
-            fixed_block_size = frame_info->block_size;
+            fixed_block_size = frame_info.value()->block_size;
 
         return adopt_own(*new (nothrow) OggNavigator(move(cursor), FLAC { sync_code, fixed_block_size, sample_rate }));
     }
@@ -154,9 +154,9 @@ Optional<u64> OggNavigator::read_packet_duration_in_granules(ReadonlyBytes packe
         },
         [&](FLAC const& codec) -> Optional<u64> {
             auto frame = Codecs::FLAC::parse_frame_header(packet_cursor, codec.sync_code, codec.fixed_block_size);
-            if (!frame.has_value())
+            if (frame.is_error() || !frame.value().has_value())
                 return {};
-            return frame->block_size;
+            return frame.value()->block_size;
         },
         [&](Vorbis const& codec) -> Optional<u64> {
             auto packet_duration = codec.parser.parse_packet_duration_in_samples(packet);
