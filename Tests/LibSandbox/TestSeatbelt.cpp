@@ -164,6 +164,50 @@ TEST_CASE(sandboxed_process_can_do_ordinary_work)
         Outcome::Allowed);
 }
 
+TEST_CASE(sandboxed_process_can_create_nonblocking_pipes)
+{
+    EXPECT_EQ(run_sandboxed([] {
+        auto result = Core::System::pipe2(O_CLOEXEC | O_NONBLOCK);
+        if (result.is_error())
+            return false;
+        auto fds = result.release_value();
+        for (auto fd : fds) {
+            if ((fcntl(fd, F_GETFD) & FD_CLOEXEC) == 0 || (fcntl(fd, F_GETFL) & O_NONBLOCK) == 0)
+                return false;
+        }
+        char byte = 0;
+        bool success = write(fds[1], "x", 1) == 1 && read(fds[0], &byte, 1) == 1 && byte == 'x';
+        close(fds[0]);
+        close(fds[1]);
+        return success;
+    }),
+        Outcome::Allowed);
+}
+
+#    if defined(SYS_pipe2)
+TEST_CASE(sandboxed_process_can_use_native_pipe2)
+{
+    if (__builtin_available(macOS 27.0, *)) {
+        Function<bool()> create_pipe = [] {
+            int fds[2];
+            if (pipe2(fds, O_CLOEXEC | O_NONBLOCK) != 0)
+                return false;
+            for (auto fd : fds) {
+                if ((fcntl(fd, F_GETFD) & FD_CLOEXEC) == 0 || (fcntl(fd, F_GETFL) & O_NONBLOCK) == 0)
+                    return false;
+            }
+            char byte = 0;
+            bool success = write(fds[1], "x", 1) == 1 && read(fds[0], &byte, 1) == 1 && byte == 'x';
+            close(fds[0]);
+            close(fds[1]);
+            return success;
+        };
+        EXPECT_EQ(run_sandboxed(create_pipe), Outcome::Allowed);
+        EXPECT_EQ(run_sandboxed({ .network_access = Sandbox::NetworkAccess::Allowed }, create_pipe), Outcome::Allowed);
+    }
+}
+#    endif
+
 // The helpers raise their main thread's QoS before the sandbox is applied, but every thread they create afterwards,
 // including the IPC IO threads, gets its QoS class through pthread_create() attributes. Both calls run on a new
 // thread here: the main thread of a fork()ed child refuses QoS changes with EPERM even without a sandbox.

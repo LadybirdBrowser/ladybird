@@ -764,6 +764,14 @@ ErrorOr<Array<int, 2>> pipe2(int flags, PipeReadEnd)
     if (::pipe2(fds.data(), flags) < 0)
         return Error::from_syscall("pipe2"sv, errno);
 #else
+#    if defined(AK_OS_MACOS) && __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+    if (__builtin_available(macOS 27.0, *)) {
+        if (::pipe2(fds.data(), flags) < 0)
+            return Error::from_syscall("pipe2"sv, errno);
+        return fds;
+    }
+#    endif
+
     if (::pipe(fds.data()) < 0)
         return Error::from_syscall("pipe2"sv, errno);
 
