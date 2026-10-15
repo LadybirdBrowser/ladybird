@@ -1477,6 +1477,13 @@ fn resolve_custom_property_with_lookup(
 
         return result;
     }
+
+    // Pop the function local scopes while we resolve the element level custom property.
+    let mut local_scopes = std::mem::take(&mut context.function_local_scopes);
+    let context_ref = RefCell::new(context);
+    let _guard = ScopeGuard::new(|| context_ref.borrow_mut().function_local_scopes = std::mem::take(&mut local_scopes));
+    let context = &mut **context_ref.borrow_mut();
+
     let substitution_context = SubstitutionContextDependency::Property(name.to_owned(), None);
     // AD-HOC: The root custom property's unresolved value is passed directly to `resolve_vars()` rather than read
     //         through this lookup. If it contains a `var()` that refers back to itself, this function is entered while
