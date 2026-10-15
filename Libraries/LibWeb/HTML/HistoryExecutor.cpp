@@ -273,7 +273,7 @@ void HistoryExecutor::enqueue_changing_navigable_continuation(CrossProcessId ope
     on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Ready, continuation->update_only, target_document_id);
 }
 
-void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, Optional<Utf16String> finalized_navigation_id, Optional<NavigationSourceSnapshot> navigation_source_snapshot, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
+void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, Optional<Utf16String> finalized_navigation_id, bool ongoing_navigation_is_traversal, Optional<NavigationSourceSnapshot> navigation_source_snapshot, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
 {
     auto& operation = ensure_history_operation(operation_id);
     auto pending_document = operation.pending_document;
@@ -332,20 +332,14 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     // 8.2. Set navigable's current session history entry to targetEntry.
     navigable->set_current_session_history_entry(claimed_target_entry);
 
-    // AD-HOC: The UI operation owns the authoritative traversal tracker, mirrored here when the changing job begins.
-    //         As in browsers, only a traversal or reload sets it to "traversal". A push or replace leaves a newer
-    //         navigation's ID in place, as that navigation goes on and commits after this one, and nulls the ID of the
-    //         navigation it finalizes. A same-document traversal leaves the navigation's ID in place too.
-    //         See https://github.com/whatwg/html/issues/12581.
-    auto is_same_document_traversal = navigation_type == Bindings::NavigationType::Traverse
-        && claimed_target_entry->document_state()->document_id() == navigable->active_document_id()
-        && !claimed_target_entry->document_state()->reload_pending();
-    if (navigation_type.has_value() && first_is_one_of(*navigation_type, Bindings::NavigationType::Push, Bindings::NavigationType::Replace)) {
-        if (finalized_navigation_id.has_value() && navigable->ongoing_navigation() == *finalized_navigation_id)
-            navigable->set_ongoing_navigation_without_informing_navigation_api(Empty {});
-    } else if (!is_same_document_traversal) {
+    // NB: The UI process ran step 8.4 of apply the history step, "Set navigable's ongoing navigation to 'traversal'".
+    //     Mirror its result here.
+    // AD-HOC: A push or replace leaves a newer navigation's ID in place, as that navigation goes on and commits after
+    //         this one, and nulls the ID of the navigation it finalizes. See https://github.com/whatwg/html/issues/12581.
+    if (ongoing_navigation_is_traversal)
         navigable->set_ongoing_navigation_without_informing_navigation_api(HTML::LocalNavigable::Traversal::Tag);
-    }
+    else if (finalized_navigation_id.has_value() && navigable->ongoing_navigation() == *finalized_navigation_id)
+        navigable->set_ongoing_navigation_without_informing_navigation_api(Empty {});
 
     operation.changing_navigable_jobs.ensure(navigable_id);
 
@@ -653,7 +647,6 @@ Optional<HistoryExecutor::DequeuedChangingNavigableContinuation> HistoryExecutor
         // NB: Only step 14.10 applies a same-document push or replace: its targetEntry's document is displayedDocument.
         if (is_same_document_push_or_replace(navigation_type, *target_entry, displayed_document_id)
             && navigable->active_session_history_entry() != target_entry) {
-            navigable->clear_ongoing_history_traversal();
             on_complete->function()({}, {});
             return;
         }

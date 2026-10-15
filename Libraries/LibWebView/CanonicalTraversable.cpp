@@ -1372,7 +1372,7 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
         auto& loader = *changing_navigable->population_loader;
         endpoint->owe_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id });
         endpoint->async_continue_history_navigation_population(operation_id, changing_navigable->target_entry_descriptor(), operation->algorithm->navigation_type(),
-            Web::HTML::HistoryNavigationPopulation { loader.request(), loader.take_result() });
+            changing_navigable->navigable().ongoing_navigation().has<CanonicalNavigable::Traversal>(), Web::HTML::HistoryNavigationPopulation { loader.request(), loader.take_result() });
     };
     if (auto client_id = endpoint->client().request_server_site_bindings().client_id(); client_id.has_value()) {
         if (auto request_server = RequestServerManager::the().instance_for_client(*client_id)) {
@@ -1427,6 +1427,7 @@ bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryS
         changing_navigable.target_entry_descriptor(), run.user_involvement(),
         run.navigation_type(),
         finalized_navigation_id,
+        navigable.ongoing_navigation().has<CanonicalNavigable::Traversal>(),
         run.source_snapshot_params());
     return true;
 }
