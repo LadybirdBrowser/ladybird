@@ -20,6 +20,7 @@
 #include <Compositor/ElasticOverscrollController.h>
 #include <Compositor/Forward.h>
 #include <Compositor/FramePacer.h>
+#include <Compositor/ScrollFlingController.h>
 #include <Compositor/ScrollSnapController.h>
 #include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
@@ -29,7 +30,6 @@
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
-#include <LibCompositing/Scrolling/ScrollFling.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
 #include <LibCompositing/Scrolling/WheelGestureIdentity.h>
@@ -146,7 +146,7 @@ public:
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame(); }
 
-    bool has_active_scroll_fling() const { return m_scroll_fling.has_value(); }
+    bool has_active_scroll_fling() const { return m_scroll_fling_controller.is_active(); }
     struct ScrollFlingStep {
         Web::MouseEvent event;
         ContextUpdateResult result;
@@ -231,15 +231,6 @@ private:
         bool is_user_scroll { false };
     };
 
-    struct ActiveScrollFling {
-        Compositing::ScrollFling fling;
-        // The fling steps use the position and modifiers of the gesture end event.
-        Web::DevicePixelPoint position;
-        Web::DevicePixelPoint screen_position;
-        Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
-        bool stopped { false };
-    };
-
     struct VisualViewportScrollDelta {
         Compositing::AsyncScrollOffset scroll_offset;
         Gfx::FloatPoint consumed_delta;
@@ -319,7 +310,6 @@ private:
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
     void retire_smooth_scroll_animation(Web::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Compositing::AsyncScrollNodeID);
-    void track_wheel_event_for_scroll_fling(Web::MouseEvent const&, MonotonicTime now);
     bool wheel_step_can_stretch_elastically(Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
     bool pull_elastic_overscroll_by(Compositing::AsyncScrollNode const&, Gfx::FloatPoint step_delta, Gfx::FloatPoint delta_the_scroller_did_not_scroll_by);
     Optional<Compositing::ScrollStateSnapshot> scroll_state_snapshot_stretched_by_elastic_overscrolls() const;
@@ -329,7 +319,7 @@ private:
     // of a gesture this context has already ended or moved past.
     bool wheel_step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
     bool step_continues_touchpad_gesture_the_page_let_through(Optional<Compositing::AsyncScrollNodeID> const& latched_node_id, Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
-    Web::MouseEvent scroll_fling_event(Gfx::FloatPoint delta, Web::ScrollGesturePhase) const;
+    ScrollFlingStep scroll_for_fling_event(Web::MouseEvent, MonotonicTime now);
     Optional<Gfx::FloatPoint> in_flight_wheel_destination(Web::AsyncScrollNodeStableID) const;
     AsyncScrollResult smooth_wheel_scroll_by(Optional<Compositing::WheelScrollTarget> const&, Gfx::IntRect viewport_rect, MonotonicTime now);
     void retarget_user_scroll(ActiveSmoothScrollAnimation&, Gfx::FloatPoint destination_offset, MonotonicTime now);
@@ -394,9 +384,7 @@ private:
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     Optional<WheelScrollLatch> m_wheel_scroll_latch;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
-    Compositing::ScrollVelocityTracker m_scroll_velocity_tracker;
-    Compositing::ScrollFlingBooster m_scroll_fling_booster;
-    Optional<ActiveScrollFling> m_scroll_fling;
+    ScrollFlingController m_scroll_fling_controller;
     ElasticOverscrollController m_elastic_overscroll_controller;
     // The touchpad gesture the UI is sending, whether this context or the main thread scrolls its steps. A stretch is
     // released with the velocity of the steps as they arrived from the UI, not as they were scrolled.
