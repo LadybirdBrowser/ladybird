@@ -60,6 +60,7 @@ flatpak_runtime_libs = [
 # List of libraries that are in vcpkg but not needed for the Linux platform
 vcpkg_not_linux = [
     "dirent",
+    "md4c",
     "mman",
     "pthread",
 ]
