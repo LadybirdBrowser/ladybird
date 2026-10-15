@@ -14,6 +14,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{call, call_function_object};
 use crate::runtime::completion::{Completion, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
@@ -32,6 +33,9 @@ use crate::runtime::prototype_object::typed_this_object;
 use crate::runtime::realm::Realm;
 use crate::runtime::set::{Set, get_set_record, set_data_has};
 use crate::runtime::set_iterator::SetIterator;
+
+/// %Set.prototype.add%, which the Set constructor calls directly when it finds it as the adder.
+pub(crate) static ADD_FUNCTION: RawNativeFunctionPointer = raw_native!(SetPrototype::add);
 
 /// %Set.prototype%.
 #[repr(C)]
@@ -85,7 +89,7 @@ impl SetPrototype {
             object.define_native_function(vm, realm, name, function, length, attr, None);
         };
 
-        define_native_function(&names.add, raw_native!(SetPrototype::add), 1);
+        define_native_function(&names.add, ADD_FUNCTION, 1);
         define_native_function(&names.clear, raw_native!(SetPrototype::clear), 0);
         define_native_function(&names.delete_, raw_native!(SetPrototype::delete_), 1);
         define_native_function(&names.difference, raw_native!(SetPrototype::difference), 1);
