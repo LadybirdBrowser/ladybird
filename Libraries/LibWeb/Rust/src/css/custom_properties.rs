@@ -2433,9 +2433,7 @@ fn resolve_function_styles<'a>(
     //
     // - The inherited value of calling context's property is the guaranteed-invalid value.
     //
-    // FIXME: We do not represent the calling property's inherited value explicitly. Looking it up through normal
-    //        context guarding can mark a cycle instead of producing the guaranteed-invalid value, which makes fallbacks
-    //        behave differently from the specification.
+    // AD-HOC: We treat references to the calling property as cycles to match Chrome's behavior.
     //
     // - On custom properties, initial resolves to the registration's initial value, inherit resolves like an inherit()
     //   function for that property, and any other CSS-wide keyword resolves to the guaranteed-invalid value. On result,
