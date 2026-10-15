@@ -84,7 +84,44 @@ namespace Web {
 #endif
 
 constexpr auto default_user_agent = "Mozilla/5.0 (" UA_PLATFORM_STRING ") " BROWSER_NAME "/" BROWSER_VERSION " " SAD_COMPATIBILITY_HACK ""sv;
-constexpr auto default_platform = OS_STRING " " CPU_STRING ""sv;
+// https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-platform
+// "Must return either the empty string or a string representing the platform on which the browser is executing, e.g.
+// "MacIntel", "Win32", "Linux x86_64", "Linux armv81"."
+// Browsers on macOS report MacIntel whatever the CPU is, and browsers on Windows report Win32; elsewhere, the platform
+// is what uname() reports as the system name and the machine, spelled the way the kernel spells them.
+#if defined(AK_OS_MACOS)
+#    define NAVIGATOR_PLATFORM_STRING "MacIntel"
+#elif defined(AK_OS_IOS)
+#    define NAVIGATOR_PLATFORM_STRING "iPhone"
+#elif defined(AK_OS_WINDOWS)
+#    define NAVIGATOR_PLATFORM_STRING "Win32"
+#else
+#    if defined(AK_OS_ANDROID) || defined(AK_OS_LINUX)
+#        define NAVIGATOR_PLATFORM_SYSTEM_NAME "Linux"
+#    else
+#        define NAVIGATOR_PLATFORM_SYSTEM_NAME OS_STRING
+#    endif
+#    if ARCH(X86_64)
+#        define NAVIGATOR_PLATFORM_MACHINE "x86_64"
+#    elif ARCH(AARCH64)
+#        define NAVIGATOR_PLATFORM_MACHINE "aarch64"
+#    elif ARCH(I386)
+#        define NAVIGATOR_PLATFORM_MACHINE "i686"
+#    elif ARCH(RISCV64)
+#        define NAVIGATOR_PLATFORM_MACHINE "riscv64"
+#    elif ARCH(PPC64LE)
+#        define NAVIGATOR_PLATFORM_MACHINE "ppc64le"
+#    elif ARCH(PPC64)
+#        define NAVIGATOR_PLATFORM_MACHINE "ppc64"
+#    elif ARCH(PPC)
+#        define NAVIGATOR_PLATFORM_MACHINE "ppc"
+#    else
+#        error Unknown architecture
+#    endif
+#    define NAVIGATOR_PLATFORM_STRING NAVIGATOR_PLATFORM_SYSTEM_NAME " " NAVIGATOR_PLATFORM_MACHINE
+#endif
+
+constexpr auto default_platform = NAVIGATOR_PLATFORM_STRING ""sv;
 constexpr auto default_navigator_compatibility_mode = NavigatorCompatibilityMode::Chrome;
 
 }
