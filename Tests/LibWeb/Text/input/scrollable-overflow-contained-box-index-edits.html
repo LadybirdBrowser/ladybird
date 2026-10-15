@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    #scroller { position: relative; width: 100px; height: 100px; overflow: auto; }
+    .tall { position: absolute; top: 0; left: 0; width: 10px; height: 300px; }
+    .deep { position: absolute; top: 0; left: 0; width: 10px; height: 500px; }
+    .inline-block { display: inline-block; width: 10px; height: 10px; }
+</style>
+<div id="scroller">
+    <div><div class="tall"></div></div>
+    <p>text <span id="label">0</span> <span id="holder"><span class="inline-block"></span></span></p>
+    <div id="target"></div>
+</div>
+<script>
+    test(() => {
+        function step(name, mutate) {
+            scroller.scrollHeight;
+            internals.resetStyleInvalidationCounters();
+            mutate();
+            const scrollHeight = scroller.scrollHeight;
+            const refills = internals.getStyleInvalidationCounters().overflowContainedBoxIndexRefills;
+            println(`${name}: refills=${refills} scrollHeight=${scrollHeight}`);
+        }
+
+        step("text edit", () => {
+            label.textContent = "1";
+        });
+        step("plain block inserted", () => {
+            target.appendChild(document.createElement("div")).textContent = "plain";
+        });
+        step("plain block removed", () => {
+            target.firstChild.remove();
+        });
+        step("nested absolutely positioned box inserted", () => {
+            const wrapper = target.appendChild(document.createElement("div"));
+            wrapper.appendChild(document.createElement("div")).className = "deep";
+        });
+        step("nested absolutely positioned box removed", () => {
+            target.firstChild.remove();
+        });
+        step("inline-block moved out of its inline parent", () => {
+            target.appendChild(holder.firstChild);
+        });
+        step("inline-block moved back into an inline parent", () => {
+            holder.appendChild(target.firstChild);
+        });
+    });
+</script>

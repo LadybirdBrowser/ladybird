@@ -102,6 +102,16 @@ pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &Do
     })
 }
 
+/// How many times paint preparation rebuilt the index of boxes whose containing block is not their parent, counting
+/// from zero again where `reset`.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_overflow_contained_box_index_refill_count(host: &DocumentHost, reset: bool) -> u64 {
+    read_arena(host, |arena| {
+        let refills = &arena.scrollable_overflow.contained_box_index_refills;
+        if reset { refills.replace(0) } else { refills.get() }
+    })
+}
+
 /// How many boxes wait for their visual context to be updated.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_visual_context_pending_dirty_box_count(host: &DocumentHost) -> usize {
