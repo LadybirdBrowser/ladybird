@@ -14,7 +14,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
-use crate::runtime::error_data::CompactTraceback;
+use crate::runtime::error_data::{CompactTraceback, StackFrameSyntax};
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
@@ -182,15 +182,21 @@ impl ErrorPrototype {
             ])
         };
 
-        let stack_string = error_data.stack_string(CompactTraceback::No);
-        let string = PrimitiveString::create(
-            vm,
-            concatenate(&[
-                Utf16View::of_string(&header),
-                Utf16View::Ascii(b"\n"),
-                Utf16View::of_string(&stack_string),
-            ]),
-        );
+        let syntax = vm.stack_frame_syntax();
+        let stack_string = error_data.stack_string_with_syntax(CompactTraceback::No, syntax);
+        // The at-sign syntax is frames only; the name and message head the indented one.
+        let string = if syntax == StackFrameSyntax::AtSign {
+            PrimitiveString::create(vm, stack_string)
+        } else {
+            PrimitiveString::create(
+                vm,
+                concatenate(&[
+                    Utf16View::of_string(&header),
+                    Utf16View::Ascii(b"\n"),
+                    Utf16View::of_string(&stack_string),
+                ]),
+            )
+        };
         error_data.set_cached_string(string);
         Ok(Value::from_string(string))
     }

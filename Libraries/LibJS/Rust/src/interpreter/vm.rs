@@ -62,9 +62,11 @@ use crate::runtime::declarative_environment::DeclarativeEnvironment;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment_coordinate::EnvironmentCoordinate;
 use crate::runtime::error::ErrorKind;
+use crate::runtime::error_data::StackFrameSyntax;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::finalization_registry::FinalizationRegistry;
 use crate::runtime::function_environment::FunctionEnvironment;
+use crate::runtime::function_prototype::NativeFunctionSourceSyntax;
 use crate::runtime::job_callback::{JobCallback, call_job_callback, make_job_callback};
 use crate::runtime::json_object::JsonStringifyCache;
 use crate::runtime::json_text_parser::JsonParseCache;
@@ -591,6 +593,10 @@ pub struct Vm {
     options: VmOptions,
     embedder: Cell<Option<Embedder>>,
     agent: Cell<AgentRecord>,
+    /// How Error.prototype.stack writes its frames, and how Function.prototype.toString writes a built-in function:
+    /// the embedder's choice, since scripts read both to tell engines apart.
+    stack_frame_syntax: Cell<StackFrameSyntax>,
+    native_function_source_syntax: Cell<NativeFunctionSourceSyntax>,
     saved_execution_context_stacks: RefCell<Vec<SavedExecutionContextStack>>,
     host_classes: RefCell<HostClassRegistry>,
     pub jit: JitState,
@@ -725,6 +731,8 @@ impl Vm {
             options,
             embedder: Cell::new(None),
             agent: Cell::new(AgentRecord::default()),
+            stack_frame_syntax: Cell::new(StackFrameSyntax::default()),
+            native_function_source_syntax: Cell::new(NativeFunctionSourceSyntax::default()),
             saved_execution_context_stacks: RefCell::new(Vec::new()),
             host_classes: RefCell::new(HashMap::default()),
             jit: JitState::new(JitOptions::from_environment()),
@@ -1220,6 +1228,23 @@ impl Vm {
 
     pub fn set_agent(&self, agent: AgentRecord) {
         self.agent.set(agent);
+    }
+
+    pub fn stack_frame_syntax(&self) -> StackFrameSyntax {
+        self.stack_frame_syntax.get()
+    }
+
+    pub fn native_function_source_syntax(&self) -> NativeFunctionSourceSyntax {
+        self.native_function_source_syntax.get()
+    }
+
+    pub fn set_source_text_syntaxes(
+        &self,
+        stack_frames: StackFrameSyntax,
+        native_functions: NativeFunctionSourceSyntax,
+    ) {
+        self.stack_frame_syntax.set(stack_frames);
+        self.native_function_source_syntax.set(native_functions);
     }
 
     pub fn host_classes(&self) -> &RefCell<HostClassRegistry> {

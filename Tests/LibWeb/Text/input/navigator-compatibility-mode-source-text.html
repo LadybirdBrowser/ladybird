@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // The two strings a script reads to tell engines apart that no navigator attribute covers follow the engine the
+    // navigator claims: the frames of an error's stack, and the source text of a built-in function.
+    test(() => {
+        function inner() { return new Error("boom").stack; }
+        const shape = stack => JSON.stringify(stack.replace(/(file|blob|http)[^\s)]+/g, "<url>"));
+        try {
+            for (const mode of ["chrome", "gecko", "webkit"]) {
+                internals.setNavigatorCompatibilityMode(mode);
+                println(`${mode}: stack ${shape(inner())}`);
+                println(`${mode}: XMLDocument ${JSON.stringify(XMLDocument.toString())}`);
+                println(`${mode}: bound ${JSON.stringify(inner.bind(null).toString())}`);
+            }
+        } finally {
+            internals.setNavigatorCompatibilityMode("chrome");
+        }
+    });
+</script>

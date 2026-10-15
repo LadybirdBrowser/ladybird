@@ -27,7 +27,9 @@ use crate::layout::value::Value;
 use crate::layout::vm::{VM_ALIGN, VM_SIZE};
 use crate::runtime::agent::AgentRecord;
 use crate::runtime::array_buffer::ArrayBuffer;
+use crate::runtime::error_data::StackFrameSyntax;
 use crate::runtime::finalization_registry::FinalizationRegistry;
+use crate::runtime::function_prototype::NativeFunctionSourceSyntax;
 use crate::runtime::job_callback::call_job_callback;
 
 // LibJS/Embedding/Layout.h tells an embedder to reserve this much storage for the VM.
@@ -180,6 +182,23 @@ pub unsafe extern "C" fn js_vm_set_embedder(vm: *mut JSVM, hooks: *const JSVmHos
     // SAFETY: The caller passes a live VM, and a table that stays alive while the VM uses it.
     let (vm, hooks) = unsafe { (vm_from_abi(vm), hooks.as_ref()) };
     install_embedder(vm, hooks.map(|hooks| Embedder { hooks, data }));
+}
+
+/// Chooses how the VM writes the two strings scripts read to tell engines apart: Error.prototype.stack's frames
+/// (0: indented "    at f (url:line:col)", 1: "f@url:line:col") and Function.prototype.toString of a built-in function
+/// (0: on one line, 1: with "[native code]" on a line of its own). Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `vm` must be a live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_set_source_text_syntaxes(vm: *mut JSVM, stack_frames: u8, native_functions: u8) {
+    // SAFETY: The caller passes a live VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    vm.set_source_text_syntaxes(
+        StackFrameSyntax::from_abi(stack_frames),
+        NativeFunctionSourceSyntax::from_abi(native_functions),
+    );
 }
 
 /// Makes `agent` the surrounding agent of the VM: its [[CanBlock]] says whether Atomics.wait() may block, and await in

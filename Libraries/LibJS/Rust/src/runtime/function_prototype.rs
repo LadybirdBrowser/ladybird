@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::Utf16String;
 use libjs_abi::Builtin;
 use libjs_runtime_macros::Trace;
 
@@ -12,6 +12,32 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::slow_paths::feedback::record_forwarded_call_from_native;
 use crate::interpreter::vm::Vm;
+
+/// How Function.prototype.toString writes a built-in function's body: on one line, as "() { [native code] }", or on
+/// three, as "() {\n    [native code]\n}". The embedder picks the syntax, since scripts read it to tell engines apart.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum NativeFunctionSourceSyntax {
+    #[default]
+    SingleLine = 0,
+    MultiLine = 1,
+}
+
+impl NativeFunctionSourceSyntax {
+    pub fn from_abi(syntax: u8) -> Self {
+        match syntax {
+            1 => Self::MultiLine,
+            _ => Self::SingleLine,
+        }
+    }
+
+    fn body(self) -> &'static [u8] {
+        match self {
+            Self::SingleLine => b"() { [native code] }",
+            Self::MultiLine => b"() {\n    [native code]\n}",
+        }
+    }
+}
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::feedback::CallFeedbackForwarding;
@@ -412,16 +438,19 @@ impl FunctionPrototype {
                 concatenate(&[
                     Utf16View::Ascii(b"function "),
                     Utf16View::of_fly_string(&name),
-                    Utf16View::Ascii(b"() { [native code] }"),
+                    Utf16View::Ascii(vm.native_function_source_syntax().body()),
                 ]),
             )));
         }
 
         // 4. If Type(func) is Object and IsCallable(func) is true, return an implementation-defined String source code representation of func. The representation must have the syntax of a NativeFunction.
         // NOTE: ProxyObject, BoundFunction, WrappedFunction
-        Ok(Value::from_string(PrimitiveString::create_from_fly_string(
+        Ok(Value::from_string(PrimitiveString::create(
             vm,
-            &Utf16FlyString::from_utf8("function () { [native code] }"),
+            concatenate(&[
+                Utf16View::Ascii(b"function "),
+                Utf16View::Ascii(vm.native_function_source_syntax().body()),
+            ]),
         )))
     }
 

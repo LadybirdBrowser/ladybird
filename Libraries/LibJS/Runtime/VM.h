@@ -403,6 +403,18 @@ public:
     Function<void(Object const&, PropertyKey const&)> on_unimplemented_property_access;
 
     void set_agent(OwnPtr<Agent>);
+
+    // How Error.prototype.stack writes its frames and how Function.prototype.toString writes a built-in function: the
+    // embedder's choice, since scripts read both to tell engines apart.
+    enum class StackFrameSyntax : u8 {
+        Indented, // "    at f (url:line:col)", under a "Name: message" line
+        AtSign,   // "f@url:line:col", frames only
+    };
+    enum class NativeFunctionSourceSyntax : u8 {
+        SingleLine, // "function f() { [native code] }"
+        MultiLine,  // "function f() {\n    [native code]\n}"
+    };
+    void set_source_text_syntaxes(StackFrameSyntax, NativeFunctionSourceSyntax);
     Agent* agent() { return m_agent; }
     Agent const* agent() const { return m_agent; }
 

@@ -16,6 +16,7 @@
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
@@ -85,6 +86,14 @@ NavigatorCompatibilityMode ResourceLoader::s_navigator_compatibility_mode = defa
 void ResourceLoader::set_navigator_compatibility_mode(NavigatorCompatibilityMode mode)
 {
     s_navigator_compatibility_mode = mode;
+
+    // A script reads two strings to tell engines apart that no navigator attribute covers: the frames of an error's
+    // stack, and the source text of a built-in function. Both follow the engine the navigator claims.
+    auto& vm = Bindings::main_thread_vm();
+    if (mode == NavigatorCompatibilityMode::Chrome)
+        vm.set_source_text_syntaxes(JS::VM::StackFrameSyntax::Indented, JS::VM::NativeFunctionSourceSyntax::SingleLine);
+    else
+        vm.set_source_text_syntaxes(JS::VM::StackFrameSyntax::AtSign, JS::VM::NativeFunctionSourceSyntax::MultiLine);
 }
 
 void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_client)
