@@ -121,6 +121,11 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
         Application::the().tab_settings_changed({});
     }
 
+    virtual void languages_changed() override
+    {
+        Application::the().languages_changed({});
+    }
+
     virtual void browsing_data_settings_changed() override
     {
         Application::request_server_manager().disk_cache_settings_changed();
@@ -2433,10 +2438,12 @@ void Application::initialize_actions()
         };
     };
 
-    auto add_spoofed_value = [](auto& menu, auto name, auto value, auto& cached_value, auto request, auto persist) {
-        auto action = Action::create_checkable(name, ActionID::SpoofUserAgent, [value, &cached_value, request, persist]() {
+    auto add_spoofed_value = [](auto& menu, auto name, auto value, auto& cached_value, auto request, auto persist, auto notify_workers) {
+        auto action = Action::create_checkable(name, ActionID::SpoofUserAgent, [value, &cached_value, request, persist, notify_workers]() {
             cached_value = value;
             persist();
+            // Workers take no debug requests; the worker process manager hands the new value to every live worker.
+            notify_workers();
 
             ViewImplementation::for_each_view([&](ViewImplementation& view) {
                 view.debug_request(request, cached_value);
@@ -2706,11 +2713,10 @@ void Application::initialize_actions()
         ? *WebView::user_agents.get(*user_agent_preset)
         : Web::default_user_agent;
 
-    add_spoofed_value(spoof_user_agent_menu, "Disabled"sv, Web::default_user_agent, m_user_agent_string, "spoof-user-agent"sv,
-        [this] { m_settings->set_user_agent_preset({}); });
+    auto notify_workers_of_user_agent = [this] { WorkerProcessManager::the().update_user_agent(user_agent_string()); };
+    add_spoofed_value(spoof_user_agent_menu, "Disabled"sv, Web::default_user_agent, m_user_agent_string, "spoof-user-agent"sv, [this] { m_settings->set_user_agent_preset({}); }, notify_workers_of_user_agent);
     for (auto const& user_agent : WebView::user_agents) {
-        add_spoofed_value(spoof_user_agent_menu, user_agent.key, user_agent.value, m_user_agent_string, "spoof-user-agent"sv,
-            [this, name = user_agent.key] { m_settings->set_user_agent_preset(name); });
+        add_spoofed_value(spoof_user_agent_menu, user_agent.key, user_agent.value, m_user_agent_string, "spoof-user-agent"sv, [this, name = user_agent.key] { m_settings->set_user_agent_preset(name); }, notify_workers_of_user_agent);
     }
 
     auto navigator_compatibility_mode_menu = Menu::create_group("Navigator Compatibility Mode"sv);
@@ -2718,9 +2724,9 @@ void Application::initialize_actions()
             ? m_settings->navigator_compatibility_mode()
             : Web::default_navigator_compatibility_mode);
 
+    auto notify_workers_of_navigator_compatibility_mode = [this] { WorkerProcessManager::the().update_navigator_compatibility_mode(navigator_compatibility_mode()); };
     auto add_navigator_compatibility_mode = [&](StringView name, Web::NavigatorCompatibilityMode mode) {
-        add_spoofed_value(navigator_compatibility_mode_menu, name, navigator_compatibility_mode_to_string(mode), m_navigator_compatibility_mode, "navigator-compatibility-mode"sv,
-            [this, mode] { m_settings->set_navigator_compatibility_mode(mode); });
+        add_spoofed_value(navigator_compatibility_mode_menu, name, navigator_compatibility_mode_to_string(mode), m_navigator_compatibility_mode, "navigator-compatibility-mode"sv, [this, mode] { m_settings->set_navigator_compatibility_mode(mode); }, notify_workers_of_navigator_compatibility_mode);
     };
     add_navigator_compatibility_mode("Chrome"sv, Web::NavigatorCompatibilityMode::Chrome);
     add_navigator_compatibility_mode("Gecko"sv, Web::NavigatorCompatibilityMode::Gecko);
@@ -2761,6 +2767,21 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     page.async_debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     page.async_debug_request("spoof-user-agent"sv, m_user_agent_string);
     page.async_debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
+}
+
+void Application::languages_changed(Badge<ApplicationSettingsObserver>)
+{
+    WorkerProcessManager::the().update_preferred_languages(m_settings->languages());
+}
+
+String Application::user_agent_string() const
+{
+    return MUST(String::from_utf8(m_user_agent_string));
+}
+
+Web::NavigatorCompatibilityMode Application::navigator_compatibility_mode() const
+{
+    return navigator_compatibility_mode_from_string(m_navigator_compatibility_mode).value_or(Web::default_navigator_compatibility_mode);
 }
 
 void Application::update_vertical_tabs_action()

@@ -227,6 +227,12 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         client->request_server_site_bindings().did_connect(request_server_connection.client_id);
         client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);
         client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
+        // The User-Agent string, the navigator compatibility mode, and the preferred languages live in this process.
+        // Pages get them through their view; a worker gets the same values here, so its navigator never contradicts
+        // the page's.
+        client->async_set_user_agent(Application::the().user_agent_string());
+        client->async_set_navigator_compatibility_mode(Application::the().navigator_compatibility_mode());
+        client->async_set_preferred_languages(Application::settings().languages());
         connect_to_image_decoder(*client, move(image_decoder));
 #if defined(HAVE_WASM_COMPILER_SERVICE)
         client->async_connect_to_wasm_compiler(wasm_compiler_handle);
@@ -319,6 +325,24 @@ void WorkerProcessManager::update_site_compatibility_data(JsonValue const& data)
 {
     for (auto const& agent : m_agents)
         agent.value.client->async_set_site_compatibility_data(data);
+}
+
+void WorkerProcessManager::update_user_agent(String const& user_agent)
+{
+    for (auto const& agent : m_agents)
+        agent.value.client->async_set_user_agent(user_agent);
+}
+
+void WorkerProcessManager::update_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
+{
+    for (auto const& agent : m_agents)
+        agent.value.client->async_set_navigator_compatibility_mode(mode);
+}
+
+void WorkerProcessManager::update_preferred_languages(Vector<String> const& preferred_languages)
+{
+    for (auto const& agent : m_agents)
+        agent.value.client->async_set_preferred_languages(preferred_languages);
 }
 
 void WorkerProcessManager::close_worker_agent(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

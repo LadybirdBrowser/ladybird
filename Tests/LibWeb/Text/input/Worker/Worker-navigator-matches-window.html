@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A worker's navigator describes the same browser the page's navigator does. The User-Agent string, the values the
+    // navigator compatibility mode derives from it, and the preferred languages all reach the worker's process, so
+    // nothing a page reports is contradicted by a worker it creates.
+    asyncTest(async done => {
+        // productSub, vendor, and vendorSub are exposed to Window only, so they stay out of the comparison.
+        const keys = ["userAgent", "appVersion", "platform", "product", "language", "languages"];
+        const read = navigator => Object.fromEntries(keys.map(key => [key, JSON.stringify(navigator[key])]));
+        const workerSource = `
+            const keys = ${JSON.stringify(keys)};
+            postMessage(Object.fromEntries(keys.map(key => [key, JSON.stringify(navigator[key])])));
+        `;
+        const workerURL = URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" }));
+        const worker = new Worker(workerURL);
+        try {
+            const fromWorker = await new Promise((resolve, reject) => {
+                worker.onmessage = event => resolve(event.data);
+                worker.onerror = event => reject(new Error(event.message));
+            });
+            const fromWindow = read(navigator);
+            for (const key of keys) {
+                if (fromWorker[key] === fromWindow[key])
+                    println(`navigator.${key}: same in the worker`);
+                else
+                    println(`navigator.${key}: window ${fromWindow[key]}, worker ${fromWorker[key]}`);
+            }
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            worker.terminate();
+            URL.revokeObjectURL(workerURL);
+            done();
+        }
+    });
+</script>

@@ -1,0 +1,6 @@
+navigator.userAgent: same in the worker
+navigator.appVersion: same in the worker
+navigator.platform: same in the worker
+navigator.product: same in the worker
+navigator.language: same in the worker
+navigator.languages: same in the worker
