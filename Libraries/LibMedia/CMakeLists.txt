@@ -11,7 +11,6 @@ set(SOURCES
     Containers/ADTS/ADTSDemuxer.cpp
     Containers/ADTS/FrameHeader.cpp
     Containers/ADTS/Reader.cpp
-    Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
     Containers/FrameScanTimeline.cpp
     Containers/ID3.cpp
@@ -31,6 +30,8 @@ set(SOURCES
     Containers/MP3/Reader.cpp
     Containers/MP3/StreamInfo.cpp
     Containers/OggNavigator.cpp
+    Containers/WAV/Reader.cpp
+    Containers/WAV/WAVDemuxer.cpp
     DecodeAudioStream.cpp
     DecoderRegistrations.cpp
     DemuxerRegistry.cpp

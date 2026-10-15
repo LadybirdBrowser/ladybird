@@ -15,7 +15,7 @@
 
 TEST_CASE(rejects_formats_handled_by_other_demuxers)
 {
-    for (auto path : { "./vfr.mkv"sv, "./avc.mp4"sv }) {
+    for (auto path : { "./vfr.mkv"sv, "./avc.mp4"sv, "./buffered-ranges/tone.wav"sv }) {
         auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
         auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
         EXPECT(Media::FFmpeg::FFmpegDemuxer::from_stream(stream).is_error());
@@ -32,7 +32,7 @@ TEST_CASE(read_after_aborted_blocking_read)
     // The fix was to only return AVERROR_EOF from the IO context callbacks, and then determine whether to change
     // the error to an Aborted error within the FFmpegDemuxer on top of the avformat context that used the IO.
 
-    auto file = MUST(Core::File::open("./buffered-ranges/tone.wav"sv, Core::File::OpenMode::Read));
+    auto file = MUST(Core::File::open("./buffered-ranges/tone.flac"sv, Core::File::OpenMode::Read));
     auto file_data = MUST(file->read_until_eof());
 
     // Feed only a portion of the file into the stream so that the demuxer will eventually block
