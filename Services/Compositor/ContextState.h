@@ -187,22 +187,22 @@ public:
     bool set_visibility(Compositing::ContextVisibility);
     Compositing::ContextVisibility visibility() const { return m_visibility; }
 
-    bool request_rendering_opportunity(double maximum_frames_per_second);
-    bool rendering_opportunity_requested() const { return m_rendering_opportunity_requested; }
+    bool request_rendering_opportunity(double maximum_frames_per_second) { return m_rendering_opportunity_request.request(maximum_frames_per_second); }
+    bool rendering_opportunity_requested() const { return m_rendering_opportunity_request.is_requested(); }
     bool window_resize_in_progress() const { return m_window_resize_in_progress == Compositing::WindowResizingInProgress::Yes; }
     bool is_present_blocked() const;
-    double rendering_opportunity_frame_interval(double display_refresh_rate) const;
-    bool rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const;
-    void did_deliver_rendering_opportunity(MonotonicTime frame_time);
+    double rendering_opportunity_frame_interval(double display_refresh_rate) const { return m_rendering_opportunity_request.frame_interval(display_refresh_rate); }
+    bool rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_rendering_opportunity_request.is_due(frame_time, display_refresh_rate); }
+    void did_deliver_rendering_opportunity(MonotonicTime frame_time) { m_rendering_opportunity_request.did_deliver(frame_time); }
 
-    bool request_clock_tick(double maximum_frames_per_second);
-    bool clock_tick_requested() const { return m_clock_tick_requested; }
-    double clock_tick_interval(double display_refresh_rate) const { return m_clock_tick_pacer.frame_interval(display_refresh_rate); }
-    bool clock_tick_is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_clock_tick_pacer.is_due(frame_time, display_refresh_rate); }
-    void did_deliver_clock_tick(MonotonicTime frame_time);
+    bool request_clock_tick(double maximum_frames_per_second) { return m_clock_tick_request.request(maximum_frames_per_second); }
+    bool clock_tick_requested() const { return m_clock_tick_request.is_requested(); }
+    double clock_tick_interval(double display_refresh_rate) const { return m_clock_tick_request.frame_interval(display_refresh_rate); }
+    bool clock_tick_is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_clock_tick_request.is_due(frame_time, display_refresh_rate); }
+    void did_deliver_clock_tick(MonotonicTime frame_time) { m_clock_tick_request.did_deliver(frame_time); }
     // Where the compositor has scrolled each scroll node to.
     Vector<Web::CompositorScrollOffset> scroll_offsets() const;
-    bool display_tick_requested() const { return m_rendering_opportunity_requested || m_clock_tick_requested; }
+    bool display_tick_requested() const { return rendering_opportunity_requested() || clock_tick_requested(); }
 
     void queue_present_frame(PendingFrame);
     Optional<Gfx::IntRect> pending_present_frame_viewport_rect() const;
@@ -415,10 +415,8 @@ private:
     double m_display_refresh_rate { 60.0 };
     Compositing::ContextVisibility m_visibility { Compositing::ContextVisibility::Visible };
 
-    bool m_rendering_opportunity_requested { false };
-    FramePacer m_rendering_opportunity_pacer;
-    bool m_clock_tick_requested { false };
-    FramePacer m_clock_tick_pacer;
+    PacedTickRequest m_rendering_opportunity_request;
+    PacedTickRequest m_clock_tick_request;
 
     Optional<PendingFrame> m_pending_present_frame;
     bool m_pending_present_frame_scheduled { false };
