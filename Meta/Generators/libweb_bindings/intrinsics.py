@@ -249,7 +249,9 @@ def write_intrinsic_definitions_implementation(out: TextIO, interface_sets: Inte
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
+#include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 """
     )
 
@@ -269,6 +271,7 @@ namespace Web::Bindings {
     write_secure_context_switch(out, interface_sets.intrinsics)
     write_experimental_switch(out, interface_sets.intrinsics)
     write_experimental_name_switch(out, interface_sets.intrinsics)
+    write_navigator_compatibility_mode_switch(out, interface_sets.intrinsics)
     write_global_exposed_switch(out, "window", interface_sets.window_exposed)
     write_global_exposed_switch(out, "dedicated_worker", interface_sets.dedicated_worker_exposed)
     write_global_exposed_switch(out, "shared_worker", interface_sets.shared_worker_exposed)
@@ -305,6 +308,10 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
 
     // AD-HOC: Do not expose experimental interfaces unless the global switch or a site-compatibility rule says so.
     if (is_experimental_interface(name) && !HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(principal_host_defined_environment_settings_object(realm), experimental_interface_name(name)))
+        return false;
+
+    // AD-HOC: An interface only one engine has exists only while the navigator claims to be that engine.
+    if (auto mode = navigator_compatibility_mode_of_interface(name); mode.has_value() && *mode != ResourceLoader::navigator_compatibility_mode())
         return false;
 
     // FIXME: 3. If realm’s settings object’s cross-origin isolated capability is false, and construct is
@@ -366,6 +373,30 @@ def write_experimental_name_switch(out: TextIO, interfaces: List[Interface]) -> 
         if "Experimental" not in interface.extended_attributes:
             continue
         out.write(f'    case InterfaceName::{interface.name}:\n        return "{interface.name}"sv;\n')
+
+    out.write(
+        """    default:
+        return {};
+    }
+}
+
+"""
+    )
+
+
+def write_navigator_compatibility_mode_switch(out: TextIO, interfaces: List[Interface]) -> None:
+    # The engine an interface belongs to, for one that only exists while the navigator claims that engine.
+    out.write(
+        """static constexpr Optional<NavigatorCompatibilityMode> navigator_compatibility_mode_of_interface(InterfaceName name)
+{
+    switch (name) {
+"""
+    )
+    for interface in interfaces:
+        if "NavigatorCompatibilityMode" not in interface.extended_attributes:
+            continue
+        mode = interface.extended_attributes["NavigatorCompatibilityMode"]
+        out.write(f"    case InterfaceName::{interface.name}:\n        return NavigatorCompatibilityMode::{mode};\n")
 
     out.write(
         """    default:
@@ -572,6 +603,8 @@ def write_exposed_interface_implementation(out: TextIO, class_name: str, exposed
 #include <LibWeb/Bindings/{class_name}ExposedInterfaces.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 """
     )
 
@@ -637,6 +670,14 @@ def write_interface_global_accessor(out: TextIO, class_name: str, interface: Int
         )
         indentation += "    "
 
+    if "NavigatorCompatibilityMode" in interface.extended_attributes:
+        mode = interface.extended_attributes["NavigatorCompatibilityMode"]
+        out.write(
+            f"""{indentation}if (ResourceLoader::navigator_compatibility_mode() == NavigatorCompatibilityMode::{mode}) {{
+"""
+        )
+        indentation += "    "
+
     write_constructor_accessor(interface.namespaced_name, interface.namespaced_name)
 
     if class_name == "Window":
@@ -653,6 +694,13 @@ def write_interface_global_accessor(out: TextIO, class_name: str, interface: Int
     legacy_constructor = lookup_legacy_constructor(interface)
     if legacy_constructor is not None:
         write_constructor_accessor(legacy_constructor.name, legacy_constructor.name)
+
+    if "NavigatorCompatibilityMode" in interface.extended_attributes:
+        indentation = indentation[:-4]
+        out.write(
+            f"""{indentation}}}
+"""
+        )
 
     if "Experimental" in interface.extended_attributes:
         indentation = indentation[:-4]

@@ -130,6 +130,8 @@ interface Internals {
 
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
     undefined spoofCurrentURL(USVString url);
+    // Sets the navigator compatibility mode of this process; the realms created afterwards expose what that mode has.
+    undefined setNavigatorCompatibilityMode(InternalsNavigatorCompatibilityMode mode);
 
     // Loads a URL in the top-level traversable — deferred so it starts outside the calling task and can land between
     // session-history traversal-queue steps, as can one requested by ConnectionFromClient::load_url in the UI process.
@@ -379,6 +381,7 @@ interface Internals {
 
 };
 
+enum InternalsNavigatorCompatibilityMode { "chrome", "gecko", "webkit" };
 enum SpellingMenuItem { "none", "guess", "ignore", "learn" };
 enum ScrollGesturePhase { "none", "ongoing", "momentum", "ended" };
 enum MouseEventThroughUIProcessType { "mousedown", "mouseup", "mousemove", "mouseleave" };

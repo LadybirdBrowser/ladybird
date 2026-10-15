@@ -64,6 +64,7 @@ SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {
     "ImplementedIn",
     # NB: The C++ bindings only leave the interface object of such an interface off the global object.
     "LegacyNoInterfaceObject",
+    "NavigatorCompatibilityMode",
     "SecureContext",
 }
 

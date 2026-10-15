@@ -69,8 +69,10 @@ public:
         VERIFY(!m_preferred_languages.is_empty());
     }
 
-    NavigatorCompatibilityMode navigator_compatibility_mode() { return m_navigator_compatibility_mode; }
-    void set_navigator_compatibility_mode(NavigatorCompatibilityMode mode) { m_navigator_compatibility_mode = mode; }
+    // The engine the navigator claims to be. A process-wide setting, readable before the loader exists: the bindings
+    // consult it while they build a realm's global object.
+    static NavigatorCompatibilityMode navigator_compatibility_mode() { return s_navigator_compatibility_mode; }
+    static void set_navigator_compatibility_mode(NavigatorCompatibilityMode);
 
     bool enable_global_privacy_control() const { return m_enable_global_privacy_control; }
     void set_enable_global_privacy_control(bool enable) { m_enable_global_privacy_control = enable; }
@@ -101,7 +103,7 @@ private:
     SiteCompatibilityData m_site_compatibility_data;
     String m_platform;
     Vector<String> m_preferred_languages = { "en"_string };
-    NavigatorCompatibilityMode m_navigator_compatibility_mode;
+    static NavigatorCompatibilityMode s_navigator_compatibility_mode;
     bool m_enable_global_privacy_control { false };
 };
 

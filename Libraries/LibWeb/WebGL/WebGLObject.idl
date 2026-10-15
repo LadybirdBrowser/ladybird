@@ -1,5 +1,5 @@
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.3
-[Exposed=(Window,Worker), ImplementedIn=Rust]
+[Exposed=(Window,Worker), ImplementedIn=Rust, NavigatorCompatibilityMode=Chrome]
 interface WebGLObject {
     attribute USVString label;
 };
