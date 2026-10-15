@@ -24,7 +24,7 @@ TEST_CASE(queued_bootstrap_callbacks_are_discarded_when_browser_launch_fails)
     auto peer = TRY_OR_FAIL(Core::TCPSocket::connect("127.0.0.1", server->local_port().value()));
     auto socket = TRY_OR_FAIL(server->accept());
     auto buffered_socket = TRY_OR_FAIL(Core::BufferedTCPSocket::create(move(socket)));
-    auto client = TRY_OR_FAIL(WebDriver::Client::try_create(move(buffered_socket), [](auto const& endpoint, bool) -> ErrorOr<Core::Process> {
+    auto client = TRY_OR_FAIL(WebDriver::Client::try_create(move(buffered_socket), [](auto const& endpoint, bool, auto const&) -> ErrorOr<Core::Process> {
         auto server_port = TRY(Core::MachPort::look_up_from_bootstrap_server(endpoint));
         mach_port_t raw_task_name_port = MACH_PORT_NULL;
         VERIFY(task_get_special_port(mach_task_self(), TASK_NAME_PORT, &raw_task_name_port) == KERN_SUCCESS);

@@ -92,9 +92,13 @@ ErrorOr<NonnullRefPtr<Session::NewSessionPromise>> Session::create(NonnullRefPtr
                          // Take implementation-defined steps to set the user agent proxy using the extracted proxy configuration. If the
                          // defined proxy cannot be configured return error with error code session not created. Otherwise set the has
                          // proxy configuration flag to true.
-                         session->close();
-                         state->promise->reject(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "Proxy configuration is not yet supported"sv));
-                         return;
+                         // The browser was already launched with the proxy configuration.
+                         if (!Web::WebDriver::is_supported_proxy_configuration(*proxy)) {
+                             session->close();
+                             state->promise->reject(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "Proxy configuration is not yet supported"sv));
+                             return;
+                         }
+                         Web::WebDriver::set_has_proxy_configuration(true);
                      }
                      // -> Otherwise
                      else {
@@ -183,9 +187,22 @@ ErrorOr<NonnullRefPtr<Session::NewSessionPromise>> Session::create(NonnullRefPtr
     return state->promise;
 }
 
+static Optional<ByteString> proxy_autoconfig_url(JsonObject const& capabilities)
+{
+    auto proxy = capabilities.get("proxy"sv);
+    if (!proxy.has_value())
+        return {};
+
+    auto url = Web::WebDriver::proxy_autoconfig_url(*proxy);
+    if (!url.has_value())
+        return {};
+    return url->to_byte_string();
+}
+
 Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, Web::WebDriver::SessionFlags flags)
     : m_client(move(client))
     , m_options(capabilities)
+    , m_proxy_autoconfig_url(proxy_autoconfig_url(capabilities))
     , m_session_id(move(session_id))
     , m_session_flags(flags)
     , m_event_loop(Core::EventLoop::current())
@@ -672,7 +689,7 @@ ErrorOr<NonnullRefPtr<Session::ServerPromise>> Session::start(LaunchBrowserCallb
 #endif
     TRY(create_server());
 
-    m_browser_process = TRY(launch_browser_callback(m_browser_endpoint, m_options.headless));
+    m_browser_process = TRY(launch_browser_callback(m_browser_endpoint, m_options.headless, m_proxy_autoconfig_url));
     arm_browser_startup_timeout(promise);
     return promise;
 }

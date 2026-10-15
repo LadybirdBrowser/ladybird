@@ -124,6 +124,7 @@ private:
 
     NonnullRefPtr<Client> m_client;
     Web::WebDriver::LadybirdOptions m_options;
+    Optional<ByteString> m_proxy_autoconfig_url;
 
     String m_session_id;
     Web::WebDriver::SessionFlags m_session_flags { Web::WebDriver::SessionFlags::Default };

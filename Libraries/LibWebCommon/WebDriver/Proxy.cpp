@@ -14,7 +14,7 @@ namespace Web::WebDriver {
 // https://w3c.github.io/webdriver/#dfn-has-proxy-configuration
 // An endpoint node has an associated has proxy configuration flag that indicates whether the proxy is already configured.
 // The default value of the flag is true if the endpoint doesn't support proxy configuration, or false otherwise.
-static constexpr bool s_default_has_proxy_configuration = true;
+static constexpr bool s_default_has_proxy_configuration = false;
 static bool s_has_proxy_configuration = s_default_has_proxy_configuration;
 
 bool has_proxy_configuration()
@@ -30,6 +30,31 @@ void set_has_proxy_configuration(bool has_proxy_configuration)
 void reset_has_proxy_configuration()
 {
     s_has_proxy_configuration = s_default_has_proxy_configuration;
+}
+
+// FIXME: Support the other proxy types.
+// The browser cannot yet evaluate PAC files, so requests made in a session with a PAC proxy fail instead of being sent
+// anywhere. This still lets test harnesses such as wptrunner create the session.
+bool is_supported_proxy_configuration(JsonValue const& proxy)
+{
+    if (!proxy.is_object())
+        return false;
+
+    auto const& object = proxy.as_object();
+
+    // Without a PAC file to fail requests for, the browser would fall back to its environment's proxy configuration.
+    auto proxy_type = object.get_string("proxyType"sv);
+    return proxy_type.has_value() && *proxy_type == "pac"sv && object.has_string("proxyAutoconfigUrl"sv);
+}
+
+Optional<String> proxy_autoconfig_url(JsonValue const& proxy)
+{
+    if (!is_supported_proxy_configuration(proxy))
+        return {};
+
+    if (auto url = proxy.as_object().get_string("proxyAutoconfigUrl"sv); url.has_value())
+        return *url;
+    return {};
 }
 
 // https://w3c.github.io/webdriver/#dfn-proxy-configuration
