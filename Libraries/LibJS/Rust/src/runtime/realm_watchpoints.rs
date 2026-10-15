@@ -13,15 +13,24 @@
 //!   %IteratorPrototype% and %Object.prototype% have no `return` property, and the first two keep their prototypes. It
 //!   depends on the set that fires when an object of that prototype chain changes (see
 //!   `Shape::prototype_chain_validity()`).
+//! - `regexp_primordial_properties`: %RegExp.prototype% and %RegExp% have the properties that the fast
+//!   paths of RegExp skip reading as the realm made them (see `RegExpPrototype::primordial_properties_are_unchanged()`).
+//!   It depends on the sets that fire when either object changes, and when the values of those properties change. The
+//!   realm starts watching them when a fast path first asks, since it creates the RegExp intrinsics on demand.
 //!
 //! A change of an intrinsic fires the sets that depend on it, also one that leaves what they stand for in place, such
 //! as a new property of %Object.prototype%. The next query of a fired set checks whether what it stands for still
 //! holds, and if so, watches the intrinsics anew with a new set. Once it does not hold, the realm has no set anymore.
 
+use core::cell::Cell;
+
+use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
+use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_prototype::RegExpPrototype;
 use crate::runtime::watchpoint_set::WatchpointSet;
 
 /// Starts watching the intrinsics of a realm whose intrinsics were just created. Until then, changes of the watched
@@ -119,4 +128,88 @@ fn watch_array_iterator_return(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<Watchpoin
     let set = WatchpointSet::create(vm);
     prototype_chain_validity.add_dependent_set(vm, set);
     Some(set)
+}
+
+/// What a realm knows of a condition on its intrinsics that it watches from when a fast path first asks about it.
+#[derive(Default)]
+pub struct WatchedCondition {
+    /// The set that stays valid while the condition holds, since the realm last found it to hold.
+    set: Cell<Option<Gc<WatchpointSet>>>,
+    /// Whether the condition stopped holding, after which the realm does not watch it anymore.
+    stopped_holding: Cell<bool>,
+}
+
+// SAFETY: Visits the one cell a watched condition holds.
+unsafe impl Trace for WatchedCondition {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.set.trace(visitor);
+    }
+}
+
+impl WatchedCondition {
+    /// Whether the condition holds. `watch` gives a new set that stays valid while it holds, if it holds.
+    #[inline]
+    fn holds(&self, vm: &Vm, realm: Gc<Realm>, watch: fn(&Vm, Gc<Realm>) -> Option<Gc<WatchpointSet>>) -> bool {
+        if self.set.get().is_some_and(|set| set.is_valid()) {
+            return true;
+        }
+        if self.stopped_holding.get() {
+            return false;
+        }
+        let set = watch(vm, realm);
+        self.set.set(set);
+        self.stopped_holding.set(set.is_none());
+        set.is_some()
+    }
+}
+
+/// A set that stays valid while `objects` keep their properties and prototypes, and the properties `slots` of them keep
+/// their values.
+fn watch_intrinsics(vm: &Vm, objects: &[Gc<Object>], slots: &[(Gc<Object>, PropertyKey)]) -> Option<Gc<WatchpointSet>> {
+    // NB: Prototype shapes belong to one object each, and have the watchpoint sets of their slots and prototype chains.
+    for object in objects {
+        object.convert_to_prototype_if_needed(vm);
+    }
+    let set = WatchpointSet::create(vm);
+    for object in objects {
+        let validity = object.shape().prototype_chain_validity()?;
+        if !validity.is_valid() {
+            return None;
+        }
+        validity.add_dependent_set(vm, set);
+    }
+    for (object, key) in slots {
+        let metadata = object.shape().lookup(key)?;
+        let replacement_watchpoint_set = object.shape().watch_slot_for_replacements(vm, metadata.offset)?;
+        replacement_watchpoint_set.add_dependent_set(vm, set);
+    }
+    Some(set)
+}
+
+/// Whether %RegExp.prototype% and %RegExp% of the realm have the properties that the fast paths of RegExp skip reading
+/// as the realm made them.
+pub fn regexp_primordial_properties_are_unchanged(vm: &Vm, realm: Gc<Realm>) -> bool {
+    realm
+        .storage
+        .regexp_primordial_properties
+        .holds(vm, realm, watch_regexp_primordial_properties)
+}
+
+/// The set that stays valid while %RegExp.prototype% and %RegExp% have the properties that the fast paths of RegExp skip
+/// reading as the realm made them, if they have.
+fn watch_regexp_primordial_properties(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<WatchpointSet>> {
+    if !RegExpPrototype::primordial_properties_are_unchanged(vm, realm) {
+        return None;
+    }
+    let regexp_prototype = realm.intrinsics().regexp_prototype(vm);
+    let regexp_constructor: Gc<Object> = realm.intrinsics().regexp_constructor(vm).upcast();
+    let slots: Vec<_> = RegExpPrototype::primordial_property_keys(vm)
+        .map(|key| (regexp_prototype, key.clone()))
+        .into_iter()
+        .chain([
+            (regexp_prototype, PropertyKey::from(vm.well_known_symbols().match_)),
+            (regexp_constructor, PropertyKey::from(vm.well_known_symbols().species)),
+        ])
+        .collect();
+    watch_intrinsics(vm, &[regexp_prototype, regexp_constructor], &slots)
 }

@@ -3188,6 +3188,13 @@ impl Object {
             if setter.is_some() {
                 accessor.set_setter(setter);
             }
+            // NB: Changing the accessor in its slot changes the value of the property, as replacing it would.
+            let shape = self.shape();
+            if shape.has_watched_slots()
+                && let Some(metadata) = shape.lookup(property_key)
+            {
+                shape.note_slot_replacement(vm, metadata.offset);
+            }
         } else {
             let accessor = Accessor::create(vm, getter, setter, None);
             self.define_direct_property(vm, property_key, Value::from_accessor(accessor), attributes);
