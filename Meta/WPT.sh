@@ -495,11 +495,6 @@ run_wpt_scheduled() {
     run_dir="${BUILD_DIR}/wpt-run-$(date +"%Y%m%d%H%M%S")"
     mkdir -p "$run_dir"
 
-    # Ensure open files limit is at least 1024 per instance, so the WPT runners do not run out of descriptors
-    if [ "$(ulimit -n)" -lt $((1024 * slots)) ]; then
-        ulimit -S -n $((1024 * slots))
-    fi
-
     ensure_ahem_font
 
     # This also brings the manifest up to date once, so the instances can skip that.
@@ -575,6 +570,12 @@ execute_wpt() {
     ensure_profiles_root
 
     procs=$(make_instances)
+
+    # Ensure open files limit is at least 1024 per instance, so the WPT runners do not run out of descriptors
+    if [ "$(ulimit -n)" -lt $((1024 * procs)) ]; then
+        ulimit -S -n $((1024 * procs))
+    fi
+
     if [[ "$procs" -le 1 ]]; then
         absolutize_log_args
     fi
