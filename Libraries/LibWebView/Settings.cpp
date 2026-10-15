@@ -17,6 +17,7 @@
 #include <LibURL/Parser.h>
 #include <LibUnicode/Locale.h>
 #include <LibWebCommon/Loader/ContentBlocking.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/UserAgent.h>
@@ -28,7 +29,6 @@ static constexpr auto FIRST_RUN_COMPLETE_KEY = "firstRunComplete"sv;
 static constexpr auto NEW_TAB_PAGE_URL_KEY = "newTabPageURL"sv;
 
 static constexpr auto LANGUAGES_KEY = "languages"sv;
-static auto DEFAULT_LANGUAGE = "en"_string;
 
 static constexpr auto APPEARANCE_KEY = "appearance"sv;
 static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
@@ -273,9 +273,21 @@ static bool config_variable_value_is_valid(ConfigVariableDefinition const& varia
     return true;
 }
 
-Settings Settings::create(ByteString settings_path)
+Settings Settings::create(ByteString settings_path, Vector<String> platform_languages)
 {
     Settings settings { move(settings_path) };
+
+    // The user's first platform language, then that language alone (en-US, then en): the list a browser starts with.
+    platform_languages.remove_all_matching([](auto const& language) { return !Unicode::is_locale_available(language); });
+    if (!platform_languages.is_empty()) {
+        Vector<String> languages { platform_languages.first() };
+        if (auto separator = languages.first().find_byte_offset('-'); separator.has_value()) {
+            auto language = MUST(languages.first().substring_from_byte_offset(0, *separator));
+            if (Unicode::is_locale_available(language))
+                languages.append(move(language));
+        }
+        settings.m_languages = move(languages);
+    }
 
     auto settings_json = read_json_file(settings.m_settings_path);
     if (settings_json.is_error()) {
@@ -455,7 +467,7 @@ Settings Settings::create(ByteString settings_path)
 Settings::Settings(ByteString settings_path)
     : m_settings_path(move(settings_path))
     , m_new_tab_page_url(URL::about_newtab())
-    , m_languages({ DEFAULT_LANGUAGE })
+    , m_languages(Web::default_preferred_languages())
 {
     for (auto const& variable : config_variable_definitions()) {
         m_config_variables[static_cast<size_t>(variable.id)] = variable.default_value;
@@ -755,7 +767,7 @@ void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)
 Vector<String> Settings::parse_json_languages(JsonValue const& languages)
 {
     if (!languages.is_array())
-        return { DEFAULT_LANGUAGE };
+        return Web::default_preferred_languages();
 
     Vector<String> parsed_languages;
     parsed_languages.ensure_capacity(languages.as_array().size());
@@ -766,7 +778,7 @@ Vector<String> Settings::parse_json_languages(JsonValue const& languages)
     });
 
     if (parsed_languages.is_empty())
-        return { DEFAULT_LANGUAGE };
+        return Web::default_preferred_languages();
 
     return parsed_languages;
 }

@@ -583,7 +583,9 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         }
     }
 
-    m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string()));
+    // Test results must not depend on the languages of the machine running the tests.
+    auto platform_languages = enable_test_mode ? Vector<String> {} : platform_preferred_languages();
+    m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string(), move(platform_languages)));
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
 
     if (!dns_server_port.has_value())

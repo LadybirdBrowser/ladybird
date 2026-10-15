@@ -140,6 +140,8 @@ public:
     // Returns true if a touchpad may pull a scroller past the edges of its scroll range, from where it springs back.
     // This needs the platform to say when the fingers lift from the touchpad, or the scroller would stay stretched.
     virtual bool platform_scrolls_elastically() const { return false; }
+    // The languages the user prefers, as the platform lists them (BCP 47 tags, most preferred first).
+    virtual Vector<String> platform_preferred_languages() const { return {}; }
 
     virtual OwnPtr<PictureInPictureWindow> create_picture_in_picture_window(WebContentPage& requesting_page, CanonicalTraversable&, Gfx::IntSize video_size);
 
