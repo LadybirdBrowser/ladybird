@@ -39,6 +39,7 @@ public:
     virtual ~VideoToolboxVideoDecoder() override;
 
     virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_pool->set_slot_freed_callback(move(callback)); }
+    virtual void set_output_arrived_callback(Function<void()> callback) override { m_output_arrived_callback = move(callback); }
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
     virtual void signal_end_of_stream() override;
@@ -87,6 +88,8 @@ private:
     // The media engine decodes on its own threads, so outputs arrive from outside this decoder's caller.
     mutable Mutex m_output_mutex;
     ConditionVariable m_output_arrived { m_output_mutex };
+    bool m_caller_is_waiting_for_output { false };
+    Function<void()> m_output_arrived_callback;
     Vector<DecodedOutput> m_outputs;
     u8 m_reorder_frame_count { 0 };
     Optional<DecoderError> m_decode_failure;

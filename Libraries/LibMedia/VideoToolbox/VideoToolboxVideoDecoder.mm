@@ -793,16 +793,24 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
 
 void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints const& cicp, u64 generation, i32 status, void* image_buffer, AK::Duration timestamp, AK::Duration duration)
 {
-    MutexLocker locker { m_output_mutex };
+    auto caller_needs_waking = false;
+    {
+        MutexLocker locker { m_output_mutex };
 
-    if (generation == m_generation.load(AK::MemoryOrder::memory_order_relaxed)) {
-        if (status != noErr)
-            note_decode_failure_while_locked(status);
-        else if (image_buffer != nullptr)
-            enqueue_decoded_output_while_locked(cicp, image_buffer, timestamp, duration);
+        if (generation == m_generation.load(AK::MemoryOrder::memory_order_relaxed)) {
+            if (status != noErr)
+                note_decode_failure_while_locked(status);
+            else if (image_buffer != nullptr)
+                enqueue_decoded_output_while_locked(cicp, image_buffer, timestamp, duration);
+            auto frame_was_decoded_for_reference_only = status == noErr && image_buffer == nullptr;
+            caller_needs_waking = !frame_was_decoded_for_reference_only && !m_caller_is_waiting_for_output;
+        }
+
+        note_frame_left_the_media_engine_while_locked();
     }
 
-    note_frame_left_the_media_engine_while_locked();
+    if (caller_needs_waking && m_output_arrived_callback)
+        m_output_arrived_callback();
 }
 
 void VideoToolboxVideoDecoder::note_frame_left_the_media_engine_while_locked()
@@ -908,9 +916,17 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
         if (intent == DecodeIntent::Reference)
             flags |= kVTDecodeFrame_DoNotOutputFrame;
 
-        if (m_frames_in_flight.load(AK::MemoryOrder::memory_order_relaxed) >= MAXIMUM_FRAMES_IN_FLIGHT)
-            return DecoderError::with_description(DecoderErrorCategory::TryAgain, "VideoToolbox is holding as many frames as it may"sv);
-        m_frames_in_flight.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+        // The media engine keeps decoding the frames a flush discarded until it hands them back, so a submission
+        // that finds it full waits for one to leave, as taking output does.
+        {
+            MutexLocker locker { m_output_mutex };
+            while (m_frames_in_flight.load(AK::MemoryOrder::memory_order_relaxed) >= MAXIMUM_FRAMES_IN_FLIGHT) {
+                m_caller_is_waiting_for_output = true;
+                m_output_arrived.wait();
+                m_caller_is_waiting_for_output = false;
+            }
+            m_frames_in_flight.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+        }
         auto generation = m_generation.load(AK::MemoryOrder::memory_order_relaxed);
 
         VTDecodeInfoFlags info_flags = 0;
@@ -972,7 +988,9 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_ou
         if (m_frames_in_flight < MAXIMUM_FRAMES_IN_FLIGHT)
             return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "VideoToolbox has no frame that later ones cannot precede"sv);
 
+        m_caller_is_waiting_for_output = true;
         m_output_arrived.wait();
+        m_caller_is_waiting_for_output = false;
     }
 
     auto frame = TRY(adopt_output_while_locked(container_cicp, 0));

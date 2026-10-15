@@ -24,7 +24,13 @@ class VideoDecoder {
 public:
     virtual ~VideoDecoder() { }
 
+    // Both callbacks are installed before any coded data is received, and run on whichever thread frees the storage
+    // or finishes the output, without the decoder's locks held.
     virtual void set_storage_freed_callback(Function<void()>) = 0;
+    // Called when output becomes available while no take_next_output() call is waiting for it, so that a caller
+    // blocked elsewhere knows to come back. Decoders whose output is complete by the time receive_coded_data()
+    // returns never call it.
+    virtual void set_output_arrived_callback(Function<void()>) = 0;
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) = 0;
     virtual void signal_end_of_stream() = 0;

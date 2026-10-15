@@ -62,6 +62,7 @@ endforeach()
 
 target_link_libraries(TestAudioBlockTimingRing PRIVATE LibThreading)
 target_link_libraries(TestDecodedAudioProducer PRIVATE LibGfx)
+target_link_libraries(TestDecodedVideoProducer PRIVATE LibThreading)
 target_link_libraries(TestDisplayingVideoSink PRIVATE LibGfx)
 target_link_libraries(TestVP9Decode PRIVATE LibGfx)
 target_link_libraries(TestADTSDemuxer PRIVATE LibThreading)
