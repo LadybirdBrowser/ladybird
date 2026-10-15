@@ -24,6 +24,7 @@
 #include <Compositor/ScrollFlingController.h>
 #include <Compositor/ScrollSnapController.h>
 #include <Compositor/ScrollbarController.h>
+#include <Compositor/WheelGestureRouting.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/CompositedContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
@@ -33,7 +34,6 @@
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
-#include <LibCompositing/Scrolling/WheelGestureIdentity.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/PaintingSurface.h>
@@ -237,20 +237,6 @@ private:
         Gfx::FloatPoint consumed_delta;
     };
 
-    // The scroller the first step of a wheel gesture was routed to. Every later step of the gesture scrolls it without
-    // hit testing, and stops at its edge rather than handing the rest of the gesture to an ancestor.
-    struct WheelScrollLatch {
-        Web::AsyncScrollNodeStableID stable_node_id;
-        Compositing::WheelGestureIdentity gesture;
-        // The momentum of the gesture has gone into a rebound of the scroller. Momentum outlasts that rebound, and the
-        // rest of it must not start another one.
-        bool momentum_has_sprung_the_scroller_back { false };
-        // Set once the page dispatched a step of a touchpad gesture that blocking wheel event listeners held back, and
-        // did not cancel it. The rest of the gesture is scrolled here first, without asking the page again, for as long
-        // as no blocking listener has been added or removed since.
-        Optional<u64> wheel_event_listener_state_generation_the_page_let_the_gesture_through_at {};
-    };
-
     struct RasterizedFrame {
         NonnullRefPtr<Compositing::DisplayList const> display_list;
         Compositing::AccumulatedVisualContextTree visual_context_tree;
@@ -299,9 +285,6 @@ private:
         Optional<Gfx::FloatPoint> delta_the_node_did_not_scroll_by;
     };
     NodeScrollByWheelDelta scroll_node_by_wheel_delta(Compositing::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining);
-    // The latched scroller of the gesture the wheel event continues, in the current scroll tree, with the gesture
-    // advanced to the event. A latch the event does not continue, or whose scroller the current display list no
-    // longer has, is dropped here.
     Optional<Compositing::AsyncScrollNodeID> resolve_wheel_scroll_latch(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
     // The scroller the first step of a wheel gesture is routed to, which the gesture is latched to.
     Optional<Compositing::AsyncScrollNodeID> hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id, Compositing::WheelStepDispatch);
@@ -316,9 +299,6 @@ private:
     Optional<Compositing::ScrollStateSnapshot> scroll_state_snapshot_stretched_by_elastic_overscrolls() const;
     ContextUpdateResult scroll_for_wheel_event(Web::MouseEvent const&, MonotonicTime now);
     Gfx::FloatPoint wheel_event_delta_in_device_pixels(Web::MouseEvent const&) const;
-    // Whether the UI sent a later wheel event that this step cannot come before in one gesture, which makes it a step
-    // of a gesture this context has already ended or moved past.
-    bool wheel_step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
     bool step_continues_touchpad_gesture_the_page_let_through(Optional<Compositing::AsyncScrollNodeID> const& latched_node_id, Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
     ScrollFlingStep scroll_for_fling_event(Web::MouseEvent, MonotonicTime now);
     Optional<Gfx::FloatPoint> in_flight_wheel_destination(Web::AsyncScrollNodeStableID) const;
@@ -381,24 +361,12 @@ private:
     Compositing::KeyboardScrollState m_keyboard_scroll_state;
     Vector<Web::UIEvents::KeyCode, 3> m_held_scroll_keys;
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
-    Optional<WheelScrollLatch> m_wheel_scroll_latch;
+    WheelGestureRouting m_wheel_gesture_routing;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     ScrollFlingController m_scroll_fling_controller;
     ElasticOverscrollController m_elastic_overscroll_controller;
-    // The touchpad gesture the UI is sending, whether this context or the main thread scrolls its steps. A stretch is
-    // released with the velocity of the steps as they arrived from the UI, not as they were scrolled.
-    Optional<Compositing::WheelGestureIdentity> m_wheel_gesture_from_ui;
-    struct NewestWheelEventIdsFromUI {
-        u64 ongoing { 0 };
-        u64 momentum { 0 };
-        u64 ended { 0 };
-    };
-    NewestWheelEventIdsFromUI m_newest_wheel_event_ids_from_ui;
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
-    bool m_has_blocking_wheel_event_listeners { false };
-    u64 m_wheel_event_listener_state_generation { 0 };
-    Compositing::WheelRoutingAdmission m_wheel_routing_admission { Compositing::WheelRoutingAdmission::NoAsyncScrollingState };
     Optional<Compositing::TransformWithOrigin> m_async_visual_viewport_transform;
     Optional<i64> m_visual_animation_sample_time_ns;
 

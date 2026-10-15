@@ -1,0 +1,150 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/GenericShorthands.h>
+#include <Compositor/WheelGestureRouting.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/Scrolling/AsyncScrollTree.h>
+
+namespace Compositor {
+
+static float position_slop_in_device_pixels(Compositing::AsyncScrollTree const& async_scroll_tree)
+{
+    return Compositing::wheel_gesture_position_slop_in_css_pixels * static_cast<float>(async_scroll_tree.device_pixels_per_css_pixel());
+}
+
+void WheelGestureRouting::did_install_scrolling_state(Compositing::AsyncScrollingState const& async_scrolling_state)
+{
+    auto wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
+    auto admission = Compositing::wheel_routing_admission_for(async_scrolling_state);
+    if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
+        admission = Compositing::WheelRoutingAdmission::StaleWheelEventListeners;
+    else
+        m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
+
+    m_admission = admission;
+    m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
+}
+
+void WheelGestureRouting::invalidate_wheel_event_listener_state(u64 generation)
+{
+    m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, generation);
+    m_admission = Compositing::WheelRoutingAdmission::StaleWheelEventListeners;
+    m_has_blocking_wheel_event_listeners = true;
+}
+
+bool WheelGestureRouting::admits_async_pinch() const
+{
+    // Pinch zoom scales the visual viewport, which a page whose viewport cannot be scrolled has too.
+    return first_is_one_of(m_admission, Compositing::WheelRoutingAdmission::Accepted, Compositing::WheelRoutingAdmission::NoScrollNode)
+        && !m_has_blocking_wheel_event_listeners;
+}
+
+bool WheelGestureRouting::only_blocking_wheel_event_listeners_hold_steps_back() const
+{
+    return first_is_one_of(m_admission, Compositing::WheelRoutingAdmission::BlockingWheelEventListeners, Compositing::WheelRoutingAdmission::StaleWheelEventListeners);
+}
+
+bool WheelGestureRouting::note_wheel_event_from_ui(Web::MouseEvent const& event, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)
+{
+    auto phase = event.scroll_gesture_phase;
+    if (event.id != 0) {
+        if (phase == Web::ScrollGesturePhase::Ongoing)
+            m_newest_wheel_event_ids_from_ui.ongoing = event.id;
+        else if (phase == Web::ScrollGesturePhase::Momentum)
+            m_newest_wheel_event_ids_from_ui.momentum = event.id;
+        else if (phase == Web::ScrollGesturePhase::Ended)
+            m_newest_wheel_event_ids_from_ui.ended = event.id;
+    }
+
+    if (m_gesture_from_ui.has_value() && m_gesture_from_ui->is_continued_by(position, phase, event.modifiers, now, position_slop_in_device_pixels(async_scroll_tree))) {
+        m_gesture_from_ui->advance_to(phase, now);
+        return false;
+    }
+    m_gesture_from_ui = Compositing::WheelGestureIdentity::started_by(position, phase, event.modifiers, now);
+    return true;
+}
+
+bool WheelGestureRouting::step_was_overtaken_by_ui(Web::ScrollGesturePhase phase, u64 input_event_id) const
+{
+    auto const& newest = m_newest_wheel_event_ids_from_ui;
+    switch (phase) {
+    case Web::ScrollGesturePhase::None:
+        return false;
+    case Web::ScrollGesturePhase::Ongoing:
+        // The fingers lifted after this step.
+        return newest.momentum > input_event_id || newest.ended > input_event_id;
+    case Web::ScrollGesturePhase::Momentum:
+        // The momentum ended, or the fingers touched down again, after this step.
+        return newest.ended > input_event_id || newest.ongoing > input_event_id;
+    case Web::ScrollGesturePhase::Ended:
+        // Another gesture started after this end.
+        return newest.ongoing > input_event_id;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<Compositing::AsyncScrollNodeID> WheelGestureRouting::resolve_latch(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
+{
+    if (!m_latch.has_value())
+        return {};
+    if (!m_latch->gesture.is_continued_by(position, scroll_gesture_phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree))) {
+        m_latch.clear();
+        return {};
+    }
+    auto node_id = async_scroll_tree.scroll_node_id_for_stable_id(m_latch->stable_node_id);
+    if (!node_id.has_value()) {
+        m_latch.clear();
+        return {};
+    }
+    // The hit test a latched step skips would refuse a tree the wheel hit-test targets were not built for.
+    if (!async_scroll_tree.has_wheel_hit_test_targets_for(current_visual_context_tree))
+        return {};
+    m_latch->gesture.advance_to(scroll_gesture_phase, now);
+    return node_id;
+}
+
+void WheelGestureRouting::latch(Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
+{
+    m_latch = Latch {
+        .stable_node_id = stable_node_id,
+        .gesture = Compositing::WheelGestureIdentity::started_by(position, scroll_gesture_phase, modifiers, now),
+    };
+}
+
+void WheelGestureRouting::relatch_to(Web::AsyncScrollNodeStableID stable_node_id)
+{
+    if (m_latch.has_value())
+        m_latch->stable_node_id = stable_node_id;
+}
+
+void WheelGestureRouting::note_page_let_latched_gesture_through()
+{
+    VERIFY(m_latch.has_value());
+    m_latch->wheel_event_listener_state_generation_the_page_let_the_gesture_through_at = m_wheel_event_listener_state_generation;
+}
+
+bool WheelGestureRouting::page_let_latched_touchpad_gesture_through(Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase) const
+{
+    if (!m_latch.has_value())
+        return false;
+    if (wheel_delta_precision != Web::WheelDeltaPrecision::Precise || scroll_gesture_phase == Web::ScrollGesturePhase::None)
+        return false;
+    return m_latch->wheel_event_listener_state_generation_the_page_let_the_gesture_through_at == m_wheel_event_listener_state_generation;
+}
+
+bool WheelGestureRouting::momentum_of_latched_gesture_can_spring_scroller_back() const
+{
+    return m_latch.has_value() && !m_latch->momentum_has_sprung_the_scroller_back;
+}
+
+void WheelGestureRouting::set_momentum_of_latched_gesture_has_sprung_scroller_back(bool has_sprung_back)
+{
+    if (m_latch.has_value())
+        m_latch->momentum_has_sprung_the_scroller_back = has_sprung_back;
+}
+
+}
