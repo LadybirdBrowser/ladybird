@@ -79,7 +79,8 @@ private:
         DecoderErrorOr<void> receive_into_decoder(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<void> create_decoder_for_frame(CodedFrame const&);
         DecoderErrorOr<void> receive_coded_frame(CodedFrame const&, DecodeIntent);
-        DecoderErrorOr<bool> replace_drained_decoder();
+        DecoderErrorOr<bool> replace_drained_decoder(u32 seek_id);
+        bool check_if_seek_is_needed_or_allow_demuxer_reads(u32 seek_id);
         void release_decoder();
         void exit();
 
@@ -134,6 +135,7 @@ private:
             Mutex mutex;
             ConditionVariable condition { mutex };
             bool frame_storage_was_freed { false };
+            Atomic<bool> output_should_interrupt_demuxer_reads { false };
         };
         NonnullRefPtr<WaitState> m_wait_state { make_ref_counted<WaitState>() };
         RequestedState m_requested_state { RequestedState::None };

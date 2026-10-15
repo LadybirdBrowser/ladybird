@@ -5,18 +5,127 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
+#include <AK/Random.h>
+#include <AK/ScopeGuard.h>
+#include <LibCore/System.h>
 #include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMediaCodecs/VideoFramePool.h>
+#include <LibThreading/Thread.h>
 #include <Tests/LibMedia/TestMediaCommon.h>
+#include <Tests/LibMedia/WithholdingVideoDecoder.h>
 
 TEST_SETUP
 {
-    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_video_decoders({ WithholdingVideoDecoder::registrations(), Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
     Media::install_audio_decoders({ Media::audio_decoders() });
 }
 
 namespace {
+
+// Serves a number of a demuxer's samples and then blocks every read until it is aborted, like a stream that has run
+// out of data to read.
+class BlockingDemuxer final : public Media::Demuxer {
+public:
+    static NonnullRefPtr<BlockingDemuxer> create(NonnullRefPtr<Media::Demuxer> inner, size_t samples_before_blocking)
+    {
+        return adopt_ref(*new BlockingDemuxer(move(inner), samples_before_blocking));
+    }
+
+    virtual Media::DecoderErrorOr<void> create_context_for_track(Media::Track const& track) override { return m_inner->create_context_for_track(track); }
+    virtual Media::DecoderErrorOr<Vector<Media::Track>> get_tracks_for_type(Media::TrackType type) override { return m_inner->get_tracks_for_type(type); }
+    virtual Media::DecoderErrorOr<Optional<Media::Track>> get_preferred_track_for_type(Media::TrackType type) override { return m_inner->get_preferred_track_for_type(type); }
+
+    virtual Media::DecoderErrorOr<Media::CodedFrame> get_next_sample_for_track(Media::Track const& track) override
+    {
+        {
+            MutexLocker locker { m_mutex };
+            if (m_samples_served >= m_samples_before_blocking) {
+                m_read_is_blocked = true;
+                m_state_changed.broadcast();
+                while (m_blocks_reads && !m_reads_are_aborted)
+                    m_state_changed.wait();
+                m_read_is_blocked = false;
+                if (m_reads_are_aborted)
+                    return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
+            }
+            m_samples_served++;
+        }
+        return m_inner->get_next_sample_for_track(track);
+    }
+
+    virtual AK::Duration select_fast_seek_target_for_track(Media::Track const& track, AK::Duration target, Media::SeekMode mode) override { return m_inner->select_fast_seek_target_for_track(track, target, mode); }
+    virtual Media::DecoderErrorOr<Media::DemuxerSeekResult> seek_to_most_recent_keyframe(Media::Track const& track, AK::Duration timestamp, Media::DemuxerSeekOptions options) override
+    {
+        m_seek_count++;
+        return m_inner->seek_to_most_recent_keyframe(track, timestamp, options);
+    }
+    virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const& track) override { return m_inner->duration_of_track(track); }
+    virtual Media::DecoderErrorOr<AK::Duration> total_duration() override { return m_inner->total_duration(); }
+    virtual Media::DemuxerScanState const& scan_state() const LIFETIME_BOUND override { return m_inner->scan_state(); }
+    virtual void set_scan_state_change_handler(ScanStateChangeHandler handler) override { m_inner->set_scan_state_change_handler(move(handler)); }
+
+    virtual void set_blocking_reads_aborted_for_track(Media::Track const& track) override
+    {
+        {
+            MutexLocker locker { m_mutex };
+            m_reads_are_aborted = true;
+            m_state_changed.broadcast();
+        }
+        m_inner->set_blocking_reads_aborted_for_track(track);
+    }
+    virtual void reset_blocking_reads_aborted_for_track(Media::Track const& track) override
+    {
+        {
+            MutexLocker locker { m_mutex };
+            m_reads_are_aborted = false;
+        }
+        m_inner->reset_blocking_reads_aborted_for_track(track);
+    }
+    virtual void set_read_blocked_change_handler_for_track(Media::Track const& track, Media::ReadBlockedChangeHandler handler) override { m_inner->set_read_blocked_change_handler_for_track(track, move(handler)); }
+
+    bool wait_until_a_read_blocks(AK::Duration time_limit)
+    {
+        auto deadline = MonotonicTime::now() + time_limit;
+        MutexLocker locker { m_mutex };
+        while (!m_read_is_blocked) {
+            auto now = MonotonicTime::now();
+            if (now >= deadline)
+                return false;
+            m_state_changed.wait_for(deadline - now);
+        }
+        return true;
+    }
+
+    void stop_blocking_reads()
+    {
+        MutexLocker locker { m_mutex };
+        m_blocks_reads = false;
+        m_state_changed.broadcast();
+    }
+
+    size_t seek_count() const { return m_seek_count; }
+
+private:
+    BlockingDemuxer(NonnullRefPtr<Media::Demuxer> inner, size_t samples_before_blocking)
+        : m_inner(move(inner))
+        , m_samples_before_blocking(samples_before_blocking)
+    {
+    }
+
+    NonnullRefPtr<Media::Demuxer> m_inner;
+    size_t const m_samples_before_blocking { 0 };
+
+    Mutex m_mutex;
+    ConditionVariable m_state_changed { m_mutex };
+    size_t m_samples_served { 0 };
+    bool m_blocks_reads { true };
+    bool m_reads_are_aborted { false };
+    bool m_read_is_blocked { false };
+    Atomic<size_t> m_seek_count { 0 };
+};
 
 // Presents one track whose coded frames come from one demuxer and then another, so that the codec of a track's
 // frames changes partway through as it does when a new initialization segment selects a different one.
@@ -191,6 +300,49 @@ NonnullRefPtr<Media::DecodedVideoProducer> create_started_producer(Core::EventLo
     producer->start();
     return producer;
 }
+
+Vector<AK::Duration> presentation_timestamps_of_first_samples(StringView path, size_t sample_count)
+{
+    auto [demuxer, track] = demuxer_and_video_track_for(path);
+    MUST(demuxer->create_context_for_track(track));
+    Vector<AK::Duration> timestamps;
+    for (size_t sample_index = 0; sample_index < sample_count; sample_index++) {
+        auto sample = demuxer->get_next_sample_for_track(track);
+        if (sample.is_error())
+            break;
+        timestamps.append(sample.value().presentation_timestamp());
+    }
+    return timestamps;
+}
+
+// Releases withheld outputs from another thread a few milliseconds after they arrive, the way a media engine finishes
+// frames on threads of its own.
+class AsynchronousOutputReleaser {
+public:
+    explicit AsynchronousOutputReleaser(NonnullRefPtr<WithheldOutputs> withheld_outputs)
+        : m_withheld_outputs(move(withheld_outputs))
+    {
+        m_thread = MUST(Threading::Thread::try_create("Release"sv, [this]() -> intptr_t {
+            while (!m_stop.load()) {
+                MUST(Core::System::sleep_ms(get_random_uniform(4)));
+                m_withheld_outputs->release_next();
+            }
+            return 0;
+        }));
+        m_thread->start();
+    }
+
+    ~AsynchronousOutputReleaser()
+    {
+        m_stop.store(true);
+        (void)m_thread->join();
+    }
+
+private:
+    NonnullRefPtr<WithheldOutputs> m_withheld_outputs;
+    Atomic<bool> m_stop { false };
+    RefPtr<Threading::Thread> m_thread;
+};
 
 RefPtr<Media::VideoFrame> take_frame_within_time_limit(Media::VideoProducer& producer, Core::EventLoop& loop, AK::Duration time_limit)
 {
@@ -403,6 +555,151 @@ TEST_CASE(a_decoder_that_cannot_decode_a_later_format_is_replaced)
             return;
         }
         frame_count++;
+    }
+}
+
+// A decoder that finishes its output on threads of its own can do so while the decode thread waits for the demuxer,
+// as it does at the end of the data appended so far. That output has to reach the queue without another coded frame.
+TEST_CASE(output_that_arrives_while_the_demuxer_blocks_is_delivered)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto sample_timestamps = presentation_timestamps_of_first_samples("./vp9_in_webm.webm"sv, 3);
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = BlockingDemuxer::create(inner_demuxer, sample_timestamps.size());
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    producer->start();
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    if (!demuxer->wait_until_a_read_blocks(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to block on the demuxer");
+        return;
+    }
+    EXPECT_EQ(withheld_outputs->withheld_count(), sample_timestamps.size());
+    EXPECT_NE(producer->peek().status, Media::PipelineStatus::HaveData);
+
+    EXPECT(withheld_outputs->release_next());
+    auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
+    if (frame == nullptr)
+        FAIL("The output that arrived while the demuxer blocked was not delivered");
+    else
+        EXPECT_EQ(frame->timestamp(), sample_timestamps[0]);
+
+    demuxer->stop_blocking_reads();
+}
+
+// The frame a seek resolves on can arrive the same way, and must resolve the seek without decoding from its keyframe
+// again.
+TEST_CASE(a_seek_resolves_on_output_that_arrives_while_the_demuxer_blocks)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto sample_timestamps = presentation_timestamps_of_first_samples("./vp9_in_webm.webm"sv, 3);
+    auto target_sample_timestamp = sample_timestamps.last();
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = BlockingDemuxer::create(inner_demuxer, sample_timestamps.size());
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    producer->seek(target_sample_timestamp + AK::Duration::from_milliseconds(1));
+    producer->start();
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    if (!demuxer->wait_until_a_read_blocks(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to block on the demuxer");
+        return;
+    }
+    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Pending);
+
+    // The samples before the block cover the target, so releasing their outputs is all the seek needs.
+    auto deadline = MonotonicTime::now_coarse() + time_limit;
+    RefPtr<Media::VideoFrame> frame;
+    while (frame == nullptr && MonotonicTime::now_coarse() < deadline) {
+        auto output = producer->peek();
+        if (output.status == Media::PipelineStatus::HaveData) {
+            frame = output.frame;
+            break;
+        }
+        if (!withheld_outputs->release_next())
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+    if (frame == nullptr)
+        FAIL("The seek did not resolve on the output that arrived while the demuxer blocked");
+    else
+        EXPECT_EQ(frame->timestamp(), target_sample_timestamp);
+    EXPECT_EQ(demuxer->seek_count(), 1u);
+
+    demuxer->stop_blocking_reads();
+}
+
+// A decoder finishing output on its own threads wakes the decode thread at arbitrary points of its loops. Seeking back
+// and forth through such a decoder must land on the frame covering each target every time, and never report the end
+// of the stream or stop answering.
+TEST_CASE(seeks_land_on_the_right_frame_while_output_arrives_asynchronously)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto sample_timestamps = presentation_timestamps_of_first_samples("./vp9_in_webm.webm"sv, NumericLimits<size_t>::max());
+    VERIFY(sample_timestamps.size() > 10);
+    auto expected_frame_timestamp_for = [&](AK::Duration target) {
+        auto expected = sample_timestamps.first();
+        for (auto timestamp : sample_timestamps) {
+            if (timestamp <= target)
+                expected = timestamp;
+        }
+        return expected;
+    };
+
+    auto producer = create_started_producer(loop, "./vp9_in_webm.webm"sv);
+    AsynchronousOutputReleaser releaser { withheld_outputs };
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    auto first_timestamp = sample_timestamps.first();
+    auto last_timestamp = sample_timestamps.last();
+    for (size_t seek_index = 0; seek_index < 300; seek_index++) {
+        auto target = first_timestamp + AK::Duration::from_milliseconds(get_random_uniform((last_timestamp - first_timestamp).to_milliseconds()));
+        producer->seek(target);
+
+        // Like a sink, consume the frames that end before the target and show the first that does not.
+        auto deadline = MonotonicTime::now_coarse() + time_limit;
+        RefPtr<Media::VideoFrame> frame;
+        while (MonotonicTime::now_coarse() < deadline) {
+            auto output = producer->peek();
+            if (output.status == Media::PipelineStatus::HaveData) {
+                if (output.frame->end() > target) {
+                    frame = output.frame;
+                    break;
+                }
+                producer->consume();
+                continue;
+            }
+            if (output.status == Media::PipelineStatus::Error) {
+                FAIL(ByteString::formatted("Seek {} to {}ms ended in an error", seek_index, target.to_milliseconds()));
+                return;
+            }
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        }
+        if (frame == nullptr) {
+            FAIL(ByteString::formatted("Seek {} to {}ms did not resolve", seek_index, target.to_milliseconds()));
+            return;
+        }
+        if (frame->timestamp() != expected_frame_timestamp_for(target)) {
+            FAIL(ByteString::formatted("Seek {} to {}ms resolved on the frame at {}ms instead of {}ms", seek_index, target.to_milliseconds(), frame->timestamp().to_milliseconds(), expected_frame_timestamp_for(target).to_milliseconds()));
+            return;
+        }
     }
 }
 

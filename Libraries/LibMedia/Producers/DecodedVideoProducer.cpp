@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Sinks/VideoSink.h>
@@ -219,8 +220,23 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder_for_frame(
         wait_state->frame_storage_was_freed = true;
         wait_state->condition.broadcast();
     });
+    // Output that arrives while the decode thread reads coded data is taken as soon as the read returns.
+    m_decoder->set_output_arrived_callback([wait_state = m_wait_state, demuxer = m_demuxer, track = m_track] {
+        if (wait_state->output_should_interrupt_demuxer_reads.load(AK::MemoryOrder::memory_order_relaxed))
+            demuxer->set_blocking_reads_aborted_for_track(track);
+    });
     m_decoder_codec_id = frame.codec_id();
     return {};
+}
+
+bool DecodedVideoProducer::ThreadData::check_if_seek_is_needed_or_allow_demuxer_reads(u32 seek_id)
+{
+    auto locker = take_lock();
+    if (m_seek_id != seek_id)
+        return true;
+    m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
+    m_wait_state->output_should_interrupt_demuxer_reads.store(true, AK::MemoryOrder::memory_order_relaxed);
+    return false;
 }
 
 DecoderErrorOr<void> DecodedVideoProducer::ThreadData::receive_coded_frame(CodedFrame const& frame, DecodeIntent intent)
@@ -243,15 +259,34 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::receive_coded_frame(Coded
     return receive_into_decoder(frame, intent);
 }
 
-DecoderErrorOr<bool> DecodedVideoProducer::ThreadData::replace_drained_decoder()
+DecoderErrorOr<bool> DecodedVideoProducer::ThreadData::replace_drained_decoder(u32 seek_id)
 {
     if (!m_frame_awaiting_decoder_replacement.has_value())
         return false;
     auto frame = m_frame_awaiting_decoder_replacement.release_value();
     auto intent = m_intent_awaiting_decoder_replacement;
+    m_decoder.clear();
     if (!frame.new_codec_configuration().has_value()) {
-        TRY(m_demuxer->seek_to_most_recent_keyframe(m_track, frame.presentation_timestamp(), DemuxerSeekOptions::Force | DemuxerSeekOptions::NeedCodecConfiguration));
-        frame = TRY(m_demuxer->get_next_sample_for_track(m_track));
+        ArmedScopeGuard force_aborting_seek_to_replace_the_drained_decoder_again = [&] {
+            m_decoder_needs_keyframe_next_seek = true;
+            m_decoder_needs_codec_configuration_next_seek = true;
+        };
+        if (check_if_seek_is_needed_or_allow_demuxer_reads(seek_id))
+            return false;
+        auto seek_result = m_demuxer->seek_to_most_recent_keyframe(m_track, frame.presentation_timestamp(), DemuxerSeekOptions::Force | DemuxerSeekOptions::NeedCodecConfiguration);
+        if (seek_result.is_error()) {
+            if (seek_result.error().category() == DecoderErrorCategory::Aborted)
+                return false;
+            return seek_result.release_error();
+        }
+        auto frame_result = m_demuxer->get_next_sample_for_track(m_track);
+        if (frame_result.is_error()) {
+            if (frame_result.error().category() == DecoderErrorCategory::Aborted)
+                return false;
+            return frame_result.release_error();
+        }
+        frame = frame_result.release_value();
+        force_aborting_seek_to_replace_the_drained_decoder_again.disarm();
     }
     TRY(create_decoder_for_frame(frame));
     TRY(receive_into_decoder(frame, intent));
@@ -347,10 +382,8 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp, InvalidateHe
 
     if (!m_held_frames_are_invalid && is_within_available_range_while_locked(timestamp)) {
         re_emit_last_frame_if_at_end_of_stream_while_locked();
-        if (m_last_processed_seek_id != m_seek_id) {
+        if (m_last_processed_seek_id != m_seek_id)
             resolve_seek(m_seek_id.load());
-            m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
-        }
         dispatch_wake_if_needed_while_locked();
         return;
     }
@@ -493,6 +526,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
+            m_wait_state->output_should_interrupt_demuxer_reads.store(false, AK::MemoryOrder::memory_order_relaxed);
 
             if (!m_held_frames_are_invalid && is_within_available_range_while_locked(timestamp)) {
                 re_emit_last_frame_if_at_end_of_stream_while_locked();
@@ -540,45 +574,14 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
         auto greatest_coded_timestamp = AK::Duration::zero();
 
         while (new_seek_id == seek_id) {
-            auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
-            if (coded_frame_result.is_error()) {
-                if (coded_frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
-                    if (m_decoder == nullptr) {
-                        auto locker = take_lock();
-                        resolve_seek(seek_id);
-                        return true;
-                    }
-                    m_decoder->signal_end_of_stream();
-                } else if (coded_frame_result.error().category() == DecoderErrorCategory::Aborted) {
-                    break;
-                } else {
-                    handle_error(coded_frame_result.release_error());
-                    return true;
-                }
-            } else {
-                auto coded_frame = coded_frame_result.release_value();
+            if (check_if_seek_is_needed_or_allow_demuxer_reads(seek_id))
+                break;
 
-                // Request output for any frames that end after the seek target, indicating that they will need to
-                // be displayed (eventually, in reordered codecs).
-                auto conservative_end_of_coded_frame = VideoFrame::conservative_end_of(coded_frame.presentation_timestamp(), coded_frame.duration());
-                if (conservative_end_of_coded_frame >= timestamp)
-                    decoding_for_output = true;
-                greatest_coded_timestamp = max(greatest_coded_timestamp, coded_frame.presentation_timestamp());
-
-                auto decode_result = receive_coded_frame(coded_frame, decoding_for_output ? DecodeIntent::Output : DecodeIntent::Reference);
-                if (decode_result.is_error()) {
-                    handle_error(decode_result.release_error());
-                    return true;
-                }
-            }
-
-            VERIFY(m_decoder);
-
-            while (new_seek_id == seek_id) {
+            while (m_decoder != nullptr && new_seek_id == seek_id) {
                 auto frame_result = m_decoder->take_next_output(m_track.video_data().cicp, timestamp);
                 if (frame_result.is_error()) {
                     if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
-                        auto error_or_decoder_was_replaced = replace_drained_decoder();
+                        auto error_or_decoder_was_replaced = replace_drained_decoder(seek_id);
                         if (error_or_decoder_was_replaced.is_error()) {
                             handle_error(error_or_decoder_was_replaced.release_error());
                             return true;
@@ -595,6 +598,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                                 m_seek_timestamp = greatest_coded_timestamp;
                                 m_seek_id++;
                                 m_decoder_needs_keyframe_next_seek = true;
+                                new_seek_id = m_seek_id;
                                 break;
                             }
                         }
@@ -651,6 +655,43 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
 
                 new_seek_id = m_seek_id;
             }
+            if (new_seek_id != seek_id)
+                break;
+
+            auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
+            m_wait_state->output_should_interrupt_demuxer_reads.store(false, AK::MemoryOrder::memory_order_relaxed);
+            if (coded_frame_result.is_error()) {
+                auto category = coded_frame_result.error().category();
+                if (category == DecoderErrorCategory::EndOfStream) {
+                    if (m_decoder == nullptr) {
+                        auto locker = take_lock();
+                        resolve_seek(seek_id);
+                        return true;
+                    }
+                    m_decoder->signal_end_of_stream();
+                } else if (category != DecoderErrorCategory::Aborted) {
+                    handle_error(coded_frame_result.release_error());
+                    return true;
+                }
+                continue;
+            }
+
+            auto coded_frame = coded_frame_result.release_value();
+
+            // Request output for any frames that end after the seek target, indicating that they will need to
+            // be displayed (eventually, in reordered codecs).
+            auto conservative_end_of_coded_frame = VideoFrame::conservative_end_of(coded_frame.presentation_timestamp(), coded_frame.duration());
+            if (conservative_end_of_coded_frame >= timestamp)
+                decoding_for_output = true;
+            greatest_coded_timestamp = max(greatest_coded_timestamp, coded_frame.presentation_timestamp());
+
+            auto decode_result = receive_coded_frame(coded_frame, decoding_for_output ? DecodeIntent::Output : DecodeIntent::Reference);
+            if (decode_result.is_error()) {
+                handle_error(decode_result.release_error());
+                return true;
+            }
+
+            new_seek_id = m_seek_id;
         }
     }
 }
@@ -682,35 +723,10 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         return;
     }
 
-    auto decoder_is_draining_for_replacement = m_frame_awaiting_decoder_replacement.has_value();
-    if (!decoder_is_draining_for_replacement) {
-        auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
-        if (sample_result.is_error()) {
-            if (sample_result.error().category() == DecoderErrorCategory::EndOfStream) {
-                if (m_decoder == nullptr) {
-                    set_halting_status_and_wait_for_seek(PipelineStatus::EndOfStream, {});
-                    return;
-                }
-                m_decoder->signal_end_of_stream();
-            } else if (sample_result.error().category() == DecoderErrorCategory::Aborted) {
-                return;
-            } else {
-                set_halting_status_and_wait_for_seek(PipelineStatus::Error, sample_result.release_error());
-                return;
-            }
-        } else {
-            auto coded_frame = sample_result.release_value();
-            auto decode_result = receive_coded_frame(coded_frame, DecodeIntent::Output);
-            if (decode_result.is_error()) {
-                set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
-                return;
-            }
-        }
-    }
+    if (check_if_seek_is_needed_or_allow_demuxer_reads(m_last_processed_seek_id.load(AK::MemoryOrder::memory_order_relaxed)))
+        return;
 
-    VERIFY(m_decoder);
-
-    while (true) {
+    while (m_decoder != nullptr) {
         auto frame_result = m_decoder->take_next_output(m_track.video_data().cicp);
         if (frame_result.is_error()) {
             if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
@@ -731,23 +747,50 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
                 continue;
             }
             if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
-                auto replaced_result = replace_drained_decoder();
+                auto replaced_result = replace_drained_decoder(m_last_processed_seek_id.load(AK::MemoryOrder::memory_order_relaxed));
                 if (replaced_result.is_error()) {
                     set_halting_status_and_wait_for_seek(PipelineStatus::Error, replaced_result.release_error());
-                    break;
+                    return;
                 }
                 if (replaced_result.value())
                     continue;
                 set_halting_status_and_wait_for_seek(PipelineStatus::EndOfStream, {});
-            } else
-                set_halting_status_and_wait_for_seek(PipelineStatus::Error, frame_result.release_error());
-            break;
+                return;
+            }
+            set_halting_status_and_wait_for_seek(PipelineStatus::Error, frame_result.release_error());
+            return;
         }
         auto frame = frame_result.release_value();
 
         auto locker = take_lock();
         queue_frame(frame);
     }
+
+    // A seek can resolve while the decoder drains for a replacement, so the frame awaiting the new decoder is still
+    // pending. Only draining further gets it decoded.
+    if (m_frame_awaiting_decoder_replacement.has_value())
+        return;
+
+    auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
+    m_wait_state->output_should_interrupt_demuxer_reads.store(false, AK::MemoryOrder::memory_order_relaxed);
+    if (sample_result.is_error()) {
+        auto category = sample_result.error().category();
+        if (category == DecoderErrorCategory::EndOfStream) {
+            if (m_decoder == nullptr) {
+                set_halting_status_and_wait_for_seek(PipelineStatus::EndOfStream, {});
+                return;
+            }
+            m_decoder->signal_end_of_stream();
+        } else if (category != DecoderErrorCategory::Aborted) {
+            set_halting_status_and_wait_for_seek(PipelineStatus::Error, sample_result.release_error());
+        }
+        return;
+    }
+
+    auto coded_frame = sample_result.release_value();
+    auto decode_result = receive_coded_frame(coded_frame, DecodeIntent::Output);
+    if (decode_result.is_error())
+        set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
 }
 
 }

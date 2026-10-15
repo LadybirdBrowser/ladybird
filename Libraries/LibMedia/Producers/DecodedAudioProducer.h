@@ -81,6 +81,7 @@ private:
         DecoderErrorOr<void> receive_into_decoder(CodedFrame const&);
         DecoderErrorOr<void> receive_coded_frame(CodedFrame const&);
         DecoderErrorOr<bool> replace_drained_decoder();
+        bool check_if_seek_is_needed_or_allow_demuxer_reads(u32 seek_id);
         void release_decoder();
         void exit();
 
