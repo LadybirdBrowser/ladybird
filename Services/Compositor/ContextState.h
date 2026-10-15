@@ -124,6 +124,9 @@ public:
     ContextUpdateResult handle_mouse_event(Web::MouseEvent const&);
     // The UI's wheel deltas are in CSS pixels; this scales them for the scroll tree, which works in device pixels.
     ContextUpdateResult handle_wheel_event(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
+    // Takes note of a wheel event from the UI as it arrives, ahead of anything that may turn it away or leave it to
+    // the main thread.
+    void note_wheel_event_from_ui(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     ContextUpdateResult handle_pinch_event(Web::PinchEvent const&);
     AsyncScrollResult async_scroll_by(
         Web::UniqueNodeID document_id,
@@ -338,6 +341,7 @@ private:
     // The scroll offsets to present when a scroller is stretched, which are the only ones that leave a scroll range.
     Optional<Compositing::ScrollStateSnapshot> scroll_state_snapshot_stretched_by_elastic_overscrolls() const;
     ContextUpdateResult scroll_for_wheel_event(Web::MouseEvent const&, MonotonicTime now);
+    Gfx::FloatPoint wheel_event_delta_in_device_pixels(Web::MouseEvent const&) const;
     Web::MouseEvent scroll_fling_event(Gfx::FloatPoint delta, Web::ScrollGesturePhase) const;
     Optional<Gfx::FloatPoint> in_flight_wheel_destination(Web::AsyncScrollNodeStableID) const;
     AsyncScrollResult smooth_wheel_scroll_by(Optional<Compositing::WheelScrollTarget> const&, Gfx::IntRect viewport_rect, MonotonicTime now);
@@ -420,6 +424,9 @@ private:
     Compositing::ScrollFlingBooster m_scroll_fling_booster;
     Optional<ActiveScrollFling> m_scroll_fling;
     Vector<ActiveElasticOverscroll> m_elastic_overscrolls;
+    // The touchpad gesture the UI is sending, whether this context or the main thread scrolls its steps. A stretch is
+    // released with the velocity of the steps as they arrived from the UI, not as they were scrolled.
+    Optional<Compositing::WheelGestureIdentity> m_wheel_gesture_from_ui;
     Compositing::ScrollVelocityTracker m_elastic_overscroll_velocity_tracker;
     bool m_scrolls_elastically { false };
     Compositing::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
