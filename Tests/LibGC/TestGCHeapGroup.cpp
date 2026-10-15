@@ -11,6 +11,7 @@
 #include <LibGC/HeapGroup.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibGC/Testing.h>
 #include <LibGC/WeakInlines.h>
 #include <LibTest/TestCase.h>
 
@@ -66,15 +67,6 @@ private:
 
 GC_DEFINE_ALLOCATOR(WeakCreatingCell);
 
-// Under ASan, an instrumented function's locals live on a fake stack, so filling them would leave the real stack as it
-// was — and the conservative scan reads the real stack. So this function isn't instrumented.
-NO_SANITIZE_ADDRESS NEVER_INLINE void scrub_stack()
-{
-    u8 volatile filler[8 * KiB];
-    for (size_t i = 0; i < sizeof(filler); ++i)
-        filler[i] = 0;
-}
-
 NEVER_INLINE GC::Root<LinkedCell> allocate_holder_and_foreign_target(GC::Heap& holder_heap, GC::Heap& target_heap)
 {
     auto holder = GC::make_root(holder_heap.allocate<LinkedCell>());
@@ -122,7 +114,7 @@ static NEVER_INLINE void sanity_single_heap_frees_garbage()
 
     allocate_garbage(heap);
     EXPECT_EQ(s_live_linked_cells, 1u);
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 0u);
 }
@@ -142,18 +134,18 @@ static NEVER_INLINE void incoming_cross_heap_member_roots_local_collection()
     EXPECT_EQ(s_live_linked_cells, 2u);
 
     // The only thing keeping the target alive is the incoming cross-heap member; B's local collection cannot see the holder on A, so the member registration must root it.
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap_b.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 2u);
 
     // Once the edge is dropped, B's next local collection should free the target.
     holder->foreign() = nullptr;
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap_b.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 1u);
 
     holder = {};
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap_a.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 0u);
 
@@ -176,13 +168,13 @@ static NEVER_INLINE void group_collection_breaks_cross_heap_cycles()
     EXPECT_EQ(s_live_linked_cells, 2u);
 
     // Local collections see the incoming members as roots, so the boundary cycle should survive collection.
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap_a.collect_garbage();
     heap_b.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 2u);
 
     // The unified mark should not reach the cycle, so both cells should be freed by the group collection.
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     group.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 0u);
 
@@ -205,12 +197,12 @@ static NEVER_INLINE void group_collection_traces_live_cross_heap_chains()
     EXPECT_EQ(s_live_linked_cells, 3u);
 
     // The whole chain must survive a group collection, including the second A cell that is only reachable through the B cell.
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     group.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 3u);
 
     holder = {};
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     group.collect_garbage();
     EXPECT_EQ(s_live_linked_cells, 0u);
 
@@ -233,7 +225,7 @@ static NEVER_INLINE void group_collection_finalizer_creates_null_weak_to_dead_fo
     // finalizers yet, so a weak pointer that it creates to B's dead cell must be null.
     s_weak_to_dead_foreign_cell_was_null_while_finalizing = {};
     allocate_weak_creating_cell_and_foreign_garbage(heap_a, heap_b);
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     group.collect_garbage();
     EXPECT_EQ(s_weak_to_dead_foreign_cell_was_null_while_finalizing, true);
     EXPECT_EQ(s_live_linked_cells, 0u);
@@ -245,33 +237,33 @@ static NEVER_INLINE void group_collection_finalizer_creates_null_weak_to_dead_fo
 // Under ASan with detect_stack_use_after_return, a function's locals live on a fake stack, but its frame on the real
 // stack still reserves room for them — room it never writes, so it keeps whatever earlier calls left there, and the
 // conservative scan reads it. A stale pointer there can keep a dropped cell alive. So each case runs in a frame of its
-// own, on stack that scrub_stack() has just cleared.
+// own, on stack that GC::scrub_stack_for_testing() has just cleared.
 TEST_CASE(sanity_single_heap_frees_garbage)
 {
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     sanity_single_heap_frees_garbage();
 }
 
 TEST_CASE(incoming_cross_heap_member_roots_local_collection)
 {
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     incoming_cross_heap_member_roots_local_collection();
 }
 
 TEST_CASE(group_collection_breaks_cross_heap_cycles)
 {
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     group_collection_breaks_cross_heap_cycles();
 }
 
 TEST_CASE(group_collection_traces_live_cross_heap_chains)
 {
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     group_collection_traces_live_cross_heap_chains();
 }
 
 TEST_CASE(group_collection_finalizer_creates_null_weak_to_dead_foreign_cell)
 {
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     group_collection_finalizer_creates_null_weak_to_dead_foreign_cell();
 }

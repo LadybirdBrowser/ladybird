@@ -9,6 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
 #include <LibGC/Root.h>
+#include <LibGC/Testing.h>
 #include <LibTest/TestCase.h>
 
 namespace {
@@ -72,13 +73,6 @@ private:
 
 GC_DEFINE_ALLOCATOR(SweptCell);
 
-NEVER_INLINE void scrub_stack()
-{
-    u8 volatile filler[8 * KiB];
-    for (size_t i = 0; i < sizeof(filler); ++i)
-        filler[i] = 0;
-}
-
 // NB: Both cells come from the same block of a fresh heap, the unreachable one first, so the sweep of that block
 //     destroys it before it reaches the reachable one.
 NEVER_INLINE GC::Root<SweptCell> allocate_unreachable_then_reachable_cell(GC::Heap& heap)
@@ -101,7 +95,7 @@ TEST_CASE(allocating_from_a_destructor_during_a_sweep_does_not_free_reachable_ce
     GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
 
     auto reachable_cell = allocate_unreachable_then_reachable_cell(heap);
-    scrub_stack();
+    GC::scrub_stack_for_testing();
 
     // This collection marks the reachable cell and leaves the destruction of the other one to the incremental sweep.
     heap.collect_garbage();
@@ -122,7 +116,7 @@ TEST_CASE(free_cells_that_a_destructor_takes_while_a_collection_finishes_the_swe
     GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
 
     auto reachable_cell = allocate_reachable_cell_of_another_type_then_unreachable_cell(heap);
-    scrub_stack();
+    GC::scrub_stack_for_testing();
 
     // This collection leaves the destruction of the unreachable cell to the incremental sweep.
     heap.collect_garbage();

@@ -18,6 +18,7 @@
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/Testing.h>
 #include <LibGC/Weak.h>
 #include <LibGC/WeakHashMap.h>
 #include <LibTest/TestCase.h>
@@ -90,13 +91,6 @@ static GC::Heap& test_heap()
 {
     static AK::NeverDestroyed<GC::Heap> heap([](auto&) { });
     return *heap;
-}
-
-static NEVER_INLINE void scrub_stack()
-{
-    u8 volatile filler[8 * KiB];
-    for (size_t i = 0; i < sizeof(filler); ++i)
-        filler[i] = 0;
 }
 
 TEST_SETUP
@@ -172,12 +166,12 @@ TEST_CASE(activity_root_controls_cell_liveness)
         root.take(*cell);
     }
 
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap.collect_garbage();
     EXPECT(weak_cell);
 
     root.release();
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
     EXPECT(!weak_cell);
 }
@@ -419,7 +413,7 @@ static void expect_transferred_container_keeps_cell_alive(AddCell add_cell, Tran
         transfer(destination, source);
     }
 
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap.collect_garbage();
     EXPECT(weak_cell);
 }
@@ -744,7 +738,7 @@ TEST_CASE(weak_pointers_to_dead_cells_are_null_while_finalizing)
         observer->weak_to_self_was_null_while_finalizing = &weak_to_self_was_null_while_finalizing;
     }
 
-    scrub_stack();
+    GC::scrub_stack_for_testing();
     heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
     EXPECT(weak_cell_was_null_while_finalizing);
     EXPECT(weak_to_self_was_null_while_finalizing);
