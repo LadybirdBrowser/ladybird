@@ -32,6 +32,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::value::{PreferredType, append_number_to_string, is_strictly_equal, same_value_zero};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 use crate::utf16::{Utf16StringBuilder, Utf16View};
@@ -1798,6 +1799,17 @@ impl ArrayPrototype {
 // 10.4.2.3 ArraySpeciesCreate ( originalArray, length ), https://tc39.es/ecma262/#sec-arrayspeciescreate
 pub(crate) fn array_species_create(vm: &Vm, original_array: &Object, length: u64) -> ThrowCompletionOr<Gc<Object>> {
     let realm = vm.current_realm().expect("a builtin runs in a realm");
+
+    // OPTIMIZATION: For an array of this realm without an own constructor, the steps below Get %Array% as the
+    //               constructor and as its @@species, as long as the realm watches that they are, and Construct(%Array%,
+    //               « length ») is ArrayCreate(length).
+    if original_array.is::<Array>()
+        && original_array.shape().prototype() == Some(realm.array_prototype())
+        && original_array.shape().lookup(&vm.names.constructor).is_none()
+        && realm_watchpoints::array_species_is_unchanged(vm, realm)
+    {
+        return Ok(Array::create(vm, realm, length, None)?.upcast());
+    }
 
     let is_array = Value::from_object(original_array.as_gc()).is_array(vm)?;
 
