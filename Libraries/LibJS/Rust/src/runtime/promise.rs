@@ -26,6 +26,7 @@ use crate::runtime::promise_jobs::{create_promise_reaction_job, create_promise_r
 use crate::runtime::promise_reaction::{PromiseReaction, PromiseReactionType};
 use crate::runtime::promise_resolving_function::PromiseResolvingFunction;
 use crate::runtime::realm::Realm;
+use crate::runtime::special_property_cache::{self, SpecialPropertyKey};
 use crate::runtime::value::same_value;
 
 // 27.2.4.7.1 PromiseResolve ( C, x ), https://tc39.es/ecma262/#sec-promise-resolve
@@ -37,7 +38,7 @@ pub fn promise_resolve(vm: &Vm, constructor: Gc<Object>, value: Value) -> ThrowC
         && let Some(promise) = value.as_object().downcast::<Promise>()
     {
         // a. Let xConstructor be ? Get(x, "constructor").
-        let value_constructor = value.as_object().get(vm, &vm.names.constructor)?;
+        let value_constructor = special_property_cache::get(vm, &value.as_object(), SpecialPropertyKey::Constructor)?;
 
         // b. If SameValue(xConstructor, C) is true, return x.
         if same_value(value_constructor, Value::from_object(constructor)) {
@@ -237,7 +238,7 @@ impl Promise {
         }
 
         // 9. Let then be Completion(Get(resolution, "then")).
-        let then = resolution.as_object().get(vm, &vm.names.then);
+        let then = special_property_cache::get(vm, &resolution.as_object(), SpecialPropertyKey::Then);
 
         // 10. If then is an abrupt completion, then
         let then_action = match then {

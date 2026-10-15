@@ -742,6 +742,8 @@ define_static_property_lookup_cache_sites! {
     ArraySpeciesCreateConstructor,
     ArraySpeciesCreateSpecies,
     JSONSerializeToJSON,
+    PromiseResolveConstructor,
+    PromiseResolveFunctionThen,
     StringPrototypeMatchMatcher,
     StringPrototypeMatchAllMatcher,
     StringPrototypeReplaceReplacer,
