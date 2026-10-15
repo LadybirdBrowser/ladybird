@@ -1,0 +1,9 @@
+Ladybird keeps ticking effects with finite end times in box-less
+iframes. A zero-duration effect has zero active duration even with
+infinite iterations, so its end delay can still produce a finite end.
+
+Blink uses Animation::UpdateFinishedState() to compare the current time
+with EffectEnd(). Gecko uses Animation::UpdateFinishedState() and
+EffectEnd() for the same decision. WebKit checks effectEndTime() in
+WebAnimation::updateFinishedState(). Ladybird follows their completion
+rule by retaining normal ticks for these effects.
