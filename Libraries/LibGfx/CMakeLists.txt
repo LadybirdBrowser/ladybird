@@ -28,6 +28,7 @@ set(SOURCES
     FontCascadeList.cpp
     GradientPainting.cpp
     Gradients.cpp
+    LinuxDmaBufHandle.cpp
     Matrix4x4.cpp
     DecodedImageFrame.cpp
     RustProcessState.cpp

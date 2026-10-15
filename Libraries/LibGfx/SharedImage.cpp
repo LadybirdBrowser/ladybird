@@ -39,9 +39,6 @@ SharedImage::SharedImage(WindowsD3DHandle&& d3d_handle)
 }
 
 #    ifdef USE_VULKAN_DMABUF_IMAGES
-static constexpr auto shared_image_bitmap_format = BitmapFormat::BGRA8888;
-static constexpr auto shared_image_alpha_type = AlphaType::Premultiplied;
-
 SharedImage duplicate_shared_image(VulkanImage const& vulkan_image)
 {
     return SharedImage { duplicate_linux_dmabuf_handle(vulkan_image) };
@@ -52,15 +49,13 @@ LinuxDmaBufHandle duplicate_linux_dmabuf_handle(VulkanImage const& vulkan_image)
     VERIFY(vulkan_image.info.format == VK_FORMAT_B8G8R8A8_UNORM);
     auto fd = vulkan_image.get_dma_buf_fd();
     VERIFY(fd >= 0);
-    return LinuxDmaBufHandle {
-        .bitmap_format = shared_image_bitmap_format,
-        .alpha_type = shared_image_alpha_type,
-        .size = IntSize(static_cast<int>(vulkan_image.info.extent.width), static_cast<int>(vulkan_image.info.extent.height)),
-        .drm_format = vk_format_to_drm_format(vulkan_image.info.format),
-        .pitch = static_cast<size_t>(vulkan_image.info.row_pitch),
-        .modifier = vulkan_image.info.modifier,
-        .file = IPC::File::adopt_fd(fd),
-    };
+    LinuxDmaBufHandle dma_buf;
+    dma_buf.size = IntSize(static_cast<int>(vulkan_image.info.extent.width), static_cast<int>(vulkan_image.info.extent.height));
+    dma_buf.drm_format = vk_format_to_drm_format(vulkan_image.info.format);
+    dma_buf.modifier = vulkan_image.info.modifier;
+    dma_buf.objects.append(IPC::File::adopt_fd(fd));
+    dma_buf.planes.append({ .object_index = 0, .offset = 0, .pitch = static_cast<u32>(vulkan_image.info.row_pitch) });
+    return dma_buf;
 }
 #    endif
 
@@ -90,33 +85,6 @@ enum class SharedImageBackingType : u8 {
     LinuxDmaBuf,
     WindowsD3DTexture,
 };
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::LinuxDmaBufHandle const& dmabuf)
-{
-    TRY(encoder.encode(dmabuf.bitmap_format));
-    TRY(encoder.encode(dmabuf.alpha_type));
-    TRY(encoder.encode(dmabuf.size));
-    TRY(encoder.encode(dmabuf.drm_format));
-    TRY(encoder.encode(dmabuf.pitch));
-    TRY(encoder.encode(dmabuf.modifier));
-    TRY(encoder.encode(TRY(IPC::File::clone_fd(dmabuf.file.fd()))));
-    return {};
-}
-
-template<>
-ErrorOr<Gfx::LinuxDmaBufHandle> decode(Decoder& decoder)
-{
-    return Gfx::LinuxDmaBufHandle {
-        .bitmap_format = TRY(decoder.decode<Gfx::BitmapFormat>()),
-        .alpha_type = TRY(decoder.decode<Gfx::AlphaType>()),
-        .size = TRY(decoder.decode<Gfx::IntSize>()),
-        .drm_format = TRY(decoder.decode<u32>()),
-        .pitch = TRY(decoder.decode<size_t>()),
-        .modifier = TRY(decoder.decode<u64>()),
-        .file = TRY(decoder.decode<IPC::File>()),
-    };
-}
 
 template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::WindowsD3DHandle const& d3d_handle)

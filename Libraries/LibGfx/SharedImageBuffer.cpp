@@ -38,14 +38,17 @@ static constexpr auto shared_image_buffer_drm_format = DRM_FORMAT_ARGB8888;
 
 static NonnullRefPtr<Bitmap> create_bitmap_from_linux_dmabuf(LinuxDmaBufHandle const& dmabuf)
 {
-    VERIFY(dmabuf.bitmap_format == shared_image_buffer_format);
-    VERIFY(dmabuf.alpha_type == shared_image_buffer_alpha_type);
     VERIFY(dmabuf.drm_format == shared_image_buffer_drm_format);
     VERIFY(dmabuf.modifier == DRM_FORMAT_MOD_LINEAR);
-    auto data_size = Bitmap::size_in_bytes(dmabuf.pitch, dmabuf.size.height());
-    auto* data = ::mmap(nullptr, data_size, PROT_READ, MAP_SHARED, dmabuf.file.fd(), 0);
+    VERIFY(dmabuf.objects.size() == 1);
+    VERIFY(dmabuf.planes.size() == 1);
+    auto const& plane = dmabuf.planes.first();
+    VERIFY(plane.object_index == 0);
+    VERIFY(plane.offset == 0);
+    auto data_size = Bitmap::size_in_bytes(plane.pitch, dmabuf.size.height());
+    auto* data = ::mmap(nullptr, data_size, PROT_READ, MAP_SHARED, dmabuf.objects.first().fd(), 0);
     VERIFY(data != MAP_FAILED);
-    return MUST(Bitmap::create_wrapper(dmabuf.bitmap_format, dmabuf.alpha_type, dmabuf.size, dmabuf.pitch, data, [data, data_size] {
+    return MUST(Bitmap::create_wrapper(shared_image_buffer_format, shared_image_buffer_alpha_type, dmabuf.size, plane.pitch, data, [data, data_size] {
         VERIFY(::munmap(data, data_size) == 0);
     }));
 }

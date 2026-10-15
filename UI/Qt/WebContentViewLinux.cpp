@@ -486,8 +486,11 @@ struct WebContentView::VulkanRenderer {
 
     static Optional<DmaBufIdentity> dmabuf_identity_for(Gfx::LinuxDmaBufHandle const& dmabuf)
     {
+        if (dmabuf.objects.size() != 1 || dmabuf.planes.size() != 1 || dmabuf.planes.first().offset != 0)
+            return {};
+
         struct stat statbuf {};
-        if (fstat(dmabuf.file.fd(), &statbuf) < 0)
+        if (fstat(dmabuf.objects.first().fd(), &statbuf) < 0)
             return {};
 
         return DmaBufIdentity {
@@ -495,7 +498,7 @@ struct WebContentView::VulkanRenderer {
             .inode = static_cast<u64>(statbuf.st_ino),
             .size = dmabuf.size,
             .drm_format = dmabuf.drm_format,
-            .pitch = dmabuf.pitch,
+            .pitch = dmabuf.planes.first().pitch,
             .modifier = dmabuf.modifier,
         };
     }
@@ -576,7 +579,7 @@ struct WebContentView::VulkanRenderer {
         VkImageSubresource subresource { VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT, 0, 0 };
         VkSubresourceLayout subresource_layout {};
         vkGetImageSubresourceLayout(device, image, &subresource, &subresource_layout);
-        if (subresource_layout.rowPitch != dmabuf.pitch) {
+        if (subresource_layout.rowPitch != dmabuf.planes.first().pitch) {
             vkDestroyImage(device, image, nullptr);
             return {};
         }
@@ -589,7 +592,7 @@ struct WebContentView::VulkanRenderer {
             .pNext = nullptr,
             .memoryTypeBits = 0,
         };
-        if (get_memory_fd_properties(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, dmabuf.file.fd(), &memory_fd_properties) != VK_SUCCESS) {
+        if (get_memory_fd_properties(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, dmabuf.objects.first().fd(), &memory_fd_properties) != VK_SUCCESS) {
             vkDestroyImage(device, image, nullptr);
             return {};
         }
@@ -600,7 +603,7 @@ struct WebContentView::VulkanRenderer {
             return {};
         }
 
-        int imported_fd = fcntl(dmabuf.file.fd(), F_DUPFD_CLOEXEC, 0);
+        int imported_fd = fcntl(dmabuf.objects.first().fd(), F_DUPFD_CLOEXEC, 0);
         if (imported_fd < 0) {
             vkDestroyImage(device, image, nullptr);
             return {};
