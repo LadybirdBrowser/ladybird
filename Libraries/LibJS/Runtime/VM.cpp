@@ -542,6 +542,11 @@ Completion VM::throw_engine_error(EngineErrorKind kind, Utf16String message)
     return throw_completion_from_abi(js_error_throw_with_owned_message(vm_abi(*this), to_underlying(kind), owned_utf16_string_to_abi(move(message))));
 }
 
+void VM::set_source_text_syntaxes(StackFrameSyntax stack_frames, NativeFunctionSourceSyntax native_functions)
+{
+    js_vm_set_source_text_syntaxes(vm_abi(*this), to_underlying(stack_frames), to_underlying(native_functions));
+}
+
 void VM::set_agent(OwnPtr<Agent> agent)
 {
     m_agent = move(agent);

@@ -41,6 +41,25 @@ pub enum CompactTraceback {
     Yes,
 }
 
+/// How a stack string writes each frame: indented, as "    at f (url:line:col)", or with an at sign, as
+/// "f@url:line:col". The embedder picks the syntax, since scripts read it to tell engines apart.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum StackFrameSyntax {
+    #[default]
+    Indented = 0,
+    AtSign = 1,
+}
+
+impl StackFrameSyntax {
+    pub fn from_abi(syntax: u8) -> Self {
+        match syntax {
+            1 => Self::AtSign,
+            _ => Self::Indented,
+        }
+    }
+}
+
 /// [[ErrorData]]: the call stack an error was created on.
 #[derive(Trace)]
 pub struct ErrorData {
@@ -107,16 +126,32 @@ impl ErrorData {
     }
 
     pub fn stack_string(&self, compact: CompactTraceback) -> Utf16String {
+        self.stack_string_with_syntax(compact, StackFrameSyntax::Indented)
+    }
+
+    pub fn stack_string_with_syntax(&self, compact: CompactTraceback, syntax: StackFrameSyntax) -> Utf16String {
         if self.traceback.is_empty() {
             return Utf16String::default();
         }
 
         let mut stack_string_builder: Vec<u16> = Vec::new();
 
-        // Note: We roughly follow V8's formatting
         let append_frame = |builder: &mut Vec<u16>, frame: &TracebackFrame| {
             let function_name = Utf16View::of_string(&frame.function_name);
             let (filename, line, column) = frame.source_position();
+            if syntax == StackFrameSyntax::AtSign {
+                // "f@url:line:col", "@url:line:col" for a frame without a name, and "[native code]" in place of a
+                // location for a frame without one.
+                function_name.append_to(builder);
+                builder.push(u16::from(b'@'));
+                if !filename.is_empty() || line != 0 || column != 0 {
+                    filename.append_to(builder);
+                    builder.extend(format!(":{line}:{column}\n").encode_utf16());
+                } else {
+                    builder.extend("[native code]\n".encode_utf16());
+                }
+                return;
+            }
             builder.extend("    at ".encode_utf16());
             // Note: Since we don't know whether we have a valid SourceRange here we just check for some default values.
             if !filename.is_empty() || line != 0 || column != 0 {
