@@ -55,8 +55,7 @@
         frames[0].postMessage("ping", "*");
         println(`round trip through the isolated iframe: ${(await pong) === "pong"}`);
 
-        for (let attempt = 0; attempt < 400 && !iframeLoaded; ++attempt)
-            await timeout(25);
+        await waitForCondition(() => iframeLoaded);
         println(`iframe load event fired: ${iframeLoaded}`);
         println(internals.dumpSiteIsolationProcessTree().trimEnd());
     });

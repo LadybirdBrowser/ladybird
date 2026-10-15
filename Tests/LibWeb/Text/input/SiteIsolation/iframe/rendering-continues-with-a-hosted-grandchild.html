@@ -12,9 +12,7 @@
         const animationFrameFires = async () => {
             let fired = false;
             requestAnimationFrame(() => (fired = true));
-            for (let attempt = 0; attempt < 200 && !fired; ++attempt)
-                await timeout(25);
-            return fired;
+            return waitForCondition(() => fired);
         };
 
         const addFrame = async url => {

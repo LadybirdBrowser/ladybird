@@ -50,8 +50,7 @@
         await face.loaded;
         // The resource-timing entry lands in a separately queued task; poll until it appears.
         // Bounded, so a missing entry fails with a diff rather than hanging until the harness timeout.
-        for (let attempt = 0; attempt < 200 && fontRequestCount() === 0; ++attempt)
-            await new Promise(resolve => setTimeout(resolve, 10));
+        await waitForCondition(() => fontRequestCount() !== 0, 200, 10);
         println(`Used face status: ${face.status}`);
         println(`Font requests after use: ${fontRequestCount()}`);
     });
