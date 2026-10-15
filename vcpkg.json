@@ -294,11 +294,13 @@
     },
     {
       "name": "freetype",
-      "version": "2.13.3#0"
+      "version": "2.13.3#0",
+      "$comment": "freetype is not updated yet to avoid major font rendering differences. See: https://github.com/LadybirdBrowser/ladybird/pull/10165#issuecomment-4747336594"
     },
     {
       "name": "harfbuzz",
-      "version": "10.2.0#0"
+      "version": "10.2.0#0",
+      "$comment": "harfbuzz is not updated to avoid conflicts with Qt. See: https://github.com/LadybirdBrowser/ladybird/pull/5273"
     },
     {
       "name": "icu",
