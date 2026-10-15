@@ -32,6 +32,7 @@ use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::set::Set;
 use crate::runtime::set_iterator::set_iteration_is_unobservable;
@@ -41,12 +42,24 @@ use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 static SYMBOL_SPECIES_GETTER: RawNativeFunctionPointer = raw_native!(ArrayConstructor::symbol_species_getter);
 
 // OPTIMIZATION: Without a mapper, unobservable collection iteration can copy storage directly.
-fn array_from_set_or_map(
+fn array_from_array_set_or_map(
     vm: &Vm,
     realm: Gc<Realm>,
     items: Gc<Object>,
     using_iterator: Gc<FunctionObject>,
 ) -> Option<Gc<Array>> {
+    if let Some(source) = items.downcast::<Array>() {
+        if using_iterator != realm.array_prototype_values_function()
+            || !source.is_simple_packed_array()
+            || !realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
+        {
+            return None;
+        }
+
+        let array = Array::create(vm, realm, 0, None).must();
+        array.indexed_append_packed_elements_of(&source);
+        return Some(array);
+    }
     if let Some(set) = items.downcast::<Set>() {
         if !set_iteration_is_unobservable(vm, realm, using_iterator) || set.set_size() >= u32::MAX as usize {
             return None;
@@ -311,7 +324,7 @@ impl ArrayConstructor {
             if constructor_is_intrinsic_array
                 && mapfn.is_none()
                 && items.is_object()
-                && let Some(array) = array_from_set_or_map(vm, realm, items.as_object(), using_iterator)
+                && let Some(array) = array_from_array_set_or_map(vm, realm, items.as_object(), using_iterator)
             {
                 return Ok(Value::from_object(array));
             }

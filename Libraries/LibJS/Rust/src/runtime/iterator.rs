@@ -20,13 +20,18 @@ use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{call, call_function_object};
+use crate::runtime::array::Array;
+use crate::runtime::array_iterator::{ArrayIterator, iterated_array_like_element, iterated_array_like_length};
 use crate::runtime::async_from_sync_iterator_prototype::create_async_from_sync_iterator;
 use crate::runtime::completion::{Completion, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
-use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ShouldThrowExceptions, allocate_object};
+use crate::runtime::object::{
+    MayInterfereWithIndexedPropertyAccess, PropertyKind, ShouldThrowExceptions, allocate_object,
+};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 
 pub use libjs_abi::IteratorHint;
 
@@ -756,6 +761,44 @@ pub fn setter_that_ignores_prototype_properties(
     Ok(())
 }
 
+/// get_iterator_values() for an array that is iterated with the array iterators of `realm` without anything observing
+/// them (see `realm_watchpoints::array_is_iterated_unobservably()`).
+fn get_array_values(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    array: Gc<Object>,
+    mut callback: impl FnMut(Value) -> Option<Completion>,
+) -> Completion {
+    let mut index = 0;
+    loop {
+        let length = match iterated_array_like_length(vm, &array) {
+            Ok(length) => length,
+            Err(throw) => return throw.into(),
+        };
+        if index >= length {
+            return Completion::normal(Value::UNDEFINED);
+        }
+        let value = match iterated_array_like_element(vm, &array, index) {
+            Ok(value) => value,
+            Err(throw) => return throw.into(),
+        };
+        index += 1;
+
+        if let Some(completion) = callback(value) {
+            if realm_watchpoints::array_iterators_have_no_return(vm, realm) {
+                return completion;
+            }
+            // NB: The callback gave array iterators a return method. The iterator that it gets as its this value is
+            //     one that nothing saw before, so it may be made now.
+            let iterator = ArrayIterator::create(vm, realm, Value::from_object(array), PropertyKind::Value);
+            iterator.index.set(index);
+            // NB: IteratorClose does not use the next method.
+            let iterator_record = IteratorRecordImpl::new(Some(iterator.upcast()), Value::UNDEFINED, false);
+            return iterator_close(vm, &iterator_record, completion);
+        }
+    }
+}
+
 // Non-standard
 /// Iterates `iterable`, handing each value to `callback`, and closes the iterator with the completion the callback
 /// returns to stop early.
@@ -764,6 +807,16 @@ pub fn get_iterator_values(
     iterable: Value,
     mut callback: impl FnMut(Value) -> Option<Completion>,
 ) -> Completion {
+    // OPTIMIZATION: Nothing can observe the iterator of an array that is iterated with the array iterators of the
+    //               realm, so its elements are read like the iterator would read them, without making it.
+    if iterable.is_object()
+        && iterable.as_object().downcast::<Array>().is_some()
+        && let Some(realm) = vm.current_realm()
+        && realm_watchpoints::array_is_iterated_unobservably(vm, realm, &iterable.as_object())
+    {
+        return get_array_values(vm, realm, iterable.as_object(), callback);
+    }
+
     let iterator_record = match get_iterator_impl(vm, iterable, IteratorHint::Sync) {
         Ok(iterator_record) => iterator_record,
         Err(throw) => return throw.into(),
