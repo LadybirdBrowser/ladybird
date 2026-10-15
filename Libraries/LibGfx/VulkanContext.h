@@ -9,6 +9,7 @@
 #ifdef USE_VULKAN
 
 #    include <AK/Error.h>
+#    include <LibGfx/GpuDeviceIdentity.h>
 #    include <vulkan/vulkan.h>
 
 namespace Gfx {
@@ -17,6 +18,7 @@ struct VulkanContext {
     uint32_t api_version { VK_API_VERSION_1_0 };
     VkInstance instance { VK_NULL_HANDLE };
     VkPhysicalDevice physical_device { VK_NULL_HANDLE };
+    GpuDeviceIdentity device_identity;
     VkDevice logical_device { VK_NULL_HANDLE };
     VkQueue graphics_queue { VK_NULL_HANDLE };
     uint32_t graphics_queue_family { 0 };
@@ -32,6 +34,7 @@ struct VulkanContext {
 };
 
 ErrorOr<VulkanContext> create_vulkan_context();
+GpuDeviceIdentity gpu_device_identity_of(VkPhysicalDevice);
 
 }
 
