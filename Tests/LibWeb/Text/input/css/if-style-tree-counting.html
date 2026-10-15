@@ -1,0 +1,53 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @property --index {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+
+    @property --count {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+
+    @function --matches-index(--n <length>) {
+        result: if(style(--n: calc(10px * sibling-index())): PASS; else: FAIL);
+    }
+
+    #siblings > div {
+        --count: 20px;
+        content: if(style(--index: calc(10px * sibling-index())): "PASS" ; else: "FAIL");
+        --index-equality: if(style(--index: calc(10px * sibling-index())): PASS; else: FAIL);
+        --count-equality: if(style(--count: calc(10px * sibling-count())): PASS; else: FAIL);
+        --index-range: if(style(--index >= calc(10px * sibling-index())): PASS; else: FAIL);
+        --count-range: if(style(--count <= calc(10px * sibling-count())): PASS; else: FAIL);
+        --function: --matches-index(var(--index));
+    }
+</style>
+<div id="siblings">
+    <div style="--index: 10px"></div>
+    <div style="--index: 20px"></div>
+</div>
+<div><div id="unregistered" style="--function: --matches-index(10px)"></div></div>
+<script>
+    test(() => {
+        const properties = [
+            "content",
+            "--index-equality",
+            "--count-equality",
+            "--index-range",
+            "--count-range",
+            "--function",
+        ];
+        for (const [index, element] of document.querySelectorAll("#siblings > div").entries()) {
+            const style = getComputedStyle(element);
+            const results = properties.map(name => style.getPropertyValue(name).trim());
+            println(`${index + 1}: ${results.join(", ")}`);
+        }
+        const unregistered = document.getElementById("unregistered");
+        println(`unregistered function: ${getComputedStyle(unregistered).getPropertyValue("--function").trim()}`);
+    });
+</script>

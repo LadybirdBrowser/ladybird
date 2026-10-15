@@ -7065,12 +7065,16 @@ pub(crate) fn resolve_published_animation_declarations(
         direction,
         important_property_bitmap,
     );
+    let style_query_dependencies = style_query_references.into_inner();
+    resolved.uses_tree_counting_function |= style_query_dependencies
+        .as_ref()
+        .is_some_and(|dependencies| dependencies.sibling_position);
     resolved._base_urls = base_urls;
     PublishedAnimationDeclarations {
         resolved: Box::new(resolved),
         custom_properties,
         substitution_marks: substitution_marks.get(),
-        style_query_dependencies: style_query_references.into_inner(),
+        style_query_dependencies,
     }
 }
 

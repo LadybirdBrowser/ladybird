@@ -91,6 +91,8 @@ pub(in crate::css::style) struct WinnerStore {
     // NB: Cascade order supplies both source slots and logical/physical tie breaking.
     declarations: Vec<WinnerDeclaration>,
     by_property: Vec<u16>,
+    /// A style query read the sibling position while substituting these declarations.
+    pub(super) reads_sibling_position: bool,
 }
 
 impl WinnerStore {
@@ -104,6 +106,7 @@ impl WinnerStore {
         Self {
             declarations,
             by_property,
+            reads_sibling_position: false,
         }
     }
 
@@ -116,6 +119,9 @@ impl WinnerStore {
 
     /// NB: Compare the resolved declarations while retaining context-dependent computation guards.
     pub(super) fn environment_value_delta(&self, other: &Self, engine: &RetainedState) -> Option<SmallVec<[u16; 8]>> {
+        if self.reads_sibling_position || other.reads_sibling_position {
+            return None;
+        }
         if self.declarations.len() != other.declarations.len() {
             return None;
         }
@@ -150,9 +156,11 @@ impl WinnerStore {
 
     pub(super) fn uses_tree_counting_function(&self, engine: &RetainedState) -> bool {
         let view = self.view(engine);
-        self.declarations
-            .iter()
-            .any(|declaration| view.dependencies(declaration).uses_tree_counting_function)
+        self.reads_sibling_position
+            || self
+                .declarations
+                .iter()
+                .any(|declaration| view.dependencies(declaration).uses_tree_counting_function)
     }
 
     /// The proof that no value the store holds resolves a `url()`, or `None` when one may.

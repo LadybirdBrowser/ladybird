@@ -1,0 +1,3 @@
+1: "PASS", PASS, PASS, PASS, PASS, PASS
+2: "PASS", PASS, PASS, PASS, PASS, PASS
+unregistered function: PASS

@@ -909,7 +909,7 @@ struct ASFResolutionContext<'a> {
     /// The queried element's sibling count and index, which tree-counting functions in a style
     /// query resolve against, where they are known.
     style_query_tree_counting: Option<(u64, u64)>,
-    /// Where the custom properties a style query reads are noted, for the host to record.
+    /// Where the custom properties and sibling position a style query reads are noted, for the host to record.
     style_query_dependencies: Option<&'a mut Option<Box<StyleQueryDependencies>>>,
     final_custom_properties: Option<&'a HashMap<Vec<u16>, RetainedStyleValueData>>,
     function_local_scopes: Vec<FunctionLocalScope>,
@@ -922,28 +922,37 @@ impl ASFResolutionContext<'_> {
             dependencies.get_or_insert_default().note(name);
         }
     }
+
+    fn note_style_query_sibling_position_dependency(&mut self) {
+        if let Some(dependencies) = self.style_query_dependencies.as_deref_mut() {
+            dependencies.get_or_insert_default().sibling_position = true;
+        }
+    }
 }
 
-/// The custom properties style queries read in one resolution, which the host records as the
-/// element's style query references.
+/// The custom properties and sibling position style queries read in one resolution.
 #[derive(Clone, Default)]
-pub(crate) struct StyleQueryDependencies(Vec<Vec<u16>>);
+pub(crate) struct StyleQueryDependencies {
+    names: Vec<Vec<u16>>,
+    pub(crate) sibling_position: bool,
+}
 
 impl StyleQueryDependencies {
     fn note(&mut self, name: &[u16]) {
-        if !self.0.iter().any(|noted| noted == name) {
-            self.0.push(name.to_vec());
+        if !self.names.iter().any(|noted| noted == name) {
+            self.names.push(name.to_vec());
         }
     }
 
     pub(crate) fn extend(&mut self, other: &Self) {
+        self.sibling_position |= other.sibling_position;
         for name in other.names() {
             self.note(name);
         }
     }
 
     pub(crate) fn names(&self) -> impl Iterator<Item = &[u16]> {
-        self.0.iter().map(Vec::as_slice)
+        self.names.iter().map(Vec::as_slice)
     }
 }
 
@@ -1972,6 +1981,9 @@ impl StyleRangeValue {
             // A tree-counting function resolves against the queried element's place among its
             // siblings first.
             StyleValueData::Calculated { .. } => {
+                if crate::css::style_compute::collect_external_value_dependencies(value).uses_tree_counting_function {
+                    context.note_style_query_sibling_position_dependency();
+                }
                 match tree_counting
                     .zip(length_resolution_context)
                     .and_then(|(tree_counting, context)| {
@@ -3287,6 +3299,7 @@ pub(crate) fn resolve_vars(
         media_environment,
         style_query_length_resolution_context: style_query_inputs.map(|inputs| &inputs.length),
         style_query_color_resolution_input: style_query_inputs.map(|inputs| inputs.color_input()),
+        style_query_tree_counting: style_query_inputs.and_then(|inputs| inputs.tree_counting),
         style_query_dependencies,
         final_custom_properties,
         token_cache: Some(token_cache),
@@ -3322,6 +3335,38 @@ pub(crate) fn resolve_vars(
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn style_queries_only_report_sibling_dependencies_for_tree_counting() {
+        let registry = CustomPropertyRegistry::empty();
+        let mut random_index = 0;
+        let parse_context = registry.parse_context(&mut random_index);
+        let length = crate::css::style_compute::FfiLengthResolutionContext::default();
+        for (source, expected, reads_sibling_position) in [
+            ("10px", 10.0, false),
+            ("calc(2 * 10px)", 20.0, false),
+            ("calc(10px * sibling-index())", 10.0, true),
+            ("calc(10px * sibling-count())", 20.0, true),
+        ] {
+            let value =
+                parse_with_syntax(&parse_context, &utf16(source), &SyntaxNode::Type(SyntaxType::Length)).unwrap();
+            let mut dependencies = None;
+            let mut context = ASFResolutionContext {
+                style_query_length_resolution_context: Some(&length),
+                style_query_tree_counting: Some((2, 1)),
+                style_query_dependencies: Some(&mut dependencies),
+                ..Default::default()
+            };
+            assert_eq!(StyleRangeValue::of(&value, &mut context).unwrap().value, expected);
+            assert_eq!(
+                dependencies
+                    .as_ref()
+                    .is_some_and(|dependencies| dependencies.sibling_position),
+                reads_sibling_position,
+                "{source}",
+            );
+        }
+    }
 
     #[test]
     fn custom_property_values_outlive_their_store() {

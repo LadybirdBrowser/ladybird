@@ -1,0 +1,85 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @property --two {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 20px;
+    }
+
+    @property --one {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 10px;
+    }
+
+    @property --registered {
+        syntax: "<string>";
+        inherits: false;
+        initial-value: "NO MATCH";
+    }
+
+    @function --count-content(--n <length>) {
+        result: if(style(--n: calc(10px * sibling-count())): "MATCH" ; else: "NO MATCH");
+    }
+
+    .count-equality {
+        content: if(style(--two: calc(10px * sibling-count())): "MATCH" ; else: "NO MATCH");
+    }
+
+    .registered {
+        --registered: if(style(--two: calc(10px * sibling-count())): "MATCH" ; else: "NO MATCH");
+        content: var(--registered);
+    }
+
+    .unregistered {
+        --unregistered: if(style(--one >= calc(10px * sibling-index())): "MATCH" ; else: "NO MATCH");
+        content: var(--unregistered);
+    }
+
+    .function-longhand {
+        content: --count-content(20px);
+    }
+
+    @keyframes count-content {
+        from,
+        to {
+            content: if(style(--two: calc(10px * sibling-count())): "MATCH" ; else: "NO MATCH");
+        }
+    }
+
+    .animation-longhand {
+        animation: count-content 1s paused both;
+    }
+</style>
+<script>
+    test(() => {
+        for (const name of [
+            "count-equality",
+            "registered",
+            "unregistered",
+            "function-longhand",
+            "inline",
+            "animation-longhand",
+        ]) {
+            const parent = document.createElement("div");
+            parent.innerHTML = `<div class="${name}"></div><div></div>`;
+            const [target, sibling] = parent.children;
+            if (name === "inline")
+                target.style.content = 'if(style(--two: calc(10px * sibling-count())): "MATCH"; else: "NO MATCH")';
+            document.body.append(parent);
+            const results = [getComputedStyle(target).content];
+            const mutate = callback => {
+                callback();
+                results.push(getComputedStyle(target).content);
+            };
+            mutate(() => parent.append(document.createElement("div")));
+            mutate(() => parent.prepend(document.createElement("div")));
+            mutate(() => parent.firstElementChild.remove());
+            mutate(() => parent.lastElementChild.remove());
+            mutate(() => sibling.remove());
+            println(`${name}: ${results.join(", ")}`);
+            parent.remove();
+        }
+    });
+</script>
