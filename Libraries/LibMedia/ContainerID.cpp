@@ -26,6 +26,12 @@ Optional<ContainerMimeType> container_mime_type_from_mime_type(StringView type, 
     if (subtype == "mp4"sv)
         return ContainerMimeType { ContainerID::ISOBMFF, *media_type };
 
+    // The ISO base media file format under the names its audio-only and QuickTime files go by.
+    if (subtype == "x-m4a"sv && *media_type == ContainerMediaType::Audio)
+        return ContainerMimeType { ContainerID::ISOBMFF, *media_type };
+    if (subtype == "quicktime"sv && *media_type == ContainerMediaType::Video)
+        return ContainerMimeType { ContainerID::ISOBMFF, *media_type };
+
     if (subtype == "webm"sv) {
         if (*media_type == ContainerMediaType::Application)
             return {};
