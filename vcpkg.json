@@ -360,7 +360,7 @@
     },
     {
       "name": "nghttp2",
-      "version": "1.69.0#0"
+      "version": "1.70.0#0"
     },
     {
       "name": "openssl",
