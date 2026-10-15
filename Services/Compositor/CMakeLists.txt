@@ -23,6 +23,7 @@ set(SOURCES
     VideoFrameSkia.cpp
     VSyncScheduler.cpp
     WebGLObjectMap.cpp
+    WheelGestureRouting.cpp
 )
 
 invoke_py_generator(

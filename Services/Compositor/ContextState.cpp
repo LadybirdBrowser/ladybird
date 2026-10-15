@@ -40,17 +40,6 @@ static bool visual_viewport_transforms_match(Compositing::TransformWithOrigin co
         && AK::fabs(a.origin.y() - b.origin.y()) <= translation_epsilon;
 }
 
-// Pinch zoom scales the visual viewport, which a page whose viewport cannot be scrolled has too.
-static bool admits_async_pinch(Compositing::WheelRoutingAdmission wheel_routing_admission)
-{
-    return first_is_one_of(wheel_routing_admission, Compositing::WheelRoutingAdmission::Accepted, Compositing::WheelRoutingAdmission::NoScrollNode);
-}
-
-static bool admits_async_wheel(Compositing::WheelRoutingAdmission wheel_routing_admission)
-{
-    return wheel_routing_admission == Compositing::WheelRoutingAdmission::Accepted;
-}
-
 static void update_visual_animation_sampling_state(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Optional<i64>& sample_time_ns, bool& has_active_animations)
 {
     auto now = MonotonicTime::now();
@@ -180,16 +169,8 @@ void ContextState::install_display_list_update(
 
     auto async_scrolling_state = Compositing::async_scrolling_state_from_display_list(*m_display_list);
     auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
-    auto wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
-    auto wheel_routing_admission = Compositing::wheel_routing_admission_for(async_scrolling_state);
-    if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
-        wheel_routing_admission = Compositing::WheelRoutingAdmission::StaleWheelEventListeners;
-    else
-        m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
-
-    m_wheel_routing_admission = wheel_routing_admission;
-    m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
-    if (m_async_visual_viewport_transform.has_value() && (!admits_async_pinch(wheel_routing_admission) || m_has_blocking_wheel_event_listeners)) {
+    m_wheel_gesture_routing.did_install_scrolling_state(async_scrolling_state);
+    if (m_async_visual_viewport_transform.has_value() && !m_wheel_gesture_routing.admits_async_pinch()) {
         invalidate_visual_context_tree_for_compositing();
         m_async_visual_viewport_transform.clear();
     }
@@ -282,9 +263,7 @@ void ContextState::set_video_sink(Compositing::VideoSinkResourceId frame_id, Ref
 
 void ContextState::invalidate_wheel_event_listener_state(u64 generation)
 {
-    m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, generation);
-    m_wheel_routing_admission = Compositing::WheelRoutingAdmission::StaleWheelEventListeners;
-    m_has_blocking_wheel_event_listeners = true;
+    m_wheel_gesture_routing.invalidate_wheel_event_listener_state(generation);
 }
 
 void ContextState::invalidate_keyboard_scroll_state(u64 generation)
@@ -576,9 +555,7 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
 {
     if (!presents_to_client())
         return {};
-    if (!admits_async_pinch(m_wheel_routing_admission))
-        return {};
-    if (m_has_blocking_wheel_event_listeners)
+    if (!m_wheel_gesture_routing.admits_async_pinch())
         return {};
     if (!m_visual_context_tree.has_value())
         return {};
@@ -691,7 +668,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
     bool step_can_stretch_elastically = wheel_step_can_stretch_elastically(wheel_delta_precision, scroll_gesture_phase);
     bool fingers_can_stretch_latched_scroller = step_can_stretch_elastically && scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing && latched_node;
     bool momentum_can_bounce_latched_scroller = step_can_stretch_elastically && scroll_gesture_phase == Web::ScrollGesturePhase::Momentum && latched_node
-        && m_wheel_scroll_latch.has_value() && !m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back;
+        && m_wheel_gesture_routing.momentum_of_latched_gesture_can_spring_scroller_back();
     auto presented_stretch_of_latched_scroller = [&]() -> Gfx::FloatPoint {
         if (!latched_node)
             return {};
@@ -704,7 +681,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
         m_elastic_overscroll_controller.release_held_by_fingers(now);
     if (momentum_can_bounce_latched_scroller && m_elastic_overscroll_controller.has_active_overscroll_of(latched_node->stable_node_id)) {
         // The fingers lifted from a stretched scroller, which this momentum already springs back with.
-        m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = true;
+        m_wheel_gesture_routing.set_momentum_of_latched_gesture_has_sprung_scroller_back(true);
         momentum_can_bounce_latched_scroller = false;
     }
 
@@ -712,8 +689,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
     // they pan the visual viewport away from its own edge.
     auto delta_left = delta;
     if (fingers_can_stretch_latched_scroller) {
-        if (m_wheel_scroll_latch.has_value())
-            m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = false;
+        m_wheel_gesture_routing.set_momentum_of_latched_gesture_has_sprung_scroller_back(false);
         auto step_delta_left = m_elastic_overscroll_controller.relax_by(latched_node->stable_node_id, step_delta);
         if (step_delta_left != step_delta)
             delta_left = step_delta_left.scaled(magnification);
@@ -746,7 +722,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
             // Momentum that carries a scroller into its edge bounces it: the velocity it arrives with takes the
             // rebound out past the edge before the rebound brings it back.
             m_elastic_overscroll_controller.release_held_by_fingers(now);
-            m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = true;
+            m_wheel_gesture_routing.set_momentum_of_latched_gesture_has_sprung_scroller_back(true);
         }
     }
 
@@ -765,8 +741,7 @@ ContextState::NodeScrollByWheelDelta ContextState::scroll_node_by_wheel_delta(Co
         wheel_scroll_target = m_async_scroll_tree.select_wheel_scroll_target(node_id, delta, m_scroll_state_snapshot, [this](auto stable_node_id) { return in_flight_wheel_destination(stable_node_id); }, scroll_chaining);
         if (wheel_scroll_target.has_value()) {
             node_id = *m_async_scroll_tree.scroll_node_id_for_stable_id(wheel_scroll_target->stable_node_id);
-            if (m_wheel_scroll_latch.has_value())
-                m_wheel_scroll_latch->stable_node_id = wheel_scroll_target->stable_node_id;
+            m_wheel_gesture_routing.relatch_to(wheel_scroll_target->stable_node_id);
         }
     }
     auto css_delta = m_async_scroll_tree.css_pixels_from_device_offset(delta);
@@ -859,7 +834,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     // thread passes on after the UI sent one it cannot come before must neither latch a scroller nor pull a stretch,
     // since nothing would be left to let go of either.
     bool step_came_from_ui = input_event_id != 0 && presents_to_client();
-    if (step_came_from_ui && wheel_step_was_overtaken_by_ui(scroll_gesture_phase, input_event_id))
+    if (step_came_from_ui && m_wheel_gesture_routing.step_was_overtaken_by_ui(scroll_gesture_phase, input_event_id))
         return {};
 
     // The end of a gesture lets go of the scroller it stretched even if the context has stopped taking wheel events.
@@ -873,8 +848,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
         && step_came_from_ui
         && wheel_delta_precision == Web::WheelDeltaPrecision::Precise
         && first_is_one_of(scroll_gesture_phase, Web::ScrollGesturePhase::Ongoing, Web::ScrollGesturePhase::Momentum);
-    bool only_blocking_wheel_event_listeners_hold_steps_back = first_is_one_of(m_wheel_routing_admission,
-        Compositing::WheelRoutingAdmission::BlockingWheelEventListeners, Compositing::WheelRoutingAdmission::StaleWheelEventListeners);
+    bool only_blocking_wheel_event_listeners_hold_steps_back = m_wheel_gesture_routing.only_blocking_wheel_event_listeners_hold_steps_back();
 
     auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
     // The end of the gesture before this one may never have arrived. Whether a step of the UI starts another gesture
@@ -882,7 +856,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     if (!latched_node_id.has_value() && !step_came_from_ui)
         m_elastic_overscroll_controller.end_gesture(now);
 
-    if (!admits_async_wheel(m_wheel_routing_admission)
+    if (!m_wheel_gesture_routing.admits_async_wheel()
         && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, wheel_delta_precision, scroll_gesture_phase)
         && !(page_let_touchpad_step_through && only_blocking_wheel_event_listeners_hold_steps_back))
         return {};
@@ -913,7 +887,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
         return {};
     }
     if (page_let_touchpad_step_through)
-        m_wheel_scroll_latch->wheel_event_listener_state_generation_the_page_let_the_gesture_through_at = m_wheel_event_listener_state_generation;
+        m_wheel_gesture_routing.note_page_let_latched_gesture_through();
 
     auto scroll_chaining = is_first_step_of_gesture ? Compositing::ScrollChaining::ToScrollableAncestors : Compositing::ScrollChaining::None;
     auto outcome = perform_wheel_scroll_of_node(*latched_node_id, delta, wheel_delta_precision, scroll_gesture_phase, operation_tracking, viewport_rect, now, scroll_chaining, VisualViewportPanning::No);
@@ -1151,59 +1125,22 @@ Gfx::FloatPoint ContextState::wheel_event_delta_in_device_pixels(Web::MouseEvent
         .scaled(static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
 }
 
-bool ContextState::wheel_step_was_overtaken_by_ui(Web::ScrollGesturePhase phase, u64 input_event_id) const
-{
-    auto const& newest = m_newest_wheel_event_ids_from_ui;
-    switch (phase) {
-    case Web::ScrollGesturePhase::None:
-        return false;
-    case Web::ScrollGesturePhase::Ongoing:
-        // The fingers lifted after this step.
-        return newest.momentum > input_event_id || newest.ended > input_event_id;
-    case Web::ScrollGesturePhase::Momentum:
-        // The momentum ended, or the fingers touched down again, after this step.
-        return newest.ended > input_event_id || newest.ongoing > input_event_id;
-    case Web::ScrollGesturePhase::Ended:
-        // Another gesture started after this end.
-        return newest.ongoing > input_event_id;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 bool ContextState::step_continues_touchpad_gesture_the_page_let_through(Optional<Compositing::AsyncScrollNodeID> const& latched_node_id, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase) const
 {
-    if (!latched_node_id.has_value() || !m_wheel_scroll_latch.has_value() || !presents_to_client())
-        return false;
-    if (wheel_delta_precision != Web::WheelDeltaPrecision::Precise || scroll_gesture_phase == Web::ScrollGesturePhase::None)
-        return false;
-    return m_wheel_scroll_latch->wheel_event_listener_state_generation_the_page_let_the_gesture_through_at == m_wheel_event_listener_state_generation;
+    return latched_node_id.has_value() && presents_to_client() && m_wheel_gesture_routing.page_let_latched_touchpad_gesture_through(wheel_delta_precision, scroll_gesture_phase);
 }
 
 void ContextState::note_wheel_event_from_ui(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
 {
     VERIFY(event.type == Web::MouseEvent::Type::MouseWheel);
     auto now = now_for_testing.value_or(MonotonicTime::now());
-    auto position = wheel_event_position(event);
     auto phase = event.scroll_gesture_phase;
 
-    if (event.id != 0) {
-        if (phase == Web::ScrollGesturePhase::Ongoing)
-            m_newest_wheel_event_ids_from_ui.ongoing = event.id;
-        else if (phase == Web::ScrollGesturePhase::Momentum)
-            m_newest_wheel_event_ids_from_ui.momentum = event.id;
-        else if (phase == Web::ScrollGesturePhase::Ended)
-            m_newest_wheel_event_ids_from_ui.ended = event.id;
-    }
-
-    auto position_slop_in_device_pixels = Compositing::wheel_gesture_position_slop_in_css_pixels * static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel());
-    if (m_wheel_gesture_from_ui.has_value() && m_wheel_gesture_from_ui->is_continued_by(position, phase, event.modifiers, now, position_slop_in_device_pixels)) {
-        m_wheel_gesture_from_ui->advance_to(phase, now);
-    } else {
-        // The end of the gesture before this one may never have arrived.
+    // The end of the gesture before this one may never have arrived.
+    if (m_wheel_gesture_routing.note_wheel_event_from_ui(event, wheel_event_position(event), m_async_scroll_tree, now))
         m_elastic_overscroll_controller.end_gesture(now);
-        m_wheel_gesture_from_ui = Compositing::WheelGestureIdentity::started_by(position, phase, event.modifiers, now);
-    }
 
+    // A stretch is released with the velocity of the steps as they arrived from the UI, not as they were scrolled.
     // Fling steps are not timed here, which leaves them out of the velocity; no platform both flings and stretches.
     if (wheel_step_can_stretch_elastically(event.wheel_delta_precision, phase))
         m_elastic_overscroll_controller.note_step_from_ui(wheel_event_delta_in_device_pixels(event).scaled(1.0f / visual_viewport_magnification()), now);
@@ -1265,9 +1202,9 @@ ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::Mous
     auto latched_node_id = resolve_wheel_scroll_latch(position, event.scroll_gesture_phase, event.modifiers, now);
 
     // A page without scroll nodes still has a visual viewport to pan once it is zoomed in.
-    auto can_pan_zoomed_visual_viewport = m_wheel_routing_admission == Compositing::WheelRoutingAdmission::NoScrollNode
+    auto can_pan_zoomed_visual_viewport = m_wheel_gesture_routing.admission() == Compositing::WheelRoutingAdmission::NoScrollNode
         && visual_viewport_scale_for_compositing().value_or(1.0f) > 1.0f;
-    if (!admits_async_wheel(m_wheel_routing_admission) && !can_pan_zoomed_visual_viewport
+    if (!m_wheel_gesture_routing.admits_async_wheel() && !can_pan_zoomed_visual_viewport
         && !step_continues_touchpad_gesture_the_page_let_through(latched_node_id, event.wheel_delta_precision, event.scroll_gesture_phase))
         return {};
 
@@ -1907,23 +1844,10 @@ void ContextState::store_pending_async_scroll_offsets(
 
 Optional<Compositing::AsyncScrollNodeID> ContextState::resolve_wheel_scroll_latch(Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
 {
-    if (!m_wheel_scroll_latch.has_value())
+    // Only a hit test takes a latch, and it needs the tree of an installed display list.
+    if (!m_wheel_gesture_routing.has_latch())
         return {};
-    auto position_slop_in_device_pixels = Compositing::wheel_gesture_position_slop_in_css_pixels * static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel());
-    if (!m_wheel_scroll_latch->gesture.is_continued_by(position, scroll_gesture_phase, modifiers, now, position_slop_in_device_pixels)) {
-        m_wheel_scroll_latch.clear();
-        return {};
-    }
-    auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(m_wheel_scroll_latch->stable_node_id);
-    if (!node_id.has_value()) {
-        m_wheel_scroll_latch.clear();
-        return {};
-    }
-    // The hit test a latched step skips would refuse a tree the wheel hit-test targets were not built for.
-    if (!m_async_scroll_tree.has_wheel_hit_test_targets_for(current_visual_context_tree()))
-        return {};
-    m_wheel_scroll_latch->gesture.advance_to(scroll_gesture_phase, now);
-    return node_id;
+    return m_wheel_gesture_routing.resolve_latch(m_async_scroll_tree, current_visual_context_tree(), position, scroll_gesture_phase, modifiers, now);
 }
 
 Optional<Compositing::AsyncScrollNodeID> ContextState::hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id, Compositing::WheelStepDispatch wheel_step_dispatch)
@@ -1949,10 +1873,7 @@ Optional<Compositing::AsyncScrollNodeID> ContextState::hit_test_and_latch_wheel_
         return {};
     auto const* node = m_async_scroll_tree.scroll_node_for_id(*node_id_to_latch);
     VERIFY(node);
-    m_wheel_scroll_latch = WheelScrollLatch {
-        .stable_node_id = node->stable_node_id,
-        .gesture = Compositing::WheelGestureIdentity::started_by(position, scroll_gesture_phase, modifiers, now),
-    };
+    m_wheel_gesture_routing.latch(node->stable_node_id, position, scroll_gesture_phase, modifiers, now);
     return node_id_to_latch;
 }
 
