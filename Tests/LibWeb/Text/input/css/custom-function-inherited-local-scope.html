@@ -1,0 +1,36 @@
+<!doctype html>
+<style>
+    @function --value() {
+        result: FAIL;
+    }
+
+    @function --read() {
+        result: var(--source);
+    }
+</style>
+<div id="host">
+    <template shadowrootmode="open">
+        <style>
+            @function --value() {
+                result: PASS;
+            }
+
+            @function --owner() {
+                --call: --read();
+                --source: --value();
+                result: var(--call);
+            }
+
+            #target {
+                --foo: --owner();
+            }
+        </style>
+        <div id="target"></div>
+    </template>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(host.shadowRoot.getElementById("target")).getPropertyValue("--foo"));
+    });
+</script>
