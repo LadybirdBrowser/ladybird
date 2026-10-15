@@ -1611,9 +1611,8 @@ impl LayoutNodeArena {
             self.pending_rebuilt_subtree_roots.get_mut().clear();
             self.pending_layout_tree_update_escaped_rebuild_roots.set(false);
         }
-        if !self.scrollable_overflow.non_child_boxes.borrow().is_empty() {
-            self.scrollable_overflow.contained_boxes_dirty.set(true);
-        }
+        // NB: The root was unlinked through remove_child(), which already noted what its subtree takes out of the
+        //     overflow index.
         if self.scrollable_overflow.viewport.get() == Some(root) {
             self.scrollable_overflow.viewport.set(None);
             self.scrollable_overflow.non_child_boxes.borrow_mut().clear();
@@ -5218,9 +5217,6 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {
-        if !self.scrollable_overflow.non_child_boxes.borrow().is_empty() {
-            self.scrollable_overflow.contained_boxes_dirty.set(true);
-        }
         self.invalidate_at_and_above(node, AncestorInvalidation::StructuralChange);
     }
 
@@ -5293,6 +5289,7 @@ impl LayoutNodeArena {
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
         self.note_layout_subtree_attached(child);
         self.pending_attached_subtree_roots.borrow_mut().push(child);
+        self.note_overflow_contained_boxes_may_move_with_subtree(child);
         self.note_structural_change_at_and_above(parent);
     }
 
@@ -5300,6 +5297,7 @@ impl LayoutNodeArena {
         if self.paintable_row_count() > 0 {
             self.push_enclosing_paint_order_damage(child);
         }
+        self.note_overflow_contained_boxes_may_move_with_subtree(child);
         self.unlink_child(parent, child);
         self.note_structural_change_at_and_above(parent);
     }
