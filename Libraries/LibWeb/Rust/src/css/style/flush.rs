@@ -1202,6 +1202,7 @@ impl StyleEngine {
         let prepare_complete_matching_batch = regions.regions().iter().any(|region| {
             matches!(region, ImpactRegion::Document | ImpactRegion::TreeScope(_))
                 || *region == ImpactRegion::Subtree(root)
+                || *region == ImpactRegion::StrictSubtree(root)
         });
         let completeness_timer = PassTimer::start();
         let prepared_matching_batch_is_complete = if !prepare_complete_matching_batch {
@@ -1229,10 +1230,11 @@ impl StyleEngine {
             .memory
             .release(MemoryCategory::BatchScratch, fact_view_bytes);
         let plan_is_broad = regions.regions().contains(&ImpactRegion::Document)
-            || regions
-                .regions()
-                .iter()
-                .any(|region| matches!(region, ImpactRegion::TreeScope(_)) || *region == ImpactRegion::Subtree(root));
+            || regions.regions().iter().any(|region| {
+                matches!(region, ImpactRegion::TreeScope(_))
+                    || *region == ImpactRegion::Subtree(root)
+                    || *region == ImpactRegion::StrictSubtree(root)
+            });
         let mut direct_action_nodes = DeltaBatch::default();
         for node in transaction.inputs.iter().filter_map(|input| input.key.style_node()) {
             direct_action_nodes.push(node);
