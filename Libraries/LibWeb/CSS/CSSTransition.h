@@ -44,6 +44,7 @@ public:
     virtual Animations::AnimationClass animation_class() const override;
     virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
 
+    double style_change_event_time() const;
     double transition_start_time() const { return m_start_time; }
     double transition_end_time() const { return m_end_time; }
     NonnullRefPtr<StyleValue const> transition_end_value() const { return m_end_value; }

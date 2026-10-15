@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 20px;
+        height: 20px;
+        transition: transform 1s linear;
+    }
+</style>
+<div id="target"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    async function renderFrameAfter(milliseconds) {
+        await new Promise(resolve => setTimeout(resolve, milliseconds));
+        internals.injectRenderingOpportunity(performance.now());
+        await nextTask();
+    }
+
+    // A transition that the last rendering update started has not run yet, so it shows its start value.
+    function startOffsetOfTransitionTheLastFrameStarted() {
+        return new DOMMatrix(getComputedStyle(target).transform).m41;
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        await renderFrameAfter(0);
+
+        target.style.transform = "translateX(1000px)";
+        await renderFrameAfter(0);
+
+        target.style.transform = "translateX(2000px)";
+        await renderFrameAfter(50);
+        const firstRetargetStartOffset = startOffsetOfTransitionTheLastFrameStarted();
+        println(`transition retargeted a frame after it started starts from where it moved to: ${firstRetargetStartOffset > 0}`);
+
+        target.style.transform = "translateX(3000px)";
+        await renderFrameAfter(50);
+        const secondRetargetStartOffset = startOffsetOfTransitionTheLastFrameStarted();
+        println(`transition retargeted again a frame later starts from where that one moved to: ${secondRetargetStartOffset > firstRetargetStartOffset}`);
+
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>
