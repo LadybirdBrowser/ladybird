@@ -189,6 +189,7 @@ struct WebContentOptions {
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
     FileSchemeUrlsHaveTupleOrigins file_scheme_urls_have_tuple_origins { FileSchemeUrlsHaveTupleOrigins::No };
     Optional<StringView> default_time_zone {};
+    Optional<ByteString> proxy_autoconfig_url {};
 };
 
 }

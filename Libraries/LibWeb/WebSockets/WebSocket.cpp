@@ -185,6 +185,11 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     additional_headers->append({ "User-Agent"sv, ResourceLoader::the().user_agent_for_websocket_url(url_record).to_byte_string() });
 
+    if (ResourceLoader::proxy_autoconfig_url().has_value()) {
+        dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the WebSocket connection", url_record);
+        return Error::from_string_literal("PAC proxy configurations are not supported");
+    }
+
     auto request_client = ResourceLoader::the().request_client();
 
     // FIXME: We could put this request in a queue until the client connection is re-established.

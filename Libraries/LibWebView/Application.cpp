@@ -313,6 +313,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> user_agent_preset;
     Optional<StringView> dns_server_address;
     Optional<StringView> default_time_zone;
+    Optional<StringView> proxy_autoconfig_url;
     Optional<u16> dns_server_port;
     bool use_dns_over_tls = false;
     bool enable_test_mode = false;
@@ -366,6 +367,19 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(window_width, "Set viewport width in pixels (default: 800) (currently only supported for headless mode)", "window-width", 0, "pixels");
     args_parser.add_option(window_height, "Set viewport height in pixels (default: 600) (currently only supported for headless mode)", "window-height", 0, "pixels");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "URL of a PAC file (not supported yet, requests fail)",
+        .long_name = "proxy-autoconfig-url",
+        .value_name = "url",
+        .accept_value = [&](StringView value) {
+            if (!URL::Parser::basic_parse(value).has_value())
+                return false;
+            proxy_autoconfig_url = value;
+            return true;
+        },
+        .hide_mode = Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown,
+    });
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
 #if !defined(AK_OS_ANDROID)
     args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
@@ -663,6 +677,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .paint_viewport_scrollbars = disable_scrollbar_painting ? PaintViewportScrollbars::No : PaintViewportScrollbars::Yes,
         .file_scheme_urls_have_tuple_origins = file_scheme_urls_have_tuple_origins ? FileSchemeUrlsHaveTupleOrigins::Yes : FileSchemeUrlsHaveTupleOrigins::No,
         .default_time_zone = default_time_zone,
+        .proxy_autoconfig_url = proxy_autoconfig_url.map([](auto value) { return value.to_byte_string(); }),
     };
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);

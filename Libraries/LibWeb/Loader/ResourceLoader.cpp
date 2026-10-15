@@ -36,6 +36,22 @@ static RefPtr<ResourceLoader>& resource_loader()
     return resource_loader;
 }
 
+static Optional<URL::URL>& proxy_autoconfig_url_storage()
+{
+    static Optional<URL::URL>& proxy_autoconfig_url = *new Optional<URL::URL>;
+    return proxy_autoconfig_url;
+}
+
+void ResourceLoader::set_proxy_autoconfig_url(URL::URL url)
+{
+    proxy_autoconfig_url_storage() = move(url);
+}
+
+Optional<URL::URL> const& ResourceLoader::proxy_autoconfig_url()
+{
+    return proxy_autoconfig_url_storage();
+}
+
 void ResourceLoader::initialize(GC::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
 {
     resource_loader() = adopt_ref(*new ResourceLoader(heap, move(request_client)));
@@ -86,6 +102,10 @@ void ResourceLoader::prefetch_dns(GC::Ptr<DOM::Document> document, URL::URL cons
         }
     }
 
+    // Speculation would resolve and connect without the proxy that the PAC file would have picked.
+    if (proxy_autoconfig_url().has_value())
+        return;
+
     // FIXME: We could put this request in a queue until the client connection is re-established.
     if (m_request_client)
         m_request_client->ensure_connection(url, RequestServer::CacheLevel::ResolveOnly);
@@ -102,6 +122,10 @@ void ResourceLoader::preconnect(GC::Ptr<DOM::Document> document, URL::URL const&
             return;
         }
     }
+
+    // Speculation would resolve and connect without the proxy that the PAC file would have picked.
+    if (proxy_autoconfig_url().has_value())
+        return;
 
     // FIXME: We could put this request in a queue until the client connection is re-established.
     if (m_request_client)
@@ -414,6 +438,15 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         auto not_implemented_error = ByteString::formatted("Protocol not implemented: {}", url.scheme());
         log_failure(request, not_implemented_error);
         on_complete->function()(false, {}, not_implemented_error);
+        return nullptr;
+    }
+
+    // We cannot evaluate PAC files yet, and connecting directly would ignore the proxy that was asked for.
+    if (proxy_autoconfig_url().has_value()) {
+        dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the request", url);
+        auto error = "PAC proxy configurations are not supported"sv;
+        log_failure(request, error);
+        on_complete->function()(false, {}, error);
         return nullptr;
     }
 

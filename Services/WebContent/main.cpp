@@ -25,6 +25,7 @@
 #include <LibMain/Main.h>
 #include <LibMediaClient/Client.h>
 #include <LibRequests/RequestClient.h>
+#include <LibURL/Parser.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
@@ -210,6 +211,19 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "URL of a PAC file (not supported yet, requests fail)",
+        .long_name = "proxy-autoconfig-url",
+        .value_name = "url",
+        .accept_value = [&](StringView value) {
+            auto url = URL::Parser::basic_parse(value);
+            if (!url.has_value())
+                return false;
+            Web::ResourceLoader::set_proxy_autoconfig_url(url.release_value());
+            return true;
+        },
+    });
 
     args_parser.parse(arguments);
 
