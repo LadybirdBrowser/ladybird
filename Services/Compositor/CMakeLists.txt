@@ -4,6 +4,7 @@ set(SOURCES
     CanvasHost.cpp
     CaretBlinkTimer.cpp
     CompositorState.cpp
+    ContextScene.cpp
     ContextState.cpp
     DisplayListPlayer.cpp
     DisplayListPlayerSkia.cpp
