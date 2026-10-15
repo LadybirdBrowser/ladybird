@@ -683,31 +683,13 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
     if (m_debugger_paused) {
         if (mouse_event) {
-            if (mouse_event->type == Web::MouseEvent::Type::MouseMove) {
-                auto position = mouse_event->position.to_type<int>();
-                set_debugger_overlay_hovered_action(Compositing::paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
-                if (m_debugger_overlay_pointer_state.is_active() && (mouse_event->buttons & Web::UIEvents::MouseButton::Primary) == Web::UIEvents::MouseButton::None)
-                    m_debugger_overlay_pointer_state.cancel();
-            } else if (mouse_event->type == Web::MouseEvent::Type::MouseLeave) {
-                set_debugger_overlay_hovered_action({});
-                m_debugger_overlay_pointer_state.cancel();
-            }
-
-            if (mouse_event->type == Web::MouseEvent::Type::MouseDown
-                && mouse_event->button == Web::UIEvents::MouseButton::Primary) {
-                auto position = mouse_event->position.to_type<int>();
-                m_debugger_overlay_pointer_state.press(Compositing::paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
-            }
-
-            if (mouse_event->type == Web::MouseEvent::Type::MouseUp
-                && mouse_event->button == Web::UIEvents::MouseButton::Primary) {
-                auto position = mouse_event->position.to_type<int>();
-                auto released_action = Compositing::paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio());
-                if (auto action = m_debugger_overlay_pointer_state.release(released_action); action.has_value()) {
-                    resume_debugger(*action == Compositing::PausedDebuggerOverlayAction::StepOver
-                            ? DebuggerResumeMode::StepOver
-                            : DebuggerResumeMode::Continue);
-                }
+            auto activated_action = handle_ui_overlay_mouse_event(m_debugger_overlay_pointer_state, *mouse_event, [&](Gfx::IntSize viewport_size) {
+                return Compositing::paused_debugger_overlay_geometry(viewport_size, device_pixel_ratio()).buttons();
+            });
+            if (activated_action.has_value()) {
+                resume_debugger(*activated_action == Compositing::PausedDebuggerOverlayAction::StepOver
+                        ? DebuggerResumeMode::StepOver
+                        : DebuggerResumeMode::Continue);
             }
         }
         return;
@@ -1755,8 +1737,26 @@ void ViewImplementation::did_resume_debugger(Badge<WebContentPage>)
 void ViewImplementation::did_request_cursor_change(Badge<WebContentPage>, Gfx::Cursor cursor)
 {
     m_page_cursor = move(cursor);
-    if (!m_debugger_overlay_hovered_action.has_value() && on_cursor_change)
-        on_cursor_change(m_page_cursor);
+    apply_cursor();
+}
+
+// Returns the action of the button that the event activated.
+template<typename Action, typename ButtonsForViewport>
+Optional<Action> ViewImplementation::handle_ui_overlay_mouse_event(Compositing::OverlayPointerState<Action>& pointer_state, Web::MouseEvent const& event, ButtonsForViewport const& buttons_for_viewport)
+{
+    auto buttons = buttons_for_viewport(viewport_size().to_type<int>());
+    auto outcome = pointer_state.handle_mouse_event(event, Compositing::overlay_action_at(buttons, event.position.to_type<int>()));
+    if (outcome.hover_changed) {
+        update_ui_overlays();
+        apply_cursor();
+    }
+    return outcome.activated_action;
+}
+
+void ViewImplementation::apply_cursor()
+{
+    if (on_cursor_change)
+        on_cursor_change(is_ui_overlay_hovered() ? Gfx::Cursor { Gfx::StandardCursor::Hand } : m_page_cursor);
 }
 
 void ViewImplementation::set_debugger_paused(bool paused)
@@ -1765,35 +1765,23 @@ void ViewImplementation::set_debugger_paused(bool paused)
         return;
 
     m_debugger_paused = paused;
-    if (!paused)
-        m_debugger_overlay_pointer_state.cancel();
-    if (!paused && m_debugger_overlay_hovered_action.has_value()) {
-        m_debugger_overlay_hovered_action.clear();
-        if (on_cursor_change)
-            on_cursor_change(m_page_cursor);
+    if (!paused) {
+        m_debugger_overlay_pointer_state.reset();
+        apply_cursor();
     }
-    update_paused_debugger_overlay();
+    update_ui_overlays();
 }
 
-void ViewImplementation::set_debugger_overlay_hovered_action(Optional<Compositing::PausedDebuggerOverlayAction> action)
+void ViewImplementation::update_ui_overlays()
 {
-    if (m_debugger_overlay_hovered_action == action)
-        return;
-
-    m_debugger_overlay_hovered_action = action;
-    update_paused_debugger_overlay();
-
-    if (on_cursor_change)
-        on_cursor_change(action.has_value() ? Gfx::Cursor { Gfx::StandardCursor::Hand } : m_page_cursor);
-}
-
-void ViewImplementation::update_paused_debugger_overlay()
-{
-    auto context_id = page().compositor_context_id();
-    Optional<u8> hovered_action;
-    if (m_debugger_overlay_hovered_action.has_value())
-        hovered_action = to_underlying(*m_debugger_overlay_hovered_action);
-    Application::the().update_compositor_paused_debugger_overlay(context_id, m_debugger_paused, device_pixel_ratio(), Application::the().ui_font_family(), hovered_action);
+    Compositing::UIOverlays overlays;
+    if (m_debugger_paused) {
+        overlays.paused_debugger = Compositing::PausedDebuggerOverlayState {
+            .font_family = Application::the().ui_font_family(),
+            .hovered_action = m_debugger_overlay_pointer_state.hovered_action(),
+        };
+    }
+    Application::the().update_compositor_ui_overlays(page().compositor_context_id(), overlays);
 }
 
 void ViewImplementation::update_debugger_blackboxing(Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)
@@ -2406,14 +2394,12 @@ void ViewImplementation::handle_resize()
     // The page forwards its new size to the compositor once it has laid it out. Until then, scaling frames to fit needs
     // the compositor to keep presenting them whole at the size they were laid out for.
     if (!m_scales_frames_to_fit)
-        Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
+        Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), m_device_pixel_ratio, Compositing::WindowResizingInProgress::Yes);
 
     if (m_debugger_paused) {
-        m_debugger_overlay_pointer_state.cancel();
-        if (m_debugger_overlay_hovered_action.has_value())
-            set_debugger_overlay_hovered_action({});
-        else
-            update_paused_debugger_overlay();
+        m_debugger_overlay_pointer_state.reset();
+        update_ui_overlays();
+        apply_cursor();
     }
 }
 
@@ -2698,7 +2684,7 @@ void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
     page.async_set_has_focus(traversable().has_system_focus());
     if (auto focused_navigable_id = traversable().focused_navigable_id(); focused_navigable_id.has_value())
         page.async_set_focused_navigable(*focused_navigable_id);
-    Application::the().update_compositor_viewport(page.compositor_context_id(), viewport_size().to_type<int>());
+    Application::the().update_compositor_viewport(page.compositor_context_id(), viewport_size().to_type<int>(), m_device_pixel_ratio);
     page.async_set_document_cookie_version_buffer(m_document_cookie_version_buffer);
     if (m_debugger_is_attached)
         page.async_attach_debugger();
@@ -2745,7 +2731,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
             if (on_debugger_resumed)
                 on_debugger_resumed();
         }
-        m_debugger_overlay_pointer_state.cancel();
+        m_debugger_overlay_pointer_state.reset();
         fail_pending_debugger_requests();
         reject_pending_selection_requests();
         reset_page_media_state();
@@ -2772,7 +2758,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         install_backing_stores(move(backing_stores->bitmap_ids), move(backing_stores->backing_stores));
 
     auto compositor_context_id = page.compositor_context_id();
-    Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
+    Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>(), m_device_pixel_ratio);
     Application::the().update_compositor_context_visibility(compositor_context_id, traversable().system_visibility_state());
     page.async_update_visibility_state(traversable().id(), traversable().system_visibility_state());
 
@@ -2788,7 +2774,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
     // DevTools inspects the page that displays the tab, and no other.
     page.async_set_has_devtools_client(m_devtools_connected);
     handle_resize();
-    update_paused_debugger_overlay();
+    update_ui_overlays();
 
     if (previous_page && &previous_page->client() != &page.client() && on_web_content_process_change_for_cross_site_navigation)
         on_web_content_process_change_for_cross_site_navigation();

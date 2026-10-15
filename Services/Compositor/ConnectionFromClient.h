@@ -44,8 +44,8 @@ private:
     virtual void connect_render_clock(i32 web_content_connection_id, IPC::TransportHandle) override;
     virtual void connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle) override;
     virtual void create_context(Web::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
-    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress) override;
-    virtual void set_paused_debugger_overlay(Web::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) override;
+    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
+    virtual void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays) override;
     virtual void set_display_metadata(Web::CompositorContextId, Optional<u64>, double) override;
     virtual void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility) override;
     virtual void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent) override;

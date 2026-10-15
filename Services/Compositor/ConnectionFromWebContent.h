@@ -83,7 +83,7 @@ private:
     virtual Messages::CompositorWebContentServer::TakeInputTraceForTestingResponse take_input_trace_for_testing(Web::CompositorContextId) override;
     virtual void cancel_smooth_scroll(Web::CompositorContextId, Web::AsyncScrollNodeStableID) override;
     virtual Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse take_pending_async_scroll_updates(Web::CompositorContextId) override;
-    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress) override;
+    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
     virtual void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second) override;
     virtual void hurry_rendering_opportunity(Web::CompositorContextId) override;
     virtual void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect) override;

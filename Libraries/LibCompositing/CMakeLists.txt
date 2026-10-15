@@ -19,6 +19,7 @@ set(SOURCES
     Scrolling/SmoothScrollAnimation.cpp
     Scrolling/WheelGestureIdentity.cpp
     Types.cpp
+    UIOverlays.cpp
     WebGL/TextureUpload.cpp
     WebGL/WebGLCommandList.cpp
 )

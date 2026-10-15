@@ -23,7 +23,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Weakable.h>
-#include <LibCompositing/PausedDebuggerOverlay.h>
+#include <LibCompositing/UIOverlays.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Forward.h>
 #include <LibCore/GeolocationProvider.h>
@@ -632,8 +632,11 @@ protected:
     void handle_resize();
     void fail_pending_debugger_requests();
     void set_debugger_paused(bool);
-    void set_debugger_overlay_hovered_action(Optional<Compositing::PausedDebuggerOverlayAction>);
-    void update_paused_debugger_overlay();
+    template<typename Action, typename ButtonsForViewport>
+    Optional<Action> handle_ui_overlay_mouse_event(Compositing::OverlayPointerState<Action>&, Web::MouseEvent const&, ButtonsForViewport const&);
+    bool is_ui_overlay_hovered() const { return m_debugger_overlay_pointer_state.hovered_action().has_value(); }
+    void apply_cursor();
+    void update_ui_overlays();
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
@@ -822,8 +825,7 @@ protected:
     u64 m_next_input_event_id { 1 };
     bool m_debugger_is_attached { false };
     bool m_debugger_paused { false };
-    Compositing::PausedDebuggerOverlayPointerState m_debugger_overlay_pointer_state;
-    Optional<Compositing::PausedDebuggerOverlayAction> m_debugger_overlay_hovered_action;
+    Compositing::OverlayPointerState<Compositing::PausedDebuggerOverlayAction> m_debugger_overlay_pointer_state;
     Gfx::Cursor m_page_cursor { Gfx::StandardCursor::Arrow };
 
     struct PendingExternalURLRequest {

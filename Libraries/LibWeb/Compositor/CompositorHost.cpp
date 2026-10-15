@@ -108,9 +108,9 @@ Compositing::PendingAsyncScrollUpdates CompositorContextHandle::take_pending_asy
     return m_host.take_pending_async_scroll_updates(m_context_id, freshness);
 }
 
-void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
-    m_host.viewport_size_updated(m_context_id, viewport_size, window_resize_in_progress);
+    m_host.viewport_size_updated(m_context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
 }
 
 bool CompositorContextHandle::request_rendering_opportunity(double maximum_frames_per_second)
@@ -489,10 +489,10 @@ Compositing::PendingAsyncScrollUpdates CompositorHost::take_pending_async_scroll
     return {};
 }
 
-void CompositorHost::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void CompositorHost::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (auto* connection = compositor_connection())
-        connection->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
+        connection->viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
 }
 
 bool CompositorHost::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)

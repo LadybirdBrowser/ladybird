@@ -581,11 +581,11 @@ void CompositorConnection::merge_async_scroll_updates(Web::CompositorContextId c
     pending.user_scroll_gesture_ended |= updates.user_scroll_gesture_ended;
 }
 
-void CompositorConnection::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void CompositorConnection::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
+    async_viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
 }
 
 bool CompositorConnection::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)

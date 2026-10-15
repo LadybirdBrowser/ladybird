@@ -165,8 +165,8 @@ public:
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
 
-    void viewport_size_updated(Gfx::IntSize, Compositing::WindowResizingInProgress);
-    bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action);
+    void viewport_size_updated(Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
+    bool set_ui_overlays(Compositing::UIOverlays);
 
     bool set_display_metadata(Optional<u64> display_id, double refresh_rate);
     Optional<u64> display_id() const { return m_display_id; }

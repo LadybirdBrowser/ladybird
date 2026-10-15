@@ -4700,6 +4700,7 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
     if (has_compositor_context()) {
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
+            page().client().device_pixel_ratio(),
             Compositing::WindowResizingInProgress::Yes);
     }
 
@@ -6550,6 +6551,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
         }
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
+            page().client().device_pixel_ratio(),
             Compositing::WindowResizingInProgress::No);
 
         m_needs_repaint = true;

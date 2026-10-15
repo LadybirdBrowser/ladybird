@@ -9,7 +9,7 @@
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibCompositing/FontServiceClient.h>
-#include <LibCompositing/PausedDebuggerOverlay.h>
+#include <LibCompositing/UIOverlays.h>
 #include <LibCore/Process.h>
 #include <LibIPC/Transport.h>
 
@@ -103,27 +103,18 @@ void ConnectionFromClient::create_context(Web::CompositorContextId context_id, O
     m_compositor_state->create_context(context_id, page_id, *connection);
 }
 
-void ConnectionFromClient::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
-{
-    m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
-}
-
-void ConnectionFromClient::set_paused_debugger_overlay(Web::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action_value)
+void ConnectionFromClient::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (!isfinite(device_pixel_ratio) || device_pixel_ratio <= 0) {
         did_misbehave("Invalid device pixel ratio");
         return;
     }
+    m_compositor_state->viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
+}
 
-    Optional<Compositing::PausedDebuggerOverlayAction> hovered_action;
-    if (hovered_action_value.has_value()) {
-        hovered_action = Compositing::paused_debugger_overlay_action_from_underlying(*hovered_action_value);
-        if (!hovered_action.has_value()) {
-            did_misbehave("Invalid paused debugger overlay action");
-            return;
-        }
-    }
-    m_compositor_state->set_paused_debugger_overlay(context_id, visible, device_pixel_ratio, move(font_family), hovered_action);
+void ConnectionFromClient::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)
+{
+    m_compositor_state->set_ui_overlays(context_id, move(overlays));
 }
 
 void ConnectionFromClient::set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)

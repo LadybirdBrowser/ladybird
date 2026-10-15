@@ -472,11 +472,15 @@ Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse Conn
     return m_compositor_state->take_pending_async_scroll_updates(context_id);
 }
 
-void ConnectionFromWebContent::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void ConnectionFromWebContent::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
+    if (!isfinite(device_pixel_ratio) || device_pixel_ratio <= 0) {
+        did_misbehave("WebContent sent an invalid device pixel ratio");
+        return;
+    }
+    m_compositor_state->viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
 }
 
 void ConnectionFromWebContent::present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect)

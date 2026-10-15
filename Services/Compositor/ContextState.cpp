@@ -249,7 +249,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
 
-    if (!presents_to_client() || m_presenter.paused_debugger_overlay_visible()
+    if (!presents_to_client() || m_presenter.ui_overlays().paused_debugger.has_value()
         || m_visibility != Compositing::ContextVisibility::Visible
         || !Web::is_keyboard_scroll_key(event.key, event.modifiers)
         || !m_keyboard_scroll_controller.has_target()
@@ -1308,25 +1308,23 @@ bool ContextState::has_pending_async_scroll_updates() const
     return m_async_scroll_update_outbox.has_updates(user_scroll_gesture_in_progress());
 }
 
-void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     m_scene.forget_whether_animated_content_may_affect_viewport();
     if (m_presenter.viewport_size() != viewport_size)
         m_keyboard_scroll_controller.forget_target();
     auto is_page_presentation_context = m_page_id.has_value() && !m_parent_context_id.has_value();
-    m_presenter.set_viewport_size(viewport_size, is_page_presentation_context ? window_resize_in_progress : Compositing::WindowResizingInProgress::No);
+    m_presenter.set_viewport_size(viewport_size, device_pixel_ratio, is_page_presentation_context ? window_resize_in_progress : Compositing::WindowResizingInProgress::No);
 }
 
-bool ContextState::set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action)
+bool ContextState::set_ui_overlays(Compositing::UIOverlays overlays)
 {
-    VERIFY(device_pixel_ratio > 0);
-    PausedDebuggerOverlayState paused_debugger_overlay { visible, device_pixel_ratio, move(font_family), hovered_action };
-    if (m_presenter.paused_debugger_overlay() == paused_debugger_overlay)
+    if (m_presenter.ui_overlays() == overlays)
         return false;
 
-    if (visible)
+    if (overlays.paused_debugger.has_value())
         end_keyboard_scroll_gesture();
-    m_presenter.set_paused_debugger_overlay(move(paused_debugger_overlay));
+    m_presenter.set_ui_overlays(move(overlays));
     return true;
 }
 
