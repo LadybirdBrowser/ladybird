@@ -38,7 +38,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path, StringView site_isolation_mode)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path, StringView site_isolation_mode, Optional<ByteString> const& proxy_autoconfig_url)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -81,6 +81,9 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
 
     if (resource_substitution_map_path.has_value())
         arguments.append(ByteString::formatted("--resource-map={}", resource_substitution_map_path.value()));
+
+    if (proxy_autoconfig_url.has_value())
+        arguments.append(ByteString::formatted("--proxy-autoconfig-url={}", *proxy_autoconfig_url));
 
     arguments.append(ByteString::formatted("--site-isolation={}", site_isolation_mode));
 
@@ -208,8 +211,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return;
         }
 
-        auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless) {
-            auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path, site_isolation_mode);
+        auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless, Optional<ByteString> const& proxy_autoconfig_url) {
+            auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path, site_isolation_mode, proxy_autoconfig_url);
             return launch_process("Ladybird"sv, arguments.span());
         };
 

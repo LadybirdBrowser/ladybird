@@ -16,6 +16,9 @@ WEBCOMMON_API bool has_proxy_configuration();
 WEBCOMMON_API void set_has_proxy_configuration(bool);
 WEBCOMMON_API void reset_has_proxy_configuration();
 
+WEBCOMMON_API bool is_supported_proxy_configuration(JsonValue const&);
+WEBCOMMON_API Optional<String> proxy_autoconfig_url(JsonValue const&);
+
 WEBCOMMON_API ErrorOr<JsonObject, Error> deserialize_as_a_proxy(JsonValue const&);
 
 }

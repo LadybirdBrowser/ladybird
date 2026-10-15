@@ -17,7 +17,7 @@
 
 namespace WebDriver {
 
-using LaunchBrowserCallback = Function<ErrorOr<Core::Process>(ByteString const& socket_path, bool headless)>;
+using LaunchBrowserCallback = Function<ErrorOr<Core::Process>(ByteString const& socket_path, bool headless, Optional<ByteString> const& proxy_autoconfig_url)>;
 
 class Client final : public Web::WebDriver::Client {
     C_OBJECT_ABSTRACT(Client);

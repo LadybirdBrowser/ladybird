@@ -311,7 +311,7 @@ static JsonValue match_capabilities(JsonObject const& capabilities, SessionFlags
         else if (name == "proxy"sv) {
             // If the has proxy configuration flag is set, or if the proxy configuration defined in value is not one that
             // passes the endpoint node's implementation-specific validity checks, return success with data null.
-            if (has_proxy_configuration())
+            if (has_proxy_configuration() || !is_supported_proxy_configuration(value))
                 return AK::Error::from_string_literal("proxy");
         }
         // -> "unhandledPromptBehavior"
