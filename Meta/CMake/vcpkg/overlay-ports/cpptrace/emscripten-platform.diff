@@ -1,0 +1,12 @@
+diff --git a/src/platform/platform.hpp b/src/platform/platform.hpp
+--- a/src/platform/platform.hpp
++++ b/src/platform/platform.hpp
+@@ -8,7 +8,7 @@
+ #if defined(_WIN32)
+  #undef IS_WINDOWS
+  #define IS_WINDOWS 1
+-#elif defined(__linux)
++#elif defined(__linux) || defined(__EMSCRIPTEN__)
+  #undef IS_LINUX
+  #define IS_LINUX 1
+ #elif defined(__APPLE__)
