@@ -14,6 +14,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
 #include <AK/Vector.h>
+#include <Compositor/AsyncScrollUpdateOutbox.h>
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/Forward.h>
@@ -403,25 +404,10 @@ private:
     Compositing::AsyncScrollTree m_async_scroll_tree;
     ScrollbarController m_scrollbar_controller;
     ScrollSnapController m_scroll_snap_controller;
-    Vector<Compositing::StartedUserScroll> m_started_user_scrolls;
 
-    Vector<Compositing::AsyncScrollOffset> m_pending_async_scroll_offsets;
-    // Offsets handed to WebContent that no snapshot of its has incorporated yet; the compositor keeps
-    // reapplying them over the main-thread state that arrives in the meantime.
-    struct UnreconciledAsyncScrollOffset {
-        u64 sequence { 0 };
-        Web::AsyncScrollNodeStableID stable_node_id;
-        Gfx::FloatPoint compositor_scroll_offset;
-    };
-    Vector<UnreconciledAsyncScrollOffset> m_unreconciled_async_scroll_offsets;
-    u64 m_next_async_scroll_update_sequence { 0 };
-    void retire_reconciled_async_scroll_offsets(u64 adopted_sequence);
-    Vector<Compositing::AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
-    Vector<Compositing::AsyncScrollOperationID> m_async_scroll_operation_ids_taken_over_by_user_input;
+    AsyncScrollUpdateOutbox m_async_scroll_update_outbox;
     Compositing::KeyboardScrollState m_keyboard_scroll_state;
     Vector<Web::UIEvents::KeyCode, 3> m_held_scroll_keys;
-    bool m_user_scroll_gesture_ended { false };
-    bool m_published_user_scroll_gesture_in_progress { false };
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     Optional<WheelScrollLatch> m_wheel_scroll_latch;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
@@ -440,7 +426,6 @@ private:
     NewestWheelEventIdsFromUI m_newest_wheel_event_ids_from_ui;
     Compositing::ScrollVelocityTracker m_elastic_overscroll_velocity_tracker;
     bool m_scrolls_elastically { false };
-    Compositing::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
     bool m_has_blocking_wheel_event_listeners { false };

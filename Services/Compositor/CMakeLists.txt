@@ -1,4 +1,5 @@
 set(SOURCES
+    AsyncScrollUpdateOutbox.cpp
     BackingStoreManager.cpp
     CanvasHost.cpp
     CompositorState.cpp
