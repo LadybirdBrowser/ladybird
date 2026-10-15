@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/Optional.h>
+#include <AK/StdLibExtras.h>
 #include <AK/Time.h>
 
 namespace Compositor {
@@ -26,6 +28,30 @@ public:
 private:
     double m_maximum_frames_per_second { 60.0 };
     Optional<i64> m_last_frame_time_nanoseconds;
+};
+
+// A display tick that was asked for and not delivered yet, paced to the rate it was last asked for at.
+class PacedTickRequest {
+public:
+    // Returns whether the tick had not been asked for already.
+    bool request(double maximum_frames_per_second)
+    {
+        m_pacer.set_maximum_frames_per_second(maximum_frames_per_second);
+        return !exchange(m_requested, true);
+    }
+    bool is_requested() const { return m_requested; }
+    double frame_interval(double display_refresh_rate) const { return m_pacer.frame_interval(display_refresh_rate); }
+    bool is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_pacer.is_due(frame_time, display_refresh_rate); }
+    void did_deliver(MonotonicTime frame_time)
+    {
+        VERIFY(m_requested);
+        m_requested = false;
+        m_pacer.did_deliver(frame_time);
+    }
+
+private:
+    bool m_requested { false };
+    FramePacer m_pacer;
 };
 
 }

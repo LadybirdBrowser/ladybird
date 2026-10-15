@@ -1575,45 +1575,6 @@ bool ContextState::set_visibility(Compositing::ContextVisibility visibility)
     return true;
 }
 
-bool ContextState::request_rendering_opportunity(double maximum_frames_per_second)
-{
-    m_rendering_opportunity_pacer.set_maximum_frames_per_second(maximum_frames_per_second);
-    if (m_rendering_opportunity_requested)
-        return false;
-    m_rendering_opportunity_requested = true;
-    return true;
-}
-
-double ContextState::rendering_opportunity_frame_interval(double display_refresh_rate) const
-{
-    return m_rendering_opportunity_pacer.frame_interval(display_refresh_rate);
-}
-
-bool ContextState::rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const
-{
-    return m_rendering_opportunity_pacer.is_due(frame_time, display_refresh_rate);
-}
-
-void ContextState::did_deliver_rendering_opportunity(MonotonicTime frame_time)
-{
-    VERIFY(m_rendering_opportunity_requested);
-    m_rendering_opportunity_requested = false;
-    m_rendering_opportunity_pacer.did_deliver(frame_time);
-}
-
-bool ContextState::request_clock_tick(double maximum_frames_per_second)
-{
-    m_clock_tick_pacer.set_maximum_frames_per_second(maximum_frames_per_second);
-    return !exchange(m_clock_tick_requested, true);
-}
-
-void ContextState::did_deliver_clock_tick(MonotonicTime frame_time)
-{
-    VERIFY(m_clock_tick_requested);
-    m_clock_tick_requested = false;
-    m_clock_tick_pacer.did_deliver(frame_time);
-}
-
 Vector<Web::CompositorScrollOffset> ContextState::scroll_offsets() const
 {
     auto scroll_nodes = m_async_scroll_tree.scroll_nodes();
