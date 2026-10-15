@@ -1,0 +1,24 @@
+Ladybird skips per-frame sampling of forward infinite animations inside
+box-less iframe containers. Script observations still sample current
+time, and CSS iteration listeners keep their scheduled wake-ups. This
+optimization leaves finite and reverse-playing animations on their
+normal sampling paths so they can still complete while hidden.
+
+Blink’s FrameView::CanThrottleRenderingForPropagation() accounts for
+cross-origin frames whose OwnerLayoutObject() is absent. Gecko sets its
+IsUnderHiddenEmbedderElement flag from the embedding layout, through
+nsSubDocumentFrame::PropagateIsUnderHiddenEmbedderElement(). Gecko’s
+PresShell::IsVisible() and Document::ShouldThrottleFrameRequests() both
+consult that flag when deciding if a document can be rendered.
+
+WebKit’s KeyframeEffect::ticksContinuouslyWhileActive() skips effects
+whose target has neither a renderer nor a retained style, and its
+KeyframeEffect::timeToNextTick() schedules observable CSS iteration
+events at iteration boundaries. FrameView::invalidateRect() stops
+repaint propagation when the iframe owner has no renderer to repaint.
+
+The engines differ in their frame-level throttling policies. Ladybird
+keeps its frame-level timer and requestAnimationFrame behavior, and
+extends its effect-level sampling optimization across local iframe
+containers. This follows the same observation-preserving approach as
+WebKit’s per-effect scheduling, with an additional embedding-box check.
