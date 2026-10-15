@@ -822,12 +822,6 @@ enum SubstitutionContextDependency {
     Function(CustomFunctionIdentity),
 }
 
-impl SubstitutionContextDependency {
-    fn is_property(&self, name: &[u16], custom_function: Option<CustomFunctionIdentity>) -> bool {
-        matches!(self, Self::Property(property_name, property_custom_function) if property_name == name && *property_custom_function == custom_function)
-    }
-}
-
 struct SubstitutionContext {
     dependency: SubstitutionContextDependency,
     is_cyclic: Cell<bool>,
@@ -883,7 +877,6 @@ struct ASFResolutionContext<'a> {
     guarded_contexts: GuardedSubstitutionContexts,
     attributes: Option<&'a HashMap<Vec<u16>, Vec<u16>>>,
     inheritance_store: Option<&'a CustomPropertyStore>,
-    inheritance_store_overrides: Vec<Option<Arc<CustomPropertyStore>>>,
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
     /// Whether the substitution under way is inside a function that takes a URL.
@@ -1527,10 +1520,11 @@ fn resolve_custom_property_with_lookup(
     }
     let (source, includes_var, contains_attr_tainted_values) = cached_tokens_for_custom_property_value(data, context);
     context.contains_attr_tainted_values |= contains_attr_tainted_values;
-    if lookup == CustomPropertyLookup::ExplicitInheritance {
-        context
-            .inheritance_store_overrides
-            .push(owner.inheritance_parent.clone());
+    // https://drafts.csswg.org/css-cascade-5/#inheritance
+    // The inherited value of a property on an element is the computed value of the property on the element’s parent
+    // element.
+    if lookup == CustomPropertyLookup::ExplicitInheritance || store.is_some_and(|store| !std::ptr::eq(store, owner)) {
+        return TokenResolution::Resolved(source.to_vec());
     }
     let result = if includes_var {
         substitute_arbitrary_substitution_functions(
@@ -1544,9 +1538,6 @@ fn resolve_custom_property_with_lookup(
     } else {
         TokenResolution::Resolved(source.to_vec())
     };
-    if lookup == CustomPropertyLookup::ExplicitInheritance {
-        context.inheritance_store_overrides.pop();
-    }
     if let TokenResolution::Resolved(tokens) = &result
         && let Some(keyword) = single_css_wide_keyword(tokens)
     {
@@ -1642,22 +1633,10 @@ fn replace_inherit_function(
     };
     if let Some(name) = name {
         let local_scope = context.function_local_scopes.pop();
-        // FIXME: Inherited values should already be computed. This is not guaranteed during custom-function evaluation:
-        //        the function's hypothetical element inherits from the calling element while that element's
-        //        custom-property resolution batch can still be in progress. Until inherited lookup supplies a computed
-        //        value, temporarily unguard the same property while resolving it from the selected store.
-        let inherited_same_name = {
-            let mut guarded_contexts = context.guarded_contexts.contexts.borrow_mut();
-            guarded_contexts
-                .iter()
-                .rposition(|context| context.dependency.is_property(name, None))
-                .map(|index| (index, guarded_contexts.remove(index)))
-        };
-        let inherited_store_override = context.inheritance_store_overrides.last().cloned().flatten();
         let inherited_store = if local_scope.is_some() {
             store
         } else {
-            inherited_store_override.as_deref().or(context.inheritance_store)
+            context.inheritance_store
         };
         let result = resolve_custom_property_with_lookup(
             inherited_store,
@@ -1673,13 +1652,6 @@ fn replace_inherit_function(
         );
         if let Some(local_scope) = local_scope {
             context.function_local_scopes.push(local_scope);
-        }
-        if let Some((index, inherited_same_name)) = inherited_same_name {
-            context
-                .guarded_contexts
-                .contexts
-                .borrow_mut()
-                .insert(index, inherited_same_name);
         }
         match result {
             TokenResolution::Invalid | TokenResolution::Cyclic => {}
