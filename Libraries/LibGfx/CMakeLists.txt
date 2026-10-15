@@ -69,7 +69,7 @@ if (HAS_DIRECTX)
 endif()
 
 if (HAS_VULKAN)
-    list(APPEND SOURCES SkiaVulkanMemoryAllocator.cpp VulkanContext.cpp VulkanImage.cpp)
+    list(APPEND SOURCES ImportedYCbCrVulkanImage.cpp SkiaVulkanMemoryAllocator.cpp VulkanContext.cpp VulkanImage.cpp)
 endif()
 
 if (HAS_FONTCONFIG)

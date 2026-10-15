@@ -277,7 +277,17 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(VulkanConte
     };
 
     auto extensions = make<skgpu::VulkanExtensions>();
+    extensions->init(backend_context.fGetProc, vulkan_context.instance, vulkan_context.physical_device, 0, nullptr, vulkan_context.enabled_device_extensions.size(), vulkan_context.enabled_device_extensions.data());
     backend_context.fVkExtensions = extensions.ptr();
+
+    // Skia samples through a YCbCr conversion only once it knows the device has that enabled.
+    VkPhysicalDeviceSamplerYcbcrConversionFeatures ycbcr_conversion_features {};
+    ycbcr_conversion_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES;
+    ycbcr_conversion_features.samplerYcbcrConversion = vulkan_context.can_sample_through_ycbcr_conversion ? VK_TRUE : VK_FALSE;
+    VkPhysicalDeviceFeatures2 features {};
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features.pNext = &ycbcr_conversion_features;
+    backend_context.fDeviceFeatures2 = &features;
 
     backend_context.fMemoryAllocator = create_skia_vulkan_memory_allocator(vulkan_context);
     VERIFY(backend_context.fMemoryAllocator);
