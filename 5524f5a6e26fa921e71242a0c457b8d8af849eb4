@@ -1,0 +1,20 @@
+When a callback’s realm’s global object is a Window whose associated
+Document isn’t fully active, Ladybird refuses to call it — whether
+invoking or constructing a callback function, or calling a callback
+interface’s operation — and throws a NotSupportedError. Gecko’s
+CallSetup::GetActiveGlobalObjectForCall(), which all three go through,
+does the same for a callback whose window fails HasActiveDocument(),
+throwing a NotSupportedError (“Refusing to execute function from window
+whose document is no longer active.”). Blink’s generated callback
+bindings throw “The provided callback is no longer runnable.” when
+IsCallbackFunctionRunnable() fails, i.e. once the callback’s context is
+invalid or destroyed — and Blink checks the incumbent context too.
+
+WebKit has a check of its own, but it doesn’t catch these callbacks. Its
+generated callbacks return UnableToExecute when ActiveDOMCallback::
+canInvokeCallback() fails, which happens only once the callback’s
+ScriptExecutionContext has stopped or suspended its active DOM objects.
+And Safari still calls a callback from a removed iframe, or from a
+navigated-away document. WebKit also exempts a few callbacks from that
+check with [SkipCallbackInvokeCheck], NodeFilter’s acceptNode() among
+them; Ladybird, Gecko, and Blink refuse those like any other.
