@@ -93,6 +93,21 @@ void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
     Web::ResourceLoader::the().set_site_compatibility_data(parsed_data.release_value());
 }
 
+void ConnectionFromClient::set_user_agent(String user_agent)
+{
+    Web::ResourceLoader::the().set_user_agent(move(user_agent));
+}
+
+void ConnectionFromClient::set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
+{
+    Web::ResourceLoader::the().set_navigator_compatibility_mode(mode);
+}
+
+void ConnectionFromClient::set_preferred_languages(Vector<String> preferred_languages)
+{
+    Web::ResourceLoader::the().set_preferred_languages(move(preferred_languages));
+}
+
 void ConnectionFromClient::close_worker()
 {
     async_did_close_worker();
