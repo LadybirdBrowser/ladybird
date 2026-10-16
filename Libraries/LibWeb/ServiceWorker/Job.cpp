@@ -22,10 +22,10 @@
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/SecureContexts/AbstractOperations.h>
 #include <LibWeb/ServiceWorker/Job.h>
 #include <LibWeb/ServiceWorker/Registration.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 namespace Web::ServiceWorker {
 
