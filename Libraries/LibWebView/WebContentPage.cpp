@@ -312,6 +312,8 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (!navigation || !navigation->state.has<CanonicalNavigation::AcquiringResponseBody>())
         return false;
 
+    navigation->loader()->obtain_the_response_policies(*navigable);
+
     NonnullRefPtr history_entry = *navigation->history_entry;
     auto host_or_error = navigable->obtain_page_to_populate_document(history_entry, *navigation->loader(), *this);
     if (host_or_error.is_error()) {
