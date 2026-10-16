@@ -18,6 +18,7 @@ namespace Web {
 
 enum class UserAgentTransformation : u8 {
     HideLadybird,
+    ForceLadybird,
 };
 
 class WEBCOMMON_API SiteCompatibilityRule {

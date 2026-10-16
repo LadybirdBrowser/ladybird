@@ -8,6 +8,7 @@
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWebCommon/Loader/SiteCompatibility.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 static constexpr auto default_user_agent = "Mozilla/5.0 Ladybird/1.0 Chrome/146.0.0.0 Safari/537.36"sv;
 
@@ -91,6 +92,43 @@ TEST_CASE(hide_ladybird_only_removes_ladybird_products)
     EXPECT_EQ(rule.apply_user_agent_transformations("Mozilla/5.0 Ladybird/1.0"sv), "Mozilla/5.0"_string);
     EXPECT_EQ(rule.apply_user_agent_transformations("Mozilla/5.0 Ladybird Preview/1.0"sv), "Mozilla/5.0 Ladybird Preview/1.0"_string);
     EXPECT_EQ(rule.apply_user_agent_transformations("Mozilla/5.0 MyLadybird/1.0"sv), "Mozilla/5.0 MyLadybird/1.0"_string);
+}
+
+TEST_CASE(force_ladybird_answers_ladybirds_own_user_agent_whatever_the_preset)
+{
+    auto rule = MUST(Web::SiteCompatibilityRule::create(
+        { "https://www.example.com/*"_string },
+        { Web::UserAgentTransformation::ForceLadybird }));
+
+    static constexpr auto spoofed_user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15"sv;
+    EXPECT_EQ(rule.apply_user_agent_transformations(spoofed_user_agent), Web::default_user_agent);
+    EXPECT_EQ(rule.apply_user_agent_transformations(Web::default_user_agent), Web::default_user_agent);
+}
+
+TEST_CASE(force_ladybird_undoes_an_earlier_hide)
+{
+    Web::SiteCompatibilityData data;
+    data.add_rule(MUST(Web::SiteCompatibilityRule::create(
+        { "https://www.example.com/*"_string },
+        { Web::UserAgentTransformation::HideLadybird })));
+    data.add_rule(MUST(Web::SiteCompatibilityRule::create(
+        { "https://www.example.com/*"_string },
+        { Web::UserAgentTransformation::ForceLadybird })));
+
+    EXPECT_EQ(data.user_agent_for_url(url("https://www.example.com/"sv), default_user_agent), Web::default_user_agent);
+}
+
+TEST_CASE(data_parses_force_ladybird)
+{
+    auto data = MUST(Web::SiteCompatibilityData::from_json(MUST(JsonValue::from_string(R"([
+        {
+            "matches": ["https://www.example.com/*"],
+            "user_agent": ["force_Ladybird"]
+        }
+    ])"sv))));
+
+    EXPECT_EQ(data.user_agent_for_url(url("https://www.example.com/"sv), "CustomAgent/42"sv), Web::default_user_agent);
+    EXPECT_EQ(data.user_agent_for_url(url("https://elsewhere.example/"sv), "CustomAgent/42"sv), "CustomAgent/42"_string);
 }
 
 TEST_CASE(data_parses_rule_array)

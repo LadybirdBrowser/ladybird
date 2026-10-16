@@ -1,0 +1,2 @@
+hide_Ladybird alone: PASS
+force_Ladybird after hide_Ladybird: PASS
