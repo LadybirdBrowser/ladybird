@@ -1537,15 +1537,13 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     auto& navigable = changing_navigable.navigable();
     auto& target_entry = *changing_navigable.target_entry;
 
-    RefPtr<WebContentPage> host = page_hosting(navigable);
-    if (auto const& populated_document = target_entry.document_state->populated_document; populated_document.has_value() && populated_document->document->host() == source_page)
-        host = source_page;
-
     Optional<Utf16String const&> navigation_id;
     if (auto navigation = finalized_navigation(operation))
         navigation_id = navigation->navigation_id;
     auto const* replaced_document = &navigable.active_document();
-    navigable.did_commit_navigation(target_entry, move(activated_navigable_state), operation.sequence_number, navigation_id, move(host));
+    // NB: The page that activated the document hosts it: the job's, which hosts the document the job populated, or else
+    //     the navigable's.
+    navigable.did_commit_navigation(target_entry, move(activated_navigable_state), operation.sequence_number, navigation_id, move(source_page));
 
     // NB: Another operation's job for the document this replaced cannot run: destroying the document drops its tasks.
     //     This operation's job has ended already.
