@@ -35,6 +35,11 @@ use crate::runtime::realm::Realm;
 /// %Map.prototype.set%, which the Map constructor calls directly when it finds it as the adder.
 pub(crate) static SET_FUNCTION: RawNativeFunctionPointer = raw_native!(MapPrototype::set);
 
+/// %Map.prototype.get%, which JIT code calls through a runtime helper.
+pub(crate) static GET_FUNCTION: RawNativeFunctionPointer = raw_native!(MapPrototype::get);
+/// %Map.prototype.has%, which JIT code calls through a runtime helper.
+pub(crate) static HAS_FUNCTION: RawNativeFunctionPointer = raw_native!(MapPrototype::has);
+
 /// %Map.prototype%.
 #[repr(C)]
 #[derive(Trace)]
@@ -93,14 +98,14 @@ impl MapPrototype {
             .entries_function
             .set(Some(entries_function));
         define_native_function(&names.forEach, raw_native!(MapPrototype::for_each), 1);
-        define_native_function(&names.get, raw_native!(MapPrototype::get), 1);
+        define_native_function(&names.get, GET_FUNCTION, 1);
         define_native_function(&names.getOrInsert, raw_native!(MapPrototype::get_or_insert), 2);
         define_native_function(
             &names.getOrInsertComputed,
             raw_native!(MapPrototype::get_or_insert_computed),
             2,
         );
-        define_native_function(&names.has, raw_native!(MapPrototype::has), 1);
+        define_native_function(&names.has, HAS_FUNCTION, 1);
         define_native_function(&names.keys, raw_native!(MapPrototype::keys), 0);
         define_native_function(&names.set, SET_FUNCTION, 2);
         define_native_function(&names.values, raw_native!(MapPrototype::values), 0);

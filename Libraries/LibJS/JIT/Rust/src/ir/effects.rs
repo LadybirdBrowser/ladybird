@@ -14,7 +14,7 @@
 
 /// A set of abstract locations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Locations(u8);
+pub struct Locations(u16);
 
 impl Locations {
     pub const NONE: Self = Self(0);
@@ -38,8 +38,11 @@ impl Locations {
     pub const BINDINGS: Self = Self(1 << 6);
     /// The internal state of iterators.
     pub const ITERATORS: Self = Self(1 << 7);
+    /// The entries of keyed collections (Map, Set, WeakMap and WeakSet
+    /// objects).
+    pub const COLLECTIONS: Self = Self(1 << 8);
     /// Every location.
-    pub const ALL: Self = Self(u8::MAX);
+    pub const ALL: Self = Self(u16::MAX);
 
     /// Named properties: their values and which objects have them.
     pub const NAMED: Self = Self::NAMED_SLOTS.union(Self::SHAPES);

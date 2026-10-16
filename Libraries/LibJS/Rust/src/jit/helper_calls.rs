@@ -13,6 +13,8 @@ use libjs_jit::snapshot::Intrinsic;
 
 use crate::interpreter::vm::Vm;
 use crate::layout::value::Value;
+use crate::runtime::keyed_collections::canonicalize_keyed_collection_key;
+use crate::runtime::map::Map;
 use crate::runtime::regexp_prototype::regexp_builtin_exec_running_no_code;
 use crate::runtime::string_prototype::{StringPrototype, trim_primitive_string};
 use crate::utf16::TrimMode;
@@ -34,6 +36,8 @@ pub fn address(intrinsic: Intrinsic) -> u64 {
         Intrinsic::StringPrototypeTrimStart => string_trim_start as *const (),
         Intrinsic::StringPrototypeTrimEnd => string_trim_end as *const (),
         Intrinsic::RegExpPrototypeExec => regexp_exec as *const (),
+        Intrinsic::MapPrototypeGet => map_get as *const (),
+        Intrinsic::MapPrototypeHas => map_has as *const (),
         Intrinsic::FunctionPrototypeApply
         | Intrinsic::FunctionPrototypeCall
         | Intrinsic::ArrayPrototypePush
@@ -155,4 +159,31 @@ extern "C" fn string_trim_end(vm: &Vm, string_value: u64) -> u64 {
 extern "C" fn regexp_exec(vm: &Vm, regexp: u64, string_value: u64) -> u64 {
     regexp_builtin_exec_running_no_code(vm, Value(regexp), string(string_value).as_string())
         .map_or(Value::EMPTY.0, |result| result.0)
+}
+
+/// The Map a `this` value is, if it is one.
+fn map(value: u64) -> Option<crate::layout::cell::Gc<Map>> {
+    let value = Value(value);
+    if !value.is_object() {
+        return None;
+    }
+    value.as_object().downcast::<Map>()
+}
+
+/// `map.get(key)`, or the empty value if the `this` value is no Map.
+extern "C" fn map_get(_vm: &Vm, map_value: u64, key: u64) -> u64 {
+    let Some(map) = map(map_value) else {
+        return Value::EMPTY.0;
+    };
+    map.map_get(canonicalize_keyed_collection_key(Value(key)))
+        .unwrap_or(Value::UNDEFINED)
+        .0
+}
+
+/// `map.has(key)`, or the empty value if the `this` value is no Map.
+extern "C" fn map_has(_vm: &Vm, map_value: u64, key: u64) -> u64 {
+    let Some(map) = map(map_value) else {
+        return Value::EMPTY.0;
+    };
+    Value::from_bool(map.map_has(canonicalize_keyed_collection_key(Value(key)))).0
 }
