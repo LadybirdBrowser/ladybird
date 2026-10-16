@@ -70,20 +70,40 @@ impl GraphBuilder<'_> {
             }
             Instruction::ResolveThisBinding => self.build_resolve_this_binding(),
             Instruction::CallBuiltinMathAbs {
-                dst, callee, argument, ..
-            } => self.build_math_function(Float64UnaryOp::Abs, dst, callee, argument),
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_function(Float64UnaryOp::Abs, dst, callee, argument, call_feedback),
             Instruction::CallBuiltinMathFloor {
-                dst, callee, argument, ..
-            } => self.build_math_function(Float64UnaryOp::Floor, dst, callee, argument),
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_function(Float64UnaryOp::Floor, dst, callee, argument, call_feedback),
             Instruction::CallBuiltinMathCeil {
-                dst, callee, argument, ..
-            } => self.build_math_function(Float64UnaryOp::Ceil, dst, callee, argument),
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_function(Float64UnaryOp::Ceil, dst, callee, argument, call_feedback),
             Instruction::CallBuiltinMathRound {
-                dst, callee, argument, ..
-            } => self.build_math_function(Float64UnaryOp::Round, dst, callee, argument),
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_function(Float64UnaryOp::Round, dst, callee, argument, call_feedback),
             Instruction::CallBuiltinMathSqrt {
-                dst, callee, argument, ..
-            } => self.build_math_function(Float64UnaryOp::Sqrt, dst, callee, argument),
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_function(Float64UnaryOp::Sqrt, dst, callee, argument, call_feedback),
             Instruction::GetIterator {
                 dst_iterator_object,
                 dst_iterator_next,

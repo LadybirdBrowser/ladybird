@@ -798,6 +798,9 @@ impl SnapshotBuilder<'_> {
             target: self.optional_cell(target),
             flags,
             target_intrinsic: intrinsic_of(self.vm, target),
+            target_builtin: target
+                .and_then(|target| target.downcast::<RawNativeFunction>()?.builtin())
+                .map(|builtin| builtin as u8),
             ..CallFeedbackSnapshot::default()
         };
         if monomorphic {
