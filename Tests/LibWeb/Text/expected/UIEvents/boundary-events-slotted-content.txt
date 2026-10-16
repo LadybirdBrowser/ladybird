@@ -1,0 +1,12 @@
+> move pointer over padding of shadow link
+pointerenter@host pointerenter@item
+mouseenter@host mouseenter@item
+> move pointer over slotted content
+pointerenter@wrapper pointerenter@slot pointerenter@text
+mouseenter@wrapper mouseenter@slot mouseenter@text
+> move pointer back over padding of shadow link
+pointerleave@text pointerleave@slot pointerleave@wrapper
+mouseleave@text mouseleave@slot mouseleave@wrapper
+> move pointer outside
+pointerleave@item pointerleave@host
+mouseleave@item mouseleave@host

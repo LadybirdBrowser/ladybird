@@ -3155,7 +3155,7 @@ Layout::Node* Document::highlighted_layout_node(Layout::BegunRead const& read)
     return element.pseudo_element_unsafe_layout_node(read, m_highlighted_pseudo_element.value());
 }
 
-static Node* find_common_ancestor(Node* a, Node* b)
+static Node* find_common_flat_tree_ancestor(Node* a, Node* b)
 {
     if (!a || !b)
         return nullptr;
@@ -3164,10 +3164,10 @@ static Node* find_common_ancestor(Node* a, Node* b)
         return a;
 
     HashTable<Node*> ancestors;
-    for (auto* node = a; node; node = node->parent_or_shadow_host())
+    for (auto* node = a; node; node = node->flat_tree_parent())
         ancestors.set(node);
 
-    for (auto* node = b; node; node = node->parent_or_shadow_host()) {
+    for (auto* node = b; node; node = node->flat_tree_parent()) {
         if (ancestors.contains(node))
             return node;
     }
@@ -3257,7 +3257,10 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         return;
 
     GC::Ptr<Node> old_hovered_node = move(m_hovered_node);
-    auto* common_ancestor = find_common_ancestor(old_hovered_node.ptr(), node.ptr());
+    // AD-HOC: The boundary event steps in the Pointer Events spec walk the target's inclusive ancestors, which stop at
+    //         the shadow root and ignore slot assignment. Chromium and Gecko walk the flat tree instead, so content
+    //         assigned to a slot is inside the elements around that slot.
+    auto* common_ancestor = find_common_flat_tree_ancestor(old_hovered_node.ptr(), node.ptr());
     GC::Ptr<HTML::WindowProxy> window_proxy;
     if (auto navigable = this->navigable())
         window_proxy = navigable->active_window_proxy();
@@ -3282,23 +3285,13 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     if (node)
         hovered_node_offset = hover_event_offset_for_target(read, hover_event_data, *node);
 
-    Vector<HoverEventTarget> pointer_leave_targets;
-    if (old_hovered_node && (!node || !node->is_descendant_of(*old_hovered_node))) {
-        for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent())
-            pointer_leave_targets.append(make_hover_event_target(*target));
-    }
-
-    Vector<HoverEventTarget> mouse_leave_targets;
-    if (old_hovered_node && (!node || !node->is_descendant_of(*old_hovered_node))) {
-        for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent_or_shadow_host())
-            mouse_leave_targets.append(make_hover_event_target(*target));
-    }
+    Vector<HoverEventTarget> left_ancestors;
+    for (auto* target = old_hovered_node.ptr(); target && target != common_ancestor; target = target->flat_tree_parent())
+        left_ancestors.append(make_hover_event_target(*target));
 
     Vector<HoverEventTarget> entered_ancestors;
-    if (node && (!old_hovered_node || !node->is_ancestor_of(*old_hovered_node))) {
-        for (auto target = node; target && target.ptr() != common_ancestor; target = target->parent_or_shadow_host())
-            entered_ancestors.append(make_hover_event_target(*target));
-    }
+    for (auto* target = node.ptr(); target && target != common_ancestor; target = target->flat_tree_parent())
+        entered_ancestors.append(make_hover_event_target(*target));
 
     m_hovered_node = node;
 
@@ -3357,8 +3350,8 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     }
 
     // https://w3c.github.io/pointerevents/#the-pointerleave-event
-    if (!pointer_leave_targets.is_empty()) {
-        for (auto const& target : pointer_leave_targets) {
+    if (!left_ancestors.is_empty()) {
+        for (auto const& target : left_ancestors) {
             UIEvents::PointerEventOptions pointer_event_options;
             pointer_event_options.related_target = m_hovered_node;
             pointer_event_options.is_primary = true;
@@ -3374,8 +3367,8 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     }
 
     // https://w3c.github.io/uievents/#mouseleave
-    if (!mouse_leave_targets.is_empty()) {
-        for (auto const& target : mouse_leave_targets) {
+    if (!left_ancestors.is_empty()) {
+        for (auto const& target : left_ancestors) {
             UIEvents::MouseEventOptions mouse_event_options;
             mouse_event_options.related_target = m_hovered_node;
             if (hover_event_data.has_value())
