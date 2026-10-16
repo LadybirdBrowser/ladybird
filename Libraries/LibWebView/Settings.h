@@ -11,6 +11,8 @@
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
+#include <LibGfx/Point.h>
+#include <LibGfx/Size.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
@@ -21,6 +23,12 @@
 #include <LibWebView/SearchEngine.h>
 
 namespace WebView {
+
+struct WindowSettings {
+    Optional<Gfx::IntPoint> position;
+    Gfx::IntSize size { 800, 600 };
+    bool maximized { false };
+};
 
 struct Appearance {
     bool show_menu_bar { false };
@@ -143,6 +151,10 @@ public:
     bool first_run_complete() const { return m_first_run_complete; }
     ErrorOr<void> complete_first_run();
 
+    static WindowSettings parse_window_settings(JsonValue const&);
+    WindowSettings const& window_settings() const { return m_window_settings; }
+    void set_window_settings(WindowSettings);
+
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
 
@@ -251,8 +263,10 @@ private:
     void persist_settings();
 
     ByteString m_settings_path;
-
     bool m_first_run_complete { false };
+
+    WindowSettings m_window_settings;
+
     URL::URL m_new_tab_page_url;
     Vector<String> m_languages;
 

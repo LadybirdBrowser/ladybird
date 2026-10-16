@@ -25,7 +25,6 @@
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
-#include <UI/Qt/Settings.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WebContentView.h>
 #include <UI/Qt/WindowControlButton.h>
@@ -1504,9 +1503,11 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
 
     if (m_is_private == WebView::IsPrivate::No) {
         if (m_is_popup_window == IsPopupWindow::No) {
-            Settings::the()->set_last_position(pos());
-            Settings::the()->set_last_size(size());
-            Settings::the()->set_is_maximized(isMaximized());
+            WebView::Application::settings().set_window_settings({
+                .position = Gfx::IntPoint { pos().x(), pos().y() },
+                .size = Gfx::IntSize { width(), height() },
+                .maximized = isMaximized(),
+            });
         }
     }
 

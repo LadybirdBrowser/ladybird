@@ -114,7 +114,6 @@ private:
     void finish_quit();
     void cancel_quit();
 
-    virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
     virtual Core::EventLoop& create_platform_event_loop() override;
     virtual void create_platform_actions() override;
 

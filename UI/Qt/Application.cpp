@@ -19,7 +19,6 @@
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/ProcessManagerWindow.h>
-#include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
 
@@ -534,11 +533,6 @@ void Application::show_process_manager()
     m_process_manager_window->activateWindow();
 }
 
-void Application::create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&)
-{
-    Settings::initialize(profile().paths().config);
-}
-
 void Application::create_platform_actions()
 {
     WebView::Application::inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
@@ -693,15 +687,15 @@ WindowConfiguration Application::configuration_for_new_window() const
         };
     }
 
-    auto last_size = Settings::the()->last_size();
+    auto const& window_settings = WebView::Application::settings().window_settings();
     WindowConfiguration configuration {
-        .width = last_size.width(),
-        .height = last_size.height(),
-        .maximized = Settings::the()->is_maximized(),
+        .width = window_settings.size.width(),
+        .height = window_settings.size.height(),
+        .maximized = window_settings.maximized,
     };
-    if (auto last_position = Settings::the()->last_position(); last_position.has_value()) {
-        configuration.x = last_position->x();
-        configuration.y = last_position->y();
+    if (window_settings.position.has_value()) {
+        configuration.x = window_settings.position->x();
+        configuration.y = window_settings.position->y();
     }
     return configuration;
 }

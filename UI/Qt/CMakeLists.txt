@@ -50,7 +50,6 @@ target_sources(ladybird PRIVATE
     PictureInPictureWindow.cpp
     Popover.cpp
     SelectDropdown.cpp
-    Settings.cpp
     StringUtils.cpp
     Tab.cpp
     TabBar.cpp
