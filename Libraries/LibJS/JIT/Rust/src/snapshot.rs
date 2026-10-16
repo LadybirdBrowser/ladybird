@@ -644,6 +644,10 @@ pub struct PropertyCacheEntrySnapshot {
     /// Which intrinsic `prototype_property` is, if it is one the compiler
     /// knows.
     pub prototype_property_intrinsic: Option<Intrinsic>,
+    /// The executable of `prototype_property` as an inlining candidate, if
+    /// it is a function JIT code may inline: code that calls the property's
+    /// value as a constant can inline the call without feedback for it.
+    pub prototype_property_inline_executable: Option<u32>,
     /// The function of the accessor the access calls: for `GetPropertyInPrototypeChain` entries, the getter of the
     /// accessor `prototype` held in the property when the snapshot was
     /// taken, for `ChangePropertyInPrototypeChain` entries its setter, and

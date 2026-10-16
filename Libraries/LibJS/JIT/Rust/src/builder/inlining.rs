@@ -87,6 +87,9 @@ pub(super) struct InlineCall {
     /// The values returned, one per predecessor of the continuation, with
     /// what was known at each return.
     pub returns: Vec<NodeId>,
+    /// The shapes every return knew objects have (see
+    /// `AbstractFrame::fresh_shapes`), once the first return is built.
+    pub return_fresh_shapes: Option<Vec<(NodeId, CellId)>>,
     /// Interpreter stack bytes of this callee's frame and those of the
     /// inlined calls it is in.
     pub frame_bytes: u64,
@@ -632,6 +635,11 @@ impl GraphBuilder<'_> {
             };
             return self.inline_call(call);
         }
+        if feedback.forwarded.is_none()
+            && let Some(flow) = self.try_inline_constant_callee(instruction)?
+        {
+            return Ok(Some(flow));
+        }
         let Some(forwarded) = feedback.forwarded else {
             return Ok(None);
         };
@@ -706,6 +714,57 @@ impl GraphBuilder<'_> {
                     )
                 }
             }
+        };
+        self.inline_call(call)
+    }
+
+    /// Inlines a `Call` of a function the code holds as a constant, which
+    /// needs no feedback: called itself (`f(...)`), or through
+    /// `Function.prototype.call` (`f.call(this_arg, ...)`). Sites that call
+    /// several functions, like a method of a constructor every class shares,
+    /// call one of them where the code knows which. Returns `None`, having
+    /// built nothing that matters, if it does not.
+    fn try_inline_constant_callee(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            dst,
+            callee,
+            this_value,
+            argument_count,
+            arguments,
+            ..
+        } = instruction
+        else {
+            return Ok(None);
+        };
+        if let Some(index) = self.constant_inlinable_function(*callee) {
+            let call = InlinedCallSite::new(
+                index,
+                InlineValue::Operand(*this_value),
+                arguments.iter().copied().map(InlineValue::Operand).collect(),
+                *argument_count,
+                *dst,
+            );
+            return self.inline_call(call);
+        }
+        let Some(index) = self.constant_inlinable_function(*this_value) else {
+            return Ok(None);
+        };
+        if self.constant_intrinsic(*callee) != Some(Intrinsic::FunctionPrototypeCall) {
+            return Ok(None);
+        }
+        let call = InlinedCallSite {
+            forwarded: true,
+            ..InlinedCallSite::new(
+                index,
+                arguments
+                    .first()
+                    .map_or(InlineValue::Constant(value::UNDEFINED), |this| {
+                        InlineValue::Operand(*this)
+                    }),
+                arguments.iter().skip(1).copied().map(InlineValue::Operand).collect(),
+                argument_count.saturating_sub(1),
+                *dst,
+            )
         };
         self.inline_call(call)
     }
@@ -1064,6 +1123,7 @@ impl GraphBuilder<'_> {
         let callee_frame = AbstractFrame {
             slots,
             fields: Default::default(),
+            fresh_shapes: self.frame.fresh_shapes.clone(),
         };
         callee_function.inline = Some(InlineCall {
             caller_frame_state,
@@ -1083,6 +1143,7 @@ impl GraphBuilder<'_> {
             },
             continuation: None,
             returns: Vec::new(),
+            return_fresh_shapes: None,
             frame_bytes,
             construct: construct.is_some(),
         });
@@ -1107,6 +1168,7 @@ impl GraphBuilder<'_> {
         self.order.push(continuation);
         self.block = continuation;
         self.frame = call.caller_frame;
+        self.frame.fresh_shapes = call.return_fresh_shapes.unwrap_or_default();
         let values = call.returns;
         let result = if values.iter().all(|value| *value == values[0]) {
             values[0]
@@ -1151,12 +1213,13 @@ impl GraphBuilder<'_> {
                 continuation
             }
         };
-        self.function
-            .inline
-            .as_mut()
-            .expect("returns from inlined callees")
-            .returns
-            .push(value);
+        let call = self.function.inline.as_mut().expect("returns from inlined callees");
+        call.returns.push(value);
+        let fresh_shapes = &self.frame.fresh_shapes;
+        match &mut call.return_fresh_shapes {
+            Some(shapes) => shapes.retain(|shape| fresh_shapes.contains(shape)),
+            None => call.return_fresh_shapes = Some(fresh_shapes.clone()),
+        }
         self.set_control(Op::Jump { target: continuation }, Vec::new());
         self.graph.blocks[continuation.index()].predecessors.push(self.block);
         Flow::Ended

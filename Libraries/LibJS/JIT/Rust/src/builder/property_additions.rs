@@ -66,11 +66,12 @@ impl GraphBuilder<'_> {
             return Ok(false);
         };
         let object = self.read(base)?;
+        let allocation = self.graph.unrefined(object);
         let Op::AllocateObject {
             shape: allocated_shape,
             property_count,
             reserve,
-        } = self.graph.node(object).op
+        } = self.graph.node(allocation).op
         else {
             return Ok(false);
         };
@@ -80,10 +81,11 @@ impl GraphBuilder<'_> {
         }
         let value = self.read(src)?;
 
+        let entries = self.entries_for_known_shape(object, &entries);
         let shapes = entries.iter().map(|entry| entry.shape).collect::<Vec<_>>();
         self.dispatch_on_shapes(
             object,
-            &entries,
+            entries,
             &shapes,
             entries.len() == 1,
             |builder, entry, object| {
@@ -114,7 +116,7 @@ impl GraphBuilder<'_> {
                 None
             },
         );
-        self.graph.nodes[object.index()].op = Op::AllocateObject {
+        self.graph.nodes[allocation.index()].op = Op::AllocateObject {
             shape: allocated_shape,
             property_count,
             reserve,

@@ -91,8 +91,15 @@ impl GraphBuilder<'_> {
         node
     }
 
-    /// `value`, refined: known to be an object, or the code exits.
+    /// `value`, refined: known to be an object, or the code exits. Objects
+    /// the code allocated need no check.
     pub(super) fn check_object(&mut self, value: NodeId) -> NodeId {
+        if matches!(
+            self.graph.node(self.graph.unrefined(value)).op,
+            Op::AllocateObject { .. } | Op::AllocateArray { .. } | Op::AllocateFunction { .. }
+        ) {
+            return value;
+        }
         self.emit_checked(Op::CheckObject, vec![value], None)
     }
 
@@ -171,9 +178,12 @@ impl GraphBuilder<'_> {
         let holder = self.constant(holder);
         match entry.prototype_property {
             Some((expected, intrinsic)) if self.may_speculate(ExitKind::UnexpectedValue) => {
+                let bits = self.boxed_object(expected);
                 if let Some(intrinsic) = intrinsic {
-                    let bits = self.boxed_object(expected);
                     self.intrinsics.insert(bits, intrinsic);
+                }
+                if let Some(index) = entry.prototype_property_inline_executable {
+                    self.inlinable_functions.insert(bits, index);
                 }
                 self.load_constant_named(holder, offset, expected)
             }

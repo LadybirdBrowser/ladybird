@@ -428,6 +428,9 @@ impl SnapshotBuilder<'_> {
                     self.vm,
                     prototype_property.map(|object| Value::from_object(object).as_cell()),
                 ),
+                prototype_property_inline_executable: prototype_property.and_then(|object| {
+                    self.inline_executable_index(Some(Value::from_object(object).as_cell()), caller)
+                }),
                 accessor_function,
                 holds_accessor: entry_holds_accessor(slot),
             });

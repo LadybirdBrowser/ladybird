@@ -86,6 +86,9 @@ pub(super) struct CacheEntry {
     /// For `Get`s from a prototype: the object the property held at compile
     /// time, if it held one, and which intrinsic that is.
     pub prototype_property: Option<(CellId, Option<Intrinsic>)>,
+    /// The snapshot executable of the function `prototype_property` holds,
+    /// if calls of it may be inlined.
+    pub prototype_property_inline_executable: Option<u32>,
 }
 
 impl CacheEntry {
@@ -159,6 +162,7 @@ impl CacheEntry {
             prototype_property: entry
                 .prototype_property
                 .map(|cell| (cell, entry.prototype_property_intrinsic)),
+            prototype_property_inline_executable: entry.prototype_property_inline_executable,
         })
     }
 
@@ -231,9 +235,24 @@ impl GraphBuilder<'_> {
         entries: &[CacheEntry],
         apply: impl FnMut(&mut Self, &CacheEntry, NodeId) -> Option<NodeId>,
     ) -> Option<NodeId> {
+        let entries = self.entries_for_known_shape(object, entries);
         let shapes = entries.iter().map(|entry| self.shape_guard(entry)).collect::<Vec<_>>();
         let one_action = entries.iter().all(|entry| entry.action == entries[0].action);
         self.dispatch_on_shapes(object, entries, &shapes, one_action, apply)
+    }
+
+    /// The entries that apply to `object`: only the one for its shape, where
+    /// the code allocated it and knows the shape it has now (see
+    /// `AbstractFrame::fresh_shapes`), which needs no shape switch. Its shape
+    /// is still checked, which check elimination removes where it can tell.
+    pub(super) fn entries_for_known_shape<'e>(&self, object: NodeId, entries: &'e [CacheEntry]) -> &'e [CacheEntry] {
+        let Some(shape) = self.fresh_shape(object) else {
+            return entries;
+        };
+        entries
+            .iter()
+            .position(|entry| entry.shape.shape == shape)
+            .map_or(entries, |index| &entries[index..=index])
     }
 
     /// Checks that `object` has one of `shapes` and applies the action of
@@ -286,6 +305,7 @@ impl GraphBuilder<'_> {
 
         let join = self.graph.add_block(Block::default());
         let mut results = Vec::new();
+        let mut case_shapes = Vec::with_capacity(cases.len());
         for (index, (shape, block)) in cases.iter().enumerate() {
             self.block = *block;
             self.frame = frame.clone();
@@ -294,10 +314,13 @@ impl GraphBuilder<'_> {
             debug_assert_eq!(self.frame.slots, frame.slots, "cases do not change frame slots");
             self.set_control(Op::Jump { target: join }, Vec::new());
             self.graph.blocks[join.index()].predecessors.push(self.block);
+            case_shapes.push(std::mem::take(&mut self.frame.fresh_shapes));
         }
         self.order.push(join);
         self.block = join;
         self.frame = frame;
+        // NB: Cases may change shapes, like additions do.
+        self.frame.fresh_shapes = super::AbstractFrame::common_fresh_shapes(case_shapes.iter().map(Vec::as_slice));
 
         let results = results.into_iter().collect::<Option<Vec<_>>>()?;
         if results.iter().all(|result| *result == results[0]) {
