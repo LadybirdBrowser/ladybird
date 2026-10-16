@@ -131,8 +131,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             app->new_window(urls, app->configuration_for_new_window());
         };
 
-        auto& window = app->new_window(browser_options.urls, app->configuration_for_new_window());
-        window.setWindowTitle("Ladybird");
+        // The last run's pinned tabs come back first, and the usual startup tabs then open after them, in the
+        // frontmost restored window.
+        auto configuration = app->configuration_for_new_window();
+        if (auto* restored_window = app->restore_previous_session(configuration)) {
+            app->open_startup_tabs(*restored_window, browser_options.urls);
+        } else {
+            auto& window = app->new_window(browser_options.urls, configuration);
+            window.setWindowTitle("Ladybird");
+        }
 
         app->offer_newest_pending_crash_report();
     }
