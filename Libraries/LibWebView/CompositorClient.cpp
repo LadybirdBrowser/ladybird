@@ -27,6 +27,12 @@ void CompositorClient::die()
     }
 }
 
+void CompositorClient::gpu_device_identity_reported(Optional<Gfx::GpuDeviceIdentity> identity)
+{
+    if (on_gpu_device_identity_reported)
+        on_gpu_device_identity_reported(move(identity));
+}
+
 void CompositorClient::did_allocate_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     auto web_content_client = WebContentClient::client_for_compositor_context_id(context_id);

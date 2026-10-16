@@ -11,11 +11,13 @@
 #include <LibCore/Platform/TaskRole.h>
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
+#include <LibGfx/GpuDeviceIdentity.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMediaCodecs/HardwareVideoDecoders.h>
 #include <LibMediaCodecs/VideoDecoderRegistry.h>
+#include <LibMediaCodecs/Vulkan/VulkanVideoDevice.h>
 #include <VideoDecoderServer/ControlConnection.h>
 #include <VideoDecoderServer/Sandbox.h>
 
@@ -43,6 +45,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool wait_for_debugger = false;
     bool disable_sandbox = false;
     bool host_software_decoders = false;
+    StringView gpu_device;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
@@ -50,6 +53,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.add_option(host_software_decoders, "Host software decoders, for testing", "host-software-decoders");
+    args_parser.add_option(gpu_device, "The GPU to decode on, as the Compositor identifies it", "gpu-device", 0, "identity");
     args_parser.parse(arguments);
 
     if (crash_report_fd >= 0) {
@@ -66,6 +70,26 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         warnln("Could not set main thread QoS: {}", result.error());
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
+
+    Optional<Gfx::GpuDeviceIdentity> gpu_device_identity;
+    if (!gpu_device.is_empty()) {
+        gpu_device_identity = Gfx::GpuDeviceIdentity::from_string(gpu_device);
+        if (!gpu_device_identity.has_value())
+            return Error::from_string_literal("Malformed GPU device identity");
+    }
+
+#if defined(AK_OS_LINUX)
+    if (!disable_sandbox)
+        TRY(VideoDecoderServer::restrict_filesystem(gpu_device_identity.has_value()));
+#endif
+
+#ifdef USE_VULKAN_DMABUF_IMAGES
+    // The driver loads before the rest of the sandbox applies. Without a device, the GPU's decoders go unused.
+    if (gpu_device_identity.has_value()) {
+        if (auto result = Media::VulkanVideoDevice::create_for_process(*gpu_device_identity); result.is_error())
+            warnln("Could not create a Vulkan device for decoding video: {}", result.error());
+    }
+#endif
 
     Vector<Media::VideoDecoderRegistration> hosted_decoders;
     auto hardware_decoders = Media::hardware_video_decoders();

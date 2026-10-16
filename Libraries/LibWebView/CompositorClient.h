@@ -10,6 +10,7 @@
 #include <Compositor/CompositorControlClientEndpoint.h>
 #include <Compositor/CompositorControlServerEndpoint.h>
 #include <LibCompositing/Types.h>
+#include <LibGfx/GpuDeviceIdentity.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibIPC/ConnectionToServer.h>
@@ -26,10 +27,12 @@ public:
     explicit CompositorClient(NonnullOwnPtr<IPC::Transport>);
 
     Function<void()> on_death;
+    Function<void(Optional<Gfx::GpuDeviceIdentity>)> on_gpu_device_identity_reported;
 
 private:
     virtual void die() override;
 
+    virtual void gpu_device_identity_reported(Optional<Gfx::GpuDeviceIdentity>) override;
     virtual void did_allocate_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
     virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) override;

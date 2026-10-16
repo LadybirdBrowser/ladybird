@@ -15,6 +15,7 @@
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/GpuDeviceIdentity.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
@@ -84,8 +85,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (!disable_sandbox)
         TRY(Compositor::apply_sandbox(mach_server_name, cache_path, resource_root));
 
+    Optional<Gfx::GpuDeviceIdentity> gpu_device_identity;
+#ifdef USE_VULKAN_DMABUF_IMAGES
+    if (skia_backend_context && skia_backend_context->vulkan_context().can_sample_through_ycbcr_conversion)
+        gpu_device_identity = skia_backend_context->vulkan_context().device_identity;
+#endif
+
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
         mach_server_name, move(skia_backend_context)));
+    client->async_gpu_device_identity_reported(move(gpu_device_identity));
 
     return event_loop.exec();
 }
