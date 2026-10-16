@@ -69,6 +69,7 @@ public:
     // Asks every window's pages if they may unload, one window at a time. Once all of them agree, it confirms stopping
     // the downloads and quits; if a page refuses or the downloads are kept, the quit is canceled and no window closes.
     void quit();
+    bool is_quit_in_progress() const { return m_quit_in_progress; }
     bool is_finishing_quit() const { return m_quit_is_finishing; }
     bool confirm_stop_active_downloads(QWidget* parent = nullptr);
 
