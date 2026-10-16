@@ -237,12 +237,28 @@ impl StringPrototype {
 
     /// `S.toLowerCase()` of the string `S`, which runs no code.
     pub fn to_lowercase_string(vm: &Vm, string: Gc<PrimitiveString>) -> Value {
-        string_value(vm, Utf16View::of_string(&string.utf16_string()).to_lowercase())
+        let utf16_string = string.utf16_string();
+        let view = Utf16View::of_string(&utf16_string);
+        // OPTIMIZATION: An ASCII string without uppercase letters is its own lowercase form.
+        if let Utf16View::Ascii(units) = view
+            && !units.iter().any(u8::is_ascii_uppercase)
+        {
+            return Value::from_string(string);
+        }
+        string_value(vm, view.to_lowercase())
     }
 
     /// `S.toUpperCase()` of the string `S`, which runs no code.
     pub fn to_uppercase_string(vm: &Vm, string: Gc<PrimitiveString>) -> Value {
-        string_value(vm, Utf16View::of_string(&string.utf16_string()).to_uppercase())
+        let utf16_string = string.utf16_string();
+        let view = Utf16View::of_string(&utf16_string);
+        // OPTIMIZATION: An ASCII string without lowercase letters is its own uppercase form.
+        if let Utf16View::Ascii(units) = view
+            && !units.iter().any(u8::is_ascii_lowercase)
+        {
+            return Value::from_string(string);
+        }
+        string_value(vm, view.to_uppercase())
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<StringPrototype> {
