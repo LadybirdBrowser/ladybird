@@ -63,5 +63,83 @@ test(() => {
     exercise("rejects asynchronous checks", () => ({
         name: "async", expect: "", check: () => Promise.resolve(),
     }), "begin,flush,take", "check must be synchronous");
+
+    const trace = [
+        "layout FULL",
+        "  @viewport/block RUN (cache=bypass)",
+        "    Box<DIV>#flex/flex RUN (cache=miss)",
+        "      BlockContainer(anonymous) MEASURE max-content inline (cache=miss) FROM ITEMS",
+        "      BlockContainer(anonymous) MEASURE min-content inline (cache=hit) FROM MAX-CONTENT",
+        "      Box<DIV>#item MEASURE max-content block (cache=miss)",
+        "        Box<DIV>#item/flex (measurement, intrinsic) RUN (cache=bypass)",
+        "          BlockContainer<P> INLINE SIZE FROM ITEMS",
+        "      Box<TABLE>#table/table (intrinsic) RUN (cache=bypass)",
+        "        BlockContainer<TD>.cell MEASURE CELL (cache=miss)",
+        "          BlockContainer<TD>.cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING",
+        "        BlockContainer<TD>.cell MEASURE CELL (cache=hit)",
+        "        BlockContainer<DIV> REUSE IN-FLOW SUBTREE",
+        "layout PARTIAL Box<DIV>#flex",
+        "  Box<DIV>#flex/flex REPLAY FRAGMENTS",
+        "",
+    ].join("\n");
+    const expectedEvents = [
+        { depth: 0, event: "layout", partial: false },
+        { depth: 1, event: "run", box: "@viewport", formattingContext: "block", measurement: false, intrinsic: false, action: "RUN", cache: "bypass" },
+        { depth: 2, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", measurement: false, intrinsic: false, action: "RUN", cache: "miss" },
+        { depth: 3, event: "measure", box: "BlockContainer(anonymous)", size: "max-content inline", cache: "miss", from: "items" },
+        { depth: 3, event: "measure", box: "BlockContainer(anonymous)", size: "min-content inline", cache: "hit", from: "max-content" },
+        { depth: 3, event: "measure", box: "Box<DIV>#item", size: "max-content block", cache: "miss" },
+        { depth: 4, event: "run", box: "Box<DIV>#item", formattingContext: "flex", measurement: true, intrinsic: true, action: "RUN", cache: "bypass" },
+        { depth: 5, event: "inline size from items", box: "BlockContainer<P>" },
+        { depth: 3, event: "run", box: "Box<TABLE>#table", formattingContext: "table", measurement: false, intrinsic: true, action: "RUN", cache: "bypass" },
+        { depth: 4, event: "measure cell", box: "BlockContainer<TD>.cell", cache: "miss" },
+        { depth: 5, event: "run", box: "BlockContainer<TD>.cell", formattingContext: "block", measurement: false, intrinsic: false, action: "RUN AHEAD OF INTRINSIC BLOCK PADDING" },
+        { depth: 4, event: "measure cell", box: "BlockContainer<TD>.cell", cache: "hit" },
+        { depth: 4, event: "reuse in-flow subtree", box: "BlockContainer<DIV>" },
+        { depth: 0, event: "layout", partial: true, box: "Box<DIV>#flex" },
+        { depth: 1, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", measurement: false, intrinsic: false, action: "REPLAY FRAGMENTS" },
+    ];
+    // JSON leaves out the properties a line does not have.
+    const parsedEvents = parseLayoutTrace(trace);
+    println(`${JSON.stringify(parsedEvents) === JSON.stringify(expectedEvents) ? "PASS" : "FAIL"}: parses every kind of trace line`);
+    try {
+        parseLayoutTrace("  Box<DIV>#item SOMETHING NEW");
+        println("FAIL: rejects unknown trace lines");
+    } catch (error) {
+        println(`${String(error).includes("unrecognized layout trace line") ? "PASS" : "FAIL"}: rejects unknown trace lines`);
+    }
+
+    function exerciseWork(name, mutate, expectedCalls, errorText, inspect) {
+        const calls = [];
+        const fakeInternals = {
+            beginLayoutTrace: () => calls.push("begin"),
+            updateLayoutForTesting: () => calls.push("flush"),
+            takeLayoutTrace: () => { calls.push("take"); return trace; },
+        };
+        let error = "";
+        let work;
+        try {
+            work = layoutWork(() => mutate(calls), fakeInternals);
+        } catch (caught) {
+            error = String(caught);
+        }
+        const passed = calls.join(",") === expectedCalls
+            && (errorText ? error.includes(errorText) : !error)
+            && (!inspect || inspect(work));
+        println(`${passed ? "PASS" : "FAIL"}: ${name}`);
+    }
+    exerciseWork("work lays out pending changes before tracing the mutation", calls => { calls.push("mutate"); },
+        "flush,begin,mutate,flush,take");
+    exerciseWork("work stops tracing after a throwing mutation", () => { throw new Error("mutation failed"); },
+        "flush,begin,take", "mutation failed");
+    exerciseWork("work rejects asynchronous mutations", () => Promise.resolve(),
+        "flush,begin,take", "mutate must be synchronous");
+    exerciseWork("work counts the events a filter object matches", () => {}, "flush,begin,flush,take", null,
+        work => work.count({ event: "measure", cache: "miss" }) === 2 && work.count({ event: "measure cell" }) === 2);
+    exerciseWork("work counts the events a filter function matches", () => {}, "flush,begin,flush,take", null,
+        work => work.count(event => event.depth === 0) === 2);
+    exerciseWork("work names each matching box once, in trace order", () => {}, "flush,begin,flush,take", null,
+        work => work.boxes({ event: "measure" }).join() === "BlockContainer(anonymous),Box<DIV>#item");
+    exerciseWork("work keeps the trace text", () => {}, "flush,begin,flush,take", null, work => work.text === trace);
 });
 </script>
