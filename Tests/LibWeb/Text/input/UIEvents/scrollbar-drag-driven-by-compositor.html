@@ -20,33 +20,31 @@ body {
 </div>
 <script src="../include.js"></script>
 <script>
-    asyncTest(done => {
+    promiseTest(async () => {
         let pointerDownCount = 0;
         scroller.addEventListener("pointerdown", () => ++pointerDownCount);
+        await animationFrame();
+        await animationFrame();
 
-        // The compositor scrolls for this drag, so the main thread must not.
-        internals.mouseMove(147, 5);
-        internals.mouseDownOnScrollbarDraggedByCompositor(147, 5, scroller, true);
-        internals.mouseMove(147, 60);
+        // The compositor scrolls for a drag of the scrollbar, and the page sees the drag's events without scrolling
+        // for them a second time. A move far away from the scrollbar still belongs to the captured drag.
+        internals.beginInputTrace();
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousedown", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 60, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mousemove", 20, 90, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mouseup", 20, 90);
+        printInputTrace(internals.takeInputTrace());
+        await animationFrame();
         println(`pointerdown reached the scroller: ${pointerDownCount === 1}`);
-        println(`scrolled while the compositor drives the drag: ${scroller.scrollTop > 0}`);
-
-        // A move far away from the scrollbar still belongs to the captured drag.
-        internals.mouseMove(20, 90);
-        println(`scrolled after leaving the scrollbar: ${scroller.scrollTop > 0}`);
-
-        internals.mouseUp(20, 90);
-        internals.mouseMove(147, 5);
-        println(`scrolled after the release: ${scroller.scrollTop > 0}`);
+        println(`scrollTop after the drag: ${scroller.scrollTop}`);
 
         // The scrollbar takes an ordinary drag again once the compositor's has ended.
+        scroller.scrollTop = 0;
         internals.mouseDown(147, 5);
         internals.mouseMove(147, 60);
         internals.mouseUp(147, 60);
-
-        requestAnimationFrame(() => {
-            println(`scrolled by an ordinary drag afterwards: ${scroller.scrollTop > 0}`);
-            done();
-        });
+        await animationFrame();
+        println(`scrolled by an ordinary drag afterwards: ${scroller.scrollTop > 0}`);
     });
 </script>

@@ -610,8 +610,31 @@ void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, We
     }
 }
 
+// The compositor context that the UI routes this page's input through.
+static Compositor::CompositorContextHandle* compositor_context_routing_input_for(HTML::Window& window)
+{
+    auto local_root = window.navigable()->local_root();
+    if (!local_root->has_compositor_context())
+        return nullptr;
+    return &local_root->compositor_context();
+}
+
+// Frames reach the compositor from WebContent, and input from the UI. Input that a test sends through the UI once the
+// compositor has every frame rendered so far meets the content the test has rendered, as the user's input would.
+static void let_compositor_take_in_every_rendered_frame(HTML::Window& window)
+{
+    auto& page = window.page();
+    for (auto& navigable : HTML::all_local_navigables()) {
+        if (&navigable->page() == &page && !navigable->has_been_destroyed())
+            (void)navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
+    }
+    if (auto* compositor_context = compositor_context_routing_input_for(window))
+        compositor_context->synchronize_for_testing();
+}
+
 void Internals::send_text_through_ui_process(Utf16String const& text)
 {
+    let_compositor_take_in_every_rendered_frame(window());
     for (auto code_point : text) {
         for (auto type : { Web::KeyEvent::Type::KeyDown, Web::KeyEvent::Type::KeyUp }) {
             Web::KeyEvent event;
@@ -629,56 +652,99 @@ void Internals::grant_transient_activation()
     window().notify_about_user_activation();
 }
 
-// A click the UI process routes, as it would a user's, to the page hosting the document under it.
-void Internals::click_through_ui_process(double x, double y)
+namespace {
+
+struct MouseEventsTheUIProcessHasNotHandledYet : public RefCounted<MouseEventsTheUIProcessHasNotHandledYet> {
+    size_t count { 0 };
+};
+
+}
+
+// A mouse event at a position in this document's viewport, as the UI process sends it to the page hosting the document.
+Web::MouseEvent Internals::mouse_event_through_ui_process_at(Web::MouseEvent::Type type, double x, double y)
 {
+    auto position = page().css_to_device_point(window().navigable()->to_page_position({ x, y }));
+    Web::MouseEvent event;
+    event.type = type;
+    event.position = position;
+    event.screen_position = position;
+    return event;
+}
+
+// Sends mouse events through the UI process as it sends the user's, and resolves the promise once the UI has handled
+// every one of them.
+void Internals::send_mouse_events_through_ui_process(Vector<Web::MouseEvent> events, GC::Ref<WebIDL::Promise> promise)
+{
+    let_compositor_take_in_every_rendered_frame(window());
+
     auto& page = this->page();
-    auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
     auto local_root_id = window().navigable()->local_root()->id();
-    for (auto type : { Web::MouseEvent::Type::MouseDown, Web::MouseEvent::Type::MouseUp }) {
-        Web::MouseEvent event;
-        event.type = type;
-        event.position = position;
-        event.screen_position = position;
-        event.button = UIEvents::MouseButton::Primary;
-        event.buttons = type == Web::MouseEvent::Type::MouseDown ? UIEvents::MouseButton::Primary : UIEvents::MouseButton::None;
-        event.click_count = 1;
-        page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [] { }));
+    auto& realm = window().principal_realm();
+    auto unhandled_events = make_ref_counted<MouseEventsTheUIProcessHasNotHandledYet>();
+    unhandled_events->count = events.size();
+    for (auto& event : events) {
+        page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [&realm, promise, unhandled_events] {
+            if (--unhandled_events->count != 0)
+                return;
+            HTML::TemporaryExecutionContext execution_context { realm };
+            WebIDL::resolve_promise(realm, promise);
+        }));
     }
 }
 
-// A mouse move the UI process routes, as it would a user's, through the compositor, which tells the render clock of it
-// too.
-void Internals::mouse_move_through_ui_process(double x, double y)
+void Internals::click_through_ui_process(double x, double y, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& page = this->page();
-    auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
-    Web::MouseEvent event;
-    event.type = Web::MouseEvent::Type::MouseMove;
-    event.position = position;
-    event.screen_position = position;
-    page.client().page_did_request_webdriver_mouse_event(window().navigable()->local_root()->id(), move(event), GC::create_function(heap(), [] { }));
+    Vector<Web::MouseEvent> events;
+    for (auto type : { Web::MouseEvent::Type::MouseDown, Web::MouseEvent::Type::MouseUp }) {
+        auto event = mouse_event_through_ui_process_at(type, x, y);
+        event.button = UIEvents::MouseButton::Primary;
+        event.buttons = type == Web::MouseEvent::Type::MouseDown ? UIEvents::MouseButton::Primary : UIEvents::MouseButton::None;
+        event.click_count = 1;
+        events.append(move(event));
+    }
+    send_mouse_events_through_ui_process(move(events), promise);
+}
+
+static Web::MouseEvent::Type mouse_event_type_from(Bindings::MouseEventThroughUIProcessType type)
+{
+    switch (type) {
+    case Bindings::MouseEventThroughUIProcessType::Mousedown:
+        return Web::MouseEvent::Type::MouseDown;
+    case Bindings::MouseEventThroughUIProcessType::Mouseup:
+        return Web::MouseEvent::Type::MouseUp;
+    case Bindings::MouseEventThroughUIProcessType::Mousemove:
+        return Web::MouseEvent::Type::MouseMove;
+    case Bindings::MouseEventThroughUIProcessType::Mouseleave:
+        return Web::MouseEvent::Type::MouseLeave;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void Internals::mouse_event_through_ui_process(Bindings::MouseEventThroughUIProcessType type, double x, double y, Bindings::MouseEventThroughUIProcessOptions const& options, GC::Ref<WebIDL::Promise> promise)
+{
+    auto event = mouse_event_through_ui_process_at(mouse_event_type_from(type), x, y);
+    event.button = button_from_unsigned_short(options.button);
+    if (options.buttons.has_value())
+        event.buttons = static_cast<UIEvents::MouseButton>(*options.buttons);
+    else if (event.type == Web::MouseEvent::Type::MouseDown)
+        event.buttons = event.button;
+    event.modifiers = static_cast<UIEvents::KeyModifier>(options.modifiers);
+    event.click_count = options.click_count;
+    Vector<Web::MouseEvent> events;
+    events.append(move(event));
+    send_mouse_events_through_ui_process(move(events), promise);
 }
 
 void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& page = this->page();
-    auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
-    auto local_root_id = window().navigable()->local_root()->id();
-
-    Web::MouseEvent event;
-    event.type = Web::MouseEvent::Type::MouseWheel;
-    event.position = position;
-    event.screen_position = position;
+    auto event = mouse_event_through_ui_process_at(Web::MouseEvent::Type::MouseWheel, x, y);
     event.wheel_delta_x = delta_x;
     event.wheel_delta_y = delta_y;
     event.wheel_delta_precision = wheel_delta_precision_from(precise);
     event.scroll_gesture_phase = scroll_gesture_phase_from(phase);
-    auto& realm = window().principal_realm();
-    page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [&realm, promise] {
-        HTML::TemporaryExecutionContext execution_context { realm };
-        WebIDL::resolve_promise(realm, promise);
-    }));
+    Vector<Web::MouseEvent> events;
+    events.append(move(event));
+    send_mouse_events_through_ui_process(move(events), promise);
 }
 
 void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count)
@@ -731,21 +797,6 @@ void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort click_count
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousedown(position, position, button_from_unsigned_short(button), 0, modifiers, click_count);
-}
-
-void Internals::mouse_down_on_scrollbar_dragged_by_compositor(double x, double y, DOM::Element& scroller, bool vertical)
-{
-    Layout::ForcedReadScope read { scroller.document() };
-    scroller.document().update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-    auto const* scrolling_box = scroller.layout_node(read);
-    VERIFY(scrolling_box);
-    auto scroller_stable_node_id = Painting::async_scroll_node_stable_id(*scrolling_box);
-    VERIFY(scroller_stable_node_id.has_value());
-
-    auto& page = this->page();
-    auto position = page.css_to_device_point({ x, y });
-    page.handle_mousedown(position, position, UIEvents::MouseButton::Primary, 0, 0, 1,
-        Web::ScrollbarDraggedByCompositor { .scroller_stable_node_id = *scroller_stable_node_id, .vertical = vertical });
 }
 
 void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
@@ -1225,15 +1276,6 @@ Utf16String Internals::take_display_list_trace()
     for (auto const& trace : document.paint_state().take_recording_traces())
         builder.append(trace);
     return Utf16String::from_utf8_without_validation(builder.string_view());
-}
-
-// The compositor context that the UI routes this page's input through.
-static Compositor::CompositorContextHandle* compositor_context_routing_input_for(HTML::Window& window)
-{
-    auto local_root = window.navigable()->local_root();
-    if (!local_root->has_compositor_context())
-        return nullptr;
-    return &local_root->compositor_context();
 }
 
 void Internals::begin_input_trace()

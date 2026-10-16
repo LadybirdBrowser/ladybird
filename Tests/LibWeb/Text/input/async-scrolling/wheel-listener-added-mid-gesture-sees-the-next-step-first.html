@@ -23,8 +23,6 @@
 
         // A blocking listener added during the gesture is asked about the next step, which the page could cancel.
         document.addEventListener("wheel", () => {}, { passive: false });
-        // A synchronous call to the compositor, so that it has heard about the new listener before the next step.
-        internals.elasticOverscrollStretchY();
         await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
         await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
         println(`cancelable steps: ${cancelableSteps.join(", ")}`);

@@ -1,5 +1,19 @@
+#1 compositor: not-over-a-scrollbar
+#1 compositor: forwarded-to-page
+#1 web-content: finished-handled
+#2 compositor: began-scrollbar-drag scroller=#scroller
+#2 compositor: forwarded-to-page
+#2 web-content: scrollbar-drag-driven-by-compositor scroller=#scroller
+#2 web-content: finished-handled
+#3 compositor: continued-scrollbar-drag scroller=#scroller
+#3 compositor: forwarded-to-page
+#3 web-content: finished-handled
+#4 compositor: continued-scrollbar-drag scroller=#scroller
+#4 compositor: forwarded-to-page
+#4 web-content: finished-handled
+#5 compositor: ended-scrollbar-drag scroller=#scroller
+#5 compositor: forwarded-to-page
+#5 web-content: finished-handled
 pointerdown reached the scroller: true
-scrolled while the compositor drives the drag: false
-scrolled after leaving the scrollbar: false
-scrolled after the release: false
+scrollTop after the drag: 900
 scrolled by an ordinary drag afterwards: true
