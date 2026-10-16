@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset=utf-8>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../common/get-host-info.sub.js"></script>
+<div id=log></div>
+<script>
+// The blob: response has no CORP header and is cross-origin to this document,
+// but the CORP check only applies to HTTP(S) navigation responses.
+async_test(t => {
+  const crossOrigin = get_host_info().HTTPS_REMOTE_ORIGIN;
+  window.addEventListener("message", t.step_func_done(({ data }) => {
+    assert_equals(data.protocol, "blob:");
+    assert_equals(data.origin, crossOrigin);
+  }));
+  const frame = document.createElement("iframe");
+  t.add_cleanup(() => frame.remove());
+  frame.src = crossOrigin + new URL("resources/navigate-to-own-blob.html", location).pathname;
+  document.body.append(frame);
+}, "Cross-Origin-Embedder-Policy and a cross-origin iframe navigating to its own blob: URL");
+</script>

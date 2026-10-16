@@ -1,0 +1,7 @@
+<!doctype html>
+<script>
+const blob = new Blob([`<script>
+  parent.postMessage({ protocol: location.protocol, origin: window.origin }, "*");
+<\/script>`], { type: "text/html" });
+location.href = URL.createObjectURL(blob);
+</script>
