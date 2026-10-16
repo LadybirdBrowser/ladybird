@@ -30,14 +30,16 @@
         println(displayList);
     }
 
-    test(() => {
-        const state = internals.asyncScrollingState();
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        const state = internals.compositorScrollState();
 
         printOutputAndDisplayList([
             `scroll nodes: ${state.scrollNodeCount}`,
-            `wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`,
-            `viewport wheel target: ${internals.asyncScrollingStateWheelTargetAt(150, 150, 0, 100)}`,
-            `scroller wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`,
+            `wheel routing admission: ${state.wheelRoutingAdmission}`,
+            `viewport wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(150, 150, 0, 100))}`,
+            `scroller wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`,
         ]);
     });
 </script>

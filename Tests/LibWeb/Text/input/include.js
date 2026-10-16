@@ -120,6 +120,13 @@ function wheelTargetToString(target) {
     return `${target.decision}${__describeScrollerOfInputHook(target)}`;
 }
 
+// Whether the compositor, holding a frame of this document, would scroll the first step of a wheel gesture at the
+// position itself.
+function compositorScrollsWheelStepAt(x, y, deltaX, deltaY) {
+    const target = internals.compositorWheelTargetAt(x, y, deltaX, deltaY);
+    return target.document === document && target.decision === "latched";
+}
+
 // Prints what internals.takeInputTrace() returned, one routing decision per line, optionally only those of the given
 // stages. Input events are numbered in the order they first appear, as the ids the UI gives them keep growing from test
 // to test; input that did not come from the UI is marked "-".

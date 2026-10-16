@@ -43,7 +43,7 @@
     }
 
     function dump(output, label, x, y) {
-        output.push(`${label}: ${internals.asyncScrollingStateBlocksWheelEventAt(x, y)}`);
+        output.push(`${label}: ${internals.recordedDisplayListBlocksWheelEventAt(x, y)}`);
     }
 
     test(() => {
@@ -51,7 +51,8 @@
         transformed.addEventListener("wheel", event => {}, { passive: false });
         document.getElementById("clipped-target").addEventListener("wheel", event => {}, { passive: false });
 
-        output.push(`blocking regions: ${internals.asyncScrollingState().blockingWheelEventRegionCount}`);
+        internals.recordDisplayListForTesting();
+        output.push(`blocking regions: ${internals.recordedAsyncScrollingState().blockingWheelEventRegionCount}`);
         dump(output, "transformed visual inside", 130, 30);
         dump(output, "transformed original position", 30, 30);
         dump(output, "clipped visible inside", 30, 170);

@@ -1,6 +1,7 @@
 before routing admission: accepted
+routing admission before the next frame: stale-wheel-event-listeners
 listener generation increased: true
-after routing admission: blocking wheel event listeners
+after routing admission: blocking-wheel-event-listeners
 display list:
 AccumulatedVisualContext Tree:
   spatial:

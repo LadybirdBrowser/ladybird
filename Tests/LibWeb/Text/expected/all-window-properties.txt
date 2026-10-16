@@ -606,6 +606,7 @@ __finishTest
 __preventMultipleTestFunctions
 animationFrame
 asyncTest
+compositorScrollsWheelStepAt
 httpTestServer
 printElement
 printInputTrace

@@ -5,7 +5,7 @@
 </div>
 <script>
     promiseTest(async () => {
-        await waitForCondition(() => internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 120));
+        await waitForCondition(() => compositorScrollsWheelStepAt(50, 50, 0, 120));
 
         // A blocking listener added between the steps sends the second step through the main thread.
         const finished = scrollendEvent(scroller);

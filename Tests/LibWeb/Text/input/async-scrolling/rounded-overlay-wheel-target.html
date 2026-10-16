@@ -38,8 +38,10 @@
 <div id="overlay"></div>
 <div id="page-spacer"></div>
 <script>
-    test(() => {
-        println(`rounded corner wheel target: ${internals.asyncScrollingStateWheelTargetAt(5, 5, 0, 100)}`);
-        println(`rounded center wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        println(`rounded corner wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(5, 5, 0, 100))}`);
+        println(`rounded center wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
     });
 </script>

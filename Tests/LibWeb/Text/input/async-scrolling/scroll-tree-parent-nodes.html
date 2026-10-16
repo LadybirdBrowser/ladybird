@@ -34,8 +34,10 @@
         println(displayList);
     }
 
-    test(() => {
-        const state = internals.asyncScrollingState();
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        const state = internals.compositorScrollState();
         const scrollNodeIDs = new Set(state.scrollNodes.map(node => `${node.documentID}:${node.scrollNodeIndex}`));
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
         const childNodes = state.scrollNodes.filter(node => !node.isViewport);

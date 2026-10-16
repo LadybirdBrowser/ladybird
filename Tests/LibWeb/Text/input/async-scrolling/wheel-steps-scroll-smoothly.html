@@ -8,7 +8,7 @@
     promiseTest(async () => {
         const scroller = document.getElementById("scroller");
 
-        await waitForCondition(() => internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 120) && internals.asyncScrollingStateCanWheelScrollAt(400, 400, 0, 120));
+        await waitForCondition(() => compositorScrollsWheelStepAt(50, 50, 0, 120) && compositorScrollsWheelStepAt(400, 400, 0, 120));
 
         // A step that jumps fires one scroll event. A step that animates fires one per frame.
         const scrollEventsUntilScrollend = async (target, x, y, deltas) => {

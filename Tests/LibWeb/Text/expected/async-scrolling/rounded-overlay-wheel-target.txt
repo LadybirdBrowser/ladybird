@@ -1,2 +1,2 @@
-rounded corner wheel target: non-viewport
-rounded center wheel target: viewport
+rounded corner wheel target: latched scroller=#scroller
+rounded center wheel target: latched scroller=viewport

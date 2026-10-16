@@ -42,34 +42,43 @@
         println(displayList);
     }
 
-    function canWheel(output, label, x, y, forceStaleWheelEventRegions = false) {
-        const canScroll = internals.asyncScrollingStateCanWheelScrollAt(x, y, 0, 100, forceStaleWheelEventRegions);
-        output.push(`${label}: ${canScroll}`);
+    function wheelTarget(output, label, x, y) {
+        output.push(`${label}: ${wheelTargetToString(internals.compositorWheelTargetAt(x, y, 0, 100))}`);
     }
 
-    test(() => {
+    async function frames() {
+        await animationFrame();
+        await animationFrame();
+    }
+
+    promiseTest(async () => {
+        await frames();
         const output = [];
-        output.push(`initial routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
-        canWheel(output, "no listener over scroller", 150, 150);
-        canWheel(output, "no scrollable target", 275, 50);
+        output.push(`initial routing admission: ${internals.compositorScrollState().wheelRoutingAdmission}`);
+        wheelTarget(output, "no listener over scroller", 150, 150);
+        wheelTarget(output, "no scrollable target", 275, 50);
 
         target.addEventListener("wheel", event => {}, { passive: true });
-        canWheel(output, "passive listener over target", 50, 50);
+        await frames();
+        wheelTarget(output, "passive listener over target", 50, 50);
 
+        // A blocking listener holds every step back until a frame shows where the listener is.
         const blockingElementListener = event => {};
         target.addEventListener("wheel", blockingElementListener, { passive: false });
-        output.push(`blocking element routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
-        canWheel(output, "blocking element listener inside", 50, 50);
-        canWheel(output, "blocking element listener outside", 150, 150);
-        canWheel(output, "stale blocking element regions", 150, 150, true);
+        wheelTarget(output, "blocking element listener before the next frame", 150, 150);
+        await frames();
+        output.push(`blocking element routing admission: ${internals.compositorScrollState().wheelRoutingAdmission}`);
+        wheelTarget(output, "blocking element listener inside", 50, 50);
+        wheelTarget(output, "blocking element listener outside", 150, 150);
         const displayList = internals.dumpDisplayList();
 
         target.removeEventListener("wheel", blockingElementListener);
         const blockingWindowListener = event => {};
         window.addEventListener("wheel", blockingWindowListener, { passive: false });
-        output.push(`blocking window routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
-        canWheel(output, "blocking window listener", 150, 150);
-        canWheel(output, "stale blocking window regions", 150, 150, true);
+        wheelTarget(output, "blocking window listener before the next frame", 150, 150);
+        await frames();
+        output.push(`blocking window routing admission: ${internals.compositorScrollState().wheelRoutingAdmission}`);
+        wheelTarget(output, "blocking window listener", 150, 150);
         printOutputAndDisplayList(output, displayList, "display list after blocking element listener:");
     });
 </script>
