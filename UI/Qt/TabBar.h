@@ -63,6 +63,7 @@ public:
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void refresh_tab_layout();
     void recreate_icons();
+    int pinned_tab_count() const;
 
 private:
     virtual QSize sizeHint() const override;
@@ -173,6 +174,7 @@ public:
     void set_vertical_tabs_expand_on_hover(bool);
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void update_tab_button_visibility();
+    void update_tab_layout();
 
 signals:
     void current_tab_changed(int index);
@@ -213,7 +215,6 @@ private:
     QRect vertical_tabs_chrome_rect() const;
     int vertical_tabs_tab_width() const;
     void update_vertical_tabs_button_layout();
-    void update_tab_layout();
     void update_tab_chrome_visibility();
     void recreate_icons();
     void update_chrome_style();

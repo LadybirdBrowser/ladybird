@@ -66,6 +66,9 @@ static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 42;
 static constexpr int HORIZONTAL_TAB_HEIGHT = 36;
 static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 128;
 static constexpr int HORIZONTAL_TAB_MAX_WIDTH = 232;
+// A pinned tab's tile: wide enough for a square card inside TAB_CARD_SHAPE_HORIZONTAL_INSET and
+// TAB_CARD_SHAPE_VERTICAL_INSET on a HORIZONTAL_TAB_HEIGHT row.
+static constexpr int PINNED_TAB_TILE_WIDTH = 40;
 static constexpr int VERTICAL_TAB_HEIGHT = 38;
 static constexpr int VERTICAL_TABS_COLLAPSED_WIDTH = browser_chrome_layout_policy().collapsed_sidebar_width;
 static constexpr int VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH = browser_chrome_layout_policy().expanded_sidebar_width;
@@ -590,6 +593,22 @@ void TabBar::refresh_tab_layout()
     update();
 }
 
+int TabBar::pinned_tab_count() const
+{
+    if (!m_tab_widget)
+        return 0;
+
+    // While a tab is being taken, its page leaves the stack before its tab-bar entry, so a missing page ends the count.
+    int pinned_count = 0;
+    while (pinned_count < count()) {
+        auto* tab = m_tab_widget->tab(pinned_count);
+        if (!tab || !tab->is_pinned())
+            break;
+        ++pinned_count;
+    }
+    return pinned_count;
+}
+
 void TabBar::recreate_icons()
 {
     m_fallback_tab_icon = create_chrome_icon(ChromeIcon::Globe, palette());
@@ -621,7 +640,16 @@ QSize TabBar::tabSizeHint(int index) const
     }
 
     if (auto count = this->count(); count > 0) {
-        auto width = (m_available_width > 0 ? m_available_width : this->width()) / count;
+        auto pinned_count = pinned_tab_count();
+        if (index < pinned_count) {
+            hint.setWidth(PINNED_TAB_TILE_WIDTH);
+            hint.setHeight(HORIZONTAL_TAB_HEIGHT);
+            return hint;
+        }
+
+        // The unpinned tabs share whatever width the pinned tiles leave.
+        auto available_width = (m_available_width > 0 ? m_available_width : this->width()) - (pinned_count * PINNED_TAB_TILE_WIDTH);
+        auto width = available_width / max(1, count - pinned_count);
         width = min(HORIZONTAL_TAB_MAX_WIDTH, width);
         width = max(HORIZONTAL_TAB_MIN_WIDTH, width);
 
@@ -691,6 +719,7 @@ void TabBar::paintEvent(QPaintEvent*)
     auto text_color = ChromeStyle::chrome_text(palette());
     auto is_vertical = tab_layout() != TabLayout::Horizontal;
     auto is_collapsed_vertical = tab_layout() == TabLayout::VerticalCollapsed;
+    auto pinned_count = pinned_tab_count();
 
     for (int index = 0; index < count(); ++index) {
         auto tab_rect = visual_tab_rect(index);
@@ -704,6 +733,8 @@ void TabBar::paintEvent(QPaintEvent*)
         bool is_selected = index == currentIndex();
         auto hover_progress = index == m_hover_animation_tab_index ? m_hover_progress : (index == m_hovered_tab_index ? 1.0 : 0.0);
         bool is_hovered = hover_progress > 0.0;
+        // A pinned tab is a tile that shows only its favicon.
+        auto is_pinned_tile = index < pinned_count && m_tab_layout == TabLayout::Horizontal;
 
         QRectF shape_rect;
         if (is_collapsed_vertical)
@@ -747,7 +778,11 @@ void TabBar::paintEvent(QPaintEvent*)
         if (icon.isNull())
             icon = m_fallback_tab_icon;
 
-        if (is_collapsed_vertical) {
+        if (is_collapsed_vertical || is_pinned_tile) {
+            // The audio button takes the favicon's place on a pinned tile.
+            if (is_pinned_tile && tabButton(index, QTabBar::LeftSide))
+                continue;
+
             QRect icon_rect {
                 tab_rect.center().x() - (TAB_ICON_SIZE / 2) + 1,
                 tab_rect.center().y() - (TAB_ICON_SIZE / 2) + 1,
@@ -1067,6 +1102,12 @@ int TabBar::insertion_index_at(QPoint const& position) const
 
 int TabBar::drop_indicator_index_for_insertion_index(int insertion_index) const
 {
+    // A drag never moves a tab across the boundary between the pinned and unpinned tabs.
+    if (s_active_tab_dragged_tab) {
+        auto pinned_count = pinned_tab_count();
+        insertion_index = s_active_tab_dragged_tab->is_pinned() ? min(insertion_index, pinned_count) : max(insertion_index, pinned_count);
+    }
+
     if (s_active_tab_drag_source == m_tab_widget && s_active_tab_dragged_tab) {
         auto dragged_tab_index = m_tab_widget->index_of(s_active_tab_dragged_tab);
         if (dragged_tab_index >= 0 && (insertion_index == dragged_tab_index || insertion_index == dragged_tab_index + 1))
@@ -1378,9 +1419,20 @@ void TabBar::update_tab_button_geometry()
     };
 
     if (tab_layout() == TabLayout::Horizontal) {
+        auto pinned_count = pinned_tab_count();
         for (int index = 0; index < count(); ++index) {
             prepare_button(tabButton(index, QTabBar::LeftSide), false);
             prepare_button(tabButton(index, QTabBar::RightSide), false);
+
+            // The audio button takes the favicon's place, in the middle of a pinned tile.
+            auto* audio_button = index < pinned_count ? tabButton(index, QTabBar::LeftSide) : nullptr;
+            if (!audio_button)
+                continue;
+            auto button_size = audio_button->size().isEmpty() ? audio_button->sizeHint() : audio_button->size();
+            auto center = visual_tab_rect(index).center();
+            QRect button_geometry { center.x() - (button_size.width() / 2) + 1, center.y() - (button_size.height() / 2) + 1, button_size.width(), button_size.height() };
+            if (audio_button->geometry() != button_geometry)
+                audio_button->setGeometry(button_geometry);
         }
         return;
     }
@@ -2362,7 +2414,9 @@ void TabWidget::update_tab_layout()
 
     m_tab_bar->set_available_width(available_for_tabs);
 
-    auto tab_bar_width = min(available_for_tabs, m_tab_bar->count() * HORIZONTAL_TAB_MAX_WIDTH);
+    auto pinned_count = m_tab_bar->pinned_tab_count();
+    auto tabs_width = (pinned_count * PINNED_TAB_TILE_WIDTH) + ((m_tab_bar->count() - pinned_count) * HORIZONTAL_TAB_MAX_WIDTH);
+    auto tab_bar_width = min(available_for_tabs, tabs_width);
     m_tab_bar->setFixedWidth(max(0, tab_bar_width));
 }
 
