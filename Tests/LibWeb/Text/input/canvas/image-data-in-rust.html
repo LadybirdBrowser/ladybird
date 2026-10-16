@@ -62,7 +62,10 @@
         detached.buffer.transfer();
         println(`from detached data: ${outcome(() => new ImageData(detached, 1))}`);
         println(`from a Uint8Array: ${outcome(() => new ImageData(new Uint8Array(4), 1))}`);
-        println(`from shared data: ${outcome(() => new ImageData(new Uint8ClampedArray(new SharedArrayBuffer(4)), 1))}`);
+        // This document is not cross-origin isolated, so it has no SharedArrayBuffer global, but a shared WebAssembly
+        // memory still gives it a SharedArrayBuffer.
+        const sharedBuffer = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }).buffer;
+        println(`from shared data: ${outcome(() => new ImageData(new Uint8ClampedArray(sharedBuffer, 0, 4), 1))}`);
 
         // An ImageData wider than a bitmap can be.
         const wide = new ImageData(70000, 1);

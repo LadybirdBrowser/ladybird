@@ -67,8 +67,12 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     auto unsafe_worker_creation_time = Web::HighResolutionTime::unsafe_shared_current_time();
 
     // 5. Let realm execution context be the result of creating a new realm given agent and the following customizations:
+    // NB: A dedicated worker's agent is in its owner's agent cluster. A shared worker's is in a new one, whose
+    //     cross-origin isolation mode is "none" until the worker's response sets it.
+    auto agent_cluster_cross_origin_isolation_mode = is_shared ? Web::HTML::CrossOriginIsolationMode::None : outside_settings_snapshot.agent_cluster_cross_origin_isolation_mode;
     auto realm_execution_context = Web::Bindings::create_a_new_javascript_realm(
         Web::Bindings::main_thread_vm(),
+        agent_cluster_cross_origin_isolation_mode,
         [page, is_shared](JS::Realm& realm) -> GC::Ref<JS::Object> {
             // For the global object, if is shared is true, create a new SharedWorkerGlobalScope object.
             if (is_shared) {

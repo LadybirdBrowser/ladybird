@@ -108,6 +108,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     auto extension_world = vm.heap().allocate<Web::Bindings::WrapperWorld>(Web::Bindings::WrapperWorld::Type::Extension);
     auto extension_execution_context = Web::Bindings::create_a_new_javascript_realm(
         vm,
+        Web::HTML::CrossOriginIsolationMode::None,
         [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *window });
         },
