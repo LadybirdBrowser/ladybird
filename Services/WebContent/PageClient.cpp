@@ -150,7 +150,11 @@ PageClient::PageClient(PageHost& owner, Web::PageId id, Optional<Web::HTML::Cros
         client.async_did_request_cursor_change(id, cursor);
     });
 
-    m_frame_timer = Core::Timer::create_single_shot(0, [this] { frame_timer_fired(); });
+    m_frame_timer = Core::Timer::create_single_shot(0, [this] {
+        if (m_is_closed)
+            return;
+        frame_timer_fired();
+    });
 }
 
 PageClient::~PageClient() = default;
@@ -1063,6 +1067,8 @@ void PageClient::page_did_change_accessibility_focus(Web::UniqueNodeID node_id)
     m_pending_accessibility_focus = static_cast<i64>(node_id.value());
     if (!m_accessibility_focus_timer) {
         m_accessibility_focus_timer = Core::Timer::create_single_shot(0, [this] {
+            if (m_is_closed)
+                return;
             if (auto pending = exchange(m_pending_accessibility_focus, {}); pending.has_value())
                 client().async_did_accessibility_focus_change(m_id, *pending);
         });
@@ -1083,6 +1089,8 @@ void PageClient::schedule_accessibility_tree_update()
 
     if (!m_accessibility_update_timer) {
         m_accessibility_update_timer = Core::Timer::create_single_shot(200, [this] {
+            if (m_is_closed)
+                return;
             if (auto doc = page().local_traversable()->active_document()) {
                 doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
                 client().async_did_get_accessibility_tree(m_id, doc->build_accessibility_node_data());
@@ -1620,6 +1628,10 @@ void PageClient::page_did_close()
     client().async_did_close_browsing_context(m_id);
 
     page().drop_retired_page_compositor_context();
+
+    // The heap sweeps a closed page in slices, so its timers can still fire once the cells they would use are gone.
+    m_is_closed = true;
+
     // NOTE: This only removes the strong reference the PageHost has for this PageClient.
     //       It will be GC'd 'later'.
     m_owner.remove_page({}, m_id);
