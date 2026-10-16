@@ -1208,12 +1208,6 @@ void LocalNavigable::activate_history_entry(NonnullRefPtr<SessionHistoryEntry> e
 // The steps queued for one navigable of nonchangingNavigablesThatStillNeedUpdates.
 void LocalNavigable::update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex history_object_length_and_index, GC::Ref<GC::Function<void()>> on_complete)
 {
-    // AD-HOC: The navigable may have been destroyed while the UI process dispatched this job.
-    if (has_been_destroyed() || !active_document()) {
-        on_complete->function()();
-        return;
-    }
-
     // AD-HOC: Queue with null document instead of using queue_global_task. A document-associated task can become
     //         unrunnable while the UI process waits for completion, so validate the document when the task runs.
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [navigable = GC::Ref { *this }, history_object_length_and_index, on_complete] {
@@ -1239,7 +1233,8 @@ void LocalNavigable::update_nonchanging_navigable_history_step_state(HistoryObje
 // The steps queued for a navigable of changingNavigables whose targetEntry's document is not its active document.
 void LocalNavigable::queue_navigation_api_state_clear_task()
 {
-    if (has_been_destroyed() || !active_window())
+    // AD-HOC: The UI process can ask this while the navigable has no active document.
+    if (!active_window())
         return;
 
     queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*active_window()), GC::create_function(heap(), [navigable = GC::Ref { *this }] {
