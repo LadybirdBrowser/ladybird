@@ -245,6 +245,66 @@ void NavigationLoader::obtain_the_response_policies(CanonicalNavigable const& na
     navigation_params->opener_policy = response_coop;
 }
 
+// https://html.spec.whatwg.org/multipage/browsers.html#check-a-navigation-response's-adherence-to-its-embedder-policy
+// NB: response is only used for violation reports, which are not queued.
+static bool check_a_navigation_responses_adherence_to_its_embedder_policy(CanonicalNavigable const& navigable, Web::HTML::EmbedderPolicy const& response_policy)
+{
+    // 1. If navigable is not a child navigable, then return true.
+    auto const* container_document = navigable.container_document();
+    if (!container_document)
+        return true;
+
+    // 2. Let parentPolicy be navigable's container document's policy container's embedder policy.
+    auto const& parent_policy = container_document->embedder_policy();
+
+    // FIXME: 3. If parentPolicy's report-only value is compatible with cross-origin isolation and responsePolicy's value
+    //           is not, then queue a cross-origin embedder policy inheritance violation with response, "navigation",
+    //           parentPolicy's report-only reporting endpoint, "reporting", and navigable's container document's
+    //           relevant settings object.
+
+    // 4. If parentPolicy's value is not compatible with cross-origin isolation or responsePolicy's value is compatible
+    //    with cross-origin isolation, then return true.
+    if (!Web::HTML::is_compatible_with_cross_origin_isolation(parent_policy.value) || Web::HTML::is_compatible_with_cross_origin_isolation(response_policy.value))
+        return true;
+
+    // FIXME: 5. Queue a cross-origin embedder policy inheritance violation with response, "navigation", parentPolicy's
+    //           reporting endpoint, "enforce", and navigable's container document's relevant settings object.
+
+    // 6. Return false.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+// NB: The UI process checks the response's adherence to its embedder policy, as it holds navigable's container
+//     document.
+void NavigationLoader::check_the_responses_adherence_to_its_embedder_policy(CanonicalNavigable const& navigable)
+{
+    auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
+    if (!navigation_params)
+        return;
+
+    // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these
+    //    steps:
+    //    4. Otherwise, if any of the following are true:
+    //       [...]
+    //       - navigationParams's reserved environment is non-null and the result of checking a navigation response's
+    //         adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's
+    //         policy container's embedder policy is false; or
+    //       [...]
+    //       then:
+    //       1. Set entry's document state's document to the result of creating a document for inline content that
+    //          doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content
+    //          should indicate to the user the sort of error that occurred.
+    // NB: The UI process checks this before the page that hosts the document queues the task, which creates that
+    //     document for navigation params that are null.
+    if (!navigation_params->reserved_environment.has_value()
+        || check_a_navigation_responses_adherence_to_its_embedder_policy(navigable, navigation_params->policy_container.embedder_policy)) {
+        return;
+    }
+    release_response_body();
+    m_result->navigation_params = Web::HTML::NavigationParamsNullOrError { "Blocked by Cross-Origin-Embedder-Policy"_utf16 };
+}
+
 void NavigationLoader::acquire_response_body(Function<void(bool)> completion_steps)
 {
     VERIFY(m_result.has_value());

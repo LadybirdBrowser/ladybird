@@ -3009,9 +3009,11 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
         // 4. Otherwise, if any of the following are true:
         //  - navigationParams is null;
         //  - the result of should navigation response to navigation request of type in target be blocked by Content Security Policy? given navigationParams's request, navigationParams's response, navigationParams's policy container's CSP list, cspNavigationType, and navigable is "Blocked";
-        //  - FIXME: navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
+        //  - navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
         //  - the result of checking a navigation response's adherence to `X-Frame-Options` given navigationParams's response, navigable, navigationParams's policy container's CSP list, and navigationParams's origin is false,
         //    then:
+        // NB: The UI process checks the response's adherence to its embedder policy, as it holds navigable's container
+        //     document.
         else if (navigation_params.visit(
                      [](NullOrError) { return true; },
                      [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {

@@ -1329,6 +1329,7 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
     auto navigable_id = changing_navigable.id;
     auto navigable = changing_navigable.navigable().make_weak_ptr();
     loader->obtain_the_response_policies(*navigable);
+    loader->check_the_responses_adherence_to_its_embedder_policy(*navigable);
     auto host_or_error = navigable->obtain_page_to_populate_document(target_entry, *loader, *endpoint);
 
     // Obtaining the page can replace the tab's process, whose change callbacks can end the job, and with its operation
