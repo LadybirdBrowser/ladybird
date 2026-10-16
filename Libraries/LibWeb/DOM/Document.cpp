@@ -6886,6 +6886,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::Camera:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::CrossOriginIsolated:
+        // FIXME: Implement the allow attribute, which a container uses to delegate the feature to another origin.
+        return default_allowlist_enables_feature_in(*this);
     case PolicyControlledFeature::FocusWithoutUserActivation:
         // FIXME: Implement the allow attribute, which a container uses to delegate the feature to another origin.
         return default_allowlist_enables_feature_in(*this);
