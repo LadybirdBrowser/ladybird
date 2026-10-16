@@ -5,16 +5,22 @@
  */
 
 #include <AK/AnyOf.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
+#include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcement.h>
+#include <LibWebCommon/HTML/EmbedderPolicy.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
+#include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/RequestServerManager.h>
@@ -167,6 +173,76 @@ void NavigationLoader::determine_the_origin_of_the_response()
     navigation_params->origin = Web::HTML::determine_the_origin(response_url, navigation_params->final_sandboxing_flag_set, entry.document_state.initiator_origin);
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
+// NB: The process that fetched the response can host another site, so the UI process obtains the response's opener and
+//     embedder policies itself, from the headers that RequestServer gave it with the response.
+void NavigationLoader::obtain_the_response_policies(CanonicalNavigable const& navigable)
+{
+    auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
+    if (!navigation_params)
+        return;
+
+    auto const& response_url = navigation_params->response.url_list.is_empty() ? m_request.history_entry.url : navigation_params->response.url_list.last();
+
+    // NB: A response that the fetching process read from its own HTTP memory cache has no RequestServer request, so
+    //     its headers are the ones that process reported.
+    auto header_list = m_response_header_list ? NonnullRefPtr { *m_response_header_list } : HTTP::HeaderList::create(navigation_params->response.headers);
+
+    // 17. Let responseCOOP be a new opener policy.
+    Web::HTML::OpenerPolicy response_coop;
+
+    // 21. While true:
+    //     2. If request's reserved client is null:
+    //        1. Let topLevelCreationURL be currentURL.
+    //        3. If navigable is not a top-level traversable:
+    //           1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
+    //           2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
+    // NB: The UI process runs these steps for the final response only. The parent environment's top-level creation URL
+    //     is the creation URL of the top-level traversable's active document.
+    auto const& top_level_creation_url = navigable.is_top_level_traversable() ? response_url : navigable.top_level_traversable().active_document().creation_url();
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#secure-context
+    // 2. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially
+    //    Trustworthy", then return true.
+    auto reserved_environment_is_a_non_secure_context = Web::SecureContexts::is_url_potentially_trustworthy(top_level_creation_url) == Web::SecureContexts::Trustworthiness::NotTrustworthy;
+
+    //     9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given
+    //        response and request's reserved client.
+    // NB: The document takes responsePolicyContainer unless the response's URL is local, when it inherits a policy
+    //     container instead.
+    if (!Web::Fetch::Infrastructure::is_local_url(response_url))
+        navigation_params->policy_container.embedder_policy = Web::HTML::obtain_an_embedder_policy(header_list, reserved_environment_is_a_non_secure_context);
+
+    //     12. If navigable is a top-level traversable:
+    if (navigable.is_top_level_traversable()) {
+        // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
+        response_coop = Web::HTML::obtain_an_opener_policy(header_list, reserved_environment_is_a_non_secure_context);
+
+        // 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active
+        //    browsing context, response's URL, responseOrigin, responseCOOP, coopEnforcementResult, and request's
+        //    referrer.
+        // NB: The fetching process enforced the opener policy of each response along the redirects, which the UI
+        //     process does not see. Enforcing the final response's opener policy again, against navigable's active
+        //     document, lets that process add a browsing context group switch but not withhold one. Only the switch
+        //     flags are taken from this result.
+        auto const& active_document = navigable.active_document();
+        Web::HTML::OpenerPolicyEnforcementResult active_document_coop_enforcement_result {
+            .needs_a_browsing_context_group_switch = false,
+            .would_need_a_browsing_context_group_switch_due_to_report_only = false,
+            .url = active_document.creation_url(),
+            .origin = active_document.origin(),
+            .opener_policy = active_document.opener_policy(),
+            .current_context_is_navigation_source = false,
+        };
+        auto coop_enforcement_result = Web::HTML::enforce_a_responses_opener_policy(active_document.is_initial_about_blank(), response_url, navigation_params->origin, response_coop, active_document_coop_enforcement_result);
+        navigation_params->coop_enforcement_result.opener_policy = response_coop;
+        navigation_params->coop_enforcement_result.needs_a_browsing_context_group_switch |= coop_enforcement_result.needs_a_browsing_context_group_switch;
+        navigation_params->coop_enforcement_result.would_need_a_browsing_context_group_switch_due_to_report_only |= coop_enforcement_result.would_need_a_browsing_context_group_switch_due_to_report_only;
+    }
+
+    navigation_params->opener_policy = response_coop;
+}
+
 void NavigationLoader::acquire_response_body(Function<void(bool)> completion_steps)
 {
     VERIFY(m_result.has_value());
@@ -208,9 +284,11 @@ void NavigationLoader::set_response_body_callbacks(Requests::Request& request)
 {
     auto weak_this = make_weak_ptr();
     request.set_unbuffered_request_callbacks(
-        [weak_this](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
-            if (auto* loader = weak_this.ptr())
+        [weak_this](NonnullRefPtr<HTTP::HeaderList> response_header_list, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+            if (auto* loader = weak_this.ptr()) {
+                loader->m_response_header_list = move(response_header_list);
                 loader->did_acquire(true);
+            }
         },
         [](Requests::ResponseData) { },
         [](Core::ImmutableBytes) { },

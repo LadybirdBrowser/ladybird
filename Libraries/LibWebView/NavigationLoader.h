@@ -12,6 +12,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Weakable.h>
+#include <LibHTTP/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/Request.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
@@ -56,6 +57,7 @@ public:
 
     void did_finish_navigation_params_creation(Web::HTML::NavigationPopulationResult);
     void acquire_response_body(Function<void(bool)> completion_steps);
+    void obtain_the_response_policies(CanonicalNavigable const&);
     // Moves the response over to the RequestServer of the process that will host the document, if that is another one.
     void move_response_body_to(RequestServerInstance&, Function<void(bool)> completion_steps);
     bool response_body_matches(int request_server_client_id, u64 request_server_request_id) const;
@@ -82,6 +84,7 @@ private:
     Web::HTML::NavigationPopulationRequest m_request;
     Optional<Web::HTML::NavigationPopulationResult> m_result;
     RefPtr<Requests::Request> m_response_body_request;
+    RefPtr<HTTP::HeaderList> m_response_header_list;
     RefPtr<RequestServerInstance> m_response_body_request_server;
     Optional<int> m_response_body_request_server_client_id;
     Optional<u64> m_response_body_request_server_request_id;
