@@ -15,7 +15,9 @@
 //! until what the back edges bring agrees with it.
 //!
 //! Branches on the kind of a value tell their targets what it is, and
-//! become jumps where what is known decides them.
+//! become jumps where what is known decides them. So do branches on values
+//! alone (comparisons, builtin tests), which go the way a branch on the same
+//! values went before.
 //!
 //! With those facts, checks that already passed are removed, loads of a
 //! property whose value is known are replaced by that value (including
@@ -35,6 +37,7 @@
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
+use super::facts::BranchKey;
 use super::facts::ElementCount;
 use super::facts::Facts;
 use super::facts::Location;
@@ -241,6 +244,32 @@ fn visit_block(
         passed.set_passed(value, condition);
         facts.set_failed(value, condition);
         return vec![(if_true, passed), (if_false, facts)];
+    }
+    // A branch on values alone goes the way a branch on the same values
+    // went before.
+    if let Op::Branch {
+        condition,
+        if_true,
+        if_false,
+    } = graph.node(control).op
+    {
+        let inputs = graph
+            .node(control)
+            .inputs
+            .iter()
+            .map(|input| decisions.value(graph, *input))
+            .collect::<InlineVec<NodeId, 2>>();
+        if let Some(key) = BranchKey::of(graph, condition, &inputs) {
+            if let Some(holds) = facts.branch_outcome(&key) {
+                let target = if holds { if_true } else { if_false };
+                decisions.controls.push((control, Op::Jump { target }));
+                return vec![(target, facts)];
+            }
+            let mut passed = facts.clone();
+            passed.set_branch_outcome(key, true);
+            facts.set_branch_outcome(key, false);
+            return vec![(if_true, passed), (if_false, facts)];
+        }
     }
     let Op::ShapeSwitch { cases } = graph.node(control).op.clone() else {
         let successors = graph.successors(block);
