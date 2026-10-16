@@ -77,6 +77,9 @@ static constexpr int HORIZONTAL_ACTIVE_TAB_CLOSE_BUTTON_MIN_WIDTH = 68;
 // Below this content width, a horizontal tab shows its favicon alone.
 static constexpr int HORIZONTAL_TAB_MIN_CONTENT_WIDTH_FOR_TITLE = 48;
 static constexpr int HORIZONTAL_TAB_MAX_WIDTH = 232;
+// A pinned tab's tile: wide enough for a square card inside TAB_CARD_SHAPE_HORIZONTAL_INSET and
+// TAB_CARD_SHAPE_VERTICAL_INSET on a HORIZONTAL_TAB_HEIGHT row.
+static constexpr int PINNED_TAB_TILE_WIDTH = 40;
 static constexpr int VERTICAL_TAB_HEIGHT = 38;
 static constexpr int VERTICAL_TABS_COLLAPSED_WIDTH = browser_chrome_layout_policy().collapsed_sidebar_width;
 static constexpr int VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH = browser_chrome_layout_policy().expanded_sidebar_width;
@@ -688,6 +691,22 @@ void TabBar::refresh_tab_layout()
     update();
 }
 
+int TabBar::pinned_tab_count() const
+{
+    if (!m_tab_widget)
+        return 0;
+
+    // While a tab is being taken, its page leaves the stack before its tab-bar entry, so a missing page ends the count.
+    int pinned_count = 0;
+    while (pinned_count < count()) {
+        auto* tab = m_tab_widget->tab(pinned_count);
+        if (!tab || !tab->is_pinned())
+            break;
+        ++pinned_count;
+    }
+    return pinned_count;
+}
+
 void TabBar::recreate_icons()
 {
     m_fallback_tab_icon = create_chrome_icon(ChromeIcon::Globe, palette());
@@ -719,7 +738,16 @@ QSize TabBar::tabSizeHint(int index) const
     }
 
     if (auto count = this->count(); count > 0) {
-        auto width = (m_available_width > 0 ? m_available_width : this->width()) / count;
+        auto pinned_count = pinned_tab_count();
+        if (index < pinned_count) {
+            hint.setWidth(PINNED_TAB_TILE_WIDTH);
+            hint.setHeight(HORIZONTAL_TAB_HEIGHT);
+            return hint;
+        }
+
+        // The unpinned tabs share whatever width the pinned tiles leave.
+        auto available_width = (m_available_width > 0 ? m_available_width : this->width()) - (pinned_count * PINNED_TAB_TILE_WIDTH);
+        auto width = available_width / max(1, count - pinned_count);
         width = min(HORIZONTAL_TAB_MAX_WIDTH, width);
         width = max(HORIZONTAL_TAB_MIN_WIDTH, width);
 
@@ -793,6 +821,7 @@ void TabBar::paintEvent(QPaintEvent*)
     auto is_vertical = tab_layout() != TabLayout::Horizontal;
     auto is_collapsed_vertical = tab_layout() == TabLayout::VerticalCollapsed;
     auto dragged_index = dragged_tab_index();
+    auto pinned_count = pinned_tab_count();
 
     // Titles are shaped once and kept for as long as some tab shows them, since resizing the window repaints the tab
     // bar on every step without changing any title.
@@ -820,6 +849,8 @@ void TabBar::paintEvent(QPaintEvent*)
         bool is_selected = index == currentIndex();
         auto hover_progress = index == m_hover_animation_tab_index ? m_hover_progress : (index == m_hovered_tab_index ? 1.0 : 0.0);
         bool is_hovered = hover_progress > 0.0;
+        // A pinned tab is a tile that shows only its favicon.
+        auto is_pinned_tile = index < pinned_count && m_tab_layout == TabLayout::Horizontal;
 
         QRectF shape_rect;
         if (is_collapsed_vertical)
@@ -861,7 +892,11 @@ void TabBar::paintEvent(QPaintEvent*)
         if (icon.isNull())
             icon = m_fallback_tab_icon;
 
-        if (is_collapsed_vertical) {
+        if (is_collapsed_vertical || is_pinned_tile) {
+            // The audio button takes the favicon's place on a pinned tile.
+            if (is_pinned_tile && tabButton(index, QTabBar::LeftSide))
+                continue;
+
             QRect icon_rect {
                 tab_rect.center().x() - (TAB_ICON_SIZE / 2) + 1,
                 tab_rect.center().y() - (TAB_ICON_SIZE / 2) + 1,
@@ -1196,13 +1231,32 @@ Optional<int> TabBar::dragged_tab_index() const
 
 // A tab dragged in from elsewhere needs a gap of its own. Vertical tabs make room by moving the tabs after the gap
 // down, while horizontal tabs narrow to fit the gap within the strip's current width.
-qreal TabBar::drop_gap_extent() const
+bool TabBar::dragging_pinned_tab() const
 {
-    if (tab_layout() != TabLayout::Horizontal)
-        return VERTICAL_TAB_HEIGHT;
+    return s_active_tab_dragged_tab && s_active_tab_dragged_tab->is_pinned();
+}
+
+// Where the tab at a position sits once a tab dragged in from another window joins the dragged tab's own group. The
+// pinned tiles keep their width, and the unpinned tabs narrow to make room, so the strip keeps its width.
+QRect TabBar::incoming_drop_layout_rect(int position) const
+{
     if (count() == 0)
-        return 0;
-    return static_cast<qreal>(tabRect(count() - 1).right() + 1 - tabRect(0).left()) / (count() + 1);
+        return {};
+
+    if (tab_layout() != TabLayout::Horizontal) {
+        auto first_tab_rect = visual_tab_rect(0);
+        return { first_tab_rect.left(), first_tab_rect.top() + (position * VERTICAL_TAB_HEIGHT), first_tab_rect.width(), VERTICAL_TAB_HEIGHT };
+    }
+
+    auto pinned_count = pinned_tab_count() + (dragging_pinned_tab() ? 1 : 0);
+    auto unpinned_count = count() + 1 - pinned_count;
+    auto first_tab_rect = tabRect(0);
+    auto strip_width = tabRect(count() - 1).right() + 1 - first_tab_rect.left();
+    auto unpinned_width = unpinned_count > 0 ? max(0.0, static_cast<qreal>(strip_width - (pinned_count * PINNED_TAB_TILE_WIDTH)) / unpinned_count) : 0.0;
+
+    auto left = first_tab_rect.left() + (min(position, pinned_count) * PINNED_TAB_TILE_WIDTH) + (max(0, position - pinned_count) * unpinned_width);
+    auto width = position < pinned_count ? PINNED_TAB_TILE_WIDTH : unpinned_width;
+    return QRectF { left, static_cast<qreal>(first_tab_rect.top()), width, static_cast<qreal>(first_tab_rect.height()) }.toRect();
 }
 
 // Returns the index that a tab dropped at the given position ends up at.
@@ -1211,28 +1265,39 @@ int TabBar::drop_slot_at(QPoint const& position) const
     if (count() == 0)
         return 0;
 
-    auto is_vertical = tab_layout() != TabLayout::Horizontal;
-    auto first_tab_rect = visual_tab_rect(0);
-    auto strip_start = is_vertical ? first_tab_rect.top() : first_tab_rect.left();
+    // A drag never moves a tab across the boundary between the pinned and unpinned tabs, so only the dragged tab's own
+    // group has slots for it. Of those, the slot is the one whose place is nearest.
+    auto pinned_count = pinned_tab_count();
+    auto dragging_pinned = dragging_pinned_tab();
+    auto nearest_slot = [](int first_slot, int last_slot, QPointF point, auto const& rect_for_slot) {
+        auto best_slot = first_slot;
+        auto best_distance = NumericLimits<qreal>::max();
+        for (auto slot = first_slot; slot <= last_slot; ++slot) {
+            auto offset = QRectF(rect_for_slot(slot)).center() - point;
+            if (auto distance = QPointF::dotProduct(offset, offset); distance < best_distance) {
+                best_distance = distance;
+                best_slot = slot;
+            }
+        }
+        return best_slot;
+    };
 
     if (auto dragged_index = dragged_tab_index(); dragged_index.has_value()) {
         auto dragged_tab_rect = visual_tab_rect(*dragged_index);
-        auto extent = is_vertical ? dragged_tab_rect.height() : dragged_tab_rect.width();
-        if (extent <= 0)
+        if (dragged_tab_rect.isEmpty())
             return *dragged_index;
 
         // Follow the center of the dragged tab rather than the cursor, so that a neighbor makes way once the dragged
         // tab covers half of it.
-        auto dragged_tab_position = position - m_position_in_selected_tab_while_dragging;
-        auto center = (is_vertical ? dragged_tab_position.y() : dragged_tab_position.x()) + (extent / 2);
-        return clamp((center - strip_start) / extent, 0, count() - 1);
+        auto center = QRectF(QPointF(position - m_position_in_selected_tab_while_dragging), QSizeF(dragged_tab_rect.size())).center();
+        auto first_slot = dragging_pinned ? 0 : pinned_count;
+        auto last_slot = dragging_pinned ? pinned_count - 1 : count() - 1;
+        return nearest_slot(first_slot, last_slot, center, [this](int slot) { return visual_tab_rect(slot); });
     }
 
-    auto extent = drop_gap_extent();
-    if (extent <= 0)
-        return count();
-    auto position_in_strip = (is_vertical ? position.y() : position.x()) - strip_start;
-    return clamp(static_cast<int>(position_in_strip / extent), 0, count());
+    auto first_slot = dragging_pinned ? 0 : pinned_count;
+    auto last_slot = dragging_pinned ? pinned_count : count();
+    return nearest_slot(first_slot, last_slot, QPointF(position), [this](int slot) { return incoming_drop_layout_rect(slot); });
 }
 
 // Returns the index to insert a tab dropped at the given position at. It counts the dragged tab in its old place, as
@@ -1286,31 +1351,30 @@ TabBar::DropPreview TabBar::drop_preview_for_slot(Optional<int> slot) const
     if (!slot.has_value())
         return preview;
 
-    auto is_vertical = tab_layout() != TabLayout::Horizontal;
+    auto move_to = [&](int index, QRect const& target) {
+        auto tab_rect = visual_tab_rect(index);
+        preview.tab_shifts[index] = {
+            .x_offset = static_cast<qreal>(target.left() - tab_rect.left()),
+            .y_offset = static_cast<qreal>(target.top() - tab_rect.top()),
+            .width_delta = static_cast<qreal>(target.width() - tab_rect.width()),
+            .height_delta = static_cast<qreal>(target.height() - tab_rect.height()),
+        };
+    };
 
-    // The tabs between the dragged tab and its drop slot move over by one to fill the dragged tab's place.
+    // The tabs between the dragged tab and its drop slot move over by one place to fill the dragged tab's place.
     if (auto dragged_index = dragged_tab_index(); dragged_index.has_value()) {
-        auto dragged_tab_rect = visual_tab_rect(*dragged_index);
-        auto extent = is_vertical ? dragged_tab_rect.height() : dragged_tab_rect.width();
         for (int index = *dragged_index + 1; index <= *slot; ++index)
-            preview.tab_shifts[index].offset = -extent;
+            move_to(index, visual_tab_rect(index - 1));
         for (int index = *slot; index < *dragged_index; ++index)
-            preview.tab_shifts[index].offset = extent;
+            move_to(index, visual_tab_rect(index + 1));
         return preview;
     }
 
-    auto gap_extent = drop_gap_extent();
-    auto first_tab_rect = visual_tab_rect(0);
-    auto strip_start = is_vertical ? first_tab_rect.top() : first_tab_rect.left();
-    for (int index = 0; index < count(); ++index) {
-        auto tab_rect = visual_tab_rect(index);
-        auto slot_index = index < *slot ? index : index + 1;
-        auto& shift = preview.tab_shifts[index];
-        shift.offset = strip_start + (slot_index * gap_extent) - (is_vertical ? tab_rect.top() : tab_rect.left());
-        shift.extent_delta = gap_extent - (is_vertical ? tab_rect.height() : tab_rect.width());
-    }
-    if (is_vertical)
-        preview.strip_growth = gap_extent;
+    // A tab dragged in from another window opens a gap at its slot.
+    for (int index = 0; index < count(); ++index)
+        move_to(index, incoming_drop_layout_rect(index < *slot ? index : index + 1));
+    if (tab_layout() != TabLayout::Horizontal)
+        preview.strip_growth = VERTICAL_TAB_HEIGHT;
     return preview;
 }
 
@@ -1333,9 +1397,12 @@ TabBar::TabShift TabBar::current_tab_shift(int index) const
 
     auto start = shift_in(m_drop_preview_start);
     auto target = shift_in(m_drop_preview_target);
+    auto interpolate = [this](qreal from, qreal to) { return from + ((to - from) * m_drop_preview_progress); };
     return {
-        .offset = start.offset + ((target.offset - start.offset) * m_drop_preview_progress),
-        .extent_delta = start.extent_delta + ((target.extent_delta - start.extent_delta) * m_drop_preview_progress),
+        .x_offset = interpolate(start.x_offset, target.x_offset),
+        .y_offset = interpolate(start.y_offset, target.y_offset),
+        .width_delta = interpolate(start.width_delta, target.width_delta),
+        .height_delta = interpolate(start.height_delta, target.height_delta),
     };
 }
 
@@ -1350,11 +1417,12 @@ QRect TabBar::shifted_tab_rect(int index) const
 {
     auto tab_rect = visual_tab_rect(index);
     auto shift = current_tab_shift(index);
-    auto start_delta = qRound(shift.offset);
-    auto end_delta = qRound(shift.offset + shift.extent_delta);
-    if (tab_layout() == TabLayout::Horizontal)
-        return tab_rect.adjusted(start_delta, 0, end_delta, 0);
-    return tab_rect.adjusted(0, start_delta, 0, end_delta);
+    return {
+        qRound(tab_rect.left() + shift.x_offset),
+        qRound(tab_rect.top() + shift.y_offset),
+        qRound(tab_rect.width() + shift.width_delta),
+        qRound(tab_rect.height() + shift.height_delta),
+    };
 }
 
 QPixmap TabBar::render_tab_drag_pixmap(int index) const
@@ -1743,12 +1811,28 @@ void TabBar::update_tab_button_geometry()
     auto dragged_index = dragged_tab_index();
 
     if (tab_layout() == TabLayout::Horizontal) {
+        auto pinned_count = pinned_tab_count();
         for (int index = 0; index < count(); ++index) {
             auto is_dragged = index == dragged_index;
             auto tab_rect = shifted_tab_rect(index);
             auto shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect));
             auto* left_button = tabButton(index, QTabBar::LeftSide);
             prepare_button(left_button, false);
+
+            // The audio button takes the favicon's place, in the middle of a pinned tile.
+            if (index < pinned_count) {
+                if (!left_button)
+                    continue;
+                auto button_size = left_button->size().isEmpty() ? left_button->sizeHint() : left_button->size();
+                auto center = tab_rect.center();
+                QRect button_geometry { center.x() - (button_size.width() / 2) + 1, center.y() - (button_size.height() / 2) + 1, button_size.width(), button_size.height() };
+                if (left_button->geometry() != button_geometry)
+                    left_button->setGeometry(button_geometry);
+                if (left_button->isVisible() == is_dragged)
+                    left_button->setVisible(!is_dragged);
+                continue;
+            }
+
             // NB: The style puts a tab's left button 1pt inside the tab's pill, where its icon looks flush against the
             //     pill's edge. Give it 3pt.
             if (left_button) {
@@ -2853,7 +2937,9 @@ void TabWidget::update_tab_layout()
 
     m_tab_bar->set_available_width(available_for_tabs);
 
-    auto tab_bar_width = min(available_for_tabs, m_tab_bar->count() * HORIZONTAL_TAB_MAX_WIDTH);
+    auto pinned_count = m_tab_bar->pinned_tab_count();
+    auto tabs_width = (pinned_count * PINNED_TAB_TILE_WIDTH) + ((m_tab_bar->count() - pinned_count) * HORIZONTAL_TAB_MAX_WIDTH);
+    auto tab_bar_width = min(available_for_tabs, tabs_width);
     m_tab_bar->setFixedWidth(max(0, tab_bar_width));
 }
 

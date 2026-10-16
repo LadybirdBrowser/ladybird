@@ -1347,6 +1347,14 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
         m_window->duplicate_tab(*this);
     });
 
+    m_pin_tab_action = new QAction("&Pin Tab", this);
+    QObject::connect(m_pin_tab_action, &QAction::triggered, this, [this]() {
+        if (m_is_pinned)
+            m_window->unpin_tab(*this);
+        else
+            m_window->pin_tab(*this);
+    });
+
     auto* move_to_start_action = new QAction("Move to &Start", this);
     QObject::connect(move_to_start_action, &QAction::triggered, this, [this]() {
         m_window->move_tab(tab_index(), 0);
@@ -1365,21 +1373,23 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     auto* close_tabs_to_left_action = new QAction("C&lose Tabs to Left", this);
     QObject::connect(close_tabs_to_left_action, &QAction::triggered, this, [this]() {
         for (auto i = tab_index() - 1; i >= 0; i--) {
-            m_window->request_to_close_tab(i);
+            if (!m_window->tab_at(i)->is_pinned())
+                m_window->request_to_close_tab(i);
         }
     });
 
     auto* close_tabs_to_right_action = new QAction("Close Tabs to R&ight", this);
     QObject::connect(close_tabs_to_right_action, &QAction::triggered, this, [this]() {
         for (auto i = m_window->tab_count() - 1; i > tab_index(); i--) {
-            m_window->request_to_close_tab(i);
+            if (!m_window->tab_at(i)->is_pinned())
+                m_window->request_to_close_tab(i);
         }
     });
 
     auto* close_other_tabs_action = new QAction("Cl&ose Other Tabs", this);
     QObject::connect(close_other_tabs_action, &QAction::triggered, this, [this]() {
         for (auto i = m_window->tab_count() - 1; i >= 0; i--) {
-            if (i == tab_index())
+            if (i == tab_index() || m_window->tab_at(i)->is_pinned())
                 continue;
 
             m_window->request_to_close_tab(i);
@@ -1389,6 +1399,7 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     m_context_menu = new QMenu("Context menu", this);
     m_context_menu->addAction(create_application_action(*this, application.reload_action(), IncludeActionIcon::No));
     m_context_menu->addAction(duplicate_tab_action);
+    m_context_menu->addAction(m_pin_tab_action);
     m_context_menu->addSeparator();
     auto* move_tab_menu = m_context_menu->addMenu("Mo&ve Tab");
     move_tab_menu->addAction(move_to_start_action);
@@ -1433,6 +1444,12 @@ void Tab::set_window(BrowserWindow& window)
     // The tab's pages hold the geometry of the window that hosted them until now.
     m_view->set_window_position({ window.x(), window.y() });
     m_view->set_window_size({ window.width(), window.height() });
+}
+
+void Tab::set_pinned(bool pinned)
+{
+    m_is_pinned = pinned;
+    m_pin_tab_action->setText(pinned ? "Un&pin Tab" : "&Pin Tab");
 }
 
 void Tab::set_vertical_tabs_enabled(bool enabled)

@@ -133,6 +133,10 @@ public:
 
     void enter_report_review(Tab* tab_to_activate_on_close, Optional<QString> title = {});
 
+    bool is_pinned() const { return m_is_pinned; }
+    // BrowserWindow pins and unpins tabs, since it keeps each window's pinned tabs at the start of its strip.
+    void set_pinned(bool);
+
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
 
@@ -259,6 +263,7 @@ private:
     QAction* m_stop_action { nullptr };
     ReloadButton* m_reload_button { nullptr };
     QAction* m_open_downloads_page_action { nullptr };
+    QAction* m_pin_tab_action { nullptr };
     Optional<ChromeIcon> m_downloads_button_icon;
     QString m_downloads_button_tooltip;
 
@@ -278,6 +283,7 @@ private:
     bool m_already_requested_close { false };
     bool m_preserve_close_retry_state_on_dialog_dismissal { false };
     bool m_window_is_closing { false };
+    bool m_is_pinned { false };
 };
 
 }

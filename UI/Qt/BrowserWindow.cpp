@@ -589,27 +589,25 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocat
         set_current_tab(tab);
     }
 
+    auto insertion_index = m_tabs_container->count();
     switch (location.kind()) {
     case TabLocation::Kind::End:
-        m_tabs_container->add_tab(tab, "New Tab");
         break;
     case TabLocation::Kind::AfterCurrentTab:
-        m_tabs_container->insert_tab(m_tabs_container->current_index() + 1, tab, "New Tab");
+        insertion_index = m_tabs_container->current_index() + 1;
         break;
-    case TabLocation::Kind::AfterTab: {
-        auto insertion_index = m_tabs_container->count();
+    case TabLocation::Kind::AfterTab:
         if (auto* source_tab = location.tab(); source_tab) {
-            auto source_tab_index = tab_index(source_tab);
-            if (source_tab_index != -1)
+            if (auto source_tab_index = tab_index(source_tab); source_tab_index != -1)
                 insertion_index = source_tab_index + 1;
         }
-        m_tabs_container->insert_tab(insertion_index, tab, "New Tab");
         break;
-    }
     case TabLocation::Kind::AtIndex:
-        m_tabs_container->insert_tab(clamp(location.index(), 0, m_tabs_container->count()), tab, "New Tab");
+        insertion_index = location.index();
         break;
     }
+    // A new tab is unpinned, so it never lands inside the pinned group.
+    m_tabs_container->insert_tab(constrain_insertion_index(insertion_index, false), tab, "New Tab");
 
     if (activate_tab == Web::HTML::ActivateTab::Yes)
         m_tabs_container->set_current_tab(tab);
@@ -688,7 +686,8 @@ void BrowserWindow::adopt_tab(Tab& tab, int index)
 {
     cancel_window_close_preflight();
 
-    index = clamp(index, 0, m_tabs_container->count());
+    // A tab keeps its pin in its new window, inside that window's matching group.
+    index = constrain_insertion_index(index, tab.is_pinned());
 
     tab.set_window(*this);
     m_tabs_container->insert_tab(index, &tab, "New Tab");
@@ -846,7 +845,74 @@ bool BrowserWindow::definitely_close_tab(int index)
 
 void BrowserWindow::move_tab(int old_index, int new_index)
 {
-    m_tabs_container->tab_bar()->moveTab(old_index, new_index);
+    auto* tab = m_tabs_container->tab(old_index);
+    if (!tab)
+        return;
+
+    auto pinned_count = pinned_tab_count();
+    if (tab->is_pinned())
+        new_index = clamp(new_index, 0, pinned_count - 1);
+    else
+        new_index = clamp(new_index, pinned_count, m_tabs_container->count() - 1);
+    if (new_index != old_index)
+        m_tabs_container->tab_bar()->moveTab(old_index, new_index);
+}
+
+int BrowserWindow::pinned_tab_count() const
+{
+    return m_tabs_container->tab_bar()->pinned_tab_count();
+}
+
+int BrowserWindow::constrain_insertion_index(int index, bool pinned) const
+{
+    auto pinned_count = pinned_tab_count();
+    if (pinned)
+        return clamp(index, 0, pinned_count);
+    return clamp(index, pinned_count, m_tabs_container->count());
+}
+
+void BrowserWindow::pin_tab(Tab& tab, Optional<int> pinned_index)
+{
+    auto index = tab_index(&tab);
+    if (index < 0 || tab.is_pinned())
+        return;
+
+    auto pinned_count = pinned_tab_count();
+    auto destination = clamp(pinned_index.value_or(pinned_count), 0, pinned_count);
+    tab.set_pinned(true);
+    if (index != destination)
+        m_tabs_container->tab_bar()->moveTab(index, destination);
+    pinned_state_changed(tab);
+}
+
+void BrowserWindow::unpin_tab(Tab& tab)
+{
+    auto index = tab_index(&tab);
+    if (index < 0 || !tab.is_pinned())
+        return;
+
+    auto destination = pinned_tab_count() - 1;
+    tab.set_pinned(false);
+    if (index != destination)
+        m_tabs_container->tab_bar()->moveTab(index, destination);
+    pinned_state_changed(tab);
+}
+
+void BrowserWindow::pinned_state_changed(Tab& tab)
+{
+    // A move already reported the new order, through the tab bar's tabMoved signal.
+    if (auto session_tab_id = tab.view().session_tab_id(); session_tab_id.has_value()) {
+        if (auto result = m_session->session_store->tab_pinned_changed(*session_tab_id, tab.is_pinned()); result.is_error())
+            dbgln("Unable to record the tab's pin in the session store: {}", result.error());
+    }
+    update_tab_close_button(tab);
+    m_tabs_container->update_tab_layout();
+}
+
+void BrowserWindow::activate_first_unpinned_tab()
+{
+    if (auto first_unpinned = pinned_tab_count(); first_unpinned < m_tabs_container->count())
+        activate_tab(first_unpinned);
 }
 
 void BrowserWindow::register_window_with_session_store()
@@ -927,21 +993,41 @@ void BrowserWindow::update_chrome_style()
     m_hamburger_menu->setStyleSheet(ChromeStyle::hamburger_style_sheet(palette()));
 }
 
+TabBarButton* BrowserWindow::create_tab_close_button(Tab& tab)
+{
+    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::TabClose, palette()));
+    close_button->setToolTip("Close Tab");
+    connect(close_button, &QPushButton::clicked, this, [this, tab = &tab]() {
+        request_to_close_tab(m_tabs_container->index_of(tab));
+    });
+    return close_button;
+}
+
 void BrowserWindow::initialize_tab_buttons(Tab* tab)
 {
     auto index = m_tabs_container->index_of(tab);
     m_tabs_container->set_tab_icon(index, tab->tab_icon());
 
-    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::TabClose, palette()));
-    close_button->setToolTip("Close Tab");
-
-    connect(close_button, &QPushButton::clicked, this, [this, tab]() {
-        auto index = m_tabs_container->index_of(tab);
-        request_to_close_tab(index);
-    });
-
     m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
-    m_tabs_container->tab_bar()->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, close_button);
+    // A pinned tab has no close button.
+    m_tabs_container->tab_bar()->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, tab->is_pinned() ? nullptr : create_tab_close_button(*tab));
+    m_tabs_container->update_tab_button_visibility();
+}
+
+void BrowserWindow::update_tab_close_button(Tab& tab)
+{
+    auto index = m_tabs_container->index_of(&tab);
+    if (index < 0)
+        return;
+
+    auto* tab_bar = m_tabs_container->tab_bar();
+    auto* close_button = tab_bar->tabButton(index, TAB_CLOSE_BUTTON_POSITION);
+    if (tab.is_pinned() && close_button) {
+        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, nullptr);
+        close_button->deleteLater();
+    } else if (!tab.is_pinned() && !close_button) {
+        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, create_tab_close_button(tab));
+    }
     m_tabs_container->update_tab_button_visibility();
 }
 

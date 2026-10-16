@@ -67,6 +67,7 @@ public:
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void refresh_tab_layout();
     void recreate_icons();
+    int pinned_tab_count() const;
 
     void play_load_sheen(Tab&);
     void update_loading_swirl_animation();
@@ -98,9 +99,12 @@ private:
     virtual void mouseReleaseEvent(QMouseEvent*) override;
     virtual void wheelEvent(QWheelEvent*) override;
 
+    // How far a tab moves, and how much it grows, while tabs make way for a dragged tab.
     struct TabShift {
-        qreal offset { 0 };
-        qreal extent_delta { 0 };
+        qreal x_offset { 0 };
+        qreal y_offset { 0 };
+        qreal width_delta { 0 };
+        qreal height_delta { 0 };
     };
     struct DropPreview {
         Vector<TabShift> tab_shifts;
@@ -108,7 +112,8 @@ private:
     };
 
     Optional<int> dragged_tab_index() const;
-    qreal drop_gap_extent() const;
+    bool dragging_pinned_tab() const;
+    QRect incoming_drop_layout_rect(int position) const;
     int drop_slot_at(QPoint const&) const;
     void set_drop_slot(Optional<int>);
     void clear_drop_preview();
@@ -217,6 +222,7 @@ public:
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     bool can_expand_vertical_tabs_on_hover() const;
     void update_tab_button_visibility();
+    void update_tab_layout();
 
 signals:
     void current_tab_changed(int index);
@@ -257,7 +263,6 @@ private:
     QRect vertical_tabs_chrome_rect() const;
     int vertical_tabs_tab_width() const;
     void update_vertical_tabs_button_layout();
-    void update_tab_layout();
     void update_tab_chrome_visibility();
 #ifdef AK_OS_MACOS
     void update_web_view_frame(Tab&);

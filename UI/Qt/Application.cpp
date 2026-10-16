@@ -319,8 +319,18 @@ public:
         m_close_current_tab_action = make_action("&Close Current Tab");
         m_close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
         QObject::connect(m_close_current_tab_action, &QAction::triggered, this, []() {
-            if (auto* tab = Application::the().active_tab())
-                tab->request_close();
+            auto* tab = Application::the().active_tab();
+            if (!tab)
+                return;
+
+            // The keyboard shortcut never closes a pinned tab: It selects the first unpinned tab instead. Choosing the
+            // menu item still closes the tab.
+            auto from_keyboard = QGuiApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::MetaModifier);
+            if (tab->is_pinned() && from_keyboard) {
+                Application::the().active_window_if_any()->activate_first_unpinned_tab();
+                return;
+            }
+            tab->request_close();
         });
 
         m_open_next_tab_action = make_action("Open &Next Tab");
@@ -873,7 +883,7 @@ void Application::reopen_recently_closed_tab(BrowserWindow* target_window)
     if (restoring_to_source_window && unit.source_tab_index.has_value())
         next_insertion_index = static_cast<int>(clamp(*unit.source_tab_index, 0, static_cast<i64>(window->tab_count())));
 
-    Optional<int> tab_index_to_activate;
+    QPointer<Tab> tab_to_activate;
     i64 restored_tab_index = 0;
     for (auto& closed_tab : unit.tabs) {
         auto location = next_insertion_index.has_value() ? BrowserWindow::TabLocation::at_index(*next_insertion_index) : BrowserWindow::TabLocation::end();
@@ -882,15 +892,26 @@ void Application::reopen_recently_closed_tab(BrowserWindow* target_window)
             ++*next_insertion_index;
 
         if (restored_tab_index == unit.active_tab_index)
-            tab_index_to_activate = window->tab_index(&tab);
+            tab_to_activate = &tab;
 
         if (!closed_tab.history.has_value() || tab.view().restore_session_history_from_snapshot(closed_tab.history.release_value()).is_error())
             tab.navigate(closed_tab.active_url);
+
+        if (closed_tab.pinned) {
+            // Back in its own window, a pinned tab goes back to its place in the pinned group.
+            Optional<int> pinned_index;
+            if (restoring_to_source_window && unit.source_tab_index.has_value())
+                pinned_index = static_cast<int>(*unit.source_tab_index);
+            window->pin_tab(tab, pinned_index);
+        }
         ++restored_tab_index;
     }
 
-    if (tab_index_to_activate.has_value())
-        window->activate_tab(*tab_index_to_activate);
+    // Pinning a reopened tab can move it, so its index is resolved only now.
+    if (tab_to_activate) {
+        if (auto index = window->tab_index(tab_to_activate); index >= 0)
+            window->activate_tab(index);
+    }
 
     update_reopen_recently_closed_actions();
 }

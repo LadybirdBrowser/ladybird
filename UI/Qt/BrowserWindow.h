@@ -35,6 +35,7 @@ class QWindow;
 namespace Ladybird {
 
 class Tab;
+class TabBarButton;
 class WebContentView;
 class BrowserWindow;
 class DevToolsBanner;
@@ -148,6 +149,15 @@ public:
 
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
+    Tab* tab_at(int index) const { return m_tabs_container->tab(index); }
+
+    // Pinned tabs always fill the start of the strip: indices [0, pinned_tab_count()).
+    int pinned_tab_count() const;
+    // The tab joins the end of the pinned group, or the place in it that pinned_index gives.
+    void pin_tab(Tab&, Optional<int> pinned_index = {});
+    // The tab joins the start of the unpinned group.
+    void unpin_tab(Tab&);
+    void activate_first_unpinned_tab();
 
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
     void duplicate_tab(Tab&);
@@ -249,6 +259,11 @@ private:
     void update_hamburger_zoom_label();
 
     void update_chrome_style();
+
+    int constrain_insertion_index(int index, bool pinned) const;
+    void pinned_state_changed(Tab&);
+    TabBarButton* create_tab_close_button(Tab&);
+    void update_tab_close_button(Tab&);
 
     void initialize_tab_buttons(Tab*);
     void create_menu_bar_window_controls();
