@@ -88,20 +88,45 @@ u64 Client::allocate_id()
     return m_next_id++;
 }
 
+template<typename Reply, typename OtherReplyHandler>
+OwnPtr<Reply> Client::wait_for_reply_to(u64 request_id, OtherReplyHandler handle_other_reply)
+{
+    while (true) {
+        auto reply = wait_for_specific_endpoint_message<Reply>();
+        if (!reply || reply->request_id() == request_id)
+            return reply;
+        m_creation_event_loop->deferred_invoke([self = NonnullRefPtr(*this), reply = reply.release_nonnull(), handle_other_reply] mutable {
+            handle_other_reply(*self, *reply);
+        });
+    }
+}
+
 Media::MediaSupportInfo Client::query_file_media_support(StringView type, StringView subtype, Optional<String> codecs_parameter)
 {
-    auto response = send_sync_but_allow_failure<Messages::MediaServer::QueryFileMediaSupport>(String::from_utf8_without_validation(type.bytes()), String::from_utf8_without_validation(subtype.bytes()), move(codecs_parameter));
-    if (!response)
+    if (!is_open())
         return {};
-    return response->info();
+    auto request_id = allocate_id();
+    async_request_file_media_support(request_id, String::from_utf8_without_validation(type.bytes()), String::from_utf8_without_validation(subtype.bytes()), move(codecs_parameter));
+    auto reply = wait_for_reply_to<Messages::MediaClient::FileMediaSupportReported>(request_id, [](Client& client, auto& other_reply) {
+        client.file_media_support_reported(other_reply.request_id(), other_reply.take_info());
+    });
+    if (!reply)
+        return {};
+    return reply->take_info();
 }
 
 Optional<Media::DecoderCapabilities> Client::query_decoder_capabilities(StringView codecs_parameter)
 {
-    auto response = send_sync_but_allow_failure<Messages::MediaServer::QueryDecoderCapabilities>(String::from_utf8_without_validation(codecs_parameter.bytes()));
-    if (!response)
+    if (!is_open())
         return {};
-    return response->capabilities();
+    auto request_id = allocate_id();
+    async_request_decoder_capabilities(request_id, String::from_utf8_without_validation(codecs_parameter.bytes()));
+    auto reply = wait_for_reply_to<Messages::MediaClient::DecoderCapabilitiesReported>(request_id, [](Client& client, auto& other_reply) {
+        client.decoder_capabilities_reported(other_reply.request_id(), other_reply.take_capabilities());
+    });
+    if (!reply)
+        return {};
+    return reply->take_capabilities();
 }
 
 NonnullRefPtr<Client::FileMediaSupportPromise> Client::request_file_media_support(String const& type, String const& subtype, Optional<String const&> codecs_parameter)

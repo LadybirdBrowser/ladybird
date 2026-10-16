@@ -16,6 +16,7 @@
 #include <LibMedia/PlaybackManager.h>
 #include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibThreading/Thread.h>
 #include <LibThreading/ThreadPool.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/PlaybackSession.h>
@@ -147,24 +148,34 @@ static Optional<Media::DecoderCapabilities> decoder_capabilities_for_codecs(Stri
     return combined_capabilities;
 }
 
-Messages::MediaServer::QueryFileMediaSupportResponse ConnectionFromClient::query_file_media_support(String type, String subtype, Optional<String> codecs_parameter)
-{
-    return file_media_support_for(move(type), move(subtype), move(codecs_parameter));
-}
-
-Messages::MediaServer::QueryDecoderCapabilitiesResponse ConnectionFromClient::query_decoder_capabilities(String codecs_parameter)
-{
-    return decoder_capabilities_for_codecs(codecs_parameter);
-}
-
 void ConnectionFromClient::request_file_media_support(u64 request_id, String type, String subtype, Optional<String> codecs_parameter)
 {
-    async_file_media_support_reported(request_id, file_media_support_for(move(type), move(subtype), move(codecs_parameter)));
+    auto& main_thread_event_loop = Core::EventLoop::current();
+    auto thread = Threading::Thread::construct("MediaSupport"sv, [strong_this = NonnullRefPtr(*this), &main_thread_event_loop, request_id, type = move(type), subtype = move(subtype), codecs_parameter = move(codecs_parameter)] mutable -> intptr_t {
+        auto info = file_media_support_for(move(type), move(subtype), move(codecs_parameter));
+        main_thread_event_loop.deferred_invoke([strong_this = move(strong_this), request_id, info = move(info)] {
+            if (strong_this->is_open())
+                strong_this->async_file_media_support_reported(request_id, info);
+        });
+        return 0;
+    });
+    thread->start();
+    thread->detach();
 }
 
 void ConnectionFromClient::request_decoder_capabilities(u64 request_id, String codecs_parameter)
 {
-    async_decoder_capabilities_reported(request_id, decoder_capabilities_for_codecs(codecs_parameter));
+    auto& main_thread_event_loop = Core::EventLoop::current();
+    auto thread = Threading::Thread::construct("Capabilities"sv, [strong_this = NonnullRefPtr(*this), &main_thread_event_loop, request_id, codecs_parameter = move(codecs_parameter)] mutable -> intptr_t {
+        auto capabilities = decoder_capabilities_for_codecs(codecs_parameter);
+        main_thread_event_loop.deferred_invoke([strong_this = move(strong_this), request_id, capabilities] {
+            if (strong_this->is_open())
+                strong_this->async_decoder_capabilities_reported(request_id, capabilities);
+        });
+        return 0;
+    });
+    thread->start();
+    thread->detach();
 }
 
 struct DecodedAudioSamples {

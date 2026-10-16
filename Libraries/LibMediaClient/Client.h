@@ -107,6 +107,9 @@ private:
     virtual void source_buffer_append_failed(u64 session_id, u64 source_buffer_id, u64 append_generation, Media::MediaSourceExtensions::PublishedState state) override;
     virtual void source_buffer_removal_completed(u64 session_id, u64 source_buffer_id, Media::MediaSourceExtensions::PublishedState state) override;
 
+    template<typename Reply, typename OtherReplyHandler>
+    OwnPtr<Reply> wait_for_reply_to(u64 request_id, OtherReplyHandler);
+
     RemotePlaybackManager* find_playback_manager(u64 session_id);
     void update_idle_timer();
     void verify_event_loop() const;

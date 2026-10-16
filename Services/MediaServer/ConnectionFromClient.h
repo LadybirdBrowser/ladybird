@@ -45,8 +45,6 @@ private:
 
     virtual void connect_video_presentation_channel(int client_id, IPC::TransportHandle handle) override;
 
-    virtual Messages::MediaServer::QueryFileMediaSupportResponse query_file_media_support(String type, String subtype, Optional<String> codecs_parameter) override;
-    virtual Messages::MediaServer::QueryDecoderCapabilitiesResponse query_decoder_capabilities(String codecs_parameter) override;
     virtual void request_file_media_support(u64 request_id, String type, String subtype, Optional<String> codecs_parameter) override;
     virtual void request_decoder_capabilities(u64 request_id, String codecs_parameter) override;
     virtual void decode_audio_data(u64 request_id, Core::AnonymousBuffer data, u32 output_sample_rate) override;
