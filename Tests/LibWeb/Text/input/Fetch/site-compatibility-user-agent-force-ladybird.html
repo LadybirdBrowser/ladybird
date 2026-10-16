@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A force_Ladybird rule answers Ladybird's own User-Agent for the URLs it matches, whatever earlier rules or a
+    // preset made of it; a hide_Ladybird rule on the same URL shows that it isn't just the default passing through.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const echoURL = await server.createEcho("GET", "/site-compatibility-user-agent-force", {
+            status: 200,
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            reflect_headers_in_body: true,
+        });
+
+        async function userAgentUnder(rules) {
+            internals.setSiteCompatibilityData(JSON.stringify(rules));
+            const response = await fetch(echoURL);
+            return (await response.json())["User-Agent"][0];
+        }
+
+        try {
+            const hidden = await userAgentUnder([{ matches: [echoURL], user_agent: ["hide_Ladybird"] }]);
+            println(`hide_Ladybird alone: ${hidden.includes("Ladybird/") ? "FAIL" : "PASS"}`);
+
+            const forced = await userAgentUnder([
+                { matches: [echoURL], user_agent: ["hide_Ladybird"] },
+                { matches: [echoURL], user_agent: ["force_Ladybird"] },
+            ]);
+            println(`force_Ladybird after hide_Ladybird: ${forced.includes("Ladybird/") ? "PASS" : "FAIL"}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            internals.setSiteCompatibilityData("[]");
+        }
+    });
+</script>

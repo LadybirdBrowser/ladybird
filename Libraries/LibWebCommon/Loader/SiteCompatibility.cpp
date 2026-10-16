@@ -8,6 +8,7 @@
 #include <AK/JsonObject.h>
 #include <AK/StringBuilder.h>
 #include <LibWebCommon/Loader/SiteCompatibility.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 namespace Web {
 
@@ -47,6 +48,8 @@ static ErrorOr<Vector<UserAgentTransformation>> parse_user_agent_transformations
             return Error::from_string_literal("User-Agent transformations must be strings");
         if (transformation.as_string() == "hide_Ladybird"sv)
             TRY(result.try_append(UserAgentTransformation::HideLadybird));
+        else if (transformation.as_string() == "force_Ladybird"sv)
+            TRY(result.try_append(UserAgentTransformation::ForceLadybird));
         else
             return Error::from_string_literal("Unknown User-Agent transformation");
     }
@@ -152,6 +155,11 @@ String SiteCompatibilityRule::apply_user_agent_transformations(StringView user_a
         switch (transformation) {
         case UserAgentTransformation::HideLadybird:
             transformed_user_agent = remove_ladybird_product(transformed_user_agent);
+            break;
+        case UserAgentTransformation::ForceLadybird:
+            // Ladybird's own User-Agent, whatever preset the user chose: for a site whose bot detection takes a
+            // known browser's name as a promise of that browser's every other trait, and lets an unknown one be.
+            transformed_user_agent = MUST(String::from_utf8(default_user_agent));
             break;
         }
     }
