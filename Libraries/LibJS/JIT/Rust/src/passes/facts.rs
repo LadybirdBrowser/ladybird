@@ -94,6 +94,51 @@ impl<K: Ord, V> FactMap<K, V> {
     }
 }
 
+/// A branch on a condition that tests nothing but the values of its inputs,
+/// which never change, so that a branch decides every later one on the same
+/// values: the condition, and the inputs, where constants are their values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BranchKey {
+    condition: u64,
+    inputs: [BranchInput; 2],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum BranchInput {
+    Absent,
+    Value(NodeId),
+    Constant(u64),
+}
+
+impl BranchKey {
+    /// The key of a branch on `condition` of `inputs` (as the analysis knows
+    /// them), if the condition tests their values alone.
+    pub fn of(graph: &Graph, condition: BranchCondition, inputs: &[NodeId]) -> Option<Self> {
+        let condition = match condition {
+            BranchCondition::Bool => 0,
+            BranchCondition::Int32(comparison) => 1 << 32 | comparison as u64,
+            BranchCondition::Float64(comparison) => 2 << 32 | comparison as u64,
+            BranchCondition::TaggedEquals { equal } => 3 << 32 | u64::from(equal),
+            BranchCondition::Builtin(builtin) => 4 << 32 | u64::from(builtin),
+            BranchCondition::BindingMutable { index } => 5 << 32 | u64::from(index),
+            _ => return None,
+        };
+        let input = |index: usize| match inputs.get(index) {
+            None => BranchInput::Absent,
+            Some(input) => graph
+                .constant_value(*input)
+                .map_or(BranchInput::Value(*input), BranchInput::Constant),
+        };
+        if inputs.len() > 2 {
+            return None;
+        }
+        Some(Self {
+            condition,
+            inputs: [input(0), input(1)],
+        })
+    }
+}
+
 /// What kind of value a value is known to be, which never changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValueKind {
@@ -280,6 +325,9 @@ pub(super) struct Facts {
     /// be by its definition: what replaces a check that is known to pass,
     /// so that the nodes using it stay behind the check that passed.
     refinements: Rc<FactMap<NodeId, NodeId>>,
+    /// Whether branches on conditions of the values they test alone (see
+    /// `BranchKey`) held, where they went the same way on every path here.
+    branch_outcomes: Rc<FactMap<BranchKey, bool>>,
 }
 
 impl Facts {
@@ -322,6 +370,19 @@ impl Facts {
     /// they test (see `decides()`).
     pub fn is_about_kinds(condition: BranchCondition) -> bool {
         Kinds::of_condition(condition).is_some()
+    }
+
+    /// Whether a branch like the one `key` names held, if it went the same
+    /// way on every path here.
+    pub fn branch_outcome(&self, key: &BranchKey) -> Option<bool> {
+        self.branch_outcomes.get(key).copied()
+    }
+
+    /// Records whether a branch like the one `key` names held.
+    pub fn set_branch_outcome(&mut self, key: BranchKey, holds: bool) {
+        if self.branch_outcome(&key) != Some(holds) {
+            Rc::make_mut(&mut self.branch_outcomes).insert(key, holds);
+        }
     }
 
     /// Records that `value` is of `kind`, narrowing what was known.
@@ -635,6 +696,9 @@ impl Facts {
                 unvalidated.extend(other.unvalidated.iter().copied());
             });
             merged.code_valid &= other.code_valid;
+            narrow_unless_shared(&mut merged.branch_outcomes, &other.branch_outcomes, |outcomes| {
+                outcomes.retain(|key, holds| other.branch_outcomes.get(key) == Some(holds));
+            });
             narrow_unless_shared(&mut merged.refinements, &other.refinements, |refinements| {
                 refinements.retain(|key, value| other.refinements.get(key) == Some(value));
             });
