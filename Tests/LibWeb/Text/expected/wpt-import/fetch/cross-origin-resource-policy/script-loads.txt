@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Same-origin script load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+Pass	Same-origin script load with a 'Cross-Origin-Resource-Policy: same-site' response header.
+Pass	Cross-origin cors script load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+Pass	Cross-origin cors script load with a 'Cross-Origin-Resource-Policy: same-site' response header.
+Pass	Cross-origin no-cors script load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+Pass	Cross-origin no-cors script load with a 'Cross-Origin-Resource-Policy: same-site' response header.
