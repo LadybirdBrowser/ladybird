@@ -63,7 +63,9 @@ from them alone:
 - **Exits.** `Op::can_eager_exit()`, whether the op has an exit kind (`Op::exit_kind()`): may exit
   before its side effects, resuming at the current bytecode (needs the eager frame state).
   `can_lazy_exit`: may need to exit after it returns, resuming after the current bytecode.
-- **Call.** `is_call`: calls out of compiled code and clobbers every caller-saved register.
+- **Call.** `is_call`: calls out of compiled code and clobbers every caller-saved register. That
+  is no effect: a call without any of the other effects only computes its value, and passes treat
+  it like any other node that does.
 - **Memory.** `reads` and `writes`: sets of abstract locations (`ir::Locations`): `FRAME`,
   `NAMED_SLOTS` (property values), `SHAPES` (shapes and prototypes), `ELEMENTS` (element values),
   `ELEMENT_COUNTS` (element storage kind, length, capacity and the storage offset of typed arrays), `GLOBAL_BINDINGS` and `BINDINGS` (the
@@ -339,7 +341,7 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 | Check elimination | A forward dataflow of facts removes checks that passed already, decides branches that a branch on the same values decided before, and reuses loads whose value is known; may turn shape checks into `AssumeValid` plus a stable shape dependency. |
 | Simplification | Again, for what the branches that check elimination decided left foldable (like the double path of `Math.abs` of an int32). |
 | Global value numbering | Again, for the nodes that check elimination and simplification made the same. |
-| Loop invariant code motion | Gives loops entered from several blocks a merged preheader, then moves effect-free nodes with inputs from outside the loop to it; nodes that may exit too, exiting to the loop header, and not where that kind of exit was taken there before. Those from blocks that not every iteration runs, but for cold ones, move speculatively: they exit with `Hoisted`, and stay in the loop where such an exit was taken there before. |
+| Loop invariant code motion | Gives loops entered from several blocks a merged preheader, then moves effect-free nodes with inputs from outside the loop to it (but calls in cold blocks); nodes that may exit too, exiting to the loop header, and not where that kind of exit was taken there before. Those from blocks that not every iteration runs, but for cold ones, move speculatively: they exit with `Hoisted`, and stay in the loop where such an exit was taken there before. |
 | Bounds check elimination | Bounds checks against constant counts go away where the index is known to be in range: induction variables of loops whose back edge compares the grown counter with a constant bound, merges of values from outside a loop, and int32 arithmetic on them that cannot overflow. The counter an on-stack replacement entry brings is checked against the bound once where it enters, unless such a check exited there before. With the same ranges, `((x << k) + c) >> k` becomes `x + (c >> k)` where nothing overflows and `c` is a multiple of 2^k. Int32 additions, subtractions and multiplications become `Int32WrappingBinary` where the ranges of their operands keep the result an int32 (and not -0), with operands also bounded by the masks and shifts of any int32, and by the dominating bounds checks and in-bounds branches of indices. |
 | Exit unboxing | Frame states take the unboxed value of an int32, float64 or bool boxing that only frame states use, so that exits box it instead of the fast path. |
 | Dead code elimination | Removes nodes without uses and without effects; frame states count as uses. Branches whose edges lead to the same place doing the same thing become jumps. |

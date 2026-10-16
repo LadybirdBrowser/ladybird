@@ -34,7 +34,6 @@ fn is_numbered(op: &Op) -> bool {
         && !properties.allocates
         && !properties.runs_code
         && !properties.can_lazy_exit
-        && !properties.is_call
         && !matches!(op, Op::Constant(_) | Op::Phi)
         && !op.is_control()
 }

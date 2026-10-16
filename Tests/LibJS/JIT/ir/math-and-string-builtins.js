@@ -103,7 +103,8 @@ jit.compile(absAndSqrt);
 console.log(absAndSqrt(-9), absAndSqrt(16));
 
 // Math.exp, log, sin, cos, tan and pow of numbers call the runtime's functions
-// of doubles, which only compute: the code after them keeps what it knew.
+// of doubles, which only compute: the code after them keeps what it knew, and
+// a call of loop invariant numbers moves out of the loop.
 
 function bias(base, values) {
     let sum = 0;
@@ -119,6 +120,11 @@ jit.compile(bias);
 // CHECK: CallFloat64Log
 // CHECK: CallFloat64Pow
 // CHECK-NOT: CallSlowPath CallBuiltinMath
+// CHECK-PASS: loop invariant code motion
+// CHECK: CallFloat64Log
+// CHECK: loop:
+// CHECK-NOT: CallFloat64Log
+// CHECK: CallFloat64Pow
 
 function trigonometry(x) {
     return Math.sin(x) + Math.cos(x) + Math.tan(x) + Math.exp(x);
