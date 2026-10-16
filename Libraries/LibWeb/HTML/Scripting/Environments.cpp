@@ -704,12 +704,14 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
     auto serialized_global = [this]() -> SerializedGlobal {
         bool relevant_settings_object_is_secure_context = is_secure_context(*this);
+        auto relevant_settings_object_policy_container = policy_container()->serialize();
         auto& global = global_object();
         if (auto const* window = window_from_global_object(global)) {
             return SerializedWindow {
                 .associated_document {
                     .url = window->associated_document().url(),
                     .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
+                    .relevant_settings_object_policy_container = move(relevant_settings_object_policy_container),
                 }
             };
         }
@@ -719,6 +721,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         auto supported_animation_frame_provider = dedicated_worker_global_scope && dedicated_worker_global_scope->is_supported();
         return SerializedWorkerGlobalScope {
             .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
+            .relevant_settings_object_policy_container = move(relevant_settings_object_policy_container),
             .is_supported_animation_frame_provider = supported_animation_frame_provider,
         };
     }();
