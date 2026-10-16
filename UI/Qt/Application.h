@@ -17,6 +17,7 @@
 #include <UI/Qt/CrashReportNotifier.h>
 
 #include <QApplication>
+#include <QPointer>
 
 class QAction;
 class QMenu;
@@ -60,7 +61,10 @@ public:
     void restart_private_browsing_session();
     void focus_location_editor();
     void show_process_manager();
+    // Asks every window's pages if they may unload, one window at a time. Once all of them agree, it confirms stopping
+    // the downloads and quits; if a page refuses or the downloads are kept, the quit is canceled and no window closes.
     void quit();
+    bool is_finishing_quit() const { return m_quit_is_finishing; }
     bool confirm_stop_active_downloads(QWidget* parent = nullptr);
 
     CrashReportNotifier& crash_report_notifier() { return m_crash_report_notifier; }
@@ -104,6 +108,11 @@ public:
 
 private:
     explicit Application();
+
+    void ask_next_window_to_close_for_quit();
+    bool ask_windows_yet_to_agree_to_quit();
+    void finish_quit();
+    void cancel_quit();
 
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
     virtual Core::EventLoop& create_platform_event_loop() override;
@@ -176,6 +185,10 @@ private:
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;
     CrashReportNotifier m_crash_report_notifier;
+
+    bool m_quit_in_progress { false };
+    bool m_quit_is_finishing { false };
+    Vector<QPointer<BrowserWindow>> m_windows_awaiting_quit_preflight;
 };
 
 }

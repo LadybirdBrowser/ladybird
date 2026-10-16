@@ -1663,7 +1663,35 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     }
 }
 
-void BrowserWindow::begin_window_close_preflight()
+void BrowserWindow::request_close_preflight_for_quit(Function<void(bool approved)> on_complete)
+{
+    if (m_window_close_approved) {
+        on_complete(true);
+        return;
+    }
+
+    // A close the user already started on this window gives way to the quit's check, which asks every page again.
+    if (m_window_close_coordinator.is_running())
+        cancel_window_close_preflight();
+
+    begin_window_close_preflight(AK::move(on_complete));
+}
+
+void BrowserWindow::raise_for_quit_prompt()
+{
+    // Only a quit's check carries a completion; a close the user started on this window is already in front.
+    if (!m_window_close_coordinator.is_running() || !m_window_close_preflight_on_complete)
+        return;
+
+    // A page's beforeunload prompt shows inside this window, which may sit behind other windows or in the Dock while a
+    // quit asks it, so the window comes to the front first, where the user can see the prompt.
+    if (isMinimized())
+        setWindowState(windowState() & ~Qt::WindowMinimized);
+    raise();
+    activateWindow();
+}
+
+void BrowserWindow::begin_window_close_preflight(Function<void(bool approved)> on_complete)
 {
     m_window_close_active_tab_index = static_cast<i64>(max(m_tabs_container->current_index(), 0));
     m_window_close_original_active_tab = m_current_tab;
@@ -1710,6 +1738,10 @@ void BrowserWindow::begin_window_close_preflight()
         });
     }
 
+    // With a completion, approval only marks the window as approved (so that a later close() goes straight through),
+    // and the caller decides when to close it.
+    m_window_close_preflight_on_complete = AK::move(on_complete);
+
     auto weak_this = QPointer<BrowserWindow>(this);
     m_window_close_coordinator.start(
         AK::move(preflights),
@@ -1717,6 +1749,17 @@ void BrowserWindow::begin_window_close_preflight()
             if (!weak_this)
                 return;
             weak_this->m_window_close_approved = true;
+            if (auto on_complete = AK::move(weak_this->m_window_close_preflight_on_complete)) {
+                // The window stays open until the caller closes it, so it goes back to the tab it showed before the
+                // check, which the session store then keeps as its active tab.
+                if (auto* original_tab = weak_this->m_window_close_original_active_tab.data()) {
+                    auto index = weak_this->tab_index(original_tab);
+                    if (index >= 0)
+                        weak_this->activate_tab(index);
+                }
+                on_complete(true);
+                return;
+            }
             QTimer::singleShot(0, weak_this, [weak_this] {
                 if (weak_this && weak_this->m_window_close_approved)
                     weak_this->close();
@@ -1737,6 +1780,8 @@ void BrowserWindow::begin_window_close_preflight()
             weak_this->for_each_tab([](auto& tab) {
                 tab.cancel_window_close_preflight();
             });
+            if (auto on_complete = AK::move(weak_this->m_window_close_preflight_on_complete))
+                on_complete(false);
         });
 }
 
