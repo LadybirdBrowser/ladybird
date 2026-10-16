@@ -24,14 +24,14 @@ public:
 
     CanvasId allocate_canvas_id()
     {
-        return CanvasId { m_next_canvas_id++ };
+        return reserve_canvas_ids(1);
     }
 
-    CanvasId create_canvas_surface(NonnullRefPtr<Gfx::PaintingSurface> surface)
+    CanvasId reserve_canvas_ids(u64 count)
     {
-        auto id = allocate_canvas_id();
-        set_canvas_surface(id, move(surface));
-        return id;
+        auto first = CanvasId { m_next_canvas_id };
+        m_next_canvas_id += count;
+        return first;
     }
 
     void set_canvas_surface(CanvasId id, NonnullRefPtr<Gfx::PaintingSurface> surface)

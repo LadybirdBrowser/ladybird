@@ -35,7 +35,9 @@ endpoint CompositorWebContentServer
     update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction) =|
     update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state) =|
 
-    create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Compositing::CanvasId canvas_id)
+    // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
+    reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
+    create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha) =|
     update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontResource> fonts) =|
     destroy_canvas_context(Compositing::CanvasId canvas_id) =|
     get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type) => (Gfx::ShareableBitmap pixels)

@@ -304,10 +304,28 @@ Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(G
     if (!can_send_message_to_compositor())
         return {};
 
-    auto response = send_sync<Messages::CompositorWebContentServer::CreateCanvas2dContext>(size, alpha);
-    if (!response->success())
+    // NB: The Compositor refuses the same sizes, so a context it is asked to create always exists afterwards.
+    if (!Gfx::is_valid_canvas_2d_size(size))
         return {};
-    return response->canvas_id();
+
+    // OPTIMIZATION: Creating a context is asynchronous, under an ID from a range reserved up front. A synchronous
+    //               reply would wait for the Compositor to replay every canvas command queued before it.
+    if (m_reserved_canvas_ids_remaining == 0) {
+        auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::ReserveCanvasIds>();
+        if (!response) {
+            did_lose_compositor();
+            return {};
+        }
+        m_next_reserved_canvas_id = response->first_canvas_id().value();
+        m_reserved_canvas_ids_remaining = response->count();
+        if (m_reserved_canvas_ids_remaining == 0)
+            return {};
+    }
+    auto canvas_id = Compositing::CanvasId { m_next_reserved_canvas_id++ };
+    --m_reserved_canvas_ids_remaining;
+
+    async_create_canvas_2d_context(canvas_id, size, alpha);
+    return canvas_id;
 }
 
 void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandStream& stream)

@@ -52,7 +52,8 @@ private:
     virtual void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction) override;
     virtual void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot, Compositing::KeyboardScrollState) override;
     virtual void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction) override;
-    virtual Messages::CompositorWebContentServer::CreateCanvas2dContextResponse create_canvas_2d_context(Gfx::IntSize, bool) override;
+    virtual Messages::CompositorWebContentServer::ReserveCanvasIdsResponse reserve_canvas_ids() override;
+    virtual void create_canvas_2d_context(Compositing::CanvasId, Gfx::IntSize, bool) override;
     virtual void update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment>, Vector<Compositing::DisplayListFontResource>) override;
     virtual void destroy_canvas_context(Compositing::CanvasId) override;
     virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType) override;
@@ -104,6 +105,15 @@ private:
 
     NonnullRefPtr<CompositorState> m_compositor_state;
     CanvasHost m_canvas_host;
+
+    // The canvas IDs this WebContent has reserved and not yet named a 2D context with.
+    struct ReservedCanvasIds {
+        u64 next { 0 };
+        u64 end { 0 };
+
+        bool is_used_up() const { return next == end; }
+    };
+    ReservedCanvasIds m_reserved_canvas_ids;
     Function<void(ConnectionFromWebContent&)> m_on_death;
 
     // The presentation client end of this WebContent's video presentation channel (connect-only for now).

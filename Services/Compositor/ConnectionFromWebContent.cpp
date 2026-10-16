@@ -242,12 +242,28 @@ void ConnectionFromWebContent::update_scroll_state(Web::CompositorContextId cont
     m_compositor_state->update_scroll_state(context_id, move(scroll_state_snapshot), move(keyboard_scroll_state));
 }
 
-Messages::CompositorWebContentServer::CreateCanvas2dContextResponse ConnectionFromWebContent::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
+Messages::CompositorWebContentServer::ReserveCanvasIdsResponse ConnectionFromWebContent::reserve_canvas_ids()
 {
-    auto canvas_id = m_canvas_host.create_2d_context(size, alpha);
-    if (!canvas_id.has_value())
-        return { false, Compositing::CanvasId { 0 } };
-    return { true, *canvas_id };
+    static constexpr u64 reserved_canvas_id_count = 1 << 20;
+    if (!m_reserved_canvas_ids.is_used_up()) {
+        did_misbehave("WebContent reserved canvas IDs before using up its range");
+        return { Compositing::CanvasId { 0 }, 0 };
+    }
+    auto first_canvas_id = m_compositor_state->canvas_surface_registry().reserve_canvas_ids(reserved_canvas_id_count);
+    m_reserved_canvas_ids = { first_canvas_id.value(), first_canvas_id.value() + reserved_canvas_id_count };
+    return { first_canvas_id, reserved_canvas_id_count };
+}
+
+void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha)
+{
+    // NB: WebContent names its contexts with the IDs of its range in order, so each ID names one context only.
+    if (m_reserved_canvas_ids.is_used_up() || canvas_id.value() != m_reserved_canvas_ids.next) {
+        did_misbehave("WebContent named a 2D canvas context with an ID other than the next one it reserved");
+        return;
+    }
+    ++m_reserved_canvas_ids.next;
+    // NB: A context that cannot be created is not a protocol violation: commands recorded for it are dropped.
+    (void)m_canvas_host.create_2d_context(canvas_id, size, alpha);
 }
 
 void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontResource> fonts)

@@ -31,7 +31,7 @@ CanvasHost::~CanvasHost()
 
 OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize size, bool alpha)
 {
-    if (size.is_empty() || static_cast<i64>(size.width()) * static_cast<i64>(size.height()) > Gfx::max_canvas_area)
+    if (!Gfx::is_valid_canvas_2d_size(size))
         return nullptr;
 
     auto format = alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
@@ -90,20 +90,20 @@ HostWebGLContext& CanvasHost::as_webgl(Context& context)
     return **webgl_context;
 }
 
-Optional<Compositing::CanvasId> CanvasHost::create_2d_context(Gfx::IntSize size, bool alpha)
+bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha)
 {
     auto command_player = create_2d_command_player(size, alpha);
     if (!command_player)
-        return {};
+        return false;
 
     auto presented_surface = create_presented_canvas_surface(command_player->surface());
-    auto canvas_id = m_canvas_surface_registry.create_canvas_surface(presented_surface);
+    m_canvas_surface_registry.set_canvas_surface(canvas_id, presented_surface);
     Canvas2DContext context {
         .command_player = command_player.release_nonnull(),
         .presented_surface = move(presented_surface),
     };
     m_contexts.set(canvas_id, move(context));
-    return canvas_id;
+    return true;
 }
 
 CanvasHost::CreateWebGLContextResult CanvasHost::create_webgl_context(Compositing::WebGL::WebGLVersion version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)

@@ -131,6 +131,8 @@ private:
     Optional<PendingScreenshot> take_screenshot(Compositing::ScreenshotRequestId);
 
     NonnullRefPtr<CompositorConnectionFrameSink> m_frame_sink;
+    u64 m_next_reserved_canvas_id { 0 };
+    u64 m_reserved_canvas_ids_remaining { 0 };
 
     HashMap<Compositing::ScreenshotRequestId, PendingScreenshot> m_screenshots;
     // What the compositor process scrolled since the last rendering update adopted it, per context.
