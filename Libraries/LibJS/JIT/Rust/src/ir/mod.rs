@@ -1929,6 +1929,10 @@ pub struct Graph {
     /// Where exits of each executable were taken before, as (executable,
     /// pc, kind), for passes that must not repeat a failed speculation.
     pub exit_sites: Vec<(u32, u32, ExitKind)>,
+    /// The nodes that loop invariant code motion moved out of blocks that not
+    /// every iteration of their loop runs, which exit with
+    /// `ExitKind::Hoisted` instead of their own kind of exit.
+    pub speculatively_hoisted: Vec<NodeId>,
     /// The argument slots of the compiled function that its legacy
     /// `arguments` shows. Empty for functions without legacy `arguments`.
     pub legacy_arguments: core::ops::Range<u32>,
