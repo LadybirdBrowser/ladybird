@@ -1848,9 +1848,9 @@ void CanonicalTraversable::run_history_operation_at_queue_position(Web::HTML::Cr
         promise->resolve({});
         return;
     }
-    m_history_operations.set(operation_id, make<HistoryOperation>(operation_id, move(request), move(requesting_page), sequence_number, move(target_entry)));
-    auto* operation = find_history_operation(operation_id);
-    VERIFY(operation);
+    auto owned_operation = make<HistoryOperation>(operation_id, move(request), move(requesting_page), sequence_number, move(target_entry));
+    auto* operation = owned_operation.ptr();
+    m_history_operations.set(operation_id, move(owned_operation));
     operation->queue_promise = promise;
     run_history_operation(*operation);
 }
@@ -1859,9 +1859,8 @@ void CanonicalTraversable::run_browser_history_traversal_at_queue_position(i32 t
 {
     auto operation_id = Application::the().allocate_ui_process_cross_process_id();
     auto owned_operation = make<HistoryOperation>(operation_id, HistoryOperation::BrowserTraversal { target_step, check_for_cancelation, move(on_ready) }, RefPtr<WebContentPage> {}, sequence_number, RefPtr<CanonicalSessionHistoryEntry> {});
+    auto* operation = owned_operation.ptr();
     m_history_operations.set(operation_id, move(owned_operation));
-    auto* operation = find_history_operation(operation_id);
-    VERIFY(operation);
     VERIFY(!m_browser_history_traversal);
     m_browser_history_traversal = operation;
     operation->queue_promise = promise;
