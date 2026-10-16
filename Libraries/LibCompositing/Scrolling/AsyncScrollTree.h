@@ -44,6 +44,10 @@ struct WheelHitTestResult {
     }
 };
 
+// A first step of a wheel gesture is latched to the scroller the hit test found, and is otherwise left to the main
+// thread for the outcome's reason.
+COMPOSITING_API Web::InputRoutingDecision input_routing_decision_for_first_wheel_step(WheelHitTestOutcome);
+
 struct WheelScrollTarget {
     Web::AsyncScrollNodeStableID stable_node_id;
     Gfx::FloatPoint current_offset;

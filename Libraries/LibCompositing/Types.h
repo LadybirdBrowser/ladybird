@@ -17,6 +17,7 @@
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
+#include <LibWebCommon/Page/InputRoutingDecision.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/PixelUnits.h>
 
@@ -90,7 +91,10 @@ struct PendingAsyncScrollUpdates {
 
 struct AsyncScrollEnqueueResult {
     bool accepted { false };
-    Optional<AsyncScrollOperationID> operation_id;
+    Optional<AsyncScrollOperationID> operation_id {};
+    // Why the compositor took or turned away a wheel step, and the scroller it routed the step to.
+    Optional<Web::InputRoutingDecision> routing_decision {};
+    Optional<Web::AsyncScrollNodeStableID> routed_scroller {};
 };
 
 enum class AsyncScrollOperationTracking {

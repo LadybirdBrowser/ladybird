@@ -107,6 +107,13 @@ Optional<Compositing::AsyncScrollNodeID> WheelGestureRouting::resolve_latch(Comp
     return node_id;
 }
 
+Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::latched_scroller() const
+{
+    if (!m_latch.has_value())
+        return {};
+    return m_latch->stable_node_id;
+}
+
 void WheelGestureRouting::latch(Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
 {
     m_latch = Latch {

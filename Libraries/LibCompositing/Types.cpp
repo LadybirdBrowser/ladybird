@@ -166,6 +166,8 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::AsyncScrollEnqueueResult con
 {
     TRY(encoder.encode(result.accepted));
     TRY(encoder.encode(result.operation_id));
+    TRY(encoder.encode(result.routing_decision));
+    TRY(encoder.encode(result.routed_scroller));
     return {};
 }
 
@@ -175,6 +177,8 @@ ErrorOr<Compositing::AsyncScrollEnqueueResult> decode(Decoder& decoder)
     return Compositing::AsyncScrollEnqueueResult {
         .accepted = TRY(decoder.decode<bool>()),
         .operation_id = TRY(decoder.decode<Optional<Compositing::AsyncScrollOperationID>>()),
+        .routing_decision = TRY(decoder.decode<Optional<Web::InputRoutingDecision>>()),
+        .routed_scroller = TRY(decoder.decode<Optional<Web::AsyncScrollNodeStableID>>()),
     };
 }
 
