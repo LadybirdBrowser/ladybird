@@ -80,6 +80,7 @@ use crate::bytecode::OperandRole;
 use crate::bytecode::SlowPathAbi;
 use crate::bytecode::decode_instruction;
 use crate::bytecode::slow_path_layout;
+use crate::code::ExitKind;
 use crate::code::JitStatus;
 use crate::code::Site;
 use crate::code::SiteKind;
@@ -972,7 +973,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Registers an exit of `node` (with its frame state) and returns the
     /// label its checks branch to when they fail.
     fn exit_site(&mut self, node: NodeId) -> Label {
-        let kind = self.graph.node(node).op.exit_kind().expect("the node can exit");
+        let kind = if self.graph.speculatively_hoisted.contains(&node) {
+            ExitKind::Hoisted
+        } else {
+            self.graph.node(node).op.exit_kind().expect("the node can exit")
+        };
         let index = u32::try_from(self.sites.len()).expect("site count fits in u32");
         self.sites.push((node, SiteKind::Exit(kind)));
         let label = self.masm.new_label();

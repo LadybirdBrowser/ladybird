@@ -12,17 +12,21 @@
 //! from several blocks (like the function entry and an on-stack replacement
 //! entry) first get a preheader that merges what those bring.
 //!
-//! Checks and other nodes that may exit move only from blocks every
-//! iteration of the loop runs (the header, and blocks on the way to every
-//! back edge), so they exit early at most where the loop runs no iteration
-//! to its end, and only in loops whose header has a frame state to exit
-//! with: the interpreter then resumes at the loop header, with the values
-//! the preheader brings into the loop. Hoisting a check whose kind of exit
-//! was taken at the loop header before is never repeated.
+//! Checks and other nodes that may exit move too, only in loops whose header
+//! has a frame state to exit with: the interpreter then resumes at the loop
+//! header, with the values the preheader brings into the loop. Those from
+//! blocks that not every iteration runs (like the code after a `continue`),
+//! but for cold ones, move speculatively: they may exit where the loop would
+//! never have run them, and exit with `ExitKind::Hoisted` instead of their
+//! own kind. Hoisting a check whose kind of exit was taken at the loop header
+//! before is never repeated, nor are speculative hoists where one of them
+//! exited there, so a speculation that fails costs one exit, and keeps the
+//! other checks moving.
 
 use super::dominators::Dominators;
 use super::edit;
 use crate::bitset::BitSet;
+use crate::code::ExitKind;
 use crate::ir::Block;
 use crate::ir::BlockId;
 use crate::ir::FrameStateId;
@@ -204,6 +208,7 @@ pub fn run(graph: &mut Graph) {
         for block in loop_.blocks.iter() {
             let block_id = BlockId::from_index(block);
             let runs_every_iteration = dominators.runs_every_iteration(block_id, &loop_.back_edge_sources);
+            let is_cold = graph.block(block_id).is_cold;
             for node in graph.block(block_id).body.clone() {
                 let data = graph.node(node);
                 let properties = data.op.properties();
@@ -223,11 +228,14 @@ pub fn run(graph: &mut Graph) {
                     continue;
                 }
                 if let Some(kind) = data.op.exit_kind() {
-                    let gated = header_state.is_some_and(|state| {
-                        let state = graph.frame_state(state);
-                        graph.exit_sites.contains(&(state.executable, state.pc, kind))
-                    });
-                    if !runs_every_iteration || gated {
+                    let speculative = !runs_every_iteration || graph.speculatively_hoisted.contains(&node);
+                    let exited = |kind| {
+                        header_state.is_some_and(|state| {
+                            let state = graph.frame_state(state);
+                            graph.exit_sites.contains(&(state.executable, state.pc, kind))
+                        })
+                    };
+                    if (speculative && is_cold) || exited(kind) || (speculative && exited(ExitKind::Hoisted)) {
                         continue;
                     }
                     let state = *exit_state.get_or_insert_with(|| {
@@ -238,6 +246,9 @@ pub fn run(graph: &mut Graph) {
                         continue;
                     };
                     graph.nodes[node.index()].frame_state = Some(state);
+                    if speculative && !graph.speculatively_hoisted.contains(&node) {
+                        graph.speculatively_hoisted.push(node);
+                    }
                 }
                 graph.blocks[block].body.retain(|other| *other != node);
                 block_of[node.index()] = Some(loop_.preheader.index());

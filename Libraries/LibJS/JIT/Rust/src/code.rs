@@ -109,6 +109,12 @@ pub enum ExitKind {
     OutOfBounds,
     /// A value had another type than the instruction's feedback had seen.
     BadType,
+    /// A node that may exit, which loop invariant code motion moved out of a
+    /// block that not every iteration of its loop runs, exited before the
+    /// loop. Exits of this kind are recorded at the loop header, and keep
+    /// such nodes in that loop, but not the nodes from blocks every iteration
+    /// runs.
+    Hoisted,
     /// Something the code depended on stopped holding while it ran other
     /// code (see `Dependency`), so the code was invalidated.
     Invalidated,
