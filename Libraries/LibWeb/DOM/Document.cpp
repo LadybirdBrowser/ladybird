@@ -398,8 +398,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         auto agent_cluster_id = navigation_params.agent_cluster_id;
         auto agent_cluster_cross_origin_isolation_mode = navigation_params.agent_cluster_cross_origin_isolation_mode;
 
-        // 5. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
-        auto realm_execution_context = HTML::create_window_realm(window, *browsing_context);
+        // 5. Let realmExecutionContext be the result of creating a new realm given agent and the following customizations:
+        auto realm_execution_context = HTML::create_window_realm(window, *browsing_context, agent_cluster_cross_origin_isolation_mode);
 
         // 6. Set window to the global object of realmExecutionContext's Realm component.
         window = HTML::window_from_global_object(realm_execution_context->realm->global_object());
