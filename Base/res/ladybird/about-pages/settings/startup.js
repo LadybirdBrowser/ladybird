@@ -1,14 +1,21 @@
+const restorePreviousSession = document.querySelector("#restore-previous-session");
 const newTabPageURL = document.querySelector("#new-tab-page-url");
 const newTabPageURLReset = document.querySelector("#new-tab-page-url-reset");
 
 const loadSettings = settings => {
-    if (!Object.hasOwn(settings, "newTabPageURL")) {
-        return;
+    if (Object.hasOwn(settings, "restorePreviousSession")) {
+        restorePreviousSession.checked = settings.restorePreviousSession === true;
     }
 
-    newTabPageURL.classList.remove("error");
-    newTabPageURL.value = settings.newTabPageURL;
+    if (Object.hasOwn(settings, "newTabPageURL")) {
+        newTabPageURL.classList.remove("error");
+        newTabPageURL.value = settings.newTabPageURL;
+    }
 };
+
+restorePreviousSession.addEventListener("change", () => {
+    ladybird.sendMessage("setRestorePreviousSession", restorePreviousSession.checked);
+});
 
 newTabPageURL.addEventListener("change", () => {
     newTabPageURL.classList.remove("success");
