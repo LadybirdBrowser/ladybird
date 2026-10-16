@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 25 tests
+
+24 Pass
+1 Fail
+Pass	navigation allowed for []
+Pass	navigation allowed for [""]
+Pass	navigation allowed for ["jibberish"]
+Pass	navigation allowed for [{"percentEncoded":"require%FFcorp"}]
+Pass	navigation allowed for ["require-corp;"]
+Pass	navigation allowed for ["\u000brequire-corp\u000b"]
+Pass	navigation allowed for ["\frequire-corp\f"]
+Fail	navigation allowed for ["\rrequire-corp\r"]
+Pass	navigation allowed for ["Require-corp"]
+Pass	navigation allowed for ["\"require-corp\""]
+Pass	navigation allowed for [":cmVxdWlyZS1jb3Jw:"]
+Pass	navigation allowed for ["require-corp;\tfoo=bar"]
+Pass	navigation allowed for ["require-corp require-corp"]
+Pass	navigation allowed for ["require-corp,require-corp"]
+Pass	navigation allowed for ["require-corp","require-corp"]
+Pass	navigation allowed for ["","require-corp"]
+Pass	navigation allowed for ["require-corp",""]
+Pass	navigation blocked for ["require-corp"]
+Pass	navigation blocked for [" require-corp "]
+Pass	navigation blocked for ["\trequire-corp\t"]
+Pass	navigation blocked for [" \trequire-corp"]
+Pass	navigation blocked for ["require-corp\t "]
+Pass	navigation blocked for ["require-corp; foo=bar"]
+Pass	navigation blocked for ["require-corp;require-corp"]
+Pass	navigation blocked for ["require-corp; report-to=\"data:","\""]

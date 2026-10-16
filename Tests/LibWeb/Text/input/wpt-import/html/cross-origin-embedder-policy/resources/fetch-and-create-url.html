@@ -1,0 +1,91 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fetch and create Blob</title>
+<script>
+  async function responseToBlob(response) {
+    let blob;
+    try {
+      blob = await response.blob();
+    } catch (e) {
+      return { error: `blob error: ${e.name}` };
+    }
+
+    return { url: URL.createObjectURL(blob) };
+  }
+
+  async function responseToData(response) {
+    const mimeType = response.headers.get("content-type");
+
+    let text;
+    try {
+      text = await response.text();
+    } catch(e) {
+      return { error: `text error: ${e.name}` };
+    }
+
+    return { url: `data:${mimeType},${encodeURIComponent(text)}` };
+  }
+
+  async function responseToFilesystem(response) {
+    if (!window.webkitRequestFileSystem) {
+      return { error: "unimplemented" };
+    }
+
+    let blob;
+    try {
+      blob = await response.blob();
+    } catch (e) {
+      return { error: `blob error: ${e.name}` };
+    }
+
+    const fs = await new Promise(resolve => {
+      window.webkitRequestFileSystem(window.TEMPORARY, 1024*1024, resolve);
+    });
+
+    const file = await new Promise(resolve => {
+      fs.root.getFile('fetch-and-create-url', { create: true }, resolve);
+    });
+
+    const writer = await new Promise(resolve => file.createWriter(resolve));
+
+    try {
+      await new Promise((resolve, reject) => {
+        writer.onwriteend = resolve;
+        writer.onerror = reject;
+        writer.write(blob);
+      });
+    } catch (e) {
+      return { error: `file write error: ${e.name}` };
+    }
+
+    return { url: file.toURL() };
+  }
+
+  async function responseToScheme(response, scheme) {
+    switch (scheme) {
+      case "blob":
+        return responseToBlob(response);
+      case "data":
+        return responseToData(response);
+      case "filesystem":
+        return responseToFilesystem(response);
+      default:
+        return { error: `unknown scheme: ${scheme}` };
+    }
+  }
+
+  async function fetchToScheme(url, scheme) {
+    let response;
+    try {
+      response = await fetch(url);
+    } catch (e) {
+      return { error: `fetch error: ${e.name}` };
+    }
+
+    return responseToScheme(response, scheme);
+  }
+
+  const params = new URL(window.location).searchParams;
+  fetchToScheme(params.get("url"), params.get("scheme"))
+    .then((message) => { parent.postMessage(message, "*"); });
+</script>
