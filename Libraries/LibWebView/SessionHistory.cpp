@@ -321,14 +321,8 @@ void TraversableSessionHistory::clear_the_forward_session_history()
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation, step 9
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation, step 5
-Optional<i32> TraversableSessionHistory::push_session_history_entry(CanonicalNavigable const& navigable, NonnullRefPtr<CanonicalSessionHistoryEntry> entry)
+i32 TraversableSessionHistory::push_session_history_entry(CanonicalNavigable const& navigable, NonnullRefPtr<CanonicalSessionHistoryEntry> entry)
 {
-    // NB: The entries of a navigable whose document is active are among those clearing the forward session history
-    //     keeps, as the entry of the document containing it is at or before the current step.
-    //     FIXME: Assert that instead, once navigable creation and destruction are ordered with the session history.
-    if (!session_history_entries_at_or_before(navigable, m_current_session_history_step).has_value())
-        return {};
-
     // 1. Clear the forward session history of traversable.
     clear_the_forward_session_history();
 
@@ -447,7 +441,7 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-static Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_session_history_entries(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& traversable_session_history_entries, CanonicalNavigable const& navigable, Optional<i32> at_or_before_step)
+static Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_session_history_entries(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& traversable_session_history_entries, CanonicalNavigable const& navigable)
 {
     // 1. Let traversable be navigable's traversable navigable.
     // NB: The caller has already resolved navigable through its CanonicalTraversable.
@@ -461,8 +455,6 @@ static Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_
     // 4. Let docStates be an empty ordered set of document states.
     Vector<CanonicalDocumentState const*> document_states;
     auto append_document_state = [&](CanonicalSessionHistoryEntry const& entry) {
-        if (at_or_before_step.has_value() && entry.step > *at_or_before_step)
-            return;
         if (!document_states.contains_slow(entry.document_state.ptr()))
             document_states.append(entry.document_state.ptr());
     };
@@ -495,12 +487,7 @@ static Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_
 
 Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> TraversableSessionHistory::get_session_history_entries(CanonicalNavigable const& navigable) const
 {
-    return WebView::get_session_history_entries(m_entries, navigable, {});
-}
-
-Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> TraversableSessionHistory::session_history_entries_at_or_before(CanonicalNavigable const& navigable, i32 step) const
-{
-    return WebView::get_session_history_entries(m_entries, navigable, step);
+    return WebView::get_session_history_entries(m_entries, navigable);
 }
 
 CanonicalSessionHistoryEntry& TraversableSessionHistory::current_entry() const
@@ -554,7 +541,7 @@ CanonicalSessionHistoryEntry* TraversableSessionHistory::get_the_target_history_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-history-object-length-and-index
-Optional<Web::HTML::HistoryObjectLengthAndIndex> TraversableSessionHistory::get_the_history_object_length_and_index(i32 step) const
+Web::HTML::HistoryObjectLengthAndIndex TraversableSessionHistory::get_the_history_object_length_and_index(i32 step) const
 {
     // 1. Let steps be the result of getting all used history steps within traversable.
     auto steps = used_steps();
@@ -563,11 +550,8 @@ Optional<Web::HTML::HistoryObjectLengthAndIndex> TraversableSessionHistory::get_
     auto script_history_length = steps.size();
 
     // 3. Assert: steps contains step.
-    // AD-HOC: The canonical mirror can be reconciling a removed child navigable, so answer nothing instead of
-    //         asserting; the caller treats it as a failed job.
     auto script_history_index = steps.find_first_index(step);
-    if (!script_history_index.has_value())
-        return {};
+    VERIFY(script_history_index.has_value());
 
     // 4. Let scriptHistoryIndex be the index of step in steps.
     // 5. Return (scriptHistoryLength, scriptHistoryIndex).

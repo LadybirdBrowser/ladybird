@@ -51,8 +51,8 @@ public:
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
     void clear_the_forward_session_history();
     // Clears the forward session history, then appends entry to navigable's session history entries at the step after
-    // the current one, which it returns. Changes nothing if navigable has no entries at or before the current step.
-    Optional<i32> push_session_history_entry(CanonicalNavigable const&, NonnullRefPtr<CanonicalSessionHistoryEntry>);
+    // the current one, which it returns.
+    i32 push_session_history_entry(CanonicalNavigable const&, NonnullRefPtr<CanonicalSessionHistoryEntry>);
     // Replaces entry_to_replace in navigable's session history entries with entry, at its step. Changes nothing if
     // entry_to_replace is not among them.
     bool replace_session_history_entry(CanonicalNavigable const&, CanonicalSessionHistoryEntry const& entry_to_replace, NonnullRefPtr<CanonicalSessionHistoryEntry>);
@@ -66,7 +66,7 @@ public:
     [[nodiscard]] Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_session_history_entries(CanonicalNavigable const&) const;
     [[nodiscard]] Optional<i32> get_the_used_step(i32 step) const;
     [[nodiscard]] CanonicalSessionHistoryEntry* get_the_target_history_entry(CanonicalNavigable const&, i32 step) const;
-    [[nodiscard]] Optional<Web::HTML::HistoryObjectLengthAndIndex> get_the_history_object_length_and_index(i32 step) const;
+    [[nodiscard]] Web::HTML::HistoryObjectLengthAndIndex get_the_history_object_length_and_index(i32 step) const;
     [[nodiscard]] Optional<Vector<Web::HTML::SessionHistoryEntryDescriptor>> get_session_history_entries_for_the_navigation_api(CanonicalNavigable const&, i32 target_step) const;
     [[nodiscard]] Vector<CanonicalNavigable&> get_all_navigables_whose_current_session_history_entry_will_change_or_reload(CanonicalNavigable& traversable, i32 target_step) const;
     [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_that_might_experience_a_cross_document_traversal(CanonicalNavigable const& traversable, i32 target_step) const;
@@ -81,9 +81,6 @@ public:
     [[nodiscard]] CanonicalSessionHistoryEntry* top_level_entry_for_step(i32 step) const;
 
 private:
-    // The entries of navigable among those at or before step, which clearing the forward session history at step keeps.
-    [[nodiscard]] Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> session_history_entries_at_or_before(CanonicalNavigable const&, i32 step) const;
-
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> m_entries;
 

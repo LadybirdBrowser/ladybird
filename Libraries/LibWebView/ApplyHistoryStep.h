@@ -151,7 +151,7 @@ private:
     void run_changing_navigable_jobs();
     void update_nonchanging_navigables();
     void set_current_session_history_step();
-    CanonicalSessionHistoryEntry* append_the_claimed_target_entry_again(CanonicalNavigable&, CanonicalSessionHistoryEntry& claimed_target_entry);
+    void append_the_claimed_target_entry_again(CanonicalNavigable&, CanonicalSessionHistoryEntry& claimed_target_entry);
 
     void set_ongoing_navigation_to_traversal(CanonicalNavigable&, CanonicalSessionHistoryEntry const&);
     void return_result(Web::HTML::HistoryStepResult);
