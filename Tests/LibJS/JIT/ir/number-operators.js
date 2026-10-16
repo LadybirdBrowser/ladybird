@@ -143,3 +143,21 @@ recompileAfterExit(count, notANumber);
 // CHECK-NEXT: [[NUMBER:v[0-9]+]]:float64 = CheckNumber ([[COUNT]])
 // CHECK-NOT: CallSlowPath LessThan
 // CHECK: Float64LessThan ([[NUMBER]], #0x4025000000000000)
+
+// Divisions of int32 values make numbers that are rarely int32 values, so a
+// division whose feedback only saw int32 operands checks that they are numbers
+// too, and exits for other operands.
+
+function ratio(a, b) {
+    return a / b;
+}
+jit.prepare(ratio);
+for (let i = 1; i < 10; ++i) ratio(i * 6, 3);
+jit.compile(ratio);
+
+// CHECK-FUNCTION: ratio
+// CHECK-PASS: dead code elimination
+// CHECK: [[A:v[0-9]+]]:float64 = CheckNumber
+// CHECK-NEXT: [[B:v[0-9]+]]:float64 = CheckNumber
+// CHECK-NEXT: Float64Div ([[A]], [[B]])
+// CHECK-NOT: CallSlowPath Div

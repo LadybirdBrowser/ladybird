@@ -419,13 +419,23 @@ impl GraphBuilder<'_> {
 
     /// Builds numeric instructions that saw doubles with number guards,
     /// leaving non-numeric operands to the interpreter before any coercion.
+    /// So do operations other than bitwise ones that saw int32 operands, but
+    /// that int32 speculation did not build (like divisions, whose results
+    /// are rarely int32 values, and operations whose results overflowed).
     fn try_build_number(
         &mut self,
         instruction: &Instruction,
         operation: Operation,
     ) -> Result<Option<Flow>, CompileFailure> {
         let feedback = self.arith_feedback(instruction).unwrap_or(0);
-        if feedback & arith_feedback::DOUBLE == 0
+        let is_bitwise = match operation {
+            Operation::Binary { op, .. } => op.is_bitwise(),
+            Operation::Unary { op, .. } => matches!(op, UnaryOp::BitwiseNot | UnaryOp::ToInt32),
+            Operation::Update { .. } | Operation::Compare { .. } => false,
+        };
+        let saw_numbers =
+            feedback & arith_feedback::DOUBLE != 0 || (!is_bitwise && feedback & arith_feedback::SAW_INT32 != 0);
+        if !saw_numbers
             || feedback & arith_feedback::NON_NUMERIC != 0
             || !self.may_speculate(ExitKind::BadType)
             || matches!(operation, Operation::Binary { op: BinaryOp::Mod, .. })
