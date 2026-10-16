@@ -20,16 +20,16 @@ void DisplayListPlayer::execute(
     DisplayListResourceStorage const& resource_storage,
     ScrollStateSnapshot const& scroll_state_snapshot,
     RefPtr<Gfx::PaintingSurface> surface,
-    CanvasSurfaceRegistry const* canvas_surface_registry)
+    OwnedCanvasSurfaces const* canvas_surfaces)
 {
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     m_surface = surface;
     m_active_display_list = &display_list;
     m_active_visual_context_tree = &visual_context_tree;
     m_resource_storage = &resource_storage;
-    m_canvas_surface_registry = canvas_surface_registry;
+    m_canvas_surfaces = canvas_surfaces;
     execute_impl(display_list, scroll_state_snapshot);
-    m_canvas_surface_registry = nullptr;
+    m_canvas_surfaces = nullptr;
     m_resource_storage = nullptr;
     m_active_visual_context_tree = nullptr;
     m_active_display_list = nullptr;

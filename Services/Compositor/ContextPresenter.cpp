@@ -40,9 +40,9 @@ static Gfx::FloatSize bounded_composited_raster_scale(Gfx::FloatSize scale, Gfx:
     return scale;
 }
 
-ContextPresenter::ContextPresenter(ContextScene& scene, Compositing::CanvasSurfaceRegistry const& canvas_surface_registry, bool presents_to_client)
+ContextPresenter::ContextPresenter(ContextScene& scene, Compositing::OwnedCanvasSurfaces canvas_surfaces, bool presents_to_client)
     : m_scene(scene)
-    , m_canvas_surface_registry(canvas_surface_registry)
+    , m_canvas_surfaces(canvas_surfaces)
     , m_presents_to_client(presents_to_client)
 {
 }
@@ -461,7 +461,7 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
     }
     m_scene.display_list()->for_each_drawn_canvas([&](auto context, auto bounding_rect, auto const& draw_canvas) {
         auto last_content_generation = last_frame.canvas_content_generations.get(draw_canvas.canvas_id);
-        if (last_content_generation.has_value() && *last_content_generation == m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id))
+        if (last_content_generation.has_value() && *last_content_generation == m_canvas_surfaces.canvas_content_generation(draw_canvas.canvas_id))
             return;
         auto canvas_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.template to_type<float>(), presented_scroll_state_snapshot);
         if (!isfinite(canvas_rect.x()) || !isfinite(canvas_rect.y()) || !isfinite(canvas_rect.width()) || !isfinite(canvas_rect.height())) {
@@ -481,7 +481,7 @@ void ContextPresenter::remember_rasterized_frame(Gfx::IntSize viewport_size, Com
 {
     HashMap<Compositing::CanvasId, u64> canvas_content_generations;
     m_scene.display_list()->for_each_drawn_canvas([&](auto, auto, auto const& draw_canvas) {
-        canvas_content_generations.set(draw_canvas.canvas_id, m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id));
+        canvas_content_generations.set(draw_canvas.canvas_id, m_canvas_surfaces.canvas_content_generation(draw_canvas.canvas_id));
     });
     m_last_rasterized_frame = RasterizedFrame {
         .display_list = NonnullRefPtr { *m_scene.display_list() },
@@ -504,7 +504,7 @@ void ContextPresenter::paint_current_display_list(DisplayListPlayerSkia& display
             m_scene.raster_cache(),
             frame_content.presented_scroll_state_snapshot,
             target_surface,
-            &m_canvas_surface_registry,
+            &m_canvas_surfaces,
             frame_content.composited_context_resolver);
         frame_content.scrollbar_controller.paint(target_surface, display_list_player, frame_content.presented_scroll_state_snapshot);
         if (paint_ui_overlay == PaintUIOverlay::No)
