@@ -1,0 +1,11 @@
+When the user quits, Ladybird asks every window’s pages whether they
+may unload, one window at a time, cancels the whole quit if any page
+refuses, and only once all of them agree asks about active downloads
+and closes the windows. Chromium’s BrowserCloseManager does the same:
+TryToCloseBrowsers() runs each browser’s beforeunload handlers through
+UnloadController::TryToCloseWindow(), CancelBrowserClose() cancels the
+quit if one of them is refused, CheckForDownloadsInProgress() follows,
+and CloseBrowsers() shuts down the session services before closing
+anything, so an exit can restore every window that was open. Firefox’s
+CanCloseWindow() likewise asks every tab’s permitUnload() before a
+window closes for a quit.
