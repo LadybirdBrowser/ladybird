@@ -430,12 +430,15 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     // 9. Let document be a new Document, with
     //    origin: navigationParams's origin
     //    browsing context: browsingContext
+    //    policy container: navigationParams's policy container
     //    active sandboxing flag set: navigationParams's final sandboxing flag set
     //    opener policy: navigationParams's cross-origin opener policy
     //    URL: creationURL
     // NB: The process hosting window's agent creates the document, with its other fields, and runs the remaining steps.
+    //     The UI process holds the embedder policy of the document's policy container.
     auto document = CanonicalDocument::create(navigation_params.document_id, move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), navigation_params.final_sandboxing_flag_set, CanonicalDocument::IsInitialAboutBlank::No);
     document->set_opener_policy(navigation_params.opener_policy);
+    document->set_embedder_policy(navigation_params.embedder_policy);
 
     // 22. Return document.
     return document;
@@ -924,6 +927,7 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
         .request_current_url = {},
         .origin = origin,
         .opener_policy = {},
+        .embedder_policy = {},
         .final_sandboxing_flag_set = populated_document->document->active_sandboxing_flag_set(),
         .environment_id = environment_id,
         .document_id = document_id,

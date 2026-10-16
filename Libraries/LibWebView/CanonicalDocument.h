@@ -14,6 +14,7 @@
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/EmbedderPolicy.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -59,6 +60,11 @@ public:
     Web::HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
     void set_opener_policy(Web::HTML::OpenerPolicy opener_policy) { m_opener_policy = move(opener_policy); }
 
+    // https://html.spec.whatwg.org/multipage/browsers.html#policy-container-embedder-policy
+    // The embedder policy of the document's policy container.
+    Web::HTML::EmbedderPolicy const& embedder_policy() const { return m_embedder_policy; }
+    void set_embedder_policy(Web::HTML::EmbedderPolicy embedder_policy) { m_embedder_policy = move(embedder_policy); }
+
     // https://html.spec.whatwg.org/multipage/dom.html#completely-loaded
     bool is_completely_loaded() const { return m_completely_loaded; }
     void set_completely_loaded() { m_completely_loaded = true; }
@@ -103,6 +109,7 @@ private:
     Web::HTML::SandboxingFlagSet m_active_sandboxing_flag_set {};
     IsInitialAboutBlank m_is_initial_about_blank { IsInitialAboutBlank::No };
     Web::HTML::OpenerPolicy m_opener_policy;
+    Web::HTML::EmbedderPolicy m_embedder_policy;
     bool m_completely_loaded { false };
     u32 m_unload_counter { 0 };
     bool m_is_local_file_content { false };
