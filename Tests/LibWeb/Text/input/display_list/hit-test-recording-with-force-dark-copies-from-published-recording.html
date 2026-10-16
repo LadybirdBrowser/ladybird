@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #box { position: absolute; left: 10px; top: 60px; width: 50px; height: 50px; background: green; }
+</style>
+<div id="box"></div>
+<script>
+// The frames record with the navigable's paint config, which has force dark on here. A hit test records with the same
+// config, so it still copies from the frame published last instead of recording the whole page.
+promiseTest(async () => {
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    internals.setForceDarkEnabled(true);
+    await nextFrame();
+    await nextFrame();
+
+    box.style.left = "100px";
+    internals.beginDisplayListTrace();
+    const target = document.elementFromPoint(120, 80);
+    const viewportWork = internals.takeDisplayListTrace().split("\n").find(line => line.startsWith("@viewport "));
+    internals.setForceDarkEnabled(false);
+
+    println(`hit target: ${target.id}`);
+    println(`hit-test recording: ${viewportWork}`);
+});
+</script>

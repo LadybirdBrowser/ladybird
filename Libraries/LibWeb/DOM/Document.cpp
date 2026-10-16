@@ -10559,10 +10559,14 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
 
     // A hit test only reads a recording of the document as it is now: it presents nothing, so the compositor never
     // shows a frame a hit test made in place of one the render clock sampled later. The next frame records again.
+    // It copies from the published recording only where it records with the paint config the frames record with.
     auto rebuild_hit_test_display_list = [&] {
         set_needs_to_record_display_list();
+        HTML::PaintConfig paint_config { .paint_overlay = true };
+        if (auto navigable = this->navigable())
+            paint_config = navigable->stamp_paint_config(paint_config);
         Compositing::DisplayListResourceStorage throwaway_resource_storage_for_hit_test_only_recording;
-        (void)record_display_list(read, HTML::PaintConfig { .paint_overlay = true }, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
+        (void)record_display_list(read, paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
     // The paint properties were prepared above, and a query reads them as they were left there: preparing them again

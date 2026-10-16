@@ -367,6 +367,7 @@ public:
     bool active_document_opts_out_of_force_dark() const;
     bool force_dark_applies_to_active_document() const;
     bool force_dark_enabled() const { return m_force_dark_enabled; }
+    PaintConfig stamp_paint_config(PaintConfig) const;
     void set_should_show_caret_hit_test_debug_overlay(bool);
     bool should_show_caret_hit_test_debug_overlay() const { return m_should_show_caret_hit_test_debug_overlay; }
 
@@ -446,7 +447,6 @@ private:
     // A rendering update's recording that flies beside the event loop, with what its frame is finished with.
     struct RecordingInFlight;
 
-    PaintConfig stamp_paint_config(PaintConfig) const;
     Compositor::FlightPresentation take_presentation(Compositor::SealedPresentation);
     void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation);
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
