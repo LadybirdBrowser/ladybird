@@ -46,6 +46,8 @@ namespace Ladybird {
 class TabPreviewPopup;
 class TabWidget;
 
+static constexpr int TAB_ICON_SIZE = 16;
+
 enum class TabLayout : u8 {
     Horizontal,
     VerticalCollapsed,

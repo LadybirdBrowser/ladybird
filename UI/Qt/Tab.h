@@ -18,6 +18,7 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebView/FileDownloader.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
@@ -72,6 +73,14 @@ signals:
     void mouse_entered(QEnterEvent*);
 };
 
+// What a restored tab shows until it's selected: It has no view, and so no WebContent process, until then.
+struct DeferredTab {
+    WebView::SessionTabId session_tab_id { 0 };
+    URL::URL url;
+    QString title;
+    QIcon favicon;
+};
+
 class Tab final
     : public QWidget
     , public WebView::FileDownloaderObserver
@@ -82,10 +91,29 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> traversable = {});
+    Tab(BrowserWindow* window, DeferredTab);
     virtual ~Tab() override;
 
-    WebContentView& view() { return *m_view; }
-    WebContentView const& view() const { return *m_view; }
+    WebContentView& view()
+    {
+        VERIFY(m_view);
+        return *m_view;
+    }
+    WebContentView const& view() const
+    {
+        VERIFY(m_view);
+        return *m_view;
+    }
+
+    bool is_loaded() const { return m_view != nullptr; }
+    // Builds the tab's view and toolbar, and restores its history, if it hasn't loaded yet.
+    void ensure_loaded();
+
+    URL::URL url() const;
+
+    Optional<WebView::SessionTabId> session_tab_id() const;
+    void set_session_tab_id(WebView::SessionTabId);
+    void clear_session_tab_id();
 
     // A page that has never had a real size must be sized while hidden, so that it doesn't load into Qt's placeholder
     // geometry. Once it has had one, it keeps its size while hidden and takes the window's when it is shown again.
@@ -143,7 +171,7 @@ public:
 public slots:
     void focus_location_editor();
     void park_location_editing();
-    LocationEdit* location_edit_with_parked_editing() const { return m_location_edit->has_parked_editing_session() ? m_location_edit : nullptr; }
+    LocationEdit* location_edit_with_parked_editing() const { return is_loaded() && m_location_edit->has_parked_editing_session() ? m_location_edit : nullptr; }
 
 signals:
     void title_changed(int id, QString const&);
@@ -151,8 +179,13 @@ signals:
     void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
     void loading_changed();
     void loading_finished();
+    void loaded();
 
 private:
+    void create_tab_shell();
+    void create_tab_context_menu();
+    void initialize(Optional<WebView::CanonicalTraversable&>);
+
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
 #ifdef AK_OS_MACOS
     virtual void paintEvent(QPaintEvent*) override;
@@ -245,6 +278,9 @@ private:
     WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
 #ifdef AK_OS_MACOS
     QHBoxLayout* m_view_layout { nullptr };
+    // The web view's frame as TabWidget last asked for it, which a tab that hasn't loaded gets once it loads.
+    bool m_web_view_chrome_visible { true };
+    Optional<WebView::VerticalTabsPosition> m_web_view_sidebar_position;
 #endif
     int m_loading_animation_frame { 0 };
 
@@ -284,6 +320,10 @@ private:
     bool m_preserve_close_retry_state_on_dialog_dismissal { false };
     bool m_window_is_closing { false };
     bool m_is_pinned { false };
+
+    bool m_toolbar_window_controls_visible { false };
+    Optional<WebView::SessionTabId> m_session_tab_id;
+    Optional<DeferredTab> m_deferred_tab;
 };
 
 }

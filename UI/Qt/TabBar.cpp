@@ -107,7 +107,6 @@ static constexpr qreal LOAD_SHEEN_FADE_PROGRESS = 0.15;
 static constexpr int LOAD_SHEEN_DURATION_MS = 400;
 static constexpr int DROP_PREVIEW_DURATION_MS = 150;
 static constexpr int TAB_TITLE_FADE_WIDTH = 24;
-static constexpr int TAB_ICON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_BUTTON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_ICON_SIZE = 12;
 static constexpr auto COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY = "collapsedVerticalTabButton";
@@ -502,7 +501,7 @@ public:
         outer_layout->addWidget(m_card);
     }
 
-    void set_preview(QPalette const& palette, QString title, QString url, QPixmap const& thumbnail)
+    void set_preview(QPalette const& palette, QString title, QString url, Optional<QPixmap const&> thumbnail)
     {
         update_chrome_style(palette);
 
@@ -512,7 +511,9 @@ public:
         QFontMetrics title_metrics(m_title_label->font());
         QFontMetrics url_metrics(m_url_label->font());
 
-        m_thumbnail->set_pixmap(thumbnail);
+        m_thumbnail->setVisible(thumbnail.has_value());
+        if (thumbnail.has_value())
+            m_thumbnail->set_pixmap(*thumbnail);
         m_title_label->setText(title_metrics.elidedText(title, Qt::ElideRight, TAB_PREVIEW_THUMBNAIL_WIDTH));
         m_url_label->setText(url_metrics.elidedText(url, Qt::ElideMiddle, TAB_PREVIEW_THUMBNAIL_WIDTH));
         adjustSize();
@@ -811,7 +812,7 @@ bool TabBar::event(QEvent* event)
         auto hovered_tab = tab_index_at(help_event->pos());
         if (hovered_tab >= 0 && hovered_tab != currentIndex()) {
             if (auto* tab = m_tab_widget ? m_tab_widget->tab(hovered_tab) : nullptr) {
-                if (tab->view().tab_preview_pixmap({ TAB_PREVIEW_THUMBNAIL_WIDTH, TAB_PREVIEW_THUMBNAIL_HEIGHT }).has_value()) {
+                if (!tab->is_loaded() || tab->view().tab_preview_pixmap({ TAB_PREVIEW_THUMBNAIL_WIDTH, TAB_PREVIEW_THUMBNAIL_HEIGHT }).has_value()) {
                     event->accept();
                     return true;
                 }
@@ -1670,6 +1671,15 @@ void TabBar::show_tab_preview()
         return;
     }
 
+    // A tab that hasn't loaded has no page to show, so its preview is its title and URL.
+    if (!tab->is_loaded()) {
+        m_tab_preview_popup->set_preview(palette(), tab->title(), qstring_from_ak_string(tab->url().serialize()), {});
+        m_tab_preview_popup->move(tab_preview_position_for(index, m_tab_preview_popup->sizeHint()));
+        m_tab_preview_popup->show();
+        m_tab_preview_popup->raise();
+        return;
+    }
+
     if (m_previewed_tab != tab) {
         m_previewed_tab = tab;
         m_tab_preview_paint_connection = connect(&tab->view(), &WebContentView::ready_to_paint, this, &TabBar::show_tab_preview);
@@ -2332,13 +2342,22 @@ static void size_page_like(Tab& page, Tab const& current)
 
 void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
 {
-    // A page inserted behind the current one stays at Qt's default geometry until it's selected, and a load can start
-    // into it long before that. Size its view like the current page's view first — as Chrome does for a new background
-    // tab (TabStripModel::AddWebContents) — so the page's first layout sees the real viewport.
-    if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current != widget)
-        size_page_like(*widget, *current);
-    widget->view().installEventFilter(this);
-    widget->bookmarks_bar().installEventFilter(this);
+    if (widget->is_loaded()) {
+        // A page inserted behind the current one stays at Qt's default geometry until it's selected, and a load can
+        // start into it long before that. Size its view like the current page's view first, so the page's first layout
+        // sees the real viewport.
+        if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current != widget && current->is_loaded())
+            size_page_like(*widget, *current);
+        widget->view().installEventFilter(this);
+        widget->bookmarks_bar().installEventFilter(this);
+    } else {
+        // A tab that hasn't loaded gets the filters for its view and bookmarks bar once it has them.
+        auto install_event_filters = [this, widget] {
+            widget->view().installEventFilter(this);
+            widget->bookmarks_bar().installEventFilter(this);
+        };
+        connect(widget, &Tab::loaded, this, install_event_filters, Qt::SingleShotConnection);
+    }
 
     m_stacked_widget->insertWidget(index, widget);
     m_tab_bar->insertTab(index, label);
@@ -2371,8 +2390,11 @@ Tab* TabWidget::take_tab(int index)
         return nullptr;
 
     m_stacked_widget->removeWidget(widget);
-    as<Tab>(widget)->view().removeEventFilter(this);
-    as<Tab>(widget)->bookmarks_bar().removeEventFilter(this);
+    if (as<Tab>(widget)->is_loaded()) {
+        as<Tab>(widget)->view().removeEventFilter(this);
+        as<Tab>(widget)->bookmarks_bar().removeEventFilter(this);
+    }
+    disconnect(as<Tab>(widget), &Tab::loaded, this, nullptr);
     auto* toolbar = as<Tab>(widget)->toolbar_container();
     if (m_toolbar_container->indexOf(toolbar) != -1)
         m_toolbar_container->removeWidget(toolbar);
@@ -2545,7 +2567,7 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
         defer_update_vertical_tabs_hover_expanded();
 
     if (event->type() == QEvent::Resize) {
-        if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && watched == &current->view())
+        if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current->is_loaded() && watched == &current->view())
             size_hidden_pages_like_the_current_one();
     }
 
@@ -2672,16 +2694,17 @@ void TabWidget::resizeEvent(QResizeEvent* event)
 // The stacked layout sizes only the current page, so the tabs behind it keep stale geometry: Qt's default 100x30 for
 // a tab that was created before the window was first shown — which is every tab but the first on a command line, and
 // every restored one. Their pages may already be loading. So, whenever the current page's view gets its size, then size
-// every hidden page's view the same, until it has had a real size.
+// every hidden page's view the same, until it has had a real size. A tab that hasn't loaded is skipped: It has no view
+// yet, and it loads only once it's the current page, which the stacked layout sizes.
 // NB: This hangs off the view's own resize event, not this widget's: At the window's first show, this widget is laid
 // out before the current page's child layout has run. So at that point the current view still has its placeholder size.
 void TabWidget::size_hidden_pages_like_the_current_one()
 {
     auto* current = as_if<Tab>(m_stacked_widget->currentWidget());
-    if (!current)
+    if (!current || !current->is_loaded())
         return;
     for (int i = 0; i < m_stacked_widget->count(); ++i) {
-        if (auto* page = as_if<Tab>(m_stacked_widget->widget(i)); page && page != current)
+        if (auto* page = as_if<Tab>(m_stacked_widget->widget(i)); page && page != current && page->is_loaded())
             size_page_like(*page, *current);
     }
 }

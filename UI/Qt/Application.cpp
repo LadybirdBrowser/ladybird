@@ -1173,15 +1173,37 @@ Optional<WebView::ViewImplementation&> Application::active_web_view() const
     return {};
 }
 
-Vector<WebView::ViewImplementation&> Application::active_window_web_views() const
+Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_window() const
 {
     if (!m_active_window)
         return {};
 
-    Vector<WebView::ViewImplementation&> web_views;
-    m_active_window->for_each_tab([&](Tab& tab) { web_views.append(tab.view()); });
+    // Every tab gets a bookmark, so this walks the tabs directly: for_each_tab() skips the ones that haven't loaded.
+    Vector<WebView::BookmarkItem::Bookmark> bookmarks;
+    for (int i = 0; i < m_active_window->tab_count(); ++i) {
+        auto& tab = *m_active_window->tab_at(i);
+        if (tab.is_loaded()) {
+            auto const& view = tab.view();
+            bookmarks.append(WebView::BookmarkItem::Bookmark {
+                .url = view.url(),
+                .title = view.title().is_empty() ? Optional<String> {} : view.title().to_utf8(),
+                .favicon_hash = view.favicon_hash(),
+            });
+            continue;
+        }
 
-    return web_views;
+        // A tab that hasn't loaded shows the title browsing history has for its page, or else its URL, which isn't a
+        // title worth keeping. The bookmark store fills in the favicon on a later visit.
+        auto url = tab.url();
+        auto title = tab.title();
+        auto has_title = !title.isEmpty() && title != qstring_from_ak_string(url.serialize());
+        bookmarks.append(WebView::BookmarkItem::Bookmark {
+            .url = url,
+            .title = has_title ? ak_string_from_qstring(title) : Optional<String> {},
+            .favicon_hash = {},
+        });
+    }
+    return bookmarks;
 }
 
 Optional<WebView::ViewImplementation&> Application::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const

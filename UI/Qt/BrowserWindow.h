@@ -185,8 +185,12 @@ public:
     template<typename Callback>
     void for_each_tab(Callback&& callback)
     {
-        for (int i = 0; i < m_tabs_container->count(); ++i)
-            callback(*m_tabs_container->tab(i));
+        for (int i = 0; i < m_tabs_container->count(); ++i) {
+            // A tab that hasn't loaded has no view or toolbar to update, and it picks up the window's toolbar and
+            // tab-bar state when it loads.
+            if (auto* tab = m_tabs_container->tab(i); tab->is_loaded())
+                callback(*tab);
+        }
     }
 
     void update_tabs_display();
@@ -236,8 +240,9 @@ private:
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     Tab& create_new_tab(Web::HTML::ActivateTab, Optional<WebView::CanonicalTraversable&>);
-    Tab& create_restored_tab(WebView::RestoredSessionTab const&, int index);
+    Tab& create_restored_tab(WebView::RestoredSessionTab const&, int index, bool defer);
     void initialize_tab(Tab*);
+    void initialize_tab_view(Tab*);
     void uninitialize_tab(Tab*);
     void update_window_title(QString const&);
     void register_window_with_session_store();
