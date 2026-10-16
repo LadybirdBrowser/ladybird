@@ -258,6 +258,19 @@ public:
             break;
         }
 
+#if defined(AK_OS_MACOS)
+        case QEvent::Quit:
+            // The system asks the application to quit (from the Dock, or at logout) with a spontaneous Quit event, and
+            // so does QApplication::quit(), which on macOS terminates through the system. So until every window's pages
+            // have agreed, the termination is canceled and quit() asks the pages instead — and then finishes by itself.
+            if (event->spontaneous() && !application.is_finishing_quit()) {
+                application.quit();
+                event->ignore();
+                return true;
+            }
+            break;
+#endif
+
         default:
             break;
         }
@@ -819,23 +832,109 @@ void Application::open_file()
     m_active_window->open_file();
 }
 
+static Vector<BrowserWindow*> visible_browser_windows_active_first(BrowserWindow* active_window)
+{
+    Vector<BrowserWindow*> windows;
+    if (active_window && active_window->isVisible())
+        windows.append(active_window);
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget); window && window != active_window && window->isVisible())
+            windows.append(window);
+    }
+    return windows;
+}
+
 void Application::quit()
 {
-    if (!confirm_stop_active_downloads(active_window_if_any()))
+    // A quit is already asking the pages, so a repeated one does nothing.
+    if (m_quit_in_progress)
         return;
 
-    WebView::Application::default_session().session_store->application_quitting();
+    m_quit_in_progress = true;
+    m_windows_awaiting_quit_preflight.clear();
 
-    QApplication::closeAllWindows();
+    // The window the user is looking at gets asked first.
+    for (auto* window : visible_browser_windows_active_first(m_active_window))
+        m_windows_awaiting_quit_preflight.append(window);
+    ask_next_window_to_close_for_quit();
+}
 
-    for (auto* widget : QApplication::topLevelWidgets()) {
-        if (as_if<BrowserWindow>(widget) && widget->isVisible()) {
-            WebView::Application::default_session().session_store->application_quit_aborted();
-            return;
-        }
+void Application::ask_next_window_to_close_for_quit()
+{
+    while (!m_windows_awaiting_quit_preflight.is_empty()) {
+        auto window = m_windows_awaiting_quit_preflight.take_first();
+        if (!window)
+            continue;
+
+        window->request_close_preflight_for_quit([this](bool approved) {
+            if (approved)
+                ask_next_window_to_close_for_quit();
+            else
+                cancel_quit();
+        });
+        return;
     }
 
+    // The quit finishes on a later turn of the event loop, so that it never terminates the application from inside a
+    // page's reply, or from inside the system's own request to quit.
+    QTimer::singleShot(0, m_application.ptr(), [this] {
+        finish_quit();
+    });
+}
+
+bool Application::ask_windows_yet_to_agree_to_quit()
+{
+    for (auto* window : visible_browser_windows_active_first(m_active_window)) {
+        if (!window->is_window_close_approved())
+            m_windows_awaiting_quit_preflight.append(window);
+    }
+    if (m_windows_awaiting_quit_preflight.is_empty())
+        return false;
+
+    ask_next_window_to_close_for_quit();
+    return true;
+}
+
+void Application::finish_quit()
+{
+    // A window can open while the quit asks the others, and a navigation or a closed tab withdraws a window's approval,
+    // so any window that hasn't agreed yet gets asked before anything closes.
+    if (ask_windows_yet_to_agree_to_quit())
+        return;
+
+    // Downloads are stopped only once every page has agreed, so a page that keeps the windows open leaves them running.
+    if (!confirm_stop_active_downloads(active_window_if_any())) {
+        cancel_quit();
+        return;
+    }
+
+    // The downloads prompt runs an event loop of its own, in which windows can open or lose their approval too.
+    if (ask_windows_yet_to_agree_to_quit())
+        return;
+
+    // The session store hears of the quit only once every window has agreed, so a canceled quit never reaches it. In
+    // quitting mode, it keeps each window that closes as an open one, for the next launch to recover.
+    m_quit_is_finishing = true;
+    WebView::Application::default_session().session_store->application_quitting();
+
+    // Each window's pages agreed, so it closes at once; the active window goes last, so no close activates another.
+    auto windows = visible_browser_windows_active_first(m_active_window);
+    for (auto* window : windows.in_reverse())
+        window->close();
+
     QApplication::quit();
+}
+
+void Application::cancel_quit()
+{
+    m_quit_in_progress = false;
+    m_windows_awaiting_quit_preflight.clear();
+
+    // The windows whose pages already agreed go back to needing their own close check.
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->cancel_window_close_preflight();
+    }
 }
 
 bool Application::confirm_stop_active_downloads(QWidget* parent)
