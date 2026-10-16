@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -604,6 +605,7 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
     if (auto const* iframe = as_if<HTMLIFrameElement>(*this))
         state.iframe_sandboxing_flag_set = iframe->iframe_sandboxing_flag_set();
     state.document_active_sandboxing_flag_set = document().active_sandboxing_flag_set();
+    state.document_embedder_policy = document().policy_container()->embedder_policy;
     state.local_name = local_name();
     state.iframe_referrer_policy = determine_iframe_element_referrer_policy(*this);
     return state;
