@@ -21,7 +21,7 @@ add_dependencies(videodecoderserverservice
 target_include_directories(videodecoderserverservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(videodecoderserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
-target_link_libraries(VideoDecoderServer PRIVATE videodecoderserverservice LibCore LibMain LibMediaCodecs LibSandbox)
+target_link_libraries(VideoDecoderServer PRIVATE videodecoderserverservice LibCore LibGfx LibMain LibMediaCodecs LibSandbox)
 target_link_libraries(videodecoderserverservice PRIVATE LibCore LibIPC LibMediaCodecs)
 
 if (WIN32)

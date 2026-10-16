@@ -1770,6 +1770,9 @@ ErrorOr<void> Application::launch_compositor_process()
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();
     };
+    m_compositor_client->on_gpu_device_identity_reported = [this](Optional<Gfx::GpuDeviceIdentity> identity) {
+        compositor_reported_gpu_device_identity(move(identity));
+    };
 
     if (!platform_reports_scroll_momentum())
         m_compositor_client->async_set_synthesizes_scroll_momentum(true);
@@ -1783,6 +1786,29 @@ ErrorOr<void> Application::launch_compositor_process()
 #endif
 
     return {};
+}
+
+void Application::compositor_reported_gpu_device_identity(Optional<Gfx::GpuDeviceIdentity> identity)
+{
+    auto previous_identity = exchange(m_compositor_gpu_device_identity, identity);
+
+    // Frames decoded on another GPU cannot be displayed by this Compositor, so decoding starts over on its own. Each
+    // MediaServer relaunches its server when it next asks for one.
+    if (previous_identity.has_value() && *previous_identity != identity)
+        shut_down_video_decoder_servers();
+
+    auto callbacks = move(m_callbacks_awaiting_compositor_gpu_device_identity);
+    for (auto& callback : callbacks)
+        callback(identity);
+}
+
+void Application::when_compositor_gpu_device_identity_is_known(CompositorGpuDeviceIdentityCallback callback)
+{
+    if (m_compositor_gpu_device_identity.has_value()) {
+        callback(*m_compositor_gpu_device_identity);
+        return;
+    }
+    m_callbacks_awaiting_compositor_gpu_device_identity.append(move(callback));
 }
 
 void Application::notify_compositor_gpu_presentation_unavailable()

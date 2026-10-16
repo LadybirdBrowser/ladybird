@@ -1,9 +1,12 @@
+#include <LibGfx/GpuDeviceIdentity.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibCompositing/Types.h>
 
 endpoint CompositorControlClient
 {
+    // Sent once at startup: the GPU that decoders must output to for their frames to be shown without a copy.
+    gpu_device_identity_reported(Optional<Gfx::GpuDeviceIdentity> identity) =|
     did_allocate_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
     did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
     did_retire_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids) =|

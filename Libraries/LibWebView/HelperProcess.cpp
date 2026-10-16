@@ -5,6 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
@@ -462,7 +463,9 @@ ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process()
     return launch_server_process<MediaClient::Client>("MediaServer"sv, arguments);
 }
 
-ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process()
+static NeverDestroyed<Vector<WeakPtr<VideoDecoderServerControlClient>>> s_video_decoder_servers;
+
+ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(Optional<Gfx::GpuDeviceIdentity> const& gpu_device_identity)
 {
     auto const& browser_options = WebView::Application::browser_options();
 
@@ -471,12 +474,28 @@ ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_ser
         arguments.append("--disable-sandbox"sv);
     if (browser_options.force_video_decoder_server == ForceVideoDecoderServer::Yes)
         arguments.append("--host-software-decoders"sv);
+    if (gpu_device_identity.has_value()) {
+        arguments.append("--gpu-device"sv);
+        arguments.append(gpu_device_identity->to_byte_string());
+    }
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
     }
 
-    return launch_server_process<VideoDecoderServerControlClient>("VideoDecoderServer"sv, arguments);
+    auto server = TRY(launch_server_process<VideoDecoderServerControlClient>("VideoDecoderServer"sv, arguments));
+    s_video_decoder_servers->remove_all_matching([](auto const& weak_server) { return !weak_server; });
+    s_video_decoder_servers->append(server->make_weak_ptr<VideoDecoderServerControlClient>());
+    return server;
+}
+
+void shut_down_video_decoder_servers()
+{
+    for (auto& weak_server : *s_video_decoder_servers) {
+        if (weak_server)
+            weak_server->shutdown();
+    }
+    s_video_decoder_servers->clear();
 }
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
@@ -672,10 +691,18 @@ ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServer
     return response->take_handle().release_value();
 }
 
-static ErrorOr<IPC::TransportHandle> connect_new_video_decoder_server_client(RefPtr<VideoDecoderServerControlClient>& controller)
+namespace {
+
+struct VideoDecoderServerHolder : public RefCounted<VideoDecoderServerHolder> {
+    RefPtr<VideoDecoderServerControlClient> controller;
+};
+
+}
+
+static ErrorOr<IPC::TransportHandle> connect_new_video_decoder_server_client(RefPtr<VideoDecoderServerControlClient>& controller, Optional<Gfx::GpuDeviceIdentity> const& gpu_device_identity)
 {
     if (!controller || !controller->is_open())
-        controller = TRY(launch_video_decoder_server_process());
+        controller = TRY(launch_video_decoder_server_process(gpu_device_identity));
 
     auto response = controller->send_sync_but_allow_failure<Messages::VideoDecoderServerControl::ConnectNewClient>();
     if (!response || !response->handle().has_value())
@@ -688,9 +715,12 @@ ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<Medi
     if (!controller || !controller->is_open()) {
         controller = TRY(launch_media_server_process());
         controller->on_request_audio_server_connection = move(connect_audio_server);
-        // Each MediaServer has a VideoDecoderServer of its own, which lives as long as the controller holding it.
-        controller->on_request_video_decoder_server_connection = [video_decoder_server = RefPtr<VideoDecoderServerControlClient> {}](auto answer) mutable {
-            answer(connect_new_video_decoder_server_client(video_decoder_server));
+        // Each MediaServer has a VideoDecoderServer of its own, which lives as long as the controller holding it. The
+        // server is launched once the Compositor has named the GPU that hardware decoders must output to.
+        controller->on_request_video_decoder_server_connection = [video_decoder_server = make_ref_counted<VideoDecoderServerHolder>()](auto answer) {
+            Application::the().when_compositor_gpu_device_identity_is_known([video_decoder_server, answer = move(answer)](auto const& gpu_device_identity) {
+                answer(connect_new_video_decoder_server_client(video_decoder_server->controller, gpu_device_identity));
+            });
         };
     }
 

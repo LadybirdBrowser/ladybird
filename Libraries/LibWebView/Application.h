@@ -24,6 +24,7 @@
 #include <LibDatabase/Forward.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
+#include <LibGfx/GpuDeviceIdentity.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
@@ -399,6 +400,11 @@ public:
     // CPU-shared backing stores.
     void notify_compositor_gpu_presentation_unavailable();
 
+    // Runs the callback with the GPU that hardware decoders must output to for the Compositor to display their frames,
+    // if there is one, as soon as the Compositor has reported it.
+    using CompositorGpuDeviceIdentityCallback = Function<void(Optional<Gfx::GpuDeviceIdentity> const&)>;
+    void when_compositor_gpu_device_identity_is_known(CompositorGpuDeviceIdentityCallback);
+
 protected:
     explicit Application(Optional<ByteString> ladybird_binary_path = {});
 
@@ -438,6 +444,7 @@ private:
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
     ErrorOr<void> launch_compositor_process();
+    void compositor_reported_gpu_device_identity(Optional<Gfx::GpuDeviceIdentity>);
     void handle_compositor_process_death();
     void recover_compositor_process();
     void crash_compositor_process();
@@ -619,6 +626,9 @@ private:
 #endif
     RefPtr<CompositorClient> m_compositor_client;
     bool m_reported_compositor_gpu_presentation_unavailable { false };
+    // The last identity a Compositor reported, which outlives that Compositor until its replacement reports.
+    Optional<Optional<Gfx::GpuDeviceIdentity>> m_compositor_gpu_device_identity;
+    Vector<CompositorGpuDeviceIdentityCallback> m_callbacks_awaiting_compositor_gpu_device_identity;
     size_t m_compositor_restart_count { 0 };
     enum class CompositorRecoveryState {
         Idle,

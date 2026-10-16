@@ -31,6 +31,10 @@ if (APPLE)
     list(APPEND SOURCES VideoToolbox/VideoToolboxVideoDecoder.mm)
 endif()
 
+if (USE_VULKAN_DMABUF_IMAGES)
+    list(APPEND SOURCES Vulkan/VulkanVideoDevice.cpp)
+endif()
+
 set(GENERATED_SOURCES
     VideoDecoderClientEndpoint.h
     VideoDecoderServerEndpoint.h
@@ -61,4 +65,8 @@ endif()
 
 if (APPLE)
     target_link_libraries(LibMediaCodecs PRIVATE "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
+endif()
+
+if (USE_VULKAN_DMABUF_IMAGES)
+    target_link_libraries(LibMediaCodecs PRIVATE Vulkan::Vulkan)
 endif()
