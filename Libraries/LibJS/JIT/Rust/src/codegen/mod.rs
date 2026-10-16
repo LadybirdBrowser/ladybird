@@ -1664,6 +1664,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             Op::BoxFloat64 => self.emit_box_float64(node_id),
             Op::Float64Unary { op } => self.emit_float64_unary(node_id, *op),
+            Op::CallFloat64Function { function } => self.emit_call_float64_function(node_id, *function)?,
             Op::Float64Binary { op } => self.emit_float64_binary(node_id, *op),
             Op::Float64Min | Op::Float64Max => {
                 let (lhs, rhs, output) = (

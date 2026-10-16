@@ -5,9 +5,10 @@
  */
 
 //! Lowering of number ops: unboxing and boxing of numbers, double
-//! arithmetic and comparisons, conversions, and `Math` functions of one
-//! double. `Repr::Float64` values are in floating point registers.
+//! arithmetic and comparisons, conversions, and `Math` functions of
+//! doubles. `Repr::Float64` values are in floating point registers.
 
+use crate::CompileFailure;
 use crate::asm::Condition;
 use crate::asm::DoubleCondition;
 use crate::asm::Gpr;
@@ -17,6 +18,7 @@ use crate::codegen::Codegen;
 use crate::codegen::InputValue;
 use crate::ir::BinaryOp;
 use crate::ir::Comparison;
+use crate::ir::Float64Function;
 use crate::ir::Float64UnaryOp;
 use crate::ir::NodeId;
 use crate::ir::value;
@@ -101,6 +103,30 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm.bind(done);
             }
         }
+    }
+
+    /// `CallFloat64Function`: calls the runtime's function of doubles. The
+    /// registers C calls take doubles in (and return the first in) are
+    /// lowering registers, which hold no values.
+    pub(in crate::codegen) fn emit_call_float64_function(
+        &mut self,
+        node: NodeId,
+        function: Float64Function,
+    ) -> Result<(), CompileFailure> {
+        let address = (self.runtime.float64_functions.0)(function);
+        if address == 0 {
+            return Err(CompileFailure::MissingRuntimeHelper { opcode: None });
+        }
+        for index in 0..function.argument_count() {
+            let argument = M::ARGUMENT_FPRS[index];
+            assert_eq!(argument, Self::lowering_fpr(index));
+            let input = self.float_input(node, index);
+            self.masm.move_double(argument, input);
+        }
+        self.masm.call_absolute(address);
+        let output = self.float_output(node);
+        self.masm.move_double(output, M::ARGUMENT_FPRS[0]);
+        Ok(())
     }
 
     /// `Float64Binary`: `op` of two doubles.

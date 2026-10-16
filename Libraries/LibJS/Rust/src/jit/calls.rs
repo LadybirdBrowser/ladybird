@@ -10,6 +10,7 @@
 use core::ptr::NonNull;
 
 use libjs_abi::register;
+use libjs_jit::ir::Float64Function;
 
 use super::code::EntryStatus;
 use super::entry_exit::{can_enter_jit_code, enter_jit_code};
@@ -45,11 +46,13 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_prototype::FunctionPrototype;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::get_iterator_values;
+use crate::runtime::math_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::{ConstructorKind, FunctionKind, ThisMode};
+use crate::runtime::value_conversions;
 
 /// Calls through Function.prototype.call/apply and bound functions are unwrapped this many times before the generic
 /// call machinery takes over.
@@ -931,6 +934,44 @@ pub extern "C" fn libjs_jit_primitive_to_string(vm: &Vm, primitive: u64) -> u64 
     }
     // NB: ToString of other primitives runs no code and cannot throw.
     Value::from_string(primitive.to_primitive_string(vm).must()).0
+}
+
+/// The address of the runtime's `double (double...)` function that computes `function`, which JIT code calls with
+/// numbers (see `Op::CallFloat64Function`).
+pub fn float64_function_address(function: Float64Function) -> u64 {
+    let function: *const () = match function {
+        Float64Function::Exp => libjs_jit_math_exp as *const (),
+        Float64Function::Log => libjs_jit_math_log as *const (),
+        Float64Function::Sin => libjs_jit_math_sin as *const (),
+        Float64Function::Cos => libjs_jit_math_cos as *const (),
+        Float64Function::Tan => libjs_jit_math_tan as *const (),
+        Float64Function::Pow => libjs_jit_math_pow as *const (),
+    };
+    function as u64
+}
+
+extern "C" fn libjs_jit_math_exp(number: f64) -> f64 {
+    math_object::exp_of_number(number)
+}
+
+extern "C" fn libjs_jit_math_log(number: f64) -> f64 {
+    math_object::log_of_number(number)
+}
+
+extern "C" fn libjs_jit_math_sin(number: f64) -> f64 {
+    math_object::sin_of_number(number)
+}
+
+extern "C" fn libjs_jit_math_cos(number: f64) -> f64 {
+    math_object::cos_of_number(number)
+}
+
+extern "C" fn libjs_jit_math_tan(number: f64) -> f64 {
+    math_object::tan_of_number(number)
+}
+
+extern "C" fn libjs_jit_math_pow(base: f64, exponent: f64) -> f64 {
+    value_conversions::exp_double(base, exponent)
 }
 
 /// `u64 libjs_jit_to_object(VM*, u64 primitive, u64 function)`: ToObject of a primitive other than undefined and

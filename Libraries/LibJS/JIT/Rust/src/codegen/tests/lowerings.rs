@@ -13,6 +13,7 @@ use crate::builder::OperationInput;
 use crate::bytecode::EnvironmentCoordinate;
 use crate::ir::BinaryOp;
 use crate::ir::Comparison;
+use crate::ir::Float64Function;
 use crate::snapshot::KeyedFeedbackSnapshot;
 use crate::snapshot::keyed_feedback_bits;
 
@@ -265,9 +266,16 @@ fn marker_runtime() -> RuntimeInfo {
         O::CallBuiltinMathCeil,
         O::CallBuiltinMathRound,
         O::CallBuiltinMathSqrt,
+        O::CallBuiltinMathExp,
+        O::CallBuiltinMathLog,
+        O::CallBuiltinMathSin,
+        O::CallBuiltinMathCos,
+        O::CallBuiltinMathTan,
+        O::CallBuiltinMathPow,
     ] {
         set(opcode, marker_scalar as *const () as u64);
     }
+    runtime.float64_functions = crate::snapshot::Float64FunctionAddresses(fake_float64_function);
     for opcode in [O::ObjectPropertyIteratorNext, O::ResolveThisBinding, O::CreateVariable] {
         set(opcode, marker_put as *const () as u64);
     }
@@ -1216,6 +1224,12 @@ fn fake_object_layout() -> RuntimeLayout {
         builtin_math_ceil: 11,
         builtin_math_round: 12,
         builtin_math_sqrt: 13,
+        builtin_math_exp: 14,
+        builtin_math_log: 15,
+        builtin_math_sin: 16,
+        builtin_math_cos: 17,
+        builtin_math_tan: 18,
+        builtin_math_pow: 19,
         typeof_strings: crate::snapshot::TypeofStrings::default(),
         fly_string_cache: 0,
         fly_string_cache_mask: 0,
@@ -3396,6 +3410,191 @@ fn math_builtin_calls() {
             assert_eq!(call_with(builtin, callee, value::TRUE, exited), slow);
         }
     }
+}
+
+extern "C" fn fake_exp(number: f64) -> f64 {
+    number.exp()
+}
+
+extern "C" fn fake_log(number: f64) -> f64 {
+    number.ln()
+}
+
+extern "C" fn fake_sin(number: f64) -> f64 {
+    number.sin()
+}
+
+extern "C" fn fake_cos(number: f64) -> f64 {
+    number.cos()
+}
+
+extern "C" fn fake_tan(number: f64) -> f64 {
+    number.tan()
+}
+
+extern "C" fn fake_pow(base: f64, exponent: f64) -> f64 {
+    base.powf(exponent)
+}
+
+fn fake_float64_function(function: Float64Function) -> u64 {
+    let function: *const () = match function {
+        Float64Function::Exp => fake_exp as *const (),
+        Float64Function::Log => fake_log as *const (),
+        Float64Function::Sin => fake_sin as *const (),
+        Float64Function::Cos => fake_cos as *const (),
+        Float64Function::Tan => fake_tan as *const (),
+        Float64Function::Pow => fake_pow as *const (),
+    };
+    function as u64
+}
+
+#[test]
+fn math_function_calls() {
+    type Reference = fn(f64, f64) -> f64;
+    let functions: [(u8, Reference); 6] = [
+        (14, |number, _| number.exp()),
+        (15, |number, _| number.ln()),
+        (16, |number, _| number.sin()),
+        (17, |number, _| number.cos()),
+        (18, |number, _| number.tan()),
+        (19, f64::powf),
+    ];
+    // NB: Where the code exited before, it calls the slow path instead.
+    let call_with = |builtin: u8, callee: u64, argument0: u64, argument1: u64, exited: bool| {
+        let instruction = match builtin {
+            14 => Instruction::CallBuiltinMathExp {
+                call_feedback: 0,
+                dst: r(5),
+                callee: argument(0),
+                this_value: argument(0),
+                argument: argument(1),
+                expression_string: None,
+            },
+            15 => Instruction::CallBuiltinMathLog {
+                call_feedback: 0,
+                dst: r(5),
+                callee: argument(0),
+                this_value: argument(0),
+                argument: argument(1),
+                expression_string: None,
+            },
+            16 => Instruction::CallBuiltinMathSin {
+                call_feedback: 0,
+                dst: r(5),
+                callee: argument(0),
+                this_value: argument(0),
+                argument: argument(1),
+                expression_string: None,
+            },
+            17 => Instruction::CallBuiltinMathCos {
+                call_feedback: 0,
+                dst: r(5),
+                callee: argument(0),
+                this_value: argument(0),
+                argument: argument(1),
+                expression_string: None,
+            },
+            18 => Instruction::CallBuiltinMathTan {
+                call_feedback: 0,
+                dst: r(5),
+                callee: argument(0),
+                this_value: argument(0),
+                argument: argument(1),
+                expression_string: None,
+            },
+            _ => Instruction::CallBuiltinMathPow {
+                call_feedback: 0,
+                dst: r(5),
+                callee: argument(0),
+                this_value: argument(0),
+                argument0: argument(1),
+                argument1: argument(2),
+                expression_string: None,
+            },
+        };
+        let program = assemble(|_| {
+            vec![
+                Instruction::Enter,
+                instruction.clone(),
+                Instruction::Return { value: r(5) },
+            ]
+        });
+        let pc = program.offsets[1];
+        let (result, _) = run_program_with_snapshot(
+            &program,
+            &[callee, argument0, argument1],
+            |snapshot| {
+                if exited {
+                    snapshot.executables[0].exit_sites = vec![(pc, ExitKind::SlowPath)];
+                }
+            },
+            |_| {},
+        );
+        if result.status == crate::code::JitStatus::Resume as u64 {
+            return EXITED;
+        }
+        assert_eq!(result.status, RETURNED);
+        result.value
+    };
+    let numbers = [
+        0.0,
+        -0.0,
+        0.5,
+        -0.5,
+        2.0,
+        10.0,
+        -3.25,
+        1e300,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NAN,
+    ];
+    for (builtin, reference) in functions {
+        let callee = fake_function(Some(builtin));
+        // NB: Before any exit at the site, the cases the slow path handles
+        //     exit instead.
+        for exited in [true, false] {
+            let slow = if exited { MARKER } else { EXITED };
+            for number in numbers {
+                for exponent in [3.0, -0.5] {
+                    let expected = box_number(reference(number, exponent));
+                    assert_eq!(
+                        call_with(builtin, callee, number.to_bits(), exponent.to_bits(), exited),
+                        expected,
+                        "builtin {builtin} of {number:?} and {exponent:?}"
+                    );
+                }
+            }
+            for integer in [0, 1, -1, 7, i32::MAX, i32::MIN] {
+                let expected = box_number(reference(f64::from(integer), 2.0));
+                assert_eq!(
+                    call_with(builtin, callee, value::int32(integer), value::int32(2), exited),
+                    expected,
+                    "builtin {builtin} of {integer}"
+                );
+            }
+            // Other callees and arguments take the slow path.
+            let one = value::int32(1);
+            assert_eq!(
+                call_with(builtin, fake_function(Some(builtin - 1)), one, one, exited),
+                slow
+            );
+            assert_eq!(call_with(builtin, fake_function(None), one, one, exited), slow);
+            assert_eq!(call_with(builtin, value::UNDEFINED, one, one, exited), slow);
+            assert_eq!(call_with(builtin, callee, value::UNDEFINED, one, exited), slow);
+            assert_eq!(call_with(builtin, callee, value::TRUE, one, exited), slow);
+        }
+    }
+    // So does an exponent that is no number.
+    let one = value::int32(1);
+    assert_eq!(
+        call_with(19, fake_function(Some(19)), one, value::UNDEFINED, false),
+        EXITED
+    );
+    assert_eq!(
+        call_with(19, fake_function(Some(19)), one, value::UNDEFINED, true),
+        MARKER
+    );
 }
 
 /// The fake string `string`, with its length set to `length`.

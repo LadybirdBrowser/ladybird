@@ -143,6 +143,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | IsCallable | Whether input 0 is a function object. | | | | cse |
 | Typeof, TypeofIs | `typeof` of input 0, or whether it is one kind. | | | | cse |
 | ToBoolean | Truthiness through the runtime's `to_boolean`; the slow path of `BranchTruthy`. | | | | call, cse |
+| CallFloat64Function | `Math.exp`, `log`, `sin`, `cos`, `tan` and `pow` of float64 values, through the runtime's function of doubles for each, which only computes. | | | | call, cse |
 | PrimitiveToString, ToObject | ToString of a primitive, and ToObject of a primitive (but undefined and null) as a builtin of the running realm makes it (else the empty value), through the runtime. | | | | call, allocates |
 | CallIntrinsic | A builtin of a `this` value and arguments of the kinds its `HelperCall` lists (like a string and an int32 position for `String.prototype.indexOf`), through its runtime helper, without a native frame; the helper runs in the realm of the calling code. Helpers that return any value return the empty value where they decline, having done nothing observable. | | Per `HelperCall` | Per `HelperCall` | call, allocates |
 | ArrayCreate | `new Array(length)` as the running realm's `Array` constructor makes it, through the runtime. | | | | call, allocates |

@@ -270,6 +270,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
             with_inputs(&format!("{} {} {location}", op.name(), opcode.name()))
         }
         Op::Float64Unary { op } => with_inputs(&format!("Float64{}", op.name())),
+        Op::CallFloat64Function { function } => with_inputs(&format!("CallFloat64{}", function.name())),
         Op::Float64Binary { op } => with_inputs(&format!("Float64{op:?}")),
         Op::Float64Compare { comparison } => with_inputs(&format!("Float64{comparison:?}")),
         Op::Refine { condition, holds } => {

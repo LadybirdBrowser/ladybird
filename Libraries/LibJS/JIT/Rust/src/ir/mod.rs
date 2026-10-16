@@ -963,6 +963,13 @@ pub enum Op {
     /// `Repr::Float64`: NaN if either is NaN, and -0 below +0.
     Float64Min,
     Float64Max,
+    /// `Math.<function>` of the `Repr::Float64` inputs (two for Pow, one for
+    /// the others), as a `Repr::Float64`, through the runtime's function of
+    /// doubles for it (see `RuntimeInfo::float64_functions`), which only
+    /// computes.
+    CallFloat64Function {
+        function: Float64Function,
+    },
     /// `input 0 comparison input 1` of two `Repr::Float64` inputs, as a
     /// `Repr::Bool`: false if either is NaN, but for the inequalities.
     /// Equalities are strict and loose alike.
@@ -1179,6 +1186,39 @@ impl Float64UnaryOp {
     }
 }
 
+/// What `Op::CallFloat64Function` computes: the `Math` function of that
+/// name, of numbers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Float64Function {
+    Exp,
+    Log,
+    Sin,
+    Cos,
+    Tan,
+    Pow,
+}
+
+impl Float64Function {
+    pub fn name(self) -> &'static str {
+        match self {
+            Float64Function::Exp => "Exp",
+            Float64Function::Log => "Log",
+            Float64Function::Sin => "Sin",
+            Float64Function::Cos => "Cos",
+            Float64Function::Tan => "Tan",
+            Float64Function::Pow => "Pow",
+        }
+    }
+
+    /// How many numbers the function takes.
+    pub fn argument_count(self) -> usize {
+        match self {
+            Float64Function::Pow => 2,
+            _ => 1,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NodeProperties {
     /// May need to exit to the interpreter after it returns, resuming after
@@ -1245,7 +1285,7 @@ impl Op {
                 ..P::PURE
             },
             Op::IsCallable => P::PURE,
-            Op::ToBoolean => P {
+            Op::ToBoolean | Op::CallFloat64Function { .. } => P {
                 is_call: true,
                 ..P::PURE
             },
@@ -1633,6 +1673,7 @@ impl Op {
             Op::Float64Binary { .. } => "Float64Binary",
             Op::Float64Min => "Float64Min",
             Op::Float64Max => "Float64Max",
+            Op::CallFloat64Function { .. } => "CallFloat64Function",
             Op::Float64Compare { .. } => "Float64Compare",
             Op::Float64ToInt32 => "Float64ToInt32",
             Op::Float64ToUint8Clamped => "Float64ToUint8Clamped",
