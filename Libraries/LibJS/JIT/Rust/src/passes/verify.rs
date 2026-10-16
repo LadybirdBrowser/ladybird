@@ -31,7 +31,8 @@
 //! - `StoreSlot` writes only the reserved registers, written constants, the
 //!   arguments the compiled function's legacy `arguments` shows, and slots
 //!   that the next call reading the frame (a `Generic` node, or a call that
-//!   reads its operands from the frame) reads (see `verify_frame_writes()`).
+//!   reads its operands from the frame) or `Suspend` reads (see
+//!   `verify_frame_writes()`).
 
 use super::dominators::Dominators;
 use crate::bytecode::FrameLayout;
@@ -93,8 +94,10 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
                         || properties.writes != Locations::NONE)
             });
             let reads_frame = reader.is_some_and(|reader| {
-                let properties = graph.node(*reader).op.properties();
-                properties.is_call && properties.reads.intersects(Locations::FRAME)
+                let op = &graph.node(*reader).op;
+                let properties = op.properties();
+                (properties.is_call && properties.reads.intersects(Locations::FRAME))
+                    || matches!(op, Op::Suspend { .. })
             });
             if !reads_frame {
                 errors.push(format!(

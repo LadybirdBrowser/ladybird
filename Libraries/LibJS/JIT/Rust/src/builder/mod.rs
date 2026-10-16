@@ -608,6 +608,7 @@ impl<'a> GraphBuilder<'a> {
         self.enter_function(entry);
         if self.build_osr_entries {
             self.build_osr_entries()?;
+            self.build_resume_entries()?;
         }
         self.build_function()?;
 
@@ -1503,6 +1504,14 @@ impl<'a> GraphBuilder<'a> {
                 self.set_control(Op::Return, vec![value]);
                 return Ok(Some(Flow::Ended));
             }
+            Instruction::Yield {
+                continuation_label,
+                value,
+            } => return self.build_suspend(continuation_label, value, false).map(Some),
+            Instruction::YieldIteratorResult {
+                continuation_label,
+                value,
+            } => return self.build_suspend(Some(continuation_label), value, true).map(Some),
             Instruction::GetLexicalEnvironment { dst } => {
                 let address = self.frame_field(FrameField::LexicalEnvironment)?;
                 let environment = self.emit(Op::BoxCell, vec![address], Some(Repr::Tagged));
@@ -1734,6 +1743,56 @@ impl<'a> GraphBuilder<'a> {
             _ => return Ok(None),
         }
         Ok(Some(Flow::Continue))
+    }
+
+    /// Builds a `Yield` (or a `YieldIteratorResult`), which suspends the
+    /// generator running the compiled function and returns `value` to the
+    /// code resuming it: puts the slots live at the continuation in frame
+    /// memory, where the resume entry of the continuation (see `osr`) finds
+    /// them, and records the continuation in the frame like the
+    /// interpreter's `Yield`.
+    fn build_suspend(
+        &mut self,
+        continuation: Option<Label>,
+        value: Operand,
+        value_is_iterator_result: bool,
+    ) -> Result<Flow, CompileFailure> {
+        if self.function.is_virtual() {
+            return Err(CompileFailure::InvalidBytecode {
+                pc: self.function.pc,
+                reason: "yield in an inlined callee",
+            });
+        }
+        let value = self.read(value)?;
+        self.check_not_returning_virtual_arguments(value)?;
+        if let Some(continuation) = continuation {
+            let block = self.block_for_label(continuation)?;
+            let start = self.function.cfg.blocks[block].instructions.start;
+            let live = self.function.liveness.live_in(start).clone();
+            for slot in live.iter() {
+                if self.tracks_slot(slot) {
+                    self.sync_slot(slot);
+                }
+            }
+        }
+        // NB: Like the interpreter's Yield, an empty value yields `undefined`.
+        let layout = self.function.layout;
+        let arguments = layout.arguments_base()..layout.arguments_base() + layout.number_of_arguments;
+        let value = if self.graph.is_known_non_empty(value, arguments) {
+            value
+        } else {
+            self.emit(Op::EmptyToUndefined, vec![value], Some(Repr::Tagged))
+        };
+        self.emit(
+            Op::Suspend {
+                continuation: continuation.map(|label| label.0),
+                value_is_iterator_result,
+            },
+            Vec::new(),
+            None,
+        );
+        self.set_control(Op::Return, vec![value]);
+        Ok(Flow::Ended)
     }
 
     /// Builds an instruction as its handling table entry says.

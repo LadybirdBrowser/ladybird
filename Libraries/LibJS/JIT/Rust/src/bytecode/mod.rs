@@ -19,6 +19,10 @@ pub const RESERVED_REGISTER_COUNT: u32 = 5;
 /// The reserved register holding the frame's `this` value.
 pub const THIS_VALUE_REGISTER: u32 = 2;
 
+/// The `yield_continuation` of a frame whose generator completes
+/// (`ExecutionContext::NO_YIELD_CONTINUATION`).
+pub const NO_YIELD_CONTINUATION: u32 = u32::MAX;
+
 /// The `kind` of a `CreateArguments` that creates a mapped arguments object
 /// (`ArgumentsKind::Mapped` in `Libraries/LibJS/ABI`).
 pub const MAPPED_ARGUMENTS: u32 = 0;

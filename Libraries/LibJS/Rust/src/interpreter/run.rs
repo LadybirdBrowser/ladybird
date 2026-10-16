@@ -107,8 +107,7 @@ impl Vm {
                 unreachable!("throw_completion always throws");
             };
             context_ref.register(register::EXCEPTION).set(throw.value());
-        } else if entry_point == 0 && crate::jit::entry_exit::can_enter_jit_code(self, executable_ref) {
-            let result = crate::jit::entry_exit::enter_jit_code(self, context);
+        } else if let Some(result) = self.enter_jit_code_at(context, executable_ref, entry_point) {
             match result.status {
                 EntryStatus::Returned => self.return_from_running_frame(Value(result.value)),
                 EntryStatus::Resume => self.run_running_frame_in_interpreter(),
@@ -148,6 +147,22 @@ impl Vm {
             return Err(exception);
         }
         Ok(return_value)
+    }
+
+    /// Runs the running `context` from `entry_point` in the JIT code of its executable, if it has code with an entry
+    /// there: its entry at the function's start, or the resume entry of a generator's continuation. Returns how the
+    /// code returned, if it ran.
+    fn enter_jit_code_at(
+        &self,
+        context: NonNull<ExecutionContext>,
+        executable: &Executable,
+        entry_point: u32,
+    ) -> Option<crate::jit::code::JitResult> {
+        if entry_point != 0 {
+            return crate::jit::entry_exit::enter_jit_code_at_continuation(self, context, entry_point);
+        }
+        crate::jit::entry_exit::can_enter_jit_code(self, executable)
+            .then(|| crate::jit::entry_exit::enter_jit_code(self, context))
     }
 
     /// Runs the running execution context in the interpreter from its program counter, until it returns to a caller

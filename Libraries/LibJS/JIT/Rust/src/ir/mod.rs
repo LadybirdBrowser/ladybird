@@ -426,6 +426,16 @@ pub enum Op {
     /// Does what `InitializeFrame` does, unless the frame is initialized
     /// already. See `passes::frame_initialization`.
     EnsureFrameInitialized,
+    /// The suspension of the `Yield` and `YieldIteratorResult` bytecodes,
+    /// right before the `Return` of the yielded value: records in the
+    /// frame where its generator resumes (`continuation`, or nowhere once it
+    /// completes) and whether the value is an iterator result already. The
+    /// `StoreSlot`s before it put every slot live at the continuation in
+    /// frame memory, from where the runtime resumes the frame.
+    Suspend {
+        continuation: Option<u32>,
+        value_is_iterator_result: bool,
+    },
     /// The environment the environment at the `Repr::Pointer` input 0 is in
     /// (its outer environment), as a `Repr::Pointer`. Environments keep
     /// their outer environment.
@@ -1198,6 +1208,12 @@ impl Op {
                 writes: Locations::FRAME,
                 ..P::PURE
             },
+            // NB: It hands the frame's slots to the code that resumes it.
+            Op::Suspend { .. } => P {
+                reads: Locations::FRAME,
+                writes: Locations::FRAME,
+                ..P::PURE
+            },
             Op::Phi => P::PURE,
             Op::InitializeFrame | Op::EnsureFrameInitialized | Op::PublishFrame => P {
                 writes: Locations::FRAME,
@@ -1510,6 +1526,7 @@ impl Op {
             Op::Phi => "Phi",
             Op::InitializeFrame => "InitializeFrame",
             Op::EnsureFrameInitialized => "EnsureFrameInitialized",
+            Op::Suspend { .. } => "Suspend",
             Op::PublishFrame => "PublishFrame",
             Op::BoxCell => "BoxCell",
             Op::LoadOuterEnvironment => "LoadOuterEnvironment",

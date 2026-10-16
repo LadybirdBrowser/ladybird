@@ -84,8 +84,7 @@ const EXPANDED: Handling = Handling::Expanded(GenericInfo {
     reads_whole_frame: false,
 });
 
-const SUSPENDS: Handling =
-    Handling::Unsupported("suspends a generator or async function; JIT code is only entered at function entry");
+const AWAITS: Handling = Handling::Unsupported("suspends an async function; only generators resume in JIT code");
 
 /// How the graph builder handles `opcode`.
 pub fn handling(opcode: OpCode) -> Handling {
@@ -110,7 +109,9 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::JumpNullish
         | O::JumpUndefined
         | O::Return
-        | O::End => Handling::Native,
+        | O::End
+        | O::Yield
+        | O::YieldIteratorResult => Handling::Native,
 
         // Truthiness, built from a truthiness branch and a phi.
         O::Not | O::ToBoolean => Handling::Native,
@@ -123,7 +124,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::GetArgumentCount => Handling::Native,
 
         O::Catch => Handling::Unsupported("starts an exception handler; handler blocks are not built"),
-        O::Await | O::Yield | O::YieldIteratorResult => SUSPENDS,
+        O::Await => AWAITS,
 
         // Calls.
         O::Call

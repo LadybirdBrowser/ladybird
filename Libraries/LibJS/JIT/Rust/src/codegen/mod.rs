@@ -75,6 +75,7 @@ use crate::asm::MachineFrame;
 use crate::asm::PortableMacroAssembler;
 use crate::asm::disassembler;
 use crate::bytecode::DecodedInstruction;
+use crate::bytecode::NO_YIELD_CONTINUATION;
 use crate::bytecode::OpCode;
 use crate::bytecode::OperandRole;
 use crate::bytecode::SlowPathAbi;
@@ -1295,6 +1296,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.emit_unbox_cell(output, self.input(node_id, 0));
                 let environment = self.frame_field(self.runtime.offsets.execution_context_lexical_environment);
                 self.masm.store64(&environment, output);
+            }
+            Op::Suspend {
+                continuation,
+                value_is_iterator_result,
+            } => {
+                let offsets = self.runtime.offsets;
+                let continuation = continuation.unwrap_or(NO_YIELD_CONTINUATION);
+                let mut fields = [
+                    (offsets.execution_context_yield_continuation, 4, u64::from(continuation)),
+                    (offsets.execution_context_yield_is_await, 1, 0),
+                    (
+                        offsets.execution_context_yield_value_is_iterator_result,
+                        1,
+                        u64::from(*value_is_iterator_result),
+                    ),
+                ];
+                self.emit_constant_fields(self.pinned.frame, self.pinned.scratch, &mut fields)?;
             }
             Op::LeavePrivateEnvironment => {
                 let scratch = self.pinned.scratch;

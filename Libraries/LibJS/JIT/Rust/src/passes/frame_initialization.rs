@@ -131,6 +131,9 @@ fn need(node: &Node, layout: &FrameLayout) -> Need {
         Op::CallDirect { executable, .. } | Op::CallNative { executable, .. } if *executable != 0 => Need::Published,
         // NB: The helper only looks at its argument.
         Op::ToBoolean => Need::Nothing,
+        // NB: The generator resumes in the frame, where the interpreter
+        //     needs the constants too.
+        Op::Suspend { .. } => Need::Initialized,
         op => {
             let properties = op.properties();
             if properties.is_call || properties.can_lazy_exit {
