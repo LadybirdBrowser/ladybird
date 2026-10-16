@@ -14,7 +14,7 @@ NonnullRefPtr<Gfx::PaintStyle> FillOrStrokeStyle::to_gfx_paint_style()
         [&](Gfx::Color color) -> NonnullRefPtr<Gfx::PaintStyle> {
             if (!m_color_paint_style)
                 m_color_paint_style = Gfx::SolidColorPaintStyle::create(color).release_value_but_fixme_should_propagate_errors();
-            return m_color_paint_style.release_nonnull();
+            return *m_color_paint_style;
         },
         [&](auto handle) {
             return handle->to_gfx_paint_style();
