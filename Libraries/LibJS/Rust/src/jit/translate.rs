@@ -397,19 +397,25 @@ fn write_frame_state(
             slots[index].set(Value::EMPTY);
         }
     }
-    // NB: Every slot holding the arguments object the code never created holds the same object.
-    let mut arguments_object = None;
+    // NB: Every slot holding the arguments object the code never created holds the same object, which is created from
+    //     the frame's arguments once they are written: frames of inlined calls get theirs from the frame state too.
+    let mut arguments_object_slots = Vec::new();
     for (slot, location) in &frame_state.values {
         // NB: The function object of a frame of an inlined closure is in no slot.
         if *slot == CALLEE_SLOT || Some(*slot) == kept {
             continue;
         }
-        let value = if let ValueLocation::ArgumentsObject { mapped } = location {
-            *arguments_object.get_or_insert_with(|| create_arguments_object(vm, frame, *mapped))
-        } else {
-            values.value(*location)
-        };
-        slots[*slot as usize].set(value);
+        if let ValueLocation::ArgumentsObject { mapped } = location {
+            arguments_object_slots.push((*slot, *mapped));
+            continue;
+        }
+        slots[*slot as usize].set(values.value(*location));
+    }
+    if let Some((_, mapped)) = arguments_object_slots.first() {
+        let arguments_object = create_arguments_object(vm, frame, *mapped);
+        for (slot, _) in &arguments_object_slots {
+            slots[*slot as usize].set(arguments_object);
+        }
     }
 }
 
