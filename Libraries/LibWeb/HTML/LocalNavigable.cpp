@@ -3999,6 +3999,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     //     obtains for it is the active document's: the origins are the same, or share the site that keys the agent
     //     cluster, since an origin-keyed window cannot set document.domain.
     navigation_params->agent_cluster_id = active_document()->relevant_settings_object().agent_cluster_id();
+    navigation_params->agent_cluster_cross_origin_isolation_mode = active_document()->relevant_settings_object().agent_cluster_cross_origin_isolation_mode();
 
     // 17. Return the result of loading an HTML document given navigationParams.
     // NB: The response body is a known byte sequence, so we can pass it directly for sniffing.

@@ -287,7 +287,8 @@ GC::Ref<JS::Realm> create_test_principal_realm(JS::VM& vm)
         nullptr,
         URL::about_blank(),
         origin,
-        {});
+        {},
+        Web::HTML::CrossOriginIsolationMode::None);
     return *realm;
 }
 

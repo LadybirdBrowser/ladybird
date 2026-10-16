@@ -17,6 +17,7 @@ EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::Execu
     , m_has_cross_site_ancestor(serialized_settings.has_cross_site_ancestor)
     , m_policy_container(create_a_policy_container_from_serialized_policy_container(serialized_settings.policy_container))
     , m_agent_cluster_id(serialized_settings.agent_cluster_id)
+    , m_agent_cluster_cross_origin_isolation_mode(serialized_settings.agent_cluster_cross_origin_isolation_mode)
     , m_time_origin(serialized_settings.time_origin)
     , m_serialized_global(serialized_settings.global)
 {
