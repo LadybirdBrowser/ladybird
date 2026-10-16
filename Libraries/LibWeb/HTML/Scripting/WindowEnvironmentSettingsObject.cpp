@@ -155,18 +155,16 @@ double WindowEnvironmentSettingsObject::time_origin() const
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-cross-origin-isolated-capability
 CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {
-    // FIXME: Return true if both of the following hold, and false otherwise:
-    //          1. realm's agent cluster's cross-origin-isolation mode is "concrete", and
-    //          2. window's associated Document is allowed to use the "cross-origin-isolated" feature.
-    // AD-HOC: Until we track an agent cluster's cross-origin-isolation mode (point 1) or the "cross-origin-isolated"
-    //         feature (point 2), we approximate this from the associated Document's cross-origin opener policy: It is
-    //         "same-origin-plus-COEP" exactly when the document was served (in a secure context) with COOP:same-origin
-    //         and COEP:require-corp — the condition for cross-origin isolation.
+    // Return true if both of the following hold, and false otherwise:
+    // - realm's agent cluster's cross-origin-isolation mode is "concrete", and
+    // - window's associated Document is allowed to use the "cross-origin-isolated" feature.
     // NB: This can be called before the window's document is associated (e.g., via time coarsening during setup) — so,
     //     we guard against a null document here.
     auto document = m_window ? m_window->associated_document_if_any() : nullptr;
-    if (document && document->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
+    if (m_agent_cluster_cross_origin_isolation_mode == CrossOriginIsolationMode::Concrete
+        && document && document->is_allowed_to_use_feature(DOM::PolicyControlledFeature::CrossOriginIsolated)) {
         return CanUseCrossOriginIsolatedAPIs::Yes;
+    }
     return CanUseCrossOriginIsolatedAPIs::No;
 }
 
