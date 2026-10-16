@@ -3,6 +3,7 @@ set(TEST_SOURCES
     TestHSTSPolicy.cpp
     TestHSTSPreloadData.cpp
     TestHTTPUtils.cpp
+    TestStructuredFields.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
