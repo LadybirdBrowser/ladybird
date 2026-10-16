@@ -206,6 +206,8 @@ impl JitCode {
         self.entry
     }
 
+    /// The entry at `pc` for a frame whose memory holds every value live there: an on-stack replacement entry at a
+    /// loop back edge, or the resume entry at a continuation of a generator's suspension.
     pub fn osr_entry(&self, pc: u32) -> Option<JitEntry> {
         self.osr_entries
             .iter()

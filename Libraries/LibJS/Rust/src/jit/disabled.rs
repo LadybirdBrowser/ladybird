@@ -153,6 +153,10 @@ pub mod entry_exit {
         unreachable!("no executable has JIT code");
     }
 
+    pub fn enter_jit_code_at_continuation(_vm: &Vm, _frame: NonNull<ExecutionContext>, _pc: u32) -> Option<JitResult> {
+        None
+    }
+
     pub fn helper_enter_jit_code(_vm: &Vm) -> i64 {
         unreachable!("only the profiling interpreter enters JIT code");
     }

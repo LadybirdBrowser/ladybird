@@ -103,6 +103,24 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
     Some(enter_from_native_code(vm, frame, entry))
 }
 
+/// Resumes the running frame, a generator's frame suspended at the continuation `pc`, in its executable's JIT code if
+/// that has a resume entry there. Returns how the code returned, if it ran.
+pub fn enter_jit_code_at_continuation(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32) -> Option<JitResult> {
+    assert_eq!(vm.running_execution_context(), Some(frame));
+    let frame_ref = frame_of(frame);
+    let executable = executable_of(frame_ref);
+    if !can_enter_jit_code(vm, &executable) || !frame_ref.frame_initialized.get() {
+        return None;
+    }
+    let entry = executable
+        .jit_code()
+        .expect("the executable has JIT code")
+        .osr_entry(pc)?;
+    vm.jit.count_coverage("resume-entry");
+    frame_ref.program_counter.set(pc);
+    Some(enter_from_native_code(vm, frame, entry))
+}
+
 /// Runs the frame that just became the running execution context in its executable's JIT code, if it can, for the
 /// interpreter's Call, which found that the executable has JIT code. Returns the control word of the interpreter's
 /// `asm_helper_enter_jit_code`: negative if the interpreter leaves, 1 if the code returned (the frame is still the

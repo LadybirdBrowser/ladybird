@@ -344,6 +344,11 @@ fn runtime_layout() -> RuntimeLayout {
     }
 }
 
+const _: () = assert!(
+    libjs_jit::bytecode::NO_YIELD_CONTINUATION
+        == crate::layout::execution_context::ExecutionContext::NO_YIELD_CONTINUATION
+);
+
 // NB: The compiler has its own copy of the bits of the interpreter's feedback.
 const _: () = {
     assert!(libjs_jit::snapshot::value_feedback::INT32 == crate::layout::feedback::value_feedback::INT32);

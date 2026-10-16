@@ -113,9 +113,15 @@ fn function_to_compile(vm: &Vm) -> Option<Gc<EcmascriptFunctionObject>> {
     if vm.debugging_enabled() {
         return None;
     }
-    // NB: Generators and async functions resume in the middle, and top-level code runs once.
+    // NB: Async functions resume in the middle, and top-level code runs once.
     let function = as_ecmascript_function_object(vm.running_execution_context_ref().function.get()?)?;
-    (function.kind() == FunctionKind::Normal).then_some(function)
+    is_compiled_kind(function.kind()).then_some(function)
+}
+
+/// Whether the JIT compiles functions of this kind. Generators resume in their code at the entries of their
+/// continuations.
+fn is_compiled_kind(kind: FunctionKind) -> bool {
+    matches!(kind, FunctionKind::Normal | FunctionKind::Generator)
 }
 
 /// Whether the running frame runs a builtin written in JavaScript.
@@ -420,7 +426,7 @@ fn compile(
 /// Compiles the executable of `function` right away, from the feedback it has, unless it has code, is being compiled or
 /// is never compiled. Returns whether it has code afterwards. For tests (see `jit::testing`).
 pub fn compile_now(vm: &Vm, function: Gc<EcmascriptFunctionObject>) -> bool {
-    if !vm.jit.options.enabled || vm.debugging_enabled() || function.kind() != FunctionKind::Normal {
+    if !vm.jit.options.enabled || vm.debugging_enabled() || !is_compiled_kind(function.kind()) {
         return false;
     }
     let executable = function.compiled_executable(vm);

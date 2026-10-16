@@ -386,9 +386,9 @@ fn instructions_whose_feedback_is_empty_never_ran() {
 fn unsupported_instructions_fail_cleanly() {
     let program = assemble(|label| {
         vec![
-            Instruction::Yield {
-                continuation_label: Some(label(1)),
-                value: r(5),
+            Instruction::Await {
+                continuation_label: label(1),
+                argument: r(5),
             },
             Instruction::Return { value: r(5) },
         ]
@@ -399,7 +399,7 @@ fn unsupported_instructions_fail_cleanly() {
         failure,
         CompileFailure::UnsupportedInstruction {
             pc: 0,
-            opcode: crate::bytecode::OpCode::Yield,
+            opcode: crate::bytecode::OpCode::Await,
             ..
         }
     ));

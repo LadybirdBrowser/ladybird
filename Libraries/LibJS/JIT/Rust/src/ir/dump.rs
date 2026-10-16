@@ -111,6 +111,18 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::InitializeFrame => with_inputs("InitializeFrame"),
         Op::EnsureFrameInitialized => with_inputs("EnsureFrameInitialized"),
         Op::PublishFrame => with_inputs("PublishFrame"),
+        Op::Suspend {
+            continuation,
+            value_is_iterator_result,
+        } => {
+            let continuation = continuation.map_or("completed".to_string(), |pc| format!("pc {pc}"));
+            let result = if *value_is_iterator_result {
+                " iterator-result"
+            } else {
+                ""
+            };
+            with_inputs(&format!("Suspend {continuation}{result}"))
+        }
         Op::BoxCell => with_inputs("BoxCell"),
         Op::LoadOuterEnvironment => with_inputs("LoadOuterEnvironment"),
         Op::LoadEnvironmentBinding { index } => with_inputs(&format!("LoadEnvironmentBinding {index}")),
