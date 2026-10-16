@@ -100,6 +100,7 @@ public:
     void resume_body_delivery_up_to(size_t);
     void release_transfer_lease();
     [[nodiscard]] bool has_transfer_lease() const { return m_transfer_lease.has_value(); }
+    [[nodiscard]] Optional<RequestTransferLeaseKey> const& transfer_lease() const { return m_transfer_lease; }
     [[nodiscard]] bool has_file_backed_response_body() const;
 
     // Whether RequestServer has reported the request finished. Its response body may still be undelivered; e.g. while
