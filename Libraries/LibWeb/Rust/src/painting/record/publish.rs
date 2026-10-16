@@ -276,7 +276,8 @@ fn publish_resources(
         sink.add_video_sink(resource_id, sink_handle);
     }
     let resolved_ids = resolve_vector_images(&mut output, &vector_image_render_requests);
-    // A recording that publishes copies clean output from the one published last, with the SVG images it draws.
+    // Only a recording that publishes becomes the one the next recording copies from, so only it keeps the SVG images
+    // it carried over from the one published last.
     let published = recorder.published_recording.as_deref().filter(|_| publishes_recording);
     output.vector_image_display_lists =
         drawn_vector_image_display_lists(&output, &vector_image_render_requests, &resolved_ids, published);

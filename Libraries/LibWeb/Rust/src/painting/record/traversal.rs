@@ -73,10 +73,6 @@ fn record_display_list_impl<O: Observer>(
     source_recording: Option<Arc<RecordingOutput>>,
     source_items: Option<Arc<PublishedHitTestItems>>,
 ) -> RecordingResult {
-    debug_assert!(
-        inputs.publishes_recording || source_recording.is_none(),
-        "a recording that publishes nothing has no published recording to copy from"
-    );
     let paint_state = source.frame().paint_state();
     let structural_epoch = paint_state.structural_epoch();
     let frame_inputs = FrameInputs::from_recording_inputs(inputs, paint_state);
@@ -154,7 +150,8 @@ fn record_display_list_impl<O: Observer>(
         }
         None => {
             let source_prologue_bytes = recorder.source_recording.as_ref().map(|frame| frame.prologue_bytes);
-            Assembler::new(&mut recorder, tree, source_prologue_bytes).assemble_root(root_scope);
+            Assembler::new(&mut recorder, tree, source_prologue_bytes, inputs.publishes_recording)
+                .assemble_root(root_scope);
             if has_inspector_overlays {
                 recorder.trace_paint(
                     Operation::Named(None, "inspector-overlays"),

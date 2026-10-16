@@ -140,22 +140,32 @@ pub(crate) struct Assembler<'a, H: AssemblyHost> {
     tree: &'a mut PaintOrderTree,
     // The byte offset of the published root scope, when a published recording can be copied from.
     source_prologue_bytes: Option<u32>,
+    // Off for a frame that publishes nothing: it still marks damaged paths, but the tree's
+    // structure keeps describing the published recording.
+    rewrites_tree: bool,
     pending_copy: Option<PendingCopy>,
 }
 
 impl<'a, H: AssemblyHost> Assembler<'a, H> {
-    pub(crate) fn new(host: &'a mut H, tree: &'a mut PaintOrderTree, source_prologue_bytes: Option<u32>) -> Self {
+    pub(crate) fn new(
+        host: &'a mut H,
+        tree: &'a mut PaintOrderTree,
+        source_prologue_bytes: Option<u32>,
+        rewrites_tree: bool,
+    ) -> Self {
         Self {
             host,
             tree,
             source_prologue_bytes,
+            rewrites_tree,
             pending_copy: None,
         }
     }
 
-    /// Records the frame's root scope after the prologue and returns its entry. The tree holds
-    /// the assembled structure as pending changes for the caller to publish or discard.
-    pub(crate) fn assemble_root(mut self, root_scope: PaintScope) -> ChildEntry {
+    /// Records the frame's root scope after the prologue and returns its output. A frame that
+    /// rewrites the tree leaves the assembled structure there as pending changes for the caller
+    /// to publish or discard.
+    pub(crate) fn assemble_root(mut self, root_scope: PaintScope) -> OutputSize {
         self.tree.begin_recording();
         // Damage only steers what a frame copies; a frame without a published recording to copy
         // from records everything and never consults it.
@@ -167,7 +177,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             }
         }
         let published_root = self.tree.root();
-        let entry = match self.source_prologue_bytes {
+        let output = match self.source_prologue_bytes {
             Some(prologue_bytes) if !published_root.is_none() && self.tree.scope_of(published_root) == root_scope => {
                 let cursor = SourceCursor {
                     bytes: prologue_bytes,
@@ -175,21 +185,24 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                 };
                 let entry = self.assemble_scope(published_root, cursor);
                 self.flush_pending_copy();
-                self.tree.finish_recording(published_root, entry);
-                entry
+                if self.rewrites_tree {
+                    self.tree.finish_recording(published_root, entry);
+                }
+                entry.output()
             }
-            _ => {
+            _ if self.rewrites_tree => {
                 if !published_root.is_none() {
                     self.tree.detach_scope(published_root);
                 }
                 let root = self.tree.allocate_scope(root_scope, ScopeId::NONE);
                 let entry = self.record_scope_fresh(root);
                 self.tree.finish_recording(root, entry);
-                entry
+                entry.output()
             }
+            _ => self.record_scope_outside_tree(root_scope),
         };
         debug_assert!(self.pending_copy.is_none());
-        entry
+        output
     }
 
     fn assemble_scope(&mut self, id: ScopeId, cursor: SourceCursor) -> ChildEntry {
@@ -237,7 +250,9 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             total.add(assembled.output());
             entries.push(assembled);
         }
-        self.tree.set_children(id, &entries);
+        if self.rewrites_tree {
+            self.tree.set_children(id, &entries);
+        }
         self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
     }
@@ -283,8 +298,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         if !plan.active {
             self.host
                 .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Inactive));
-            self.detach_unmatched(&published, &matched);
-            self.tree.set_children(id, &[]);
+            self.install_replanned_children(id, &published, &matched, &[]);
             self.host.observe(AssemblyEvent::ScopeEnd(scope));
             return ChildEntry::scope(id, OutputSize::default());
         }
@@ -329,9 +343,13 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                                 published[index]
                             }
                         }
-                        None => {
+                        None if self.rewrites_tree => {
                             let child = self.tree.allocate_scope(child_scope, id);
                             self.record_scope_fresh(child)
+                        }
+                        None => {
+                            total.add(self.record_scope_outside_tree(child_scope));
+                            continue;
                         }
                     };
                     total.add(assembled.output());
@@ -339,21 +357,31 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                 }
             }
         }
-        self.detach_unmatched(&published, &matched);
-        self.tree.set_children(id, &entries);
+        self.install_replanned_children(id, &published, &matched, &entries);
         self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
     }
 
-    fn detach_unmatched(&mut self, published: &[ChildEntry], matched: &[bool]) {
+    fn install_replanned_children(
+        &mut self,
+        id: ScopeId,
+        published: &[ChildEntry],
+        matched: &[bool],
+        entries: &[ChildEntry],
+    ) {
+        if !self.rewrites_tree {
+            return;
+        }
         for (entry, matched) in published.iter().zip(matched) {
             if let (ChildKey::Scope(child), false) = (entry.key(), *matched) {
                 self.tree.detach_scope(child);
             }
         }
+        self.tree.set_children(id, entries);
     }
 
     fn record_scope_fresh(&mut self, id: ScopeId) -> ChildEntry {
+        debug_assert!(self.rewrites_tree);
         let scope = self.tree.scope_of(id);
         let plan = self.host.plan_scope(scope);
         if !plan.active {
@@ -387,6 +415,31 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         self.tree.set_children(id, &entries);
         self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
+    }
+
+    fn record_scope_outside_tree(&mut self, scope: PaintScope) -> OutputSize {
+        let plan = self.host.plan_scope(scope);
+        let mut total = OutputSize::default();
+        if !plan.active {
+            self.host
+                .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Inactive));
+            self.host.observe(AssemblyEvent::ScopeEnd(scope));
+            return total;
+        }
+        self.host
+            .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Recorded));
+        for item in plan.items {
+            match item {
+                PaintOrderItem::Producer(producer) => {
+                    for kind in producer_kinds(producer) {
+                        total.add(self.record_producer(scope.owner, kind).output());
+                    }
+                }
+                PaintOrderItem::Scope(child_scope) => total.add(self.record_scope_outside_tree(child_scope)),
+            }
+        }
+        self.host.observe(AssemblyEvent::ScopeEnd(scope));
+        total
     }
 
     fn record_producer(&mut self, owner: NodeSlotId, kind: ProducerKind) -> ChildEntry {
@@ -502,7 +555,7 @@ mod tests {
         display_list: RecordedDisplayList,
         hit_test_items: Vec<HitTestItem>,
         prologue_bytes: u32,
-        root_entry: ChildEntry,
+        root_output: OutputSize,
     }
 
     struct Output {
@@ -680,6 +733,10 @@ mod tests {
     // Records the canvas prologue and assembles the viewport context from the host's source
     // frame.
     fn record_frame(host: &mut TestHost, tree: &mut PaintOrderTree) -> Frame {
+        record_frame_rewriting_tree(host, tree, true)
+    }
+
+    fn record_frame_rewriting_tree(host: &mut TestHost, tree: &mut PaintOrderTree, rewrites_tree: bool) -> Frame {
         host.output = new_output();
         host.output.recorder.fill_rect(
             IntRect {
@@ -693,14 +750,15 @@ mod tests {
         );
         let prologue_bytes = host.output.recorder.byte_size() as u32;
         let source_prologue_bytes = host.source.as_ref().map(|frame| frame.prologue_bytes);
-        let root_entry = Assembler::new(host, tree, source_prologue_bytes).assemble_root(context(row(0)));
+        let root_output =
+            Assembler::new(host, tree, source_prologue_bytes, rewrites_tree).assemble_root(context(row(0)));
         let output = std::mem::replace(&mut host.output, new_output());
         let hit_test_items = std::sync::Arc::try_unwrap(output.hit_test_list.items).expect("items are unshared");
         Frame {
             display_list: output.recorder.into_builder().finish(),
             hit_test_items,
             prologue_bytes,
-            root_entry,
+            root_output,
         }
     }
 
@@ -711,7 +769,7 @@ mod tests {
             display_list: frame.display_list.clone(),
             hit_test_items: frame.hit_test_items.clone(),
             prologue_bytes: frame.prologue_bytes,
-            root_entry: frame.root_entry,
+            root_output: frame.root_output,
         });
         assert!(previous.is_some(), "a next frame copies from a first frame");
         frame
@@ -742,7 +800,7 @@ mod tests {
             item_identities(&assembled.hit_test_items),
             item_identities(&fresh.hit_test_items)
         );
-        assert_eq!(assembled.root_entry.output(), fresh.root_entry.output());
+        assert_eq!(assembled.root_output, fresh.root_output);
     }
 
     // A viewport context (row 0) with a background and a foreground scope listing three
@@ -786,10 +844,10 @@ mod tests {
         let frame = record_frame(&mut host, &mut tree);
 
         assert_eq!(host.recorded.len(), 1 + 3 * 3);
-        assert_eq!(frame.root_entry.output().hits, 6);
+        assert_eq!(frame.root_output.hits, 6);
         assert_eq!(frame.hit_test_items.len(), 6);
         assert_eq!(
-            frame.root_entry.output().bytes as usize,
+            frame.root_output.bytes as usize,
             frame.display_list.bytes.len() - frame.prologue_bytes as usize
         );
         assert!(frame_is_unchanged(&tree, false));
@@ -924,6 +982,91 @@ mod tests {
         );
         assert_matches_from_scratch(&mut host, &second);
         assert_eq!(tree.scope_count(), 6);
+    }
+
+    #[test]
+    fn a_frame_that_publishes_nothing_copies_clean_output_and_leaves_the_tree_as_published() {
+        let mut host = cards_host();
+        let mut tree = PaintOrderTree::default();
+        let first = record_frame(&mut host, &mut tree);
+        host.source = Some(first);
+        host.clear_damage();
+        let published_structure = tree.structure();
+        let published_root_entry = tree.root_entry();
+
+        host.produce(row(2), ProducerKind::DrawForeground, content(3, 0));
+        host.push(row(2), PaintDamage::DRAW_FOREGROUND);
+        let unpublished = record_frame_rewriting_tree(&mut host, &mut tree, false);
+
+        assert_eq!(host.recorded, vec![(row(2), ProducerKind::DrawForeground)]);
+        assert_matches_from_scratch(&mut host, &unpublished);
+        assert_eq!(tree.structure(), published_structure);
+        assert_eq!(tree.root_entry(), published_root_entry);
+
+        // The damage it read is still pending for the frame that publishes next.
+        host.recorded.clear();
+        let published = record_next_frame(&mut host, &mut tree);
+        assert_eq!(host.recorded, vec![(row(2), ProducerKind::DrawForeground)]);
+        assert_matches_from_scratch(&mut host, &published);
+        assert_eq!(published.display_list.bytes, unpublished.display_list.bytes);
+    }
+
+    #[test]
+    fn a_frame_that_publishes_nothing_records_a_new_child_outside_the_tree() {
+        let mut host = cards_host();
+        let mut tree = PaintOrderTree::default();
+        let first = record_frame(&mut host, &mut tree);
+        host.source = Some(first);
+        host.clear_damage();
+        let published_structure = tree.structure();
+        let published_scope_count = tree.scope_count();
+
+        // Card 4 takes card 2's place.
+        host.plan(
+            foreground(row(0)),
+            true,
+            &[
+                child(foreground(row(1))),
+                child(foreground(row(4))),
+                child(foreground(row(3))),
+            ],
+        );
+        host.plan(
+            foreground(row(4)),
+            true,
+            &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
+        );
+        host.produce(row(4), ProducerKind::DrawBackground, content(2, 0));
+        host.produce(row(4), ProducerKind::HitForeground, content(0, 1));
+        host.push(row(4), PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
+        host.push(row(0), PaintDamage::ORDER | PaintDamage::DESCENDANT_READERS);
+        let unpublished = record_frame_rewriting_tree(&mut host, &mut tree, false);
+
+        assert_eq!(
+            host.recorded,
+            vec![
+                (row(4), ProducerKind::DrawBackground),
+                (row(4), ProducerKind::HitForeground)
+            ]
+        );
+        assert_matches_from_scratch(&mut host, &unpublished);
+        assert_eq!(tree.structure(), published_structure);
+        assert_eq!(tree.scope_count(), published_scope_count);
+
+        let published = record_next_frame(&mut host, &mut tree);
+        assert_matches_from_scratch(&mut host, &published);
+    }
+
+    #[test]
+    fn a_first_frame_that_publishes_nothing_leaves_the_tree_empty() {
+        let mut host = cards_host();
+        let mut tree = PaintOrderTree::default();
+
+        let frame = record_frame_rewriting_tree(&mut host, &mut tree, false);
+
+        assert!(tree.root().is_none());
+        assert_eq!(tree.scope_count(), 0);
+        assert_matches_from_scratch(&mut host, &frame);
     }
 
     #[test]
@@ -1065,7 +1208,7 @@ mod tests {
         let second = record_next_frame(&mut host, &mut tree);
 
         assert!(host.recorded.is_empty());
-        assert_eq!(second.root_entry.output(), OutputSize::default());
+        assert_eq!(second.root_output, OutputSize::default());
         assert_eq!(second.display_list.bytes.len(), second.prologue_bytes as usize);
         assert_eq!(tree.scope_count(), 1);
         assert_matches_from_scratch(&mut host, &second);
@@ -1084,7 +1227,7 @@ mod tests {
         );
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
-        assert_eq!(first.root_entry.output().blocking_wheel_event_regions, 1);
+        assert_eq!(first.root_output.blocking_wheel_event_regions, 1);
         assert_eq!(tree.root_entry().output().blocking_wheel_event_regions, 1);
         host.source = Some(first);
         host.clear_damage();
@@ -1094,7 +1237,7 @@ mod tests {
         let second = record_next_frame(&mut host, &mut tree);
 
         assert_eq!(host.recorded, vec![(row(3), ProducerKind::DrawForeground)]);
-        assert_eq!(second.root_entry.output().blocking_wheel_event_regions, 1);
+        assert_eq!(second.root_output.blocking_wheel_event_regions, 1);
         assert_eq!(tree.root_entry().output().blocking_wheel_event_regions, 1);
     }
 
@@ -1229,7 +1372,7 @@ mod tests {
         let mut inactive: HashSet<u32> = HashSet::new();
         let rows_with_content = [1, 2, 3, 4, 5, 6, 12, 13, 15];
 
-        for _ in 0..400 {
+        for step in 0..400 {
             for _ in 0..=random.next(3) {
                 match random.next(7) {
                     0 | 1 => {
@@ -1284,6 +1427,14 @@ mod tests {
                     }
                     _ => {}
                 }
+            }
+
+            // Hit tests between two published frames record frames that publish nothing.
+            let published_structure = tree.structure();
+            for _ in 0..step % 3 {
+                let unpublished = record_frame_rewriting_tree(&mut host, &mut tree, false);
+                assert_matches_from_scratch(&mut host, &unpublished);
+                assert_eq!(tree.structure(), published_structure);
             }
 
             let frame = record_next_frame(&mut host, &mut tree);
