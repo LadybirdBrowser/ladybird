@@ -15,6 +15,7 @@
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/EmbedderPolicy.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
@@ -31,6 +32,10 @@ struct ReplicatedContainerState {
 
     // https://html.spec.whatwg.org/multipage/browsers.html#active-sandboxing-flag-set, of the container's node document.
     SandboxingFlagSet document_active_sandboxing_flag_set {};
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#policy-container-embedder-policy, of the container's node
+    // document's policy container.
+    EmbedderPolicy document_embedder_policy {};
 
     // The container's local name, which navigate makes its request's destination and initiator type.
     Optional<Utf16FlyString> local_name;

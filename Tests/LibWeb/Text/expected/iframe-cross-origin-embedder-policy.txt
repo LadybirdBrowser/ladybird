@@ -1,0 +1,6 @@
+same-origin-without-coep: blocked
+same-origin-with-coep: loaded
+cross-origin-with-coep-and-corp: loaded
+cross-origin-with-coep-without-corp: blocked
+cross-origin-with-corp-without-coep: blocked
+srcdoc: loaded
