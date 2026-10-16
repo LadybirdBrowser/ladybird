@@ -160,8 +160,10 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    Optional<ByteString> try_load_font_mime_type_essence(Fetch::Infrastructure::Response const&, ByteBuffer const&);
+    Optional<ByteString> try_load_font_mime_type_essence(Fetch::Infrastructure::Response const&, ReadonlyBytes);
 
+    void load_font_data(Optional<::URL::URL> shareable_data_url, ByteBuffer, Optional<ByteString> mime_type_essence);
+    void typeface_did_load_or_fail(Optional<::URL::URL> const& shareable_data_url, ErrorOr<NonnullRefPtr<Gfx::Typeface const>>);
     void font_did_load_or_fail(RefPtr<Gfx::Typeface const>);
 
     GC::Ref<FontComputer> m_font_computer;

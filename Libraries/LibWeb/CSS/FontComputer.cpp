@@ -167,56 +167,81 @@ void FontLoader::start_loading_next_source()
                     return;
                 }
                 loader->m_has_received_font_data = true;
-                auto bytes = immutable_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+                auto mime_type_essence = loader->try_load_font_mime_type_essence(response, immutable_bytes->bytes());
 
-                auto mime_type_essence = loader->try_load_font_mime_type_essence(response, bytes);
-                if (!requires_off_thread_vector_font_preparation(bytes, mime_type_essence)) {
-                    auto maybe_typeface = try_load_vector_font(bytes, mime_type_essence);
-                    if (maybe_typeface.is_error()) {
-                        if (loader->m_sources.is_empty()) {
-                            loader->font_did_load_or_fail(nullptr);
-                        } else {
-                            loader->m_fetch_controller = nullptr;
-                            loader->start_loading_next_source();
-                        }
+                Optional<::URL::URL> shareable_data_url;
+                if (auto const& response_url = response->url(); response_url.has_value() && response_url->scheme() == "data"sv && !response->is_cors_cross_origin())
+                    shareable_data_url = *response_url;
+                if (shareable_data_url.has_value()) {
+                    auto& cache = loader->m_font_computer->document().page().data_url_font_cache();
+                    if (auto typeface = cache.get(*shareable_data_url); typeface.has_value()) {
+                        loader->font_did_load_or_fail(*typeface);
                         return;
                     }
-
-                    loader->font_did_load_or_fail(maybe_typeface.release_value());
-                    return;
-                }
-
-                auto loader_handle = GC::make_root(GC::Ref(*loader));
-                prepare_vector_font_data_off_thread(move(bytes), [loader = move(loader_handle)](auto prepared_font_data) mutable {
-                if (prepared_font_data.is_error()) {
-                    // NB: If we have other sources available, try the next one.
-                    if (loader->m_sources.is_empty()) {
-                        loader->font_did_load_or_fail(nullptr);
-                    } else {
-                        loader->m_fetch_controller = nullptr;
-                        loader->start_loading_next_source();
+                    if (cache.has_pending_load(*shareable_data_url)) {
+                        GC::Weak weak_loader { *loader };
+                        cache.wait_for_pending_load(*shareable_data_url, GC::create_function(GC::Heap::the(), [weak_loader, shareable_data_url, immutable_bytes = *immutable_bytes, mime_type_essence = move(mime_type_essence)](Optional<NonnullRefPtr<Gfx::Typeface const>> typeface) mutable {
+                            auto loader = weak_loader.ptr();
+                            if (!loader)
+                                return;
+                            if (!typeface.has_value()) {
+                                auto bytes = immutable_bytes.copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+                                loader->load_font_data(move(shareable_data_url), move(bytes), move(mime_type_essence));
+                                return;
+                            }
+                            loader->font_did_load_or_fail(*typeface);
+                        }));
+                        return;
                     }
-                    return;
                 }
 
-                auto prepared = prepared_font_data.release_value();
-                auto maybe_typeface = Gfx::Typeface::try_load_from_anonymous_buffer(move(prepared));
-                if (maybe_typeface.is_error()) {
-                    if (loader->m_sources.is_empty()) {
-                        loader->font_did_load_or_fail(nullptr);
-                    } else {
-                        loader->m_fetch_controller = nullptr;
-                        loader->start_loading_next_source();
-                    }
-                    return;
-                }
-
-                loader->font_did_load_or_fail(maybe_typeface.release_value()); });
+                auto bytes = immutable_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+                loader->load_font_data(move(shareable_data_url), move(bytes), move(mime_type_essence));
             });
 
         if (m_fetch_controller || m_has_completed)
             return;
     }
+}
+
+void FontLoader::load_font_data(Optional<::URL::URL> shareable_data_url, ByteBuffer bytes, Optional<ByteString> mime_type_essence)
+{
+    if (!requires_off_thread_vector_font_preparation(bytes, mime_type_essence)) {
+        typeface_did_load_or_fail(shareable_data_url, try_load_vector_font(bytes, mime_type_essence));
+        return;
+    }
+
+    if (shareable_data_url.has_value())
+        m_font_computer->document().page().data_url_font_cache().begin_pending_load(*shareable_data_url);
+
+    auto loader_handle = GC::make_root(GC::Ref(*this));
+    prepare_vector_font_data_off_thread(move(bytes), [loader = move(loader_handle), shareable_data_url = move(shareable_data_url)](auto prepared_font_data) mutable {
+        if (prepared_font_data.is_error()) {
+            loader->typeface_did_load_or_fail(shareable_data_url, prepared_font_data.release_error());
+            return;
+        }
+        loader->typeface_did_load_or_fail(shareable_data_url, Gfx::Typeface::try_load_from_anonymous_buffer(prepared_font_data.release_value()));
+    });
+}
+
+void FontLoader::typeface_did_load_or_fail(Optional<::URL::URL> const& shareable_data_url, ErrorOr<NonnullRefPtr<Gfx::Typeface const>> result)
+{
+    if (result.is_error()) {
+        if (shareable_data_url.has_value())
+            m_font_computer->document().page().data_url_font_cache().finish_pending_load_without_value(*shareable_data_url);
+        // NB: If we have other sources available, try the next one.
+        if (m_sources.is_empty()) {
+            font_did_load_or_fail(nullptr);
+        } else {
+            m_fetch_controller = nullptr;
+            start_loading_next_source();
+        }
+        return;
+    }
+
+    if (shareable_data_url.has_value())
+        m_font_computer->document().page().data_url_font_cache().set(*shareable_data_url, result.value());
+    font_did_load_or_fail(result.release_value());
 }
 
 void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
@@ -233,7 +258,7 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
     m_fetch_controller = nullptr;
 }
 
-Optional<ByteString> FontLoader::try_load_font_mime_type_essence(Fetch::Infrastructure::Response const& response, ByteBuffer const& bytes)
+Optional<ByteString> FontLoader::try_load_font_mime_type_essence(Fetch::Infrastructure::Response const& response, ReadonlyBytes bytes)
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());

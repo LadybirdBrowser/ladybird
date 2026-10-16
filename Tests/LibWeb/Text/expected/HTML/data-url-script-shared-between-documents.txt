@@ -1,0 +1,3 @@
+document 1: title ran, cache hits 0
+document 2: title ran, cache hits 1
+document 3: title ran, cache hits 2
