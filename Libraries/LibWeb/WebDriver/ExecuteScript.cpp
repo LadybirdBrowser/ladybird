@@ -131,8 +131,13 @@ void execute_script(HTML::BrowsingContext const& browsing_context, String body, 
     auto promise = WebIDL::create_promise(realm);
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, &browsing_context, promise, body = move(body), arguments = move(arguments)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, &browsing_context, promise, body = move(body), captured_arguments = move(arguments)]() mutable {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // The roots of a function that died stay in place until a collection finalizes it, so take the arguments out of
+        // the function to have them released as soon as this task is done, rather than keeping everything they reach
+        // alive through one more collection.
+        auto arguments = move(captured_arguments);
 
         // 1. Let scriptPromise be the result of promise-calling execute a function body, with arguments body and arguments.
         auto script_promise = promise_call(realm, execute_a_function_body(browsing_context, body, arguments));
@@ -182,8 +187,13 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
     auto promise = WebIDL::create_promise(realm);
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&vm, &realm, &browsing_context, promise, body = move(body), arguments = move(arguments)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&vm, &realm, &browsing_context, promise, body = move(body), captured_arguments = move(arguments)]() mutable {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // The roots of a function that died stay in place until a collection finalizes it, so take the arguments out of
+        // the function to have them released as soon as this task is done, rather than keeping everything they reach
+        // alive through one more collection.
+        auto arguments = move(captured_arguments);
 
         // 1. Let resolvingFunctions be CreateResolvingFunctions(promise).
         auto resolving_functions = as<JS::Promise>(*promise->promise()).create_resolving_functions();
