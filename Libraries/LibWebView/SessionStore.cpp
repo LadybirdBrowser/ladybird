@@ -24,6 +24,11 @@ static constexpr u32 SESSIONS_SCHEMA_DIRECTIVE_STATE_VERSION = 3u;
 static constexpr u32 SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION = 4u;
 static constexpr u32 SESSIONS_SCHEMA_PINNED_TABS_VERSION = 5u;
 static constexpr u32 SESSIONS_SCHEMA_SESSION_LIFECYCLE_VERSION = 6u;
+static constexpr u32 SESSIONS_SCHEMA_LAUNCH_RESTORE_VERSION = 7u;
+
+// After this many unclean exits in a row, launch restore stops, so a session that crashes the browser doesn't restore
+// into the same crash every time.
+static constexpr u32 UNCLEAN_EXITS_THAT_STOP_LAUNCH_RESTORE = 2;
 static constexpr u32 MAX_CLOSED_TABS = 25;
 static constexpr u32 MAX_CLOSED_WINDOWS = 5;
 static constexpr size_t MAX_ACTIVE_URL_BYTES = 8uz * 1024 * 1024;
@@ -233,6 +238,13 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
                 );
             )#"sv,
         },
+        {
+            .version = SESSIONS_SCHEMA_LAUNCH_RESTORE_VERSION,
+            .sql = R"#(
+                ALTER TABLE Sessions ADD COLUMN activation_sequence INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE Sessions ADD COLUMN restore_at_launch INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
     });
 
     return database.migrate("Sessions"sv, migrations, mode);
@@ -255,8 +267,8 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     statements.update_tab_row = TRY(database.prepare_statement("UPDATE SessionTabs SET active_url = :active_url, current_used_step_index = :current_used_step_index, pinned = :pinned WHERE id = :id;"sv));
     statements.update_tab_placement = TRY(database.prepare_statement("UPDATE SessionTabs SET session_id = :session_id, tab_ordinal = :tab_ordinal, pinned = :pinned WHERE id = :id;"sv));
     statements.update_tab_parent = TRY(database.prepare_statement("UPDATE SessionTabs SET session_id = :session_id, tab_ordinal = :tab_ordinal WHERE id = :id;"sv));
-    statements.update_session_closed = TRY(database.prepare_statement("UPDATE Sessions SET kind = :kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = :source_window_id, source_tab_index = :source_tab_index, origin = :origin, active_tab_index = :active_tab_index WHERE id = :id;"sv));
-    statements.update_session_active_tab_index = TRY(database.prepare_statement("UPDATE Sessions SET active_tab_index = :active_tab_index WHERE id = :id;"sv));
+    statements.update_session_closed = TRY(database.prepare_statement("UPDATE Sessions SET kind = :kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = :source_window_id, source_tab_index = :source_tab_index, origin = :origin, active_tab_index = :active_tab_index, restore_at_launch = :restore_at_launch WHERE id = :id;"sv));
+    statements.update_session_metadata = TRY(database.prepare_statement("UPDATE Sessions SET active_tab_index = :active_tab_index, activation_sequence = :activation_sequence WHERE id = :id;"sv));
     statements.delete_session = TRY(database.prepare_statement("DELETE FROM Sessions WHERE id = :id;"sv));
     statements.delete_tab = TRY(database.prepare_statement("DELETE FROM SessionTabs WHERE id = :id;"sv));
     statements.prune_closed = TRY(database.prepare_statement(R"#(
@@ -268,7 +280,11 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     statements.select_max_close_sequence = TRY(database.prepare_statement("SELECT MAX(close_sequence) AS maximum_id FROM Sessions;"sv));
     statements.select_closed_sessions = TRY(database.prepare_statement("SELECT id, closed_time, close_sequence, source_window_id, source_tab_index, origin, active_tab_index FROM Sessions WHERE kind = :kind ORDER BY close_sequence DESC, closed_time DESC, id DESC LIMIT :max_units;"sv));
     statements.select_session_tabs = TRY(database.prepare_statement("SELECT id, tab_ordinal, active_url, current_used_step_index, pinned FROM SessionTabs WHERE session_id = :session_id ORDER BY tab_ordinal;"sv));
-    statements.select_open_sessions = TRY(database.prepare_statement("SELECT id FROM Sessions WHERE kind = :open_window_kind ORDER BY id;"sv));
+    statements.select_max_activation_sequence = TRY(database.prepare_statement("SELECT MAX(activation_sequence) AS maximum_id FROM Sessions;"sv));
+    statements.select_open_sessions = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence FROM Sessions WHERE kind = :open_window_kind ORDER BY activation_sequence, id;"sv));
+    statements.select_restore_at_launch_session = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence FROM Sessions WHERE kind = :closed_window_kind AND restore_at_launch != 0 ORDER BY close_sequence DESC, id DESC LIMIT 1;"sv));
+    statements.clear_restore_at_launch = TRY(database.prepare_statement("UPDATE Sessions SET restore_at_launch = 0 WHERE restore_at_launch != 0;"sv));
+    statements.reopen_closed_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :open_window_kind, closed_time = 0, close_sequence = 0, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.recover_open_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :closed_window_kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.delete_empty_open_sessions = TRY(database.prepare_statement("DELETE FROM Sessions WHERE kind = :open_window_kind AND NOT EXISTS (SELECT 1 FROM SessionTabs WHERE session_id = Sessions.id);"sv));
     statements.select_lifecycle = TRY(database.prepare_statement("SELECT clean_exit, consecutive_unclean_exits FROM SessionLifecycle WHERE id = 1;"sv));
@@ -278,11 +294,11 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     return PersistedStorage { database, move(statements) };
 }
 
-ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& database)
+ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& database, SessionLaunchPolicy policy)
 {
     auto persisted_storage = TRY(PersistedStorage::create(database));
     auto store = adopt_own(*new SessionStore(move(persisted_storage)));
-    TRY(store->run_startup_recovery(UnixDateTime::now()));
+    TRY(store->run_startup_recovery(UnixDateTime::now(), policy));
 
     store->m_flush_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(FLUSH_TIMER_INTERVAL_MILLISECONDS), [store = store.ptr()]() {
         store->flush_dirty_state();
@@ -401,6 +417,16 @@ void SessionStore::TransientStorage::set_active_tab(SessionTabId tab_id)
         return;
 
     window->value.active_tab = tab_id;
+    window->value.metadata_dirty = true;
+}
+
+void SessionStore::TransientStorage::set_activation_sequence(SessionWindowId window_id, i64 activation_sequence)
+{
+    auto window = m_windows.find(window_id);
+    if (window == m_windows.end() || window->value.activation_sequence == activation_sequence)
+        return;
+
+    window->value.activation_sequence = activation_sequence;
     window->value.metadata_dirty = true;
 }
 
@@ -600,12 +626,7 @@ ErrorOr<void> SessionStore::PersistedStorage::apply_window_metadata(WindowMetada
         ++tab_ordinal;
     }
 
-    TRY(database->try_execute_bound_statement(statements.update_session_active_tab_index, [&](auto& bind) -> ErrorOr<void> {
-        TRY(bind("active_tab_index"sv, write.active_tab_index));
-        TRY(bind("id"sv, write.id));
-        return {};
-    }));
-    return {};
+    return write_session_metadata(write.id, write.active_tab_index, write.activation_sequence);
 }
 
 ErrorOr<void> SessionStore::PersistedStorage::insert_closed_unit_row(ClosedUnitWrite const& write)
@@ -724,6 +745,7 @@ ErrorOr<void> SessionStore::PersistedStorage::close_window(ClosedWindowWrite con
             TRY(bind("source_tab_index"sv, write.unit.source_tab_index));
             TRY(bind("origin"sv, to_underlying(write.unit.origin)));
             TRY(bind("active_tab_index"sv, write.unit.active_tab_index));
+            TRY(bind("restore_at_launch"sv, i64 { write.unit.restore_at_launch ? 1 : 0 }));
             TRY(bind("id"sv, write.unit.id));
             return {};
         }));
@@ -763,37 +785,209 @@ ErrorOr<void> SessionStore::PersistedStorage::clear_closed_units(ClearClosedUnit
     });
 }
 
-ErrorOr<SessionStore::RecoveryResult> SessionStore::PersistedStorage::recover_open_windows(RecoveryWrite const& write, IdAllocator& close_sequence_allocator)
+ErrorOr<void> SessionStore::PersistedStorage::write_session_metadata(SessionWindowId window_id, i64 active_tab_index, i64 activation_sequence)
+{
+    return database->try_execute_bound_statement(statements.update_session_metadata, [&](auto& bind) -> ErrorOr<void> {
+        TRY(bind("active_tab_index"sv, active_tab_index));
+        TRY(bind("activation_sequence"sv, activation_sequence));
+        TRY(bind("id"sv, window_id));
+        return {};
+    });
+}
+
+ErrorOr<void> SessionStore::PersistedStorage::clear_restore_at_launch()
+{
+    return database->try_execute_bound_statement(statements.clear_restore_at_launch, [](auto&) -> ErrorOr<void> { return {}; });
+}
+
+ErrorOr<void> SessionStore::PersistedStorage::demote_to_startup_recovery_unit(SessionWindowId window_id, UnixDateTime recovered_at, IdAllocator& close_sequence_allocator)
+{
+    auto close_sequence = TRY(close_sequence_allocator.allocate());
+    return database->try_execute_bound_statement(statements.recover_open_session, [&](auto& bind) -> ErrorOr<void> {
+        TRY(bind("closed_window_kind"sv, to_underlying(UnitKind::ClosedWindow)));
+        TRY(bind("closed_time"sv, recovered_at));
+        TRY(bind("close_sequence"sv, close_sequence));
+        TRY(bind("origin"sv, to_underlying(ClosedSessionUnit::Origin::StartupRecovery)));
+        TRY(bind("id"sv, window_id));
+        return {};
+    });
+}
+
+ErrorOr<void> SessionStore::PersistedStorage::reopen_session(SessionWindowId window_id)
+{
+    return database->try_execute_bound_statement(statements.reopen_closed_session, [&](auto& bind) -> ErrorOr<void> {
+        TRY(bind("open_window_kind"sv, to_underlying(UnitKind::OpenWindow)));
+        TRY(bind("origin"sv, to_underlying(ClosedSessionUnit::Origin::CloseAction)));
+        TRY(bind("id"sv, window_id));
+        return {};
+    });
+}
+
+// A row that fails validation is deleted, so the window keeps only tabs it can restore.
+ErrorOr<Vector<SessionStore::RecoveredTab>> SessionStore::PersistedStorage::read_recovered_tabs(SessionWindowId window_id)
+{
+    Vector<RecoveredTab> tabs;
+    Vector<SessionTabId> corrupt_tabs;
+    TRY(database->try_execute_bound_statement(
+        statements.select_session_tabs,
+        [&](auto& bind) -> ErrorOr<void> {
+            return bind("session_id"sv, window_id);
+        },
+        [&](Database::ResultRow& row) -> ErrorOr<void> {
+            auto tab_id = row.read_integer<SessionTabId>("id"sv);
+            if (tab_id.is_error())
+                return {};
+            auto tab = [&]() -> ErrorOr<RecoveredTab> {
+                auto url = URL::Parser::basic_parse(TRY(row.read_text("active_url"sv, MAX_ACTIVE_URL_BYTES)));
+                if (!url.has_value())
+                    return Error::from_string_literal("Session tab has an unparseable active url");
+                return RecoveredTab {
+                    .id = tab_id.value(),
+                    .ordinal = TRY(row.read_integer<i64>("tab_ordinal"sv)),
+                    .url = url.release_value(),
+                    .current_used_step_index = TRY(row.read_integer<size_t>("current_used_step_index"sv)),
+                    .pinned = TRY(row.read_integer<i64>("pinned"sv)) != 0,
+                };
+            }();
+            if (tab.is_error())
+                corrupt_tabs.append(tab_id.value());
+            else
+                tabs.append(tab.release_value());
+            return {};
+        }));
+
+    // Buffered so the deletes never run while the select is still stepping.
+    for (auto tab_id : corrupt_tabs)
+        TRY(delete_tab_rows(tab_id));
+    return tabs;
+}
+
+ErrorOr<void> SessionStore::PersistedStorage::reparent_tabs(SessionWindowId window_id, Vector<RecoveredTab> const& tabs)
+{
+    i64 tab_ordinal = 0;
+    for (auto const& tab : tabs) {
+        TRY(database->try_execute_bound_statement(statements.update_tab_parent, [&](auto& bind) -> ErrorOr<void> {
+            TRY(bind("session_id"sv, window_id));
+            TRY(bind("tab_ordinal"sv, tab_ordinal));
+            TRY(bind("id"sv, tab.id));
+            return {};
+        }));
+        ++tab_ordinal;
+    }
+    return {};
+}
+
+ErrorOr<SessionStore::RecoveryResult> SessionStore::PersistedStorage::recover_open_windows(RecoveryWrite const& write, IdAllocator& session_id_allocator, IdAllocator& close_sequence_allocator)
 {
     RecoveryResult result;
     TRY(database->transaction([&]() -> ErrorOr<void> {
         result.consecutive_unclean_exits = TRY(record_run_start());
+        auto policy = result.consecutive_unclean_exits >= UNCLEAN_EXITS_THAT_STOP_LAUNCH_RESTORE ? SessionLaunchPolicy::None : write.policy;
 
         TRY(database->try_execute_bound_statement(statements.delete_empty_open_sessions, [&](auto& bind) -> ErrorOr<void> {
             return bind("open_window_kind"sv, to_underlying(UnitKind::OpenWindow));
         }));
 
-        Vector<SessionWindowId> open_windows;
+        struct Candidate {
+            SessionWindowId id { 0 };
+            i64 active_tab_index { 0 };
+            i64 activation_sequence { 0 };
+            bool was_open { true };
+        };
+        Vector<Candidate> candidates;
+        auto read_candidate = [&](Database::ResultRow& row, bool was_open) -> ErrorOr<void> {
+            candidates.append({
+                .id = TRY(row.read_integer<SessionWindowId>("id"sv)),
+                .active_tab_index = TRY(row.read_integer<i64>("active_tab_index"sv)),
+                .activation_sequence = TRY(row.read_integer<i64>("activation_sequence"sv)),
+                .was_open = was_open,
+            });
+            return {};
+        };
         TRY(database->try_execute_bound_statement(
             statements.select_open_sessions,
             [&](auto& bind) -> ErrorOr<void> {
                 return bind("open_window_kind"sv, to_underlying(UnitKind::OpenWindow));
             },
-            [&](Database::ResultRow& row) -> ErrorOr<void> {
-                open_windows.append(TRY(row.read_integer<SessionWindowId>("id"sv)));
-                return {};
-            }));
-        for (auto window_id : open_windows) {
-            auto close_sequence = TRY(close_sequence_allocator.allocate());
-            TRY(database->try_execute_bound_statement(statements.recover_open_session, [&](auto& bind) -> ErrorOr<void> {
-                TRY(bind("closed_window_kind"sv, to_underlying(UnitKind::ClosedWindow)));
-                TRY(bind("closed_time"sv, write.recovered_at));
-                TRY(bind("close_sequence"sv, close_sequence));
-                TRY(bind("origin"sv, to_underlying(ClosedSessionUnit::Origin::StartupRecovery)));
-                TRY(bind("id"sv, window_id));
-                return {};
-            }));
+            [&](Database::ResultRow& row) { return read_candidate(row, true); }));
+
+        // With no window left open, the last window closed counts as left open.
+        if (candidates.is_empty() && policy != SessionLaunchPolicy::None) {
+            TRY(database->try_execute_bound_statement(
+                statements.select_restore_at_launch_session,
+                [&](auto& bind) -> ErrorOr<void> {
+                    return bind("closed_window_kind"sv, to_underlying(UnitKind::ClosedWindow));
+                },
+                [&](Database::ResultRow& row) { return read_candidate(row, false); }));
         }
+        TRY(clear_restore_at_launch());
+
+        for (auto const& candidate : candidates) {
+            if (policy == SessionLaunchPolicy::None) {
+                if (candidate.was_open)
+                    TRY(demote_to_startup_recovery_unit(candidate.id, write.recovered_at, close_sequence_allocator));
+                continue;
+            }
+
+            auto tabs = TRY(read_recovered_tabs(candidate.id));
+            auto active_tab = tabs.find_first_index_if([&](auto const& tab) { return tab.ordinal == candidate.active_tab_index; });
+
+            Vector<RecoveredTab> pinned_tabs;
+            Vector<RecoveredTab> unpinned_tabs;
+            Optional<size_t> active_pinned_tab;
+            Optional<size_t> active_unpinned_tab;
+            for (size_t i = 0; i < tabs.size(); ++i) {
+                auto is_active = active_tab == i;
+                if (tabs[i].pinned) {
+                    if (is_active)
+                        active_pinned_tab = pinned_tabs.size();
+                    pinned_tabs.append(move(tabs[i]));
+                } else {
+                    if (is_active)
+                        active_unpinned_tab = unpinned_tabs.size();
+                    unpinned_tabs.append(move(tabs[i]));
+                }
+            }
+
+            if (policy == SessionLaunchPolicy::Everything) {
+                if (pinned_tabs.is_empty() && unpinned_tabs.is_empty()) {
+                    TRY(delete_session_rows(candidate.id));
+                    continue;
+                }
+                if (!candidate.was_open)
+                    TRY(reopen_session(candidate.id));
+
+                // The pinned tabs always lead their window, so a saved order with an unpinned tab ahead of a pinned one
+                // is put right here, with the same tab active.
+                auto active_tab_index = index_as_i64(active_pinned_tab.value_or(active_unpinned_tab.has_value() ? pinned_tabs.size() + *active_unpinned_tab : 0));
+                auto window_tabs = move(pinned_tabs);
+                window_tabs.extend(move(unpinned_tabs));
+                TRY(reparent_tabs(candidate.id, window_tabs));
+                TRY(write_session_metadata(candidate.id, active_tab_index, candidate.activation_sequence));
+                result.windows.append({ .id = candidate.id, .tabs = move(window_tabs), .active_tab_index = active_tab_index, .activation_sequence = candidate.activation_sequence });
+                continue;
+            }
+
+            if (!pinned_tabs.is_empty()) {
+                auto pinned_window_id = TRY(session_id_allocator.allocate());
+                TRY(insert_open_window(pinned_window_id));
+                TRY(reparent_tabs(pinned_window_id, pinned_tabs));
+                auto pinned_active_tab_index = index_as_i64(active_pinned_tab.value_or(0));
+                TRY(write_session_metadata(pinned_window_id, pinned_active_tab_index, candidate.activation_sequence));
+                result.windows.append({ .id = pinned_window_id, .tabs = move(pinned_tabs), .active_tab_index = pinned_active_tab_index, .activation_sequence = candidate.activation_sequence });
+            }
+
+            if (unpinned_tabs.is_empty()) {
+                // Any tab rows that were kept have moved, so deleting the window takes nothing else with it.
+                TRY(delete_session_rows(candidate.id));
+            } else {
+                TRY(reparent_tabs(candidate.id, unpinned_tabs));
+                TRY(write_session_metadata(candidate.id, index_as_i64(active_unpinned_tab.value_or(0)), candidate.activation_sequence));
+                if (candidate.was_open)
+                    TRY(demote_to_startup_recovery_unit(candidate.id, write.recovered_at, close_sequence_allocator));
+            }
+        }
+
         TRY(prune_closed_units(UnitKind::ClosedTab, write.closed_tab_limit));
         return prune_closed_units(UnitKind::ClosedWindow, write.closed_window_limit);
     }));
@@ -884,6 +1078,7 @@ ErrorOr<SessionStore::IdAllocators> SessionStore::PersistedStorage::create_id_al
         .session_ids = TRY(IdAllocator::create_from_maximum(database, statements.select_max_session_id)),
         .tab_ids = TRY(IdAllocator::create_from_maximum(database, statements.select_max_tab_id)),
         .close_sequences = TRY(IdAllocator::create_from_maximum(database, statements.select_max_close_sequence)),
+        .activation_sequences = TRY(IdAllocator::create_from_maximum(database, statements.select_max_activation_sequence)),
     };
 }
 
@@ -1218,20 +1413,38 @@ u32 SessionStore::max_closed_units(UnitKind kind)
     return kind == UnitKind::ClosedTab ? MAX_CLOSED_TABS : MAX_CLOSED_WINDOWS;
 }
 
-ErrorOr<void> SessionStore::run_startup_recovery(UnixDateTime recovered_at)
+ErrorOr<void> SessionStore::run_startup_recovery(UnixDateTime recovered_at, SessionLaunchPolicy policy)
 {
     auto allocators = TRY(m_persisted_storage->create_id_allocators());
     m_session_id_allocator = allocators.session_ids;
     m_tab_id_allocator = allocators.tab_ids;
     m_close_sequence_allocator = allocators.close_sequences;
+    m_activation_sequence_allocator = allocators.activation_sequences;
 
     auto recovery = TRY(m_persisted_storage->recover_open_windows({
                                                                       .recovered_at = canonicalized_to_milliseconds(recovered_at),
                                                                       .closed_tab_limit = max_closed_units(UnitKind::ClosedTab),
                                                                       .closed_window_limit = max_closed_units(UnitKind::ClosedWindow),
+                                                                      .policy = policy,
                                                                   },
-        m_close_sequence_allocator));
+        m_session_id_allocator, m_close_sequence_allocator));
     m_consecutive_unclean_exits = recovery.consecutive_unclean_exits;
+
+    for (auto& window : recovery.windows) {
+        m_transient_storage.open_window(window.id);
+        RestoredSessionWindow restored { .window_id = window.id, .tabs = {}, .active_tab_index = window.active_tab_index };
+        for (auto& tab : window.tabs) {
+            restored.tabs.append({ .tab_id = tab.id, .url = tab.url, .pinned = tab.pinned });
+            (void)m_transient_storage.open_tab(window.id, tab.id,
+                OpenTab { .window_id = window.id, .url = move(tab.url), .current_used_step_index = tab.current_used_step_index, .history = {}, .dirty = false, .pinned = tab.pinned });
+        }
+        if (auto active_tab_index = index_as_size(window.active_tab_index); active_tab_index.has_value() && *active_tab_index < restored.tabs.size())
+            m_transient_storage.set_active_tab(restored.tabs[*active_tab_index].tab_id);
+        m_transient_storage.set_activation_sequence(window.id, window.activation_sequence);
+        // Recovery already wrote these windows' rows as they stand.
+        m_transient_storage.mark_window_metadata_clean(window.id);
+        m_launch_plan.append(move(restored));
+    }
 
     m_transient_storage.set_closed_units(TRY(m_persisted_storage->load_closed_units()));
     return {};
@@ -1239,7 +1452,7 @@ ErrorOr<void> SessionStore::run_startup_recovery(UnixDateTime recovered_at)
 
 SessionStore::WindowMetadataWrite SessionStore::window_metadata_write(SessionWindowId window_id, OpenWindow const& window) const
 {
-    WindowMetadataWrite write { .id = window_id, .tabs_in_order = window.tabs, .pinned_tabs = {}, .active_tab_index = 0 };
+    WindowMetadataWrite write { .id = window_id, .tabs_in_order = window.tabs, .pinned_tabs = {}, .active_tab_index = 0, .activation_sequence = window.activation_sequence };
     for (auto tab_id : window.tabs) {
         if (auto const* tab = m_transient_storage.find_tab(tab_id); tab && tab->pinned)
             write.pinned_tabs.set(tab_id);
@@ -1269,7 +1482,7 @@ Optional<SessionStore::WindowMetadataWrite> SessionStore::remaining_window_write
     for (auto const& pending : m_pending_window_closes) {
         if (pending.window_id != window_id)
             continue;
-        WindowMetadataWrite write { .id = window_id, .tabs_in_order = {}, .pinned_tabs = {}, .active_tab_index = 0 };
+        WindowMetadataWrite write { .id = window_id, .tabs_in_order = {}, .pinned_tabs = {}, .active_tab_index = 0, .activation_sequence = pending.activation_sequence };
         for (auto const& member : pending.members) {
             if (member.tab_id == closing_tab)
                 continue;
@@ -1354,8 +1567,15 @@ ErrorOr<void> SessionStore::drain_window_metadata()
 ErrorOr<SessionWindowId> SessionStore::window_opened()
 {
     auto window_id = TRY(m_session_id_allocator.allocate());
-    if (m_persisted_storage.has_value())
+    if (m_persisted_storage.has_value()) {
         TRY(m_persisted_storage->insert_open_window(window_id));
+        // A window that opens after the last one closed means the closed one no longer counts as left open. The window
+        // is already tracked by now, so a failed clear is logged rather than failing the open.
+        if (auto result = m_persisted_storage->clear_restore_at_launch(); result.is_error() && history_debug_enabled())
+            dbgln("[History] Failed to clear the restore-at-launch flag: {}", result.error());
+    }
+    for (auto& pending : m_pending_window_closes)
+        pending.restore_at_launch = false;
     m_transient_storage.open_window(window_id);
     return window_id;
 }
@@ -1398,6 +1618,16 @@ ErrorOr<SessionWindowId> SessionStore::default_window()
     if (!m_transient_storage.default_window.has_value())
         m_transient_storage.default_window = TRY(window_opened());
     return *m_transient_storage.default_window;
+}
+
+void SessionStore::window_activated(SessionWindowId window_id)
+{
+    if (!m_transient_storage.find_window(window_id))
+        return;
+    auto activation_sequence = m_activation_sequence_allocator.allocate();
+    if (activation_sequence.is_error())
+        return;
+    m_transient_storage.set_activation_sequence(window_id, activation_sequence.value());
 }
 
 ErrorOr<SessionTabId> SessionStore::tab_opened(TabOpened opened)
@@ -1619,6 +1849,7 @@ ErrorOr<void> SessionStore::finish_window_close(PendingWindowClose const& pendin
                 .source_tab_index = {},
                 .origin = ClosedSessionUnit::Origin::CloseAction,
                 .active_tab_index = min(pending.active_tab_index, index_as_i64(pending.members.size() - 1)),
+                .restore_at_launch = pending.restore_at_launch,
             },
             .members = {},
             .retention_limit = max_closed_units(UnitKind::ClosedWindow),
@@ -1783,6 +2014,9 @@ ErrorOr<void> SessionStore::window_closing(WindowClosing closing)
     auto closed_at = canonicalized_to_milliseconds(closing.closed_at);
     closing.active_tab_index = max(closing.active_tab_index, 0);
 
+    // The last window closing counts as left open, until another window opens.
+    auto restore_at_launch = m_transient_storage.window_count() == 1;
+
     auto make_pending_close = [&](SessionCloseSequence close_sequence, bool discard) {
         PendingWindowClose close {
             .window_id = closing.window_id,
@@ -1791,6 +2025,8 @@ ErrorOr<void> SessionStore::window_closing(WindowClosing closing)
             .closed_at = closed_at,
             .close_sequence = close_sequence,
             .discard = discard,
+            .restore_at_launch = restore_at_launch,
+            .activation_sequence = window->activation_sequence,
         };
         for (auto member_id : window->tabs) {
             if (auto const* tab = m_transient_storage.find_tab(member_id))
@@ -1881,6 +2117,28 @@ void SessionStore::mark_clean_exit()
 bool SessionStore::has_closed_units() const
 {
     return m_transient_storage.has_closed_units();
+}
+
+Vector<RestoredSessionWindow> SessionStore::take_launch_plan()
+{
+    return move(m_launch_plan);
+}
+
+Optional<SessionHistorySnapshot> SessionStore::load_tab_history(SessionTabId tab_id)
+{
+    auto const* tab = m_transient_storage.find_tab(tab_id);
+    if (!tab)
+        return {};
+    if (tab->dirty || !m_persisted_storage.has_value())
+        return tab->history;
+
+    auto snapshot = m_persisted_storage->load_tab_snapshot(tab_id, tab->current_used_step_index);
+    if (snapshot.is_error()) {
+        if (history_debug_enabled())
+            dbgln("[History] Failed to load tab {} history: {}", tab_id, snapshot.error());
+        return {};
+    }
+    return snapshot.release_value();
 }
 
 ErrorOr<Optional<ClosedSessionUnit>> SessionStore::take_most_recently_closed()
