@@ -131,6 +131,7 @@ public:
     static MEDIACODECS_API Optional<NALUnitHeader> parse_nal_unit_header(ReadonlyBytes nal_unit);
     static MEDIACODECS_API bool is_coded_slice(NALUnitHeader const&);
     static MEDIACODECS_API bool is_sub_layer_non_reference(NALUnitHeader const&);
+    static MEDIACODECS_API bool is_parameter_set(NALUnitHeader const&);
     static MEDIACODECS_API bool is_random_access_point(NALUnitHeader const&);
     static MEDIACODECS_API bool is_random_access_skipped_leading(NALUnitHeader const&);
     static MEDIACODECS_API bool has_random_access_skipped_leading_pictures(NALUnitHeader const&);

@@ -182,6 +182,9 @@ void DecodedVideoProducer::ThreadData::replace_decoder_once_drained(CodedFrame c
 
 DecoderErrorOr<void> DecodedVideoProducer::ThreadData::receive_into_decoder(CodedFrame const& frame, DecodeIntent intent)
 {
+    if (m_non_reference_frame_detector.frame_is_non_reference(frame) && intent == DecodeIntent::Reference)
+        return {};
+
     auto receive_result = m_decoder->receive_coded_data(frame, intent);
 
     if (receive_result.is_error() && receive_result.error().category() == DecoderErrorCategory::NotImplemented) {

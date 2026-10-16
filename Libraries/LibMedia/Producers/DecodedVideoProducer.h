@@ -27,6 +27,7 @@
 #include <LibMedia/Track.h>
 #include <LibMediaCodecs/CodedFrame.h>
 #include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/NonReferenceFrameDetector.h>
 #include <LibMediaCodecs/VideoDecoder.h>
 #include <LibMediaCodecs/VideoDecoderRegistry.h>
 
@@ -149,6 +150,7 @@ private:
         Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
         DecodeIntent m_intent_awaiting_decoder_replacement { DecodeIntent::Output };
         OwnPtr<VideoDecoder> m_decoder;
+        NonReferenceFrameDetector m_non_reference_frame_detector;
         bool m_decoder_needs_keyframe_next_seek { false };
         bool m_decoder_needs_codec_configuration_next_seek { true };
 

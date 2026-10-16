@@ -26,6 +26,7 @@ set(TEST_SOURCES
     TestMP3FrameHeader.cpp
     TestMP3Reader.cpp
     TestMP3StreamInfo.cpp
+    TestNonReferenceFrameDetector.cpp
     TestMediaSupport.cpp
     TestMediaTime.cpp
     TestOggDemuxer.cpp
