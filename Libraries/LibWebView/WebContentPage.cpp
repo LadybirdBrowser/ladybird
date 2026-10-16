@@ -313,6 +313,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         return false;
 
     navigation->loader()->obtain_the_response_policies(*navigable);
+    navigation->loader()->check_the_responses_adherence_to_its_embedder_policy(*navigable);
 
     NonnullRefPtr history_entry = *navigation->history_entry;
     auto host_or_error = navigable->obtain_page_to_populate_document(history_entry, *navigation->loader(), *this);
