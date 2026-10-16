@@ -9097,8 +9097,10 @@ pub fn emit_function_declaration_instantiation(
             !p.is_rest && p.default_value.is_none() && matches!(p.binding, FunctionParameterBinding::Identifier(_))
         });
     // NB: When the arguments object is not used after all, the parameters may be locals, and have no bindings to make.
-    let arguments_object_creates_parameter_bindings =
-        arguments_object_is_mapped && parameter_names.iter().all(|param| !param.is_local);
+    //     Without parameters, there are none to make either.
+    let arguments_object_creates_parameter_bindings = arguments_object_is_mapped
+        && !parameter_names.is_empty()
+        && parameter_names.iter().all(|param| !param.is_local);
 
     // --- Step 2: Create bindings for non-local parameters ---
 
