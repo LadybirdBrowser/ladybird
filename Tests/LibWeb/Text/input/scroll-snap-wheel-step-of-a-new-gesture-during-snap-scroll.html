@@ -48,7 +48,7 @@
         // A blocking wheel event listener keeps the scrolling on the main thread. Each step is taken 30px away from the
         // one before it, so it starts a new gesture while the snap scroll of the previous one is still in flight.
         window.addEventListener("wheel", () => {}, { passive: false });
-        await waitForCondition(() => internals.asyncScrollingStateBlocksWheelEventAt(50, 50));
+        await waitForCondition(() => internals.compositorWheelTargetAt(50, 50, 0, 10).decision === "blocking-wheel-event-listeners");
 
         const wheelStepsWhileMovingThePointer = async (x, y, deltas, scrolledTargets) => {
             const settled = Promise.all(scrolledTargets.map(target => scrollendEvent(target)));

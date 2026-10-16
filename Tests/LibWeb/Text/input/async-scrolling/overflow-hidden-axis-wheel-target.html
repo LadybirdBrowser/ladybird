@@ -19,8 +19,10 @@
 </style>
 <div id="scroller"><div id="spacer"></div></div>
 <script>
-    test(() => {
-        println(`horizontal wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 100, 0)}`);
-        println(`vertical wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        println(`horizontal wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 100, 0))}`);
+        println(`vertical wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
     });
 </script>

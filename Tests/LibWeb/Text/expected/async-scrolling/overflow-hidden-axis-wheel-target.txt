@@ -1,2 +1,2 @@
-horizontal wheel target: non-viewport
-vertical wheel target: none
+horizontal wheel target: latched scroller=#scroller
+vertical wheel target: no-scroll-target

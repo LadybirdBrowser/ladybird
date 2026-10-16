@@ -74,8 +74,10 @@
 <div class="section"></div>
 <div class="section"></div>
 <script>
-    test(() => {
-        const state = internals.asyncScrollingState();
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        const state = internals.compositorScrollState();
         println(`device pixels per CSS pixel: ${state.devicePixelsPerCssPixel}`);
 
         const rect = ({ x, y, width, height }) => `${x},${y} ${width}x${height}`;

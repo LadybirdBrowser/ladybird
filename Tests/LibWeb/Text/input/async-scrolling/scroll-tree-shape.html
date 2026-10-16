@@ -27,8 +27,10 @@
         println(displayList);
     }
 
-    test(() => {
-        const state = internals.asyncScrollingState();
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        const state = internals.compositorScrollState();
         const output = [
             `scroll node count: ${state.scrollNodeCount}`,
             `scroll nodes: ${state.scrollNodes.length}`,

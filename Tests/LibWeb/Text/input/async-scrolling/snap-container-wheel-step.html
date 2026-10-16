@@ -28,7 +28,7 @@
         await animationFrame();
         await animationFrame();
 
-        println(`wheel target of a discrete step: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 10)}`);
+        println(`wheel target of a discrete step: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 10))}`);
 
         // The step's promise resolves once the snap scroll the compositor started for it has completed, so the
         // scrolling box already rests at the snap position when it does.

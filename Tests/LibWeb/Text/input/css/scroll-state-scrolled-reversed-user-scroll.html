@@ -53,7 +53,7 @@
         const listenerWheelScroller = document.getElementById("listener-wheel-scroller");
         listenerWheelScroller.addEventListener("wheel", () => {}, { passive: false });
         const rect = listenerWheelScroller.getBoundingClientRect();
-        await waitForCondition(() => internals.asyncScrollingStateBlocksWheelEventAt(rect.left + 50, rect.top + 50));
+        await waitForCondition(() => internals.compositorWheelTargetAt(rect.left + 50, rect.top + 50, 0, 10).decision === "blocked-by-wheel-event-region");
         await wheelAt(listenerWheelScroller, [200, -40]);
         report("Wheel with a blocking listener", listenerWheelScroller);
     });

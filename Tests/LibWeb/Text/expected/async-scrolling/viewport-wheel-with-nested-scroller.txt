@@ -1,7 +1,7 @@
 scroll nodes: 2
 wheel routing admission: accepted
-viewport wheel target: viewport
-scroller wheel target: non-viewport
+viewport wheel target: latched scroller=viewport
+scroller wheel target: latched scroller=#scroller
 display list:
 AccumulatedVisualContext Tree:
   spatial:

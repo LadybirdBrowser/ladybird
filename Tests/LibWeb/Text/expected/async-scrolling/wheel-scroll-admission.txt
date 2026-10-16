@@ -1,14 +1,14 @@
 initial routing admission: accepted
-no listener over scroller: true
-no scrollable target: false
-passive listener over target: true
+no listener over scroller: latched scroller=#scroller
+no scrollable target: no-scroll-target
+passive listener over target: latched scroller=#scroller
+blocking element listener before the next frame: stale-wheel-event-listeners
 blocking element routing admission: accepted
-blocking element listener inside: false
-blocking element listener outside: true
-stale blocking element regions: false
-blocking window routing admission: blocking wheel event listeners
-blocking window listener: false
-stale blocking window regions: false
+blocking element listener inside: blocked-by-wheel-event-region
+blocking element listener outside: latched scroller=#scroller
+blocking window listener before the next frame: stale-wheel-event-listeners
+blocking window routing admission: blocking-wheel-event-listeners
+blocking window listener: blocking-wheel-event-listeners
 display list after blocking element listener:
 AccumulatedVisualContext Tree:
   spatial:

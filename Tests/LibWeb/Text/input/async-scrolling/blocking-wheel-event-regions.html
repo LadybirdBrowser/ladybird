@@ -34,7 +34,8 @@
     }
 
     function dump(output, label) {
-        const state = internals.asyncScrollingState();
+        internals.recordDisplayListForTesting();
+        const state = internals.recordedAsyncScrollingState();
         output.push(`${label}:`);
         output.push(`  blocking listeners: ${state.hasBlockingWheelEventListeners}`);
         output.push(`  viewport blocked: ${state.hasBlockingWheelEventRegionCoveringViewport}`);
