@@ -67,7 +67,8 @@ from them alone:
 - **Memory.** `reads` and `writes`: sets of abstract locations (`ir::Locations`): `FRAME`,
   `NAMED_SLOTS` (property values), `SHAPES` (shapes and prototypes), `ELEMENTS` (element values),
   `ELEMENT_COUNTS` (element storage kind, length, capacity and the storage offset of typed arrays), `GLOBAL_BINDINGS` and `BINDINGS` (the
-  bindings of declarative environments), and `ITERATORS` (the state of iterators). Passes ask
+  bindings of declarative environments), `ITERATORS` (the state of iterators), and `COLLECTIONS` (the
+  entries of Map, Set, WeakMap and WeakSet objects). Passes ask
   one question: whether one node's writes intersect another's reads. `runs_code`: may run other
   code, which may write anything, or invalidate the compiled code. The op table below names the
   locations coarsely (Named for slots and shapes, Elements for values and counts, Any for all);

@@ -744,6 +744,10 @@ pub enum Intrinsic {
     StringPrototypeTrimEnd,
     /// `RegExp.prototype.exec`.
     RegExpPrototypeExec,
+    /// `Map.prototype.get`.
+    MapPrototypeGet,
+    /// `Map.prototype.has`.
+    MapPrototypeHas,
 }
 
 /// A `this` value or argument of a builtin whose runtime helper JIT code
@@ -860,6 +864,15 @@ impl Intrinsic {
                 result: HelperResult::Value,
                 reads: Locations::NAMED,
                 writes: Locations::NAMED_SLOTS,
+            }),
+            // NB: The helpers decline for receivers that are no Map, which
+            //     the slow path throws for.
+            Intrinsic::MapPrototypeGet | Intrinsic::MapPrototypeHas => Some(HelperCall {
+                receiver: HelperOperand::Value,
+                arguments: &[HelperOperand::Value],
+                result: HelperResult::Value,
+                reads: Locations::COLLECTIONS,
+                writes: Locations::NONE,
             }),
             _ => None,
         }

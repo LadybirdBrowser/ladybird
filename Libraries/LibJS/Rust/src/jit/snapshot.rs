@@ -49,6 +49,7 @@ use crate::runtime::boolean_constructor::BooleanConstructor;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::function_prototype::{self, FunctionPrototype};
+use crate::runtime::map_prototype;
 use crate::runtime::math_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object_constructor::ObjectConstructor;
@@ -171,7 +172,7 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
 }
 
 /// The intrinsics the compiler knows by their native functions (of any realm).
-static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 21] = [
+static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 23] = [
     (&function_prototype::APPLY_FUNCTION, Intrinsic::FunctionPrototypeApply),
     (&function_prototype::CALL_FUNCTION, Intrinsic::FunctionPrototypeCall),
     (&array_prototype::PUSH_FUNCTION, Intrinsic::ArrayPrototypePush),
@@ -220,6 +221,8 @@ static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 21] = [
         Intrinsic::StringPrototypeTrimStart,
     ),
     (&string_prototype::TRIM_END_FUNCTION, Intrinsic::StringPrototypeTrimEnd),
+    (&map_prototype::GET_FUNCTION, Intrinsic::MapPrototypeGet),
+    (&map_prototype::HAS_FUNCTION, Intrinsic::MapPrototypeHas),
 ];
 
 /// The builtin `%ArrayIteratorPrototype%.next` of the realm, if `%ArrayIteratorPrototype%` holds it.
