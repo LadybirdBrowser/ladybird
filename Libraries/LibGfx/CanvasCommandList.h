@@ -60,6 +60,11 @@ using CanvasPaintStyle = Variant<Color, CanvasLinearGradient, CanvasRadialGradie
 
 inline constexpr i64 max_canvas_area = 16384 * 16384;
 
+inline constexpr bool is_valid_canvas_2d_size(IntSize size)
+{
+    return !size.is_empty() && static_cast<i64>(size.width()) * static_cast<i64>(size.height()) <= max_canvas_area;
+}
+
 struct CanvasGlyph {
     FloatPoint position;
     u32 glyph_id { 0 };

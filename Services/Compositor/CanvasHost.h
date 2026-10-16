@@ -50,7 +50,7 @@ public:
     CanvasHost(RefPtr<Gfx::SkiaBackendContext>, Compositing::CanvasSurfaceRegistry&);
     ~CanvasHost();
 
-    Optional<Compositing::CanvasId> create_2d_context(Gfx::IntSize, bool alpha);
+    bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha);
     CreateWebGLContextResult create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias);
     void destroy_context(Compositing::CanvasId);
     bool has_context(Compositing::CanvasId) const;
