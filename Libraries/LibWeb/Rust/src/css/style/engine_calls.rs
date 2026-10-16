@@ -145,6 +145,11 @@ pub(crate) struct StagedInput {
 }
 
 impl StagedInput {
+    /// How many tree deltas the batch holds, each of which may deepen the tree by a level.
+    pub(crate) fn tree_delta_count(&self) -> usize {
+        self.tree.len()
+    }
+
     fn is_empty(&self) -> bool {
         self.tree.is_empty()
             && self.arrivals.is_empty()

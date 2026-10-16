@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<!-- A forced layout right after a deep tree is inserted in one write lays out all of it. 8000 levels overflowed an
+     8 MiB stack. -->
+<body>
+<script>
+    document.body.offsetHeight;
+    document.body.innerHTML = "<div>".repeat(8000) + "leaf";
+    document.body.offsetHeight;
+</script>
+</body>
