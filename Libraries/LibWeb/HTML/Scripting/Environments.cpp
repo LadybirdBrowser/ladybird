@@ -734,6 +734,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         .policy_container = policy_container()->serialize(),
         .cross_origin_isolated_capability = cross_origin_isolated_capability(),
         .agent_cluster_id = agent_cluster_id(),
+        .agent_cluster_cross_origin_isolation_mode = agent_cluster_cross_origin_isolation_mode(),
         .time_origin = this->time_origin(),
         .global = move(serialized_global),
     };

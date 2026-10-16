@@ -26,6 +26,7 @@
 #include <LibWebCommon/Fetch/Infrastructure/RedirectTaint.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
+#include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
@@ -125,6 +126,7 @@ struct NavigationParamsDescriptor {
     Optional<URL::URL> about_base_url;
     UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
     Optional<u64> agent_cluster_id;
+    CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
     Optional<u64> new_browsing_context_group_id;
 };
 

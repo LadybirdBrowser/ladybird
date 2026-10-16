@@ -115,6 +115,10 @@ public:
     //         of its own. An empty value names no cluster at all, and so matches none.
     virtual Optional<u64> agent_cluster_id() const = 0;
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#agent-cluster-cross-origin-isolation
+    // Of the agent cluster agent_cluster_id names.
+    virtual CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const = 0;
+
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-time-origin
     virtual double time_origin() const = 0;
 
