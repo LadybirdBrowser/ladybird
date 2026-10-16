@@ -30,12 +30,6 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     auto* worker = Bindings::worker_global_scope_from_global_object(realm->global_object());
     VERIFY(worker);
 
-    // AD-HOC: The worker global scope's cross-origin isolated capability is inherited from the outside/creating
-    //         settings object. In our multi-process model, it arrives via the serialized outside settings; the spec
-    //         sets it while running the worker (before this algorithm), from the worker agent's agent cluster's
-    //         cross-origin isolation mode.
-    worker->set_cross_origin_isolated_capability(outside_settings.cross_origin_isolated_capability == CanUseCrossOriginIsolatedAPIs::Yes);
-
     // 3. Let origin be a unique opaque origin if worker global scope's url's scheme is "data"; otherwise outside settings's origin.
     // NB: The browser process determines it, as it holds the worker's environment too.
 

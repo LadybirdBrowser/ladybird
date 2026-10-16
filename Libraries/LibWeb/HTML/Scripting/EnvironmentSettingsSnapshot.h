@@ -28,7 +28,7 @@ public:
     virtual URL::Origin origin() const override { return m_origin; }
     virtual bool has_cross_site_ancestor() const override { return m_has_cross_site_ancestor; }
     virtual GC::Ref<PolicyContainer> policy_container() const override { return m_policy_container; }
-    virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return CanUseCrossOriginIsolatedAPIs::No; }
+    virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return m_cross_origin_isolated_capability; }
     virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
     virtual CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const override { return m_agent_cluster_cross_origin_isolation_mode; }
     virtual double time_origin() const override { return m_time_origin; }
@@ -45,6 +45,7 @@ private:
     URL::Origin m_origin;
     bool m_has_cross_site_ancestor;
     GC::Ref<PolicyContainer> m_policy_container;
+    CanUseCrossOriginIsolatedAPIs m_cross_origin_isolated_capability { CanUseCrossOriginIsolatedAPIs::No };
     Optional<u64> m_agent_cluster_id;
     CrossOriginIsolationMode m_agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
     double m_time_origin { 0 };
