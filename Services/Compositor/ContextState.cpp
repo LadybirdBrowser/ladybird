@@ -5,6 +5,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <AK/JsonObject.h>
 #include <AK/Math.h>
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
@@ -1255,9 +1256,23 @@ Compositing::FirstWheelStepRouteForTesting ContextState::route_first_wheel_step_
     return { m_async_scroll_tree.route_first_wheel_step(m_wheel_gesture_routing.admission(), m_scene.visual_context_tree_for_compositing(), position, delta), document_id };
 }
 
-Gfx::FloatPoint ContextState::elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID stable_node_id) const
+String ContextState::scroll_state_for_testing(Web::AsyncScrollNodeStableID stretched_scroller) const
 {
-    return m_elastic_overscroll_controller.stretch_of(stable_node_id);
+    auto const& display_list = m_scene.display_list();
+    auto scroll_state = Compositing::async_scrolling_state_to_json(display_list ? Compositing::async_scrolling_state_from_display_list(*display_list) : Compositing::AsyncScrollingState {});
+
+    auto admission = m_wheel_gesture_routing.admission();
+    auto admission_name = admission == Compositing::WheelRoutingAdmission::Accepted
+        ? "accepted"sv
+        : Web::input_routing_decision_name(Compositing::input_routing_decision_for_wheel_step_not_admitted_by(admission));
+    scroll_state.set("wheelRoutingAdmission"sv, admission_name);
+
+    auto stretch = m_elastic_overscroll_controller.stretch_of(stretched_scroller).scaled(1.0f / static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
+    JsonObject stretch_object;
+    stretch_object.set("x"sv, stretch.x());
+    stretch_object.set("y"sv, stretch.y());
+    scroll_state.set("stretch"sv, move(stretch_object));
+    return scroll_state.serialized();
 }
 
 Optional<Compositing::ScrollStateSnapshot> ContextState::scroll_state_snapshot_stretched_by_elastic_overscrolls() const

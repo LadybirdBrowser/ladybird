@@ -181,6 +181,8 @@ enum class WheelScrollAdmission {
 };
 
 COMPOSITING_API AsyncScrollingState async_scrolling_state_from_display_list(Compositing::DisplayList const&);
+// The scrolling state as tests read it, from WebContent and from the compositor alike.
+COMPOSITING_API JsonObject async_scrolling_state_to_json(AsyncScrollingState const&);
 COMPOSITING_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
 // The admission of a scrolling state recorded before the newest change to the page's blocking wheel event listeners is
 // stale, as the state may not have the regions that change made.

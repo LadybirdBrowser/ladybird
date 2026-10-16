@@ -438,17 +438,17 @@ Compositing::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Web
     return response->take_result();
 }
 
-Gfx::FloatPoint CompositorConnection::elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
+String CompositorConnection::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller)
 {
     if (!can_send_message_to_compositor())
         return {};
 
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::ElasticOverscrollStretchForTesting>(context_id, stable_node_id);
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::ScrollStateForTesting>(context_id, stretched_scroller);
     if (!response) {
         did_lose_compositor();
         return {};
     }
-    return response->stretch();
+    return response->take_scroll_state();
 }
 
 void CompositorConnection::synchronize_for_testing()

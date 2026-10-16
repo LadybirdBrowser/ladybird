@@ -10,9 +10,9 @@
         println(`style counters has null prototype: ${Object.getPrototypeOf(counters) === null}`);
         println(`style counters has reaction batches: ${"styleEngineReactionBatchRuns" in counters}`);
 
-        const asyncState = other.internals.asyncScrollingState.call(internals);
-        println(`async state has null prototype: ${Object.getPrototypeOf(asyncState) === null}`);
-        println(`async scrollNodes uses iframe Array: ${asyncState.scrollNodes instanceof other.Array}`);
-        println(`async scrollNodes uses top Array: ${asyncState.scrollNodes instanceof Array}`);
+        const scrollState = other.internals.compositorScrollState.call(internals);
+        println(`compositor scroll state has null prototype: ${Object.getPrototypeOf(scrollState) === null}`);
+        println(`compositor scroll state scrollNodes uses iframe Array: ${scrollState.scrollNodes instanceof other.Array}`);
+        println(`compositor scroll state scrollNodes uses top Array: ${scrollState.scrollNodes instanceof Array}`);
     });
 </script>

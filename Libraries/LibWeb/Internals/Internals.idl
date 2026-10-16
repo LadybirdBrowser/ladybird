@@ -88,10 +88,10 @@ interface Internals {
     undefined click(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     undefined clickAndHold(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     [CreatesPromise] Promise<undefined> wheel(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional ScrollGesturePhase scrollGesturePhase = "none");
-    // How far, in CSS pixels, the compositor presents a scroller past the edges of its scroll range. The scroller is
-    // the viewport if none is given.
-    double elasticOverscrollStretchX(optional Element? scroller = null);
-    double elasticOverscrollStretchY(optional Element? scroller = null);
+    // The scrolling state the compositor has installed from the frames rendered so far, its wheel routing admission,
+    // and how far, in CSS pixels, it presents the scroller past the edges of its scroll range. The scroller is the
+    // viewport if none is given.
+    object compositorScrollState(optional Element? scroller = null);
     undefined pinch(double x, double y, double scaleDelta, optional unsigned short modifiers = 0);
     undefined resetZoom();
 

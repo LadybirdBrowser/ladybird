@@ -23,10 +23,10 @@
         await scrollSettled(nested, () => nested.scrollTo(0, 190));
 
         await internals.wheel(50, 50, 0, 410, true, "ongoing");
-        println(`held by the fingers: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+        println(`held by the fingers: nested.scrollTop=${nested.scrollTop} stretch=${internals.compositorScrollState(nested).stretch.y}`);
         for (let frame = 0; frame < 5; frame++)
             await animationFrame();
-        println(`still held: stretch=${internals.elasticOverscrollStretchY(nested)}`);
+        println(`still held: stretch=${internals.compositorScrollState(nested).stretch.y}`);
 
         let scrollEventCount = 0;
         nested.addEventListener("scroll", () => scrollEventCount++);
@@ -34,10 +34,10 @@
         let scrollTopChangedDuringRebound = false;
 
         await internals.wheel(50, 50, 0, 0, true, "ended");
-        let previousStretch = internals.elasticOverscrollStretchY(nested);
+        let previousStretch = internals.compositorScrollState(nested).stretch.y;
         while (previousStretch !== 0) {
             await animationFrame();
-            const stretch = internals.elasticOverscrollStretchY(nested);
+            const stretch = internals.compositorScrollState(nested).stretch.y;
             if (stretch > previousStretch)
                 stretchGrewDuringRebound = true;
             if (nested.scrollTop !== 200)
@@ -47,7 +47,7 @@
         await animationFrame();
         await animationFrame();
 
-        println(`sprung back: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+        println(`sprung back: nested.scrollTop=${nested.scrollTop} stretch=${internals.compositorScrollState(nested).stretch.y}`);
         println(`stretch grew during the rebound: ${stretchGrewDuringRebound}`);
         println(`scrollTop changed during the rebound: ${scrollTopChangedDuringRebound}`);
         println(`scroll events during the rebound: ${scrollEventCount}`);

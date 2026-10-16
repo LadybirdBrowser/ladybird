@@ -865,38 +865,73 @@ void Internals::wheel(double x, double y, double delta_x, double delta_y, bool p
     wheel(promise, x, y, delta_x, delta_y, precise, phase);
 }
 
-static Gfx::FloatPoint elastic_overscroll_stretch_in_css_pixels(HTML::Window& window, GC::Ptr<DOM::Element> scroller)
+static JS::Value wrapped_node_with_unique_id(HTML::Window& window, Optional<UniqueNodeID> node_id)
 {
-    auto& document = window.associated_document();
-    auto navigable = document.navigable();
-    if (!navigable || !navigable->has_compositor_context())
-        return {};
+    auto* node = node_id.has_value() ? DOM::Node::from_unique_id(*node_id) : nullptr;
+    if (!node)
+        return JS::js_null();
+    auto& realm = HTML::relevant_realm(window);
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<DOM::Node> { *node });
+}
 
-    Web::AsyncScrollNodeStableID stable_node_id { .node_id = document.unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
+// A JSON report of a testing message as a script reads it, made of objects without a prototype like the other objects
+// these hooks return.
+static JS::Value json_value_to_js_value(HTML::Window& window, JsonValue const& value)
+{
+    auto& realm = HTML::relevant_realm(window);
+    if (value.is_null())
+        return JS::js_null();
+    if (value.is_bool())
+        return JS::Value(value.as_bool());
+    if (value.is_number())
+        return JS::Value(value.get_double_with_precision_loss().value());
+    if (value.is_string())
+        return JS::PrimitiveString::create(window.vm(), Utf16String::from_utf8(value.as_string()));
+    if (value.is_array()) {
+        auto const& values = value.as_array().values();
+        auto array = MUST(JS::Array::create(realm, values.size()));
+        for (size_t i = 0; i < values.size(); ++i)
+            MUST(array->create_data_property_or_throw(i, json_value_to_js_value(window, values[i])));
+        return array;
+    }
+    auto object = JS::Object::create(realm, nullptr);
+    value.as_object().for_each_member([&](String const& name, JsonValue const& member) {
+        object->define_direct_property(Utf16FlyString::from_utf8(name), json_value_to_js_value(window, member), JS::default_attributes);
+    });
+    return object;
+}
+
+// A scrolling state as a script reads it, with the document it is the state of.
+static GC::Ref<JS::Object> scrolling_state_report_to_object(HTML::Window& window, JsonObject const& report)
+{
+    auto object = GC::Ref { json_value_to_js_value(window, report).as_object() };
+    auto document_id = report.get_i64("documentID"sv).map([](i64 id) { return UniqueNodeID { id }; });
+    object->define_direct_property("document"_utf16_fly_string, wrapped_node_with_unique_id(window, document_id), JS::default_attributes);
+    return object;
+}
+
+GC::Ref<JS::Object> Internals::compositor_scroll_state(GC::Ptr<DOM::Element> scroller)
+{
+    let_compositor_take_in_every_rendered_frame(window());
+
+    auto& document = window().associated_document();
+    Web::AsyncScrollNodeStableID stretched_scroller { .node_id = document.unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
     if (scroller) {
         Layout::ForcedReadScope read { document };
         document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-        auto const* scrolling_box = scroller->layout_node(read);
-        if (!scrolling_box)
-            return {};
-        auto scroller_stable_node_id = Painting::async_scroll_node_stable_id(*scrolling_box);
-        if (!scroller_stable_node_id.has_value())
-            return {};
-        stable_node_id = *scroller_stable_node_id;
+        if (auto const* scrolling_box = scroller->layout_node(read)) {
+            if (auto scroller_stable_node_id = Painting::async_scroll_node_stable_id(*scrolling_box); scroller_stable_node_id.has_value())
+                stretched_scroller = *scroller_stable_node_id;
+        }
     }
 
-    auto stretch_in_device_pixels = navigable->compositor_context().elastic_overscroll_stretch_for_testing(stable_node_id);
-    return stretch_in_device_pixels.scaled(static_cast<float>(1 / navigable->page().client().device_pixels_per_css_pixel()));
-}
-
-double Internals::elastic_overscroll_stretch_x(GC::Ptr<DOM::Element> scroller)
-{
-    return elastic_overscroll_stretch_in_css_pixels(window(), scroller).x();
-}
-
-double Internals::elastic_overscroll_stretch_y(GC::Ptr<DOM::Element> scroller)
-{
-    return elastic_overscroll_stretch_in_css_pixels(window(), scroller).y();
+    String scroll_state;
+    if (auto navigable = document.navigable(); navigable && navigable->has_compositor_context())
+        scroll_state = navigable->compositor_context().scroll_state_for_testing(stretched_scroller);
+    auto report = JsonValue::from_string(scroll_state);
+    if (report.is_error() || !report.value().is_object())
+        return scrolling_state_report_to_object(window(), Compositing::async_scrolling_state_to_json({}));
+    return scrolling_state_report_to_object(window(), report.value().as_object());
 }
 
 void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers)
@@ -1305,15 +1340,6 @@ static Vector<InputTraceRecord> take_input_trace_records(HTML::Window& window)
 static Gfx::FloatPoint device_position_as_float_point(DevicePixelPoint position)
 {
     return { static_cast<float>(position.x().value()), static_cast<float>(position.y().value()) };
-}
-
-static JS::Value wrapped_node_with_unique_id(HTML::Window& window, Optional<UniqueNodeID> node_id)
-{
-    auto* node = node_id.has_value() ? DOM::Node::from_unique_id(*node_id) : nullptr;
-    if (!node)
-        return JS::js_null();
-    auto& realm = HTML::relevant_realm(window);
-    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<DOM::Node> { *node });
 }
 
 // A scroller as the input hooks describe it: the document for its viewport, or the element whose box scrolls, with the
@@ -2996,100 +3022,16 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     return object;
 }
 
-static GC::Ref<JS::Object> async_scrolling_state_to_object(HTML::Window& window, Compositing::AsyncScrollingState const& state)
-{
-    auto& realm = HTML::relevant_realm(window);
-    auto object = JS::Object::create(realm, nullptr);
-
-    auto scroll_nodes = MUST(JS::Array::create(realm, state.scroll_nodes.size()));
-    for (size_t i = 0; i < state.scroll_nodes.size(); ++i) {
-        auto const& scroll_node = state.scroll_nodes[i];
-        auto node = JS::Object::create(realm, nullptr);
-        node->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(scroll_node.node_id.document_id.value())), JS::default_attributes);
-        node->define_direct_property("scrollNodeIndex"_utf16_fly_string, JS::Value(scroll_node.node_id.scroll_node_index.value()), JS::default_attributes);
-        node->define_direct_property("parentDocumentID"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? static_cast<double>(scroll_node.parent_node_id->document_id.value()) : 0), JS::default_attributes);
-        node->define_direct_property("parentScrollNodeIndex"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? scroll_node.parent_node_id->scroll_node_index.value() : 0), JS::default_attributes);
-        node->define_direct_property("isViewport"_utf16_fly_string, JS::Value(scroll_node.is_viewport), JS::default_attributes);
-        MUST(scroll_nodes->create_data_property_or_throw(i, node));
-    }
-
-    auto rect_to_object = [&](CSSPixelRect const& rect) {
-        auto rect_object = JS::Object::create(realm, nullptr);
-        rect_object->define_direct_property("x"_utf16_fly_string, JS::Value(rect.x().to_double()), JS::default_attributes);
-        rect_object->define_direct_property("y"_utf16_fly_string, JS::Value(rect.y().to_double()), JS::default_attributes);
-        rect_object->define_direct_property("width"_utf16_fly_string, JS::Value(rect.width().to_double()), JS::default_attributes);
-        rect_object->define_direct_property("height"_utf16_fly_string, JS::Value(rect.height().to_double()), JS::default_attributes);
-        return rect_object;
-    };
-    auto point_to_object = [&](CSSPixelPoint const& point) {
-        auto point_object = JS::Object::create(realm, nullptr);
-        point_object->define_direct_property("x"_utf16_fly_string, JS::Value(point.x().to_double()), JS::default_attributes);
-        point_object->define_direct_property("y"_utf16_fly_string, JS::Value(point.y().to_double()), JS::default_attributes);
-        return point_object;
-    };
-    auto keyword_to_string = [&](auto keyword) {
-        auto css_keyword = [](auto keyword) {
-            if constexpr (IsSame<decltype(keyword), Compositing::SnapStrictness>)
-                return static_cast<CSS::ScrollSnapStrictness>(to_underlying(keyword));
-            else
-                return static_cast<CSS::ScrollSnapAlign>(to_underlying(keyword));
-        };
-        return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(CSS::to_string(css_keyword(keyword))));
-    };
-
-    auto snap_containers = MUST(JS::Array::create(realm, state.snap_containers.size()));
-    for (size_t i = 0; i < state.snap_containers.size(); ++i) {
-        auto const& snap_container = state.snap_containers[i];
-        auto container = JS::Object::create(realm, nullptr);
-        container->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(snap_container.node_id.document_id.value())), JS::default_attributes);
-        container->define_direct_property("scrollNodeIndex"_utf16_fly_string, JS::Value(snap_container.node_id.scroll_node_index.value()), JS::default_attributes);
-        container->define_direct_property("snapport"_utf16_fly_string, rect_to_object(snap_container.geometry.snapport), JS::default_attributes);
-        container->define_direct_property("minScrollOffset"_utf16_fly_string, point_to_object(snap_container.geometry.min_scroll_offset), JS::default_attributes);
-        container->define_direct_property("maxScrollOffset"_utf16_fly_string, point_to_object(snap_container.geometry.max_scroll_offset), JS::default_attributes);
-        container->define_direct_property("strictness"_utf16_fly_string, keyword_to_string(snap_container.geometry.strictness), JS::default_attributes);
-        container->define_direct_property("snapsX"_utf16_fly_string, JS::Value(snap_container.geometry.axes.x), JS::default_attributes);
-        container->define_direct_property("snapsY"_utf16_fly_string, JS::Value(snap_container.geometry.axes.y), JS::default_attributes);
-        container->define_direct_property("horizontalWritingMode"_utf16_fly_string, JS::Value(snap_container.geometry.horizontal_writing_mode), JS::default_attributes);
-
-        auto areas = MUST(JS::Array::create(realm, snap_container.areas.size()));
-        for (size_t area_index = 0; area_index < snap_container.areas.size(); ++area_index) {
-            auto const& snap_area = snap_container.areas[area_index];
-            auto area = JS::Object::create(realm, nullptr);
-            area->define_direct_property("nodeID"_utf16_fly_string, JS::Value(static_cast<double>(snap_area.identity.node_id.value())), JS::default_attributes);
-            area->define_direct_property("pseudoElementType"_utf16_fly_string, JS::Value(snap_area.identity.pseudo_element_type), JS::default_attributes);
-            area->define_direct_property("rect"_utf16_fly_string, rect_to_object(snap_area.rect), JS::default_attributes);
-            area->define_direct_property("alignX"_utf16_fly_string, keyword_to_string(snap_area.align_x), JS::default_attributes);
-            area->define_direct_property("alignY"_utf16_fly_string, keyword_to_string(snap_area.align_y), JS::default_attributes);
-            area->define_direct_property("alwaysStop"_utf16_fly_string, JS::Value(snap_area.always_stop), JS::default_attributes);
-            MUST(areas->create_data_property_or_throw(area_index, area));
-        }
-        container->define_direct_property("areas"_utf16_fly_string, areas, JS::default_attributes);
-        MUST(snap_containers->create_data_property_or_throw(i, container));
-    }
-
-    object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(state.scroll_nodes.size()), JS::default_attributes);
-    object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
-    object->define_direct_property("snapContainers"_utf16_fly_string, snap_containers, JS::default_attributes);
-    object->define_direct_property("devicePixelsPerCssPixel"_utf16_fly_string, JS::Value(state.device_pixels_per_css_pixel), JS::default_attributes);
-    object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
-    object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
-    object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(state.main_thread_wheel_event_regions.size()), JS::default_attributes);
-    object->define_direct_property("wheelEventListenerStateGeneration"_utf16_fly_string, JS::Value(state.wheel_event_listener_state_generation), JS::default_attributes);
-    object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
-    object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
-    return object;
-}
-
 GC::Ref<JS::Object> Internals::async_scrolling_state_object()
 {
-    return async_scrolling_state_to_object(window(), async_scrolling_state());
+    return scrolling_state_report_to_object(window(), Compositing::async_scrolling_state_to_json(async_scrolling_state()));
 }
 
 GC::Ref<JS::Object> Internals::recorded_async_scrolling_state_object()
 {
     auto* display_list = window().associated_document().paint_state().display_list_used_as_paint_command_cache_source();
     auto state = display_list ? Compositing::async_scrolling_state_from_display_list(*display_list) : Compositing::AsyncScrollingState {};
-    return async_scrolling_state_to_object(window(), state);
+    return scrolling_state_report_to_object(window(), Compositing::async_scrolling_state_to_json(state));
 }
 
 }

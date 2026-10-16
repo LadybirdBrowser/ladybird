@@ -76,7 +76,7 @@ private:
     virtual void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation) override;
     virtual Messages::CompositorWebContentServer::AsyncScrollByResponse async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, u64 input_event_id) override;
     virtual Messages::CompositorWebContentServer::SmoothScrollToResponse smooth_scroll_to(Web::CompositorContextId, Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue) override;
-    virtual Messages::CompositorWebContentServer::ElasticOverscrollStretchForTestingResponse elastic_overscroll_stretch_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID) override;
+    virtual Messages::CompositorWebContentServer::ScrollStateForTestingResponse scroll_state_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID) override;
     virtual void synchronize_for_testing() override { }
     virtual Messages::CompositorWebContentServer::RouteFirstWheelStepForTestingResponse route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels) override;
     virtual void begin_input_trace_for_testing(Web::CompositorContextId) override;

@@ -36,7 +36,7 @@
     function dump(output, label) {
         const state = internals.asyncScrollingState();
         output.push(`${label}:`);
-        output.push(`  regions current: ${state.blockingWheelEventRegionsAreCurrent}`);
+        output.push(`  blocking listeners: ${state.hasBlockingWheelEventListeners}`);
         output.push(`  viewport blocked: ${state.hasBlockingWheelEventRegionCoveringViewport}`);
         output.push(`  blocking regions: ${state.blockingWheelEventRegionCount}`);
     }

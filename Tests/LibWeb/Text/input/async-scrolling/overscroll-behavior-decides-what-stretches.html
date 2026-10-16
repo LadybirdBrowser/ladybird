@@ -17,8 +17,8 @@
 </style>
 <div id="scroller"><div></div></div>
 <script>
-    const scrollerStretch = () => internals.elasticOverscrollStretchY(scroller);
-    const pageStretch = () => internals.elasticOverscrollStretchY();
+    const scrollerStretch = () => internals.compositorScrollState(scroller).stretch.y;
+    const pageStretch = () => internals.compositorScrollState().stretch.y;
 
     async function nothingIsStretched() {
         while (scrollerStretch() !== 0 || pageStretch() !== 0)

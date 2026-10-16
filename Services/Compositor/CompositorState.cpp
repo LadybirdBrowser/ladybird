@@ -1212,12 +1212,12 @@ void CompositorState::set_scrolls_elastically(bool scrolls_elastically)
         context_entry.value->set_scrolls_elastically(scrolls_elastically);
 }
 
-Gfx::FloatPoint CompositorState::elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id) const
+String CompositorState::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller) const
 {
     auto const* context = context_if_present(context_id);
     if (!context)
         return {};
-    return context->elastic_overscroll_stretch_for_testing(stable_node_id);
+    return context->scroll_state_for_testing(stretched_scroller);
 }
 
 Optional<Compositing::FirstWheelStepRouteForTesting> CompositorState::route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)

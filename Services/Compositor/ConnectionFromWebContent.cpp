@@ -427,11 +427,11 @@ Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebCo
     return result;
 }
 
-Messages::CompositorWebContentServer::ElasticOverscrollStretchForTestingResponse ConnectionFromWebContent::elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
+Messages::CompositorWebContentServer::ScrollStateForTestingResponse ConnectionFromWebContent::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller)
 {
     if (!context_is_owned_by_this_connection(context_id))
-        return Gfx::FloatPoint {};
-    return m_compositor_state->elastic_overscroll_stretch_for_testing(context_id, stable_node_id);
+        return String {};
+    return m_compositor_state->scroll_state_for_testing(context_id, stretched_scroller);
 }
 
 Messages::CompositorWebContentServer::RouteFirstWheelStepForTestingResponse ConnectionFromWebContent::route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
