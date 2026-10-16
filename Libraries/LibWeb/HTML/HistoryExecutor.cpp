@@ -286,40 +286,19 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         pending_document = operation.pending_document;
     }
 
+    // AD-HOC: This process can destroy a navigable, or unload its document, before the UI process removes it, which
+    //         leaves no active window to queue the task on.
     auto navigable = local_navigable_with_id(navigable_id);
-
-    // AD-HOC: The navigable can be destroyed, or its page be closing, before the job finalizing a navigation runs.
-    //         Destruction may then have detached the pending document, or destroyed the active document, before
-    //         marking the navigable destroyed.
-    if (pending_document && local_target_entry) {
-        GC::Ptr<DOM::Document> active_document = navigable ? navigable->active_document() : nullptr;
-        if (!navigable || navigable->has_been_destroyed() || pending_document->has_been_destroyed() || !pending_document->browsing_context() || !active_document || active_document->has_been_destroyed()) {
-            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, false, {});
-            return;
-        }
-    }
-    if (!navigable) {
+    if (!navigable || navigable->has_been_destroyed() || !navigable->active_window()) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, false, {});
         return;
     }
-    if (local_target_entry) {
-        auto document_state = local_target_entry->document_state();
-        if (!document_state
-            || document_state->cross_process_id() != target_entry_descriptor.document_state.id) {
-            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, false, {});
-            return;
-        }
 
+    if (local_target_entry) {
         apply_session_history_entry_descriptor_from_ui_process(*local_target_entry, target_entry_descriptor);
-        apply_session_history_document_state_descriptor_from_ui_process(*document_state, target_entry_descriptor.document_state);
+        apply_session_history_document_state_descriptor_from_ui_process(*local_target_entry->document_state(), target_entry_descriptor.document_state);
     } else {
         local_target_entry = navigable->resolve_local_session_history_entry(move(target_entry_descriptor));
-    }
-    // AD-HOC: This process can destroy a navigable before the UI process removes it, which leaves no active window to
-    //         queue the task on.
-    if (navigable->has_been_destroyed() || !navigable->active_window()) {
-        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, false, {});
-        return;
     }
 
     GC::Ptr<SourceSnapshotParams> source_snapshot_params;
