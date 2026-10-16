@@ -1,0 +1,5 @@
+same-origin-without-corp: loaded
+cross-origin-without-corp: blocked
+cross-origin-with-cross-origin-corp: loaded
+cross-origin-with-same-origin-corp: blocked
+cross-origin-with-invalid-corp: blocked
