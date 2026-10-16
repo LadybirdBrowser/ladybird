@@ -2092,7 +2092,6 @@ impl<'context> InlineFormattingContext<'context> {
                 self.min_content_inline_size_from_max_content_items(iterator.items());
             self.automatic_content_inline_size = inline_size;
             self.run.records.note_omitted_line_layout();
-            self.callbacks.arena().note_intrinsic_inline_measurement();
             self.callbacks
                 .arena()
                 .layout_trace

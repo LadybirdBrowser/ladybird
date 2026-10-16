@@ -1190,21 +1190,6 @@ Utf16String Internals::take_layout_trace()
     return Utf16String::from_utf8_without_validation(builder.string_view());
 }
 
-WebIDL::UnsignedLongLong Internals::table_cell_measurement_cache_miss_count()
-{
-    return window().associated_document().layout_node_arena().table_cell_measurement_cache_miss_count();
-}
-
-WebIDL::UnsignedLongLong Internals::intrinsic_inline_measurement_count()
-{
-    return window().associated_document().layout_node_arena().intrinsic_inline_measurement_count();
-}
-
-WebIDL::UnsignedLongLong Internals::intrinsic_measurement_count()
-{
-    return window().associated_document().layout_node_arena().intrinsic_measurement_count();
-}
-
 WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count()
 {
     auto& document = window().associated_document();

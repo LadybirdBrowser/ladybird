@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../layout-test.js"></script>
 <div id="fixture"></div>
 <script>
     function createRow(label) {
         const row = document.createElement("tr");
         for (let column = 0; column < 2; ++column) {
             const cell = document.createElement("td");
+            cell.id = `${label}-${column}`;
             cell.textContent = `${label}-${column}`;
             row.appendChild(cell);
         }
@@ -27,18 +29,17 @@
         const bodyIdentity = internals.layoutNodeIdentity(body);
         const firstRowIdentity = internals.layoutNodeIdentity(firstRow);
         const firstCellIdentity = internals.layoutNodeIdentity(firstCell);
-        const intrinsicMeasurementsBefore = internals.intrinsicMeasurementCount();
 
         const insertedRow = createRow("inserted");
-        insert(body, insertedRow);
-        document.body.offsetHeight;
+        const work = layoutWork(() => insert(body, insertedRow));
 
         println(`${internals.layoutNodeIdentity(body) === bodyIdentity ? "PASS" : "FAIL"}: ${name} | preserve row group`);
         println(`${internals.layoutNodeIdentity(firstRow) === firstRowIdentity ? "PASS" : "FAIL"}: ${name} | preserve existing row`);
         println(`${internals.layoutNodeIdentity(firstCell) === firstCellIdentity ? "PASS" : "FAIL"}: ${name} | preserve existing cell`);
         println(`${internals.layoutNodeIdentity(insertedRow) !== 0 ? "PASS" : "FAIL"}: ${name} | create inserted row`);
-        const intrinsicMeasurements = internals.intrinsicMeasurementCount() - intrinsicMeasurementsBefore;
-        println(`${intrinsicMeasurements === 4 ? "PASS" : "FAIL"}: ${name} | intrinsic measurements=${intrinsicMeasurements}`);
+        const measured = work.boxes({ event: "measure", cache: "miss" }).join(", ");
+        const onlyInsertedCellsMeasured = measured === "BlockContainer<TD>#inserted-0, BlockContainer<TD>#inserted-1";
+        println(`${onlyInsertedCellsMeasured ? "PASS" : "FAIL"}: ${name} | measure only the inserted cells${onlyInsertedCellsMeasured ? "" : ` (measured ${measured})`}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
     }
 

@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="include.js"></script>
+<script src="layout-test.js"></script>
 <style>
     #outer {
         display: flex;
@@ -20,11 +21,9 @@
 </template>
 <script>
     test(() => {
-        // Flush the initial layout before inserting the fixture so its measurements are always counted.
-        document.body.offsetWidth;
-        const measurementsBefore = internals.intrinsicMeasurementCount();
-        document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
-        document.getElementById("outer").offsetWidth;
-        println(`intrinsic measurements: ${internals.intrinsicMeasurementCount() - measurementsBefore}`);
+        const work = layoutWork(() => document.body.appendChild(document.getElementById("fixture").content.cloneNode(true)));
+        // Each measurement is of the axis the flex layout uses; none is computed only to be discarded.
+        for (const event of work.events.filter(event => event.event === "measure" && event.cache === "miss"))
+            println(`measured ${event.box} ${event.size}`);
     });
 </script>

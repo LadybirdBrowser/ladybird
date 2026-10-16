@@ -2529,7 +2529,6 @@ impl<'pass> TableFormattingContext<'pass> {
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
             })
             .unwrap_or_else(|| self.measure_cell_content(cell, used, inner, adopt_automatic_content_block_size));
-        self.run.callbacks.arena().note_table_cell_measurement_cache_miss();
         caches.table_cell_measurement_cache_put(
             self.run.callbacks.intrinsic_size_cache_stamp(cell.box_),
             key,

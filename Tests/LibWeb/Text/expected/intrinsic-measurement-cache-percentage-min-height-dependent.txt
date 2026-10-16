@@ -1,2 +1,2 @@
-measured again: true
+measured again: BlockContainer<DIV>#dependent.item
 dependent item height: 50 -> 100

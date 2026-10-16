@@ -1,2 +1,3 @@
-measurement delta: 0
+measured again: nothing
+answered from the cache: BlockContainer<DIV>#alpha.item, BlockContainer<DIV>#gamma.item
 first item height: 26

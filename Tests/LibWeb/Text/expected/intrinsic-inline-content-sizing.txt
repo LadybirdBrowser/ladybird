@@ -116,9 +116,9 @@ changed text width: 160
 changed font width: 320
 decorated replacement width: 170
 nowrap flex item width: 100
-normal, min-content: width 80, measured paragraphs true
-normal, max-content: width 200, measured paragraphs true
-pre-wrap, min-content: width 80, measured paragraphs true
-pre-wrap, max-content: width 200, measured paragraphs true
-break-spaces, min-content: width 80, measured paragraphs true
-break-spaces, max-content: width 200, measured paragraphs true
+normal, min-content: width 80, paragraphs measured from items BlockContainer<P>#first, BlockContainer<P>#second
+normal, max-content: width 200, paragraphs measured from items BlockContainer<P>#first, BlockContainer<P>#second
+pre-wrap, min-content: width 80, paragraphs measured from items BlockContainer<P>#first, BlockContainer<P>#second
+pre-wrap, max-content: width 200, paragraphs measured from items BlockContainer<P>#first, BlockContainer<P>#second
+break-spaces, min-content: width 80, paragraphs measured from items BlockContainer<P>#first, BlockContainer<P>#second
+break-spaces, max-content: width 200, paragraphs measured from items BlockContainer<P>#first, BlockContainer<P>#second

@@ -1,22 +1,20 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
+<script src="layout-test.js"></script>
 <style>
     body { margin: 0; }
     #flex { display: flex; align-items: flex-start; width: 300px; height: 100px; }
     .item { padding: 5px; }
 </style>
-<div id="flex"><div class="item">alpha beta</div><div class="item">gamma</div></div>
+<div id="flex"><div class="item" id="alpha">alpha beta</div><div class="item" id="gamma">gamma</div></div>
 <script>
     test(() => {
-        document.body.offsetHeight;
-        const measurementsBefore = internals.intrinsicMeasurementCount();
-
         // The items' intrinsic sizes were measured with the container's old height as their
         // percentage basis; nothing in them observed it, so the cached measurements still answer.
-        document.getElementById("flex").style.height = "200px";
-        document.body.offsetHeight;
+        const work = layoutWork(() => document.getElementById("flex").style.height = "200px");
 
-        println(`measurement delta: ${internals.intrinsicMeasurementCount() - measurementsBefore}`);
+        println(`measured again: ${work.boxes({ event: "measure", cache: "miss" }).join(", ") || "nothing"}`);
+        println(`answered from the cache: ${work.boxes({ event: "measure", cache: "hit" }).join(", ")}`);
         println(`first item height: ${document.querySelector(".item").getBoundingClientRect().height}`);
     });
 </script>

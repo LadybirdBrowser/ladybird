@@ -1237,9 +1237,6 @@ pub(crate) struct LayoutNodeArena {
     live_count: u32,
     /// The slots whose intrinsic size cache entries the layout stage drops before its next run.
     intrinsic_size_cache_drops: RefCell<Vec<u32>>,
-    table_cell_measurement_cache_misses: Cell<u64>,
-    intrinsic_measurements: Cell<u64>,
-    intrinsic_inline_measurements: Cell<u64>,
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_slots: TextSlots,
@@ -1354,9 +1351,6 @@ impl LayoutNodeArena {
             next_index: 0,
             live_count: 0,
             intrinsic_size_cache_drops: RefCell::new(Vec::new()),
-            table_cell_measurement_cache_misses: Cell::new(0),
-            intrinsic_measurements: Cell::new(0),
-            intrinsic_inline_measurements: Cell::new(0),
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_slots: TextSlots::default(),
@@ -4681,32 +4675,6 @@ impl LayoutNodeArena {
             "layout nodes belong to different trees"
         );
         self.node_pre_order_label(node) < self.node_pre_order_label(other)
-    }
-
-    pub(crate) fn note_table_cell_measurement_cache_miss(&self) {
-        self.table_cell_measurement_cache_misses
-            .set(self.table_cell_measurement_cache_misses.get() + 1);
-    }
-
-    pub(crate) fn table_cell_measurement_cache_miss_count(&self) -> u64 {
-        self.table_cell_measurement_cache_misses.get()
-    }
-
-    pub(crate) fn note_intrinsic_inline_measurement(&self) {
-        self.intrinsic_inline_measurements
-            .set(self.intrinsic_inline_measurements.get() + 1);
-    }
-
-    pub(crate) fn intrinsic_inline_measurement_count(&self) -> u64 {
-        self.intrinsic_inline_measurements.get()
-    }
-
-    pub(crate) fn note_intrinsic_measurement(&self) {
-        self.intrinsic_measurements.set(self.intrinsic_measurements.get() + 1);
-    }
-
-    pub(crate) fn intrinsic_measurement_count(&self) -> u64 {
-        self.intrinsic_measurements.get()
     }
 
     pub(crate) fn saved_abspos_layout_inputs(&self, data: &NodeData) -> Option<AbsposLayoutInputs> {
