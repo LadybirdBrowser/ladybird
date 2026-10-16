@@ -64,12 +64,12 @@ TEST_CASE(wheel_hit_testing_rejects_a_different_visual_context_tree_structural_e
     scroll_tree.rebuild_wheel_hit_test_targets(make_empty_display_list(visual_context_tree), &visual_context_tree, {});
     auto current_result = scroll_tree.hit_test_scroll_node_for_wheel(
         visual_context_tree, { 20, 20 }, { 0, 10 });
-    EXPECT(current_result.blocked_by_main_thread_region);
+    EXPECT_EQ(current_result.outcome, Compositing::WheelHitTestOutcome::BlockedByMainThreadRegion);
 
     auto replacement_tree = make_visual_context_tree();
     auto replacement_result = scroll_tree.hit_test_scroll_node_for_wheel(
         replacement_tree, { 20, 20 }, { 0, 10 });
-    EXPECT(!replacement_result.blocked_by_main_thread_region);
+    EXPECT_EQ(replacement_result.outcome, Compositing::WheelHitTestOutcome::HitTestTargetsOfAnotherVisualContextTree);
 }
 
 TEST_CASE(wheel_hit_testing_ignores_invalid_visual_context_indices)
@@ -86,7 +86,7 @@ TEST_CASE(wheel_hit_testing_ignores_invalid_visual_context_indices)
     scroll_tree.rebuild_wheel_hit_test_targets(make_empty_display_list(visual_context_tree), &visual_context_tree, {});
     auto result = scroll_tree.hit_test_scroll_node_for_wheel(
         visual_context_tree, { 20, 20 }, { 0, 10 });
-    EXPECT(!result.blocked_by_main_thread_region);
+    EXPECT_NE(result.outcome, Compositing::WheelHitTestOutcome::BlockedByMainThreadRegion);
 }
 
 TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_context_indices)
@@ -108,7 +108,7 @@ TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_conte
     scroll_tree.set_state(move(state));
     scroll_tree.rebuild_wheel_hit_test_targets(display_list, &visual_context_tree, {});
     auto result = scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree, { 200, 200 }, { 0, 10 });
-    EXPECT(result.blocked_by_wheel_event_region);
+    EXPECT_EQ(result.outcome, Compositing::WheelHitTestOutcome::BlockedByWheelEventRegion);
     EXPECT(!result.node_id.has_value());
 }
 

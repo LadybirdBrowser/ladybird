@@ -2545,9 +2545,9 @@ Utf16String Internals::async_scrolling_state_wheel_target_at(double x, double y,
         snapshot->visual_context_tree,
         { static_cast<float>(x), static_cast<float>(y) },
         { static_cast<float>(delta_x), static_cast<float>(delta_y) });
-    if (target.blocked_by_main_thread_region)
+    if (target.outcome == Compositing::WheelHitTestOutcome::BlockedByMainThreadRegion)
         return "main-thread"_utf16;
-    if (target.blocked_by_wheel_event_region || !target.node_id.has_value())
+    if (!target.node_id.has_value())
         return "none"_utf16;
     if (scroll_tree.scroll_node_is_viewport(*target.node_id))
         return "viewport"_utf16;

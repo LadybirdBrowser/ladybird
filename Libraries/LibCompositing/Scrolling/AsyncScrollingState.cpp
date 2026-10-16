@@ -259,10 +259,10 @@ WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolli
     if (display_list && visual_context_tree) {
         auto scroll_tree = scroll_tree_for_hit_testing(async_scrolling_state, display_list, visual_context_tree, scroll_state_snapshot);
         hit_test_result = scroll_tree.hit_test_scroll_node_for_wheel(*visual_context_tree, position, delta);
-    } else {
-        hit_test_result.blocked_by_wheel_event_region = async_scrolling_state.has_blocking_wheel_event_listeners;
+    } else if (async_scrolling_state.has_blocking_wheel_event_listeners) {
+        hit_test_result.outcome = WheelHitTestOutcome::BlockedByWheelEventRegion;
     }
-    if (hit_test_result.blocked_by_main_thread_region)
+    if (hit_test_result.outcome == WheelHitTestOutcome::BlockedByMainThreadRegion)
         return WheelScrollAdmission::BlockedByMainThreadRegion;
 
     // Async scrolling may only start when the snapshot can prove that the wheel event cannot be canceled by script
@@ -270,7 +270,7 @@ WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolli
     if (async_scrolling_state.has_blocking_wheel_event_listeners) {
         if (!blocking_wheel_event_regions_are_current)
             return WheelScrollAdmission::StaleBlockingWheelEventRegions;
-        if (hit_test_result.blocked_by_wheel_event_region)
+        if (hit_test_result.outcome == WheelHitTestOutcome::BlockedByWheelEventRegion)
             return WheelScrollAdmission::BlockedByWheelEventRegion;
     }
 
