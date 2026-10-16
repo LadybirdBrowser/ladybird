@@ -284,6 +284,16 @@ ErrorOr<void> CrashReportStore::mark_seen(ByteString const& name) const
     return {};
 }
 
+ErrorOr<void> CrashReportStore::mark_all_seen(UnixDateTime now) const
+{
+    ErrorOr<void> result;
+    for (auto const& name : TRY(pending_report_names(now))) {
+        if (auto marked = mark_seen(name); marked.is_error() && !result.is_error())
+            result = marked.release_error();
+    }
+    return result;
+}
+
 ErrorOr<void> CrashReportStore::remove_sent_report(ByteString const& name) const
 {
     if (!is_saved_report_name(name))
@@ -472,6 +482,7 @@ ErrorOr<CrashReportStore::SavedReport> CrashReportStore::saved_report(ByteString
 ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime) const { return Vector<ByteString> {}; }
 bool CrashReportStore::has_pending_reports(UnixDateTime) const { return false; }
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const&) const { return {}; }
+ErrorOr<void> CrashReportStore::mark_all_seen(UnixDateTime) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_sent_report(ByteString const&) const { return {}; }
 
 ErrorOr<ByteString> CrashReportStore::store_report(ProcessType, StringView, UnixDateTime) const
