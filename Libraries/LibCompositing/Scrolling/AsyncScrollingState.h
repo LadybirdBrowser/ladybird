@@ -172,14 +172,6 @@ enum class WheelRoutingAdmission {
     StaleWheelEventListeners,
 };
 
-enum class WheelScrollAdmission {
-    Accepted,
-    NoScrollableTarget,
-    BlockedByMainThreadRegion,
-    StaleBlockingWheelEventRegions,
-    BlockedByWheelEventRegion,
-};
-
 COMPOSITING_API AsyncScrollingState async_scrolling_state_from_display_list(Compositing::DisplayList const&);
 // The scrolling state as tests read it, from WebContent and from the compositor alike.
 COMPOSITING_API JsonObject async_scrolling_state_to_json(AsyncScrollingState const&);
@@ -187,10 +179,7 @@ COMPOSITING_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrolling
 // The admission of a scrolling state recorded before the newest change to the page's blocking wheel event listeners is
 // stale, as the state may not have the regions that change made.
 COMPOSITING_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&, u64 newest_wheel_event_listener_state_generation);
-COMPOSITING_API Utf16View wheel_routing_admission_to_utf16_view(WheelRoutingAdmission);
 // Why a wheel step that the admission does not let the compositor scroll is left to the main thread.
 COMPOSITING_API Web::InputRoutingDecision input_routing_decision_for_wheel_step_not_admitted_by(WheelRoutingAdmission);
-COMPOSITING_API bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Compositing::DisplayList const> const&, Compositing::AccumulatedVisualContextTree const*, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);
-COMPOSITING_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Compositing::DisplayList const> const&, Compositing::AccumulatedVisualContextTree const*, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
 
 }

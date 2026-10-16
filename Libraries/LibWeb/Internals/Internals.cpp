@@ -2651,120 +2651,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> Internals::image_animation_state_for_ur
     return object;
 }
 
-struct AsyncScrollingStateSnapshot {
-    Compositing::AsyncScrollingState state;
-    RefPtr<Compositing::DisplayList const> display_list;
-    Compositing::AccumulatedVisualContextTree visual_context_tree;
-    GC::Root<DOM::Document> document;
-};
-
-static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::Document& document)
-{
-    Layout::ForcedReadScope read { document };
-    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-    auto navigable = document.navigable();
-    if (!navigable || !document.has_committed_viewport_box())
-        return {};
-    auto display_list = document.record_display_list(read, HTML::PaintConfig {}, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
-    if (!display_list)
-        return {};
-    return AsyncScrollingStateSnapshot {
-        .state = Compositing::async_scrolling_state_from_display_list(*display_list),
-        .display_list = display_list,
-        .visual_context_tree = document.paint_state().visual_context_tree(document),
-        .document = GC::make_root(document),
-    };
-}
-
-Compositing::AsyncScrollingState Internals::async_scrolling_state()
-{
-    auto snapshot = capture_async_scrolling_state(window().associated_document());
-    if (!snapshot.has_value())
-        return {};
-    return move(snapshot->state);
-}
-
-bool Internals::async_scrolling_state_blocks_wheel_event_at(double x, double y)
-{
-    auto snapshot = capture_async_scrolling_state(window().associated_document());
-    if (!snapshot.has_value())
-        return false;
-    return Compositing::blocks_wheel_event_at_position(snapshot->state, snapshot->display_list, &snapshot->visual_context_tree, snapshot->document->scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
-}
-
-Utf16String Internals::async_scrolling_state_wheel_routing_admission()
-{
-    auto snapshot = capture_async_scrolling_state(window().associated_document());
-    auto admission = snapshot.has_value() ? Compositing::wheel_routing_admission_for(snapshot->state) : Compositing::WheelRoutingAdmission::NoAsyncScrollingState;
-    return Utf16String::from_utf16(Compositing::wheel_routing_admission_to_utf16_view(admission));
-}
-
-static Compositing::WheelScrollAdmission wheel_scroll_admission_at(DOM::Document& document, double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
-{
-    auto snapshot = capture_async_scrolling_state(document);
-    if (!snapshot.has_value())
-        return Compositing::WheelScrollAdmission::NoScrollableTarget;
-    return Compositing::admit_wheel_scroll(
-        snapshot->state,
-        snapshot->display_list,
-        &snapshot->visual_context_tree,
-        snapshot->document->scroll_state_snapshot(),
-        { static_cast<float>(x), static_cast<float>(y) },
-        { static_cast<float>(delta_x), static_cast<float>(delta_y) },
-        snapshot->state.has_blocking_wheel_event_listeners && !force_stale_wheel_event_regions);
-}
-
-bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
-{
-    return wheel_scroll_admission_at(window().associated_document(), x, y, delta_x, delta_y, force_stale_wheel_event_regions) == Compositing::WheelScrollAdmission::Accepted;
-}
-
-static Utf16String wheel_scroll_admission_to_string(Compositing::WheelScrollAdmission admission)
-{
-    switch (admission) {
-    case Compositing::WheelScrollAdmission::Accepted:
-        return "accepted"_utf16;
-    case Compositing::WheelScrollAdmission::NoScrollableTarget:
-        return "no-scrollable-target"_utf16;
-    case Compositing::WheelScrollAdmission::BlockedByMainThreadRegion:
-        return "blocked-by-main-thread-region"_utf16;
-    case Compositing::WheelScrollAdmission::StaleBlockingWheelEventRegions:
-        return "stale-blocking-wheel-event-regions"_utf16;
-    case Compositing::WheelScrollAdmission::BlockedByWheelEventRegion:
-        return "blocked-by-wheel-event-region"_utf16;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Utf16String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
-{
-    auto admission = wheel_scroll_admission_at(window().associated_document(), x, y, delta_x, delta_y, force_stale_wheel_event_regions);
-    return wheel_scroll_admission_to_string(admission);
-}
-
-Utf16String Internals::async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y)
-{
-    auto snapshot = capture_async_scrolling_state(window().associated_document());
-    if (!snapshot.has_value())
-        return "none"_utf16;
-
-    Compositing::AsyncScrollTree scroll_tree;
-    scroll_tree.set_state(move(snapshot->state));
-    scroll_tree.rebuild_wheel_hit_test_targets(snapshot->display_list, &snapshot->visual_context_tree, snapshot->document->scroll_state_snapshot());
-
-    auto target = scroll_tree.hit_test_scroll_node_for_wheel(
-        snapshot->visual_context_tree,
-        { static_cast<float>(x), static_cast<float>(y) },
-        { static_cast<float>(delta_x), static_cast<float>(delta_y) });
-    if (target.outcome == Compositing::WheelHitTestOutcome::BlockedByMainThreadRegion)
-        return "main-thread"_utf16;
-    if (!target.node_id.has_value())
-        return "none"_utf16;
-    if (scroll_tree.scroll_node_is_viewport(*target.node_id))
-        return "viewport"_utf16;
-    return "non-viewport"_utf16;
-}
-
 String Internals::viewport_overflow_x()
 {
     auto& document = window().associated_document();
@@ -3020,11 +2906,6 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(document.layout_node_arena().host(), false)), JS::default_attributes);
     object->define_direct_property("overflowContainedBoxIndexRefills"_utf16_fly_string, JS::Value(Layout::RustFFI::render_state_overflow_contained_box_index_refill_count(document.layout_node_arena().host(), false)), JS::default_attributes);
     return object;
-}
-
-GC::Ref<JS::Object> Internals::async_scrolling_state_object()
-{
-    return scrolling_state_report_to_object(window(), Compositing::async_scrolling_state_to_json(async_scrolling_state()));
 }
 
 GC::Ref<JS::Object> Internals::recorded_async_scrolling_state_object()

@@ -100,19 +100,16 @@ TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_conte
     });
 
     auto display_list = make_empty_display_list(visual_context_tree);
-    EXPECT(Compositing::blocks_wheel_event_at_position(state, display_list, &visual_context_tree, {}, { 200, 200 }));
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, true),
-        Compositing::WheelScrollAdmission::BlockedByWheelEventRegion);
-
     Compositing::AsyncScrollTree scroll_tree;
     scroll_tree.set_state(move(state));
     scroll_tree.rebuild_wheel_hit_test_targets(display_list, &visual_context_tree, {});
+    EXPECT(scroll_tree.blocks_wheel_event_at_position(visual_context_tree, { 200, 200 }));
     auto result = scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree, { 200, 200 }, { 0, 10 });
     EXPECT_EQ(result.outcome, Compositing::WheelHitTestOutcome::BlockedByWheelEventRegion);
     EXPECT(!result.node_id.has_value());
 }
 
-TEST_CASE(wheel_scroll_admission_preserves_main_thread_region_and_viewport_blocker_precedence)
+TEST_CASE(first_wheel_step_route_puts_main_thread_region_before_blocking_region_and_viewport_blocker_before_both)
 {
     auto visual_context_tree = make_visual_context_tree();
     auto display_list = make_empty_display_list(visual_context_tree);
@@ -126,16 +123,18 @@ TEST_CASE(wheel_scroll_admission_preserves_main_thread_region_and_viewport_block
         .context = { Compositing::VISUAL_VIEWPORT_NODE_INDEX },
         .rect = { 0, 0, 100, 100 },
     });
+    auto route_first_wheel_step_at = [&](Compositing::AsyncScrollingState state) {
+        Compositing::AsyncScrollTree scroll_tree;
+        scroll_tree.set_state(move(state));
+        scroll_tree.rebuild_wheel_hit_test_targets(display_list, &visual_context_tree, {});
+        EXPECT(scroll_tree.blocks_wheel_event_at_position(visual_context_tree, { 20, 20 }));
+        return scroll_tree.route_first_wheel_step(Compositing::WheelRoutingAdmission::Accepted, visual_context_tree, { 20, 20 }, { 0, 10 }).decision;
+    };
 
-    EXPECT(Compositing::blocks_wheel_event_at_position(state, display_list, &visual_context_tree, {}, { 20, 20 }));
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 20, 20 }, { 0, 10 }, true),
-        Compositing::WheelScrollAdmission::BlockedByMainThreadRegion);
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 20, 20 }, { 0, 10 }, false),
-        Compositing::WheelScrollAdmission::BlockedByMainThreadRegion);
+    EXPECT_EQ(route_first_wheel_step_at(state), Web::InputRoutingDecision::BlockedByMainThreadRegion);
 
     state.has_blocking_wheel_event_region_covering_viewport = true;
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 20, 20 }, { 0, 10 }, true),
-        Compositing::WheelScrollAdmission::BlockedByWheelEventRegion);
+    EXPECT_EQ(route_first_wheel_step_at(state), Web::InputRoutingDecision::BlockedByWheelEventRegion);
 }
 
 TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
