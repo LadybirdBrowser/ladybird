@@ -332,7 +332,7 @@ impl DocumentHost {
         let seed = self.seed.take();
         let made = seed.is_none();
         self.seed.set(seed);
-        made && (cfg!(test) || !crate::stage_thread::style_layout_thread().is_current())
+        made && (cfg!(test) || !owner::is_held_here())
     }
 
     /// Notes that the document's render state is written, which leaves the paint and hit testing properties prepared

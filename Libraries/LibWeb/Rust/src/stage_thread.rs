@@ -31,27 +31,27 @@ use std::thread::Thread;
 // host's thread and a stage thread. Tell it explicitly, or every access a stage thread makes to what the host wrote
 // would be reported as a race.
 #[cfg(feature = "thread-sanitizer")]
-mod tsan {
+pub(crate) mod tsan {
     unsafe extern "C" {
         fn __tsan_acquire(address: *mut std::ffi::c_void);
         fn __tsan_release(address: *mut std::ffi::c_void);
     }
 
-    pub(super) fn release(key: &std::sync::atomic::AtomicBool) {
+    pub(crate) fn release(key: &std::sync::atomic::AtomicBool) {
         // SAFETY: The TSan runtime only uses the address as a synchronization key.
         unsafe { __tsan_release(std::ptr::from_ref(key).cast_mut().cast()) }
     }
 
-    pub(super) fn acquire(key: &std::sync::atomic::AtomicBool) {
+    pub(crate) fn acquire(key: &std::sync::atomic::AtomicBool) {
         // SAFETY: The TSan runtime only uses the address as a synchronization key.
         unsafe { __tsan_acquire(std::ptr::from_ref(key).cast_mut().cast()) }
     }
 }
 
 #[cfg(not(feature = "thread-sanitizer"))]
-mod tsan {
-    pub(super) fn release(_: &std::sync::atomic::AtomicBool) {}
-    pub(super) fn acquire(_: &std::sync::atomic::AtomicBool) {}
+pub(crate) mod tsan {
+    pub(crate) fn release(_: &std::sync::atomic::AtomicBool) {}
+    pub(crate) fn acquire(_: &std::sync::atomic::AtomicBool) {}
 }
 
 /// A thread that runs the jobs other threads hand it, one at a time: each while the thread that handed it waits, or

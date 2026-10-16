@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The render owner: the StyleLayout thread holds each document's render state.
+//! The render owner: whichever thread holds the slot every document's render state lives in.
 //!
-//! The states live in a map that is local to the thread, so no other thread can name one: the host names its
-//! document's state by the [`DocumentId`] it minted, and reaches it only with a job it hands the thread. The thread
-//! makes a state the first time a job reaches it, from what the host's [`StateSeed`] says, so a document that never
-//! sends its state anything never makes one, and drops it with the job that retires it.
+//! The StyleLayout thread holds the slot for the jobs it runs. A thread holds the slot only for the length of a job,
+//! never between them, so no thread waits for another to run script. The host names its document's state by the
+//! [`DocumentId`] it minted, and reaches it only with a job. The owner makes a state the first time a job reaches it,
+//! from what the host's [`StateSeed`] says, so a document that never sends its state anything never makes one, and
+//! drops it with the job that retires it.
 
 use super::RenderState;
 use std::cell::{Cell, RefCell, UnsafeCell};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::{LazyLock, Mutex, MutexGuard, PoisonError};
 
 /// The host's name for its document's render state, which it mints without asking the owner.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -55,10 +57,72 @@ impl SharedWithHost {
     }
 }
 
+/// The slot every document's render state lives in, which one thread holds at a time.
+struct Slot {
+    held: Mutex<()>,
+    /// Each document's render state and clock lanes, which only the thread that holds the slot reaches. An entry is
+    /// boxed, so a job reaching it keeps reaching it while the job makes another document's state.
+    states: RefCell<HashMap<DocumentId, Box<DocumentEntry>>>,
+    /// What names the slot to ThreadSanitizer, which sees the ordering holding it gives only through it.
+    tsan_key: AtomicBool,
+}
+
+// SAFETY: Only the thread that holds the slot reaches its states, which may cross threads, and holding it orders what
+// one holder wrote before what the next one reads.
+unsafe impl Sync for Slot {}
+
+// What the slot holds moves from one thread to another with it, which the compiler checks here.
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<RenderState>();
+    assert_send::<super::clock::LaneSlot>();
+};
+
+static SLOT: LazyLock<Slot> = LazyLock::new(|| Slot {
+    held: Mutex::new(()),
+    states: RefCell::new(HashMap::new()),
+    tsan_key: AtomicBool::new(false),
+});
+
 thread_local! {
-    // On the owner, each document's render state and clock lanes. An entry is boxed, so a job reaching it keeps reaching
-    // it while the job makes another document's state.
-    static STATES: RefCell<HashMap<DocumentId, Box<DocumentEntry>>> = RefCell::new(HashMap::new());
+    /// How many holds of the slot the calling thread is in, which a host callback of a job takes again.
+    static HOLDS: Cell<u32> = const { Cell::new(0) };
+}
+
+/// Whether the calling thread holds the slot: it runs a job on the render states, or a host callback of one.
+pub(super) fn is_held_here() -> bool {
+    HOLDS.get() > 0
+}
+
+/// Runs `job` holding the slot, which the calling thread takes first where it does not hold it yet, waiting for
+/// whichever thread holds it to let go.
+pub(super) fn hold<R>(job: impl FnOnce() -> R) -> R {
+    struct Holding(Option<MutexGuard<'static, ()>>);
+    impl Drop for Holding {
+        fn drop(&mut self) {
+            HOLDS.set(HOLDS.get() - 1);
+            if self.0.is_some() {
+                crate::stage_thread::tsan::release(&SLOT.tsan_key);
+            }
+        }
+    }
+    let taken = (!is_held_here()).then(|| {
+        let guard = SLOT.held.lock().unwrap_or_else(PoisonError::into_inner);
+        crate::stage_thread::tsan::acquire(&SLOT.tsan_key);
+        guard
+    });
+    HOLDS.set(HOLDS.get() + 1);
+    let _holding = Holding(taken);
+    job()
+}
+
+/// Runs `job` on the render states, holding the slot, without keeping them borrowed past it.
+fn with_states<R>(job: impl FnOnce(&mut HashMap<DocumentId, Box<DocumentEntry>>) -> R) -> R {
+    debug_assert!(
+        is_held_here(),
+        "only the thread that holds the slot reaches the render states"
+    );
+    job(&mut SLOT.states.borrow_mut())
 }
 
 /// What the owner holds of a document.
@@ -78,22 +142,24 @@ pub(super) fn with_state<R>(
     seed: Option<StateSeed>,
     job: impl FnOnce(&mut RenderState) -> R,
 ) -> R {
-    let state = STATES.with_borrow_mut(|states| {
-        let entry = match seed {
-            Some(seed) => states.entry(document).or_insert_with(|| {
-                Box::new(DocumentEntry {
-                    state: UnsafeCell::new(RenderState::new(seed)),
-                    lanes: Cell::default(),
-                })
-            }),
-            None => states
-                .get_mut(&document)
-                .expect("a document's first job makes its render state"),
-        };
-        entry.state.get()
-    });
-    // SAFETY: The state stays boxed in the map until a job retires it, which no job of the document runs inside of.
-    job(unsafe { &mut *state })
+    hold(|| {
+        let state = with_states(|states| {
+            let entry = match seed {
+                Some(seed) => states.entry(document).or_insert_with(|| {
+                    Box::new(DocumentEntry {
+                        state: UnsafeCell::new(RenderState::new(seed)),
+                        lanes: Cell::default(),
+                    })
+                }),
+                None => states
+                    .get_mut(&document)
+                    .expect("a document's first job makes its render state"),
+            };
+            entry.state.get()
+        });
+        // SAFETY: The state stays boxed in the map until a job retires it, which no job of the document runs inside of.
+        job(unsafe { &mut *state })
+    })
 }
 
 /// On the owner: runs `job` on the lanes of `document`, where a job made its render state. A job on them that reaches
@@ -102,20 +168,24 @@ pub(super) fn with_lanes<R>(
     document: DocumentId,
     job: impl FnOnce(&mut Option<super::clock::LaneSlot>) -> R,
 ) -> Option<R> {
-    let lanes = STATES.with_borrow(|states| states.get(&document).map(|entry| std::ptr::from_ref(&entry.lanes)))?;
-    // SAFETY: The entry stays boxed in the map until a job retires it, which no job of the document runs inside of.
-    let lanes = unsafe { &*lanes };
-    let mut taken = lanes.take();
-    let answer = job(&mut taken);
-    lanes.set(taken);
-    Some(answer)
+    hold(|| {
+        let lanes = with_states(|states| states.get(&document).map(|entry| std::ptr::from_ref(&entry.lanes)))?;
+        // SAFETY: The entry stays boxed in the map until a job retires it, which no job of the document runs inside of.
+        let lanes = unsafe { &*lanes };
+        let mut taken = lanes.take();
+        let answer = job(&mut taken);
+        lanes.set(taken);
+        Some(answer)
+    })
 }
 
 /// On the owner: drops the render state of `document`, where a job made one, and its lanes.
 pub(super) fn retire(document: DocumentId) {
-    if let Some(entry) = STATES.with_borrow_mut(|states| states.remove(&document)) {
-        let DocumentEntry { state, lanes } = *entry;
-        drop(lanes);
-        state.into_inner().retire();
-    }
+    hold(|| {
+        if let Some(entry) = with_states(|states| states.remove(&document)) {
+            let DocumentEntry { state, lanes } = *entry;
+            drop(lanes);
+            state.into_inner().retire();
+        }
+    });
 }
