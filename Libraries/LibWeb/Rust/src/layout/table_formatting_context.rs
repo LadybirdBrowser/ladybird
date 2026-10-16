@@ -2494,9 +2494,12 @@ impl<'pass> TableFormattingContext<'pass> {
         };
         let caches = self.run.callbacks.intrinsic_size_caches();
         let stamp = self.run.callbacks.intrinsic_size_cache_stamp(cell.box_);
+        let layout_trace = &self.run.callbacks.arena().layout_trace;
         if let Some(cached) = caches.table_cell_measurement_cache_get(stamp, key) {
+            layout_trace.table_cell_measurement_hit(cell.box_);
             return Some(cached);
         }
+        let _trace = layout_trace.table_cell_measurement_miss(cell.box_);
 
         let measured = run
             .filter(|_| {
