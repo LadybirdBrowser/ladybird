@@ -1075,8 +1075,10 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
 {
     if (!m_hosted_state.has_value())
         return;
-    if (m_container_document)
+    if (m_container_document) {
         state.document_active_sandboxing_flag_set = m_container_document->active_sandboxing_flag_set();
+        state.document_embedder_policy = m_container_document->embedder_policy();
+    }
     m_hosted_state->container = state;
     if (has_remote_host())
         remote_host().async_update_local_root_container_state(id(), move(state));

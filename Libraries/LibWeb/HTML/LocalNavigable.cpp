@@ -41,6 +41,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/SpellCheckController.h>
+#include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -2347,11 +2348,31 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             }
         }
 
-        // 13. FIXME: If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
-        //    with navigable's container document's origin, navigable's container document's relevant settings object, request's destination, response,
-        //    and true is blocked, then set response to a network error and break.
-        // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself
+        // 13. If all of the following are true:
+        //     - response is not a network error;
+        //     - navigable is a child navigable;
+        //     - response's URL's scheme is an HTTP(S) scheme; and
+        //     - the result of performing a cross-origin resource policy check with navigable's container document's origin, navigable's container
+        //       document's relevant settings object, request's destination, response, and true is blocked,
+        //     then set response to a network error and break.
+        // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself.
         //       This is because we care about the same-originness of the embedded content against the parent context, not the navigation source.
+        //       We only run it for HTTP(S) scheme responses, as in Fetch; other responses are still subject to checking a navigation response's
+        //       adherence to its embedder policy.
+        // NB: The container document is the parent navigable's active document, which can be hosted in another process.
+        if (!state_holder->response->is_network_error() && Fetch::Infrastructure::is_http_or_https_scheme(state_holder->response->url()->scheme())) {
+            if (auto parent = state_holder->navigable->parent()) {
+                auto container_document_origin = parent->active_document_origin();
+                if (container_document_origin.has_value()
+                    && Fetch::Fetching::cross_origin_resource_policy_check(*container_document_origin, state_holder->navigable->container_document_embedder_policy(), *state_holder->response, Fetch::Fetching::ForNavigation::Yes) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked) {
+                    // AD-HOC: Stop the fetch, as nothing will consume the response this replaces.
+                    state_holder->fetch_controller->stop_fetch();
+                    state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Blocked by Cross-Origin-Resource-Policy"_string);
+                    fetch_completion_steps->function()();
+                    return;
+                }
+            }
+        }
 
         // 14. Set locationURL to response's location URL given currentURL's fragment.
         auto location_url_without_an_inherited_fragment = state_holder->response->location_url({});
