@@ -322,20 +322,19 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         //         CanonicalBrowsingContext::SessionHistoryCommit, WebKit HistoryController::updateForStandardLoad,
         //         Blink NavigationControllerImpl::RendererDidNavigateToNewEntry.
         // NB: navigable's own sync navigations wait from step 8 on. So, none of them can change the entry after this.
-        auto* target_entry = m_session_history.get_the_target_history_entry(navigable, m_target_step);
-        RefPtr<CanonicalSessionHistoryEntry> updated_target_entry;
-        if (NonnullRefPtr claimed_target_entry = changing_navigable_continuation.target_entry; target_entry) {
+        if (auto* target_entry = m_session_history.get_the_target_history_entry(navigable, m_target_step)) {
+            NonnullRefPtr claimed_target_entry = changing_navigable_continuation.target_entry;
             auto is_in_claimed_slot = target_entry->document_state == claimed_target_entry->document_state
                 && target_entry->navigation_api_key == claimed_target_entry->navigation_api_key;
             if (is_in_claimed_slot) {
-                if (target_entry->navigation_api_id != claimed_target_entry->navigation_api_id)
-                    updated_target_entry = target_entry;
+                // NB: The job follows a replacement, so that the entry recorded as the navigable's active one is the
+                //     entry as the session history has it.
+                changing_navigable_continuation.target_entry = *target_entry;
             } else if (m_navigation_type == Web::Bindings::NavigationType::Traverse) {
                 return_result(Web::HTML::HistoryStepResult::Applied);
                 return;
             } else if (m_navigation_type == Web::Bindings::NavigationType::Push) {
                 append_the_claimed_target_entry_again(navigable, *claimed_target_entry);
-                updated_target_entry = move(claimed_target_entry);
             }
         }
 
@@ -354,12 +353,6 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
             end_changing_navigable_job(changing_navigable_continuation);
             continue;
         }
-
-        // If a sync navigation that jumped the queue changed the job's target entry while the job was paused, then the
-        // job follows, so that the entry recorded as the navigable's active one is the entry as the session history has
-        // it.
-        if (updated_target_entry)
-            changing_navigable_continuation.target_entry = updated_target_entry.release_nonnull();
 
         m_continuation_being_applied = &changing_navigable_continuation;
         changing_navigable_continuation.continuation = ChangingNavigable::Continuation {
