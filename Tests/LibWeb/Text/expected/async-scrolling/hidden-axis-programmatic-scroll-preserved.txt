@@ -1,5 +1,7 @@
 initial scrollLeft: 50
-vertical wheel target: non-viewport
-horizontal wheel target: none
+vertical wheel target: latched scroller=#scroller
+horizontal wheel target: no-scroll-target
+#1 compositor: latched scroller=#scroller
+#1 compositor: forwarded-to-page
 final scrollLeft: 50
 final scrollTop: 100

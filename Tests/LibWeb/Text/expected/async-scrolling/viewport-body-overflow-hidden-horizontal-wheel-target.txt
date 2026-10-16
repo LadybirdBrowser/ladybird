@@ -1,4 +1,6 @@
 document scroll width: 813
-horizontal wheel target: none
-vertical wheel target: viewport
+horizontal wheel target: no-scroll-target
+vertical wheel target: latched scroller=viewport
+#1 compositor: no-scroll-target
+#1 compositor: forwarded-to-page
 scroll x after horizontal wheel: 0

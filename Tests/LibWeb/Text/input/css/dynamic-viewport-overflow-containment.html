@@ -15,22 +15,30 @@
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
-        println(`Initial wheel target: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
-
+        const frames = async () => {
+            await animationFrame();
+            await animationFrame();
+        };
+        const wheel = async (x, y, deltaX, deltaY) => {
+            internals.beginInputTrace();
+            await internals.wheelThroughUIProcess(x, y, deltaX, deltaY, true);
+            printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
+        };
+        await frames();
+        println(`Initial wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(400, 0, 100, 0))}`);
         document.body.style.cssText = "contain: layout; overflow-x: visible";
-        println(`Wheel target after body containment: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
-
-        await internals.wheel(400, 0, 100, 0, true);
+        await frames();
+        println(`Wheel target after body containment: ${wheelTargetToString(internals.compositorWheelTargetAt(400, 0, 100, 0))}`);
+        await wheel(400, 0, 100, 0);
         println(`Scroll offset after wheel: ${window.scrollX}`);
-
         window.scrollTo(0, 0);
         document.body.style.cssText = "overflow-x: visible";
         document.documentElement.style.cssText = "contain: layout; overflow-x: hidden";
-        println(`Wheel target after root containment: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
-
-        await internals.wheel(400, 0, 100, 0, true);
+        await frames();
+        println(`Wheel target after root containment: ${wheelTargetToString(internals.compositorWheelTargetAt(400, 0, 100, 0))}`);
+        // A step more than 10 pixels away from the last one starts a gesture of its own.
+        await wheel(400, 20, 100, 0);
         println(`Scroll offset after hidden wheel: ${window.scrollX}`);
-
         window.scrollTo(1, 0);
         println(`Scroll offset after scrollTo: ${window.scrollX}`);
     });

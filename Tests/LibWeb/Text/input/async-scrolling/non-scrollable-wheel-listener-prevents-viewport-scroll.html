@@ -58,11 +58,13 @@
         await animationFrame();
         await animationFrame();
 
-        println(`wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
-        println(`wheel scroll admission over map: ${internals.asyncScrollingStateWheelScrollAdmissionAt(200, 200, 0, 100)}`);
+        println(`wheel routing admission: ${internals.compositorScrollState().wheelRoutingAdmission}`);
+        println(`wheel target over map: ${wheelTargetToString(internals.compositorWheelTargetAt(200, 200, 0, 100))}`);
         println(`window scrollY before wheel: ${window.scrollY}`);
 
-        await internals.wheel(200, 200, 0, 100);
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(200, 200, 0, 100);
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
 
         println(`wheel event count: ${wheelEventCount}`);
         println(`wheel event cancelable: ${wheelEventWasCancelable}`);

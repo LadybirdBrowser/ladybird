@@ -1,7 +1,8 @@
 wheel routing admission: accepted
-wheel scroll admission: accepted
-downward wheel target before wheel: non-viewport
+downward wheel target before wheel: latched scroller=#host::before
+#1 compositor: latched scroller=#host::before
+#1 compositor: forwarded-to-page
 scroll event count: 1
 host scrollTop: 0
 window scrollY: 0
-upward wheel target after wheel: non-viewport
+upward wheel target after wheel: latched scroller=#host::before

@@ -1,5 +1,7 @@
-uncovered scroller wheel target: non-viewport
-covered scroller wheel target: viewport
-covered scroller with pointer-events none wheel target: non-viewport
+uncovered scroller wheel target: latched scroller=#scroller
+covered scroller wheel target: latched scroller=viewport
+covered scroller with pointer-events none wheel target: latched scroller=#scroller
+#1 compositor: latched scroller=viewport
+#1 compositor: forwarded-to-page
 scroller scrollTop after covered wheel: 0
 window scrollY after covered wheel: 100
