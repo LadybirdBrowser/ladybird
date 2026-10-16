@@ -2255,10 +2255,6 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
         // 5.3. Set targetEntry's step to targetStep.
         // 5.4. Append targetEntry to targetEntries.
         target_step = m_session_history.push_session_history_entry(*target_navigable, *target_entry);
-        if (!target_step.has_value()) {
-            finish_history_operation(operation.operation_id);
-            return;
-        }
     }
     // Otherwise:
     else {
@@ -2468,10 +2464,6 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         // 3. Set historyEntry's step to targetStep.
         // 4. Append historyEntry to targetEntries.
         target_step = m_session_history.push_session_history_entry(*navigable, move(history_entry));
-        if (!target_step.has_value()) {
-            finish_history_operation(operation.operation_id);
-            return;
-        }
     }
     // Otherwise:
     else {

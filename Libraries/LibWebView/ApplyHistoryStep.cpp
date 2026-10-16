@@ -334,13 +334,8 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
                 return_result(Web::HTML::HistoryStepResult::Applied);
                 return;
             } else if (m_navigation_type == Web::Bindings::NavigationType::Push) {
-                target_entry = append_the_claimed_target_entry_again(navigable, *claimed_target_entry);
-                if (!target_entry) {
-                    // NB: The push left the navigable no entries to append to, so its continuation cannot be applied.
-                    end_changing_navigable_job(changing_navigable_continuation);
-                    continue;
-                }
-                updated_target_entry = target_entry;
+                append_the_claimed_target_entry_again(navigable, *claimed_target_entry);
+                updated_target_entry = move(claimed_target_entry);
             }
         }
 
@@ -354,7 +349,7 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API
         //    given navigable and targetStep.
         auto entries_for_navigation_api = m_session_history.get_session_history_entries_for_the_navigation_api(navigable, m_target_step);
-        if (!history_object_length_and_index.has_value() || !entries_for_navigation_api.has_value()) {
+        if (!entries_for_navigation_api.has_value()) {
             // AD-HOC: The canonical mirror is reconciling the navigable, so its continuation cannot be applied.
             end_changing_navigable_job(changing_navigable_continuation);
             continue;
@@ -368,7 +363,7 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
 
         m_continuation_being_applied = &changing_navigable_continuation;
         changing_navigable_continuation.continuation = ChangingNavigable::Continuation {
-            .history_object_length_and_index = *history_object_length_and_index,
+            .history_object_length_and_index = history_object_length_and_index,
             .entries_for_navigation_api = entries_for_navigation_api.release_value(),
         };
         m_traversable.apply_changing_navigable_history_step_continuation(*this, changing_navigable_continuation);
@@ -381,24 +376,21 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
 // A pushState that jumped the queue cleared the entry a navigation appended, as forward history, and took its step. So,
 // we re-run the appending steps of finalizing a cross-doc navigation, against the session history as the push left it.
-CanonicalSessionHistoryEntry* ApplyHistoryStep::append_the_claimed_target_entry_again(CanonicalNavigable& navigable, CanonicalSessionHistoryEntry& claimed_target_entry)
+void ApplyHistoryStep::append_the_claimed_target_entry_again(CanonicalNavigable& navigable, CanonicalSessionHistoryEntry& claimed_target_entry)
 {
     // 9.1. Clear the forward session history of traversable.
     // 9.2. Set targetStep to traversable's current session history step + 1.
     // 9.3. Set historyEntry's step to targetStep.
     // 9.4. Append historyEntry to targetEntries.
     auto target_step = m_session_history.push_session_history_entry(navigable, claimed_target_entry);
-    if (!target_step.has_value())
-        return nullptr;
 
     // NB: The run now targets a step past the push-committed one. So it's the newest run again and may commit its step.
-    m_step = *target_step;
-    m_target_step = *target_step;
+    m_step = target_step;
+    m_target_step = target_step;
     m_generation = ++m_traversable_state.generation_counter;
 
     // The push also took the navigable's current session history entry over.
     navigable.set_current_session_history_entry(claimed_target_entry);
-    return &claimed_target_entry;
 }
 
 void ApplyHistoryStep::update_nonchanging_navigables()
@@ -409,15 +401,11 @@ void ApplyHistoryStep::update_nonchanging_navigables()
     // 17. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index
     //     given traversable and targetStep.
     auto history_object_length_and_index = m_session_history.get_the_history_object_length_and_index(m_target_step);
-    if (!history_object_length_and_index.has_value()) {
-        set_current_session_history_step();
-        return;
-    }
 
     // 18. For each navigable of nonchangingNavigablesThatStillNeedUpdates, queue a global task on the navigation and
     //     traversal task source given navigable's active window to run the steps:
     for (auto navigable_id : m_nonchanging_navigables_that_still_need_updates) {
-        if (!m_traversable.update_nonchanging_navigable_history_step_state(*this, navigable_id, *history_object_length_and_index))
+        if (!m_traversable.update_nonchanging_navigable_history_step_state(*this, navigable_id, history_object_length_and_index))
             m_completed_nonchanging_jobs++;
     }
 
