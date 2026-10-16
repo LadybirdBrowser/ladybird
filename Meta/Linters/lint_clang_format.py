@@ -20,7 +20,7 @@ from Utils.host_platform import HostSystem
 from Utils.host_platform import Platform
 from Utils.utils import run_command
 
-CLANG_FORMAT_MAJOR_VERSION = 21
+CLANG_FORMAT_MAJOR_VERSION = 22
 CLANG_FORMAT_EXECUTABLE = "clang-format"
 
 

@@ -108,7 +108,7 @@ runs:
             ccache \
             coreutils \
             libtool \
-            llvm@21 \
+            llvm@22 \
             nasm \
             ninja \
             pkg-config \

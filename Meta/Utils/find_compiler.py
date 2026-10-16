@@ -132,6 +132,8 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str, clang_only: bool =
         gcc_candidates = [
             "gcc",
             "gcc-14",
+            "gcc-15",
+            "gcc-16",
         ]
 
         if platform.host_system == HostSystem.BSD:
