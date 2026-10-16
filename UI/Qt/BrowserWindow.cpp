@@ -1607,6 +1607,8 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ width(), height() });
     });
+
+    report_session_window_geometry();
 }
 
 void BrowserWindow::changeEvent(QEvent* event)
@@ -1619,6 +1621,7 @@ void BrowserWindow::changeEvent(QEvent* event)
         update_menu_bar_window_control_icons();
         m_tabs_container->update_window_button_icons();
         update_window_border();
+        report_session_window_geometry();
 
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
         bool was_fullscreen = stateChangeEvent->oldState() & Qt::WindowFullScreen;
@@ -1685,6 +1688,8 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_position({ x(), y() });
     });
+
+    report_session_window_geometry();
 }
 
 void BrowserWindow::wheelEvent(QWheelEvent* event)
@@ -1794,6 +1799,28 @@ void BrowserWindow::report_activation_to_session_store()
 {
     if (m_session_window_id.has_value())
         m_session->session_store->window_activated(*m_session_window_id);
+}
+
+void BrowserWindow::report_session_window_geometry()
+{
+    if (!m_session_window_id.has_value())
+        return;
+
+    // Entering full screen clears the maximized state, and the window then fills the screen — so the last report from
+    // before it, with its normal rect and maximized flag, stands as the window's saved geometry.
+    if (isFullScreen())
+        return;
+
+    // A maximized window keeps the geometry it had before, for when it's restored.
+    auto rect = isMaximized() ? normalGeometry() : geometry();
+    WebView::SessionWindowGeometry window_geometry {
+        .x = rect.x(),
+        .y = rect.y(),
+        .width = rect.width(),
+        .height = rect.height(),
+        .maximized = isMaximized(),
+    };
+    m_session->session_store->window_geometry_changed(*m_session_window_id, window_geometry);
 }
 
 void BrowserWindow::begin_window_close_preflight(Function<void(bool approved)> on_complete)

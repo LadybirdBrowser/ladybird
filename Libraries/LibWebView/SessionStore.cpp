@@ -25,6 +25,7 @@ static constexpr u32 SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION = 4u;
 static constexpr u32 SESSIONS_SCHEMA_PINNED_TABS_VERSION = 5u;
 static constexpr u32 SESSIONS_SCHEMA_SESSION_LIFECYCLE_VERSION = 6u;
 static constexpr u32 SESSIONS_SCHEMA_LAUNCH_RESTORE_VERSION = 7u;
+static constexpr u32 SESSIONS_SCHEMA_WINDOW_GEOMETRY_VERSION = 8u;
 
 // After this many unclean exits in a row, launch restore stops, so a session that crashes the browser doesn't restore
 // into the same crash every time.
@@ -45,6 +46,24 @@ static Optional<size_t> index_as_size(i64 index)
     if (index < 0 || !AK::is_within_range<size_t>(index))
         return {};
     return static_cast<size_t>(index);
+}
+
+// A row whose geometry is missing, or isn't a usable size, has none.
+static ErrorOr<Optional<SessionWindowGeometry>> read_window_geometry(Database::ResultRow& row)
+{
+    auto x = TRY(row.read_optional_integer<i32>("x"sv));
+    auto y = TRY(row.read_optional_integer<i32>("y"sv));
+    auto width = TRY(row.read_optional_integer<i32>("width"sv));
+    auto height = TRY(row.read_optional_integer<i32>("height"sv));
+    if (!x.has_value() || !y.has_value() || !width.has_value() || !height.has_value() || *width <= 0 || *height <= 0)
+        return Optional<SessionWindowGeometry> {};
+    return Optional<SessionWindowGeometry> { SessionWindowGeometry {
+        .x = *x,
+        .y = *y,
+        .width = *width,
+        .height = *height,
+        .maximized = TRY(row.read_integer<i64>("maximized"sv)) != 0,
+    } };
 }
 
 ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_schema(Database::Database& database, Database::MigrationMode mode)
@@ -245,6 +264,16 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
                 ALTER TABLE Sessions ADD COLUMN restore_at_launch INTEGER NOT NULL DEFAULT 0;
             )#"sv,
         },
+        {
+            .version = SESSIONS_SCHEMA_WINDOW_GEOMETRY_VERSION,
+            .sql = R"#(
+                ALTER TABLE Sessions ADD COLUMN x INTEGER;
+                ALTER TABLE Sessions ADD COLUMN y INTEGER;
+                ALTER TABLE Sessions ADD COLUMN width INTEGER;
+                ALTER TABLE Sessions ADD COLUMN height INTEGER;
+                ALTER TABLE Sessions ADD COLUMN maximized INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
     });
 
     return database.migrate("Sessions"sv, migrations, mode);
@@ -278,11 +307,12 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     statements.select_max_session_id = TRY(database.prepare_statement("SELECT MAX(id) AS maximum_id FROM Sessions;"sv));
     statements.select_max_tab_id = TRY(database.prepare_statement("SELECT MAX(id) AS maximum_id FROM SessionTabs;"sv));
     statements.select_max_close_sequence = TRY(database.prepare_statement("SELECT MAX(close_sequence) AS maximum_id FROM Sessions;"sv));
-    statements.select_closed_sessions = TRY(database.prepare_statement("SELECT id, closed_time, close_sequence, source_window_id, source_tab_index, origin, active_tab_index FROM Sessions WHERE kind = :kind ORDER BY close_sequence DESC, closed_time DESC, id DESC LIMIT :max_units;"sv));
+    statements.select_closed_sessions = TRY(database.prepare_statement("SELECT id, closed_time, close_sequence, source_window_id, source_tab_index, origin, active_tab_index, x, y, width, height, maximized FROM Sessions WHERE kind = :kind ORDER BY close_sequence DESC, closed_time DESC, id DESC LIMIT :max_units;"sv));
     statements.select_session_tabs = TRY(database.prepare_statement("SELECT id, tab_ordinal, active_url, current_used_step_index, pinned FROM SessionTabs WHERE session_id = :session_id ORDER BY tab_ordinal;"sv));
     statements.select_max_activation_sequence = TRY(database.prepare_statement("SELECT MAX(activation_sequence) AS maximum_id FROM Sessions;"sv));
-    statements.select_open_sessions = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence FROM Sessions WHERE kind = :open_window_kind ORDER BY activation_sequence, id;"sv));
-    statements.select_restore_at_launch_session = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence FROM Sessions WHERE kind = :closed_window_kind AND restore_at_launch != 0 ORDER BY close_sequence DESC, id DESC LIMIT 1;"sv));
+    statements.update_session_geometry = TRY(database.prepare_statement("UPDATE Sessions SET x = :x, y = :y, width = :width, height = :height, maximized = :maximized WHERE id = :id;"sv));
+    statements.select_open_sessions = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence, x, y, width, height, maximized FROM Sessions WHERE kind = :open_window_kind ORDER BY activation_sequence, id;"sv));
+    statements.select_restore_at_launch_session = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence, x, y, width, height, maximized FROM Sessions WHERE kind = :closed_window_kind AND restore_at_launch != 0 ORDER BY close_sequence DESC, id DESC LIMIT 1;"sv));
     statements.clear_restore_at_launch = TRY(database.prepare_statement("UPDATE Sessions SET restore_at_launch = 0 WHERE restore_at_launch != 0;"sv));
     statements.reopen_closed_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :open_window_kind, closed_time = 0, close_sequence = 0, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.recover_open_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :closed_window_kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
@@ -427,6 +457,16 @@ void SessionStore::TransientStorage::set_activation_sequence(SessionWindowId win
         return;
 
     window->value.activation_sequence = activation_sequence;
+    window->value.metadata_dirty = true;
+}
+
+void SessionStore::TransientStorage::set_geometry(SessionWindowId window_id, SessionWindowGeometry geometry)
+{
+    auto window = m_windows.find(window_id);
+    if (window == m_windows.end() || window->value.geometry == geometry)
+        return;
+
+    window->value.geometry = geometry;
     window->value.metadata_dirty = true;
 }
 
@@ -626,7 +666,11 @@ ErrorOr<void> SessionStore::PersistedStorage::apply_window_metadata(WindowMetada
         ++tab_ordinal;
     }
 
-    return write_session_metadata(write.id, write.active_tab_index, write.activation_sequence);
+    TRY(write_session_metadata(write.id, write.active_tab_index, write.activation_sequence));
+    // A write for a window that's already closing carries no geometry, and leaves its saved one as it is.
+    if (write.geometry.has_value())
+        TRY(write_session_geometry(write.id, *write.geometry));
+    return {};
 }
 
 ErrorOr<void> SessionStore::PersistedStorage::insert_closed_unit_row(ClosedUnitWrite const& write)
@@ -795,6 +839,19 @@ ErrorOr<void> SessionStore::PersistedStorage::write_session_metadata(SessionWind
     });
 }
 
+ErrorOr<void> SessionStore::PersistedStorage::write_session_geometry(SessionWindowId window_id, SessionWindowGeometry const& geometry)
+{
+    return database->try_execute_bound_statement(statements.update_session_geometry, [&](auto& bind) -> ErrorOr<void> {
+        TRY(bind("x"sv, i64 { geometry.x }));
+        TRY(bind("y"sv, i64 { geometry.y }));
+        TRY(bind("width"sv, i64 { geometry.width }));
+        TRY(bind("height"sv, i64 { geometry.height }));
+        TRY(bind("maximized"sv, i64 { geometry.maximized ? 1 : 0 }));
+        TRY(bind("id"sv, window_id));
+        return {};
+    });
+}
+
 ErrorOr<void> SessionStore::PersistedStorage::clear_restore_at_launch()
 {
     return database->try_execute_bound_statement(statements.clear_restore_at_launch, [](auto&) -> ErrorOr<void> { return {}; });
@@ -893,14 +950,17 @@ ErrorOr<SessionStore::RecoveryResult> SessionStore::PersistedStorage::recover_op
             i64 active_tab_index { 0 };
             i64 activation_sequence { 0 };
             bool was_open { true };
+            Optional<SessionWindowGeometry> geometry;
         };
         Vector<Candidate> candidates;
         auto read_candidate = [&](Database::ResultRow& row, bool was_open) -> ErrorOr<void> {
+            auto geometry = read_window_geometry(row);
             candidates.append({
                 .id = TRY(row.read_integer<SessionWindowId>("id"sv)),
                 .active_tab_index = TRY(row.read_integer<i64>("active_tab_index"sv)),
                 .activation_sequence = TRY(row.read_integer<i64>("activation_sequence"sv)),
                 .was_open = was_open,
+                .geometry = geometry.is_error() ? Optional<SessionWindowGeometry> {} : geometry.release_value(),
             });
             return {};
         };
@@ -964,7 +1024,7 @@ ErrorOr<SessionStore::RecoveryResult> SessionStore::PersistedStorage::recover_op
                 window_tabs.extend(move(unpinned_tabs));
                 TRY(reparent_tabs(candidate.id, window_tabs));
                 TRY(write_session_metadata(candidate.id, active_tab_index, candidate.activation_sequence));
-                result.windows.append({ .id = candidate.id, .tabs = move(window_tabs), .active_tab_index = active_tab_index, .activation_sequence = candidate.activation_sequence });
+                result.windows.append({ .id = candidate.id, .tabs = move(window_tabs), .active_tab_index = active_tab_index, .activation_sequence = candidate.activation_sequence, .geometry = candidate.geometry });
                 continue;
             }
 
@@ -974,7 +1034,9 @@ ErrorOr<SessionStore::RecoveryResult> SessionStore::PersistedStorage::recover_op
                 TRY(reparent_tabs(pinned_window_id, pinned_tabs));
                 auto pinned_active_tab_index = index_as_i64(active_pinned_tab.value_or(0));
                 TRY(write_session_metadata(pinned_window_id, pinned_active_tab_index, candidate.activation_sequence));
-                result.windows.append({ .id = pinned_window_id, .tabs = move(pinned_tabs), .active_tab_index = pinned_active_tab_index, .activation_sequence = candidate.activation_sequence });
+                if (candidate.geometry.has_value())
+                    TRY(write_session_geometry(pinned_window_id, *candidate.geometry));
+                result.windows.append({ .id = pinned_window_id, .tabs = move(pinned_tabs), .active_tab_index = pinned_active_tab_index, .activation_sequence = candidate.activation_sequence, .geometry = candidate.geometry });
             }
 
             if (unpinned_tabs.is_empty()) {
@@ -1099,6 +1161,7 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
         Optional<ClosedSessionUnit::Origin> origin;
         // Empty when the stored index is not a usable one, which retires only this unit.
         Optional<i64> active_tab_index;
+        Optional<SessionWindowGeometry> geometry;
     };
 
     Vector<ClosedUnit> units;
@@ -1119,6 +1182,7 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
                 auto origin = row.read_integer<i64>("origin"sv);
                 auto session_id = row.read_integer<i64>("id"sv);
                 auto closed_time = row.read_integer<i64>("closed_time"sv);
+                auto geometry = read_window_geometry(row);
 
                 Optional<ClosedSessionUnit::Origin> validated_origin;
                 if (!origin.is_error()) {
@@ -1136,6 +1200,7 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
                     .source_tab_index = !source_tab_index.is_error() && source_tab_index.value().value_or(-1) >= 0 ? source_tab_index.value() : Optional<i64> {},
                     .origin = validated_origin,
                     .active_tab_index = !active_tab_index.is_error() && active_tab_index.value() >= 0 ? Optional<i64> { active_tab_index.value() } : Optional<i64> {},
+                    .geometry = geometry.is_error() ? Optional<SessionWindowGeometry> {} : geometry.release_value(),
                 });
                 return {};
             }));
@@ -1197,6 +1262,7 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
                 .source_tab_index = session_row.source_tab_index,
                 .origin = *session_row.origin,
                 .tabs = move(tabs),
+                .geometry = session_row.geometry,
             });
         }
     }
@@ -1432,7 +1498,7 @@ ErrorOr<void> SessionStore::run_startup_recovery(UnixDateTime recovered_at, Sess
 
     for (auto& window : recovery.windows) {
         m_transient_storage.open_window(window.id);
-        RestoredSessionWindow restored { .window_id = window.id, .tabs = {}, .active_tab_index = window.active_tab_index };
+        RestoredSessionWindow restored { .window_id = window.id, .tabs = {}, .active_tab_index = window.active_tab_index, .geometry = window.geometry };
         for (auto& tab : window.tabs) {
             restored.tabs.append({ .tab_id = tab.id, .url = tab.url, .pinned = tab.pinned });
             (void)m_transient_storage.open_tab(window.id, tab.id,
@@ -1441,6 +1507,8 @@ ErrorOr<void> SessionStore::run_startup_recovery(UnixDateTime recovered_at, Sess
         if (auto active_tab_index = index_as_size(window.active_tab_index); active_tab_index.has_value() && *active_tab_index < restored.tabs.size())
             m_transient_storage.set_active_tab(restored.tabs[*active_tab_index].tab_id);
         m_transient_storage.set_activation_sequence(window.id, window.activation_sequence);
+        if (window.geometry.has_value())
+            m_transient_storage.set_geometry(window.id, *window.geometry);
         // Recovery already wrote these windows' rows as they stand.
         m_transient_storage.mark_window_metadata_clean(window.id);
         m_launch_plan.append(move(restored));
@@ -1452,7 +1520,7 @@ ErrorOr<void> SessionStore::run_startup_recovery(UnixDateTime recovered_at, Sess
 
 SessionStore::WindowMetadataWrite SessionStore::window_metadata_write(SessionWindowId window_id, OpenWindow const& window) const
 {
-    WindowMetadataWrite write { .id = window_id, .tabs_in_order = window.tabs, .pinned_tabs = {}, .active_tab_index = 0, .activation_sequence = window.activation_sequence };
+    WindowMetadataWrite write { .id = window_id, .tabs_in_order = window.tabs, .pinned_tabs = {}, .active_tab_index = 0, .activation_sequence = window.activation_sequence, .geometry = window.geometry };
     for (auto tab_id : window.tabs) {
         if (auto const* tab = m_transient_storage.find_tab(tab_id); tab && tab->pinned)
             write.pinned_tabs.set(tab_id);
@@ -1482,7 +1550,7 @@ Optional<SessionStore::WindowMetadataWrite> SessionStore::remaining_window_write
     for (auto const& pending : m_pending_window_closes) {
         if (pending.window_id != window_id)
             continue;
-        WindowMetadataWrite write { .id = window_id, .tabs_in_order = {}, .pinned_tabs = {}, .active_tab_index = 0, .activation_sequence = pending.activation_sequence };
+        WindowMetadataWrite write { .id = window_id, .tabs_in_order = {}, .pinned_tabs = {}, .active_tab_index = 0, .activation_sequence = pending.activation_sequence, .geometry = {} };
         for (auto const& member : pending.members) {
             if (member.tab_id == closing_tab)
                 continue;
@@ -1607,6 +1675,7 @@ void SessionStore::window_detached(SessionWindowId window_id)
             .members = {},
             .closed_at = {},
             .discard = true,
+            .geometry = {},
         });
     }
 
@@ -1618,6 +1687,11 @@ ErrorOr<SessionWindowId> SessionStore::default_window()
     if (!m_transient_storage.default_window.has_value())
         m_transient_storage.default_window = TRY(window_opened());
     return *m_transient_storage.default_window;
+}
+
+void SessionStore::window_geometry_changed(SessionWindowId window_id, SessionWindowGeometry geometry)
+{
+    m_transient_storage.set_geometry(window_id, geometry);
 }
 
 void SessionStore::window_activated(SessionWindowId window_id)
@@ -1753,6 +1827,7 @@ void SessionStore::append_closed_tab_unit(PendingTabClose const& pending)
         .source_tab_index = pending.source_tab_index,
         .origin = ClosedSessionUnit::Origin::CloseAction,
         .tabs = {},
+        .geometry = {},
     };
     unit.tabs.append({
         .active_url = pending.tab.url,
@@ -1776,6 +1851,7 @@ void SessionStore::append_closed_window_unit(PendingWindowClose const& pending)
         .source_tab_index = {},
         .origin = ClosedSessionUnit::Origin::CloseAction,
         .tabs = {},
+        .geometry = pending.geometry,
     };
     for (auto const& member : pending.members) {
         size_t mirror_step_index = member.tab.current_used_step_index;
@@ -2027,6 +2103,7 @@ ErrorOr<void> SessionStore::window_closing(WindowClosing closing)
             .discard = discard,
             .restore_at_launch = restore_at_launch,
             .activation_sequence = window->activation_sequence,
+            .geometry = window->geometry,
         };
         for (auto member_id : window->tabs) {
             if (auto const* tab = m_transient_storage.find_tab(member_id))
@@ -2154,6 +2231,7 @@ ErrorOr<Optional<ClosedSessionUnit>> SessionStore::take_most_recently_closed()
         .source_window_id = unit->source_window_id,
         .source_tab_index = unit->source_tab_index,
         .origin = unit->origin,
+        .geometry = unit->geometry,
     };
 
     if (m_persisted_storage.has_value()) {

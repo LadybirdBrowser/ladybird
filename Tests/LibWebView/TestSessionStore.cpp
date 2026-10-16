@@ -75,6 +75,11 @@ static SessionTabId open_tab(SessionStore& store, SessionWindowId window, String
 // Takes the schema back to SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION, so every migration after it runs again.
 static void rewind_sessions_schema_to_version_4(Database::Database& database)
 {
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN maximized;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN height;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN width;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN y;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN x;"sv));
     MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN restore_at_launch;"sv));
     MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN activation_sequence;"sv));
     MUST(database.execute_raw("DROP TABLE SessionLifecycle;"sv));
@@ -99,7 +104,7 @@ TEST_CASE(fresh_database_migrates_to_the_latest_schema)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 7u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 8u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -146,8 +151,10 @@ TEST_CASE(version_4_database_migrates_to_the_latest_schema)
     rewind_sessions_schema_to_version_4(*database);
 
     EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 7u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 8u });
     EXPECT_EQ(select_i64(*database, "SELECT pinned FROM SessionTabs WHERE id = 2;"_string), 0);
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Sessions WHERE id = 1 AND width IS NULL;"_string), 1);
+    EXPECT_EQ(select_i64(*database, "SELECT maximized FROM Sessions WHERE id = 1;"_string), 0);
 }
 
 TEST_CASE(pushed_tab_state_flushes_to_rows)
@@ -1813,6 +1820,134 @@ TEST_CASE(a_transient_store_has_no_launch_plan)
     auto store = SessionStore::create();
     EXPECT(store->take_launch_plan().is_empty());
     EXPECT(!store->load_tab_history(1).has_value());
+}
+
+static constexpr SessionWindowGeometry test_geometry { .x = 10, .y = 20, .width = 800, .height = 600, .maximized = true };
+
+TEST_CASE(window_geometry_waits_for_a_flush)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    (void)open_tab(*store, window, "https://a.example/"sv);
+
+    store->window_geometry_changed(window, { .x = 10, .y = 20, .width = 800, .height = 600, .maximized = false });
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT COUNT(*) FROM Sessions WHERE id = {} AND width IS NULL;", window))), 1);
+
+    store->flush_dirty_state();
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT width FROM Sessions WHERE id = {};", window))), 800);
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT maximized FROM Sessions WHERE id = {};", window))), 0);
+}
+
+TEST_CASE(a_closed_window_keeps_its_geometry)
+{
+    auto database = create_session_database();
+    SessionWindowId first_window = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        first_window = TRY_OR_FAIL(store->window_opened());
+        auto second_window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, first_window, "https://a.example/"sv);
+        (void)open_tab(*store, second_window, "https://b.example/"sv);
+        store->window_geometry_changed(first_window, test_geometry);
+        TRY_OR_FAIL(store->window_closing({ .window_id = first_window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+        quit_cleanly(*store, { second_window });
+    }
+
+    // After a relaunch, the unit's geometry comes from its row.
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    Optional<ClosedSessionUnit> first_window_unit;
+    for (;;) {
+        auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+        if (!unit.has_value())
+            break;
+        if (unit->tabs[0].active_url.serialize() == "https://a.example/"sv)
+            first_window_unit = unit.release_value();
+    }
+    EXPECT(first_window_unit.has_value());
+    EXPECT(first_window_unit->geometry.has_value());
+    EXPECT(*first_window_unit->geometry == test_geometry);
+}
+
+TEST_CASE(transient_closed_windows_keep_their_geometry)
+{
+    auto store = SessionStore::create();
+    auto window = TRY_OR_FAIL(store->window_opened());
+    (void)open_tab(*store, window, "https://a.example/"sv);
+    store->window_geometry_changed(window, test_geometry);
+    TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT(unit->geometry.has_value());
+    EXPECT(*unit->geometry == test_geometry);
+}
+
+TEST_CASE(launch_plans_keep_window_geometry)
+{
+    for (auto policy : { SessionLaunchPolicy::Everything, SessionLaunchPolicy::PinnedOnly }) {
+        auto database = create_session_database();
+        {
+            auto store = TRY_OR_FAIL(SessionStore::create(*database));
+            auto window = TRY_OR_FAIL(store->window_opened());
+            auto tab = open_tab(*store, window, "https://a.example/"sv);
+            TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+            store->window_geometry_changed(window, test_geometry);
+            quit_cleanly(*store, { window });
+        }
+
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, policy));
+        auto plan = store->take_launch_plan();
+        EXPECT_EQ(plan.size(), 1uz);
+        EXPECT(plan[0].geometry.has_value());
+        EXPECT(*plan[0].geometry == test_geometry);
+
+        // The window the plan keeps has its row hold the geometry too.
+        EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT COUNT(*) FROM Sessions WHERE id = {} AND x = 10 AND y = 20 AND width = 800 AND height = 600 AND maximized = 1;", plan[0].window_id))), 1);
+    }
+}
+
+TEST_CASE(a_corrupt_saved_geometry_is_dropped_instead_of_failing_recovery)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        store->window_geometry_changed(window, test_geometry);
+        store->flush_dirty_state();
+        TRY_OR_FAIL(database->execute_raw("UPDATE Sessions SET width = 'wide' WHERE kind = 0;"sv));
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT(!plan[0].geometry.has_value());
+}
+
+TEST_CASE(a_pending_tab_close_in_a_closing_window_leaves_the_saved_geometry)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    (void)open_tab(*store, window, "https://a.example/"sv);
+    auto second = open_tab(*store, window, "https://b.example/"sv);
+    store->window_geometry_changed(window, test_geometry);
+    store->flush_dirty_state();
+
+    // The tab close fails and the window close stays pending, so the tab's close is retried against a window that's
+    // already closing.
+    TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedTabFailure BEFORE INSERT ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+    TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedKindFailure BEFORE UPDATE OF kind ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+    EXPECT(store->tab_closed({ .tab_id = second, .closed_at = UnixDateTime::from_seconds_since_epoch(100) }).is_error());
+    (void)store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::from_seconds_since_epoch(101) });
+
+    // The row's width is changed behind the store's back, so a retry that rewrote the window's geometry would show.
+    TRY_OR_FAIL(database->execute_raw("UPDATE Sessions SET width = 999;"sv));
+    TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedTabFailure;"sv));
+    store->flush_dirty_state();
+
+    EXPECT_EQ(select_i64(*database, "SELECT width FROM Sessions WHERE kind = 0;"_string), 999);
 }
 
 TEST_CASE(retention_keeps_the_newest_closed_units)

@@ -45,6 +45,7 @@
 #include <QMimeDatabase>
 #include <QPointer>
 #include <QSaveFile>
+#include <QScreen>
 #include <QShortcut>
 #include <QStandardPaths>
 #include <QTimer>
@@ -715,6 +716,30 @@ WebView::SessionLaunchPolicy Application::launch_restore_policy() const
     return WebView::SessionLaunchPolicy::PinnedOnly;
 }
 
+static WindowConfiguration window_configuration_for(WebView::SessionWindowGeometry const& geometry)
+{
+    QRect rect { geometry.x, geometry.y, geometry.width, geometry.height };
+
+    // The display a window was on may be gone since the last run, so the window comes back on a screen that's there.
+    auto* screen = QGuiApplication::screenAt(rect.center());
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    if (screen) {
+        auto available = screen->availableGeometry();
+        rect.setSize(rect.size().boundedTo(available.size()));
+        rect.moveLeft(clamp(rect.left(), available.left(), available.right() - rect.width() + 1));
+        rect.moveTop(clamp(rect.top(), available.top(), available.bottom() - rect.height() + 1));
+    }
+
+    return {
+        .x = Web::DevicePixels { rect.x() },
+        .y = Web::DevicePixels { rect.y() },
+        .width = Web::DevicePixels { rect.width() },
+        .height = Web::DevicePixels { rect.height() },
+        .maximized = geometry.maximized,
+    };
+}
+
 BrowserWindow* Application::restore_previous_session(WindowConfiguration const& frontmost_window_configuration)
 {
     auto plan = WebView::Application::default_session().session_store->take_launch_plan();
@@ -723,7 +748,9 @@ BrowserWindow* Application::restore_previous_session(WindowConfiguration const& 
     for (size_t i = 0; i < plan.size(); ++i) {
         auto const& restored = plan[i];
         // The plan lists the frontmost window last, and opening the windows in that order leaves it on top.
-        auto configuration = i == plan.size() - 1 ? frontmost_window_configuration : configuration_for_new_window();
+        auto configuration = restored.geometry.has_value()
+            ? window_configuration_for(*restored.geometry)
+            : (i == plan.size() - 1 ? frontmost_window_configuration : configuration_for_new_window());
 
         auto* window = new BrowserWindow({}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, {}, restored.window_id);
         window->restore_tabs(restored.tabs, restored.active_tab_index);
@@ -920,8 +947,10 @@ void Application::reopen_recently_closed_tab(BrowserWindow* target_window)
             break;
         }
     }
-    if (unit.was_window || !window)
-        window = &new_window({}, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
+    if (unit.was_window || !window) {
+        auto configuration = unit.geometry.has_value() ? window_configuration_for(*unit.geometry) : configuration_for_new_window();
+        window = &new_window({}, configuration, BrowserWindow::IsPopupWindow::No, is_private);
+    }
 
     Optional<int> next_insertion_index;
     if (restoring_to_source_window && unit.source_tab_index.has_value())

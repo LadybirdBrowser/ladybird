@@ -26,6 +26,17 @@ using SessionWindowId = i64;
 using SessionTabId = i64;
 using SessionCloseSequence = i64;
 
+// A window's normal (not maximized) geometry, plus whether it's maximized.
+struct SessionWindowGeometry {
+    i32 x { 0 };
+    i32 y { 0 };
+    i32 width { 0 };
+    i32 height { 0 };
+    bool maximized { false };
+
+    bool operator==(SessionWindowGeometry const&) const = default;
+};
+
 struct ClosedSessionTab {
     URL::URL active_url;
     Optional<SessionHistorySnapshot> history;
@@ -44,6 +55,7 @@ struct ClosedSessionUnit {
     Optional<SessionWindowId> source_window_id;
     Optional<i64> source_tab_index;
     Origin origin { Origin::CloseAction };
+    Optional<SessionWindowGeometry> geometry;
 };
 
 // What startup recovery does with the windows the last run left open.
@@ -67,6 +79,7 @@ struct RestoredSessionWindow {
     SessionWindowId window_id { 0 };
     Vector<RestoredSessionTab> tabs;
     i64 active_tab_index { 0 };
+    Optional<SessionWindowGeometry> geometry;
 };
 
 // Persists live windows and tabs plus a bounded recently-closed stack. State updates coalesce; lifecycle mutations
@@ -130,6 +143,7 @@ public:
     ErrorOr<void> window_closing(WindowClosing);
     void window_detached(SessionWindowId);
     void window_activated(SessionWindowId);
+    void window_geometry_changed(SessionWindowId, SessionWindowGeometry);
     ErrorOr<SessionTabId> tab_opened(TabOpened);
     void update_tab_state(TabStateUpdate);
     ErrorOr<void> tab_closed(TabClosed);
@@ -205,6 +219,7 @@ private:
         Database::StatementID update_tab_parent;
         Database::StatementID update_session_closed;
         Database::StatementID update_session_metadata;
+        Database::StatementID update_session_geometry;
         Database::StatementID delete_session;
         Database::StatementID delete_tab;
         Database::StatementID prune_closed;
@@ -247,6 +262,7 @@ private:
         SessionTabId active_tab { 0 };
         bool metadata_dirty { false };
         i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
     };
 
     struct ClosedTab {
@@ -268,6 +284,7 @@ private:
         Optional<i64> source_tab_index;
         ClosedSessionUnit::Origin origin { ClosedSessionUnit::Origin::CloseAction };
         Vector<ClosedTab> tabs;
+        Optional<SessionWindowGeometry> geometry;
     };
 
     enum class SnapshotDisposition {
@@ -295,6 +312,7 @@ private:
         HashTable<SessionTabId> pinned_tabs;
         i64 active_tab_index { 0 };
         i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
     };
 
     struct OpenTabWrite {
@@ -366,6 +384,7 @@ private:
         Vector<RecoveredTab> tabs;
         i64 active_tab_index { 0 };
         i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
     };
 
     struct RecoveryResult {
@@ -409,6 +428,7 @@ private:
         ErrorOr<Vector<RecoveredTab>> read_recovered_tabs(SessionWindowId);
         ErrorOr<void> reparent_tabs(SessionWindowId, Vector<RecoveredTab> const&);
         ErrorOr<void> write_session_metadata(SessionWindowId, i64 active_tab_index, i64 activation_sequence);
+        ErrorOr<void> write_session_geometry(SessionWindowId, SessionWindowGeometry const&);
         ErrorOr<void> demote_to_startup_recovery_unit(SessionWindowId, UnixDateTime recovered_at, IdAllocator& close_sequence_allocator);
         ErrorOr<void> reopen_session(SessionWindowId);
     };
@@ -434,6 +454,7 @@ private:
         bool discard { false };
         bool restore_at_launch { false };
         i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
     };
 
     // Owns in-memory membership, ordering, and dirty state.
@@ -451,6 +472,7 @@ private:
         void mark_tab_flushed(SessionTabId, size_t current_used_step_index);
         void set_active_tab(SessionTabId);
         void set_activation_sequence(SessionWindowId, i64);
+        void set_geometry(SessionWindowId, SessionWindowGeometry);
         void set_tab_order(SessionWindowId, Vector<SessionTabId> const&);
         Optional<SessionWindowId> move_tab(SessionTabId, SessionWindowId, size_t ordinal);
         void remove_tab(SessionTabId);

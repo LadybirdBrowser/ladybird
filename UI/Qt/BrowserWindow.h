@@ -253,6 +253,7 @@ private:
     void clear_resize_cursor();
     bool should_draw_window_border() const;
     void update_window_border();
+    void report_session_window_geometry();
 
     void initialize_application_actions();
     void initialize_application_menu();
