@@ -225,7 +225,7 @@ fn swapping_loop_phis_go_through_a_temp_slot() {
             Instruction::Mov { dst: l(0), src: c(0) },
             Instruction::Mov { dst: l(1), src: c(1) },
             Instruction::JumpIf {
-                condition: a(0),
+                condition: l(0),
                 true_target: label(4),
                 false_target: label(8),
             },
@@ -246,41 +246,40 @@ fn swapping_loop_phis_go_through_a_temp_slot() {
     assert_eq!(moves.len(), 3, "{moves:?}");
     assert!(moves.iter().any(|m| matches!(m.to, Location::Stack(_))), "{moves:?}");
     // The loop header starts with the registers of the block entering the
-    // loop: the condition stays in r0, with no reload in the loop.
+    // loop: the condition, a phi, stays in r0, with no reload in the loop.
     assert_text(
         &dump_allocation(&graph, &allocation),
         "
         b0:
           v0 Jump
         b1:
-          v9 LoadSlot -> r0 spill s0
-          moves #0 -> r1, #10 -> r2
+          moves #0 -> r0, #10 -> r1
           v6 Jump
         b2:
-          v7 Phi -> r1
-          v8 Phi -> r2
-          v10 BranchTruthy (r0)
+          v7 Phi -> r0
+          v8 Phi -> r1
+          v9 BranchTruthy (r0)
         b3:
-          v11 Jump
+          v10 Jump
         b4:
-          v12 Jump
+          v11 Jump
         b5:
           moves r0 -> r1
-          v13 ToBoolean (r1) -> r0
-          v14 Branch (r0)
+          v12 ToBoolean (r1) -> r0
+          v13 Branch (r0)
         b6:
-          moves s0 -> r0, s1 -> r1, s2 -> r2
-          v15 Jump
+          moves s0 -> r0, s1 -> r1
+          v14 Jump
         b7:
-          moves s2 -> r2
-          v16 Jump
+          moves s1 -> r1
+          v15 Jump
         b8:
-          moves r2 -> r0
-          v17 Return (r0)
+          moves r1 -> r0
+          v16 Return (r0)
         b9:
-          moves r1 -> s3, r2 -> r1, s3 -> r2
-          v18 Jump
-        spill slots: 4
+          moves r0 -> s2, r1 -> r0, s2 -> r1
+          v17 Jump
+        spill slots: 3
         ",
     );
 }
@@ -309,7 +308,7 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
                 dst: r(6),
             },
             Instruction::JumpIf {
-                condition: a(0),
+                condition: l(0),
                 true_target: label(8),
                 false_target: label(12),
             },

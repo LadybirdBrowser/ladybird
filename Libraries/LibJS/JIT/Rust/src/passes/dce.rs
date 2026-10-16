@@ -24,7 +24,6 @@ fn is_removable(op: &Op) -> bool {
     !op.is_control()
         && !op.can_eager_exit()
         && !properties.can_lazy_exit
-        && !properties.is_call
         && !properties.allocates
         && properties.writes.is_empty()
         && !properties.runs_code

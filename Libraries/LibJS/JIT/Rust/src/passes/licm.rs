@@ -216,9 +216,11 @@ pub fn run(graph: &mut Graph) {
                     .inputs
                     .iter()
                     .all(|input| block_of[input.index()].is_none_or(|block| !loop_.blocks.contains(block)));
-                // NB: Refinements belong to the edge into their block.
+                // NB: Refinements belong to the edge into their block. Calls in
+                //     cold blocks stay there, where they rarely run, rather
+                //     than run whenever the loop is entered.
                 let movable = !matches!(data.op, Op::Refine { .. })
-                    && !properties.is_call
+                    && !(properties.is_call && is_cold)
                     && !properties.can_lazy_exit
                     && !properties.allocates
                     && properties.writes.is_empty()
