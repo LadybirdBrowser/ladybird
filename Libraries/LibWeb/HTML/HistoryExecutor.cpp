@@ -344,6 +344,12 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         changing_navigable_continuation->pending_document = pending_document;
         changing_navigable_continuation->population_output = nullptr;
 
+        // NB: targetEntry's document, as this process has it: the document the finalized navigation populated, or the
+        //     active document if targetEntry's document state has it. Any other is null until population.
+        changing_navigable_continuation->target_document = pending_document;
+        if (!pending_document && target_entry->document_state()->document_id() == navigable->active_document_id())
+            changing_navigable_continuation->target_document = navigable->active_document();
+
         // 4. If displayedEntry is targetEntry and targetEntry's document state's reload pending is false, then:
         // AD-HOC: A same-document push or replace is update-only too. Its document displays its entry already, or a
         //         newer one a synchronous navigation that jumped the queue pushed or replaced, which the continuation
@@ -352,7 +358,6 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
             || is_same_document_push_or_replace(navigation_type, *target_entry, *changing_navigable_continuation->displayed_document)) {
             // 1. Set changingNavigableContinuation's update-only to true.
             changing_navigable_continuation->update_only = true;
-            changing_navigable_continuation->target_document = navigable->active_document();
 
             // 2. Enqueue changingNavigableContinuation on changingNavigableContinuations.
             enqueue_changing_navigable_continuation(operation_id, *changing_navigable_continuation, on_complete);
@@ -412,23 +417,16 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
             navigation->fire_a_traverse_navigate_event(*target_entry, user_involvement);
         }
 
-        auto after_document_populated = GC::create_function(heap(), [this, operation_id, old_origin, changing_navigable_continuation, target_entry, navigable, on_complete](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
+        auto after_document_populated = GC::create_function(heap(), [this, operation_id, old_origin, changing_navigable_continuation, on_complete](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
             changing_navigable_continuation->population_output = output;
             changing_navigable_continuation->old_origin = old_origin;
 
-            // NB: targetEntry's document is the finalized navigation's, the one population produced, or else the one
-            //     its document state already had. Population that produces no document leaves that one in place.
-            GC::Ptr<DOM::Document> target_document;
-            if (changing_navigable_continuation->pending_document)
-                target_document = changing_navigable_continuation->pending_document;
-            else if (output && output->document)
-                target_document = output->document;
-            else if (target_entry->document_state()->document_id() == navigable->active_document_id())
-                target_document = navigable->active_document();
-            changing_navigable_continuation->target_document = target_document;
+            // NB: Population that produces no document leaves targetEntry's document as it was.
+            if (output && output->document)
+                changing_navigable_continuation->target_document = output->document;
 
             // 1. If targetEntry's document is null, then set changingNavigableContinuation's update-only to true.
-            if (!target_document)
+            if (!changing_navigable_continuation->target_document)
                 changing_navigable_continuation->update_only = true;
 
             // 2. If targetEntry's document's origin is not oldOrigin, then set targetEntry's classic history API state to StructuredSerializeForStorage(null).
@@ -444,9 +442,7 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         });
 
         // 8. If targetEntry's document is null, or targetEntry's document state's reload pending is true, then:
-        bool needs_population = !changing_navigable_continuation->pending_document
-            && (target_entry->document_state()->document_id() != navigable->active_document_id()
-                || target_entry->document_state()->reload_pending());
+        bool needs_population = !changing_navigable_continuation->target_document || target_entry->document_state()->reload_pending();
         if (needs_population) {
             auto continue_population = GC::create_function(heap(), [this, navigable, after_document_populated](HistoryNavigationPopulation population) {
                 if (navigable->has_been_destroyed() || !navigable->active_window()) {
