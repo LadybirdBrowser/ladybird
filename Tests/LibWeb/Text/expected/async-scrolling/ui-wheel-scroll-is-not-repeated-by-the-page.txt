@@ -1,2 +1,7 @@
+#1 compositor: latched scroller=viewport
+#1 compositor: forwarded-to-page
+#1 web-content: default-action-performed-by-compositor
+#1 web-content: dispatched-wheel-event target=body
+#1 web-content: finished-handled
 window.scrollY: 50
 wheel events: 1

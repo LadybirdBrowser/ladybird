@@ -48,6 +48,7 @@ set(SOURCES
     Page/DragEvent.cpp
     Page/InputEvent.cpp
     Page/InputRoutingDecision.cpp
+    Page/InputTrace.cpp
     Page/MediaContextMenu.cpp
     Page/SpellingError.cpp
     PixelUnits.cpp

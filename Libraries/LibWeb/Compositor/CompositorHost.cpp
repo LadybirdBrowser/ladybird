@@ -83,6 +83,16 @@ Gfx::FloatPoint CompositorContextHandle::elastic_overscroll_stretch_for_testing(
     return m_host.elastic_overscroll_stretch_for_testing(m_context_id, stable_node_id);
 }
 
+void CompositorContextHandle::begin_input_trace_for_testing()
+{
+    m_host.begin_input_trace_for_testing(m_context_id);
+}
+
+Vector<Web::InputTraceRecord> CompositorContextHandle::take_input_trace_for_testing()
+{
+    return m_host.take_input_trace_for_testing(m_context_id);
+}
+
 Compositing::PendingAsyncScrollUpdates CompositorContextHandle::take_pending_async_scroll_updates(Compositing::AsyncScrollUpdateFreshness freshness)
 {
     return m_host.take_pending_async_scroll_updates(m_context_id, freshness);
@@ -433,6 +443,19 @@ Gfx::FloatPoint CompositorHost::elastic_overscroll_stretch_for_testing(Web::Comp
 {
     if (auto* connection = compositor_connection())
         return connection->elastic_overscroll_stretch_for_testing(context_id, stable_node_id);
+    return {};
+}
+
+void CompositorHost::begin_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    if (auto* connection = compositor_connection())
+        connection->begin_input_trace_for_testing(context_id);
+}
+
+Vector<Web::InputTraceRecord> CompositorHost::take_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    if (auto* connection = compositor_connection())
+        return connection->take_input_trace_for_testing(context_id);
     return {};
 }
 

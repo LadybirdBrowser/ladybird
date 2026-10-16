@@ -362,6 +362,21 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
     return true;
 }
 
+static InputRoutingDecision input_routing_decision_for_finished_input_event(EventResult result)
+{
+    switch (result) {
+    case EventResult::Accepted:
+        return InputRoutingDecision::FinishedAccepted;
+    case EventResult::Handled:
+        return InputRoutingDecision::FinishedHandled;
+    case EventResult::Dropped:
+        return InputRoutingDecision::FinishedDropped;
+    case EventResult::Cancelled:
+        return InputRoutingDecision::FinishedCancelled;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void EventLoop::process_input_events() const
 {
     auto process_input_events_queue = [&](Page& page) {
@@ -370,6 +385,18 @@ void EventLoop::process_input_events() const
 
         // Process events only for this page, collecting others to re-enqueue
         Queue<Web::QueuedInputEvent> events_for_other_pages;
+
+        auto record_routing = [&](u64 event_id, InputRoutingDecision decision) {
+            page.input_trace().record({ .input_event_id = event_id, .stage = InputTraceStage::WebContent, .decision = decision });
+        };
+        auto finish_handling_input_event = [&](u64 event_id, EventResult result, InputRoutingDecision decision) {
+            record_routing(event_id, decision);
+            page_client.report_finished_handling_input_event(page_client.id(), event_id, result);
+        };
+        auto finish_handling_coalesced_input_events = [&](QueuedInputEvent const& event) {
+            for (auto coalesced_event_id : event.coalesced_event_ids)
+                finish_handling_input_event(coalesced_event_id, EventResult::Dropped, InputRoutingDecision::CoalescedIntoLaterEvent);
+        };
 
         while (!input_events_queue.is_empty()) {
             auto event = input_events_queue.dequeue();
@@ -391,9 +418,8 @@ void EventLoop::process_input_events() const
                 root = page.local_traversable();
 
             if (!root) {
-                for (auto coalesced_event_id : event.coalesced_event_ids)
-                    page_client.report_finished_handling_input_event(event.page_id, coalesced_event_id, EventResult::Dropped);
-                page_client.report_finished_handling_input_event(event.page_id, input_event_id(event.event), EventResult::Dropped);
+                finish_handling_coalesced_input_events(event);
+                finish_handling_input_event(input_event_id(event.event), EventResult::Dropped, InputRoutingDecision::DroppedWithoutLocalRoot);
                 continue;
             }
 
@@ -409,9 +435,8 @@ void EventLoop::process_input_events() const
                 input_is_outdated = arena && Layout::RustFFI::document_host_mouse_event_is_outdated(arena->host(), mouse_event->id);
                 // A move with a button held is a drag's, whose script hears every move: it is handled, as outdated.
                 if (input_is_outdated && mouse_event->buttons == 0 && first_is_one_of(mouse_event->type, Web::MouseEvent::Type::MouseMove, Web::MouseEvent::Type::MouseLeave)) {
-                    for (auto coalesced_event_id : event.coalesced_event_ids)
-                        page_client.report_finished_handling_input_event(event.page_id, coalesced_event_id, EventResult::Dropped);
-                    page_client.report_finished_handling_input_event(event.page_id, mouse_event->id, EventResult::Dropped);
+                    finish_handling_coalesced_input_events(event);
+                    finish_handling_input_event(mouse_event->id, EventResult::Dropped, InputRoutingDecision::DroppedOutdatedPointerMove);
                     continue;
                 }
             }
@@ -460,12 +485,12 @@ void EventLoop::process_input_events() const
                     return page.handle_pinch_event(*root, pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta);
                 });
 
-            for (auto coalesced_event_id : event.coalesced_event_ids)
-                page_client.report_finished_handling_input_event(event.page_id, coalesced_event_id, EventResult::Dropped);
+            finish_handling_coalesced_input_events(event);
 
             // The pointer is over content another process hosts: that process handles the event, at the position in
             // the viewport of the navigable it hosts, and finishes it.
             if (remote_target.has_value()) {
+                record_routing(input_event_id(event.event), InputRoutingDecision::ForwardedToRemoteFrame);
                 auto mouse_event = event.event.get<Web::MouseEvent>().clone_without_browser_data();
                 mouse_event.position = page.css_to_device_point(remote_target->position);
                 page_client.forward_mouse_event_to_remote_navigable(event.page_id, remote_target->navigable_id, move(mouse_event));
@@ -473,7 +498,7 @@ void EventLoop::process_input_events() const
             }
 
             page_client.did_handle_input_event(event.page_id, event.event);
-            page_client.report_finished_handling_input_event(event.page_id, input_event_id(event.event), result);
+            finish_handling_input_event(input_event_id(event.event), result, input_routing_decision_for_finished_input_event(result));
         }
 
         // Re-enqueue events for other pages

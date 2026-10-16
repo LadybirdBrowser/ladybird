@@ -84,6 +84,7 @@
 #include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/EventResult.h>
 #include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/Page/InputTrace.h>
 #include <LibWebCommon/Page/MediaContextMenu.h>
 #include <LibWebCommon/Page/NavigationTarget.h>
 #include <LibWebCommon/Page/PageId.h>
@@ -383,6 +384,9 @@ public:
     void did_complete_spelling_menu_action_for_testing(String menu);
     Optional<ContextMenuRequest> take_context_menu_request();
 
+    // The routing decisions this process makes for input events, which a test can trace.
+    InputTraceRecorder& input_trace() { return m_input_trace; }
+
     using MediaContextMenu = Web::MediaContextMenu;
     void did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu const&, HTML::PreparedNavigationDescriptor);
     void toggle_media_play_state();
@@ -563,6 +567,7 @@ private:
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     Optional<ContextMenuRequest> m_context_menu_request;
+    InputTraceRecorder m_input_trace;
     Optional<Editing::ContextMenuMisspelling> m_context_menu_misspelling;
     HashTable<Utf16String> m_accepted_spelling_words;
     GC::Ptr<GC::Function<void(String)>> m_on_spelling_menu_action_for_testing;

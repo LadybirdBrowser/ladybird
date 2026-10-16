@@ -451,6 +451,26 @@ Gfx::FloatPoint CompositorConnection::elastic_overscroll_stretch_for_testing(Web
     return response->stretch();
 }
 
+void CompositorConnection::begin_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    if (!send_sync_but_allow_failure<Messages::CompositorWebContentServer::BeginInputTraceForTesting>(context_id))
+        did_lose_compositor();
+}
+
+Vector<Web::InputTraceRecord> CompositorConnection::take_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    if (!can_send_message_to_compositor())
+        return {};
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::TakeInputTraceForTesting>(context_id);
+    if (!response) {
+        did_lose_compositor();
+        return {};
+    }
+    return response->take_records();
+}
+
 void CompositorConnection::cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
 {
     if (!can_send_message_to_compositor())

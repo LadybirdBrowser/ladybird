@@ -533,7 +533,12 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
 {
     VERIFY(m_client);
     auto* context = context_if_present(context_id);
+    auto record_routing = [&](Web::InputRoutingDecision decision, Optional<Web::AsyncScrollNodeStableID> scroller = {}) {
+        context->input_trace().record({ .input_event_id = event.id, .stage = Web::InputTraceStage::Compositor, .decision = decision, .scroller = scroller });
+    };
     if (!context || !context->can_dispatch_input_to_web_content()) {
+        if (context)
+            record_routing(Web::InputRoutingDecision::NotDispatchedByCompositor);
         m_client->did_not_dispatch_input_event(context_id, event.id);
         return;
     }
@@ -548,6 +553,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         // The UI can send the end of a gesture more than once. An end that arrives during a fling belongs to the
         // flicked gesture, so it does not stop the fling.
         if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->has_active_scroll_fling()) {
+            record_routing(Web::InputRoutingDecision::GestureEndAbsorbedByFling);
             m_client->did_consume_input_event(context_id, event.id);
             return;
         }
@@ -557,6 +563,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
 
         // If the gesture continues as a fling, the end of the fling is the end of the gesture.
         if (m_synthesizes_scroll_momentum && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->start_scroll_fling_if_flicked(event)) {
+            record_routing(Web::InputRoutingDecision::FlingStarted);
             m_client->did_consume_input_event(context_id, event.id);
             schedule_animation_frames_if_needed(*context);
             return;
@@ -568,8 +575,10 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         result = context->handle_wheel_event(event);
     else
         result = context->handle_mouse_event(event);
-    if (result.routing_decision.has_value())
+    if (result.routing_decision.has_value()) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} routed input event {}: {}", context_id, event.id, Web::input_routing_decision_name(*result.routing_decision));
+        record_routing(*result.routing_decision, result.routed_scroller);
+    }
 
     // Schedules the present, publishes the scroll updates the event produced and asks for a rendering update, all of
     // which reach WebContent ahead of the event itself on the same connection.
@@ -581,11 +590,13 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
     } else if (handled) {
         // The page still sees the events of a drag the compositor scrolls for a scrollbar the display list paints.
         if (!result.scrollbar_dragged_by_compositor.has_value()) {
+            record_routing(Web::InputRoutingDecision::ConsumedByCompositor);
             m_client->did_consume_input_event(context_id, event.id);
             return;
         }
         event.scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor;
     }
+    record_routing(Web::InputRoutingDecision::ForwardedToPage);
     context->dispatch_mouse_event_to_web_content(event, nested_context_scrolled_since_last_frame(context_id));
 }
 
@@ -614,6 +625,8 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
     // Send each fling step on the same route as a wheel event from the UI.
     if (!step.has_value())
         return;
+    if (step->result.routing_decision.has_value())
+        context.input_trace().record({ .input_event_id = step->event.id, .stage = Web::InputTraceStage::Compositor, .decision = *step->result.routing_decision, .scroller = step->result.routed_scroller });
     step->event.async_scroll_performed_default_action = apply_context_update_result(context_id, context, step->result);
     schedule_animation_frames_if_needed(context);
     context.dispatch_mouse_event_to_web_content(step->event);
@@ -1205,6 +1218,20 @@ Gfx::FloatPoint CompositorState::elastic_overscroll_stretch_for_testing(Web::Com
     if (!context)
         return {};
     return context->elastic_overscroll_stretch_for_testing(stable_node_id);
+}
+
+void CompositorState::begin_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    if (auto* context = context_if_present(context_id))
+        context->input_trace().begin();
+}
+
+Vector<Web::InputTraceRecord> CompositorState::take_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return {};
+    return context->input_trace().take();
 }
 
 void CompositorState::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)

@@ -434,6 +434,20 @@ Messages::CompositorWebContentServer::ElasticOverscrollStretchForTestingResponse
     return m_compositor_state->elastic_overscroll_stretch_for_testing(context_id, stable_node_id);
 }
 
+void ConnectionFromWebContent::begin_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
+    m_compositor_state->begin_input_trace_for_testing(context_id);
+}
+
+Messages::CompositorWebContentServer::TakeInputTraceForTestingResponse ConnectionFromWebContent::take_input_trace_for_testing(Web::CompositorContextId context_id)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return Vector<Web::InputTraceRecord> {};
+    return m_compositor_state->take_input_trace_for_testing(context_id);
+}
+
 void ConnectionFromWebContent::cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
 {
     if (!context_is_owned_by_this_connection(context_id))

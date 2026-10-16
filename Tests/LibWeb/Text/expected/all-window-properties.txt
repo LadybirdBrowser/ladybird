@@ -606,6 +606,7 @@ animationFrame
 asyncTest
 httpTestServer
 printElement
+printInputTrace
 println
 promiseTest
 removeTestErrorHandler

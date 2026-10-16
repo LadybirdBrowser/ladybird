@@ -127,6 +127,8 @@ public:
     void set_synthesizes_scroll_momentum(bool);
     void set_scrolls_elastically(bool);
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID) const;
+    void begin_input_trace_for_testing(Web::CompositorContextId);
+    Vector<Web::InputTraceRecord> take_input_trace_for_testing(Web::CompositorContextId);
 
     struct PlaceholderCanvasAllocation {
         Compositing::CanvasId canvas_id;
