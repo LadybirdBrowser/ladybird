@@ -101,6 +101,33 @@ async function scrollSettled(target, action) {
     await scrollend;
 }
 
+// Prints what internals.takeInputTrace() returned, one routing decision per line, optionally only those of the given
+// stages. Input events are numbered in the order they first appear, as the ids the UI gives them keep growing from test
+// to test; input that did not come from the UI is marked "-".
+function printInputTrace(trace, { stages } = {}) {
+    const describe = (node, documentName = "document") => {
+        if (node instanceof Document) return node === document ? documentName : `nested ${documentName}`;
+        if (node.id) return `#${node.id}`;
+        return node.nodeName.toLowerCase();
+    };
+    const eventNumbers = new Map();
+    for (const record of trace) {
+        let eventNumber = "-";
+        if (record.id !== 0) {
+            if (!eventNumbers.has(record.id)) eventNumbers.set(record.id, eventNumbers.size + 1);
+            eventNumber = `#${eventNumbers.get(record.id)}`;
+        }
+        if (stages && !stages.includes(record.stage)) continue;
+        let line = `${eventNumber} ${record.stage}: ${record.decision}`;
+        if (record.scroller) {
+            line += ` scroller=${describe(record.scroller, "viewport")}`;
+            if (record.scrollerPseudoElement) line += `::${record.scrollerPseudoElement}`;
+        }
+        if (record.target) line += ` target=${describe(record.target)}`;
+        println(line);
+    }
+}
+
 async function scrollOffsetStopsChanging(readScrollOffset) {
     let previousScrollOffset = null;
     while (previousScrollOffset !== readScrollOffset()) {

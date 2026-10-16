@@ -155,6 +155,9 @@ interface Internals {
     unsigned long long accumulatedVisualContextTreeBuildCount();
     undefined beginDisplayListTrace();
     DOMString takeDisplayListTrace();
+    // Records where the compositor and this process route each input event, and why, until takeInputTrace().
+    undefined beginInputTrace();
+    object takeInputTrace();
     [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();
     boolean recordedDisplayListBlocksWheelEventAt(double x, double y);
     undefined recordDisplayListForTesting(optional boolean paintOverlay = false, optional boolean cold = false);

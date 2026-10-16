@@ -15,7 +15,9 @@
 
         // The compositor scrolls the page for a wheel event from the UI and forwards the event to the page flagged as
         // having done so, so the page fires the event without scrolling by its delta a second time.
+        internals.beginInputTrace();
         await scrollSettled(document, () => internals.wheelThroughUIProcess(20, 20, 0, 50));
+        printInputTrace(internals.takeInputTrace());
         await animationFrame();
         await animationFrame();
         println(`window.scrollY: ${window.scrollY}`);

@@ -43,6 +43,7 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
 #include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/Page/InputTrace.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Gfx {
@@ -155,6 +156,7 @@ public:
     void set_scrolls_elastically(bool);
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID) const;
+    Web::InputTraceRecorder& input_trace() { return m_input_trace; }
     bool advance_visual_animations(MonotonicTime now);
     bool visual_animations_need_frame();
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
@@ -297,6 +299,7 @@ private:
     bool m_has_async_scrolling_state { false };
 
     CaretBlinkTimer m_caret_blink_timer;
+    Web::InputTraceRecorder m_input_trace;
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
     Compositing::ContextVisibility m_visibility { Compositing::ContextVisibility::Visible };

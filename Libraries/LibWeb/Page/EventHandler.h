@@ -30,6 +30,7 @@
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/EventResult.h>
 #include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/Page/InputTrace.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
@@ -124,6 +125,7 @@ public:
 
 private:
     bool should_ignore_device_input_event() const;
+    void record_input_routing(InputRoutingDecision, Optional<AsyncScrollNodeStableID> scroller = {}, GC::Ptr<DOM::Node const> target = {}, InputTraceStage = InputTraceStage::WebContent);
     GC::Ptr<DOM::Node> scroll_target_for_key_input() const;
     int page_scroll_distance_for_key_input() const;
 

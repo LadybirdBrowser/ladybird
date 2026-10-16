@@ -165,6 +165,8 @@ public:
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
     void begin_display_list_trace();
     Utf16String take_display_list_trace();
+    void begin_input_trace();
+    GC::Ref<JS::Object> take_input_trace();
     GC::Ref<JS::Object> recorded_async_scrolling_state_object();
     bool recorded_display_list_blocks_wheel_event_at(double x, double y);
     void record_display_list_for_testing(bool paint_overlay, bool cold);

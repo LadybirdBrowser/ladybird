@@ -382,6 +382,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         if (!scrollbar)
             return EventResult::Dropped;
         scrollbar->begin_drag_driven_by_compositor();
+        record_input_routing(InputRoutingDecision::ScrollbarDragDrivenByCompositor, scrollbar_dragged_by_compositor->scroller_stable_node_id);
         chrome_widget = scrollbar;
     }
 
@@ -912,6 +913,20 @@ static Layout::Node* scroll_containing_block_chain_smoothly(HTML::LocalNavigable
     return nullptr;
 }
 
+void EventHandler::record_input_routing(InputRoutingDecision decision, Optional<AsyncScrollNodeStableID> scroller, GC::Ptr<DOM::Node const> target, InputTraceStage stage)
+{
+    auto& input_trace = m_navigable->page().input_trace();
+    if (!input_trace.is_recording())
+        return;
+    input_trace.record({
+        .input_event_id = handling_input_event_id(),
+        .stage = stage,
+        .decision = decision,
+        .scroller = scroller,
+        .dom_target = target ? target->unique_id() : Optional<UniqueNodeID> {},
+    });
+}
+
 EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
@@ -954,8 +969,10 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             if (display_list && root_document && root_document->has_paint_state()) {
                 Layout::ForcedReadScope root_read { *root_document };
                 root_document->update_paint_and_hit_testing_properties_if_needed();
-                if (display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch_without_update(root_read))
+                if (display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch_without_update(root_read)) {
+                    record_input_routing(InputRoutingDecision::AsyncScrollNotAttemptedDisplayListOutdated);
                     return false;
+                }
             }
         }
 
@@ -967,6 +984,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             : Compositing::AsyncScrollOperationTracking::No;
         auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
             document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, handling_input_event_id());
+        record_input_routing(enqueue_result.routing_decision.value_or(InputRoutingDecision::NoAnswerFromCompositor), enqueue_result.routed_scroller, {}, InputTraceStage::CompositorForMainThread);
         if (enqueue_result.operation_id.has_value() && async_scroll_operation)
             *async_scroll_operation = AsyncScrollOperation { m_navigable, *enqueue_result.operation_id };
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll at {},{} with device delta {},{}",
@@ -1045,8 +1063,10 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto async_scroll_delta_in_device_pixels = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }.scaled(device_pixels_per_css_pixel);
     if (can_attempt_async_scroll && async_scroll_performed_default_action) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: default action already performed");
+        record_input_routing(InputRoutingDecision::DefaultActionPerformedByCompositor);
     } else if (can_attempt_async_scroll && visual_viewport->scale() != 1.0) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: visual viewport is scaled");
+        record_input_routing(InputRoutingDecision::AsyncScrollNotAttemptedVisualViewportScaled);
     } else if (can_attempt_async_scroll) {
         if (wheel_event_target_layout_node) {
             async_scroll_performed_default_action = enqueue_async_scroll(async_scroll_delta_in_device_pixels, Compositing::WheelStepDispatch::NotYetDispatched);
@@ -1055,8 +1075,10 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         }
     }
 
-    if (!wheel_event_target_layout_node)
+    if (!wheel_event_target_layout_node) {
+        record_input_routing(InputRoutingDecision::NoWheelTarget);
         return EventResult::Dropped;
+    }
 
     auto scroll_viewport_by_wheel_delta = [&](DOM::Document& document, Painting::WheelScrollableAxes viewport_scrollable_axes) -> EventResult {
         auto visual_viewport_pan_axes = visual_viewport_pan_axes_for_scroll_step(document, wheel_delta_x, wheel_delta_y);
@@ -1107,6 +1129,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto scrollable_axes = Painting::wheel_scrollable_axes(*latched_scrolling_box);
             if (scrollable_axes.horizontal || scrollable_axes.vertical) {
                 scroll_latched_wheel_scrolling_box(*document, *latched_scrolling_box, scrollable_axes);
+                record_input_routing(InputRoutingDecision::MainThreadScrolledLatchedScroller, Painting::async_scroll_node_stable_id(*latched_scrolling_box));
                 return EventResult::Handled;
             }
             m_wheel_scroll_latch.clear();
@@ -1141,6 +1164,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             }
             if (scrolled_box) {
                 latch_gesture_to_scrolling_box(*scrolled_box);
+                record_input_routing(InputRoutingDecision::MainThreadScrolledScroller, Painting::async_scroll_node_stable_id(*scrolled_box));
                 return EventResult::Handled;
             }
         }
@@ -1148,14 +1172,21 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         // A step that a box keeps to itself is handled even though nothing scrolled, so that neither the viewport
         // nor a document this one is nested in scrolls by it. No scrolling box is latched: the next step may point
         // along the other axis, which the box may well pass on.
-        if (box_ending_scroll_chain && !box_ending_scroll_chain->is_viewport())
+        if (box_ending_scroll_chain && !box_ending_scroll_chain->is_viewport()) {
+            record_input_routing(InputRoutingDecision::ScrollKeptByOverscrollBehavior, Painting::async_scroll_node_stable_id(*box_ending_scroll_chain));
             return EventResult::Handled;
+        }
 
         auto viewport_scroll_result = scroll_viewport_by_wheel_delta(*document, Painting::wheel_scrollable_axes(*viewport_box));
-        if (viewport_scroll_result == EventResult::Handled)
+        if (viewport_scroll_result == EventResult::Handled) {
             latch_gesture_to_scrolling_box(*viewport_box);
-        else if (box_ending_scroll_chain)
+            record_input_routing(InputRoutingDecision::MainThreadScrolledScroller, Painting::async_scroll_node_stable_id(*viewport_box));
+        } else if (box_ending_scroll_chain) {
+            record_input_routing(InputRoutingDecision::ScrollKeptByOverscrollBehavior, Painting::async_scroll_node_stable_id(*box_ending_scroll_chain));
             return EventResult::Handled;
+        } else {
+            record_input_routing(InputRoutingDecision::MainThreadScrolledNothing);
+        }
         return viewport_scroll_result;
     };
 
@@ -1188,6 +1219,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                     return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target);
                 });
                 result.has_value()) {
+                record_input_routing(InputRoutingDecision::HandedToNestedNavigable, {}, wheel_event_target_node);
                 if (result.value() == EventResult::Handled) {
                     if (m_wheel_scroll_latch.has_value())
                         m_wheel_scroll_latch->gesture_handed_to_nested_navigable = true;
@@ -1211,6 +1243,10 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
         auto is_cancelable = async_scroll_performed_default_action ? UIEvents::WheelEventIsCancelable::No : UIEvents::WheelEventIsCancelable::Yes;
         auto dispatch_result = dispatch_wheel_event(read, *wheel_event_target_layout_node, visual_viewport_position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, is_cancelable == UIEvents::WheelEventIsCancelable::Yes);
+        if (dispatch_result == EventResult::Accepted)
+            record_input_routing(InputRoutingDecision::DispatchedWheelEvent, {}, wheel_event_target_node);
+        else if (dispatch_result == EventResult::Cancelled)
+            record_input_routing(InputRoutingDecision::PageCanceledWheelEvent, {}, wheel_event_target_node);
         // A listener that cancels the event scrolls by itself, so the next event is targeted afresh.
         if (dispatch_result == EventResult::Cancelled)
             m_wheel_scroll_latch.clear();

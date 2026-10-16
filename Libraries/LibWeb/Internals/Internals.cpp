@@ -1215,6 +1215,69 @@ Utf16String Internals::take_display_list_trace()
     return Utf16String::from_utf8_without_validation(builder.string_view());
 }
 
+// The compositor context that the UI routes this page's input through.
+static Compositor::CompositorContextHandle* compositor_context_routing_input_for(HTML::Window& window)
+{
+    auto local_root = window.navigable()->local_root();
+    if (!local_root->has_compositor_context())
+        return nullptr;
+    return &local_root->compositor_context();
+}
+
+void Internals::begin_input_trace()
+{
+    page().input_trace().begin();
+    if (auto* compositor_context = compositor_context_routing_input_for(window()))
+        compositor_context->begin_input_trace_for_testing();
+}
+
+static Vector<InputTraceRecord> take_input_trace_records(HTML::Window& window)
+{
+    Vector<InputTraceRecord> records;
+    if (auto* compositor_context = compositor_context_routing_input_for(window))
+        records.extend(compositor_context->take_input_trace_for_testing());
+    records.extend(window.page().input_trace().take());
+
+    // The compositor sees each input event from the UI before this process does. Events in UI order, and within
+    // an event the compositor's records first, read as the way the event went. Input that did not come from the UI
+    // goes last.
+    auto ui_order = [](InputTraceRecord const& record) {
+        return record.input_event_id == 0 ? NumericLimits<u64>::max() : record.input_event_id;
+    };
+    insertion_sort(records, [&](auto const& a, auto const& b) { return ui_order(a) < ui_order(b); });
+    return records;
+}
+
+GC::Ref<JS::Object> Internals::take_input_trace()
+{
+    auto records = take_input_trace_records(window());
+    auto& realm = HTML::relevant_realm(window());
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto wrapped_node = [&](UniqueNodeID node_id) -> JS::Value {
+        auto* node = DOM::Node::from_unique_id(node_id);
+        if (!node)
+            return JS::js_null();
+        return Bindings::wrap(wrapper_world, realm, GC::Ref<DOM::Node> { *node });
+    };
+
+    auto array = MUST(JS::Array::create(realm, records.size()));
+    for (size_t i = 0; i < records.size(); ++i) {
+        auto const& record = records[i];
+        auto object = JS::Object::create(realm, nullptr);
+        object->define_direct_property("id"_utf16_fly_string, JS::Value(static_cast<double>(record.input_event_id)), JS::default_attributes);
+        object->define_direct_property("stage"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_trace_stage_name(record.stage)), JS::default_attributes);
+        object->define_direct_property("decision"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_routing_decision_name(record.decision)), JS::default_attributes);
+        object->define_direct_property("scroller"_utf16_fly_string, record.scroller.has_value() ? wrapped_node(record.scroller->node_id) : JS::js_null(), JS::default_attributes);
+        if (record.scroller.has_value() && record.scroller->kind == AsyncScrollNodeKind::PseudoElement) {
+            auto pseudo_element = CSS::pseudo_element_name(static_cast<CSS::PseudoElement>(record.scroller->pseudo_element_type));
+            object->define_direct_property("scrollerPseudoElement"_utf16_fly_string, JS::PrimitiveString::create(vm(), pseudo_element), JS::default_attributes);
+        }
+        object->define_direct_property("target"_utf16_fly_string, record.dom_target.has_value() ? wrapped_node(*record.dom_target) : JS::js_null(), JS::default_attributes);
+        MUST(array->create_data_property_or_throw(i, object));
+    }
+    return array;
+}
+
 bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
 {
     // A script reads the render state, which waits for a frame in flight.
@@ -1654,6 +1717,8 @@ void Internals::perform_per_test_cleanup()
     // Clear any input state
     if (auto local_root = local_root_of(window()))
         local_root->event_handler().clear_per_test_input_state({});
+    if (page().input_trace().is_recording())
+        (void)take_input_trace_records(window());
 
     // Restore the page to the visible state.
     page().client().page_did_request_set_system_visibility_state(HTML::VisibilityState::Visible);
