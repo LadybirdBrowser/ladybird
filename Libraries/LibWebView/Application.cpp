@@ -211,6 +211,12 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+#if !defined(AK_OS_WINDOWS)
+    // No event loop runs the handlers during teardown, so a signal from here on takes its default action again.
+    for (auto handler : m_session_signal_handlers)
+        Core::EventLoop::unregister_signal(handler);
+#endif
+
 #if defined(AK_OS_MACOS)
     // Stop bootstrap callbacks before destroying the state they use.
     m_mach_port_server.clear();
@@ -250,6 +256,12 @@ Application::~Application()
         m_process_manager->remove_all_processes();
     m_process_manager = nullptr;
     m_browser_process = nullptr;
+
+    // Only a normal exit gets this far, and only after every teardown step above, so a crash never records a clean one.
+    if (m_default_session && m_default_session->session_store) {
+        m_default_session->session_store->flush_dirty_state();
+        m_default_session->session_store->mark_clean_exit();
+    }
 
     s_the = nullptr;
 }
@@ -1731,6 +1743,19 @@ ErrorOr<void> Application::launch_services()
     m_default_session->session_store->on_closed_units_changed = [this] {
         on_recently_closed_entries_changed();
     };
+
+#if !defined(AK_OS_WINDOWS)
+    // A run stopped by SIGINT or SIGTERM ends like a quit, rather than like a crash: It saves the session, leaves its
+    // windows for the next launch to recover, and records a clean exit.
+    if (m_default_session->session_store->is_persistent()) {
+        for (auto signal_number : { SIGINT, SIGTERM }) {
+            m_session_signal_handlers.append(Core::EventLoop::register_signal(signal_number, [this](int) {
+                m_default_session->session_store->application_quitting();
+                m_event_loop->quit(0);
+            }));
+        }
+    }
+#endif
 
     VERIFY(m_event_loop);
     m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
