@@ -46,7 +46,8 @@ const MAX_MIN_MAX_ARGUMENTS: usize = 8;
 impl GraphBuilder<'_> {
     /// Builds `Math.<op>(argument)`, a `CallBuiltinMath*` instruction, for
     /// numbers, if `callee` is the builtin of any realm. The instruction's
-    /// slow path, which calls the callee, handles everything else.
+    /// slow path, which calls the callee, handles everything else, or the code
+    /// exits there where that did not happen before.
     pub(super) fn build_math_function(
         &mut self,
         op: Float64UnaryOp,
@@ -66,6 +67,7 @@ impl GraphBuilder<'_> {
         let callee = self.read(callee)?;
         let argument = self.read(argument)?;
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        self.exit_instead_of_slow_path(&mut slow_paths);
         self.branch_to_slow_path(&mut slow_paths, BranchCondition::Builtin(builtin), vec![callee], true);
         let result = if let Some(integer) = self.int32_value_of(argument) {
             self.build_int32_math_function(&mut slow_paths, op, integer)

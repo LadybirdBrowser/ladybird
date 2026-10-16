@@ -1,7 +1,7 @@
 // Calls of Math functions of one number and of charCodeAt and charAt are
-// built as IR: branches on the callee and the operands go to a cold block that
-// calls the instruction's slow path, and the common case computes the result
-// in IR.
+// built as IR: the common case computes the result in IR, and branches on the
+// callee and the operands go to a cold block. Math functions exit there,
+// unless that happened at the site before.
 
 function floorPlusAbs(x) {
     return Math.floor(x) + Math.abs(x);
@@ -17,7 +17,7 @@ jit.compile(floorPlusAbs);
 // CHECK-NEXT: RefineBuiltin {{[0-9]+}} ([[FLOOR]])
 // CHECK-NEXT: BranchInt32Value ([[X:v[0-9]+]]) -> [[INT32:b[0-9]+]], [[OTHER:b[0-9]+]]
 // CHECK: [[COLD]] <- {{b[0-9]+}} cold:
-// CHECK-NEXT: Jump [[SLOW:b[0-9]+]]
+// CHECK-NEXT: Exit SlowPath
 // CHECK: [[INT32]] <- {{b[0-9]+}}:
 // CHECK-NEXT: [[INTEGER:v[0-9]+]] = RefineInt32Value ([[X]])
 // CHECK-NEXT: UnboxInt32 ([[INTEGER]])
@@ -27,9 +27,29 @@ jit.compile(floorPlusAbs);
 // CHECK-NEXT: [[NUMBER:v[0-9]+]]:float64 = UnboxDouble ([[REFINED]])
 // CHECK-NEXT: [[FLOORED:v[0-9]+]]:float64 = Float64Floor ([[NUMBER]])
 // CHECK-NEXT: BoxFloat64 ([[FLOORED]])
-// CHECK: [[SLOW]] <- {{b[0-9]+}}, {{b[0-9]+}} cold:
-// CHECK-NEXT: CallSlowPath CallBuiltinMathFloor {{@[0-9]+}} ([[FLOOR]], {{[^)]*}}[[X]])
 // CHECK: Float64Abs
+// CHECK-NOT: CallSlowPath
+
+// A site that exited calls the slow path instead.
+
+function floorOf(x) {
+    return Math.floor(x);
+}
+jit.prepare(floorOf);
+for (let i = 0; i < 10; ++i) floorOf(i + 0.5);
+jit.compile(floorOf);
+floorOf("1.5");
+jit.discard(floorOf);
+jit.compile(floorOf);
+
+// CHECK-FUNCTION: floorOf
+// CHECK-PASS: graph building
+// CHECK: BranchDouble ({{v[0-9]+}}) -> {{b[0-9]+}}, [[COLD:b[0-9]+]]
+// CHECK: [[COLD]] <- {{b[0-9]+}} cold:
+// CHECK-NEXT: Jump [[SLOW:b[0-9]+]]
+// CHECK: [[SLOW]] <- {{b[0-9]+}}, {{b[0-9]+}} cold:
+// CHECK-NEXT: CallSlowPath CallBuiltinMathFloor
+// CHECK-NOT: Exit SlowPath
 
 function characters(s, i) {
     return s.charCodeAt(i) + s.charAt(i).length;
@@ -59,11 +79,11 @@ jit.compile(characters);
 // CHECK: [[ASCII:v[0-9]+]]:int32 = RefineInt32LessThan ([[CHARACTER]], #i32:128)
 // CHECK-NEXT: SingleCharacterString ([[ASCII]])
 
-console.log(floorPlusAbs(-2.5), characters("abc", 1), characters("abc", 9));
+console.log(floorPlusAbs(-2.5), floorOf(-2.5), characters("abc", 1), characters("abc", 9));
 
 // Int32 arguments take int32 paths: the absolute value of an int32 is one
-// (but for the smallest, which goes to the slow path), and its square root
-// is that of its double.
+// (but for the smallest, which exits), and its square root is that of its
+// double.
 
 function absAndSqrt(n) {
     const i = n | 0;

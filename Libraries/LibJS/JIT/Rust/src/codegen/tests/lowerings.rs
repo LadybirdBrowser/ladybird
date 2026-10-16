@@ -3256,7 +3256,8 @@ fn math_builtin_calls() {
         (12, js_round),
         (13, f64::sqrt),
     ];
-    let call = |builtin: u8, callee: u64, argument_value: u64| {
+    // NB: Where the code exited before, it calls the slow path instead.
+    let call_with = |builtin: u8, callee: u64, argument_value: u64, exited: bool| {
         let instruction = match builtin {
             9 => Instruction::CallBuiltinMathAbs {
                 call_feedback: 0,
@@ -3306,8 +3307,20 @@ fn math_builtin_calls() {
                 Instruction::Return { value: r(5) },
             ]
         });
-        let (result, _) =
-            run_program_with_snapshot(&program, &[callee, argument_value, value::UNDEFINED], |_| {}, |_| {});
+        let pc = program.offsets[1];
+        let (result, _) = run_program_with_snapshot(
+            &program,
+            &[callee, argument_value, value::UNDEFINED],
+            |snapshot| {
+                if exited {
+                    snapshot.executables[0].exit_sites = vec![(pc, ExitKind::SlowPath), (pc, ExitKind::Overflow)];
+                }
+            },
+            |_| {},
+        );
+        if result.status == crate::code::JitStatus::Resume as u64 {
+            return EXITED;
+        }
         assert_eq!(result.status, RETURNED);
         result.value
     };
@@ -3343,34 +3356,42 @@ fn math_builtin_calls() {
     let integers = [0, 1, -1, 5, -7, i32::MAX, i32::MIN];
     for (builtin, reference) in functions {
         let callee = fake_function(Some(builtin));
-        for number in numbers {
-            let expected = box_number(reference(number));
+        // NB: Before any exit at the site, the cases the slow path handles
+        //     exit instead.
+        for exited in [true, false] {
+            let slow = if exited { MARKER } else { EXITED };
+            for number in numbers {
+                let expected = box_number(reference(number));
+                assert_eq!(
+                    call_with(builtin, callee, number.to_bits(), exited),
+                    expected,
+                    "builtin {builtin} of {number:?}"
+                );
+            }
+            for integer in integers {
+                // NB: The absolute value of the smallest int32 is no int32;
+                //     the slow path makes it.
+                let expected = if builtin == 9 && integer == i32::MIN {
+                    slow
+                } else {
+                    box_number(reference(f64::from(integer)))
+                };
+                assert_eq!(
+                    call_with(builtin, callee, value::int32(integer), exited),
+                    expected,
+                    "builtin {builtin} of {integer}"
+                );
+            }
+            // Other callees and arguments take the slow path.
             assert_eq!(
-                call(builtin, callee, number.to_bits()),
-                expected,
-                "builtin {builtin} of {number:?}"
+                call_with(builtin, fake_function(Some(builtin + 1)), value::int32(1), exited),
+                slow
             );
+            assert_eq!(call_with(builtin, fake_function(None), value::int32(1), exited), slow);
+            assert_eq!(call_with(builtin, value::UNDEFINED, value::int32(1), exited), slow);
+            assert_eq!(call_with(builtin, callee, value::UNDEFINED, exited), slow);
+            assert_eq!(call_with(builtin, callee, value::TRUE, exited), slow);
         }
-        for integer in integers {
-            // NB: The absolute value of the smallest int32 is no int32; the
-            //     slow path makes it.
-            let expected = if builtin == 9 && integer == i32::MIN {
-                MARKER
-            } else {
-                box_number(reference(f64::from(integer)))
-            };
-            assert_eq!(
-                call(builtin, callee, value::int32(integer)),
-                expected,
-                "builtin {builtin} of {integer}"
-            );
-        }
-        // Other callees and arguments take the slow path.
-        assert_eq!(call(builtin, fake_function(Some(builtin + 1)), value::int32(1)), MARKER);
-        assert_eq!(call(builtin, fake_function(None), value::int32(1)), MARKER);
-        assert_eq!(call(builtin, value::UNDEFINED, value::int32(1)), MARKER);
-        assert_eq!(call(builtin, callee, value::UNDEFINED), MARKER);
-        assert_eq!(call(builtin, callee, value::TRUE), MARKER);
     }
 }
 
