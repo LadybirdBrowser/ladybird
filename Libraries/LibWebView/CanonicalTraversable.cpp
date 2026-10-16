@@ -2356,12 +2356,6 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
             resume_applying_the_traverse_history_step(operation, parameters.target_step, parameters.user_involvement);
         },
         [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&) {
-            // A navigation that ended before its completion steps appended this has nothing to finalize.
-            auto navigation = finalized_navigation(operation);
-            if (!navigation || navigation->host() != operation.requesting_page.ptr()) {
-                finish_history_operation(operation.operation_id);
-                return;
-            }
             finalize_a_cross_document_navigation(operation);
         });
 }
@@ -2370,18 +2364,16 @@ void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
 void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation& operation)
 {
     auto const& parameters = operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
-    auto navigable = find(parameters.navigable_id);
-    if (!navigable.has_value()) {
-        finish_history_operation(operation.operation_id);
-        return;
-    }
 
-    // NB: historyEntry is the navigation's. A javascript: URL navigation whose document was refused has none.
+    // NB: A navigation that ended before its completion steps appended this, or that another page hosts, has nothing to
+    //     finalize. historyEntry is the navigation's. A javascript: URL navigation whose document was refused has none.
     auto navigation = finalized_navigation(operation);
-    if (!navigation || !navigation->history_entry) {
+    if (!navigation || navigation->host() != operation.requesting_page.ptr() || !navigation->history_entry) {
         finish_history_operation(operation.operation_id);
         return;
     }
+    auto navigable = find(parameters.navigable_id);
+    VERIFY(navigable.has_value());
     NonnullRefPtr history_entry = *navigation->history_entry;
 
     // 1. Assert: this is running on navigable's traversable navigable's session history traversal queue.
