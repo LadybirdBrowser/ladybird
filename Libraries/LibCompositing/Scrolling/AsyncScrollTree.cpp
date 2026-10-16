@@ -64,14 +64,14 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollN
         // Only the main thread sees the box that keeps the scroll from this scroller, so it finds out whether the wheel
         // is under that box.
         if (scroll_nodes_behind_scroll_chaining_barriers.contains_slow(node->node_id))
-            return { .node_id = {}, .blocked_by_main_thread_region = true };
+            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
         if (can_take_step(*node))
-            return { .node_id = node->node_id, .innermost_scroll_node_id = node_id };
+            return { .outcome = WheelHitTestOutcome::FoundScrollTarget, .node_id = node->node_id, .innermost_scroll_node_id = node_id };
         if (!node_chains_scroll_to_ancestors(*node, delta) || !node->parent_node_id.has_value())
             break;
         node = scroll_node_for_id(*node->parent_node_id);
     }
-    return { .node_id = {}, .innermost_scroll_node_id = node_id };
+    return { .outcome = WheelHitTestOutcome::NoScrollTarget, .innermost_scroll_node_id = node_id };
 }
 
 Optional<AsyncScrollNodeID> AsyncScrollTree::outermost_scroll_node_wheel_scrollable_along_main_axis_of(AsyncScrollNodeID innermost_node_id, Gfx::FloatPoint delta) const
@@ -410,7 +410,7 @@ bool AsyncScrollTree::blocks_wheel_event_at_position(Compositing::AccumulatedVis
 WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, WheelStepDispatch wheel_step_dispatch) const
 {
     if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())
-        return {};
+        return { .outcome = WheelHitTestOutcome::HitTestTargetsOfAnotherVisualContextTree };
 
     auto context_is_valid = [&](Compositing::ContextRef context) {
         return visual_context_tree.context_is_valid(context);
@@ -418,7 +418,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
 
     bool blocking_wheel_event_listeners_hold_the_step_back = wheel_step_dispatch == WheelStepDispatch::NotYetDispatched;
     if (blocking_wheel_event_listeners_hold_the_step_back && m_has_blocking_wheel_event_region_covering_viewport)
-        return { {}, false, true };
+        return { .outcome = WheelHitTestOutcome::BlockedByWheelEventRegion };
 
     for (auto const& target : m_cached_main_thread_wheel_event_targets) {
         if (target.viewport_rect.has_value() && !target.viewport_rect->contains(position))
@@ -427,11 +427,11 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
             continue;
         auto position_in_context = visual_context_tree.transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
         if (position_in_context.has_value() && target.rect.contains(*position_in_context))
-            return { {}, true };
+            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
     }
 
     if (blocking_wheel_event_listeners_hold_the_step_back && blocks_wheel_event_at_position(visual_context_tree, position))
-        return { {}, false, true };
+        return { .outcome = WheelHitTestOutcome::BlockedByWheelEventRegion };
 
     // https://drafts.csswg.org/css-overscroll-1/#scroll-chaining-and-boundary-default-actions
     // If a scroll container has no potential to scroll, because it does not overflow in the direction of the scroll,
@@ -443,7 +443,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
         if (!keeps_the_scroll)
             continue;
         if (!context_is_valid(barrier.context))
-            return { {}, true };
+            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
         if (cached_barrier.viewport_rect.has_value() && !cached_barrier.viewport_rect->contains(position))
             continue;
         auto position_in_context = visual_context_tree.transform_point_for_hit_test(barrier.context, position, m_scroll_state_snapshot);
@@ -460,16 +460,16 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
         if (!position_in_context.has_value() || !wheel_hit_test_target_contains_point(target, *position_in_context))
             continue;
         if (!target.target_node_id.has_value())
-            return {};
+            return { .outcome = WheelHitTestOutcome::NoScrollTarget };
         return hit_test_result_for_scroll_node(*target.target_node_id, delta, in_flight_destination_for, scroll_nodes_behind_scroll_chaining_barriers);
     }
 
     auto viewport_node_id = viewport_scroll_node_id();
     if (!viewport_node_id.has_value())
-        return {};
+        return { .outcome = WheelHitTestOutcome::NoScrollTarget };
     auto const* viewport_node = scroll_node_for_id(*viewport_node_id);
     if (!viewport_node || !viewport_node->scrollport_rect.to_type<float>().contains(position))
-        return {};
+        return { .outcome = WheelHitTestOutcome::NoScrollTarget };
     return hit_test_result_for_scroll_node(*viewport_node_id, delta, in_flight_destination_for, scroll_nodes_behind_scroll_chaining_barriers);
 }
 

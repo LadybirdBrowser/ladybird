@@ -22,13 +22,26 @@
 
 namespace Compositing {
 
+enum class WheelHitTestOutcome : u8 {
+    FoundScrollTarget,
+    NoScrollTarget,
+    BlockedByMainThreadRegion,
+    BlockedByWheelEventRegion,
+    HitTestTargetsOfAnotherVisualContextTree,
+};
+
 struct WheelHitTestResult {
-    Optional<AsyncScrollNodeID> node_id;
-    bool blocked_by_main_thread_region { false };
-    bool blocked_by_wheel_event_region { false };
+    WheelHitTestOutcome outcome { WheelHitTestOutcome::NoScrollTarget };
+    // Set exactly when the outcome is FoundScrollTarget.
+    Optional<AsyncScrollNodeID> node_id {};
     // The scroller the wheel is over, which is where the search for `node_id` started. It is set even if neither it
     // nor any scroller around it can scroll by the delta.
     Optional<AsyncScrollNodeID> innermost_scroll_node_id {};
+
+    bool is_blocked_by_a_region() const
+    {
+        return outcome == WheelHitTestOutcome::BlockedByMainThreadRegion || outcome == WheelHitTestOutcome::BlockedByWheelEventRegion;
+    }
 };
 
 struct WheelScrollTarget {
