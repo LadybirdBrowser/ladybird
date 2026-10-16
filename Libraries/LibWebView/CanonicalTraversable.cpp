@@ -565,6 +565,7 @@ void CanonicalTraversable::remove_page(WebContentPage& page)
     }
 }
 
+// NB: A navigable whose document another page hosts has a parent, whose document's page stands in for the lost one.
 void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& navigable)
 {
     auto reporting_page = navigable.reporting_page();
@@ -577,8 +578,6 @@ void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& naviga
     if (!current_entry)
         return;
     reporting_page->async_begin_hosting_navigable(navigable.id(), current_entry->descriptor(), system_visibility_state());
-    if (&navigable == this)
-        give_stand_in_its_opener(*reporting_page);
 }
 
 // The page's process holds the opener's tab once it represents the tab's group.
