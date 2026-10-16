@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 
 namespace Web::CSS::Invalidation {
 
@@ -108,6 +109,8 @@ static bool subtree_holds_propagating_state_source(DOM::Node const& subtree, CSS
     if (ancestor_traversal_for_pseudo_class(pseudo_class) == AncestorTraversal::FlatTree) {
         for (auto const* node = &source; node; node = node->flat_tree_parent()) {
             if (node == &subtree)
+                return true;
+            if (is<DOM::ShadowRoot>(subtree) && node->parent() == &subtree)
                 return true;
         }
         return false;

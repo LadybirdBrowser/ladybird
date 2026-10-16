@@ -11,4 +11,5 @@ removed press target: no click
 removed during mouseup: no click
 shrinking icon: click on button
 slotted to shadow sibling: click on shadow-parent
+shadow root children: click on host
 ancestor activation: true

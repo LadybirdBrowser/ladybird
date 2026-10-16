@@ -55,6 +55,9 @@
         shadow.innerHTML = `<div id="shadow-parent" style="width:200px;height:100px"><slot></slot>
             <div id="shadow-child" style="position:absolute;left:70px;top:0;width:40px;height:40px"></div></div>`;
         pressAndRelease("slotted to shadow sibling", [60, 60], [120, 60]);
+        shadow.innerHTML = `<div id="shadow-first" style="position:absolute;left:10px;top:10px;width:40px;height:40px"></div>
+            <div id="shadow-second" style="position:absolute;left:70px;top:10px;width:40px;height:40px"></div>`;
+        pressAndRelease("shadow root children", [60, 60], [120, 60]);
 
         fixture.innerHTML = `<label id="label" for="checkbox" style="display:block;width:200px;height:100px">
             <span id="label-first" style="position:absolute;left:0;top:0;width:40px;height:40px"></span>
