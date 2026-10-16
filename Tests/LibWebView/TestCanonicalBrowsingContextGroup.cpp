@@ -422,7 +422,7 @@ TEST_CASE(origin_keyed_agent_clusters)
 TEST_CASE(cross_origin_isolated_group_keys_agent_clusters_by_origin)
 {
     auto group = WebView::CanonicalBrowsingContextGroup::create();
-    group->set_cross_origin_isolation_mode(WebView::CrossOriginIsolationMode::Concrete);
+    group->set_cross_origin_isolation_mode(Web::HTML::CrossOriginIsolationMode::Concrete);
     auto first_origin = origin_for("https://a.ladybird.org"sv);
     auto second_origin = origin_for("https://b.ladybird.org"sv);
 
@@ -465,7 +465,7 @@ TEST_CASE(same_origin_plus_coep_response_isolates_its_new_group)
     auto group = document->browsing_context().group();
 
     EXPECT_NE(group.ptr(), traversable.active_browsing_context().group().ptr());
-    EXPECT(group->cross_origin_isolation_mode() == WebView::CrossOriginIsolationMode::Concrete);
+    EXPECT(group->cross_origin_isolation_mode() == Web::HTML::CrossOriginIsolationMode::Concrete);
     EXPECT_EQ(group->obtain_similar_origin_window_agent(document->origin(), false).ptr(), &document->relevant_global_object().agent());
     EXPECT_NE(group->obtain_similar_origin_window_agent(origin_for("https://b.ladybird.org"sv), false).ptr(), &document->relevant_global_object().agent());
 }
@@ -478,7 +478,7 @@ TEST_CASE(same_origin_response_leaves_its_new_group_unisolated)
     auto group = document->browsing_context().group();
 
     EXPECT_NE(group.ptr(), traversable.active_browsing_context().group().ptr());
-    EXPECT(group->cross_origin_isolation_mode() == WebView::CrossOriginIsolationMode::None);
+    EXPECT(group->cross_origin_isolation_mode() == Web::HTML::CrossOriginIsolationMode::None);
     EXPECT_EQ(group->obtain_similar_origin_window_agent(origin_for("https://b.ladybird.org"sv), false).ptr(), &document->relevant_global_object().agent());
 }
 

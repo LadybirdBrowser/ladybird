@@ -15,6 +15,7 @@
 #include <AK/WeakPtr.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Site.h>
+#include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
@@ -23,25 +24,22 @@ namespace WebView {
 // https://html.spec.whatwg.org/multipage/webappapis.html#similar-origin-window-agent
 class WEBVIEW_API CanonicalSimilarOriginWindowAgent final : public RefCounted<CanonicalSimilarOriginWindowAgent> {
 public:
-    static NonnullRefPtr<CanonicalSimilarOriginWindowAgent> create();
+    static NonnullRefPtr<CanonicalSimilarOriginWindowAgent> create(Web::HTML::CrossOriginIsolationMode);
 
     RefPtr<WebContentClient> hosting_process() const;
     void set_hosting_process_if_unset(WebContentClient&);
 
     u64 agent_cluster_id() const { return m_agent_cluster_id; }
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#agent-cluster-cross-origin-isolation
+    Web::HTML::CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const { return m_agent_cluster_cross_origin_isolation_mode; }
+
 private:
-    CanonicalSimilarOriginWindowAgent();
+    explicit CanonicalSimilarOriginWindowAgent(Web::HTML::CrossOriginIsolationMode);
 
     WeakPtr<WebContentClient> m_hosting_process;
     u64 m_agent_cluster_id { 0 };
-};
-
-// https://html.spec.whatwg.org/multipage/document-sequences.html#cross-origin-isolation-mode
-enum class CrossOriginIsolationMode : u8 {
-    None,
-    Logical,
-    Concrete,
+    Web::HTML::CrossOriginIsolationMode m_agent_cluster_cross_origin_isolation_mode { Web::HTML::CrossOriginIsolationMode::None };
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-group
@@ -59,8 +57,8 @@ public:
     void remove(CanonicalBrowsingContext&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#bcg-cross-origin-isolation
-    CrossOriginIsolationMode cross_origin_isolation_mode() const { return m_cross_origin_isolation_mode; }
-    void set_cross_origin_isolation_mode(CrossOriginIsolationMode mode) { m_cross_origin_isolation_mode = mode; }
+    Web::HTML::CrossOriginIsolationMode cross_origin_isolation_mode() const { return m_cross_origin_isolation_mode; }
+    void set_cross_origin_isolation_mode(Web::HTML::CrossOriginIsolationMode mode) { m_cross_origin_isolation_mode = mode; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#obtain-similar-origin-window-agent
     NonnullRefPtr<CanonicalSimilarOriginWindowAgent> obtain_similar_origin_window_agent(URL::Origin const&, bool requests_oac);
@@ -93,7 +91,7 @@ private:
     // Browsing contexts own their group, so this inverse membership relation must remain non-owning.
     OrderedHashTable<CanonicalBrowsingContext*> m_browsing_context_set;
 
-    CrossOriginIsolationMode m_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
+    Web::HTML::CrossOriginIsolationMode m_cross_origin_isolation_mode { Web::HTML::CrossOriginIsolationMode::None };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#agent-cluster-map
     // FIXME: Make this weak once canonical agent clusters have a lifetime independent of the browsing context group.
