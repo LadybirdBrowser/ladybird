@@ -6,9 +6,7 @@
 
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <AK/Utf16View.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 
@@ -337,72 +335,6 @@ WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& sta
     if (state.wheel_event_listener_state_generation < newest_wheel_event_listener_state_generation)
         return WheelRoutingAdmission::StaleWheelEventListeners;
     return wheel_routing_admission_for(state);
-}
-
-Utf16View wheel_routing_admission_to_utf16_view(WheelRoutingAdmission admission)
-{
-    switch (admission) {
-    case WheelRoutingAdmission::Accepted:
-        return u"accepted"sv;
-    case WheelRoutingAdmission::NoAsyncScrollingState:
-        return u"no async scrolling state"sv;
-    case WheelRoutingAdmission::BlockingWheelEventListeners:
-        return u"blocking wheel event listeners"sv;
-    case WheelRoutingAdmission::NoScrollNode:
-        return u"no scroll node"sv;
-    case WheelRoutingAdmission::StaleWheelEventListeners:
-        return u"stale wheel event listeners"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static AsyncScrollTree scroll_tree_for_hit_testing(AsyncScrollingState async_scrolling_state, RefPtr<Compositing::DisplayList const> const& display_list, Compositing::AccumulatedVisualContextTree const* visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot)
-{
-    AsyncScrollTree scroll_tree;
-    scroll_tree.set_state(move(async_scrolling_state));
-    scroll_tree.rebuild_wheel_hit_test_targets(display_list, visual_context_tree, scroll_state_snapshot);
-    return scroll_tree;
-}
-
-bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_state, RefPtr<Compositing::DisplayList const> const& display_list, Compositing::AccumulatedVisualContextTree const* visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
-{
-    if (async_scrolling_state.has_blocking_wheel_event_region_covering_viewport)
-        return true;
-
-    // If a caller knows blocking wheel listeners exist but cannot provide a display list for visual-context hit
-    // testing, async scrolling must fail closed. Sending the input to the main thread is slower, but it preserves
-    // cancelability.
-    if (!display_list || !visual_context_tree)
-        return async_scrolling_state.has_blocking_wheel_event_listeners;
-
-    auto scroll_tree = scroll_tree_for_hit_testing(async_scrolling_state, display_list, visual_context_tree, scroll_state_snapshot);
-    return scroll_tree.blocks_wheel_event_at_position(*visual_context_tree, position);
-}
-
-WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolling_state, RefPtr<Compositing::DisplayList const> const& display_list, Compositing::AccumulatedVisualContextTree const* visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current)
-{
-    WheelHitTestResult hit_test_result;
-    if (display_list && visual_context_tree) {
-        auto scroll_tree = scroll_tree_for_hit_testing(async_scrolling_state, display_list, visual_context_tree, scroll_state_snapshot);
-        hit_test_result = scroll_tree.hit_test_scroll_node_for_wheel(*visual_context_tree, position, delta);
-    } else if (async_scrolling_state.has_blocking_wheel_event_listeners) {
-        hit_test_result.outcome = WheelHitTestOutcome::BlockedByWheelEventRegion;
-    }
-    if (hit_test_result.outcome == WheelHitTestOutcome::BlockedByMainThreadRegion)
-        return WheelScrollAdmission::BlockedByMainThreadRegion;
-
-    // Async scrolling may only start when the snapshot can prove that the wheel event cannot be canceled by script
-    // at this position. Stale or missing blocker information sends the event back to the main thread.
-    if (async_scrolling_state.has_blocking_wheel_event_listeners) {
-        if (!blocking_wheel_event_regions_are_current)
-            return WheelScrollAdmission::StaleBlockingWheelEventRegions;
-        if (hit_test_result.outcome == WheelHitTestOutcome::BlockedByWheelEventRegion)
-            return WheelScrollAdmission::BlockedByWheelEventRegion;
-    }
-
-    if (!hit_test_result.node_id.has_value())
-        return WheelScrollAdmission::NoScrollableTarget;
-    return WheelScrollAdmission::Accepted;
 }
 
 }
