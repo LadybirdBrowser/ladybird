@@ -244,14 +244,22 @@ impl GeneratorObject {
         Ok(BuiltinIteratorStep::Value(iteration_result.value))
     }
 
-    /// [[GeneratorContext]]. It lives out of line until the generator is finalized, so the pointer stays valid for
-    /// as long as the generator does.
+    /// [[GeneratorContext]]. It lives out of line until the generator completes or is finalized, so the pointer stays
+    /// valid for as long as the generator is not completed.
     fn generator_context(&self) -> NonNull<ExecutionContext> {
         self.execution_context
             .borrow()
             .as_ref()
             .expect("a live generator has its execution context")
             .as_non_null()
+    }
+
+    /// Once a generator enters the completed state it never leaves it and its associated execution context is never
+    /// resumed. Any execution state associated with generator can be discarded at this point.
+    /// NB: Freeing the context right away, rather than when the generator is finalized, lets the next generator reuse
+    ///     its memory while it is still in the cache.
+    fn discard_execution_context(&self) {
+        drop(self.execution_context.replace(None));
     }
 
     pub fn generator_state(&self) -> GeneratorState {
@@ -328,7 +336,7 @@ impl GeneratorObject {
 
         // Clear yield state so that a normal return (no yield) is detected as done.
         {
-            // SAFETY: Only finalizing the generator frees its context, and the generator is alive while it runs.
+            // SAFETY: Only completing or finalizing the generator frees its context, and it is alive and running.
             let execution_context = unsafe { self.generator_context().as_ref() };
             execution_context
                 .yield_continuation
@@ -353,6 +361,7 @@ impl GeneratorObject {
             // Uncaught exceptions disable the generator.
             Err(exception) => {
                 self.generator_state.set(GeneratorState::Completed);
+                self.discard_execution_context();
                 return Err(Throw::new(exception));
             }
             Ok(value) => value,
@@ -371,6 +380,9 @@ impl GeneratorObject {
         } else {
             GeneratorState::SuspendedYield
         });
+        if done {
+            self.discard_execution_context();
+        }
 
         Ok(IterationResult::new_with_value_is_iterator_result(
             value,
@@ -433,7 +445,7 @@ impl GeneratorObject {
             self.generator_state.set(GeneratorState::Completed);
 
             // b. Once a generator enters the completed state it never leaves it and its associated execution context is never resumed. Any execution state associated with generator can be discarded at this point.
-            // We don't currently discard anything.
+            self.discard_execution_context();
 
             // c. Set state to completed.
             state = GeneratorState::Completed;
