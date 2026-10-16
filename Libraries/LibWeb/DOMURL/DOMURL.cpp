@@ -392,9 +392,9 @@ void DOMURL::set_search(Utf16String const& search)
     // 5. Basic URL parse input with url as url and query state as state override.
     (void)URL::Parser::basic_parse(input, url, URL::Parser::State::Query);
 
-    // 6. Set this’s query object’s list to the result of parsing input.
+    // 6. Set this’s query object’s list to the result of parsing url’s query.
     if (m_query)
-        m_query->m_list = url_decode(input);
+        m_query->m_list = url_decode(*url.query());
 }
 
 // https://url.spec.whatwg.org/#dom-url-searchparams
