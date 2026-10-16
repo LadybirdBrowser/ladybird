@@ -21,8 +21,8 @@ pub(crate) struct RecorderState {
     /// The last recording that published, which the next one copies clean output from.
     pub(crate) published_recording: Option<Arc<RecordingOutput>>,
     pub(crate) published_hit_test_items: Option<Arc<PublishedHitTestItems>>,
-    /// The paint-order tree describing the published recording; a recording appends to it and
-    /// publication or discarding decides what stays.
+    /// The paint-order tree describing the published recording; a recording that publishes
+    /// appends to it and publication or discarding decides what stays.
     pub(crate) paint_order_tree: PaintOrderTree,
     /// The recording's workspace, whose tables one recording leaves for the next to reuse.
     pub(crate) scratch: RecordingScratch,

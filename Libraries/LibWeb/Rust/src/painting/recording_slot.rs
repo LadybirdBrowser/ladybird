@@ -409,27 +409,14 @@ pub(crate) fn record_frame(
         published_inputs,
     } = recorder;
     let source = PaintSource::new(&frame, absolute_rects);
-    // The retained tree describes the published tape and is written in place while a frame
-    // is assembled, so only a recording that publishes may copy from that frame or touch
-    // the tree; any other recording records from scratch into a tree of its own.
-    let mut throwaway_tree = crate::painting::record::order_tree::PaintOrderTree::default();
-    let (tree, source_recording, source_items) = if inputs.publishes_recording {
-        (
-            paint_order_tree,
-            published_recording.clone(),
-            published_hit_test_items.clone(),
-        )
-    } else {
-        (&mut throwaway_tree, None, None)
-    };
     let recording = crate::painting::record::traversal::record_display_list(
         &source,
         scratch,
-        tree,
+        paint_order_tree,
         viewport,
         &inputs,
-        source_recording,
-        source_items,
+        published_recording.clone(),
+        published_hit_test_items.clone(),
         trace_recordings,
     );
     let trace = trace_recordings.then_some(PendingRecordingTrace {

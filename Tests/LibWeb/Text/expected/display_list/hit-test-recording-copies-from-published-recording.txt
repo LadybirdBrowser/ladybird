@@ -1,0 +1,2 @@
+PASS: paint with overlays (work)
+PASS: hit test after a move, then the next frame (work + checks)
