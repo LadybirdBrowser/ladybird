@@ -1171,10 +1171,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             (Location::Constant(bits), Location::Register(to)) => match register_of(to) {
                 Register::General(to) => self.masm.move_imm64(to, bits),
-                Register::Float(to) => {
-                    self.masm.move_imm64(self.pinned.scratch, bits);
-                    self.masm.move_gpr_to_double(to, self.pinned.scratch);
-                }
+                Register::Float(to) => self.masm.move_double_imm(to, f64::from_bits(bits)),
             },
             (Location::Constant(bits), Location::Stack(to)) => {
                 let address = self.spill_address(to);
