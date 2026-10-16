@@ -907,6 +907,10 @@ void HTMLParserEndState::complete()
         state->m_timeout->stop();
         document->set_html_parser_end_state(nullptr);
 
+        // Becoming ready reports this document's state to a container in another process, so delay the load event
+        // first, until the load event handlers below have started any resources of their own.
+        DOM::DocumentLoadEventDelayer load_event_delayer(*document);
+
         // 11. The Document is now ready for post-load tasks.
         // NB: The spec sets this synchronously after queueing this task, and relies on "spin the event loop"
         //     continuations being queued tasks to keep an ancestor document's load event behind this document's own
@@ -946,10 +950,6 @@ void HTMLParserEndState::complete()
         // 5. Fire an event named load at window, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
-        // Keep the container's load event delayed until this event dispatch completes. Load handlers can start new
-        // resources, and a remote container must not observe a gap between the document becoming ready and those
-        // resources beginning to delay its load event.
-        DOM::DocumentLoadEventDelayer load_event_delayer(*document);
         window.dispatch_event(DOM::Event::create(
             HTML::EventNames::load,
             HighResolutionTime::current_high_resolution_time(relevant_global_object(window))));
