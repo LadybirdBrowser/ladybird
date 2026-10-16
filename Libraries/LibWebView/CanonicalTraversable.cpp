@@ -981,8 +981,6 @@ struct HistoryOperation {
     RefPtr<WebContentPage> requesting_page;
     Vector<NonnullRefPtr<WebContentPage>> completion_endpoints;
     u64 sequence_number;
-    // The jobs of a finished operation do nothing until it is destroyed.
-    bool finished { false };
     Optional<Web::HTML::CrossProcessId> beforeunload_check_id;
 
     ChangingNavigable* pending_changing_job(Web::HTML::CrossProcessId navigable_id) const
@@ -1806,9 +1804,9 @@ void CanonicalTraversable::check_if_unloading_is_canceled(ApplyHistoryStep& run,
             operation->beforeunload_check_id.clear();
             on_complete(result);
         });
-    // The check can finish, and the operation with it, before it returns.
-    if (!operation.finished)
-        operation.beforeunload_check_id = check_id;
+    // NB: A check that finishes before it returns has no ID left to record. The operation it may have finished is not
+    //     destroyed until later.
+    operation.beforeunload_check_id = check_id;
 }
 
 void CanonicalTraversable::queue_navigation_api_state_clear_task(ApplyHistoryStep& run, ChangingNavigable& changing_navigable)
@@ -2503,7 +2501,6 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
         return;
     auto operation = taken_operation.release_value();
 
-    operation->finished = true;
     if (m_browser_history_traversal == operation.ptr())
         m_browser_history_traversal = nullptr;
     if (operation->beforeunload_check_id.has_value())
