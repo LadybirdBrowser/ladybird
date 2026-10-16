@@ -1,7 +1,8 @@
 // Calls of Math functions of one number and of charCodeAt and charAt are
 // built as IR: the common case computes the result in IR, and branches on the
 // callee and the operands go to a cold block. Math functions exit there,
-// unless that happened at the site before.
+// unless that happened at the site before, and sites that only saw the builtin
+// check the callee against it.
 
 function floorPlusAbs(x) {
     return Math.floor(x) + Math.abs(x);
@@ -12,21 +13,20 @@ jit.compile(floorPlusAbs);
 
 // CHECK-FUNCTION: floorPlusAbs
 // CHECK-PASS: graph building
-// CHECK: BranchBuiltin {{[0-9]+}} ([[FLOOR:v[0-9]+]]) -> [[CALLEE_OK:b[0-9]+]], [[COLD:b[0-9]+]]
-// CHECK: [[CALLEE_OK]] <- {{b[0-9]+}}:
-// CHECK-NEXT: RefineBuiltin {{[0-9]+}} ([[FLOOR]])
+// CHECK: CheckValue {{0x[0-9a-f]+}} ({{v[0-9]+}})
 // CHECK-NEXT: BranchInt32Value ([[X:v[0-9]+]]) -> [[INT32:b[0-9]+]], [[OTHER:b[0-9]+]]
-// CHECK: [[COLD]] <- {{b[0-9]+}} cold:
-// CHECK-NEXT: Exit SlowPath
 // CHECK: [[INT32]] <- {{b[0-9]+}}:
 // CHECK-NEXT: [[INTEGER:v[0-9]+]] = RefineInt32Value ([[X]])
 // CHECK-NEXT: UnboxInt32 ([[INTEGER]])
 // CHECK: [[OTHER]] <- {{b[0-9]+}}:
-// CHECK-NEXT: BranchDouble ([[X]])
-// CHECK: [[REFINED:v[0-9]+]] = RefineDouble ([[X]])
+// CHECK-NEXT: BranchDouble ([[X]]) -> [[DOUBLE:b[0-9]+]], [[COLD:b[0-9]+]]
+// CHECK: [[DOUBLE]] <- {{b[0-9]+}}:
+// CHECK-NEXT: [[REFINED:v[0-9]+]] = RefineDouble ([[X]])
 // CHECK-NEXT: [[NUMBER:v[0-9]+]]:float64 = UnboxDouble ([[REFINED]])
 // CHECK-NEXT: [[FLOORED:v[0-9]+]]:float64 = Float64Floor ([[NUMBER]])
 // CHECK-NEXT: BoxFloat64 ([[FLOORED]])
+// CHECK: [[COLD]] <- {{b[0-9]+}} cold:
+// CHECK-NEXT: Exit SlowPath
 // CHECK: Float64Abs
 // CHECK-NOT: CallSlowPath
 
@@ -46,8 +46,6 @@ jit.compile(floorOf);
 // CHECK-PASS: graph building
 // CHECK: BranchDouble ({{v[0-9]+}}) -> {{b[0-9]+}}, [[COLD:b[0-9]+]]
 // CHECK: [[COLD]] <- {{b[0-9]+}} cold:
-// CHECK-NEXT: Jump [[SLOW:b[0-9]+]]
-// CHECK: [[SLOW]] <- {{b[0-9]+}}, {{b[0-9]+}} cold:
 // CHECK-NEXT: CallSlowPath CallBuiltinMathFloor
 // CHECK-NOT: Exit SlowPath
 
@@ -81,9 +79,9 @@ jit.compile(characters);
 
 console.log(floorPlusAbs(-2.5), floorOf(-2.5), characters("abc", 1), characters("abc", 9));
 
-// Int32 arguments take int32 paths: the absolute value of an int32 is one
-// (but for the smallest, which exits), and its square root is that of its
-// double.
+// Int32 arguments take int32 paths: the absolute value of an int32 is the
+// larger of it and its negation (which overflows, and exits, for the
+// smallest), and its square root is that of its double.
 
 function absAndSqrt(n) {
     const i = n | 0;
@@ -95,9 +93,8 @@ jit.compile(absAndSqrt);
 
 // CHECK-FUNCTION: absAndSqrt
 // CHECK-PASS: graph building
-// CHECK: BranchInt32StrictlyEquals ([[I:v[0-9]+]], #i32:-2147483648)
-// CHECK: [[NOT_SMALLEST:v[0-9]+]]:int32 = RefineNotInt32StrictlyEquals ([[I]], #i32:-2147483648)
-// CHECK-NEXT: Int32Abs ([[NOT_SMALLEST]])
+// CHECK: [[NEGATED:v[0-9]+]]:int32 = Int32Sub (#i32:0, [[I:v[0-9]+]])
+// CHECK-NEXT: Int32Max ([[I]], [[NEGATED]])
 // CHECK: [[DOUBLE:v[0-9]+]]:float64 = Int32ToFloat64 ([[I]])
 // CHECK-NEXT: Float64Sqrt ([[DOUBLE]])
 // CHECK: Float64Ceil

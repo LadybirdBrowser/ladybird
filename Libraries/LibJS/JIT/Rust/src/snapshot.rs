@@ -338,6 +338,14 @@ impl CallFeedbackSnapshot {
         Some((self.target?, self.target_intrinsic?))
     }
 
+    /// The site's single callee, if it is the builtin function `builtin`.
+    pub fn monomorphic_builtin(&self, builtin: u8) -> Option<CellId> {
+        if self.flags & call_feedback_flags::POLYMORPHIC != 0 || self.target_builtin != Some(builtin) {
+            return None;
+        }
+        self.target
+    }
+
     /// The site's single callee if it is `Function.prototype.call`, whose
     /// calls JIT code makes by calling the `this` value directly.
     pub fn function_prototype_call_target(&self) -> Option<CellId> {
@@ -399,6 +407,9 @@ pub struct CallFeedbackSnapshot {
     pub forwarded: Option<ForwardedCallSnapshot>,
     /// Which intrinsic `target` is, if it is one the compiler knows.
     pub target_intrinsic: Option<Intrinsic>,
+    /// The `Builtin` id of `target` (see `RuntimeLayout::builtin_math_abs`), if
+    /// it is a builtin function.
+    pub target_builtin: Option<u8>,
     /// `target`, if JIT code can inline its constructs.
     pub construct: Option<ConstructTarget>,
 }
