@@ -15,3 +15,12 @@ PASS: stops tracing after a failed check
 PASS: requires expectations before mutating
 PASS: rejects asynchronous mutations
 PASS: rejects asynchronous checks
+PASS: parses every kind of trace line
+PASS: rejects unknown trace lines
+PASS: work lays out pending changes before tracing the mutation
+PASS: work stops tracing after a throwing mutation
+PASS: work rejects asynchronous mutations
+PASS: work counts the events a filter object matches
+PASS: work counts the events a filter function matches
+PASS: work names each matching box once, in trace order
+PASS: work keeps the trace text
