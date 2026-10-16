@@ -684,6 +684,9 @@ WebView::SessionLaunchPolicy Application::launch_restore_policy() const
     // A browser that WebDriver drives starts from a clean slate.
     if (WebView::Application::browser_options().webdriver_browser_endpoint.has_value())
         return WebView::SessionLaunchPolicy::None;
+    // Without the setting, only pinned tabs come back; with it, every window and tab does.
+    if (WebView::Application::settings().restore_previous_session())
+        return WebView::SessionLaunchPolicy::Everything;
     return WebView::SessionLaunchPolicy::PinnedOnly;
 }
 
