@@ -12,6 +12,7 @@ set(SOURCES
     DecoderError.cpp
     FFmpeg/FFmpegFunctions.cpp
     FFmpeg/FFmpegHelpers.cpp
+    NonReferenceFrameDetector.cpp
     VideoDecoderRegistry.cpp
     VideoFrame.cpp
     VideoFrameHandle.cpp

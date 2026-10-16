@@ -108,6 +108,7 @@ public:
     // Read the NAL unit header byte's fields (H.264, 7.4.1 and Table 7-1).
     static MEDIACODECS_API bool is_coded_slice(u8 nal_unit_header);
     static MEDIACODECS_API u8 nal_ref_idc(u8 nal_unit_header);
+    static MEDIACODECS_API bool is_parameter_set(u8 nal_unit_header);
 
     // Parse the fields needed for parameter-set tracking and output reordering from a complete NAL unit,
     // including its header. These do not validate the remaining syntax of the parameter set.

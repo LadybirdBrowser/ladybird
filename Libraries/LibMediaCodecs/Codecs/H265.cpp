@@ -148,6 +148,12 @@ bool H265::is_sub_layer_non_reference(NALUnitHeader const& header)
     return header.nal_unit_type < FIRST_IRAP_NAL_UNIT_TYPE && header.nal_unit_type % 2 == 0;
 }
 
+// ITU-T H.265 (07/2024), Table 7-1.
+bool H265::is_parameter_set(NALUnitHeader const& header)
+{
+    return header.nal_unit_type >= VIDEO_PARAMETER_SET_NAL_UNIT_TYPE && header.nal_unit_type <= PICTURE_PARAMETER_SET_NAL_UNIT_TYPE;
+}
+
 // ITU-T H.265 (07/2024), 3.73: every VCL NAL unit of an IRAP picture is in the range BLA_W_LP to RSV_IRAP_VCL23.
 bool H265::is_random_access_point(NALUnitHeader const& header)
 {

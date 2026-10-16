@@ -284,8 +284,6 @@ struct FormatState {
 
     // Set while the tracked format may differ from the one the current session was built for.
     bool dirty { true };
-    // Whether every coded slice of the last frame belongs to a picture nothing will reference.
-    bool access_unit_is_non_reference { false };
     // Whether the last frame's picture is a random access point, which the pictures following it are associated with.
     bool access_unit_is_random_access_point { false };
     // Whether that random access point's leading pictures may reference pictures that precede it.
@@ -318,20 +316,11 @@ struct H264State final : FormatState {
         if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
             TRY(apply_configuration(*configuration));
 
-        auto saw_coded_slice = false;
-        auto every_coded_slice_is_non_reference = true;
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
-        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next())
             TRY(apply_nal_unit(*nal_unit));
-            if (!Codecs::H264::is_coded_slice((*nal_unit)[0]))
-                continue;
-            saw_coded_slice = true;
-            if (Codecs::H264::nal_ref_idc((*nal_unit)[0]) != 0)
-                every_coded_slice_is_non_reference = false;
-        }
         if (iterator.has_error())
             return DecoderError::corrupted("Invalid H.264 NAL unit length"sv);
-        access_unit_is_non_reference = saw_coded_slice && every_coded_slice_is_non_reference;
         return {};
     }
 
@@ -411,47 +400,28 @@ struct H265State final : FormatState {
         if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
             TRY(apply_configuration(*configuration));
 
-        auto saw_coded_slice = false;
-        auto every_coded_slice_is_sub_layer_non_reference = true;
         auto saw_random_access_point = false;
         auto saw_open_gop_start = false;
         auto saw_open_gop_leading_picture = false;
-        u8 slice_temporal_id = 0;
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
         for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
             TRY(apply_nal_unit(*nal_unit));
             auto header = Codecs::H265::parse_nal_unit_header(*nal_unit);
             if (!header.has_value() || !Codecs::H265::is_coded_slice(*header))
                 continue;
-            saw_coded_slice = true;
-            slice_temporal_id = max(slice_temporal_id, header->temporal_id);
             if (Codecs::H265::is_random_access_point(*header))
                 saw_random_access_point = true;
             if (Codecs::H265::has_random_access_skipped_leading_pictures(*header))
                 saw_open_gop_start = true;
             if (Codecs::H265::is_random_access_skipped_leading(*header))
                 saw_open_gop_leading_picture = true;
-            if (!Codecs::H265::is_sub_layer_non_reference(*header))
-                every_coded_slice_is_sub_layer_non_reference = false;
         }
         if (iterator.has_error())
             return DecoderError::corrupted("Invalid H.265 NAL unit length"sv);
-        // ITU-T H.265 (07/2024), 7.4.2.2: an SLNR picture is only discardable for pictures at its own TemporalId.
-        access_unit_is_non_reference = saw_coded_slice && every_coded_slice_is_sub_layer_non_reference
-            && slice_temporal_id == highest_temporal_id();
         access_unit_is_random_access_point = saw_random_access_point;
         access_unit_begins_open_gop = saw_open_gop_start;
         access_unit_is_open_gop_leading_picture = saw_open_gop_leading_picture;
         return {};
-    }
-
-    // Bound every SPS a slice could select, without parsing slice headers to track activation.
-    u8 highest_temporal_id() const
-    {
-        u8 highest = 0;
-        for (auto const& set : parameter_sets.sequence_parameter_sets())
-            highest = max(highest, set.parameters.sps_max_sub_layers_minus1);
-        return highest;
     }
 
     DecoderErrorOr<void> apply_configuration(ReadonlyBytes configuration)
@@ -881,11 +851,6 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
         m_discarding_open_gop_leading_pictures = false;
     if (m_discarding_open_gop_leading_pictures && m_format_state->access_unit_is_open_gop_leading_picture)
         return {};
-
-    if (intent == DecodeIntent::Reference) {
-        if (m_format_state->access_unit_is_non_reference)
-            return {};
-    }
 
     auto data = coded_frame.data();
 
