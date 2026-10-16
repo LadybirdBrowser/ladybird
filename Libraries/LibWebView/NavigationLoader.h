@@ -60,6 +60,7 @@ public:
     void did_finish_navigation_params_creation(Web::HTML::NavigationPopulationResult);
     void acquire_response_body(Function<void(bool)> completion_steps);
     void obtain_the_response_policies(CanonicalNavigable const&);
+    void check_the_responses_adherence_to_its_embedder_policy(CanonicalNavigable const&);
     // Moves the response over to the RequestServer of the process that will host the document, if that is another one.
     void move_response_body_to(RequestServerInstance&, Function<void(bool)> completion_steps);
     bool response_body_matches(int request_server_client_id, u64 request_server_request_id) const;
