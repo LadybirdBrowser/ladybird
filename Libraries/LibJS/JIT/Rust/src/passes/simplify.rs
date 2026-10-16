@@ -296,7 +296,22 @@ fn constant_number(graph: &Graph, node: NodeId) -> Option<f64> {
 }
 
 pub fn run(graph: &mut Graph) {
-    let dissolvable = dissolvable_checks(graph);
+    simplify(graph, true);
+}
+
+/// Simplification after check elimination, which keeps every int32 check of
+/// a double: check elimination may have relied on what one established, like
+/// the int32 that an unboxing in a branch it decided takes.
+pub fn run_after_check_elimination(graph: &mut Graph) {
+    simplify(graph, false);
+}
+
+fn simplify(graph: &mut Graph, dissolve_checks: bool) {
+    let dissolvable = if dissolve_checks {
+        dissolvable_checks(graph)
+    } else {
+        BitSet::new(0)
+    };
     let dissolved_double = |graph: &Graph, value: NodeId| {
         // NB: Nodes the pass adds are no checks.
         (value.index() < dissolvable.capacity() && dissolvable.contains(value.index()))
@@ -413,6 +428,13 @@ pub fn run(graph: &mut Graph) {
                     let boolean = if bits != 0 { value::TRUE } else { value::FALSE };
                     constants.get(graph, boolean)
                 }),
+                // NB: Boxing the double of an int32 boxes the int32.
+                Op::CheckInt32
+                    if let Some(double) = boxed(Op::BoxFloat64, inputs[0])
+                        && graph.node(double).op == Op::Int32ToFloat64 =>
+                {
+                    Some(graph.node(double).inputs[0])
+                }
                 Op::CheckInt32 => constant_bits(graph, 0)
                     .filter(|bits| graph.node(inputs[0]).repr == Some(Repr::Tagged) && value::as_int32(*bits).is_some())
                     .map(|bits| constants.get_typed(graph, bits & u64::from(u32::MAX), Repr::Int32)),
@@ -599,6 +621,12 @@ pub fn run(graph: &mut Graph) {
     //     unboxing of a boxing of it, which keep the check. The other users
     //     of the checks that go took the doubles above, and frame states
     //     take them now.
+    if dissolvable.is_empty() {
+        if changed_control_flow {
+            edit::clean_up_control_flow(graph);
+        }
+        return;
+    }
     let still_dissolvable = dissolvable_checks(graph);
     let mut replacements = Replacements::new(graph);
     let mut removed = BitSet::new(graph.nodes.len());
