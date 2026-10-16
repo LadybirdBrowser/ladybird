@@ -75,6 +75,7 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/SecureContexts/AbstractOperations.h>
 

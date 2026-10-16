@@ -6,6 +6,7 @@ set(SOURCES
     CSS/StyleSheetIdentifier.cpp
     CSS/SystemColor.cpp
     Fetch/Infrastructure/HTTP/Statuses.cpp
+    Fetch/Infrastructure/URL.cpp
     FileAPI/BlobURLStore.cpp
     FileAPI/SerializedBlobURLEntry.cpp
     Gamepad/GamepadSharedState.cpp

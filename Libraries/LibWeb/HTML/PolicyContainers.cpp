@@ -10,9 +10,9 @@
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 
 namespace Web::HTML {
