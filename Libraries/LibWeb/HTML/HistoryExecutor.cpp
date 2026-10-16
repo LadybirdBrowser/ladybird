@@ -32,7 +32,6 @@ struct ChangingNavigableContinuationState : public GC::Cell {
     GC_DECLARE_ALLOCATOR(ChangingNavigableContinuationState);
 
     GC::Ptr<DOM::Document> displayed_document;
-    Optional<UniqueNodeID> displayed_document_id;
     RefPtr<SessionHistoryEntry> target_entry;
     GC::Ptr<LocalNavigable> navigable;
     bool update_only = false;
@@ -228,14 +227,14 @@ void HistoryExecutor::run_ui_beforeunload_check(Vector<CrossProcessId> navigable
     check_if_unloading_is_canceled(move(navigables), traversable, traversable, move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, on_complete);
 }
 
-static bool is_same_document_push_or_replace(Optional<Bindings::NavigationType> navigation_type, SessionHistoryEntry const& target_entry, Optional<UniqueNodeID> displayed_document_id)
+static bool is_same_document_push_or_replace(Optional<Bindings::NavigationType> navigation_type, SessionHistoryEntry const& target_entry, DOM::Document const& displayed_document)
 {
     if (navigation_type != Bindings::NavigationType::Push
         && navigation_type != Bindings::NavigationType::Replace) {
         return false;
     }
 
-    return target_entry.document_state()->document_id() == displayed_document_id;
+    return target_entry.document_state()->document_id() == displayed_document.unique_id();
 }
 
 static void queue_apply_history_step_task(GC::Ref<LocalNavigable> navigable, GC::Ref<GC::Function<void()>> steps)
@@ -337,7 +336,6 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         // 3. Let changingNavigableContinuation be a changing navigable continuation state with:
         auto changing_navigable_continuation = heap().allocate<ChangingNavigableContinuationState>();
         changing_navigable_continuation->displayed_document = navigable->active_document();
-        changing_navigable_continuation->displayed_document_id = navigable->active_document_id();
         changing_navigable_continuation->target_entry = target_entry;
         changing_navigable_continuation->navigable = navigable;
         changing_navigable_continuation->update_only = false;
@@ -351,7 +349,7 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         //         newer one a synchronous navigation that jumped the queue pushed or replaced, which the continuation
         //         then leaves displayed.
         if ((displayed_entry == target_entry && !target_entry->document_state()->reload_pending())
-            || is_same_document_push_or_replace(navigation_type, *target_entry, changing_navigable_continuation->displayed_document_id)) {
+            || is_same_document_push_or_replace(navigation_type, *target_entry, *changing_navigable_continuation->displayed_document)) {
             // 1. Set changingNavigableContinuation's update-only to true.
             changing_navigable_continuation->update_only = true;
             changing_navigable_continuation->target_document = navigable->active_document();
@@ -610,10 +608,9 @@ Optional<HistoryExecutor::DequeuedChangingNavigableContinuation> HistoryExecutor
 
     // 12. In both cases, let afterPotentialUnloads be the following steps:
     bool const update_only = continuation->update_only;
-    auto const displayed_document_id = continuation->displayed_document_id;
-    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = continuation->navigation_type, on_complete] {
+    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document = GC::Ref { *displayed_document }, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = continuation->navigation_type, on_complete] {
         // NB: Only step 14.10 applies a same-document push or replace: its targetEntry's document is displayedDocument.
-        if (is_same_document_push_or_replace(navigation_type, *target_entry, displayed_document_id)
+        if (is_same_document_push_or_replace(navigation_type, *target_entry, displayed_document)
             && navigable->active_session_history_entry() != target_entry) {
             on_complete->function()({}, {});
             return;
@@ -651,12 +648,11 @@ Optional<HistoryExecutor::DequeuedChangingNavigableContinuation> HistoryExecutor
         // NB: previousEntry's document is unloaded before updateDocument runs, so the fact navigation.activation needs
         //     from it is captured from the document that was displayed when this step began. A provisional navigable's
         //     entry is its stand-in's, which, like an initial about:blank's, gives navigation.activation no old entry.
-        auto previous_entry_document_is_initial_about_blank = continuation->displayed_document
-            && (continuation->displayed_document->is_initial_about_blank() || navigable->is_provisional());
+        auto previous_entry_document_is_initial_about_blank = displayed_document->is_initial_about_blank() || navigable->is_provisional();
 
         // AD-HOC: targetEntry's document is null when population produced no document, which made the continuation
         //         update-only. The spec then updates that null document. Update displayedDocument instead.
-        GC::Ref<DOM::Document> resolved_document = continuation->target_document ? *continuation->target_document : *continuation->displayed_document;
+        GC::Ref<DOM::Document> resolved_document = continuation->target_document ? GC::Ref { *continuation->target_document } : displayed_document;
 
         // 2. If changingNavigableContinuation's update-only is false, then activate history entry targetEntry for navigable.
         Optional<HostedNavigableState> activated_navigable_state;
@@ -693,9 +689,7 @@ Optional<HistoryExecutor::DequeuedChangingNavigableContinuation> HistoryExecutor
         };
 
         // 4. If targetEntry's document is equal to displayedDocument, then perform updateDocument.
-        // NOTE: We compare against the pre-activation displayed_document_id (not the current
-        //       active entry) because activate_history_entry() has already updated the active entry above.
-        if (target_entry->document_state()->document_id() == displayed_document_id) {
+        if (target_entry->document_state()->document_id() == displayed_document->unique_id()) {
             update_document();
         }
         // 5. Otherwise, queue a global task on the navigation and traversal task source given targetEntry's document's relevant global object to perform updateDocument
