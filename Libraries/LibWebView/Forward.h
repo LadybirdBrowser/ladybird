@@ -78,6 +78,8 @@ struct SearchEngine;
 struct WebContentOptions;
 class WebContentPage;
 
+enum class SessionLaunchPolicy : u8;
+
 }
 
 namespace AK {

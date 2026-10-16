@@ -266,6 +266,11 @@ Application::~Application()
     s_the = nullptr;
 }
 
+SessionLaunchPolicy Application::launch_restore_policy() const
+{
+    return SessionLaunchPolicy::None;
+}
+
 bool Application::claim_cpu_profiler(ProcessType process_type)
 {
     if (m_cpu_profiler_claimed || m_browser_options.profile_tool != ProfileTool::CPU || m_browser_options.profile_helper_process != process_type)
@@ -1706,10 +1711,17 @@ ErrorOr<void> Application::launch_services()
 
         // Fall back without modifying the existing Sessions database.
         auto session_store = [&]() -> ErrorOr<NonnullOwnPtr<SessionStore>> {
+            // A headless run, a browser that WebDriver drives, and one that logs process statistics never join a browser
+            // already running on their profile. Yet startup recovery would still rewrite the saved session, reset the
+            // unclean-exit count, and demote the open windows of a browser running on this profile. So each gets a
+            // transient store instead, leaving the Sessions database as the last run left it.
+            if (m_browser_options.headless_mode.has_value() || m_browser_options.webdriver_browser_endpoint.has_value() || m_stats_log)
+                return SessionStore::create();
+
             auto session_database = TRY(Database::Database::create(database_path, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
             if (TRY(SessionStore::migrate_schema(session_database)) != Database::MigrationOutcome::Success)
                 return Error::from_string_literal("Sessions database was created by a newer Ladybird version");
-            return SessionStore::create(session_database);
+            return SessionStore::create(session_database, launch_restore_policy());
         }();
         if (session_store.is_error()) {
             dbgln("Sessions will not be persisted this session: {}", session_store.error());

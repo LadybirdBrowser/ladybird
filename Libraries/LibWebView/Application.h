@@ -127,6 +127,11 @@ public:
     virtual bool supports_private_browsing_windows() const { return false; }
     virtual bool supports_client_side_window_decorations() const { return false; }
     virtual bool supports_picture_in_picture() const;
+
+    // What startup recovery does with the windows the last run left open. Only a frontend that shows the launch plan
+    // asks for more than None.
+    virtual SessionLaunchPolicy launch_restore_policy() const;
+
     // Returns true if the platform sends momentum scroll events after a touchpad flick.
     // If it does not, the compositor makes the fling.
     virtual bool platform_reports_scroll_momentum() const { return true; }
