@@ -101,6 +101,7 @@ use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
 pub(crate) use slow_paths::is_ssa_slow_path_output;
 pub(crate) use slow_paths::js_call_operands;
+use std::cell::Cell;
 use std::cell::OnceCell;
 
 /// Builds the IR for `snapshot.executables[0]`.
@@ -147,18 +148,50 @@ pub fn build_graph_with_feedback(snapshot: &Snapshot, has_run: &dyn Fn(u32) -> b
     let decoded = (0..snapshot.executables.len())
         .map(|_| OnceCell::new())
         .collect::<Vec<_>>();
-    let graph = GraphBuilder::new(snapshot, has_run, &decoded, true, true)?.build()?;
+    let virtualized_inlined_arguments = Cell::new(false);
+    let build = |virtualize_arguments, virtualize_inlined_arguments, build_osr_entries| {
+        GraphBuilder::new(
+            snapshot,
+            has_run,
+            &decoded,
+            ArgumentsVirtualization {
+                compiled_function: virtualize_arguments,
+                inlined_callees: virtualize_inlined_arguments,
+                inlined_callees_virtualized: &virtualized_inlined_arguments,
+            },
+            build_osr_entries,
+        )?
+        .build()
+    };
+    // NB: Where an inlined callee had a virtual arguments object, a graph
+    //     that needs it, or a build that failed, is built again without
+    //     those (see `arguments`), which then are not inlined.
+    let graph = match build(true, true, true) {
+        Ok(graph) if !arguments::uses_virtual_arguments(&graph) => return Ok(graph),
+        _ if virtualized_inlined_arguments.get() => build(true, false, true)?,
+        result => result?,
+    };
     if !arguments::uses_virtual_arguments(&graph) {
         return Ok(graph);
     }
     if !graph.osr_entries.is_empty() {
-        let graph = GraphBuilder::new(snapshot, has_run, &decoded, true, false)?.build()?;
+        let graph = build(true, false, false)?;
         if !arguments::uses_virtual_arguments(&graph) {
             return Ok(graph);
         }
     }
     // Something needs the arguments object itself.
-    GraphBuilder::new(snapshot, has_run, &decoded, false, true)?.build()
+    build(false, false, true)
+}
+
+/// Where the graph builder may build virtual arguments objects (see
+/// `arguments`).
+#[derive(Clone, Copy)]
+struct ArgumentsVirtualization<'a> {
+    compiled_function: bool,
+    inlined_callees: bool,
+    /// Set once an inlined callee got a virtual arguments object.
+    inlined_callees_virtualized: &'a Cell<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -509,8 +542,8 @@ struct GraphBuilder<'a> {
     callers: Vec<Function<'a>>,
     /// Bytecode instructions inlined so far, for the inlining budget.
     inlined_instructions: usize,
-    /// Whether `CreateArguments` may build a virtual arguments object.
-    virtualize_arguments: bool,
+    /// Where `CreateArguments` may build a virtual arguments object.
+    virtualize_arguments: ArgumentsVirtualization<'a>,
     /// Whether to build on-stack replacement entries (see `arguments`).
     build_osr_entries: bool,
     /// The intrinsics among the constants, by value.
@@ -529,7 +562,7 @@ impl<'a> GraphBuilder<'a> {
         snapshot: &'a Snapshot,
         has_run: &'a dyn Fn(u32) -> bool,
         decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
-        virtualize_arguments: bool,
+        virtualize_arguments: ArgumentsVirtualization<'a>,
         build_osr_entries: bool,
     ) -> Result<Self, CompileFailure> {
         let executable = snapshot.executables.first().ok_or(CompileFailure::InvalidBytecode {
@@ -1443,6 +1476,7 @@ impl<'a> GraphBuilder<'a> {
             Instruction::ToBoolean { dst, value } => self.build_truthiness_value(dst, value, false)?,
             Instruction::Return { value } => {
                 let value = self.read(value)?;
+                self.check_not_returning_virtual_arguments(value)?;
                 if self.function.is_virtual() {
                     return Ok(Some(self.build_inline_return(value, true)));
                 }
@@ -1460,6 +1494,7 @@ impl<'a> GraphBuilder<'a> {
             }
             Instruction::End { value } => {
                 let value = self.read(value)?;
+                self.check_not_returning_virtual_arguments(value)?;
                 // NB: In an inlined callee, End returns its value (never
                 //     empty) to the caller like Return does.
                 if self.function.is_virtual() {
@@ -1494,14 +1529,8 @@ impl<'a> GraphBuilder<'a> {
                 };
                 self.write(dst, count)?;
             }
-            Instruction::CreateArguments {
-                dst,
-                kind,
-                creates_parameter_bindings,
-                ..
-            } => {
-                // NB: Creating the parameter bindings is a side effect that a virtual arguments object would skip.
-                if creates_parameter_bindings || !self.try_build_virtual_arguments(dst, kind)? {
+            Instruction::CreateArguments { .. } => {
+                if !self.try_build_virtual_arguments(instruction)? {
                     return Ok(None);
                 }
             }

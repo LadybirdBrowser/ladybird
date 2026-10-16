@@ -25,6 +25,16 @@
 //! graph cannot do without the object, and the builder starts over without
 //! virtual arguments objects.
 //!
+//! Inlined callees keep their arguments objects virtual the same way, with
+//! the values their call passed: `arguments.length` is the passed argument
+//! count, `arguments[i]` the passed value for a constant `i`, and
+//! `f.apply(this_arg, arguments)` an inlined call with those values. Their
+//! frame states list every passed argument, so that exits create the object
+//! from the frames they materialize. Anything else that needs the object
+//! (including returning it, or a use that fails the build) has the graph
+//! built again without virtual arguments objects in inlined callees, which
+//! then are not inlined.
+//!
 //! On-stack replacement entries load every slot from the frame, where the
 //! interpreter's arguments object is, so the stand-in meets that object at
 //! loop headers. A graph that only uses the object there is built again
@@ -32,6 +42,7 @@
 //! and every later call runs without an arguments object.
 
 use super::GraphBuilder;
+use super::inlining::InlineValue;
 use crate::CompileFailure;
 use crate::bytecode::Instruction;
 use crate::bytecode::MAPPED_ARGUMENTS;
@@ -70,6 +81,27 @@ pub(super) fn may_write_parameter_bindings(opcode: OpCode) -> bool {
     )
 }
 
+/// Whether `instruction` of `function` is a `CreateArguments` that can build a
+/// virtual arguments object, as far as the function itself can tell.
+pub(super) fn can_create_virtual_arguments(function: &super::Function<'_>, instruction: &Instruction) -> bool {
+    let Instruction::CreateArguments {
+        dst,
+        kind,
+        creates_parameter_bindings,
+        ..
+    } = *instruction
+    else {
+        return false;
+    };
+    // NB: Creating the parameter bindings is a side effect that a virtual arguments object would skip.
+    dst.is_some()
+        && !creates_parameter_bindings
+        && !function.writes_arguments
+        && !(kind == MAPPED_ARGUMENTS
+            && function.executable.mapped_arguments_alias_parameters
+            && function.may_write_parameter_bindings)
+}
+
 /// Whether a node of `graph` takes a virtual arguments object as an input,
 /// which only a real object can be.
 pub(super) fn uses_virtual_arguments(graph: &Graph) -> bool {
@@ -103,25 +135,24 @@ impl GraphBuilder<'_> {
 
     /// Builds `CreateArguments` as a virtual arguments object, if it can be
     /// one. Returns false, having built nothing, otherwise.
-    pub(super) fn try_build_virtual_arguments(
-        &mut self,
-        dst: Option<Operand>,
-        kind: u32,
-    ) -> Result<bool, CompileFailure> {
-        let Some(dst) = dst else {
+    pub(super) fn try_build_virtual_arguments(&mut self, instruction: &Instruction) -> Result<bool, CompileFailure> {
+        let Instruction::CreateArguments {
+            dst: Some(dst), kind, ..
+        } = *instruction
+        else {
             return Ok(false);
         };
-        let mapped = kind == MAPPED_ARGUMENTS;
-        let can_virtualize = self.virtualize_arguments
-            && !self.function.is_virtual()
-            && !self.function.writes_arguments
-            && !(mapped
-                && self.function.executable.mapped_arguments_alias_parameters
-                && self.function.may_write_parameter_bindings);
+        let virtualization = self.virtualize_arguments;
+        let can_virtualize = virtualization.compiled_function
+            && (!self.function.is_virtual() || virtualization.inlined_callees)
+            && can_create_virtual_arguments(&self.function, instruction);
         if !can_virtualize {
             return Ok(false);
         }
-        let bits = if mapped {
+        if self.function.is_virtual() {
+            virtualization.inlined_callees_virtualized.set(true);
+        }
+        let bits = if kind == MAPPED_ARGUMENTS {
             value::VIRTUAL_MAPPED_ARGUMENTS
         } else {
             value::VIRTUAL_UNMAPPED_ARGUMENTS
@@ -131,11 +162,64 @@ impl GraphBuilder<'_> {
         Ok(true)
     }
 
+    /// The value the call of the inlined callee being built passed it as
+    /// argument `argument`, if it passed one, or `None` outside inlined
+    /// callees.
+    fn inlined_call_argument(&self, argument: u32) -> Option<NodeId> {
+        let call = self.function.inline.as_ref()?;
+        if argument >= call.passed_argument_count {
+            return None;
+        }
+        let layout = self.function.layout;
+        if argument >= layout.number_of_arguments {
+            return Some(call.untracked_arguments[(argument - layout.number_of_arguments) as usize]);
+        }
+        let slot = layout
+            .tracked_index(Operand::from_raw(layout.arguments_base() + argument))
+            .expect("arguments are tracked");
+        match self.frame.slots[slot] {
+            super::SlotState::Value { node, .. } => Some(node),
+            super::SlotState::InMemory => unreachable!("inlined callees hold their slots as values"),
+        }
+    }
+
+    /// The values the call of the inlined callee being built passed it, all
+    /// of them, as arguments of a call it inlines, and their count; `None`
+    /// outside inlined callees.
+    pub(super) fn inlined_call_arguments(&self) -> Option<(Vec<InlineValue>, u32)> {
+        let count = self.function.inline.as_ref()?.passed_argument_count;
+        let values = (0..count)
+            .map(|argument| {
+                let node = self.inlined_call_argument(argument).expect("the call passed it");
+                InlineValue::Node(node)
+            })
+            .collect();
+        Some((values, count))
+    }
+
+    /// Fails the build where an inlined callee returns its virtual arguments
+    /// object, which would leave it to its caller's frame.
+    pub(super) fn check_not_returning_virtual_arguments(&self, value: NodeId) -> Result<(), CompileFailure> {
+        if self.function.is_virtual() && self.is_virtual_arguments(value) {
+            return Err(CompileFailure::UnsupportedInstruction {
+                pc: self.function.pc,
+                opcode: OpCode::Return,
+                reason: "returns the arguments object of an inlined callee",
+            });
+        }
+        Ok(())
+    }
+
     /// Builds `dst = base.length` for a virtual arguments object. Returns
     /// false, having built nothing, for other bases.
     pub(super) fn try_build_arguments_length(&mut self, dst: Operand, base: Operand) -> Result<bool, CompileFailure> {
         if !self.holds_virtual_arguments(base) {
             return Ok(false);
+        }
+        if let Some(call) = &self.function.inline {
+            let count = self.constant(value::int32(call.passed_argument_count.cast_signed()));
+            self.write(dst, count)?;
+            return Ok(true);
         }
         let count = self.emit(Op::ArgumentCount, Vec::new(), Some(Repr::Tagged));
         self.write(dst, count)?;
@@ -151,7 +235,25 @@ impl GraphBuilder<'_> {
         base: Operand,
         property: Operand,
     ) -> Result<bool, CompileFailure> {
-        if !self.holds_virtual_arguments(base) || !self.may_speculate(ExitKind::ArgumentsIndex) {
+        if !self.holds_virtual_arguments(base) {
+            return Ok(false);
+        }
+        // NB: Inlined callees read constant indices of what their call passed.
+        if self.function.is_virtual() {
+            let index = self.read(property)?;
+            let Some(value) = self
+                .graph
+                .constant_value(index)
+                .and_then(value::as_int32)
+                .and_then(|index| u32::try_from(index).ok())
+                .and_then(|index| self.inlined_call_argument(index))
+            else {
+                return Ok(false);
+            };
+            self.write(dst, value)?;
+            return Ok(true);
+        }
+        if !self.may_speculate(ExitKind::ArgumentsIndex) {
             return Ok(false);
         }
         let index = self.read(property)?;
@@ -185,7 +287,10 @@ impl GraphBuilder<'_> {
             [forwarded, start] => (*forwarded, Some(*start)),
             _ => return Ok(None),
         };
-        if !self.holds_virtual_arguments(forwarded) || !self.may_speculate(ExitKind::ArgumentsIndex) {
+        if !self.holds_virtual_arguments(forwarded)
+            || self.function.is_virtual()
+            || !self.may_speculate(ExitKind::ArgumentsIndex)
+        {
             return Ok(None);
         }
         if self.constant_intrinsic(*callee) != Some(Intrinsic::FunctionPrototypeCall) {
@@ -229,7 +334,9 @@ impl GraphBuilder<'_> {
         let [_, forwarded] = arguments.as_slice() else {
             return None;
         };
-        if !self.holds_virtual_arguments(*forwarded) {
+        // NB: CallForwardingArguments reads the running frame, which is not an
+        //     inlined callee's.
+        if !self.holds_virtual_arguments(*forwarded) || self.function.is_virtual() {
             return None;
         }
         (self.constant_intrinsic(*callee) == Some(Intrinsic::FunctionPrototypeApply)).then_some(*forwarded)
@@ -276,6 +383,7 @@ impl GraphBuilder<'_> {
             .tracked_index(array)
             .is_some_and(|slot| !self.function.liveness.live_out(index + 2).contains(slot));
         if dst != array
+            || self.function.is_virtual()
             || arguments != array
             || !in_one_block
             || !array_dies
