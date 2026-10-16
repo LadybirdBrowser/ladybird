@@ -129,8 +129,12 @@ RENDER_STATE_ALLOWED = {
         ],
     ),
     **render_state_entries(
-        "the render owner's own states; only the owner's thread reaches its documents' render states",
-        ["render_state/owner.rs:STATES"],
+        "the render owner's slot; only the thread that holds it reaches its documents' render states",
+        ["render_state/owner.rs:SLOT"],
+    ),
+    **render_state_entries(
+        "per-thread count of the holds of the render owner's slot the thread is in",
+        ["render_state/owner.rs:HOLDS"],
     ),
     **render_state_entries(
         BUILT_ONCE,
