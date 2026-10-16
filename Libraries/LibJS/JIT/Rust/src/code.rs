@@ -87,9 +87,11 @@ pub enum ExitKind {
     /// compile time (a method on a prototype, the key of a keyed access)
     /// was another value.
     UnexpectedValue,
-    /// An instruction whose slow path cannot run from compiled code met a
-    /// case only its slow path handles (like an append that needs to grow
-    /// an array, or a probe that cannot tell), so the interpreter runs it.
+    /// An instruction whose slow path cannot run from compiled code, or that
+    /// was compiled to exit instead of running its slow path, met a case only
+    /// its slow path handles (like an append that needs to grow an array, a
+    /// probe that cannot tell, or `Math.abs` of a string), so the
+    /// interpreter runs it.
     SlowPath,
     /// An `arguments[i]` the compiled code read from the frame's arguments
     /// had an index that is not an int32 within the passed arguments.
