@@ -7,9 +7,11 @@
 
 #include <LibGC/Heap.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
@@ -42,8 +44,18 @@ GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Ref
 {
     auto& heap = GC::Heap::the();
 
-    // FIXME: 1. If response's URL's scheme is "blob", then return a clone of response's URL's blob URL entry's
-    //           environment's policy container.
+    // 1. If response's URL's scheme is "blob", then return a clone of response's URL's blob URL entry's environment's
+    //    policy container.
+    // NB: The entry is in this process's store if this process added it, and otherwise in the user agent's, which has
+    //     the environment's policy container serialized. An entry that is gone has no policy container to clone.
+    if (auto const& response_url = response->url(); response_url.has_value() && response_url->scheme() == "blob"sv) {
+        if (auto entry = FileAPI::local_blob_url_entry(*response_url); entry.has_value())
+            return entry->environment->policy_container()->clone(heap);
+        if (auto* settings = as_if<EnvironmentSettingsObject>(environment.ptr())) {
+            if (auto entry = FileAPI::blob_url_entry_in_the_user_agent_store(Bindings::principal_host_defined_page(settings->realm()), *response_url); entry.has_value())
+                return create_a_policy_container_from_serialized_policy_container(entry->environment_policy_container);
+        }
+    }
 
     // 2. Let result be a new policy container.
     GC::Ref<PolicyContainer> result = heap.allocate<PolicyContainer>(heap);
