@@ -1230,18 +1230,23 @@ pub fn cos_impl(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
     // 1. Let n be ? ToNumber(x).
     let number = value.to_number(vm)?;
 
+    Ok(Value::from_f64(cos_of_number(number.as_f64())))
+}
+
+/// The steps of Math.cos after ToNumber, which JIT code also calls.
+pub fn cos_of_number(number: f64) -> f64 {
     // 2. If n is NaN, n is +∞𝔽, or n is -∞𝔽, return NaN.
-    if number.is_nan() || number.is_infinity() {
-        return Ok(js_nan());
+    if number.is_nan() || number.is_infinite() {
+        return f64::NAN;
     }
 
     // 3. If n is +0𝔽 or n is -0𝔽, return 1𝔽.
-    if number.is_positive_zero() || number.is_negative_zero() {
-        return Ok(Value::from_i32(1));
+    if number == 0.0 {
+        return 1.0;
     }
 
     // 4. Return an implementation-approximated Number value representing the result of the cosine of ℝ(n).
-    Ok(Value::from_f64(number.as_f64().cos()))
+    number.cos()
 }
 
 // 21.3.2.14 Math.exp ( x ), https://tc39.es/ecma262/#sec-math.exp
@@ -1249,23 +1254,28 @@ pub fn exp_impl(vm: &Vm, x: Value) -> ThrowCompletionOr<Value> {
     // 1. Let n be ? ToNumber(x).
     let number = x.to_number(vm)?;
 
+    Ok(Value::from_f64(exp_of_number(number.as_f64())))
+}
+
+/// The steps of Math.exp after ToNumber, which JIT code also calls.
+pub fn exp_of_number(number: f64) -> f64 {
     // 2. If n is either NaN or +∞𝔽, return n.
-    if number.is_nan() || number.is_positive_infinity() {
-        return Ok(number);
+    if number.is_nan() || number == f64::INFINITY {
+        return number;
     }
 
     // 3. If n is either +0𝔽 or -0𝔽, return 1𝔽.
-    if number.as_f64() == 0.0 {
-        return Ok(Value::from_i32(1));
+    if number == 0.0 {
+        return 1.0;
     }
 
     // 4. If n is -∞𝔽, return +0𝔽.
-    if number.is_negative_infinity() {
-        return Ok(Value::from_i32(0));
+    if number == f64::NEG_INFINITY {
+        return 0.0;
     }
 
     // 5. Return an implementation-approximated Number value representing the result of the exponential function of ℝ(n).
-    Ok(Value::from_f64(number.as_f64().exp()))
+    number.exp()
 }
 
 // 21.3.2.16 Math.floor ( x ), https://tc39.es/ecma262/#sec-math.floor
@@ -1302,28 +1312,33 @@ pub fn log_impl(vm: &Vm, x: Value) -> ThrowCompletionOr<Value> {
     // 1. Let n be ? ToNumber(x).
     let number = x.to_number(vm)?;
 
+    Ok(Value::from_f64(log_of_number(number.as_f64())))
+}
+
+/// The steps of Math.log after ToNumber, which JIT code also calls.
+pub fn log_of_number(number: f64) -> f64 {
     // 2. If n is NaN or n is +∞𝔽, return n.
-    if number.is_nan() || number.is_positive_infinity() {
-        return Ok(number);
+    if number.is_nan() || number == f64::INFINITY {
+        return number;
     }
 
     // 3. If n is 1𝔽, return +0𝔽.
-    if number.as_f64() == 1.0 {
-        return Ok(Value::from_i32(0));
+    if number == 1.0 {
+        return 0.0;
     }
 
     // 4. If n is +0𝔽 or n is -0𝔽, return -∞𝔽.
-    if number.is_positive_zero() || number.is_negative_zero() {
-        return Ok(js_negative_infinity());
+    if number == 0.0 {
+        return f64::NEG_INFINITY;
     }
 
     // 5. If n < -0𝔽, return NaN.
-    if number.as_f64() < -0.0 {
-        return Ok(js_nan());
+    if number < -0.0 {
+        return f64::NAN;
     }
 
     // 6. Return an implementation-approximated Number value representing the result of the natural logarithm of ℝ(n).
-    Ok(Value::from_f64(number.as_f64().ln()))
+    number.ln()
 }
 
 // 21.3.2.27 Math.pow ( base, exponent ), https://tc39.es/ecma262/#sec-math.pow
@@ -1378,18 +1393,23 @@ pub fn sin_impl(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
     // 1. Let n be ? ToNumber(x).
     let number = value.to_number(vm)?;
 
+    Ok(Value::from_f64(sin_of_number(number.as_f64())))
+}
+
+/// The steps of Math.sin after ToNumber, which JIT code also calls.
+pub fn sin_of_number(number: f64) -> f64 {
     // 2. If n is NaN, n is +0𝔽, or n is -0𝔽, return n.
-    if number.is_nan() || number.is_positive_zero() || number.is_negative_zero() {
-        return Ok(number);
+    if number.is_nan() || number == 0.0 {
+        return number;
     }
 
     // 3. If n is +∞𝔽 or n is -∞𝔽, return NaN.
-    if number.is_infinity() {
-        return Ok(js_nan());
+    if number.is_infinite() {
+        return f64::NAN;
     }
 
     // 4. Return an implementation-approximated Number value representing the result of the sine of ℝ(n).
-    Ok(Value::from_f64(number.as_f64().sin()))
+    number.sin()
 }
 
 // 21.3.2.33 Math.sqrt ( x ), https://tc39.es/ecma262/#sec-math.sqrt
@@ -1427,16 +1447,21 @@ pub fn tan_impl(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
     // Let n be ? ToNumber(x).
     let number = value.to_number(vm)?;
 
+    Ok(Value::from_f64(tan_of_number(number.as_f64())))
+}
+
+/// The steps of Math.tan after ToNumber, which JIT code also calls.
+pub fn tan_of_number(number: f64) -> f64 {
     // 2. If n is NaN, n is +0𝔽, or n is -0𝔽, return n.
-    if number.is_nan() || number.is_positive_zero() || number.is_negative_zero() {
-        return Ok(number);
+    if number.is_nan() || number == 0.0 {
+        return number;
     }
 
     // 3. If n is +∞𝔽, or n is -∞𝔽, return NaN.
-    if number.is_infinity() {
-        return Ok(js_nan());
+    if number.is_infinite() {
+        return f64::NAN;
     }
 
     // 4. Return an implementation-approximated Number value representing the result of the tangent of ℝ(n).
-    Ok(Value::from_f64(number.as_f64().tan()))
+    number.tan()
 }

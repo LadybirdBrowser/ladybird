@@ -89,9 +89,7 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
                     matches!(op, Op::InitializeFrame | Op::EnsureFrameInitialized | Op::PublishFrame);
                 !matches!(op, Op::StoreSlot { .. })
                     && !(is_argument && initializes_frame)
-                    && (properties.is_call
-                        || properties.reads != Locations::NONE
-                        || properties.writes != Locations::NONE)
+                    && (properties.reads != Locations::NONE || properties.writes != Locations::NONE)
             });
             let reads_frame = reader.is_some_and(|reader| {
                 let op = &graph.node(*reader).op;
@@ -512,6 +510,7 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::Float64Binary { .. } | Op::Float64Min | Op::Float64Max | Op::Float64Compare { .. } => {
             Some(vec![Repr::Float64, Repr::Float64])
         }
+        Op::CallFloat64Function { function } => Some(vec![Repr::Float64; function.argument_count()]),
         Op::Int32Min | Op::Int32Max | Op::Uint32Min => Some(vec![Repr::Int32, Repr::Int32]),
         Op::Uint32ShiftRight => Some(vec![Repr::Int32, Repr::Int32]),
         Op::Uint32ToFloat64 | Op::IntegerToString => Some(vec![Repr::Int32]),

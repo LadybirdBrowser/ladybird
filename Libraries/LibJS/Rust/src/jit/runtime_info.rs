@@ -15,8 +15,8 @@ use libjs_abi::value as nan_box;
 use libjs_jit::bytecode::OpCode;
 use libjs_jit::codegen::slow_path_symbol;
 use libjs_jit::snapshot::{
-    CellId, DynamicCallLayout, HelperCallAddresses, IntrinsicHelpers, RuntimeInfo, RuntimeLayout, RuntimeOffsets,
-    TypeofStrings,
+    CellId, DynamicCallLayout, Float64FunctionAddresses, HelperCallAddresses, IntrinsicHelpers, RuntimeInfo,
+    RuntimeLayout, RuntimeOffsets, TypeofStrings,
 };
 
 use super::allocation::{AllocationInfos, FUNCTION_ENVIRONMENT_FREE_LIST_COUNT};
@@ -221,6 +221,12 @@ fn runtime_layout() -> RuntimeLayout {
         builtin_math_ceil: Builtin::MathCeil as u8,
         builtin_math_round: Builtin::MathRound as u8,
         builtin_math_sqrt: Builtin::MathSqrt as u8,
+        builtin_math_exp: Builtin::MathExp as u8,
+        builtin_math_log: Builtin::MathLog as u8,
+        builtin_math_sin: Builtin::MathSin as u8,
+        builtin_math_cos: Builtin::MathCos as u8,
+        builtin_math_tan: Builtin::MathTan as u8,
+        builtin_math_pow: Builtin::MathPow as u8,
         // NB: Filled in by runtime_info().
         typeof_strings: TypeofStrings::default(),
         fly_string_cache: 0,
@@ -471,6 +477,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         to_boolean: addresses.to_boolean,
         primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,
         helper_calls: HelperCallAddresses(super::helper_calls::address),
+        float64_functions: Float64FunctionAddresses(super::calls::float64_function_address),
         to_object: super::calls::libjs_jit_to_object as *const () as u64,
         array_create: super::calls::libjs_jit_array_create as *const () as u64,
         intrinsic_helpers: IntrinsicHelpers {

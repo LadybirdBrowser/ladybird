@@ -26,6 +26,7 @@ use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
+use crate::ir::Float64Function;
 use crate::ir::Float64UnaryOp;
 use crate::ir::FrameStateId;
 use crate::ir::NodeId;
@@ -104,6 +105,55 @@ impl GraphBuilder<'_> {
                 call_feedback,
                 ..
             } => self.build_math_function(Float64UnaryOp::Sqrt, dst, callee, argument, call_feedback),
+            Instruction::CallBuiltinMathExp {
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_call(Float64Function::Exp, dst, callee, &[argument], call_feedback),
+            Instruction::CallBuiltinMathLog {
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_call(Float64Function::Log, dst, callee, &[argument], call_feedback),
+            Instruction::CallBuiltinMathSin {
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_call(Float64Function::Sin, dst, callee, &[argument], call_feedback),
+            Instruction::CallBuiltinMathCos {
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_call(Float64Function::Cos, dst, callee, &[argument], call_feedback),
+            Instruction::CallBuiltinMathTan {
+                dst,
+                callee,
+                argument,
+                call_feedback,
+                ..
+            } => self.build_math_call(Float64Function::Tan, dst, callee, &[argument], call_feedback),
+            Instruction::CallBuiltinMathPow {
+                dst,
+                callee,
+                argument0,
+                argument1,
+                call_feedback,
+                ..
+            } => self.build_math_call(
+                Float64Function::Pow,
+                dst,
+                callee,
+                &[argument0, argument1],
+                call_feedback,
+            ),
             Instruction::GetIterator {
                 dst_iterator_object,
                 dst_iterator_next,

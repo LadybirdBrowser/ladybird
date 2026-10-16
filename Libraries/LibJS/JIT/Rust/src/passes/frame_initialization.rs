@@ -129,8 +129,8 @@ fn need(node: &Node, layout: &FrameLayout) -> Need {
         //     those frames, whose full translation initializes it.
         Op::CallSlowPath { .. } => Need::Published,
         Op::CallDirect { executable, .. } | Op::CallNative { executable, .. } if *executable != 0 => Need::Published,
-        // NB: The helper only looks at its argument.
-        Op::ToBoolean => Need::Nothing,
+        // NB: The helpers only look at their arguments.
+        Op::ToBoolean | Op::CallFloat64Function { .. } => Need::Nothing,
         // NB: The generator resumes in the frame, where the interpreter
         //     needs the constants too.
         Op::Suspend { .. } => Need::Initialized,

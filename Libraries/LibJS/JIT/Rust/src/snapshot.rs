@@ -13,6 +13,7 @@
 
 use std::sync::Arc;
 
+use crate::ir::Float64Function;
 use crate::ir::Locations;
 
 use crate::bytecode::EnvironmentCoordinate;
@@ -823,6 +824,17 @@ impl Default for HelperCallAddresses {
     }
 }
 
+/// `u64 (Float64Function)`: the address of the runtime's `double
+/// (double...)` function that computes a `Float64Function`, or 0.
+#[derive(Debug, Clone, Copy)]
+pub struct Float64FunctionAddresses(pub fn(Float64Function) -> u64);
+
+impl Default for Float64FunctionAddresses {
+    fn default() -> Self {
+        Self(|_| 0)
+    }
+}
+
 impl Intrinsic {
     /// How JIT code calls the builtin through its runtime helper, if it
     /// does.
@@ -943,6 +955,9 @@ pub struct RuntimeInfo {
     /// The runtime helpers of the intrinsics JIT code calls through them
     /// (see `Intrinsic::helper_call()`).
     pub helper_calls: HelperCallAddresses,
+    /// The runtime's functions of doubles that `Op::CallFloat64Function`
+    /// calls.
+    pub float64_functions: Float64FunctionAddresses,
     /// `u64 libjs_jit_to_object(VM*, u64 primitive, u64 function)`: ToObject
     /// of a primitive other than undefined and null, as the builtin
     /// `function` makes it, or the empty value if that function is of
@@ -1628,13 +1643,20 @@ pub struct RuntimeLayout {
     /// `Builtin` values.
     pub builtin_string_prototype_char_code_at: u8,
     pub builtin_string_prototype_char_at: u8,
-    /// `JS::Builtin::MathAbs`, `MathFloor`, `MathCeil`, `MathRound` and
-    /// `MathSqrt`.
+    /// `JS::Builtin::MathAbs`, `MathFloor`, `MathCeil`, `MathRound`,
+    /// `MathSqrt`, `MathExp`, `MathLog`, `MathSin`, `MathCos`, `MathTan` and
+    /// `MathPow`.
     pub builtin_math_abs: u8,
     pub builtin_math_floor: u8,
     pub builtin_math_ceil: u8,
     pub builtin_math_round: u8,
     pub builtin_math_sqrt: u8,
+    pub builtin_math_exp: u8,
+    pub builtin_math_log: u8,
+    pub builtin_math_sin: u8,
+    pub builtin_math_cos: u8,
+    pub builtin_math_tan: u8,
+    pub builtin_math_pow: u8,
     /// The strings `typeof` results in, as values, or all 0 for code
     /// without them.
     pub typeof_strings: TypeofStrings,
