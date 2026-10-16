@@ -1,2 +1,2 @@
-viewport wheel target: viewport
+viewport wheel target: latched scroller=viewport
 has explicit wheel hit test targets: false

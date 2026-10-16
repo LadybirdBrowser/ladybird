@@ -18,7 +18,7 @@ div {
 // are the ones the final rendering records from.
 addEventListener("load", () => {
     internals.setAccessibilityFocusTarget(document.getElementById("a"));
-    internals.asyncScrollingState();
+    internals.recordDisplayListForTesting();
     internals.setAccessibilityFocusTarget(document.getElementById("b"));
 });
 </script>

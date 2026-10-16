@@ -32,7 +32,10 @@
 <script>
     test(() => {
         blocking.addEventListener("wheel", () => {}, { passive: false });
-        const blocks = (label, y) => println(`${label}: ${internals.asyncScrollingStateBlocksWheelEventAt(250, y)}`);
+        const blocks = (label, y) => {
+            internals.recordDisplayListForTesting();
+            println(`${label}: ${internals.recordedDisplayListBlocksWheelEventAt(250, y)}`);
+        };
 
         const host = document.createElement("div");
         const probe = document.createElement("div");

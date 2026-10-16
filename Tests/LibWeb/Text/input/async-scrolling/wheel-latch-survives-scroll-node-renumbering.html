@@ -27,7 +27,8 @@
 <script>
     function scrollNodeIndexOf(element) {
         const spatialNodeIndices = internals.visualContextNodeIndices(element).spatial;
-        return internals.asyncScrollingState().scrollNodes.find(node => spatialNodeIndices.includes(node.scrollNodeIndex)).scrollNodeIndex;
+        internals.recordDisplayListForTesting();
+        return internals.recordedAsyncScrollingState().scrollNodes.find(node => spatialNodeIndices.includes(node.scrollNodeIndex)).scrollNodeIndex;
     }
 
     promiseTest(async () => {

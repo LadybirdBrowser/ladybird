@@ -28,7 +28,8 @@
 </div>
 <script>
     function regions(label) {
-        const state = internals.asyncScrollingState();
+        internals.recordDisplayListForTesting();
+        const state = internals.recordedAsyncScrollingState();
         println(`${label}: ${state.blockingWheelEventRegionCount}`);
     }
 
