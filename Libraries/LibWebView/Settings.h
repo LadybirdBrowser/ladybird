@@ -26,7 +26,7 @@ namespace WebView {
 
 struct WindowSettings {
     Optional<Gfx::IntPoint> position;
-    Gfx::IntSize size { 800, 600 };
+    Gfx::IntSize size { 1200, 900 };
     bool maximized { false };
 };
 
