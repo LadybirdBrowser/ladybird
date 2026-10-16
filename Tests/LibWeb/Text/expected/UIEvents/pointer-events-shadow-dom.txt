@@ -4,3 +4,4 @@ pointerenter target.id="host" relatedTarget.id="body"
 pointermove target.id="host" relatedTarget.id="null"
 > move pointer outside
 pointerout target.id="host" relatedTarget.id="body"
+pointerleave target.id="host" relatedTarget.id="body"

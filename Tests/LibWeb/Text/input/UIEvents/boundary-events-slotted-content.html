@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+
+#host {
+    display: block;
+    width: 200px;
+}
+
+#text {
+    display: block;
+    width: 50px;
+    height: 20px;
+}
+</style>
+<body id="body"><div id="host"><span id="text" slot="headline">Text</span></div></body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<a id="item" style="display: block; padding: 20px"><div id="wrapper"><slot id="slot" name="headline"></slot></div></a>`;
+
+        let pointerEvents = [];
+        let mouseEvents = [];
+        const events = ["pointerenter", "pointerleave", "mouseenter", "mouseleave"];
+        for (const target of [host, shadow.getElementById("item"), shadow.getElementById("wrapper"), shadow.getElementById("slot"), text]) {
+            events.forEach(type => target.addEventListener(type, e => {
+                if (e.eventPhase === Event.AT_TARGET)
+                    (e instanceof PointerEvent ? pointerEvents : mouseEvents).push(`${e.type}@${e.target.id}`);
+            }));
+        }
+
+        function moveTo(x, y, description) {
+            pointerEvents = [];
+            mouseEvents = [];
+            internals.mouseMove(x, y);
+            println(`> ${description}`);
+            println(pointerEvents.join(" "));
+            println(mouseEvents.join(" "));
+        }
+
+        internals.mouseMove(300, 300);
+        moveTo(5, 5, "move pointer over padding of shadow link");
+        moveTo(30, 30, "move pointer over slotted content");
+        moveTo(5, 5, "move pointer back over padding of shadow link");
+        moveTo(300, 300, "move pointer outside");
+    });
+</script>
