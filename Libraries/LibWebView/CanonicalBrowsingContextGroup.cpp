@@ -12,14 +12,15 @@
 
 namespace WebView {
 
-NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalSimilarOriginWindowAgent::create()
+NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalSimilarOriginWindowAgent::create(Web::HTML::CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode)
 {
-    return adopt_ref(*new CanonicalSimilarOriginWindowAgent);
+    return adopt_ref(*new CanonicalSimilarOriginWindowAgent(agent_cluster_cross_origin_isolation_mode));
 }
 
 // Random, so that it cannot collide with the id a WebContent process gives a shared worker's agent cluster.
-CanonicalSimilarOriginWindowAgent::CanonicalSimilarOriginWindowAgent()
+CanonicalSimilarOriginWindowAgent::CanonicalSimilarOriginWindowAgent(Web::HTML::CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode)
     : m_agent_cluster_id(get_random<u64>())
+    , m_agent_cluster_cross_origin_isolation_mode(agent_cluster_cross_origin_isolation_mode)
 {
 }
 
@@ -116,7 +117,7 @@ NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::
     auto key = origin.is_opaque() ? AgentClusterKey { origin } : AgentClusterKey { move(site) };
 
     // 3. If group's cross-origin isolation mode is not "none", then set key to origin.
-    if (m_cross_origin_isolation_mode != CrossOriginIsolationMode::None) {
+    if (m_cross_origin_isolation_mode != Web::HTML::CrossOriginIsolationMode::None) {
         key = AgentClusterKey { origin };
     }
     // 4. Otherwise, if group's historical agent cluster key map[origin] exists, then set key to group's historical
@@ -137,11 +138,16 @@ NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::
     // 6. If group's agent cluster map[key] does not exist:
     if (!m_agent_cluster_map.contains(key)) {
         // 1. Let agentCluster be a new agent cluster.
-        // 2. Let agent be a new similar-origin window agent.
-        // 3. Set agentCluster's agents to « agent ».
-        AgentCluster agent_cluster { CanonicalSimilarOriginWindowAgent::create() };
+        // 2. Set agentCluster's cross-origin isolation mode to group's cross-origin isolation mode.
+        // FIXME: 3. If key is an origin:
+        //           1. Assert: key is origin.
+        //           2. Set agentCluster's is origin-keyed to true.
+        // 4. Add the result of creating an agent, given false, to agentCluster.
+        // NB: The agent cluster's single similar-origin window agent holds the agent cluster's id and cross-origin
+        //     isolation mode.
+        AgentCluster agent_cluster { CanonicalSimilarOriginWindowAgent::create(m_cross_origin_isolation_mode) };
 
-        // 4. Set group's agent cluster map[key] to agentCluster.
+        // 5. Set group's agent cluster map[key] to agentCluster.
         m_agent_cluster_map.set(key, move(agent_cluster));
     }
 
@@ -152,7 +158,7 @@ NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::
 RefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::similar_origin_window_agent_for(URL::Origin const& origin) const
 {
     auto key = origin.is_opaque() ? AgentClusterKey { origin } : AgentClusterKey { URL::Site::obtain(origin) };
-    if (m_cross_origin_isolation_mode != CrossOriginIsolationMode::None)
+    if (m_cross_origin_isolation_mode != Web::HTML::CrossOriginIsolationMode::None)
         key = AgentClusterKey { origin };
     else if (auto historical_key = m_historical_agent_cluster_key_map.get(origin); historical_key.has_value())
         key = *historical_key;

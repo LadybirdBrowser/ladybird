@@ -366,7 +366,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
     // 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's cross-origin
     //     isolation mode to either "logical" or "concrete". The choice of which is implementation-defined.
     if (navigation_coop.value == Web::HTML::OpenerPolicyValue::SameOriginPlusCOEP)
-        new_browsing_context.browsing_context->group()->set_cross_origin_isolation_mode(CrossOriginIsolationMode::Concrete);
+        new_browsing_context.browsing_context->group()->set_cross_origin_isolation_mode(Web::HTML::CrossOriginIsolationMode::Concrete);
 
     // 13. Let sandboxFlags be a clone of navigationParams's final sandboxing flag set.
     // FIXME: 14. If sandboxFlags is not empty, then:
