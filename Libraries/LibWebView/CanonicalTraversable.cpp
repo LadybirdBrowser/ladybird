@@ -1772,35 +1772,25 @@ void CanonicalTraversable::did_receive_child_navigable_unload_request(WebContent
 void CanonicalTraversable::end_history_jobs(CanonicalNavigable const& navigable, CanonicalDocument const* populated_document)
 {
     // NB: A job ends now, but its run goes on later: It can go on to dispatch other jobs, which must not see the tree
-    //     mid-change.
-    Vector<Web::HTML::CrossProcessId> operations_with_ended_changing_jobs;
-    Vector<Web::HTML::CrossProcessId> operations_with_ended_nonchanging_updates;
+    //     mid-change. An update of a nonchanging navigable needs no ending: the page it was sent to replies to it even
+    //     if the navigable is gone, or is closed, which ends it.
+    Vector<Web::HTML::CrossProcessId> operations_with_ended_jobs;
     for (auto& entry : m_history_operations) {
         auto& operation = *entry.value;
         if (auto* changing_navigable = operation.pending_changing_job(navigable.id()); changing_navigable && (!populated_document || changing_navigable->populated_document == populated_document)) {
             operation.algorithm->end_changing_navigable_job(*changing_navigable);
-            operations_with_ended_changing_jobs.append(operation.operation_id);
+            operations_with_ended_jobs.append(operation.operation_id);
         }
-        if (populated_document || !operation.algorithm)
-            continue;
-        // NB: Taking the reply a page owes for the navigable's update ignores the reply if it comes after all.
-        auto owed_update = OwedReply { OwedReply::Kind::NonchangingUpdate, operation.operation_id, navigable.id() };
-        if (any_of(operation.completion_endpoints, [&](auto& endpoint) { return endpoint->take_owed_reply(owed_update); }))
-            operations_with_ended_nonchanging_updates.append(operation.operation_id);
     }
-    if (operations_with_ended_changing_jobs.is_empty() && operations_with_ended_nonchanging_updates.is_empty())
+    if (operations_with_ended_jobs.is_empty())
         return;
 
-    Core::deferred_invoke([this, weak_this = make_weak_ptr<CanonicalTraversable>(), operations_with_ended_changing_jobs = move(operations_with_ended_changing_jobs), operations_with_ended_nonchanging_updates = move(operations_with_ended_nonchanging_updates)] {
+    Core::deferred_invoke([this, weak_this = make_weak_ptr<CanonicalTraversable>(), operations_with_ended_jobs = move(operations_with_ended_jobs)] {
         if (!weak_this)
             return;
-        for (auto operation_id : operations_with_ended_changing_jobs) {
+        for (auto operation_id : operations_with_ended_jobs) {
             if (auto* operation = find_history_operation(operation_id))
                 operation->algorithm->process_changing_navigable_continuations();
-        }
-        for (auto operation_id : operations_with_ended_nonchanging_updates) {
-            if (auto* operation = find_history_operation(operation_id))
-                operation->algorithm->nonchanging_navigable_updated();
         }
     });
 }
