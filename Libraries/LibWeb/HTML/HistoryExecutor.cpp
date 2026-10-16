@@ -324,27 +324,15 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
 
     operation.changing_navigable_jobs.ensure(navigable_id);
 
-    queue_apply_history_step_task(*navigable, GC::create_function(heap(), [this, operation_id, navigable_id, navigation_type, user_involvement, population = move(population), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete]() mutable {
+    queue_apply_history_step_task(*navigable, GC::create_function(heap(), [this, operation_id, navigation_type, user_involvement, population = move(population), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete]() mutable {
         // 1. Let displayedEntry be navigable's active session history entry.
         auto displayed_entry = navigable->active_session_history_entry();
 
         // 2. Let targetEntry be navigable's current session history entry.
-        // AD-HOC: A synchronous navigation that jumps the queue during this run's apply-history-step re-claims the
-        //         navigable before this task runs. The run still applies its claimed target entry once the jumped
-        //         navigation's nested run completes.
-        auto target_entry = navigable->current_session_history_entry();
-        if (target_entry != claimed_target_entry) {
-            if (!target_entry) {
-                // AD-HOC: Release the claim this job made, unless its operation completed and released it already.
-                if (auto* operation = find_history_operation(operation_id)) {
-                    operation->changing_navigable_jobs.remove(navigable_id);
-                    navigable->clear_ongoing_history_traversal();
-                }
-                on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, false, {});
-                return;
-            }
-            target_entry = claimed_target_entry;
-        }
+        // AD-HOC: The entry this job claimed, rather. A synchronous navigation that jumps the queue during this run's
+        //         apply-history-step re-claims the navigable before this task runs, and the run still applies its
+        //         claimed target entry once the jumped navigation's nested run completes.
+        RefPtr<SessionHistoryEntry> target_entry = claimed_target_entry;
 
         // 3. Let changingNavigableContinuation be a changing navigable continuation state with:
         auto changing_navigable_continuation = heap().allocate<ChangingNavigableContinuationState>();
