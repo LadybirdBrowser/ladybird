@@ -14,6 +14,7 @@
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/Painting/Forward.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -91,8 +92,8 @@ public:
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_text_through_ui_process(Utf16String const&);
     void grant_transient_activation();
-    void mouse_move_through_ui_process(double x, double y);
-    void click_through_ui_process(double x, double y);
+    void click_through_ui_process(double x, double y, GC::Ref<WebIDL::Promise>);
+    void mouse_event_through_ui_process(Bindings::MouseEventThroughUIProcessType, double x, double y, Bindings::MouseEventThroughUIProcessOptions const&, GC::Ref<WebIDL::Promise>);
     void wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase, GC::Ref<WebIDL::Promise>);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
     WebIDL::ExceptionOr<void> send_text_editing_command(HTML::HTMLElement&, Utf16String const& command_name, bool extend_selection);
@@ -102,7 +103,6 @@ public:
 
     // Low-level mouse primitives
     void mouse_down(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
-    void mouse_down_on_scrollbar_dragged_by_compositor(double x, double y, DOM::Element& scroller, bool vertical);
     void mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void mouse_move(double x, double y, WebIDL::UnsignedShort modifiers);
     void mouse_leave();
@@ -312,6 +312,8 @@ public:
     String viewport_overflow_x();
 
 private:
+    Web::MouseEvent mouse_event_through_ui_process_at(Web::MouseEvent::Type, double x, double y);
+    void send_mouse_events_through_ui_process(Vector<Web::MouseEvent>, GC::Ref<WebIDL::Promise>);
     explicit Internals(HTML::Window&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;

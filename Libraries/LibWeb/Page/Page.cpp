@@ -445,9 +445,9 @@ EventResult Page::handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint 
     return root.event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor, remote_target);
 }
 
-EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Web::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor)
+EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
 {
-    return handle_mousedown(local_traversable(), position, screen_position, button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor, nullptr);
+    return handle_mousedown(local_traversable(), position, screen_position, button, buttons, modifiers, click_count, {}, nullptr);
 }
 
 void Page::set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNavigable& navigable)

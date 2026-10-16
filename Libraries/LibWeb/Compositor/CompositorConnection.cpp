@@ -451,6 +451,14 @@ Gfx::FloatPoint CompositorConnection::elastic_overscroll_stretch_for_testing(Web
     return response->stretch();
 }
 
+void CompositorConnection::synchronize_for_testing()
+{
+    if (!can_send_message_to_compositor())
+        return;
+    if (!send_sync_but_allow_failure<Messages::CompositorWebContentServer::SynchronizeForTesting>())
+        did_lose_compositor();
+}
+
 void CompositorConnection::begin_input_trace_for_testing(Web::CompositorContextId context_id)
 {
     if (!can_send_message_to_compositor())

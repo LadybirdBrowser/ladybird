@@ -62,6 +62,7 @@ public:
     Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue);
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID);
+    void synchronize_for_testing();
     void begin_input_trace_for_testing();
     Vector<Web::InputTraceRecord> take_input_trace_for_testing();
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Compositing::AsyncScrollUpdateFreshness);
@@ -122,6 +123,7 @@ public:
     Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Web::CompositorContextId, Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue);
     void cancel_smooth_scroll(Web::CompositorContextId, Web::AsyncScrollNodeStableID);
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID);
+    void synchronize_for_testing();
     void begin_input_trace_for_testing(Web::CompositorContextId);
     Vector<Web::InputTraceRecord> take_input_trace_for_testing(Web::CompositorContextId);
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::CompositorContextId, Compositing::AsyncScrollUpdateFreshness);

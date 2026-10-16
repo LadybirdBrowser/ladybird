@@ -83,6 +83,11 @@ Gfx::FloatPoint CompositorContextHandle::elastic_overscroll_stretch_for_testing(
     return m_host.elastic_overscroll_stretch_for_testing(m_context_id, stable_node_id);
 }
 
+void CompositorContextHandle::synchronize_for_testing()
+{
+    m_host.synchronize_for_testing();
+}
+
 void CompositorContextHandle::begin_input_trace_for_testing()
 {
     m_host.begin_input_trace_for_testing(m_context_id);
@@ -444,6 +449,12 @@ Gfx::FloatPoint CompositorHost::elastic_overscroll_stretch_for_testing(Web::Comp
     if (auto* connection = compositor_connection())
         return connection->elastic_overscroll_stretch_for_testing(context_id, stable_node_id);
     return {};
+}
+
+void CompositorHost::synchronize_for_testing()
+{
+    if (auto* connection = compositor_connection())
+        connection->synchronize_for_testing();
 }
 
 void CompositorHost::begin_input_trace_for_testing(Web::CompositorContextId context_id)

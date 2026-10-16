@@ -64,6 +64,8 @@ endpoint CompositorWebContentServer
     smooth_scroll_to(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue) => (Compositing::AsyncScrollEnqueueResult result)
     cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id) =|
     elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id) => (Gfx::FloatPoint stretch)
+    // Returns once the compositor has handled every message WebContent sent before it.
+    synchronize_for_testing() => ()
     begin_input_trace_for_testing(Web::CompositorContextId context_id) => ()
     take_input_trace_for_testing(Web::CompositorContextId context_id) => (Vector<Web::InputTraceRecord> records)
 
