@@ -59,8 +59,21 @@ void SettingsUI::register_interfaces()
     register_interface("loadAvailableEngines"sv, [this](auto const&) {
         load_available_engines();
     });
+
     register_interface("setTabSettings"sv, [this](auto const& data) {
         set_tab_settings(data);
+    });
+    register_interface("setSearchEngineSettings"sv, [this](auto const& data) {
+        set_search_engine_settings(data);
+    });
+    register_interface("setContentBlockerEnabled"sv, [this](auto const& data) {
+        set_content_blocker_enabled(data);
+    });
+    register_interface("setContentBlockerListEnabled"sv, [this](auto const& data) {
+        set_content_blocker_list_enabled(data);
+    });
+    register_interface("setFilterListUpdatesEnabled"sv, [this](auto const& data) {
+        set_filter_list_updates_enabled(data);
     });
 
     if (host() == "welcome"sv) {
@@ -98,9 +111,6 @@ void SettingsUI::register_interfaces()
         set_config_variable(data);
     });
 
-    register_interface("setSearchEngineSettings"sv, [this](auto const& data) {
-        set_search_engine_settings(data);
-    });
     register_interface("addCustomSearchEngine"sv, [this](auto const& data) {
         add_custom_search_engine(data);
     });
@@ -143,17 +153,8 @@ void SettingsUI::register_interfaces()
     register_interface("setServicesNetworkAccessEnabled"sv, [this](auto const& data) {
         set_services_network_access_enabled(data);
     });
-    register_interface("setFilterListUpdatesEnabled"sv, [this](auto const& data) {
-        set_filter_list_updates_enabled(data);
-    });
     register_interface("updateContentBlockerLists"sv, [this](auto const& data) {
         update_content_blocker_lists(data);
-    });
-    register_interface("setContentBlockerListEnabled"sv, [this](auto const& data) {
-        set_content_blocker_list_enabled(data);
-    });
-    register_interface("setContentBlockerEnabled"sv, [this](auto const& data) {
-        set_content_blocker_enabled(data);
     });
     register_interface("setShowContentBlockerCount"sv, [this](auto const& data) {
         set_show_content_blocker_count(data);
@@ -234,43 +235,15 @@ void SettingsUI::load_current_settings()
     async_send_message("loadSettings"sv, settings);
 }
 
-void SettingsUI::complete_first_run(JsonValue const& data)
+void SettingsUI::complete_first_run(JsonValue const&)
 {
-    if (!data.is_object())
-        return;
-    auto const& object = data.as_object();
-    auto vertical_tabs_enabled = object.get_bool("verticalTabsEnabled"sv);
-    auto search_engine_settings = object.get_object("searchEngine"sv);
-    auto content_blocker_enabled = object.get_bool("contentBlockerEnabled"sv);
-    auto lists = object.get_array("contentBlockerLists"sv);
-    if (!vertical_tabs_enabled.has_value() || !search_engine_settings.has_value()
-        || !content_blocker_enabled.has_value() || !lists.has_value())
-        return;
-
-    auto engine = search_engine_settings->get("engine"sv);
-    auto suggestions = search_engine_settings->get_bool("suggestions"sv);
-    if (!engine.has_value() || (!engine->is_null() && !engine->is_string()) || !suggestions.has_value())
-        return;
-
     auto& settings = Application::settings();
-
-    auto tab_settings = settings.tab_settings();
-    if (Application::the().supports_vertical_tabs())
-        tab_settings.vertical_tabs_enabled = *vertical_tabs_enabled;
-    settings.set_tab_settings(tab_settings);
-
-    set_search_engine_settings(*search_engine_settings);
-
-    settings.set_content_blocker_enabled(*content_blocker_enabled);
-    settings.set_filter_list_updates_enabled(*content_blocker_enabled);
-    lists->for_each([&](auto const& list) {
-        set_content_blocker_list_enabled(list);
-    });
 
     if (auto result = settings.complete_first_run(); result.is_error()) {
         async_send_message("firstRunError"sv, "Could not save your settings. Please try again."_string);
         return;
     }
+
     async_send_message("firstRunCompleted"sv, settings.new_tab_page_url().serialize());
 }
 
