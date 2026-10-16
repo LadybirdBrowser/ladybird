@@ -100,6 +100,17 @@ private:
     void hide_tab_preview();
     QPoint tab_preview_position_for(int index, QSize const& popup_size) const;
 
+    // Where the pinned tabs sit in vertical tabs: a grid of tiles when expanded, one icon column when collapsed, and a
+    // separator below. Its height is 0 when there's no pinned tab.
+    struct PinnedRegion {
+        int count { 0 };
+        int columns { 1 };
+        int tile_width { 0 };
+        int height { 0 };
+    };
+    PinnedRegion pinned_region() const;
+    int vertical_bar_width() const;
+
     QRect visual_tab_rect(int index) const;
     int tab_index_at(QPoint const&) const;
     QSize vertical_size_hint(int tab_count) const;
