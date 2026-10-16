@@ -2878,14 +2878,26 @@ Element* Node::parent_or_shadow_host_element()
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-shadow-1/#flat-tree
 ParentNode* Node::flat_tree_parent()
 {
-    // If we're assigned to a slot, that slot is our flat tree parent.
+    // pending node is a slot
+    //     Find slottables for pending node, and append them to pending nodes, with pending node as their associated
+    //     parent.
     if (auto slot = assigned_slot_for_node(*this))
         return slot.ptr();
 
-    // Otherwise, this is the parent or shadow host.
-    return parent_or_shadow_host();
+    // pending node is a shadow host
+    //     Append the child nodes of the shadow root of the shadow tree it hosts to pending nodes, with pending node as
+    //     their associated parent.
+    auto* parent = parent_or_shadow_host();
+    if (auto* shadow_root = as_if<ShadowRoot>(parent))
+        return shadow_root->host();
+
+    // Otherwise,
+    //     Append the child nodes of pending node’s light tree to pending nodes, with pending node as their associated
+    //     parent.
+    return parent;
 }
 
 Element* Node::flat_tree_parent_element()
