@@ -1,5 +1,7 @@
 Content overflows viewport: true
 Scroll width includes overflow: true
-Horizontal wheel target: none
+Horizontal wheel target: no-scroll-target
+#1 compositor: no-scroll-target
+#1 compositor: forwarded-to-page
 Scroll offset after wheel: 0
 Scroll offset after scrollTo: 1

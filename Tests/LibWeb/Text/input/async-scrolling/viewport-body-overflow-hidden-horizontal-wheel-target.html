@@ -31,10 +31,14 @@
 <div id="spacer"></div>
 <script>
     promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
         println(`document scroll width: ${document.documentElement.scrollWidth}`);
-        println(`horizontal wheel target: ${internals.asyncScrollingStateWheelTargetAt(400, 12, 100, 0)}`);
-        println(`vertical wheel target: ${internals.asyncScrollingStateWheelTargetAt(400, 12, 0, 100)}`);
-        await internals.wheel(400, 12, 100, 0);
+        println(`horizontal wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(400, 12, 100, 0))}`);
+        println(`vertical wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(400, 12, 0, 100))}`);
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(400, 12, 100, 0);
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
         println(`scroll x after horizontal wheel: ${window.scrollX}`);
     });
 </script>

@@ -1,8 +1,9 @@
 initial isIntersecting: false
 initial ratio: 0
 wheel routing admission: accepted
-wheel scroll admission: accepted
-downward wheel target before wheel: non-viewport
+downward wheel target before wheel: latched scroller=#inner
+#1 compositor: latched scroller=#inner
+#1 compositor: forwarded-to-page
 scrolled isIntersecting: true
 scrolled ratio: 1
 inner scrollTop: 100

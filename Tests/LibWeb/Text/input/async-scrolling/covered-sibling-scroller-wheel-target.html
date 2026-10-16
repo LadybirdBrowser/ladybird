@@ -38,15 +38,20 @@
 <div id="page-spacer"></div>
 <script>
     promiseTest(async () => {
-        println(`uncovered scroller wheel target: ${internals.asyncScrollingStateWheelTargetAt(150, 150, 0, 100)}`);
-        println(`covered scroller wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
-
+        await animationFrame();
+        await animationFrame();
+        println(`uncovered scroller wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(150, 150, 0, 100))}`);
+        println(`covered scroller wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
         overlay.style.pointerEvents = "none";
-        println(`covered scroller with pointer-events none wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+        await animationFrame();
+        await animationFrame();
+        println(`covered scroller with pointer-events none wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
         overlay.style.pointerEvents = "auto";
-
-        await internals.wheel(50, 50, 0, 100);
-
+        await animationFrame();
+        await animationFrame();
+        internals.beginInputTrace();
+        await scrollSettled(document, () => internals.wheelThroughUIProcess(50, 50, 0, 100));
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
         println(`scroller scrollTop after covered wheel: ${scroller.scrollTop}`);
         println(`window scrollY after covered wheel: ${window.scrollY}`);
     });

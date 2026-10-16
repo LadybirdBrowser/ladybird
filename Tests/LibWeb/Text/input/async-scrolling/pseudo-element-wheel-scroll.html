@@ -39,16 +39,17 @@
         await animationFrame();
         await animationFrame();
 
-        println(`wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
-        println(`wheel scroll admission: ${internals.asyncScrollingStateWheelScrollAdmissionAt(50, 50, 0, 100)}`);
-        println(`downward wheel target before wheel: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+        println(`wheel routing admission: ${internals.compositorScrollState().wheelRoutingAdmission}`);
+        println(`downward wheel target before wheel: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
 
-        await internals.wheel(50, 50, 0, 100, true);
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(50, 50, 0, 100, true);
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
         await animationFrame();
 
         println(`scroll event count: ${scrollEventCount}`);
         println(`host scrollTop: ${host.scrollTop}`);
         println(`window scrollY: ${window.scrollY}`);
-        println(`upward wheel target after wheel: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, -100)}`);
+        println(`upward wheel target after wheel: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, -100))}`);
     });
 </script>

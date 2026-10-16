@@ -34,14 +34,16 @@
         await loaded;
 
         println(`Scroll width includes overflow: ${document.documentElement.scrollWidth > document.documentElement.clientWidth}`);
-        println(`Horizontal wheel target: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
 
         // The compositor routes wheel input by the frame it shows, so the wheel waits for the frame that shows the
         // root no longer scrolls horizontally.
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         while (internals.frameSchedulerState() !== "idle")
             await new Promise(resolve => setTimeout(resolve, 0));
-        await internals.wheel(400, 0, 100, 0);
+        println(`Horizontal wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(400, 0, 100, 0))}`);
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(400, 0, 100, 0);
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
         println(`Scroll offset after wheel: ${window.scrollX}`);
 
         window.scrollTo(1, 0);

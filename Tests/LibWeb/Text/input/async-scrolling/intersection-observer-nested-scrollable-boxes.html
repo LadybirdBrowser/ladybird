@@ -97,11 +97,12 @@
         await animationFrame();
         await animationFrame();
 
-        println(`wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
-        println(`wheel scroll admission: ${internals.asyncScrollingStateWheelScrollAdmissionAt(60, 60, 0, 100)}`);
-        println(`downward wheel target before wheel: ${internals.asyncScrollingStateWheelTargetAt(60, 60, 0, 100)}`);
+        println(`wheel routing admission: ${internals.compositorScrollState().wheelRoutingAdmission}`);
+        println(`downward wheel target before wheel: ${wheelTargetToString(internals.compositorWheelTargetAt(60, 60, 0, 100))}`);
 
-        await internals.wheel(60, 60, 0, 100, true);
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(60, 60, 0, 100, true);
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
 
         const scrolledEntry = await nextIntersectionEntry();
         println(`scrolled isIntersecting: ${scrolledEntry.isIntersecting}`);

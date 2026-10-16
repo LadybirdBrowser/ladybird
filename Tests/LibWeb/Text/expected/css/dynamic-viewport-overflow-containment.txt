@@ -1,6 +1,10 @@
-Initial wheel target: none
-Wheel target after body containment: viewport
+Initial wheel target: no-scroll-target
+Wheel target after body containment: latched scroller=viewport
+#1 compositor: latched scroller=viewport
+#1 compositor: forwarded-to-page
 Scroll offset after wheel: 1
-Wheel target after root containment: none
+Wheel target after root containment: no-scroll-target
+#1 compositor: no-scroll-target
+#1 compositor: forwarded-to-page
 Scroll offset after hidden wheel: 0
 Scroll offset after scrollTo: 1

@@ -34,9 +34,13 @@
             wheelEventWasDefaultPrevented = event.defaultPrevented;
         }, { passive: false });
 
-        println(`async can scroll before wheel: ${internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 100)}`);
+        await animationFrame();
+        await animationFrame();
+        println(`wheel target before wheel: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
 
-        await internals.wheel(50, 50, 0, 100);
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(50, 50, 0, 100);
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
 
         println(`wheel event count: ${wheelEventCount}`);
         println(`wheel event cancelable: ${wheelEventWasCancelable}`);

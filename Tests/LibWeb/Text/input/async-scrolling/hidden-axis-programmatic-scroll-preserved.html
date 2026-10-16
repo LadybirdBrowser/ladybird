@@ -22,16 +22,14 @@
     promiseTest(async () => {
         scroller.scrollLeft = 50;
         scroller.scrollTop = 0;
-
         await animationFrame();
         await animationFrame();
-
         println(`initial scrollLeft: ${scroller.scrollLeft}`);
-        println(`vertical wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
-        println(`horizontal wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 100, 0)}`);
-
-        await internals.wheel(50, 50, 0, 100);
-
+        println(`vertical wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
+        println(`horizontal wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 100, 0))}`);
+        internals.beginInputTrace();
+        await scrollSettled(scroller, () => internals.wheelThroughUIProcess(50, 50, 0, 100));
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
         println(`final scrollLeft: ${scroller.scrollLeft}`);
         println(`final scrollTop: ${scroller.scrollTop}`);
     });
