@@ -2,12 +2,14 @@
 <script src="include.js"></script>
 <script>
     test(() => {
-        // Without COOP + COEP a document is not cross-origin isolated.
+        // Without COOP + COEP a document is not cross-origin isolated, and its global has no SharedArrayBuffer.
         println("crossOriginIsolated: " + self.crossOriginIsolated);
+        println("typeof SharedArrayBuffer: " + typeof SharedArrayBuffer);
 
-        // Serializing a SharedArrayBuffer throws when not cross-origin isolated. Construct it outside the try — so a
-        // constructor failure can't masquerade as the serialization failure we're checking for.
-        const sab = new SharedArrayBuffer(8);
+        // Serializing a SharedArrayBuffer throws when not cross-origin isolated. A shared WebAssembly memory still
+        // creates one. Construct it outside the try — so a constructor failure can't masquerade as the serialization
+        // failure we're checking for.
+        const sab = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }).buffer;
         let errorName = "(did not throw)";
         try {
             new MessageChannel().port1.postMessage(sab);

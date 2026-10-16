@@ -118,9 +118,10 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
 
     GC::Ptr<Window> window;
 
-    // 10. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
+    // 10. Let realm execution context be the result of creating a new realm given agent and the following customizations:
     auto realm_execution_context = Bindings::create_a_new_javascript_realm(
         Bindings::main_thread_vm(),
+        agent_cluster_cross_origin_isolation_mode,
         [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             // NB: A container whose content navigable's document comes back from another process keeps the WindowProxy
             //     scripts hold for it.

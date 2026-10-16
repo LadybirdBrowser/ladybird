@@ -15,6 +15,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebCommon/HTML/WorkerTypes.h>
 
 namespace Web::Bindings {
@@ -44,7 +45,7 @@ HTML::Script* active_script();
 WEB_API void initialize_main_thread_vm(HTML::AgentType);
 WEB_API JS::VM& main_thread_vm();
 
-WEB_API NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_object, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_this_value);
+WEB_API NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, HTML::CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_object, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_this_value);
 
 // Creates a bare Window-backed realm for tests and tools that do not need a full Document.
 WEB_API GC::Ref<JS::Realm> create_a_simple_javascript_realm();

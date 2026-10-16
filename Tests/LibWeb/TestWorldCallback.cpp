@@ -31,7 +31,7 @@ TEST_CASE(extension_world_callback_uses_principal_settings_object)
 {
     auto principal_realm = Web::Bindings::create_a_principal_javascript_realm();
     auto& vm = Web::Bindings::main_thread_vm();
-    auto extension_execution_context = Web::Bindings::create_a_new_javascript_realm(vm, nullptr, nullptr);
+    auto extension_execution_context = Web::Bindings::create_a_new_javascript_realm(vm, Web::HTML::CrossOriginIsolationMode::None, nullptr, nullptr);
     auto& extension_realm = *extension_execution_context->realm;
     install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, *principal_realm);
     vm.push_execution_context(*extension_execution_context);
@@ -54,7 +54,7 @@ TEST_CASE(extension_world_event_listener_wraps_arguments_in_listener_realm)
 {
     auto principal_realm = Web::Bindings::create_a_principal_javascript_realm();
     auto& vm = Web::Bindings::main_thread_vm();
-    auto extension_execution_context = Web::Bindings::create_a_new_javascript_realm(vm, nullptr, nullptr);
+    auto extension_execution_context = Web::Bindings::create_a_new_javascript_realm(vm, Web::HTML::CrossOriginIsolationMode::None, nullptr, nullptr);
     auto& extension_realm = *extension_execution_context->realm;
     install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, *principal_realm);
     vm.push_execution_context(*extension_execution_context);
