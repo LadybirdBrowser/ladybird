@@ -662,11 +662,6 @@ Optional<String> Application::system_font_family() const
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, traversable);
-    set_active_window(*window);
-    QObject::connect(window, &QObject::destroyed, m_application.ptr(), [this, window] {
-        if (m_active_window == window)
-            m_active_window = nullptr;
-    });
 
     auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == WebView::Application::settings().new_tab_page_url();
     if (should_focus_location_editor) {
@@ -674,16 +669,7 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
             tab->set_url_is_hidden(true);
     }
 
-    window->set_window_rect(configuration.x, configuration.y, configuration.width, configuration.height);
-    if (show_window == ShowWindow::Yes) {
-        if (configuration.maximized == true)
-            window->showMaximized();
-        else
-            window->show();
-
-        window->activateWindow();
-        window->raise();
-    }
+    present_window(*window, configuration, show_window);
 
     size_t initial_url_index = 0;
     window->for_each_tab([&](Tab& tab) {
@@ -702,6 +688,64 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
         });
     }
     return *window;
+}
+
+void Application::present_window(BrowserWindow& window, WindowConfiguration const& configuration, ShowWindow show_window)
+{
+    set_active_window(window);
+    QObject::connect(&window, &QObject::destroyed, m_application.ptr(), [this, window = &window] {
+        if (m_active_window == window)
+            m_active_window = nullptr;
+    });
+
+    window.set_window_rect(configuration.x, configuration.y, configuration.width, configuration.height);
+    if (show_window == ShowWindow::Yes) {
+        if (configuration.maximized == true)
+            window.showMaximized();
+        else
+            window.show();
+
+        window.activateWindow();
+        window.raise();
+    }
+}
+
+WebView::SessionLaunchPolicy Application::launch_restore_policy() const
+{
+    return WebView::SessionLaunchPolicy::PinnedOnly;
+}
+
+BrowserWindow* Application::restore_previous_session(WindowConfiguration const& frontmost_window_configuration)
+{
+    auto plan = WebView::Application::default_session().session_store->take_launch_plan();
+
+    BrowserWindow* frontmost_window = nullptr;
+    for (size_t i = 0; i < plan.size(); ++i) {
+        auto const& restored = plan[i];
+        // The plan lists the frontmost window last, and opening the windows in that order leaves it on top.
+        auto configuration = i == plan.size() - 1 ? frontmost_window_configuration : configuration_for_new_window();
+
+        auto* window = new BrowserWindow({}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, {}, restored.window_id);
+        window->restore_tabs(restored.tabs, restored.active_tab_index);
+        present_window(*window, configuration, ShowWindow::Yes);
+        frontmost_window = window;
+    }
+    return frontmost_window;
+}
+
+void Application::open_startup_tabs(BrowserWindow& window, Vector<URL::URL> const& urls)
+{
+    auto const& new_tab_page_url = WebView::Application::settings().new_tab_page_url();
+    for (size_t i = 0; i < urls.size(); ++i) {
+        auto& tab = window.new_tab_from_url(urls[i], i == 0 ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, BrowserWindow::TabLocation::end());
+        if (urls.size() == 1 && urls[i] == new_tab_page_url) {
+            tab.set_url_is_hidden(true);
+            QTimer::singleShot(0, &window, [tab = QPointer<Tab>(&tab)] {
+                if (tab)
+                    tab->focus_location_editor();
+            });
+        }
+    }
 }
 
 BrowserWindow* Application::non_private_window_if_any() const
