@@ -1970,6 +1970,7 @@ void CanonicalTraversable::did_attempt_to_populate_the_history_entry_document(We
         .request_current_url = {},
         .origin = *initiator_origin,
         .opener_policy = coop,
+        .embedder_policy = navigable->active_document().embedder_policy(),
         .final_sandboxing_flag_set = navigable->active_document().active_sandboxing_flag_set(),
         .environment_id = parameters.environment_id,
         .document_id = *parameters.document_id,
