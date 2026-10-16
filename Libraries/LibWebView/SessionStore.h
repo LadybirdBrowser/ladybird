@@ -29,6 +29,7 @@ using SessionCloseSequence = i64;
 struct ClosedSessionTab {
     URL::URL active_url;
     Optional<SessionHistorySnapshot> history;
+    bool pinned { false };
 };
 
 struct ClosedSessionUnit {
@@ -110,6 +111,11 @@ public:
     void tab_detached(SessionTabId);
     void tab_moved(TabMoved);
     void tab_order_changed(TabOrderChanged);
+
+    // A pin moves the tab into or out of the pinned tabs at the start of its window, so it's written at once, together
+    // with the window's tab order: Launch restore depends on both. And a write that fails leaves the window's metadata
+    // dirty, for the next flush to retry.
+    ErrorOr<void> tab_pinned_changed(SessionTabId, bool pinned);
     void active_tab_changed(SessionTabId);
     void application_quitting();
     void application_quit_aborted();
@@ -155,6 +161,7 @@ private:
         Database::StatementID insert_tab;
         Database::StatementID insert_tab_if_missing;
         Database::StatementID update_tab_row;
+        Database::StatementID update_tab_placement;
         Database::StatementID update_tab_parent;
         Database::StatementID update_session_closed;
         Database::StatementID update_session_active_tab_index;
@@ -186,6 +193,7 @@ private:
         // transient mode.
         Optional<SessionHistorySnapshot> history;
         bool dirty { false };
+        bool pinned { false };
     };
 
     struct OpenWindow {
@@ -200,6 +208,7 @@ private:
         size_t current_used_step_index { 0 };
         // Transient mode captures the snapshot at demotion; persisted mode loads it on reopen.
         Optional<SessionHistorySnapshot> history;
+        bool pinned { false };
     };
 
     struct ClosedUnit {
@@ -228,6 +237,7 @@ private:
         i64 current_used_step_index { 0 };
         SnapshotDisposition snapshot_disposition { SnapshotDisposition::Preserve };
         SessionHistorySnapshot const* snapshot { nullptr };
+        bool pinned { false };
     };
 
     // Always the complete live-plus-pending order, so persisted units stay contiguous while failed
@@ -235,6 +245,7 @@ private:
     struct WindowMetadataWrite {
         SessionWindowId id { 0 };
         Vector<SessionTabId> tabs_in_order;
+        HashTable<SessionTabId> pinned_tabs;
         i64 active_tab_index { 0 };
     };
 
@@ -355,6 +366,7 @@ private:
         Optional<size_t> tab_index(SessionTabId) const;
 
         void set_tab_state(SessionTabId, Optional<SessionHistorySnapshot>, URL::URL, bool dirty);
+        bool set_tab_pinned(SessionTabId, bool pinned);
         void mark_tab_flushed(SessionTabId, size_t current_used_step_index);
         void set_active_tab(SessionTabId);
         void set_tab_order(SessionWindowId, Vector<SessionTabId> const&);
