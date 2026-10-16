@@ -22,7 +22,6 @@
 #include <LibMedia/Track.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibThreading/Thread.h>
-#include <LibThreading/ThreadPool.h>
 
 #include "PlaybackManager.h"
 
@@ -209,18 +208,21 @@ NonnullRefPtr<PlaybackManager::AddMediaSourcePromise> PlaybackManager::add_media
     auto& main_thread_event_loop = Core::EventLoop::current();
     auto promise = AddMediaSourcePromise::construct();
 
-    // The promise's reference count is not atomic, so the thread pool task must only ever move it.
-    Threading::ThreadPool::the().submit([self = move(self), stream, &main_thread_event_loop, promise = promise] mutable {
+    // The promise's reference count is not atomic, so it must only be moved to and from the thread.
+    auto thread = Threading::Thread::construct("InitMediaSource"sv, [self = move(self), stream, &main_thread_event_loop, promise = promise] mutable -> intptr_t {
         auto demuxer_or_error = create_demuxer(stream);
         if (demuxer_or_error.is_error()) {
             reject_media_source(move(self), move(promise), main_thread_event_loop, demuxer_or_error.release_error());
-            return;
+            return 0;
         }
 
         auto maybe_error = prepare_playback_from_demuxer(self, demuxer_or_error.release_value(), main_thread_event_loop, promise);
         if (maybe_error.is_error())
             reject_media_source(move(self), move(promise), main_thread_event_loop, maybe_error.release_error());
+        return 0;
     });
+    thread->start();
+    thread->detach();
     return promise;
 }
 
@@ -230,12 +232,15 @@ NonnullRefPtr<PlaybackManager::AddMediaSourcePromise> PlaybackManager::add_media
     auto& main_thread_event_loop = Core::EventLoop::current();
     auto promise = AddMediaSourcePromise::construct();
 
-    // The promise's reference count is not atomic, so the thread pool task must only ever move it.
-    Threading::ThreadPool::the().submit([self = move(self), demuxer, &main_thread_event_loop, promise = promise] mutable {
+    // The promise's reference count is not atomic, so it must only be moved to and from the thread.
+    auto thread = Threading::Thread::construct("InitMediaSource"sv, [self = move(self), demuxer, &main_thread_event_loop, promise = promise] mutable -> intptr_t {
         auto maybe_error = prepare_playback_from_demuxer(self, demuxer, main_thread_event_loop, promise);
         if (maybe_error.is_error())
             reject_media_source(move(self), move(promise), main_thread_event_loop, maybe_error.release_error());
+        return 0;
     });
+    thread->start();
+    thread->detach();
     return promise;
 }
 
