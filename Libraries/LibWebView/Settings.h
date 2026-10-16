@@ -276,7 +276,7 @@ private:
     bool m_background_networking_enabled { true };
     bool m_filter_list_updates_enabled { false };
     bool m_content_blocker_enabled { false };
-    bool m_show_content_blocker_count { true };
+    bool m_show_content_blocker_count { false };
     HashTable<String> m_content_blocker_disabled_sites;
     Vector<ContentBlockerList> m_content_blocker_lists;
     String m_custom_content_blocker_filters;
