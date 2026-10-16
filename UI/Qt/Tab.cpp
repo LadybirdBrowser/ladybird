@@ -532,16 +532,45 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     : QWidget(window)
     , m_window(window)
 {
-    auto& application = WebView::Application::the();
+    create_tab_shell();
+    initialize(traversable);
+}
 
+Tab::Tab(BrowserWindow* window, DeferredTab deferred_tab)
+    : QWidget(window)
+    , m_window(window)
+    , m_title(deferred_tab.title)
+    , m_favicon(deferred_tab.favicon)
+    , m_session_tab_id(deferred_tab.session_tab_id)
+    , m_deferred_tab(AK::move(deferred_tab))
+{
+    create_tab_shell();
+}
+
+void Tab::create_tab_shell()
+{
     auto* tab_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom, this);
     tab_layout->setSpacing(0);
     tab_layout->setContentsMargins(0, 0, 0, 0);
 
+    // TabWidget keeps every tab's toolbar container in a stack beside its pages, so even a tab that hasn't loaded needs
+    // one. initialize() fills it.
+    m_toolbar_container = new QWidget(this);
+    m_toolbar_container->setObjectName("LadybirdToolbarContainer");
+    m_toolbar_container->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+
+    create_tab_context_menu();
+}
+
+void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
+{
+    auto& application = WebView::Application::the();
+    auto* tab_layout = static_cast<QBoxLayout*>(layout());
+
     auto view_initial_state = WebContentViewInitialState {
-        .is_private = window->is_private(),
-        .maximum_frames_per_second = window->refresh_rate(),
-        .display_id = window->display_id(),
+        .is_private = m_window->is_private(),
+        .maximum_frames_per_second = m_window->refresh_rate(),
+        .display_id = m_window->display_id(),
         .owner_view = nullptr,
     };
 
@@ -549,10 +578,6 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     m_javascript_dialog = new JavaScriptDialog(m_view);
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
-
-    m_toolbar_container = new QWidget(this);
-    m_toolbar_container->setObjectName("LadybirdToolbarContainer");
-    m_toolbar_container->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     m_toolbar = new QWidget(this);
     m_toolbar->setObjectName("LadybirdNavigationToolbar");
@@ -1140,6 +1165,11 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     view().on_screen_wake_lock_state_changed = [this](auto wake_lock_state) {
         set_screen_wake_lock_state(wake_lock_state);
     };
+}
+
+void Tab::create_tab_context_menu()
+{
+    auto& application = WebView::Application::the();
 
     auto* duplicate_tab_action = new QAction("&Duplicate Tab", this);
     QObject::connect(duplicate_tab_action, &QAction::triggered, this, [this]() {
@@ -1179,6 +1209,10 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
 
     auto* close_tabs_to_right_action = new QAction("Close Tabs to R&ight", this);
     QObject::connect(close_tabs_to_right_action, &QAction::triggered, this, [this]() {
+        // Closing the current tab selects a neighbor, which may be a tab about to close too, and selecting a tab that
+        // hasn't loaded loads it. So, this tab, which stays open, becomes the current tab first.
+        if (auto* current = m_window->current_tab(); current && m_window->tab_index(current) > tab_index() && !current->is_pinned())
+            m_window->activate_tab(tab_index());
         for (auto i = m_window->tab_count() - 1; i > tab_index(); i--) {
             if (!m_window->tab_at(i)->is_pinned())
                 m_window->request_to_close_tab(i);
@@ -1187,6 +1221,9 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
 
     auto* close_other_tabs_action = new QAction("Cl&ose Other Tabs", this);
     QObject::connect(close_other_tabs_action, &QAction::triggered, this, [this]() {
+        // As in Close Tabs to Right, this tab becomes the current tab first if the current tab is among those closing.
+        if (auto* current = m_window->current_tab(); current && current != this && !current->is_pinned())
+            m_window->activate_tab(tab_index());
         for (auto i = m_window->tab_count() - 1; i >= 0; i--) {
             if (i == tab_index() || m_window->tab_at(i)->is_pinned())
                 continue;
@@ -1213,8 +1250,69 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
 
 Tab::~Tab() = default;
 
+void Tab::ensure_loaded()
+{
+    if (is_loaded())
+        return;
+
+    // Until initialize() has built the view, url() reads the deferred tab's URL, so the deferred tab stays until then.
+    auto deferred_url = m_deferred_tab->url;
+    // initialize() hides the toolbar's window controls, which overwrites the visibility TabWidget last asked for.
+    auto toolbar_window_controls_visible = m_toolbar_window_controls_visible;
+    initialize({});
+    m_deferred_tab.clear();
+
+    // TabWidget pushed these while the tab had no toolbar to apply them to.
+    set_vertical_tabs_enabled(m_vertical_tabs_enabled);
+    recreate_toolbar_icons();
+    update_vertical_tabs_toolbar_button_placement();
+    set_toolbar_window_controls_visible(toolbar_window_controls_visible);
+
+    if (m_session_tab_id.has_value())
+        view().set_session_tab_id(*m_session_tab_id);
+    emit loaded();
+
+    Optional<WebView::SessionHistorySnapshot> history;
+    if (m_session_tab_id.has_value())
+        history = m_window->session().session_store->load_tab_history(*m_session_tab_id);
+    if (!history.has_value() || view().restore_session_history_from_snapshot(history.release_value()).is_error())
+        navigate(deferred_url);
+}
+
+URL::URL Tab::url() const
+{
+    if (!is_loaded())
+        return m_deferred_tab->url;
+    return view().url();
+}
+
+Optional<WebView::SessionTabId> Tab::session_tab_id() const
+{
+    // A loaded tab's view holds the ID it reports its state under.
+    if (is_loaded())
+        return view().session_tab_id();
+    return m_session_tab_id;
+}
+
+void Tab::set_session_tab_id(WebView::SessionTabId session_tab_id)
+{
+    m_session_tab_id = session_tab_id;
+    if (is_loaded())
+        view().set_session_tab_id(session_tab_id);
+}
+
+void Tab::clear_session_tab_id()
+{
+    m_session_tab_id.clear();
+    if (is_loaded())
+        view().clear_session_tab_id();
+}
+
 void Tab::focus_location_editor()
 {
+    if (!is_loaded())
+        return;
+
 #if defined(AK_OS_MACOS)
     make_appkit_window_first_responder(*m_location_edit);
 #endif
@@ -1227,6 +1325,11 @@ void Tab::set_window(BrowserWindow& window)
 {
     if (&window == m_window)
         return;
+
+    if (!is_loaded()) {
+        m_window = &window;
+        return;
+    }
 
     QObject::disconnect(&m_window->hamburger_menu(), nullptr, m_hamburger_button, nullptr);
 
@@ -1245,6 +1348,9 @@ void Tab::set_pinned(bool pinned)
 void Tab::set_vertical_tabs_enabled(bool enabled)
 {
     m_vertical_tabs_enabled = enabled;
+    if (!is_loaded())
+        return;
+
     m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     if (m_sidebar_toggle_navigation_spacer)
         m_sidebar_toggle_navigation_spacer->changeSize(enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
@@ -1258,6 +1364,9 @@ void Tab::set_vertical_tabs_position(WebView::VerticalTabsPosition position)
         return;
 
     m_vertical_tabs_position = position;
+    if (!is_loaded())
+        return;
+
     recreate_toolbar_icons();
     update_vertical_tabs_toolbar_button_placement();
     m_toolbar->layout()->invalidate();
@@ -1285,6 +1394,10 @@ void Tab::set_toolbar_container_in_tab_layout(bool in_tab_layout)
 
 void Tab::set_toolbar_window_controls_visible(bool visible)
 {
+    m_toolbar_window_controls_visible = visible;
+    if (!is_loaded())
+        return;
+
     auto const has_native_window_controls = use_native_macos_window_controls() && visible;
     auto const has_custom_window_controls = !use_native_macos_window_controls() && visible;
 
@@ -1358,7 +1471,7 @@ QIcon Tab::tab_icon() const
 
 QString Tab::title() const
 {
-    if (!WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
+    if (!is_loaded() || !WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
         return m_title;
 
     return QString("%1 [%2]").arg(m_title).arg(view().page().client().pid());
@@ -1371,6 +1484,9 @@ void Tab::update_tab_title()
 
 void Tab::tab_settings_changed()
 {
+    if (!is_loaded())
+        return;
+
     auto const& tab_settings = WebView::Application::settings().tab_settings();
     m_vertical_tabs_enabled = tab_settings.vertical_tabs_enabled;
     m_vertical_tabs_position = tab_settings.vertical_tabs_position;
@@ -1383,6 +1499,9 @@ void Tab::tab_settings_changed()
 
 void Tab::config_variable_changed(WebView::ConfigVariableID variable)
 {
+    if (!is_loaded())
+        return;
+
     if (variable == WebView::ConfigVariableID::ShowTabPerformanceMonitor)
         m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(variable));
     if (variable == WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
@@ -1391,6 +1510,9 @@ void Tab::config_variable_changed(WebView::ConfigVariableID variable)
 
 void Tab::content_blocker_count_visibility_changed()
 {
+    if (!is_loaded())
+        return;
+
     m_content_blocking_button->set_show_count_badge(WebView::Application::settings().show_content_blocker_count());
 }
 
@@ -1449,6 +1571,9 @@ void Tab::set_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
 void Tab::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    if (!is_loaded())
+        return;
+
     if (m_hover_label->isVisible())
         update_hover_label();
 }
@@ -1456,6 +1581,8 @@ void Tab::resizeEvent(QResizeEvent* event)
 void Tab::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
+    if (!is_loaded())
+        return;
 
     m_hover_label->hide();
     if (m_content_blocking_popover)
@@ -1488,7 +1615,7 @@ void Tab::hide_hover_label()
 
 bool Tab::event(QEvent* event)
 {
-    if (event->type() == QEvent::PaletteChange) {
+    if (event->type() == QEvent::PaletteChange && is_loaded()) {
         update_chrome_style();
         recreate_toolbar_icons();
         if (m_is_loading)
@@ -1636,6 +1763,9 @@ void Tab::position_downloads_popover()
 
 void Tab::download_added(WebView::FileDownloader::Download const& download)
 {
+    if (!is_loaded())
+        return;
+
     // NB: A window lists the downloads of its own browsing session only.
     if (download.is_private != m_window->is_private())
         return;
@@ -1649,6 +1779,9 @@ void Tab::download_added(WebView::FileDownloader::Download const& download)
 
 void Tab::download_updated(WebView::FileDownloader::Download const& download)
 {
+    if (!is_loaded())
+        return;
+
     if (download.is_private != m_window->is_private())
         return;
     update_downloads_button();
@@ -1657,6 +1790,9 @@ void Tab::download_updated(WebView::FileDownloader::Download const& download)
 
 void Tab::download_removed(u64, WebView::IsPrivate is_private)
 {
+    if (!is_loaded())
+        return;
+
     if (is_private != m_window->is_private())
         return;
     update_downloads_button();
@@ -1787,6 +1923,13 @@ void Tab::find_next()
 void Tab::request_close()
 {
     m_window->cancel_window_close_preflight();
+
+    // A tab that hasn't loaded has no page to ask, so it closes at once.
+    if (!is_loaded()) {
+        m_window->definitely_close_tab(tab_index());
+        return;
+    }
+
     m_suppress_javascript_dialogs_until_navigation = true;
     m_preserve_close_retry_state_on_dialog_dismissal = m_already_requested_close;
     m_javascript_dialog->dismiss();
@@ -1814,6 +1957,11 @@ void Tab::request_close()
 
 void Tab::request_window_close_preflight(Function<void(bool)> on_complete)
 {
+    if (!is_loaded()) {
+        on_complete(true);
+        return;
+    }
+
     m_suppress_javascript_dialogs_until_navigation = true;
 
     if (m_javascript_dialog->type() != JavaScriptDialog::Type::BeforeUnload)
@@ -1836,6 +1984,9 @@ void Tab::request_window_close_preflight(Function<void(bool)> on_complete)
 
 void Tab::cancel_window_close_preflight()
 {
+    if (!is_loaded())
+        return;
+
     if (m_javascript_dialog->type() == JavaScriptDialog::Type::BeforeUnload)
         m_javascript_dialog->dismiss();
     m_already_requested_close = false;
@@ -1844,6 +1995,9 @@ void Tab::cancel_window_close_preflight()
 
 Function<void()> Tab::prepare_for_window_close()
 {
+    if (!is_loaded())
+        return [] { };
+
     m_window_is_closing = true;
     m_suppress_javascript_dialogs_until_navigation = true;
     m_javascript_dialog->dismiss();
