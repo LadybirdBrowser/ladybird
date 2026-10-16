@@ -970,18 +970,18 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
         Bindings::NavigationTimingType::Navigate,
         output,
         GC::create_function(navigable->heap(), [navigable, history_entry, history_handling = request.history_handling, navigation_id = request.navigation_id, user_involvement = request.user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
+            // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
+            if (navigable->ongoing_navigation() != navigation_id) {
+                navigable->stop_delaying_load_events_for_navigation(navigation_id);
+                navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
+                return;
+            }
+
             if (output && output->download_handled) {
                 // NB: The UI process ended the recorded load and its transaction when the download adopted this
                 //     population's response body.
                 navigable->set_ongoing_navigation({});
                 navigable->set_delaying_load_events(false);
-                return;
-            }
-
-            // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
-            if (navigable->ongoing_navigation() != navigation_id) {
-                navigable->stop_delaying_load_events_for_navigation(navigation_id);
-                navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
                 return;
             }
 
