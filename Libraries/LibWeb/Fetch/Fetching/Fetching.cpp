@@ -67,7 +67,6 @@
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/SRI/SRI.h>
-#include <LibWeb/SecureContexts/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/TransformStream.h>
@@ -77,6 +76,7 @@
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWebCommon/Loader/UserAgent.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 namespace Web::Fetch::Fetching {
 
