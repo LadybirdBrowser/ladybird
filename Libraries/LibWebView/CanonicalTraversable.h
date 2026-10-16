@@ -198,11 +198,7 @@ private:
     void send_displayed_document_unload_task(HistoryOperation&, ChangingNavigable&);
     void deactivate_a_document_for_cross_document_navigation(HistoryOperation&, ChangingNavigable&);
     void did_activate_history_entry(HistoryOperation&, ChangingNavigable&, NonnullRefPtr<WebContentPage> source_page, Web::HTML::HostedNavigableState activated_navigable_state);
-    enum class UnloadedInItsHost : bool {
-        No,
-        Yes,
-    };
-    void unload_a_document_and_its_descendants(CanonicalNavigable&, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction, Function<void(UnloadedInItsHost)> queue_document_unload_task);
+    void unload_a_document_and_its_descendants(CanonicalNavigable&, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction, Function<void()> queue_document_unload_task);
     void unload_the_documents_of_child_navigables(CanonicalNavigable const&, Function<void()> after_child_navigable_unloads);
     void run_document_unload_task(RefPtr<WebContentPage>, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction, Web::HTML::StopHostingAfterUnload, Function<void()> after_unload);
     void complete_document_unload_task(Web::HTML::CrossProcessId unload_id);
