@@ -29,6 +29,23 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_visual_context_tree_structural_epoch.clear();
 }
 
+Web::InputRoutingDecision input_routing_decision_for_first_wheel_step(WheelHitTestOutcome outcome)
+{
+    switch (outcome) {
+    case WheelHitTestOutcome::FoundScrollTarget:
+        return Web::InputRoutingDecision::Latched;
+    case WheelHitTestOutcome::NoScrollTarget:
+        return Web::InputRoutingDecision::NoScrollTarget;
+    case WheelHitTestOutcome::BlockedByMainThreadRegion:
+        return Web::InputRoutingDecision::BlockedByMainThreadRegion;
+    case WheelHitTestOutcome::BlockedByWheelEventRegion:
+        return Web::InputRoutingDecision::BlockedByWheelEventRegion;
+    case WheelHitTestOutcome::HitTestTargetsOfAnotherVisualContextTree:
+        return Web::InputRoutingDecision::HitTestTargetsOfAnotherVisualContextTree;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 AsyncScrollNode const* AsyncScrollTree::scroll_node_for_id(AsyncScrollNodeID node_id) const
 {
     for (auto const& node : m_scroll_nodes) {

@@ -213,6 +213,23 @@ WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& sta
     return WheelRoutingAdmission::Accepted;
 }
 
+Web::InputRoutingDecision input_routing_decision_for_wheel_step_not_admitted_by(WheelRoutingAdmission admission)
+{
+    switch (admission) {
+    case WheelRoutingAdmission::Accepted:
+        VERIFY_NOT_REACHED();
+    case WheelRoutingAdmission::NoAsyncScrollingState:
+        return Web::InputRoutingDecision::NoAsyncScrollingState;
+    case WheelRoutingAdmission::BlockingWheelEventListeners:
+        return Web::InputRoutingDecision::BlockingWheelEventListeners;
+    case WheelRoutingAdmission::NoScrollNode:
+        return Web::InputRoutingDecision::NoScrollNode;
+    case WheelRoutingAdmission::StaleWheelEventListeners:
+        return Web::InputRoutingDecision::StaleWheelEventListeners;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 Utf16View wheel_routing_admission_to_utf16_view(WheelRoutingAdmission admission)
 {
     switch (admission) {

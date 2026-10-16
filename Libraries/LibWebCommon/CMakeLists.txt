@@ -47,6 +47,7 @@ set(SOURCES
     Page/AsyncScrollNodeStableID.cpp
     Page/DragEvent.cpp
     Page/InputEvent.cpp
+    Page/InputRoutingDecision.cpp
     Page/MediaContextMenu.cpp
     Page/SpellingError.cpp
     PixelUnits.cpp

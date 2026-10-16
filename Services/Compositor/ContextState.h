@@ -65,14 +65,21 @@ public:
 
     struct AsyncScrollResult {
         Compositing::AsyncScrollEnqueueResult enqueue_result;
-        Optional<PendingFrame> frame_to_present;
+        Optional<PendingFrame> frame_to_present {};
+
+        static AsyncScrollResult declined(Web::InputRoutingDecision decision) { return { .enqueue_result = { .routing_decision = decision } }; }
     };
 
     struct ContextUpdateResult {
         bool accepted { false };
-        Optional<PendingFrame> frame_to_present;
+        Optional<PendingFrame> frame_to_present {};
         bool should_request_rendering_update { false };
         Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
+        // Why a wheel or mouse event was taken or turned away, and the scroller it was routed to.
+        Optional<Web::InputRoutingDecision> routing_decision {};
+        Optional<Web::AsyncScrollNodeStableID> routed_scroller {};
+
+        static ContextUpdateResult declined(Web::InputRoutingDecision decision) { return { .routing_decision = decision }; }
     };
 
     ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::CanvasSurfaceRegistry const&, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
@@ -231,8 +238,12 @@ private:
     };
     NodeScrollByWheelDelta scroll_node_by_wheel_delta(Compositing::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining);
     Optional<Compositing::AsyncScrollNodeID> resolve_wheel_scroll_latch(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
+    struct WheelGestureLatchAttempt {
+        Web::InputRoutingDecision decision;
+        Optional<Compositing::AsyncScrollNodeID> latched_node_id {};
+    };
     // The scroller the first step of a wheel gesture is routed to, which the gesture is latched to.
-    Optional<Compositing::AsyncScrollNodeID> hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id, Compositing::WheelStepDispatch);
+    WheelGestureLatchAttempt hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id, Compositing::WheelStepDispatch);
     Gfx::IntRect note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Optional<Compositing::AsyncScrollOffset> const&);
     Optional<Compositing::AsyncScrollOperationID> snap_at_gesture_end(MonotonicTime now);
     Compositing::AsyncScrollOperationID start_snap_scroll(Compositing::AsyncScrollNodeID, ScrollSnapController::SnapScrollStart&&, bool settles_gesture, MonotonicTime now);

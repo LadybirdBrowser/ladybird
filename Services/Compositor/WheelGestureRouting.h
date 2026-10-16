@@ -38,6 +38,7 @@ public:
     bool step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
 
     bool has_latch() const { return m_latch.has_value(); }
+    Optional<Web::AsyncScrollNodeStableID> latched_scroller() const;
     // The latched scroller of the gesture the wheel event continues, in the current scroll tree, with the gesture
     // advanced to the event. A latch the event does not continue, or whose scroller the current display list no
     // longer has, is dropped here.

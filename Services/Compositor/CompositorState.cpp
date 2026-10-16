@@ -568,6 +568,8 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         result = context->handle_wheel_event(event);
     else
         result = context->handle_mouse_event(event);
+    if (result.routing_decision.has_value())
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} routed input event {}: {}", context_id, event.id, Web::input_routing_decision_name(*result.routing_decision));
 
     // Schedules the present, publishes the scroll updates the event produced and asks for a rendering update, all of
     // which reach WebContent ahead of the event itself on the same connection.
