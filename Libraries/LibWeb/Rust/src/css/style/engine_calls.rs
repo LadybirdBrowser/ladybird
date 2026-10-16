@@ -827,6 +827,23 @@ pub(crate) struct EngineMemo {
 }
 
 impl EngineMemo {
+    pub(crate) fn forget_released_animation_overlay_records(&self, released: &super::ReleasedAnimationOverlayRecords) {
+        if released.overflowed() {
+            let is_animation_overlay = |key: u64| {
+                super::computed::FinalStyleRecordID::from_raw(key).is_some_and(|record| record.is_animation_overlay())
+            };
+            self.views.forget_where(is_animation_overlay);
+            self.record_environments.forget_where(is_animation_overlay);
+            self.dependency_flags.forget_where(is_animation_overlay);
+            return;
+        }
+        for record in released.records() {
+            self.views.forget(record);
+            self.record_environments.forget(record);
+            self.dependency_flags.forget(record);
+        }
+    }
+
     /// Follows `change`, a write the host queued for the engine, as the host makes it.
     pub(crate) fn follow(&self, change: &super::boundary::StyleChange) {
         self.baselines.borrow_mut().follow(change);
@@ -1312,6 +1329,23 @@ impl<T: Copy> Memo<T> {
 
     pub(crate) fn set(&self, key: u64, answer: T) {
         self.slot(key).set((key, answer));
+    }
+
+    fn forget(&self, key: u64) {
+        let slot = self.slot(key);
+        let (held, answer) = slot.get();
+        if held == key {
+            slot.set((Self::NO_KEY, answer));
+        }
+    }
+
+    fn forget_where(&self, forgets: impl Fn(u64) -> bool) {
+        for slot in &self.slots {
+            let (held, answer) = slot.get();
+            if held != Self::NO_KEY && forgets(held) {
+                slot.set((Self::NO_KEY, answer));
+            }
+        }
     }
 }
 

@@ -338,6 +338,41 @@ impl Drop for StyleRecordLease {
     }
 }
 
+/// A fork never takes its records, so past [`Self::MAX_RECORDS`] only the fact that they overflowed is kept.
+#[derive(Clone, Default)]
+pub(crate) struct ReleasedAnimationOverlayRecords {
+    records: Vec<FinalStyleRecordID>,
+    overflowed: bool,
+}
+
+impl ReleasedAnimationOverlayRecords {
+    const MAX_RECORDS: usize = 1024;
+
+    fn add(&mut self, record: FinalStyleRecordID) {
+        if self.overflowed {
+            return;
+        }
+        if self.records.len() == Self::MAX_RECORDS {
+            self.records = Vec::new();
+            self.overflowed = true;
+            return;
+        }
+        self.records.push(record);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.records.is_empty() && !self.overflowed
+    }
+
+    pub(crate) fn records(&self) -> impl Iterator<Item = u64> + '_ {
+        self.records.iter().map(|record| record.raw())
+    }
+
+    pub(crate) fn overflowed(&self) -> bool {
+        self.overflowed
+    }
+}
+
 struct AnimationOverlayRecord {
     // NB: No sampled value enters a permanent interning table. The current assignment owns one
     //     reference, while detached layout and stabilization baselines can pin an old generation.
@@ -885,6 +920,7 @@ pub struct ComputedGroupSets {
     // above. Dense element assignments and sparse pseudo assignments pin at most one slot each.
     animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots,
     animation_overlay_slots_by_record: HashMap<FinalStyleRecordID, u32>,
+    released_animation_overlay_records: ReleasedAnimationOverlayRecords,
     /// How many leases are held, shared with every copy of the sets: a copy holds no lease of its own.
     leases: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     live_animation_overlay_assignments: usize,
@@ -920,6 +956,7 @@ impl Default for ComputedGroupSets {
             columns: PublishedComputedColumns::default(),
             animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots::default(),
             animation_overlay_slots_by_record: HashMap::default(),
+            released_animation_overlay_records: ReleasedAnimationOverlayRecords::default(),
             leases: std::sync::Arc::default(),
             live_animation_overlay_assignments: 0,
             next_animation_overlay_generation: 0,
@@ -1011,6 +1048,14 @@ impl ComputedGroupSets {
 
     pub(super) fn retired_animation_overlay_records(&self) -> usize {
         self.animation_overlay_slots.retired_records()
+    }
+
+    pub(super) fn has_released_animation_overlay_records(&self) -> bool {
+        !self.released_animation_overlay_records.is_empty()
+    }
+
+    pub(super) fn take_released_animation_overlay_records(&mut self) -> ReleasedAnimationOverlayRecords {
+        std::mem::take(&mut self.released_animation_overlay_records)
     }
 
     pub(crate) fn end_style_record_view_epoch(&mut self) {
@@ -2097,6 +2142,7 @@ impl ComputedGroupSets {
         assert!(!record.is_assigned && record.pin_count == 0);
         let final_style_record = self.animation_overlay_slots.retire(slot);
         self.animation_overlay_slots_by_record.remove(&final_style_record);
+        self.released_animation_overlay_records.add(final_style_record);
         self.free_retired_animation_overlays();
     }
 
@@ -2169,6 +2215,7 @@ impl ComputedGroupSets {
                 let final_style_record = record.final_style_record;
                 let retired = self.animation_overlay_slots.replace(slot, record);
                 self.animation_overlay_slots_by_record.remove(&retired);
+                self.released_animation_overlay_records.add(retired);
                 self.animation_overlay_slots_by_record.insert(final_style_record, slot);
                 self.free_retired_animation_overlays();
                 return AnimationOverlayPublication {
@@ -3500,6 +3547,7 @@ impl ComputedGroupSets {
             shallow [
                 self.animation_overlay_slots,
                 self.animation_overlay_slots_by_record,
+                self.released_animation_overlay_records.records,
                 self.columns.animation_overlay_slots,
             ];
             cached [self.animation_overlay_nested_memory.bytes()];
@@ -3988,6 +4036,7 @@ impl Clone for ComputedGroupSets {
             columns: self.columns.clone(),
             animation_overlay_slots: self.animation_overlay_slots.clone(),
             animation_overlay_slots_by_record: self.animation_overlay_slots_by_record.clone(),
+            released_animation_overlay_records: self.released_animation_overlay_records.clone(),
             // NB: Either copy may be the host's, whose published frames hold their leases here.
             leases: self.leases.clone(),
             live_animation_overlay_assignments: self.live_animation_overlay_assignments,
@@ -4457,6 +4506,59 @@ mod tests {
         );
         sets.remove(node);
         assert_eq!(sets.live_animation_overlay_records(), 0);
+    }
+
+    #[test]
+    fn released_animation_overlay_records_name_each_record_the_engine_stops_resolving() {
+        let mut sets = ComputedGroupSets::default();
+        let node = StyleNodeID::from_raw(1).unwrap();
+        let target = ComputedStyleTarget::new(node, u8::MAX);
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let publish = |sets: &mut ComputedGroupSets, identity| {
+            let mut metadata = metadata(0, 0, 0);
+            metadata.animation_overlay_identity = identity;
+            metadata.animated_overlay = HostShared::new(std::ptr::from_ref(&animated_overlay));
+            sets.publish_unowned(Some(target), &[], 0, 0, metadata)
+        };
+        let released = |sets: &mut ComputedGroupSets| {
+            let released = sets.take_released_animation_overlay_records();
+            assert!(!released.overflowed());
+            released.records().collect::<Vec<_>>()
+        };
+
+        let first = publish(&mut sets, 1);
+        assert!(!sets.has_released_animation_overlay_records());
+
+        let second = publish(&mut sets, 2);
+        assert_eq!(released(&mut sets), [first.style_record_identity.raw()]);
+
+        sets.pin_style_record(second.style_record_identity.raw());
+        let third = publish(&mut sets, 3);
+        assert_ne!(second.style_record_identity, third.style_record_identity);
+        assert!(!sets.has_released_animation_overlay_records());
+        sets.unpin_style_record(second.style_record_identity.raw());
+        assert_eq!(released(&mut sets), [second.style_record_identity.raw()]);
+
+        sets.remove(node);
+        assert_eq!(released(&mut sets), [third.style_record_identity.raw()]);
+        assert!(!sets.has_released_animation_overlay_records());
+    }
+
+    #[test]
+    fn released_animation_overlay_records_beyond_the_limit_keep_only_the_overflow() {
+        let mut released = ReleasedAnimationOverlayRecords::default();
+        for generation in 1..=ReleasedAnimationOverlayRecords::MAX_RECORDS as u64 {
+            released.add(FinalStyleRecordID::animation_overlay(generation));
+        }
+        assert!(!released.overflowed());
+        assert_eq!(released.records().count(), ReleasedAnimationOverlayRecords::MAX_RECORDS);
+
+        released.add(FinalStyleRecordID::animation_overlay(
+            ReleasedAnimationOverlayRecords::MAX_RECORDS as u64 + 1,
+        ));
+        assert!(released.overflowed());
+        assert_eq!(released.records().count(), 0);
+        assert!(!released.is_empty());
     }
 
     #[test]

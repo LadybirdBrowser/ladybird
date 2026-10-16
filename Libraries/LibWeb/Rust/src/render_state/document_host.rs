@@ -359,11 +359,14 @@ impl DocumentHost {
         Owed {
             work,
             deferred_inputs,
+            released_animation_overlay_records,
             facts,
             selector_value_text_names,
             selector_tested_attribute_names,
         }: Owed,
     ) {
+        self.engine_memo
+            .forget_released_animation_overlay_records(&released_animation_overlay_records);
         self.facts.set(Some(facts));
         *self.selector_value_text_names.borrow_mut() = selector_value_text_names;
         *self.selector_tested_attribute_names.borrow_mut() = selector_tested_attribute_names;

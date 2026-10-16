@@ -179,6 +179,7 @@ impl RenderState {
         Owed {
             work: std::mem::take(&mut self.owed),
             deferred_inputs: self.engine_mut().take_moved_deferred_element_style_inputs(),
+            released_animation_overlay_records: self.engine_mut().take_released_animation_overlay_records(),
             facts,
             selector_value_text_names,
             selector_tested_attribute_names,
@@ -270,6 +271,7 @@ pub(crate) struct Landing {
 pub(crate) struct Owed {
     work: Vec<crate::layout::tree_mutation::HostWorkDue>,
     deferred_inputs: Option<Vec<crate::css::style::engine_calls::DeferredInput>>,
+    released_animation_overlay_records: crate::css::style::ReleasedAnimationOverlayRecords,
     facts: StateFacts,
     /// The attribute names whose value text the engine's selectors read, as of `facts`.
     selector_value_text_names: crate::css::style::SelectorAttributeNames,

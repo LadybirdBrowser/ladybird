@@ -3968,6 +3968,14 @@ impl RetainedState {
         self.computed_group_sets.style_record_view(style_record)
     }
 
+    pub(crate) fn take_released_animation_overlay_records(&mut self) -> computed::ReleasedAnimationOverlayRecords {
+        // Even an empty take copies the sets while a fork shares them.
+        if !self.computed_group_sets.has_released_animation_overlay_records() {
+            return computed::ReleasedAnimationOverlayRecords::default();
+        }
+        self.computed_group_sets.take_released_animation_overlay_records()
+    }
+
     pub(crate) fn pin_style_record(&mut self, style_record: u64) {
         self.computed_group_sets.pin_style_record(style_record);
     }
