@@ -54,6 +54,7 @@ set(SOURCES
     Page/SpellingError.cpp
     PixelUnits.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
+    SecureContexts/AbstractOperations.cpp
     StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
     WebDriver/Capabilities.cpp

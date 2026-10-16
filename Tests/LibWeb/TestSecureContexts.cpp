@@ -8,7 +8,7 @@
 
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWeb/SecureContexts/AbstractOperations.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 static bool is_potentially_trustworthy(StringView url_string)
 {

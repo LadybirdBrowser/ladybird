@@ -11,7 +11,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
-#include <LibWeb/SecureContexts/AbstractOperations.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 namespace Web::MixedContent {
 
