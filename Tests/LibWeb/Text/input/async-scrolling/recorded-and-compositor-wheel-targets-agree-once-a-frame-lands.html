@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #box {
+        width: 100px;
+        height: 100px;
+    }
+    #box.scrolls {
+        overflow: scroll;
+    }
+    #content {
+        height: 300px;
+    }
+</style>
+<div id="box"><div id="content"></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        println(`compositor: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 10))}`);
+
+        // The display list that WebContent records once the box scrolls routes the step to the box. The compositor
+        // routes it with the last frame it has until the next one lands.
+        box.classList.add("scrolls");
+        internals.recordDisplayListForTesting();
+        println(`recorded after the box starts to scroll: ${wheelTargetToString(internals.recordedDisplayListWheelTargetAt(50, 50, 0, 10))}`);
+        println(`compositor before the next frame: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 10))}`);
+
+        await animationFrame();
+        await animationFrame();
+        println(`compositor after the next frame: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 10))}`);
+    });
+</script>

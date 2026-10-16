@@ -1290,18 +1290,36 @@ static Vector<InputTraceRecord> take_input_trace_records(HTML::Window& window)
     return records;
 }
 
+static Gfx::FloatPoint device_position_as_float_point(DevicePixelPoint position)
+{
+    return { static_cast<float>(position.x().value()), static_cast<float>(position.y().value()) };
+}
+
+static JS::Value wrapped_node_with_unique_id(HTML::Window& window, Optional<UniqueNodeID> node_id)
+{
+    auto* node = node_id.has_value() ? DOM::Node::from_unique_id(*node_id) : nullptr;
+    if (!node)
+        return JS::js_null();
+    auto& realm = HTML::relevant_realm(window);
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<DOM::Node> { *node });
+}
+
+// A scroller as the input hooks describe it: the document for its viewport, or the element whose box scrolls, with the
+// pseudo-element that generated the box, if any.
+static void define_scroller_properties(HTML::Window& window, JS::Object& object, Optional<AsyncScrollNodeStableID> scroller)
+{
+    auto& vm = window.vm();
+    object.define_direct_property("scroller"_utf16_fly_string, wrapped_node_with_unique_id(window, scroller.map([](auto const& id) { return id.node_id; })), JS::default_attributes);
+    if (scroller.has_value() && scroller->kind == AsyncScrollNodeKind::PseudoElement) {
+        auto pseudo_element = CSS::pseudo_element_name(static_cast<CSS::PseudoElement>(scroller->pseudo_element_type));
+        object.define_direct_property("scrollerPseudoElement"_utf16_fly_string, JS::PrimitiveString::create(vm, pseudo_element), JS::default_attributes);
+    }
+}
+
 GC::Ref<JS::Object> Internals::take_input_trace()
 {
     auto records = take_input_trace_records(window());
     auto& realm = HTML::relevant_realm(window());
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-    auto wrapped_node = [&](UniqueNodeID node_id) -> JS::Value {
-        auto* node = DOM::Node::from_unique_id(node_id);
-        if (!node)
-            return JS::js_null();
-        return Bindings::wrap(wrapper_world, realm, GC::Ref<DOM::Node> { *node });
-    };
-
     auto array = MUST(JS::Array::create(realm, records.size()));
     for (size_t i = 0; i < records.size(); ++i) {
         auto const& record = records[i];
@@ -1309,28 +1327,88 @@ GC::Ref<JS::Object> Internals::take_input_trace()
         object->define_direct_property("id"_utf16_fly_string, JS::Value(static_cast<double>(record.input_event_id)), JS::default_attributes);
         object->define_direct_property("stage"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_trace_stage_name(record.stage)), JS::default_attributes);
         object->define_direct_property("decision"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_routing_decision_name(record.decision)), JS::default_attributes);
-        object->define_direct_property("scroller"_utf16_fly_string, record.scroller.has_value() ? wrapped_node(record.scroller->node_id) : JS::js_null(), JS::default_attributes);
-        if (record.scroller.has_value() && record.scroller->kind == AsyncScrollNodeKind::PseudoElement) {
-            auto pseudo_element = CSS::pseudo_element_name(static_cast<CSS::PseudoElement>(record.scroller->pseudo_element_type));
-            object->define_direct_property("scrollerPseudoElement"_utf16_fly_string, JS::PrimitiveString::create(vm(), pseudo_element), JS::default_attributes);
-        }
-        object->define_direct_property("target"_utf16_fly_string, record.dom_target.has_value() ? wrapped_node(*record.dom_target) : JS::js_null(), JS::default_attributes);
+        define_scroller_properties(window(), *object, record.scroller);
+        object->define_direct_property("target"_utf16_fly_string, wrapped_node_with_unique_id(window(), record.dom_target), JS::default_attributes);
         MUST(array->create_data_property_or_throw(i, object));
     }
     return array;
+}
+
+GC::Ref<JS::Object> Internals::first_wheel_step_route_to_object(Compositing::FirstWheelStepRouteForTesting const& result)
+{
+    auto& realm = HTML::relevant_realm(window());
+    auto object = JS::Object::create(realm, nullptr);
+    object->define_direct_property("decision"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_routing_decision_name(result.route.decision)), JS::default_attributes);
+    define_scroller_properties(window(), *object, result.route.scroller);
+    object->define_direct_property("document"_utf16_fly_string, wrapped_node_with_unique_id(window(), result.document_id), JS::default_attributes);
+    return object;
+}
+
+GC::Ref<JS::Object> Internals::compositor_wheel_target_at(double x, double y, double delta_x, double delta_y)
+{
+    let_compositor_take_in_every_rendered_frame(window());
+    Optional<Compositing::FirstWheelStepRouteForTesting> result;
+    if (auto* compositor_context = compositor_context_routing_input_for(window())) {
+        auto position = page().css_to_device_point(window().navigable()->to_page_position({ x, y }));
+        result = compositor_context->route_first_wheel_step_for_testing(device_position_as_float_point(position), { static_cast<float>(delta_x), static_cast<float>(delta_y) });
+    }
+    return first_wheel_step_route_to_object(result.value_or({ .route = { InputRoutingDecision::NoAnswerFromCompositor }, .document_id = {} }));
+}
+
+namespace {
+
+struct RecordedScrollTree {
+    Compositing::AsyncScrollTree scroll_tree;
+    Compositing::AccumulatedVisualContextTree visual_context_tree;
+    Compositing::WheelRoutingAdmission admission;
+};
+
+}
+
+// The scroll tree of the display list the document last recorded, as the compositor builds it once the list reaches it.
+static Optional<RecordedScrollTree> recorded_scroll_tree_of(DOM::Document& document, Layout::BegunRead const& read)
+{
+    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
+    if (!display_list)
+        return {};
+    RecordedScrollTree recorded {
+        .scroll_tree = {},
+        .visual_context_tree = document.paint_state().visual_context_tree_without_update(read, document),
+        .admission = {},
+    };
+    auto async_scrolling_state = Compositing::async_scrolling_state_from_display_list(*display_list);
+    recorded.admission = Compositing::wheel_routing_admission_for(async_scrolling_state, document.page().wheel_event_listener_state_generation());
+    recorded.scroll_tree.set_state(move(async_scrolling_state));
+    recorded.scroll_tree.rebuild_wheel_hit_test_targets(display_list, &recorded.visual_context_tree, document.scroll_state_snapshot());
+    return recorded;
+}
+
+GC::Ref<JS::Object> Internals::recorded_display_list_wheel_target_at(double x, double y, double delta_x, double delta_y)
+{
+    // A script reads the render state, which waits for a frame in flight.
+    Layout::ForcedReadScope read { window().associated_document() };
+    auto recorded = recorded_scroll_tree_of(window().associated_document(), read);
+    if (!recorded.has_value())
+        return first_wheel_step_route_to_object({ .route = { InputRoutingDecision::NoAsyncScrollingState }, .document_id = {} });
+    auto const& scroll_tree = recorded->scroll_tree;
+
+    auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
+    auto delta = Gfx::FloatPoint { static_cast<float>(delta_x), static_cast<float>(delta_y) }.scaled(static_cast<float>(scroll_tree.device_pixels_per_css_pixel()));
+    return first_wheel_step_route_to_object({
+        .route = scroll_tree.route_first_wheel_step(recorded->admission, recorded->visual_context_tree, position, delta),
+        .document_id = scroll_tree.document_id(),
+    });
 }
 
 bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
-    auto& document = window().associated_document();
-    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
-    if (!display_list)
+    auto recorded = recorded_scroll_tree_of(window().associated_document(), read);
+    if (!recorded.has_value())
         return false;
-    auto tree = document.paint_state().visual_context_tree_without_update(read, document);
-    auto state = Compositing::async_scrolling_state_from_display_list(*display_list);
-    return Compositing::blocks_wheel_event_at_position(state, display_list, &tree, document.scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
+    auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
+    return recorded->scroll_tree.blocks_wheel_event_at_position(recorded->visual_context_tree, position);
 }
 
 void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)

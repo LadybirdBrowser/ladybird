@@ -101,15 +101,29 @@ async function scrollSettled(target, action) {
     await scrollend;
 }
 
+function __describeNodeOfInputHook(node, documentName = "document") {
+    if (node instanceof Document) return node === document ? documentName : `nested ${documentName}`;
+    if (node.id) return `#${node.id}`;
+    return node.nodeName.toLowerCase();
+}
+
+function __describeScrollerOfInputHook(result) {
+    if (!result.scroller) return "";
+    let description = ` scroller=${__describeNodeOfInputHook(result.scroller, "viewport")}`;
+    if (result.scrollerPseudoElement) description += `::${result.scrollerPseudoElement}`;
+    return description;
+}
+
+// Describes where internals.compositorWheelTargetAt() or internals.recordedDisplayListWheelTargetAt() says a wheel step
+// goes.
+function wheelTargetToString(target) {
+    return `${target.decision}${__describeScrollerOfInputHook(target)}`;
+}
+
 // Prints what internals.takeInputTrace() returned, one routing decision per line, optionally only those of the given
 // stages. Input events are numbered in the order they first appear, as the ids the UI gives them keep growing from test
 // to test; input that did not come from the UI is marked "-".
 function printInputTrace(trace, { stages } = {}) {
-    const describe = (node, documentName = "document") => {
-        if (node instanceof Document) return node === document ? documentName : `nested ${documentName}`;
-        if (node.id) return `#${node.id}`;
-        return node.nodeName.toLowerCase();
-    };
     const eventNumbers = new Map();
     for (const record of trace) {
         let eventNumber = "-";
@@ -118,12 +132,8 @@ function printInputTrace(trace, { stages } = {}) {
             eventNumber = `#${eventNumbers.get(record.id)}`;
         }
         if (stages && !stages.includes(record.stage)) continue;
-        let line = `${eventNumber} ${record.stage}: ${record.decision}`;
-        if (record.scroller) {
-            line += ` scroller=${describe(record.scroller, "viewport")}`;
-            if (record.scrollerPseudoElement) line += `::${record.scrollerPseudoElement}`;
-        }
-        if (record.target) line += ` target=${describe(record.target)}`;
+        let line = `${eventNumber} ${record.stage}: ${record.decision}${__describeScrollerOfInputHook(record)}`;
+        if (record.target) line += ` target=${__describeNodeOfInputHook(record.target)}`;
         println(line);
     }
 }

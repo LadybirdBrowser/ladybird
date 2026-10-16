@@ -1,0 +1,4 @@
+compositor: latched scroller=viewport
+recorded after the box starts to scroll: latched scroller=#box
+compositor before the next frame: latched scroller=viewport
+compositor after the next frame: latched scroller=#box

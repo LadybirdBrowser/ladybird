@@ -127,6 +127,7 @@ public:
     void set_synthesizes_scroll_momentum(bool);
     void set_scrolls_elastically(bool);
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID) const;
+    Optional<Compositing::FirstWheelStepRouteForTesting> route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels);
     void begin_input_trace_for_testing(Web::CompositorContextId);
     Vector<Web::InputTraceRecord> take_input_trace_for_testing(Web::CompositorContextId);
 

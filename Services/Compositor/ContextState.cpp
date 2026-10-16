@@ -1244,6 +1244,17 @@ Optional<Gfx::IntRect> ContextState::advance_elastic_overscroll_rebounds(Monoton
     return m_async_scrolling_viewport_rect;
 }
 
+Compositing::FirstWheelStepRouteForTesting ContextState::route_first_wheel_step_for_testing(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
+{
+    auto document_id = m_async_scroll_tree.document_id();
+    if (!presents_to_client())
+        return { { Web::InputRoutingDecision::ContextNotPresenting }, document_id };
+    if (!m_scene.display_list() || !m_scene.visual_context_tree().has_value())
+        return { { Web::InputRoutingDecision::NoAsyncScrollingState }, document_id };
+    auto delta = delta_in_css_pixels.scaled(static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()) / m_scene.visual_viewport_magnification());
+    return { m_async_scroll_tree.route_first_wheel_step(m_wheel_gesture_routing.admission(), m_scene.visual_context_tree_for_compositing(), position, delta), document_id };
+}
+
 Gfx::FloatPoint ContextState::elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID stable_node_id) const
 {
     return m_elastic_overscroll_controller.stretch_of(stable_node_id);

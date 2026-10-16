@@ -459,6 +459,20 @@ void CompositorConnection::synchronize_for_testing()
         did_lose_compositor();
 }
 
+Optional<Compositing::FirstWheelStepRouteForTesting> CompositorConnection::route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
+{
+    if (!can_send_message_to_compositor())
+        return {};
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::RouteFirstWheelStepForTesting>(context_id, position, delta_in_css_pixels);
+    if (!response) {
+        did_lose_compositor();
+        return {};
+    }
+    if (!response->decision().has_value())
+        return {};
+    return Compositing::FirstWheelStepRouteForTesting { .route = { *response->decision(), response->scroller() }, .document_id = response->document_id() };
+}
+
 void CompositorConnection::begin_input_trace_for_testing(Web::CompositorContextId context_id)
 {
     if (!can_send_message_to_compositor())

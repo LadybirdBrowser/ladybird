@@ -157,6 +157,8 @@ public:
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
     Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID) const;
     Web::InputTraceRecorder& input_trace() { return m_input_trace; }
+    // Where the first step of a wheel gesture at the position, by the delta in CSS pixels, would go.
+    Compositing::FirstWheelStepRouteForTesting route_first_wheel_step_for_testing(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels);
     bool advance_visual_animations(MonotonicTime now);
     bool visual_animations_need_frame();
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();

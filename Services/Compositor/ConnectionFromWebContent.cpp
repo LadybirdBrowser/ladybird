@@ -434,6 +434,16 @@ Messages::CompositorWebContentServer::ElasticOverscrollStretchForTestingResponse
     return m_compositor_state->elastic_overscroll_stretch_for_testing(context_id, stable_node_id);
 }
 
+Messages::CompositorWebContentServer::RouteFirstWheelStepForTestingResponse ConnectionFromWebContent::route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return { {}, {}, {} };
+    auto result = m_compositor_state->route_first_wheel_step_for_testing(context_id, position, delta_in_css_pixels);
+    if (!result.has_value())
+        return { {}, {}, {} };
+    return { result->route.decision, result->route.scroller, result->document_id };
+}
+
 void ConnectionFromWebContent::begin_input_trace_for_testing(Web::CompositorContextId context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))

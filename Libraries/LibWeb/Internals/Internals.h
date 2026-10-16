@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/DOM/Document.h>
@@ -167,8 +168,10 @@ public:
     Utf16String take_display_list_trace();
     void begin_input_trace();
     GC::Ref<JS::Object> take_input_trace();
-    GC::Ref<JS::Object> recorded_async_scrolling_state_object();
+    GC::Ref<JS::Object> compositor_wheel_target_at(double x, double y, double delta_x, double delta_y);
+    GC::Ref<JS::Object> recorded_display_list_wheel_target_at(double x, double y, double delta_x, double delta_y);
     bool recorded_display_list_blocks_wheel_event_at(double x, double y);
+    GC::Ref<JS::Object> recorded_async_scrolling_state_object();
     void record_display_list_for_testing(bool paint_overlay, bool cold);
     void set_autoplay_policy(Utf16String const& policy);
 
@@ -312,6 +315,7 @@ public:
     String viewport_overflow_x();
 
 private:
+    GC::Ref<JS::Object> first_wheel_step_route_to_object(Compositing::FirstWheelStepRouteForTesting const&);
     Web::MouseEvent mouse_event_through_ui_process_at(Web::MouseEvent::Type, double x, double y);
     void send_mouse_events_through_ui_process(Vector<Web::MouseEvent>, GC::Ref<WebIDL::Promise>);
     explicit Internals(HTML::Window&);

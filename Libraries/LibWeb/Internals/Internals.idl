@@ -158,8 +158,15 @@ interface Internals {
     // Records where the compositor and this process route each input event, and why, until takeInputTrace().
     undefined beginInputTrace();
     object takeInputTrace();
-    [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();
+    // Where the first step of a wheel gesture at the position would go, and why: as the compositor routes it with the
+    // frames rendered so far, and as the display list this document last recorded routes it. Neither knows of a gesture
+    // in progress.
+    object compositorWheelTargetAt(double x, double y, double deltaX, double deltaY);
+    object recordedDisplayListWheelTargetAt(double x, double y, double deltaX, double deltaY);
+    // Whether the display list this document last recorded has blocking wheel event listeners take a wheel at the
+    // position.
     boolean recordedDisplayListBlocksWheelEventAt(double x, double y);
+    [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();
     undefined recordDisplayListForTesting(optional boolean paintOverlay = false, optional boolean cold = false);
     undefined setAutoplayPolicy(DOMString policy);
 

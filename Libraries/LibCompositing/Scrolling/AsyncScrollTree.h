@@ -48,6 +48,18 @@ struct WheelHitTestResult {
 // thread for the outcome's reason.
 COMPOSITING_API Web::InputRoutingDecision input_routing_decision_for_first_wheel_step(WheelHitTestOutcome);
 
+// Where the first step of a wheel gesture over a position goes, as far as the admission and the hit test decide it.
+struct FirstWheelStepRoute {
+    Web::InputRoutingDecision decision;
+    Optional<Web::AsyncScrollNodeStableID> scroller {};
+};
+
+struct FirstWheelStepRouteForTesting {
+    FirstWheelStepRoute route;
+    // The document whose scrolling state decided the route.
+    Optional<Web::UniqueNodeID> document_id;
+};
+
 struct WheelScrollTarget {
     Web::AsyncScrollNodeStableID stable_node_id;
     Gfx::FloatPoint current_offset;
@@ -116,6 +128,9 @@ public:
     // to be covered whenever that cannot be told.
     bool is_covered_by_hit_test_target_painted_after(u32 paint_order_index, Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
+    // Leaves out what only a compositor holding a gesture decides: whether a step continues a latched gesture, which
+    // scroller fingers at its edge stretch, and whether a zoomed page pans its visual viewport.
+    FirstWheelStepRoute route_first_wheel_step(WheelRoutingAdmission, Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
     // Of the scroller and the scrollers around it that a scroll by the delta may be passed on to, the outermost one a
     // wheel can scroll along the main axis of the delta at all, wherever it is scrolled to.
     Optional<AsyncScrollNodeID> outermost_scroll_node_wheel_scrollable_along_main_axis_of(AsyncScrollNodeID innermost_node_id, Gfx::FloatPoint delta) const;

@@ -600,6 +600,8 @@ XRSession
 XRSessionEvent
 XRSystem
 XRWebGLLayer
+__describeNodeOfInputHook
+__describeScrollerOfInputHook
 __finishTest
 __preventMultipleTestFunctions
 animationFrame
@@ -616,4 +618,5 @@ test
 timeout
 uniqueLocalhostHostname
 webkitURL
+wheelTargetToString
 withCollectedWrapper
