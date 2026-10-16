@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Wait for the DOM to be built.
+Pass	about:srcdoc can always be embedded by a 'require-corp' document
+Pass	A(B(C)) A=require-corp, B=about:srcdoc, C=no-require-corp => C can't load

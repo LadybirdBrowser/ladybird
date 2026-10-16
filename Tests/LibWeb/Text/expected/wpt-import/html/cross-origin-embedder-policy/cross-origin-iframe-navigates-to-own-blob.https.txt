@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Cross-Origin-Embedder-Policy and a cross-origin iframe navigating to its own blob: URL
