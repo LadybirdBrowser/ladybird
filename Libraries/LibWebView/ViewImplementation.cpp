@@ -496,7 +496,7 @@ void ViewImplementation::did_end_uncommitted_navigation(StringView reason)
 {
     set_url(traversable().session_history().current_entry().url);
     if (m_webdriver_navigation_observation.has_value())
-        complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
+        complete_webdriver_navigation();
     dump_session_history(reason);
 }
 
@@ -549,7 +549,7 @@ void ViewImplementation::did_not_apply_reload()
         return;
     set_loading_state(false);
     if (m_webdriver_navigation_observation.has_value())
-        complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
+        complete_webdriver_navigation();
 }
 
 void ViewImplementation::did_commit_history_step()
@@ -2568,7 +2568,7 @@ void ViewImplementation::did_cancel_loading(Badge<CanonicalNavigable>, bool canc
     if (canceled_navigation)
         did_end_uncommitted_navigation("did-cancel-navigation"sv);
     else if (m_webdriver_navigation_observation.has_value())
-        complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
+        complete_webdriver_navigation();
 
     auto const& client_url = url();
     if (on_load_finish)
@@ -2587,15 +2587,14 @@ void ViewImplementation::did_finish_navigation()
     if (!m_webdriver_navigation_observation.has_value())
         return;
 
-    auto navigation_id = m_webdriver_navigation_observation->navigation_id;
     switch (m_webdriver_navigation_observation->completion_source) {
     case WebDriverNavigationCompletionSource::CrashRecovery:
         m_webdriver_navigation_observation->load_completed = true;
         if (m_webdriver_navigation_observation->history_operation_completed)
-            complete_webdriver_navigation(navigation_id);
+            complete_webdriver_navigation();
         break;
     case WebDriverNavigationCompletionSource::Load:
-        complete_webdriver_navigation(navigation_id);
+        complete_webdriver_navigation();
         break;
     case WebDriverNavigationCompletionSource::HistoryTraversal:
         break;
@@ -3038,20 +3037,17 @@ void ViewImplementation::complete_webdriver_navigation_completion(u64 request_id
     request->on_complete(move(response));
 }
 
-u64 ViewImplementation::begin_webdriver_navigation(WebDriverNavigationCompletionSource completion_source, Optional<Web::HTML::CrossProcessId> history_operation_id)
+void ViewImplementation::begin_webdriver_navigation(WebDriverNavigationCompletionSource completion_source, Optional<Web::HTML::CrossProcessId> history_operation_id)
 {
     m_webdriver_navigation_observation = WebDriverNavigationObservation {
         .completion_source = completion_source,
-        .navigation_id = m_next_webdriver_navigation_id++,
         .history_operation_id = history_operation_id,
     };
-    return m_webdriver_navigation_observation->navigation_id;
 }
 
-void ViewImplementation::complete_webdriver_navigation(u64 navigation_id)
+void ViewImplementation::complete_webdriver_navigation()
 {
-    if (!m_webdriver_navigation_observation.has_value()
-        || m_webdriver_navigation_observation->navigation_id != navigation_id)
+    if (!m_webdriver_navigation_observation.has_value())
         return;
 
     m_webdriver_navigation_observation.clear();
@@ -3080,13 +3076,13 @@ void ViewImplementation::complete_webdriver_history_traversal(Web::HTML::CrossPr
     auto& observation = *m_webdriver_navigation_observation;
     switch (observation.completion_source) {
     case WebDriverNavigationCompletionSource::HistoryTraversal:
-        complete_webdriver_navigation(observation.navigation_id);
+        complete_webdriver_navigation();
         break;
     // A crash recovery is over once both its traversal and the load it starts are.
     case WebDriverNavigationCompletionSource::CrashRecovery:
         observation.history_operation_completed = true;
         if (observation.load_completed)
-            complete_webdriver_navigation(observation.navigation_id);
+            complete_webdriver_navigation();
         break;
     case WebDriverNavigationCompletionSource::Load:
         break;
