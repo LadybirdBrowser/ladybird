@@ -26,6 +26,7 @@ namespace WebView {
 
 static constexpr auto FIRST_RUN_COMPLETE_KEY = "firstRunComplete"sv;
 static constexpr auto NEW_TAB_PAGE_URL_KEY = "newTabPageURL"sv;
+static constexpr auto RESTORE_PREVIOUS_SESSION_KEY = "restorePreviousSession"sv;
 
 static constexpr auto LANGUAGES_KEY = "languages"sv;
 
@@ -325,6 +326,8 @@ Settings Settings::create(ByteString settings_path, Vector<String> platform_lang
             settings.m_new_tab_page_url = parsed_new_tab_page_url.release_value();
     }
 
+    settings.m_restore_previous_session = settings_json.value().get_bool(RESTORE_PREVIOUS_SESSION_KEY).value_or(false);
+
     if (auto languages = settings_json.value().get(LANGUAGES_KEY); languages.has_value())
         settings.m_languages = parse_json_languages(*languages);
 
@@ -526,6 +529,7 @@ JsonValue Settings::serialize_json() const
     JsonObject settings;
     settings.set(FIRST_RUN_COMPLETE_KEY, m_first_run_complete);
     settings.set(NEW_TAB_PAGE_URL_KEY, m_new_tab_page_url.serialize());
+    settings.set(RESTORE_PREVIOUS_SESSION_KEY, m_restore_previous_session);
 
     JsonObject window_settings;
     if (m_window_settings.position.has_value()) {
@@ -769,6 +773,15 @@ void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)
 
     for (auto& observer : m_observers)
         observer.new_tab_page_url_changed();
+}
+
+void Settings::set_restore_previous_session(bool restore_previous_session)
+{
+    m_restore_previous_session = restore_previous_session;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.restore_previous_session_changed();
 }
 
 Vector<String> Settings::parse_json_languages(JsonValue const& languages)

@@ -22,6 +22,7 @@ private:
     virtual void register_interfaces() override;
 
     virtual void new_tab_page_url_changed() override { broadcast_settings_change(); }
+    virtual void restore_previous_session_changed() override { broadcast_settings_change(); }
     virtual void languages_changed() override { broadcast_settings_change(); }
     virtual void appearance_changed() override { broadcast_settings_change(); }
     virtual void content_settings_changed() override { broadcast_settings_change(); }
@@ -47,6 +48,7 @@ private:
     void complete_first_run(JsonValue const&);
 
     void set_new_tab_page_url(JsonValue const&);
+    void set_restore_previous_session(JsonValue const&);
     void set_languages(JsonValue const&);
     void set_appearance(JsonValue const&);
     void set_content_settings(JsonValue const&);

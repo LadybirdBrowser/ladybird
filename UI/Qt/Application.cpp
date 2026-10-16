@@ -713,6 +713,9 @@ void Application::present_window(BrowserWindow& window, WindowConfiguration cons
 
 WebView::SessionLaunchPolicy Application::launch_restore_policy() const
 {
+    // Without the setting, only pinned tabs come back; with it, every window and tab does.
+    if (WebView::Application::settings().restore_previous_session())
+        return WebView::SessionLaunchPolicy::Everything;
     return WebView::SessionLaunchPolicy::PinnedOnly;
 }
 

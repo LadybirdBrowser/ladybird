@@ -99,6 +99,9 @@ void SettingsUI::register_interfaces()
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
+    register_interface("setRestorePreviousSession"sv, [this](auto const& data) {
+        set_restore_previous_session(data);
+    });
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
     });
@@ -300,6 +303,14 @@ void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)
         return;
 
     Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
+}
+
+void SettingsUI::set_restore_previous_session(JsonValue const& restore_previous_session)
+{
+    if (!restore_previous_session.is_bool())
+        return;
+
+    Application::settings().set_restore_previous_session(restore_previous_session.as_bool());
 }
 
 void SettingsUI::set_languages(JsonValue const& languages)
