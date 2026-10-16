@@ -1355,8 +1355,9 @@ bool BrowserWindow::event(QEvent* event)
     if (event->type() == QEvent::WindowActivate) {
         Application::the().set_active_window(*this);
         WebView::Application::the().update_actions_for_active_web_view();
-        if (m_session_window_id.has_value())
-            m_session->session_store->window_activated(*m_session_window_id);
+        // A quit raises and closes windows in its own order, so the restore order keeps how they were used before it.
+        if (!Application::the().is_quit_in_progress())
+            report_activation_to_session_store();
         QTimer::singleShot(0, this, [this] {
             refresh_resize_cursor_at_current_position(true);
             Application::the().crash_report_notifier().show_pending();
@@ -1787,6 +1788,12 @@ void BrowserWindow::raise_for_close_prompt()
         setWindowState(windowState() & ~Qt::WindowMinimized);
     raise();
     activateWindow();
+}
+
+void BrowserWindow::report_activation_to_session_store()
+{
+    if (m_session_window_id.has_value())
+        m_session->session_store->window_activated(*m_session_window_id);
 }
 
 void BrowserWindow::begin_window_close_preflight(Function<void(bool approved)> on_complete)

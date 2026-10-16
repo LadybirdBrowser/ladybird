@@ -1095,6 +1095,11 @@ void Application::cancel_quit()
         if (auto* window = as_if<BrowserWindow>(widget))
             window->cancel_window_close_preflight();
     }
+
+    // No activation was reported during the quit, and the window the quit left active gets no new WindowActivate while
+    // it stays active, so it's reported here as the most recent window.
+    if (m_active_window && m_active_window->isActiveWindow())
+        m_active_window->report_activation_to_session_store();
 }
 
 bool Application::confirm_stop_active_downloads(QWidget* parent)
