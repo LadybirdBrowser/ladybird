@@ -19,9 +19,32 @@ pub(crate) struct ControlFlowGraph {
 
 impl ControlFlowGraph {
     pub(crate) fn compute(function: &Function) -> Self {
+        Self::compute_with(function, false)
+    }
+
+    /// Like `compute()`, with an edge from every block that takes a reference
+    /// to a block to that block. A closure block only runs through indirect
+    /// jumps to references to it, after the block that took the reference
+    /// ran, so these edges give the closure's code a dominator tree.
+    pub(crate) fn compute_with_block_references(function: &Function) -> Self {
+        Self::compute_with(function, true)
+    }
+
+    fn compute_with(function: &Function, with_block_references: bool) -> Self {
         let mut predecessors = vec![Vec::new(); function.blocks.len()];
         let mut successors = vec![Vec::new(); function.blocks.len()];
         for (block_index, block) in function.blocks.iter().enumerate() {
+            if with_block_references {
+                for instruction in &block.instructions {
+                    let Operation::BlockReference(target) = function.instructions[instruction.0].operation else {
+                        continue;
+                    };
+                    if target.0 < function.blocks.len() {
+                        successors[block_index].push(target);
+                        predecessors[target.0].push(BlockId(block_index));
+                    }
+                }
+            }
             for edge in block.terminator.iter().flat_map(|terminator| terminator.successors()) {
                 if edge.block.0 >= function.blocks.len() {
                     continue;

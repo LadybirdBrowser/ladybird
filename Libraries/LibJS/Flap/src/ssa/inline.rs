@@ -964,6 +964,34 @@ handler Checked(dst: out Operand, src: in Operand) {
     }
 
     #[test]
+    fn inlines_calls_in_closures_reached_through_indirect_jumps() {
+        let (mut handler, callees) = lower(
+            r#"
+inline fn note() {
+}
+
+inline fn choose(condition: u32, yes: Label, no: Label) {
+    guard condition != 0 else no;
+    goto yes;
+}
+
+handler Choose(condition: u32, target: BytecodeOffset) {
+    let yes = || {
+        note();
+        jump(target);
+    };
+    let no = || @cold {
+        exit;
+    };
+    choose(condition, yes, no);
+}
+"#,
+        );
+        // NB: Inlining note() splits the closure, whose rest uses the target the closure captured.
+        assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 2);
+    }
+
+    #[test]
     fn resolves_inlined_indirect_jumps_to_closure_blocks() {
         let (mut handler, callees) = lower(
             r#"

@@ -982,7 +982,10 @@ impl Function {
 
     fn validate_uses(&self) -> Result<(), String> {
         let cfg = analysis::ControlFlowGraph::compute(self);
-        let dominators = analysis::DominatorTree::compute(self, &cfg);
+        // NB: Closure blocks are dominated by the blocks that take references
+        //     to them, which no terminator edge says.
+        let dominators =
+            analysis::DominatorTree::compute(self, &analysis::ControlFlowGraph::compute_with_block_references(self));
         let instruction_layout = analysis::InstructionLayout::compute(self)?;
         let guards = analysis::GuardExits::compute(self, &cfg);
         let reachable = analysis::reachable_blocks(self, &cfg);
