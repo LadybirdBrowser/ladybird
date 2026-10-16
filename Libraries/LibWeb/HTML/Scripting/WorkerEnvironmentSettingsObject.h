@@ -41,6 +41,7 @@ public:
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
     virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
     virtual CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const override { return m_agent_cluster_cross_origin_isolation_mode; }
+    void set_agent_cluster_cross_origin_isolation_mode(CrossOriginIsolationMode mode) { m_agent_cluster_cross_origin_isolation_mode = mode; }
     virtual double time_origin() const override;
 
 private:
