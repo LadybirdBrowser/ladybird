@@ -184,16 +184,16 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
                 [&](CustomElementCallbackReaction const& callback_reaction) {
                     visitor.visit(callback_reaction.callback);
                     callback_reaction.arguments.visit(
-                        [](Empty) {},
+                        [](Empty) { },
                         [&](CustomElementAdoptedCallbackReactionArguments const& adopted_arguments) {
                             visitor.visit(adopted_arguments.old_document);
                             visitor.visit(adopted_arguments.new_document);
                         },
-                        [&](CustomElementAttributeChangedCallbackReactionArguments const&) {},
+                        [&](CustomElementAttributeChangedCallbackReactionArguments const&) { },
                         [&](CustomElementFormAssociatedCallbackReactionArguments const& form_associated_arguments) {
                             visitor.visit(form_associated_arguments.form);
                         },
-                        [&](CustomElementFormDisabledCallbackReactionArguments const&) {});
+                        [&](CustomElementFormDisabledCallbackReactionArguments const&) { });
                 },
                 [&](CustomElementConnectedMoveCallbackReaction const& connected_move_reaction) {
                     visitor.visit(connected_move_reaction.disconnected_callback);

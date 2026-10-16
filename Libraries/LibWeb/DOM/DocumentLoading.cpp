@@ -419,7 +419,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     navigation_params.response->body()->fully_read(
         realm,
         GC::create_function(GC::Heap::the(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document, nullptr); }),
-        GC::create_function(GC::Heap::the(), [](JS::Value) {}),
+        GC::create_function(GC::Heap::the(), [](JS::Value) { }),
         GC::Ref { realm.global_object() });
 
     // 9. Return document.

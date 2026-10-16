@@ -1689,7 +1689,7 @@ void HTMLMediaElement::load_local_resource(MediaProvider const& media_provider, 
             // FIXME: Support File objects.
             failure_callback("File objects are not supported"_utf16);
         },
-        [](Empty) {});
+        [](Empty) { });
 
     // The resource described by the current media resource, if any, contains the media data. It is
     // CORS-same-origin.

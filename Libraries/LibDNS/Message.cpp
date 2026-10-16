@@ -1087,7 +1087,7 @@ ErrorOr<void> ResourceRecord::to_canonical_raw(ByteBuffer& buffer, DomainName co
         [](Records::MX& mx) { mx.exchange = mx.exchange.canonicalized(); },
         [](Records::SRV& srv) { srv.target = srv.target.canonicalized(); },
         [](Records::RRSIG& rrsig) { rrsig.signers_name = rrsig.signers_name.canonicalized(); },
-        [](auto&) {});
+        [](auto&) { });
     return canonical.to_raw(buffer);
 }
 

@@ -540,7 +540,7 @@ ErrorOr<Result<FileStat>> Implementation::impl$path_filestat_get(Configuration& 
         [&](u32 fd) {
             dir_fd = fd;
         },
-        [](UnmappedDescriptor) {});
+        [](UnmappedDescriptor) { });
 
     if (dir_fd < 0 && dir_fd != AT_FDCWD)
         return errno_value_from_errno(errno);
@@ -603,7 +603,7 @@ ErrorOr<Result<void>> Implementation::impl$path_create_directory(Configuration& 
         [&](u32 fd) {
             dir_fd = fd;
         },
-        [](UnmappedDescriptor) {});
+        [](UnmappedDescriptor) { });
 
     if (dir_fd < 0 && dir_fd != AT_FDCWD)
         return errno_value_from_errno(errno);
@@ -634,7 +634,7 @@ ErrorOr<Result<FD>> Implementation::impl$path_open(Configuration& configuration,
         [&](u32 fd) {
             dir_fd = fd;
         },
-        [](UnmappedDescriptor) {});
+        [](UnmappedDescriptor) { });
 
     if (dir_fd < 0 && dir_fd != AT_FDCWD)
         return errno_value_from_errno(errno);
@@ -725,7 +725,7 @@ ErrorOr<Result<FileStat>> Implementation::impl$fd_filestat_get(Configuration&, F
         [&](u32 fd) {
             resolved_fd = fd;
         },
-        [](UnmappedDescriptor) {});
+        [](UnmappedDescriptor) { });
 
     if (resolved_fd < 0)
         return errno_value_from_errno(errno);
@@ -806,7 +806,7 @@ ErrorOr<Result<FDStat>> Implementation::impl$fd_fdstat_get(Configuration&, FD fd
         [&](u32 fd) {
             resolved_fd = fd;
         },
-        [](UnmappedDescriptor) {});
+        [](UnmappedDescriptor) { });
     if (resolved_fd < 0)
         return errno_value_from_errno(errno);
 

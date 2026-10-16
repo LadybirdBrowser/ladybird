@@ -714,7 +714,7 @@ static AK::Duration compute_tick_duration(ReadonlySpan<ActionObject> tick_action
             [&](OneOf<ActionObject::PauseFields, ActionObject::PointerMoveFields, ActionObject::ScrollFields> auto const& fields) {
                 duration = fields.duration;
             },
-            [](auto const&) {});
+            [](auto const&) { });
 
         // 3. If duration is not undefined, and duration is greater than max duration, let max duration be equal to duration.
         if (duration.has_value())

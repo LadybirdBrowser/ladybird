@@ -392,7 +392,7 @@ TEST_CASE(pulseaudio_client_policy_allows_directory_creation_and_record_locks)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 
     status = run_with_policy(
-        [](auto&) {},
+        [](auto&) { },
         [&] {
             (void)mkdir(existing_directory, 0700);
         });

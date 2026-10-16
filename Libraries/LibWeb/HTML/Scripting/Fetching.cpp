@@ -262,9 +262,9 @@ static JS::OffThreadCompilationCallbacks thread_pool_compilation_callbacks()
 static void compile_remaining_module_functions_off_thread(ModuleScript& module_script, NonnullRefPtr<JS::SourceCode const> source_code)
 {
     module_script.record().visit(
-        [](Empty) {},
-        [](GC::Ref<JS::SyntheticModule>) {},
-        [](GC::Ref<JS::HostModule>) {},
+        [](Empty) { },
+        [](GC::Ref<JS::SyntheticModule>) { },
+        [](GC::Ref<JS::HostModule>) { },
         [source_code = move(source_code)](GC::Ref<JS::SourceTextModule> module) mutable {
             JS::compile_remaining_functions_off_thread(*module, move(source_code), thread_pool_compilation_callbacks());
         });
@@ -1208,10 +1208,10 @@ void fetch_single_module_script(JS::Realm& realm,
                                     BytecodeCacheInstallTarget install_target;
                                     if (module_script) {
                                         module_script->record().visit(
-                                            [](Empty) {},
+                                            [](Empty) { },
                                             [&](GC::Ref<JS::SourceTextModule> module) { install_target.module = module; },
-                                            [](GC::Ref<JS::SyntheticModule>) {},
-                                            [](GC::Ref<JS::HostModule>) {});
+                                            [](GC::Ref<JS::SyntheticModule>) { },
+                                            [](GC::Ref<JS::HostModule>) { });
                                         if (!should_generate_bytecode_cache)
                                             compile_remaining_module_functions_off_thread(*module_script, source_code_for_cache);
                                     }
@@ -1247,10 +1247,10 @@ void fetch_single_module_script(JS::Realm& realm,
                         BytecodeCacheInstallTarget install_target;
                         if (module_script) {
                             module_script->record().visit(
-                                [](Empty) {},
+                                [](Empty) { },
                                 [&](GC::Ref<JS::SourceTextModule> module) { install_target.module = module; },
-                                [](GC::Ref<JS::SyntheticModule>) {},
-                                [](GC::Ref<JS::HostModule>) {});
+                                [](GC::Ref<JS::SyntheticModule>) { },
+                                [](GC::Ref<JS::HostModule>) { });
                             if (!should_generate_bytecode_cache)
                                 compile_remaining_module_functions_off_thread(*module_script, source_code_for_cache);
                         }

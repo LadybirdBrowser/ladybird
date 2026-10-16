@@ -180,7 +180,7 @@ TEST_CASE(resume_attaches_a_ring_that_the_pump_fills)
     auto stream = fixture.create_stream(Audio::OutputState::Suspended, source);
 
     bool resumed = false;
-    stream->resume()->when_resolved([&] { resumed = true; }).when_rejected([](Error&&) {});
+    stream->resume()->when_resolved([&] { resumed = true; }).when_rejected([](Error&&) { });
     EXPECT(fixture.pump_until([&] { return resumed && fixture.mixer->has_clients() && fixture.device->is_playing(); }));
     EXPECT(fixture.render_until_full_buffer_of(1.0f));
 }
@@ -236,11 +236,11 @@ TEST_CASE(resume_after_a_drain_plays_again)
     (void)stream->resume();
     EXPECT(fixture.render_until_full_buffer_of(1.0f));
     bool drained = false;
-    stream->drain_buffer_and_suspend()->when_resolved([&] { drained = true; }).when_rejected([](Error&&) {});
+    stream->drain_buffer_and_suspend()->when_resolved([&] { drained = true; }).when_rejected([](Error&&) { });
     EXPECT(fixture.render_until([&] { return drained; }));
 
     bool resumed = false;
-    stream->resume()->when_resolved([&] { resumed = true; }).when_rejected([](Error&&) {});
+    stream->resume()->when_resolved([&] { resumed = true; }).when_rejected([](Error&&) { });
     EXPECT(fixture.render_until_full_buffer_of(1.0f));
     EXPECT(fixture.pump_until([&] { return resumed; }));
 }
@@ -264,7 +264,7 @@ TEST_CASE(drain_completes_once_the_device_has_played_the_ring_out)
     // Stop supplying, then drain: the request completes only after the fake has rendered everything.
     source.starved = true;
     bool drained = false;
-    stream->drain_buffer_and_suspend()->when_resolved([&] { drained = true; }).when_rejected([](Error&&) {});
+    stream->drain_buffer_and_suspend()->when_resolved([&] { drained = true; }).when_rejected([](Error&&) { });
     fixture.loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     EXPECT(!drained);
     EXPECT(fixture.render_until([&] { return drained; }));
@@ -280,7 +280,7 @@ TEST_CASE(discard_drops_the_ring_and_suspends)
     EXPECT(fixture.pump_until([&] { return source.frames_supplied.load() >= 480; }));
 
     bool discarded = false;
-    stream->discard_buffer_and_suspend()->when_resolved([&] { discarded = true; }).when_rejected([](Error&&) {});
+    stream->discard_buffer_and_suspend()->when_resolved([&] { discarded = true; }).when_rejected([](Error&&) { });
     EXPECT(fixture.pump_until([&] { return discarded && !fixture.device->is_playing(); }));
     auto requests_after_discard = source.requests.load();
 
@@ -352,7 +352,7 @@ TEST_CASE(losing_the_connection_reports_output_lost_and_settles_requests)
     EXPECT(fixture.pump_until([&] { return output_lost; }));
 
     bool drained = false;
-    stream->drain_buffer_and_suspend()->when_resolved([&] { drained = true; }).when_rejected([](Error&&) {});
+    stream->drain_buffer_and_suspend()->when_resolved([&] { drained = true; }).when_rejected([](Error&&) { });
     EXPECT(fixture.pump_until([&] { return drained; }));
     auto requests_at_loss = source.requests.load();
     fixture.pump_until([&] { return false; }, AK::Duration::from_milliseconds(50));

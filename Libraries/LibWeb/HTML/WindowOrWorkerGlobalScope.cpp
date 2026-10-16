@@ -1640,7 +1640,7 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
                 error_info.colno = 0;
             }
         },
-        [](auto const&) {});
+        [](auto const&) { });
 
     // 5. If omitError is true, then set errorInfo[error] to null.
     if (omit_error == OmitError::Yes)

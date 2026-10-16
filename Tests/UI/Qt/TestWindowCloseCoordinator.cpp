@@ -67,7 +67,7 @@ TEST_CASE(repeated_start_and_late_completions_are_ignored)
     preflights.append([&](auto on_complete) { completion = move(on_complete); });
 
     size_t canceled_count = 0;
-    EXPECT(coordinator.start(move(preflights), [] {}, [&] { ++canceled_count; }));
+    EXPECT(coordinator.start(move(preflights), [] { }, [&] { ++canceled_count; }));
     EXPECT(!coordinator.start({}, [] { }, [] { }));
     coordinator.cancel();
     EXPECT_EQ(canceled_count, 1u);
@@ -81,7 +81,7 @@ TEST_CASE(an_empty_preflight_is_immediately_approved)
 {
     Ladybird::WindowCloseCoordinator coordinator;
     bool approved = false;
-    EXPECT(coordinator.start({}, [&] { approved = true; }, [] {}));
+    EXPECT(coordinator.start({}, [&] { approved = true; }, [] { }));
     EXPECT(approved);
     EXPECT(!coordinator.is_running());
 }

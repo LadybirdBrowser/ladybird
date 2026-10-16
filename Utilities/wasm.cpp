@@ -1182,7 +1182,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         g_stdout->write_until_depleted("    code:\n"sv).release_value_but_fixme_should_propagate_errors();
                         printer.print(func.code());
                     },
-                    [](Wasm::HostFunction const&) {});
+                    [](Wasm::HostFunction const&) { });
             }
         };
         if (print) {

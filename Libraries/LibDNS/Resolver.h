@@ -40,7 +40,7 @@ public:
             re.record.record.visit(
                 [&](Messages::Records::A const& a) { result.append(a.address); },
                 [&](Messages::Records::AAAA const& aaaa) { result.append(aaaa.address); },
-                [](auto&) {});
+                [](auto&) { });
         }
         return result;
     }

@@ -223,7 +223,7 @@ void Key::visit_edges(Visitor& visitor)
         [&](GC::Ref<GC::HeapVector<GC::Ref<Key>>> const& keys) {
             visitor.visit(keys);
         },
-        [](auto const&) {});
+        [](auto const&) { });
 }
 
 }

@@ -169,7 +169,7 @@ private:
     IntrusiveBinaryHeap<
         Node,
         decltype([](Node const& a, Node const& b) { return a.key < b.key; }),
-        decltype([](Node&, size_t) {})>
+        decltype([](Node&, size_t) { })>
         m_heap;
 };
 

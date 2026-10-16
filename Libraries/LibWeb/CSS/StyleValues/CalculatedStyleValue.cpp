@@ -153,7 +153,7 @@ struct CalcResolutionSnapshot {
             ffi_context.length_resolution_context = &length_resolution_context.value();
         }
         resolution_context.percentage_basis.visit(
-            [](Empty const&) {},
+            [](Empty const&) { },
             [&](Angle const& angle) {
                 ffi_context.basis_kind = 1;
                 ffi_context.basis_value = angle.raw_value();

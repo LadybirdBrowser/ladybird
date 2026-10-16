@@ -262,7 +262,7 @@ public:
             item.visit(
                 [&](NonnullRefPtr<Action>& action) { callback(*action); },
                 [&](NonnullRefPtr<Menu>& submenu) { submenu->for_each_action(callback); },
-                [&](Separator) {});
+                [&](Separator) { });
         }
     }
 
