@@ -11,10 +11,12 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        println(`Wheel target while the viewport scrolls: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
+        internals.recordDisplayListForTesting();
+        println(`Wheel target while the viewport scrolls: ${wheelTargetToString(internals.recordedDisplayListWheelTargetAt(400, 0, 100, 0))}`);
 
         // Only the viewport's overflow changes, so the recording reuses every box it recorded before.
         document.documentElement.style.overflowX = "hidden";
-        println(`Wheel target after the viewport stops scrolling: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
+        internals.recordDisplayListForTesting();
+        println(`Wheel target after the viewport stops scrolling: ${wheelTargetToString(internals.recordedDisplayListWheelTargetAt(400, 0, 100, 0))}`);
     });
 </script>

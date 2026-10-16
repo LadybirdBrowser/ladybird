@@ -1,2 +1,2 @@
-Wheel target while the viewport scrolls: viewport
-Wheel target after the viewport stops scrolling: none
+Wheel target while the viewport scrolls: latched scroller=viewport
+Wheel target after the viewport stops scrolling: no-scroll-target

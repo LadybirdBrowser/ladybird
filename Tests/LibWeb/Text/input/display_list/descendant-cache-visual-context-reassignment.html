@@ -29,7 +29,7 @@
 <script>
     test(() => {
         const targetContent = document.getElementById("target-content");
-        internals.asyncScrollingState();
+        internals.recordDisplayListForTesting();
 
         // Keep the visual-context tree compatible while assigning its two sibling
         // clip nodes to different paintables. The unchanged middle subtree

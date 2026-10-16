@@ -44,7 +44,9 @@
         internals.recordDisplayListForTesting(false, true);
         internals.recordDisplayListForTesting(false, false);
         host.firstChild.style.overflow = "auto";
-        println(`wheel over the opaque sibling targets ${internals.asyncScrollingStateWheelTargetAt(100, 100, 0, 50)}`);
-        println(`wheel over the new scroller targets ${internals.asyncScrollingStateWheelTargetAt(300, 100, 0, 50)}`);
+        internals.recordDisplayListForTesting();
+        println(`wheel over the opaque sibling targets ${wheelTargetToString(internals.recordedDisplayListWheelTargetAt(100, 100, 0, 50))}`);
+        internals.recordDisplayListForTesting();
+        println(`wheel over the new scroller targets ${wheelTargetToString(internals.recordedDisplayListWheelTargetAt(300, 100, 0, 50))}`);
     });
 </script>

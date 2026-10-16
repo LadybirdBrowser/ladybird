@@ -25,7 +25,8 @@
 <div id="spacer"></div>
 <script>
     test(() => {
-        const state = internals.asyncScrollingState();
+        internals.recordDisplayListForTesting();
+        const state = internals.recordedAsyncScrollingState();
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
         const displayList = internals.dumpDisplayList();
         const stickyNodes = [...displayList.matchAll(/\[s(\d+)\] sticky scroller=s(\d+)(?: parent_sticky=s(\d+))?.*? insets=\[([^\]]*)\]/g)]

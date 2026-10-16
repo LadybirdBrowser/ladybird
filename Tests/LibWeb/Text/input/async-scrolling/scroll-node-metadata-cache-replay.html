@@ -40,8 +40,10 @@
 
         println(`window scrollY: ${window.scrollY}`);
         println(`scroller scrollTop: ${scroller.scrollTop}`);
-        println(`wheel target near viewport top: ${internals.asyncScrollingStateWheelTargetAt(150, 50, 0, 100)}`);
-        println(`upward wheel target over scroller: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, -100)}`);
+        internals.recordDisplayListForTesting();
+        println(`wheel target near viewport top: ${wheelTargetToString(internals.recordedDisplayListWheelTargetAt(150, 50, 0, 100))}`);
+        internals.recordDisplayListForTesting();
+        println(`upward wheel target over scroller: ${wheelTargetToString(internals.recordedDisplayListWheelTargetAt(50, 50, 0, -100))}`);
         println("scroll metadata:");
         println(compositorScrollLines(internals.dumpDisplayList()));
     });

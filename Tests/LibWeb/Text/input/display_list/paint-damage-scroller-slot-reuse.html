@@ -14,7 +14,10 @@
 // Removing a scroller frees its scroll node; once a later publish releases the node, making
 // another box scrollable reuses it, and the rows below that box must point at the new scroller.
 // The first scroller stays so the document keeps a non-viewport wheel target throughout.
-const wheelTargetAt = (x, y) => internals.asyncScrollingStateWheelTargetAt(x, y, 0, 10);
+const wheelTargetAt = (x, y) => {
+    internals.recordDisplayListForTesting();
+    return wheelTargetToString(internals.recordedDisplayListWheelTargetAt(x, y, 0, 10));
+};
 displayListTest({
     setup: removeBodyWhitespace,
     steps: [
@@ -22,8 +25,8 @@ displayListTest({
             name: "remove the second scroller",
             mutate: () => { first.remove(); },
             check: equal => {
-                equal(wheelTargetAt(50, 20), "non-viewport", "wheel target on the kept scroller");
-                equal(wheelTargetAt(50, 60), "none", "wheel target on the box that moved up");
+                equal(wheelTargetAt(50, 20), "latched scroller=#keep", "wheel target on the kept scroller");
+                equal(wheelTargetAt(50, 60), "no-scroll-target", "wheel target on the box that moved up");
             },
             expect: `
                 damage: rows=4 moved=1 order=1 eligibility=0 all=false
@@ -104,7 +107,7 @@ displayListTest({
         {
             name: "make the other box scrollable",
             mutate: () => { outer.style.overflow = "scroll"; },
-            check: equal => { equal(wheelTargetAt(50, 60), "non-viewport", "wheel target on the new scroller"); },
+            check: equal => { equal(wheelTargetAt(50, 60), "latched scroller=#outer", "wheel target on the new scroller"); },
             expect: `
                 damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
@@ -172,7 +175,7 @@ displayListTest({
         {
             name: "change inside the new scroller",
             mutate: () => { document.getElementById("outer-content").style.color = "red"; },
-            check: equal => { equal(wheelTargetAt(50, 60), "non-viewport", "wheel target on the new scroller"); },
+            check: equal => { equal(wheelTargetAt(50, 60), "latched scroller=#outer", "wheel target on the new scroller"); },
             expect: `
                 damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
