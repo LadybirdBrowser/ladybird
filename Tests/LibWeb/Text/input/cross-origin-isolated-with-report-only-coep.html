@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // A report-only embedder policy does not make the opener policy "same-origin-plus-COEP".
+        println("crossOriginIsolated: " + self.crossOriginIsolated);
+    });
+</script>

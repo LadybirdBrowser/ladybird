@@ -2013,77 +2013,6 @@ static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL
     return heap.allocate<PolicyContainer>(heap);
 }
 
-// https://html.spec.whatwg.org/multipage/browsers.html#obtain-coop
-static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
-{
-    // 1. Let policy be a new opener policy.
-    OpenerPolicy policy = {};
-
-    // AD-HOC: We don't yet setup environments in all cases
-    if (!reserved_client)
-        return policy;
-
-    auto& reserved_environment = *reserved_client;
-
-    // 2. If reservedEnvironment is a non-secure context, then return policy.
-    if (is_non_secure_context(reserved_environment))
-        return policy;
-
-    // 3. Let parsedItem be the result of getting a structured field value given `Cross-Origin-Opener-Policy` and "item" from response's header list.
-    auto parsed_item = response->header_list()->get_structured_field_value<HTTP::StructuredFields::Item>("Cross-Origin-Opener-Policy"sv);
-
-    // 4. If parsedItem is not null and parsedItem[0] is a token:
-    if (parsed_item.has_value() && parsed_item->bare_item.has<HTTP::StructuredFields::Token>()) {
-        auto const& token = parsed_item->bare_item.get<HTTP::StructuredFields::Token>().value;
-
-        // 1. If parsedItem[0] is "same-origin":
-        if (token == "same-origin"sv) {
-            // 1. Let coep be the result of obtaining a cross-origin embedder policy from response and reservedEnvironment.
-            // AD-HOC: Rather than running the full "obtain an embedder policy" algorithm, we read the
-            //         Cross-Origin-Embedder-Policy header's value directly.
-            auto coep = response->header_list()->get_structured_field_value<HTTP::StructuredFields::Item>("Cross-Origin-Embedder-Policy"sv);
-
-            // 2. If coep's value is compatible with cross-origin isolation, then set policy's value to "same-origin-plus-COEP".
-            // NB: An embedder policy value is compatible with cross-origin isolation when it's "require-corp" or "credentialless".
-            if (coep.has_value()
-                && (coep->bare_item == HTTP::StructuredFields::Token { "require-corp"sv } || coep->bare_item == HTTP::StructuredFields::Token { "credentialless"sv })) {
-                policy.value = OpenerPolicyValue::SameOriginPlusCOEP;
-            }
-            // 3. Otherwise, set policy's value to "same-origin".
-            else {
-                policy.value = OpenerPolicyValue::SameOrigin;
-            }
-        }
-        // 2. If parsedItem[0] is "same-origin-allow-popups", then set policy's value to "same-origin-allow-popups".
-        else if (token == "same-origin-allow-popups"sv) {
-            policy.value = OpenerPolicyValue::SameOriginAllowPopups;
-        }
-        // 3. If parsedItem[0] is "noopener-allow-popups", then set policy's value to "noopener-allow-popups".
-        else if (token == "noopener-allow-popups"sv) {
-            policy.value = OpenerPolicyValue::NoopenerAllowPopups;
-        }
-
-        // 4. If parsedItem[1]["report-to"] exists and it is a string, then set policy's reporting endpoint to
-        //    parsedItem[1]["report-to"].
-        if (auto report_to = parsed_item->parameters.get("report-to"sv); report_to.has_value() && report_to->has<ByteString>())
-            policy.reporting_endpoint = Utf16String::from_utf8(report_to->get<ByteString>());
-    }
-
-    // FIXME: Steps 5-6 obtain the report-only opener policy from Cross-Origin-Opener-Policy-Report-Only. We don't
-    //        yet implement report-only.
-    // 5. Set parsedItem to the result of getting a structured field value given `Cross-Origin-Opener-Policy-Report-Only` and "item" from response's header list.
-    // 6. If parsedItem is not null and parsedItem[0] is a token:
-    //     1. If parsedItem[0] is "same-origin":
-    //         1. Let coep be the result of obtaining a cross-origin embedder policy from response and reservedEnvironment.
-    //         2. If coep's value is compatible with cross-origin isolation or coep's report-only value is compatible with cross-origin isolation, then set policy's report-only value to "same-origin-plus-COEP".
-    //         3. Otherwise, set policy's report-only value to "same-origin".
-    //     2. If parsedItem[0] is "same-origin-allow-popups", then set policy's report-only value to "same-origin-allow-popups".
-    //     3. If parsedItem[1]["report-to"] exists and it is a string, then set policy's report-only reporting endpoint to parsedItem[1]["report-to"].
-
-    // 7. Return policy.
-    return policy;
-}
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#hand-off-to-external-software
 // FIXME: `resource` can also be a response: https://fetch.spec.whatwg.org/#concept-response
 static void hand_off_to_external_software(URL::URL const& resource, GC::Ref<LocalNavigable> navigable, SandboxingFlagSet sandboxing_flags, bool has_transient_activation, URL::Origin const& initiator_origin)
@@ -2392,15 +2321,17 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and entry's document state's initiator origin.
         state_holder->response_origin = determine_the_origin(state_holder->response->url(), state_holder->final_sandbox_flags, state_holder->initiator_origin);
 
-        // 12. If navigable is a top-level traversable, then:
+        // 12. If navigable is a top-level traversable:
         // AD-HOC: Skip a network error, which may have no URL to enforce an opener policy with. This algorithm returns
         //         null for it, so the enforcement result would go unused.
         if (!state_holder->response->is_network_error() && state_holder->navigable->is_top_level_traversable()) {
             // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
-            state_holder->response_coop = obtain_an_opener_policy(*state_holder->response, state_holder->request->reserved_client());
+            // AD-HOC: We don't yet set up environments in all cases. Without one, responseCOOP stays a new opener policy.
+            if (auto const& reserved_client = state_holder->request->reserved_client())
+                state_holder->response_coop = obtain_an_opener_policy(*state_holder->response->header_list(), is_non_secure_context(*reserved_client));
 
             // 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
-            //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult and request's referrer.
+            //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult, and request's referrer.
             auto const& active_document = *state_holder->navigable->active_document();
             state_holder->coop_enforcement_result = enforce_a_responses_opener_policy(active_document.is_initial_about_blank(), state_holder->response->url().value(), *state_holder->response_origin, state_holder->response_coop, state_holder->coop_enforcement_result);
 

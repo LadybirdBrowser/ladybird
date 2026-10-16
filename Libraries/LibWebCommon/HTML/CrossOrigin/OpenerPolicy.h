@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibHTTP/Forward.h>
+#include <LibWebCommon/Export.h>
 
 namespace Web::HTML {
 
@@ -33,5 +35,7 @@ struct OpenerPolicy {
     // A report-only reporting endpoint, which is a string or null, initially null.
     Optional<Utf16String> report_only_reporting_endpoint;
 };
+
+WEBCOMMON_API OpenerPolicy obtain_an_opener_policy(HTTP::HeaderList const&, bool reserved_environment_is_a_non_secure_context);
 
 }
