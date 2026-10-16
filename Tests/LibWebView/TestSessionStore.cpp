@@ -67,6 +67,18 @@ static i64 count_entry_rows(Database::Database& database, i64 tab_id)
     return select_i64(database, MUST(String::formatted("SELECT COUNT(*) FROM SessionEntries INNER JOIN SessionHistories ON SessionEntries.history_id = SessionHistories.id WHERE SessionHistories.tab_id = {};", tab_id)));
 }
 
+static SessionTabId open_tab(SessionStore& store, SessionWindowId window, StringView url)
+{
+    return MUST(store.tab_opened({ .window_id = window, .initial_url = parse_url(url), .insertion_index = {}, .is_active = SessionStore::IsActive::No }));
+}
+
+// Takes the schema back to SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION, so every migration after it runs again.
+static void rewind_sessions_schema_to_version_4(Database::Database& database)
+{
+    MUST(database.execute_raw("ALTER TABLE SessionTabs DROP COLUMN pinned;"sv));
+    MUST(database.execute_raw("UPDATE SchemaVersions SET version = 4 WHERE store = 'Sessions';"sv));
+}
+
 TEST_CASE(fresh_database_migrates_to_the_latest_schema)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed({ .foreign_keys = Database::Database::ForeignKeys::Yes }));
@@ -75,7 +87,7 @@ TEST_CASE(fresh_database_migrates_to_the_latest_schema)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 4u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 5u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -112,6 +124,18 @@ TEST_CASE(newer_sessions_schema_reports_database_too_new)
 
     EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
     EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
+}
+
+TEST_CASE(version_4_database_migrates_to_the_latest_schema)
+{
+    auto database = create_session_database();
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO Sessions (id, kind, closed_time, active_tab_index) VALUES (1, 0, 0, 0);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SessionTabs (id, session_id, tab_ordinal, active_url, current_used_step_index) VALUES (2, 1, 0, 'https://a.example/', 0);"sv));
+    rewind_sessions_schema_to_version_4(*database);
+
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 5u });
+    EXPECT_EQ(select_i64(*database, "SELECT pinned FROM SessionTabs WHERE id = 2;"_string), 0);
 }
 
 TEST_CASE(pushed_tab_state_flushes_to_rows)
@@ -280,6 +304,187 @@ TEST_CASE(closing_a_tab_demotes_it)
 
     EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Sessions WHERE kind = 1;"_string), 0);
     EXPECT_EQ(count_entry_rows(*database, first), 0);
+}
+
+TEST_CASE(a_pin_writes_through_and_survives_restart)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://a.example/"sv);
+        (void)open_tab(*store, window, "https://b.example/"sv);
+
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+
+        // No flush: The pin itself must already be in the row.
+        EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT pinned FROM SessionTabs WHERE id = {};", pinned))), 1);
+    }
+
+    auto reopened_store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto unit = TRY_OR_FAIL(reopened_store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT_EQ(unit->tabs.size(), 2uz);
+    EXPECT(unit->tabs[0].pinned);
+    EXPECT(!unit->tabs[1].pinned);
+}
+
+TEST_CASE(a_flush_keeps_the_pin)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, window, "about:blank"sv);
+
+    TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+    store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://a.example/"sv }), .url = parse_url("https://a.example/"sv) });
+    store->flush_dirty_state();
+
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT pinned FROM SessionTabs WHERE id = {};", tab))), 1);
+}
+
+static i64 select_tab_column(Database::Database& database, StringView column, SessionTabId tab)
+{
+    return select_i64(database, MUST(String::formatted("SELECT {} FROM SessionTabs WHERE id = {};", column, tab)));
+}
+
+TEST_CASE(a_pin_is_saved_with_the_tab_order_it_needs)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto first = open_tab(*store, window, "https://a.example/"sv);
+    auto second = open_tab(*store, window, "https://b.example/"sv);
+    store->flush_dirty_state();
+
+    // Pinning the second tab moves it to the front, and the frontend reports that order first.
+    store->tab_order_changed({ .window_id = window, .ordered_tabs = { second, first } });
+    TRY_OR_FAIL(store->tab_pinned_changed(second, true));
+
+    // No flush: The order the pin needs must already be in the rows, along with the pin itself.
+    EXPECT_EQ(select_tab_column(*database, "tab_ordinal"sv, second), 0);
+    EXPECT_EQ(select_tab_column(*database, "tab_ordinal"sv, first), 1);
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, second), 1);
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, first), 0);
+}
+
+TEST_CASE(an_unpin_is_saved_with_the_tab_order_it_needs)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto first = open_tab(*store, window, "https://a.example/"sv);
+    auto second = open_tab(*store, window, "https://b.example/"sv);
+    auto third = open_tab(*store, window, "https://c.example/"sv);
+    TRY_OR_FAIL(store->tab_pinned_changed(first, true));
+    TRY_OR_FAIL(store->tab_pinned_changed(second, true));
+    store->flush_dirty_state();
+
+    // Unpinning the first tab moves it to the end of the pinned tabs.
+    store->tab_order_changed({ .window_id = window, .ordered_tabs = { second, first, third } });
+    TRY_OR_FAIL(store->tab_pinned_changed(first, false));
+
+    EXPECT_EQ(select_tab_column(*database, "tab_ordinal"sv, second), 0);
+    EXPECT_EQ(select_tab_column(*database, "tab_ordinal"sv, first), 1);
+    EXPECT_EQ(select_tab_column(*database, "tab_ordinal"sv, third), 2);
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, second), 1);
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, first), 0);
+}
+
+TEST_CASE(a_failed_pin_write_is_retried_by_the_next_flush)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, window, "about:blank"sv);
+    store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://a.example/"sv, "https://b.example/"sv }), .url = parse_url("https://b.example/"sv) });
+    store->flush_dirty_state();
+
+    TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedFailure BEFORE UPDATE OF pinned ON SessionTabs BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+    EXPECT(store->tab_pinned_changed(tab, true).is_error());
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, tab), 0);
+
+    // The tab stays idle, so nothing but the retry writes its row again.
+    TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedFailure;"sv));
+    store->flush_dirty_state();
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, tab), 1);
+    EXPECT_EQ(count_entry_rows(*database, tab), 2);
+}
+
+TEST_CASE(a_failed_unpin_write_is_retried_when_quitting)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, window, "about:blank"sv);
+    store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://a.example/"sv, "https://b.example/"sv }), .url = parse_url("https://b.example/"sv) });
+    TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+    store->flush_dirty_state();
+
+    TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedFailure BEFORE UPDATE OF pinned ON SessionTabs BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+    EXPECT(store->tab_pinned_changed(tab, false).is_error());
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, tab), 1);
+
+    TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedFailure;"sv));
+    store->application_quitting();
+    EXPECT_EQ(select_tab_column(*database, "pinned"sv, tab), 0);
+    EXPECT_EQ(count_entry_rows(*database, tab), 2);
+}
+
+TEST_CASE(a_moved_tab_keeps_its_pin)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto first_window = TRY_OR_FAIL(store->window_opened());
+    auto second_window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, first_window, "https://a.example/"sv);
+
+    TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+    store->tab_moved({ .tab_id = tab, .new_window_id = second_window, .ordinal = 0 });
+
+    // A pushed state makes the flush rewrite the moved tab's row.
+    store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://b.example/"sv }), .url = parse_url("https://b.example/"sv) });
+    store->flush_dirty_state();
+
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT pinned FROM SessionTabs WHERE id = {};", tab))), 1);
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT session_id FROM SessionTabs WHERE id = {};", tab))), second_window);
+}
+
+TEST_CASE(closed_tabs_and_windows_keep_their_pins)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto first = open_tab(*store, window, "https://a.example/"sv);
+    auto second = open_tab(*store, window, "https://b.example/"sv);
+    (void)open_tab(*store, window, "https://c.example/"sv);
+    TRY_OR_FAIL(store->tab_pinned_changed(first, true));
+    TRY_OR_FAIL(store->tab_pinned_changed(second, true));
+
+    TRY_OR_FAIL(store->tab_closed({ .tab_id = second, .closed_at = UnixDateTime::now() }));
+    auto tab_unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(tab_unit.has_value());
+    EXPECT(tab_unit->tabs[0].pinned);
+
+    TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+    auto window_unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(window_unit.has_value());
+    EXPECT_EQ(window_unit->tabs.size(), 2uz);
+    EXPECT(window_unit->tabs[0].pinned);
+    EXPECT(!window_unit->tabs[1].pinned);
+}
+
+TEST_CASE(transient_closed_tabs_keep_their_pins)
+{
+    auto store = SessionStore::create();
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, window, "https://a.example/"sv);
+    TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+
+    TRY_OR_FAIL(store->tab_closed({ .tab_id = tab, .closed_at = UnixDateTime::now() }));
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT(unit->tabs[0].pinned);
 }
 
 TEST_CASE(closed_tab_placement_survives_restart)
