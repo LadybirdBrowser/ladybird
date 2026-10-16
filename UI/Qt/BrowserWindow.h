@@ -170,6 +170,7 @@ public:
     // Brings the window forward for a page's beforeunload prompt, when the prompt is part of a quit's check.
     void raise_for_quit_prompt();
     bool is_window_close_approved() const { return m_window_close_approved; }
+    void report_activation_to_session_store();
     void cancel_window_close_preflight();
     void on_tab_load_start(Tab&);
     FullscreenMode& fullscreen_mode();
