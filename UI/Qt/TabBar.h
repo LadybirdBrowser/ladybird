@@ -64,6 +64,9 @@ public:
 
     TabLayout tab_layout() const { return m_tab_layout; }
     void set_tab_layout(TabLayout);
+    // While collapsed vertical tabs only peek open on hover, the pinned tabs keep their rows, one tab each, rather than
+    // forming the grid, so no tab moves out from under the pointer.
+    void set_pinned_tabs_in_rows(bool);
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void refresh_tab_layout();
     void recreate_icons();
@@ -109,6 +112,7 @@ private:
     struct DropPreview {
         Vector<TabShift> tab_shifts;
         qreal strip_growth { 0 };
+        qreal pinned_region_growth { 0 };
     };
 
     Optional<int> dragged_tab_index() const;
@@ -121,6 +125,7 @@ private:
     DropPreview current_drop_preview() const;
     TabShift current_tab_shift(int index) const;
     qreal current_strip_growth() const;
+    qreal current_pinned_region_growth() const;
     QRect shifted_tab_rect(int index) const;
     QPixmap render_tab_drag_pixmap(int index) const;
     void toggle_window_maximized();
@@ -131,6 +136,25 @@ private:
     void show_tab_preview();
     void hide_tab_preview();
     QPoint tab_preview_position_for(int index, QSize const& popup_size) const;
+
+    // Where the pinned tabs sit in vertical tabs: a grid of tiles when expanded, one icon column when collapsed, and a
+    // separator below. Its height is 0 when there's no pinned tab.
+    struct PinnedRegion {
+        int count { 0 };
+        int columns { 1 };
+        int tile_width { 0 };
+        int height { 0 };
+        // The pinned tabs stay in place only while they fit in half the bar's height. Past that, they scroll with the
+        // unpinned tabs, so every tab stays within reach.
+        bool scrolls { false };
+
+        int fixed_height() const { return scrolls ? 0 : height; }
+    };
+    PinnedRegion pinned_region() const;
+    PinnedRegion pinned_region_for(int pinned_count) const;
+    QRect vertical_tab_rect(int index, PinnedRegion const&) const;
+    bool pinned_tabs_are_tiles() const;
+    int vertical_bar_width() const;
 
     QRect visual_tab_rect(int index) const;
     int tab_index_at(QPoint const&) const;
@@ -149,6 +173,7 @@ private:
     QPointer<TabWidget> m_tab_widget;
 
     TabLayout m_tab_layout { TabLayout::Horizontal };
+    bool m_pinned_tabs_in_rows { false };
     WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
     int m_available_width { 0 };
     int m_hovered_tab_index { -1 };
