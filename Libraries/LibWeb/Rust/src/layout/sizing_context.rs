@@ -2105,9 +2105,18 @@ impl<'pass> SizingContext<'pass> {
                 constraints,
             ),
         ) {
+            self.callbacks
+                .arena()
+                .layout_trace
+                .intrinsic_size_hit(node, IntrinsicSizeCacheKind::MinContentInline, "");
             return cached.automatic_content_inline_size;
         }
         if let Some(min_content_inline_size) = self.paired_min_content_inline_size(node, constraints, block_size) {
+            self.callbacks.arena().layout_trace.intrinsic_size_hit(
+                node,
+                IntrinsicSizeCacheKind::MinContentInline,
+                " FROM MAX-CONTENT",
+            );
             return min_content_inline_size;
         }
         self.measure_intrinsic_inline_size(node, constraints, block_size, IntrinsicSizeCacheKind::MinContentInline)
@@ -2344,10 +2353,12 @@ impl<'pass> SizingContext<'pass> {
             constraints,
         );
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, kind, key) {
+            self.callbacks.arena().layout_trace.intrinsic_size_hit(node, kind, "");
             return cached.automatic_content_inline_size;
         }
 
         self.callbacks.arena().note_intrinsic_measurement();
+        let trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
         let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
         // NB: A parent layout can assign a definite block size that is not present in computed style,
@@ -2374,6 +2385,9 @@ impl<'pass> SizingContext<'pass> {
                 block_size,
             )
         {
+            if let Some(trace) = &trace {
+                trace.append(" FROM ITEMS");
+            }
             self.charge_measurement_dependency_to_measured_box_and_containing_block(
                 node,
                 sizes.depends_on_percentage_block_size,
@@ -2424,10 +2438,12 @@ impl<'pass> SizingContext<'pass> {
         };
         let key = formatting_context::cache_key(Some(inline_size), None, constraints);
         if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
+            self.callbacks.arena().layout_trace.intrinsic_size_hit(node, kind, "");
             return cached.size;
         }
 
         self.callbacks.arena().note_intrinsic_measurement();
+        let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
         let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
         root.block_size_constraint.set(size_constraint);

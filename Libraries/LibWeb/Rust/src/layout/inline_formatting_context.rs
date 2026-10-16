@@ -2093,6 +2093,10 @@ impl<'context> InlineFormattingContext<'context> {
             self.automatic_content_inline_size = inline_size;
             self.run.records.note_omitted_line_layout();
             self.callbacks.arena().note_intrinsic_inline_measurement();
+            self.callbacks
+                .arena()
+                .layout_trace
+                .inline_size_from_items(self.containing_block);
             iterator.stash_for_reuse(self);
         } else {
             self.generate_line_boxes(iterator);
