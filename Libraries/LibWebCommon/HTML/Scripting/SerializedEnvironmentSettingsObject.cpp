@@ -16,6 +16,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedWindow const& window
 {
     TRY(encoder.encode(window.associated_document.url));
     TRY(encoder.encode(window.associated_document.relevant_settings_object_is_secure_context));
+    TRY(encoder.encode(window.associated_document.relevant_settings_object_policy_container));
 
     return {};
 }
@@ -27,6 +28,7 @@ ErrorOr<Web::HTML::SerializedWindow> decode(Decoder& decoder)
         .associated_document {
             .url = TRY(decoder.decode<URL::URL>()),
             .relevant_settings_object_is_secure_context = TRY(decoder.decode<bool>()),
+            .relevant_settings_object_policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
         },
     };
 }
@@ -35,6 +37,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedWorkerGlobalScope const& worker_global_scope)
 {
     TRY(encoder.encode(worker_global_scope.relevant_settings_object_is_secure_context));
+    TRY(encoder.encode(worker_global_scope.relevant_settings_object_policy_container));
     TRY(encoder.encode(worker_global_scope.is_supported_animation_frame_provider));
     return {};
 }
@@ -44,6 +47,7 @@ ErrorOr<Web::HTML::SerializedWorkerGlobalScope> decode(Decoder& decoder)
 {
     return Web::HTML::SerializedWorkerGlobalScope {
         .relevant_settings_object_is_secure_context = TRY(decoder.decode<bool>()),
+        .relevant_settings_object_policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
         .is_supported_animation_frame_provider = TRY(decoder.decode<bool>()),
     };
 }
