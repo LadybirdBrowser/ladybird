@@ -26,6 +26,8 @@ use super::fast_hash::FastSet as HashSet;
 use smallvec::SmallVec;
 use std::cmp::Ordering;
 use std::num::NonZeroU32;
+use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 
 use super::capacity::capacity_bytes;
 use super::column::BitColumn;
@@ -255,6 +257,8 @@ pub(super) struct TreeRelationStaging {
     touched_first_children: Vec<StyleNodeID>,
     dirty_first_children: Vec<StyleNodeID>,
     applied: bool,
+    /// How many rows are staged, which the document's host reads: each may deepen the tree by a level once settled.
+    staged_rows: Arc<AtomicU32>,
 }
 
 type StagedTreeRows = Vec<(StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)>;
@@ -321,8 +325,25 @@ impl TreeRelationStaging {
                 );
                 self.touched_rows.push(node);
                 self.dirty_rows.push(node);
+                self.staged_rows.store(
+                    u32::try_from(self.touched_rows.len()).unwrap_or(u32::MAX),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
             }
         }
+    }
+
+    /// Gives a fork a count of staged rows of its own in place of the one it shares with the host.
+    pub(super) fn detach_staged_rows_for_fork(&mut self) {
+        let staged = self.staged_rows.load(std::sync::atomic::Ordering::Relaxed);
+        self.staged_rows = Arc::new(AtomicU32::new(staged));
+    }
+
+    /// Keeps `staged_rows`, which the document's host reads, at how many rows are staged, rather than a count of the
+    /// staging's own. Nothing is staged yet.
+    pub(super) fn share_staged_rows(&mut self, staged_rows: Arc<AtomicU32>) {
+        debug_assert!(self.touched_rows.is_empty());
+        self.staged_rows = staged_rows;
     }
 
     pub(super) fn stage_first_child(
@@ -427,7 +448,12 @@ impl TreeRelationStaging {
     }
 
     pub(super) fn clear(&mut self) {
-        *self = Self::default();
+        let staged_rows = std::mem::take(&mut self.staged_rows);
+        staged_rows.store(0, std::sync::atomic::Ordering::Relaxed);
+        *self = Self {
+            staged_rows,
+            ..Self::default()
+        };
     }
 
     pub(super) fn capacity_bytes(&self) -> u64 {
@@ -700,9 +726,36 @@ pub struct StyleNodeTree {
 
     #[cfg(test)]
     depth_recompute_visits: usize,
+    /// The depth of the deepest element the tree ever held, which the document's host reads.
+    deepest_element: Arc<AtomicU32>,
 }
 
 impl StyleNodeTree {
+    /// Raises `deepest_element`, which the document's host reads, to the depth of the deepest element the tree holds
+    /// from now on, rather than a count of the tree's own.
+    pub(super) fn share_deepest_element(&mut self, deepest_element: Arc<AtomicU32>) {
+        deepest_element.fetch_max(
+            self.deepest_element.load(std::sync::atomic::Ordering::Relaxed),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        self.deepest_element = deepest_element;
+    }
+
+    /// Gives a fork a depth of its own in place of the one it shares with the host.
+    pub(super) fn detach_deepest_element_for_fork(&mut self) {
+        let deepest = self.deepest_element.load(std::sync::atomic::Ordering::Relaxed);
+        self.deepest_element = Arc::new(AtomicU32::new(deepest));
+    }
+
+    /// Notes that an element of the tree is `depth` deep.
+    #[inline]
+    fn note_element_depth(&self, depth: u32) {
+        if depth > self.deepest_element.load(std::sync::atomic::Ordering::Relaxed) {
+            self.deepest_element
+                .fetch_max(depth, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
     pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
         let mut visited = 0_u64;
         if let Some(shadow) = &self.shadow {
@@ -749,6 +802,7 @@ impl StyleNodeTree {
             dom_order_version: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
+            deepest_element: Arc::default(),
         };
         // Slot 0 is never a valid identity; reserving it keeps column indexing direct.
         tree.parent.push(None);
@@ -1337,8 +1391,10 @@ impl StyleNodeTree {
             let mut next = Some(node);
             while let Some(descendant) = next {
                 let descendant_index = self.live_element_index(descendant);
-                self.depth[descendant_index] = u32::try_from(i64::from(self.depth[descendant_index]) + adjustment)
+                let depth = u32::try_from(i64::from(self.depth[descendant_index]) + adjustment)
                     .expect("style tree depth exhausted");
+                self.note_element_depth(depth);
+                self.depth[descendant_index] = depth;
                 next = self.first_element_child[descendant_index].or_else(|| {
                     let mut candidate = descendant;
                     loop {
@@ -1371,9 +1427,11 @@ impl StyleNodeTree {
                 self.depth_recompute_visits += 1;
             }
             let index = self.live_element_index(node);
-            self.depth[index] = self.parent[index].map_or(0, |parent| {
+            let depth = self.parent[index].map_or(0, |parent| {
                 self.depth(parent).checked_add(1).expect("style tree depth exhausted")
             });
+            self.note_element_depth(depth);
+            self.depth[index] = depth;
             next = self.first_element_child[index].or_else(|| {
                 let mut candidate = node;
                 loop {

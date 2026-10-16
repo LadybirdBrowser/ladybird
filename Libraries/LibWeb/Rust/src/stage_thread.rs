@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The threads a document's rendering runs on beside the host's: the StyleLayout thread, which every document's
-//! render state lives on, and the Paint thread, which records display lists from the frames the render states publish.
+//! The threads a document's rendering runs on beside the host's: the StyleLayout thread, which runs the jobs on every
+//! document's render state that the host does not run itself, and the Paint thread, which records display lists from
+//! the frames the render states publish.
 //!
 //! There is one of each per process, spawned the first time it is handed a job. A WebContent process runs every
 //! document it hosts on its one main thread, so a thread per process is also a thread per event loop. The host waits
@@ -19,11 +20,12 @@
 //! threads that run.
 
 use crate::render_state::TaskBoundary;
-use std::cell::{Cell, UnsafeCell};
+use smallvec::SmallVec;
+use std::cell::{Cell, RefCell, UnsafeCell};
 use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::thread::Thread;
 
@@ -68,6 +70,26 @@ struct Shared {
     handed: AtomicPtr<JobHeader>,
     /// What names the thread to ThreadSanitizer, which sees the ordering the hand-off gives only through it.
     tsan_key: AtomicBool,
+}
+
+impl Shared {
+    /// Notes that a job has run, which `unfinished` counted among those its thread made, before the thread tells
+    /// whoever waits for it.
+    fn note_ran(&self, unfinished: Option<Arc<AtomicUsize>>) {
+        tsan::release(&self.tsan_key);
+        if let Some(unfinished) = unfinished {
+            unfinished.fetch_sub(1, Ordering::Release);
+        }
+    }
+}
+
+/// How many of the jobs a thread made for each stage thread have yet to run, by the address of what the stage thread
+/// shares.
+type UnfinishedJobCounts = SmallVec<[(usize, Arc<AtomicUsize>); 2]>;
+
+thread_local! {
+    /// How many of the jobs the calling thread made for each stage thread have yet to run.
+    static UNFINISHED_HANDED: RefCell<UnfinishedJobCounts> = RefCell::new(SmallVec::new());
 }
 
 static THREAD_SETUP: OnceLock<extern "C" fn()> = OnceLock::new();
@@ -117,7 +139,7 @@ impl StageThread {
                         // it runs, as the thread that handed it may leave the frame it is in once it is done.
                         unsafe {
                             next = job.as_ref().next.get();
-                            (job.as_ref().run)(job, &shared.tsan_key);
+                            (job.as_ref().run)(job, shared);
                         }
                     }
                 }
@@ -142,7 +164,10 @@ impl StageThread {
             return job();
         }
         let mut answer = None;
-        let job = JobInFrame::new(|| answer = Some(std::panic::catch_unwind(AssertUnwindSafe(job))));
+        let job = JobInFrame::new(
+            || answer = Some(std::panic::catch_unwind(AssertUnwindSafe(job))),
+            self.count_unfinished(),
+        );
         self.hand(NonNull::from(&job).cast());
         wait_for(|| job.done.load(Ordering::Acquire).then_some(()));
         tsan::acquire(&self.shared.tsan_key);
@@ -174,7 +199,7 @@ impl StageThread {
         let flight = Flight::pending();
         let parked = ParkedJob {
             thread: self,
-            header: SubmittedJob::give_up(job, Arc::clone(&flight)),
+            header: SubmittedJob::give_up(job, Arc::clone(&flight), self.count_unfinished()),
         };
         let flight = InFlight {
             flight,
@@ -186,7 +211,7 @@ impl StageThread {
     /// Posts `job` to this thread and goes on: the job owns what it reads, runs after the jobs handed to the thread
     /// before it, and answers nothing. A job posted from this thread runs once the job it is posted from is done.
     pub(crate) fn post(&self, job: impl FnOnce() + Send + 'static) {
-        self.hand(PostedJob::give_up(job));
+        self.hand(PostedJob::give_up(job, self.count_unfinished()));
     }
 
     /// Hands the job `header` heads to this thread, which runs it after the jobs handed to it before.
@@ -206,6 +231,45 @@ impl StageThread {
             self.thread.unpark();
         }
     }
+
+    /// Counts a job the calling thread makes for this thread among those that have yet to run, which the job uncounts
+    /// once it has run.
+    fn count_unfinished(&self) -> Arc<AtomicUsize> {
+        let key = self.key();
+        UNFINISHED_HANDED.with_borrow_mut(|unfinished| {
+            let count = match unfinished.iter().find(|(of, _)| *of == key) {
+                Some((_, count)) => Arc::clone(count),
+                None => {
+                    let count = Arc::new(AtomicUsize::new(0));
+                    unfinished.push((key, Arc::clone(&count)));
+                    count
+                }
+            };
+            count.fetch_add(1, Ordering::Relaxed);
+            count
+        })
+    }
+
+    /// Whether this thread has run every job the calling thread made for it, so that nothing the calling thread asked
+    /// of it waits to run.
+    pub(crate) fn ran_every_job_handed_from_here(&self) -> bool {
+        let key = self.key();
+        let done = UNFINISHED_HANDED.with_borrow(|unfinished| {
+            unfinished
+                .iter()
+                .find(|(of, _)| *of == key)
+                .is_none_or(|(_, count)| count.load(Ordering::Acquire) == 0)
+        });
+        if done {
+            tsan::acquire(&self.shared.tsan_key);
+        }
+        done
+    }
+
+    /// The key the calling thread counts the jobs it made for this thread by.
+    fn key(&self) -> usize {
+        std::ptr::from_ref(self.shared).addr()
+    }
 }
 
 /// Relinks the jobs a stage thread took, the last one handed `last` and each linked to the one handed before it, so
@@ -222,9 +286,11 @@ fn in_handed_order(last: NonNull<JobHeader>) -> NonNull<JobHeader> {
 
 /// What a stage thread knows of a job handed to it: how to run it, which the job's kind says.
 struct JobHeader {
-    /// Runs the job this header heads, and tells whoever takes its answer that it is done, after it has released the
-    /// thread's ThreadSanitizer key it is handed.
-    run: unsafe fn(NonNull<JobHeader>, &AtomicBool),
+    /// Runs the job this header heads, and tells whoever takes its answer that it is done, after it has noted on the
+    /// thread's shared state that it ran.
+    run: unsafe fn(NonNull<JobHeader>, &Shared),
+    /// The count of unfinished jobs of the thread that made the job, which the job is counted in until it has run.
+    unfinished: Cell<Option<Arc<AtomicUsize>>>,
     /// Until the stage thread takes the job, the job handed to it before this one and not taken yet; then, the job it
     /// runs after this one.
     next: Cell<Option<NonNull<JobHeader>>>,
@@ -243,10 +309,11 @@ struct JobInFrame<F> {
 
 impl<F: FnOnce() + Send> JobInFrame<F> {
     /// A job the calling thread is to hand out and wait for.
-    fn new(job: F) -> Self {
+    fn new(job: F, unfinished: Arc<AtomicUsize>) -> Self {
         Self {
             header: JobHeader {
                 run: Self::run_handed,
+                unfinished: Cell::new(Some(unfinished)),
                 next: Cell::new(None),
             },
             waiting: UnsafeCell::new(Some(std::thread::current())),
@@ -261,16 +328,18 @@ impl<F: FnOnce() + Send> JobInFrame<F> {
     ///
     /// `header` must head a live `JobInFrame<F>` that was handed out to the calling thread and is not done yet, which
     /// nothing else reaches meanwhile.
-    unsafe fn run_handed(header: NonNull<JobHeader>, tsan_key: &AtomicBool) {
+    unsafe fn run_handed(header: NonNull<JobHeader>, shared: &Shared) {
         let job = header.cast::<Self>();
         // SAFETY: Guaranteed by the caller: the thread that handed the job out reaches none of it until `done`.
+        let unfinished = unsafe { job.as_ref() }.header.unfinished.take();
+        // SAFETY: As above.
         let waiting = unsafe {
             if let Some(run) = (*job.as_ref().job.get()).take() {
                 run();
             }
             (*job.as_ref().waiting.get()).take()
         };
-        tsan::release(tsan_key);
+        shared.note_ran(unfinished);
         // SAFETY: As above. The waiting thread may leave the frame the job is in as soon as it sees `done`.
         unsafe { job.as_ref() }.done.store(true, Ordering::Release);
         if let Some(waiting) = waiting {
@@ -305,10 +374,11 @@ struct SubmittedJob<F, R> {
 
 impl<F: FnOnce(&StopWord) -> R + Send, R: Send> SubmittedJob<F, R> {
     /// The header of `job` on the heap, which the stage thread it is handed to frees, and lands in `flight`.
-    fn give_up(job: F, flight: Arc<Flight<R>>) -> NonNull<JobHeader> {
+    fn give_up(job: F, flight: Arc<Flight<R>>, unfinished: Arc<AtomicUsize>) -> NonNull<JobHeader> {
         let job = Box::new(Self {
             header: JobHeader {
                 run: Self::run_submitted,
+                unfinished: Cell::new(Some(unfinished)),
                 next: Cell::new(None),
             },
             job,
@@ -322,12 +392,12 @@ impl<F: FnOnce(&StopWord) -> R + Send, R: Send> SubmittedJob<F, R> {
     /// # Safety
     ///
     /// `header` must come from [`Self::give_up`], and be handed out to the calling thread only.
-    unsafe fn run_submitted(header: NonNull<JobHeader>, tsan_key: &AtomicBool) {
+    unsafe fn run_submitted(header: NonNull<JobHeader>, shared: &Shared) {
         // SAFETY: Guaranteed by the caller: the submitting thread gave the job up.
         let job = unsafe { Box::from_raw(header.cast::<Self>().as_ptr()) };
-        let Self { job, flight, .. } = *job;
+        let Self { header, job, flight } = *job;
         let answer = std::panic::catch_unwind(AssertUnwindSafe(|| job(&flight.stop)));
-        tsan::release(tsan_key);
+        shared.note_ran(header.unfinished.take());
         flight.land(answer);
         if let Some(finished) = FLIGHT_FINISHED.get() {
             finished();
@@ -345,10 +415,11 @@ struct PostedJob<F> {
 
 impl<F: FnOnce() + Send> PostedJob<F> {
     /// The header of `job` on the heap, which the stage thread it is handed to frees.
-    fn give_up(job: F) -> NonNull<JobHeader> {
+    fn give_up(job: F, unfinished: Arc<AtomicUsize>) -> NonNull<JobHeader> {
         let job = Box::new(Self {
             header: JobHeader {
                 run: Self::run_posted,
+                unfinished: Cell::new(Some(unfinished)),
                 next: Cell::new(None),
             },
             job,
@@ -361,13 +432,14 @@ impl<F: FnOnce() + Send> PostedJob<F> {
     /// # Safety
     ///
     /// `header` must come from [`Self::give_up`], and be handed out to the calling thread only.
-    unsafe fn run_posted(header: NonNull<JobHeader>, tsan_key: &AtomicBool) {
+    unsafe fn run_posted(header: NonNull<JobHeader>, shared: &Shared) {
         // SAFETY: Guaranteed by the caller: the posting thread gave the job up.
         let job = unsafe { Box::from_raw(header.cast::<Self>().as_ptr()) };
-        if std::panic::catch_unwind(AssertUnwindSafe(job.job)).is_err() {
+        let Self { header, job } = *job;
+        if std::panic::catch_unwind(AssertUnwindSafe(job)).is_err() {
             std::process::abort();
         }
-        tsan::release(tsan_key);
+        shared.note_ran(header.unfinished.take());
     }
 }
 
@@ -619,7 +691,7 @@ fn wait_for<T>(mut ready: impl FnMut() -> Option<T>) -> T {
 
 static STYLE_LAYOUT_THREAD: OnceLock<StageThread> = OnceLock::new();
 
-/// The StyleLayout thread, which every document's render state lives on.
+/// The StyleLayout thread, which runs the jobs on every document's render state that the host does not run itself.
 pub(crate) fn style_layout_thread() -> &'static StageThread {
     STYLE_LAYOUT_THREAD.get_or_init(|| StageThread::spawn("StyleLayout"))
 }
@@ -704,6 +776,40 @@ mod tests {
             posted.fetch_add(1, Ordering::Relaxed);
         });
         assert_eq!(test_thread().run(|| ran.load(Ordering::Relaxed)), 1);
+    }
+
+    #[test]
+    fn a_thread_knows_whether_the_jobs_it_handed_have_run() {
+        let (open, wait) = gate();
+        test_thread().post(wait);
+        test_thread().post(|| ());
+        assert!(
+            !test_thread().ran_every_job_handed_from_here(),
+            "a posted job waits behind the gate"
+        );
+        let other = std::thread::spawn(|| test_thread().ran_every_job_handed_from_here());
+        assert!(
+            other.join().unwrap_or_default(),
+            "another thread handed the stage thread nothing"
+        );
+        open.store(true, Ordering::Release);
+        while !test_thread().ran_every_job_handed_from_here() {
+            std::thread::yield_now();
+        }
+        test_thread().post(|| ());
+        test_thread().run(|| ());
+        assert!(
+            test_thread().ran_every_job_handed_from_here(),
+            "a job the thread waited for ran after the jobs it handed before"
+        );
+        let (flight, parked) = test_thread().park(|_| 7u32);
+        assert!(
+            !test_thread().ran_every_job_handed_from_here(),
+            "a parked job counts for the thread that made it"
+        );
+        let _ = std::thread::spawn(move || drop(parked)).join();
+        assert_eq!(flight.join(()), 7);
+        assert!(test_thread().ran_every_job_handed_from_here());
     }
 
     #[test]

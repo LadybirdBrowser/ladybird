@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StackInfo.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
@@ -34,4 +35,12 @@ ForcedReadScope::ForcedReadScope(DOM::Document const& document)
 {
 }
 
+}
+
+// The lowest address of the calling thread's stack, which the render state asks for before it runs a job on a host's
+// thread rather than the StyleLayout thread's larger stack.
+extern "C" FlatPtr web_current_thread_stack_base();
+extern "C" FlatPtr web_current_thread_stack_base()
+{
+    return AK::StackInfo {}.base();
 }

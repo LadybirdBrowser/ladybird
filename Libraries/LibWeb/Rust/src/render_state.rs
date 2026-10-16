@@ -61,6 +61,7 @@ impl RenderState {
         engine.share_element_random_base_values_exist(shared.element_random_base_values_exist);
         engine.share_declaration_block_versions(shared.declaration_block_versions);
         engine.share_container_effects_held(shared.container_effects_held);
+        engine.share_tree_depth(shared.deepest_element, shared.staged_tree_rows);
         let engine = StyleEngineHandle::create(engine);
         arena
             .arena_mut()
@@ -108,6 +109,7 @@ impl RenderState {
     pub(crate) fn fork(&self) -> RenderFork {
         let mut engine = Box::new(self.engine_ref().clone());
         engine.detach_host_flags_for_fork();
+        engine.detach_tree_depth_for_fork();
         let engine = StyleEngineHandle::create(engine);
         let arena = Box::new(self.arena.fork(engine));
         RenderFork(std::mem::ManuallyDrop::new(Self {
@@ -729,14 +731,73 @@ impl ChangeQueue {
     }
 }
 
-/// Runs `job` on the render owner, the StyleLayout thread, and waits for it, so it may borrow from the calling frame. A
-/// job handed from that thread itself, as a host callback's while the owner runs another job, runs right there, and a
-/// unit test's jobs run on the test's own thread.
-fn on_render_side<R: Send>(job: impl FnOnce() -> R + Send) -> R {
+/// Runs `job` on the render owner and waits for it, so it may borrow from the calling frame. A job handed from the
+/// owner itself, as a host callback's while the owner runs another job, runs right there, and a unit test's jobs run on
+/// the test's own thread.
+///
+/// The calling thread becomes the owner for the job where it waits for nothing the StyleLayout thread runs: that thread
+/// has run every job the calling thread made for it, so the job comes after them as it would there, and the calling
+/// thread's stack has room for the job to recurse through a tree `tree_depth` levels deep. Otherwise the StyleLayout
+/// thread runs it.
+fn on_render_side<R: Send>(tree_depth: u32, job: impl FnOnce() -> R + Send) -> R {
     if cfg!(test) {
         return job();
     }
-    crate::stage_thread::style_layout_thread().run(job)
+    let thread = crate::stage_thread::style_layout_thread();
+    if thread.is_current() || owner::is_held_here() {
+        return job();
+    }
+    // OPTIMIZATION: A host waits for a job it hands the StyleLayout thread anyway, so running it right here saves both
+    //               threads a hand-off, which costs more than a small job such as a forced layout read takes.
+    if thread.ran_every_job_handed_from_here() && stack_has_room_for_render_job(tree_depth) {
+        return owner::hold(job);
+    }
+    thread.run(job)
+}
+
+/// Waits until the StyleLayout thread has run the jobs handed to it before. A thread that holds the render owner's slot
+/// waits for nothing: no job on the render states runs elsewhere meanwhile, and one waiting for the slot waits for it.
+fn wait_for_render_side() {
+    if cfg!(test) || owner::is_held_here() {
+        return;
+    }
+    crate::stage_thread::style_layout_thread().run(|| ());
+}
+
+/// Whether the calling thread's stack has room for a job on a render state that recurses through a tree `tree_depth`
+/// levels deep. Only the StyleLayout thread's stack is large enough for any tree.
+#[cfg(not(test))]
+fn stack_has_room_for_render_job(tree_depth: u32) -> bool {
+    /// The stack a job on a render state takes at most per level of the tree it recurses through, as it builds and
+    /// lays out boxes, with room to spare for the boxes a level adds: release builds took about 1.5 KiB per element,
+    /// and debug builds about 2 KiB.
+    const STACK_PER_TREE_LEVEL: usize = 16 * 1024;
+    /// The stack a job on a render state takes beside its recursion through the tree, with room to spare.
+    const STACK_BESIDE_RECURSION: usize = 1024 * 1024;
+    unsafe extern "C" {
+        fn web_current_thread_stack_base() -> usize;
+    }
+    thread_local! {
+        static STACK_BASE: Cell<usize> = const { Cell::new(0) };
+    }
+    let mut base = STACK_BASE.get();
+    if base == 0 {
+        // SAFETY: The function only reads the calling thread's stack bounds.
+        base = unsafe { web_current_thread_stack_base() };
+        STACK_BASE.set(base);
+    }
+    let here = 0u8;
+    let free = std::ptr::from_ref(&here).addr().saturating_sub(base);
+    usize::try_from(tree_depth)
+        .ok()
+        .and_then(|depth| depth.checked_mul(STACK_PER_TREE_LEVEL))
+        .and_then(|recursion| recursion.checked_add(STACK_BESIDE_RECURSION))
+        .is_some_and(|needed| free > needed)
+}
+
+#[cfg(test)]
+fn stack_has_room_for_render_job(_: u32) -> bool {
+    false
 }
 
 /// Posts `job` to the render owner, which runs it after the jobs handed to it before, and goes on. A unit test's job

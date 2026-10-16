@@ -728,7 +728,7 @@ impl DocumentHost {
                 });
                 None
             }
-            None => Some(on_render_side(move || super::clock::take_lanes_in(&ticks, update))),
+            None => Some(on_render_side(0, move || super::clock::take_lanes_in(&ticks, update))),
         };
         // A same-process iframe's lanes hear of the pointer from the lanes of the document around it, which handed them
         // nothing of a newer move the compositor told that document of: the pointer may have gone elsewhere, and the
@@ -960,7 +960,8 @@ impl DocumentHost {
                     .as_slice()
                     .iter()
                     .any(|change| !change.keeps_the_presented_frame());
-            let answer = on_render_side(move || {
+            let tree_depth = self.tree_depth_bound(changes.as_slice());
+            let answer = on_render_side(tree_depth, move || {
                 if moves_state {
                     super::clock::note_host_write(document);
                 }
@@ -984,6 +985,26 @@ impl DocumentHost {
         // learn from the queue.
         self.pay(owed);
         answer
+    }
+
+    /// How deep the document's style tree may be once a job applies `changes`: as deep as its deepest element ever was,
+    /// and a level deeper for each relation row the engine staged and has not settled, and for each tree delta of
+    /// `changes`.
+    fn tree_depth_bound(&self, changes: &[ArenaChange]) -> u32 {
+        let queued_tree_deltas = changes
+            .iter()
+            .map(|change| match change {
+                ArenaChange::Engine(crate::css::style::engine_calls::EngineWrite::ApplyTransaction(input)) => {
+                    input.tree_delta_count()
+                }
+                _ => 0,
+            })
+            .sum::<usize>();
+        self.shared
+            .deepest_element
+            .load(Ordering::Relaxed)
+            .saturating_add(self.shared.staged_tree_rows.load(Ordering::Relaxed))
+            .saturating_add(u32::try_from(queued_tree_deltas).unwrap_or(u32::MAX))
     }
 
     /// Answers `read` of the document's render state, spending `wait`, as of every write the host queued. A read leaves

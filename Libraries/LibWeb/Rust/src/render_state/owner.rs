@@ -6,11 +6,12 @@
 
 //! The render owner: whichever thread holds the slot every document's render state lives in.
 //!
-//! The StyleLayout thread holds the slot for the jobs it runs. A thread holds the slot only for the length of a job,
-//! never between them, so no thread waits for another to run script. The host names its document's state by the
-//! [`DocumentId`] it minted, and reaches it only with a job. The owner makes a state the first time a job reaches it,
-//! from what the host's [`StateSeed`] says, so a document that never sends its state anything never makes one, and
-//! drops it with the job that retires it.
+//! The StyleLayout thread holds the slot for the jobs it runs, and a host's thread holds it for a job it runs itself,
+//! while it waits for nothing the StyleLayout thread runs (see [`super::on_render_side`]). A thread holds the slot only
+//! for the length of a job, never between them, so no thread waits for another to run script. The host names its
+//! document's state by the [`DocumentId`] it minted, and reaches it only with a job. The owner makes a state the first
+//! time a job reaches it, from what the host's [`StateSeed`] says, so a document that never sends its state anything
+//! never makes one, and drops it with the job that retires it.
 
 use super::RenderState;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -46,6 +47,11 @@ pub(crate) struct SharedWithHost {
     pub(super) container_effects_held: Arc<AtomicBool>,
     /// The versions the state's style engine mints declaration blocks from, which the host mints from as well.
     pub(super) declaration_block_versions: Arc<AtomicU32>,
+    /// The depth of the deepest element the state's style tree ever held.
+    pub(super) deepest_element: Arc<AtomicU32>,
+    /// How many relation rows the state's style engine staged and has not settled yet, each of which may deepen the
+    /// tree by a level.
+    pub(super) staged_tree_rows: Arc<AtomicU32>,
 }
 
 impl SharedWithHost {

@@ -136,6 +136,8 @@ RENDER_STATE_ALLOWED = {
         "per-thread count of the holds of the render owner's slot the thread is in",
         ["render_state/owner.rs:HOLDS"],
     ),
+    f"{RENDER_STATE_CRATE}/src/render_state.rs:STACK_BASE": "per-thread cache of the thread's own stack bounds",
+    f"{RENDER_STATE_CRATE}/src/stage_thread.rs:UNFINISHED_HANDED": "per-thread count of the jobs the thread made for each stage thread that have yet to run",
     **render_state_entries(
         BUILT_ONCE,
         [
