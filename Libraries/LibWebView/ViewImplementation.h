@@ -599,8 +599,8 @@ protected:
         Load,
         HistoryTraversal,
     };
-    u64 begin_webdriver_navigation(WebDriverNavigationCompletionSource, Optional<Web::HTML::CrossProcessId> history_operation_id = {});
-    void complete_webdriver_navigation(u64 navigation_id);
+    void begin_webdriver_navigation(WebDriverNavigationCompletionSource, Optional<Web::HTML::CrossProcessId> history_operation_id = {});
+    void complete_webdriver_navigation();
     void complete_webdriver_history_traversal(Web::HTML::CrossProcessId operation_id);
     void update_navigation_action_state();
     void did_not_apply_reload();
@@ -845,13 +845,11 @@ protected:
     // canonical traversable's ongoing navigation record.
     struct WebDriverNavigationObservation {
         WebDriverNavigationCompletionSource completion_source;
-        u64 navigation_id { 0 };
         Optional<Web::HTML::CrossProcessId> history_operation_id;
         bool history_operation_completed { false };
         bool load_completed { false };
     };
     Optional<WebDriverNavigationObservation> m_webdriver_navigation_observation;
-    u64 m_next_webdriver_navigation_id { 1 };
     Optional<NavigationToRetry> m_last_stopped_navigation;
 
     size_t m_crash_count = 0;
