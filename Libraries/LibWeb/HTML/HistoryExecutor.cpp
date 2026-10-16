@@ -276,12 +276,14 @@ void HistoryExecutor::enqueue_changing_navigable_continuation(CrossProcessId ope
 void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, Optional<Utf16String> finalized_navigation_id, bool ongoing_navigation_is_traversal, Optional<NavigationSourceSnapshot> navigation_source_snapshot, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
 {
     auto& operation = ensure_history_operation(operation_id);
-    auto pending_document = operation.pending_document;
-    // The update for a navigable's creation targets an entry the navigable retains, not the one the request gave.
+    // The job for the navigation this process finalizes claims the entry it created, with the document it populated.
+    // NB: The update for a navigable's creation targets an entry the navigable retains, not the one the request gave.
     RefPtr<SessionHistoryEntry> local_target_entry;
+    GC::Ptr<DOM::Document> pending_document;
     if (operation.local_target_navigable_id == navigable_id && navigation_type.has_value()) {
         VERIFY(operation.local_target_entry);
         local_target_entry = operation.local_target_entry;
+        pending_document = operation.pending_document;
     }
 
     auto navigable = local_navigable_with_id(navigable_id);
