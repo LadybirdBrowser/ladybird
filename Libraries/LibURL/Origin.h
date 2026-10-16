@@ -57,6 +57,9 @@ public:
     // https://html.spec.whatwg.org/multipage/browsers.html#same-site
     bool is_same_site(Origin const&) const;
 
+    // https://html.spec.whatwg.org/multipage/browsers.html#schemelessly-same-site
+    bool is_schemelessly_same_site(Origin const&) const;
+
     // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
     String serialize() const;
 
