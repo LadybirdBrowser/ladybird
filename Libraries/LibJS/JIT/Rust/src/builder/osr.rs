@@ -15,9 +15,10 @@
 //! Each back edge gets an entry block without predecessors that loads the
 //! slots live into the back edge instruction from the frame and then runs the
 //! instruction itself, or jumps to its block where the instruction starts it
-//! (as the tests at the bottom of loops do). Its edges are forward edges into
-//! the loop and the loop exit, so the values it loaded meet the other paths in
-//! phis.
+//! (as the tests at the bottom of loops do). Where the instruction jumps to the
+//! update step of a for loop, which leads to the loop's header, the entry runs
+//! that step itself instead. Its edges are forward edges into the loop and the
+//! loop exit, so the values it loaded meet the other paths in phis.
 
 use super::AbstractFrame;
 use super::Flow;
@@ -25,6 +26,7 @@ use super::GraphBuilder;
 use crate::CompileFailure;
 use crate::bytecode::OpCode;
 use crate::bytecode::RESERVED_REGISTER_COUNT;
+use crate::bytecode::cfg::BlockIndex;
 use crate::bytecode::cfg::Loop;
 
 /// Whether instructions with this opcode are loop back edges, which count
@@ -98,6 +100,9 @@ impl GraphBuilder<'_> {
             //     Unconditional back edges jump to their loop's header
             //     directly instead, since entering a block of the loop
             //     other than its header would make the loop irreducible.
+            //     Those of loops whose update step has a block of its own
+            //     (like for loops with a continue) jump to that step, which
+            //     the entry runs itself before it continues at the header.
             let opcode = self.function.instructions[index].instruction.opcode();
             let own_block = self
                 .function
@@ -108,6 +113,9 @@ impl GraphBuilder<'_> {
             if let Some(own_block) = own_block {
                 self.end_with_jump(own_block)?;
                 targets.push(own_block);
+            } else if let Some(update_block) = self.update_block_of_back_edge(index) {
+                self.build_bytecode_block(update_block)?;
+                targets.extend(self.function.cfg.blocks[update_block].successors.iter().copied());
             } else {
                 match self.build_instruction()? {
                     Flow::Ended => {}
@@ -138,6 +146,23 @@ impl GraphBuilder<'_> {
             }
         }
         Ok(())
+    }
+
+    /// The block that the unconditional back edge at instruction `index` jumps
+    /// to, if it is no loop header and leads to one and nowhere else.
+    fn update_block_of_back_edge(&self, index: usize) -> Option<BlockIndex> {
+        let instruction = &self.function.instructions[index].instruction;
+        if instruction.opcode() != OpCode::JumpLoop {
+            return None;
+        }
+        let mut target = None;
+        instruction.for_each_jump_target(|label| target = self.function.cfg.block_for_pc(label.0));
+        let cfg = &self.function.cfg;
+        let block = &cfg.blocks[target?];
+        match block.successors.as_slice() {
+            [successor] if !block.is_loop_header() && cfg.blocks[*successor].is_loop_header() => target,
+            _ => None,
+        }
     }
 
     /// Records the loop back edges in the loop of the back edge at `pc`, which
