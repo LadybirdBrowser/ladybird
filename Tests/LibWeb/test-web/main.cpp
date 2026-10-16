@@ -1006,7 +1006,7 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunContext& contex
 
         for (auto const& filter : accepted_file_types.filters) {
             filter.visit(
-                [](Web::HTML::FileFilter::FileType) {},
+                [](Web::HTML::FileFilter::FileType) { },
                 [&](Web::HTML::FileFilter::MimeType const& mime_type) {
                     if (mime_type.value == "text/plain"sv)
                         add_txt_files = true;

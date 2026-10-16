@@ -236,7 +236,7 @@ void compile_module_to_native(Module& module)
                     ++imported_function_count;
             },
             [&](FunctionType const&) { ++imported_function_count; },
-            [&](auto const&) {});
+            [&](auto const&) { });
     }
 
     size_t function_index = imported_function_count;

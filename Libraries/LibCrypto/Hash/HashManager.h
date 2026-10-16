@@ -182,7 +182,7 @@ public:
         auto size = m_pre_init_buffer.size();
         if (size) {
             m_algorithm.visit(
-                [&](Empty&) {},
+                [&](Empty&) { },
                 [&](auto& hash) { hash->update(m_pre_init_buffer); });
         }
         m_algorithm.visit(
@@ -210,7 +210,7 @@ public:
     {
         m_pre_init_buffer.clear();
         m_algorithm.visit(
-            [&](Empty&) {},
+            [&](Empty&) { },
             [&](auto& hash) { hash->reset(); });
     }
 

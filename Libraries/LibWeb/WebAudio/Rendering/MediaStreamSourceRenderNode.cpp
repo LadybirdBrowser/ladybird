@@ -30,7 +30,7 @@ void MediaStreamSourceRenderNode::handle_message(NodeMessage const& message)
             //     stride below can never disagree with the ring's layout.
             m_channel_count = m_ring ? m_ring->channel_count() : max(set_ring.channel_count, 1u);
         },
-        [](auto const&) {});
+        [](auto const&) { });
 }
 
 void MediaStreamSourceRenderNode::process(RenderGraph&, RenderContext const& context)

@@ -518,7 +518,7 @@ TEST_CASE(cache_partitions_do_not_share_entries)
                 [&](Optional<HTTP::CacheEntryReader&> reader) {
                     EXPECT(!reader.has_value());
                 },
-                [](HTTP::DiskCache::CacheHasOpenEntry) {});
+                [](HTTP::DiskCache::CacheHasOpenEntry) { });
     }
 
     auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));

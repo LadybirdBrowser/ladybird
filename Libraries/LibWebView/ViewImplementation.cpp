@@ -990,7 +990,7 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
             if (on_finish_handling_drag_event)
                 on_finish_handling_drag_event(event);
         },
-        [](auto const&) {});
+        [](auto const&) { });
 }
 
 void ViewImplementation::did_forward_input_event(Badge<WebContentPage>, WebContentPage const& reporting_page, u64 event_id, WebContentPage& endpoint)

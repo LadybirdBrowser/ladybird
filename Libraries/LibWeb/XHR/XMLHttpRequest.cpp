@@ -159,7 +159,7 @@ void XMLHttpRequest::visit_edges(Cell::Visitor& visitor)
     m_response_object.visit(
         [&](GC::Ref<DOM::Document> document) { visitor.visit(document); },
         [&](GC::Ref<FileAPI::Blob> blob) { visitor.visit(blob); },
-        [](auto const&) {});
+        [](auto const&) { });
     for (auto const& cached_response_object : m_cached_response_objects)
         visitor.visit(cached_response_object.object);
 }

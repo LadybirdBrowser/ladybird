@@ -212,8 +212,8 @@ void NavigationLoader::set_response_body_callbacks(Requests::Request& request)
             if (auto* loader = weak_this.ptr())
                 loader->did_acquire(true);
         },
-        [](Requests::ResponseData) {},
-        [](Core::ImmutableBytes) {},
+        [](Requests::ResponseData) { },
+        [](Core::ImmutableBytes) { },
         [weak_this](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError>) {
             if (auto* loader = weak_this.ptr())
                 loader->did_acquire(false);

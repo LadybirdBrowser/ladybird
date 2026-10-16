@@ -103,7 +103,7 @@ static GC::RootVector<JS::Value> custom_element_reaction_arguments_to_js(JS::Rea
     GC::RootVector<JS::Value> js_arguments;
 
     arguments.visit(
-        [](Empty) {},
+        [](Empty) { },
         [&](DOM::CustomElementAdoptedCallbackReactionArguments const& adopted_arguments) {
             js_arguments.append(Bindings::document(realm, adopted_arguments.old_document));
             js_arguments.append(Bindings::document(realm, adopted_arguments.new_document));

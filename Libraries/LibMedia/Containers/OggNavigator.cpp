@@ -88,8 +88,8 @@ AK::Duration OggNavigator::granule_to_time(i64 granule_position) const
 void OggNavigator::reset_packet_parser_state() const
 {
     m_codec_data.visit(
-        [](Opus const&) {},
-        [](FLAC const&) {},
+        [](Opus const&) { },
+        [](FLAC const&) { },
         [](Vorbis const& codec) {
             codec.parser.reset();
         });

@@ -55,7 +55,7 @@ void Body::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_sniff_bytes_callback);
     m_source.visit(
         [&](GC::Ref<FileAPI::Blob> const& blob) { visitor.visit(blob); },
-        [](auto const&) {});
+        [](auto const&) { });
 }
 
 void Body::append_sniff_bytes(ReadonlyBytes bytes)

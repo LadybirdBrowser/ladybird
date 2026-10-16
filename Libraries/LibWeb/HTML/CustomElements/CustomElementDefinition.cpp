@@ -16,7 +16,7 @@ void CustomElementDefinition::visit_edges(Visitor& visitor)
     for (auto& entry : m_construction_stack) {
         entry.visit(
             [&](GC::Ref<DOM::Element>& element) { visitor.visit(element); },
-            [&](AlreadyConstructedCustomElementMarker&) {});
+            [&](AlreadyConstructedCustomElementMarker&) { });
     }
 }
 

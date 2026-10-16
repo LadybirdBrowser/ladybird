@@ -814,13 +814,13 @@ void FormAssociatedElement::RareData::visit_edges(JS::Cell::Visitor& visitor)
         [&visitor](GC::Ref<FileAPI::File> file) {
             visitor.visit(file);
         },
-        [](auto&) {});
+        [](auto&) { });
 
     face_rare_data->state.visit(
         [&visitor](GC::Ref<FileAPI::File> file) {
             visitor.visit(file);
         },
-        [](auto&) {});
+        [](auto&) { });
 }
 
 // A user-agent shadow tree's inner elements share their default declarations, parsed once, but each

@@ -3109,7 +3109,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                             it->response->resume_body_delivery();
                         it->reserved_environment->discard_environment();
                     },
-                    [](auto const&) {});
+                    [](auto const&) { });
 
                 // FIXME: 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
             }

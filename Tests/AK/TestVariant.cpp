@@ -44,8 +44,8 @@ TEST_CASE(visit_const)
 
     the_value.visit(
         [&](ByteString const&) { correct = true; },
-        [&](auto&) {},
-        [&](auto const&) {});
+        [&](auto&) { },
+        [&](auto const&) { });
 
     EXPECT(correct);
 
@@ -53,7 +53,7 @@ TEST_CASE(visit_const)
     auto the_value_but_not_const = the_value;
     the_value_but_not_const.visit(
         [&](ByteString const&) { correct = true; },
-        [&](auto&) {});
+        [&](auto&) { });
 
     EXPECT(correct);
 

@@ -162,9 +162,9 @@ void MutationLog::append_changes(Utf16String const& database_name, Utf16String c
                 changes.deleted.append({ database_name, e.old_name });
                 changes.added.append({ database_name, object_store_name });
             },
-            [&](IndexCreated const&) {},
-            [&](IndexDeleted const&) {},
-            [&](IndexRenamed const&) {},
+            [&](IndexCreated const&) { },
+            [&](IndexDeleted const&) { },
+            [&](IndexRenamed const&) { },
             [&](KeyGeneratorChanged const&) {
             },
             [&](RecordsDeleted const& e) {
@@ -174,8 +174,8 @@ void MutationLog::append_changes(Utf16String const& database_name, Utf16String c
             [&](RecordStored const& e) {
                 append_stored_key(*e.key);
             },
-            [&](IndexRecordsDeleted const&) {},
-            [&](IndexRecordStored const&) {});
+            [&](IndexRecordsDeleted const&) { },
+            [&](IndexRecordStored const&) { });
     }
 
     for (auto const& key : stored_keys)

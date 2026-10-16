@@ -98,7 +98,7 @@ void ScheduledSourceRenderNode::handle_message(NodeMessage const& message)
             m_start_time_needs_clamping = true;
         },
         [&](StopSource const& stop_source) { m_stop_time = stop_source.when; },
-        [](auto const&) {});
+        [](auto const&) { });
 }
 
 // Marks this node as ended once the quantum has advanced past the stop time or the content was exhausted.
@@ -541,7 +541,7 @@ void BiquadFilterRenderNode::handle_message(NodeMessage const& message)
 {
     message.visit(
         [&](SetBiquadFilterType const& set_type) { m_type = set_type.type; },
-        [](auto const&) {});
+        [](auto const&) { });
 }
 
 void BiquadFilterRenderNode::process(RenderGraph& graph, RenderContext const& context)
@@ -912,7 +912,7 @@ void PannerRenderNode::handle_message(NodeMessage const& message)
 {
     message.visit(
         [&](SetPannerParameters const& parameters) { m_config = parameters; },
-        [](auto const&) {});
+        [](auto const&) { });
 }
 
 void PannerRenderNode::for_each_param(Function<void(RenderAudioParam&)> const& callback)

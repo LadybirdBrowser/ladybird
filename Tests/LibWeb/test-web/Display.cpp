@@ -251,7 +251,7 @@ void Display::render_live_display() const
         }
 
         t.lines(
-            [] {},
+            [] { },
             [&] {
                 t.counter({
                     { .label = "Pass"sv, .color = ::Test::LiveDisplay::Green, .value = pass_count },
@@ -261,7 +261,7 @@ void Display::render_live_display() const
                     { .label = "Crashed"sv, .color = ::Test::LiveDisplay::Magenta, .value = crashed_count },
                 });
             },
-            [] {},
+            [] { },
             [&] {
                 if (total_tests() == 0)
                     return;

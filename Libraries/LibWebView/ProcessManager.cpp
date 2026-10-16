@@ -63,8 +63,8 @@ StringView process_name_from_type(ProcessType type)
 }
 
 ProcessManager::ProcessManager()
-    : on_process_added([](Process&) {})
-    , on_process_exited([](Process&&, Optional<int>) {})
+    : on_process_added([](Process&) { })
+    , on_process_exited([](Process&&, Optional<int>) { })
     , m_process_monitor(ProcessMonitor([this](pid_t pid, Optional<int> exit_status) {
         if (auto process = remove_process(pid); process.has_value()) {
             process->save_crash_report(exit_status);
