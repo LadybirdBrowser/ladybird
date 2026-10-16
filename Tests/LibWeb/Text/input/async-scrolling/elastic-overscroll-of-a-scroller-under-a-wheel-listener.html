@@ -32,13 +32,13 @@
         // the scroller to its top and stretches it past there, while the page neither scrolls nor stretches.
         await internals.wheelThroughUIProcess(100, 100, 0, -100, true, "ongoing");
         await internals.wheelThroughUIProcess(100, 100, 0, -100, true, "ongoing");
-        println(`pulled past the top: scroller stretch=${internals.elasticOverscrollStretchY(scroller)} viewport stretch=${internals.elasticOverscrollStretchY()}`);
+        println(`pulled past the top: scroller stretch=${internals.compositorScrollState(scroller).stretch.y} viewport stretch=${internals.compositorScrollState().stretch.y}`);
         println(`scroller.scrollTop=${scroller.scrollTop} window.scrollY=${window.scrollY}`);
         println(`wheel events the page could have canceled: ${cancelableWheelEvents} of ${wheelEvents}`);
 
         await internals.wheelThroughUIProcess(100, 100, 0, 0, true, "ended");
-        while (internals.elasticOverscrollStretchY(scroller) !== 0)
+        while (internals.compositorScrollState(scroller).stretch.y !== 0)
             await animationFrame();
-        println(`sprung back: scroller stretch=${internals.elasticOverscrollStretchY(scroller)}`);
+        println(`sprung back: scroller stretch=${internals.compositorScrollState(scroller).stretch.y}`);
     });
 </script>

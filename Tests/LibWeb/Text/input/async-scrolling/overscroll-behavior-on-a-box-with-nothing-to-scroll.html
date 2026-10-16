@@ -29,7 +29,7 @@
         for (let frame = 0; frame < 6; frame++)
             await animationFrame();
         await scrollOffsetStopsChanging(() => `${pageOffset()},${scroller.scrollTop}`);
-        while (internals.elasticOverscrollStretchY(scroller) !== 0 || internals.elasticOverscrollStretchY() !== 0)
+        while (internals.compositorScrollState(scroller).stretch.y !== 0 || internals.compositorScrollState().stretch.y !== 0)
             await animationFrame();
     }
 

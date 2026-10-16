@@ -22,18 +22,18 @@
         // from, and stretches the page without asking the page first.
         await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
         await internals.wheelThroughUIProcess(400, 300, 0, -200, true, "ongoing");
-        println(`pulled past the top: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);
+        println(`pulled past the top: viewport stretch=${internals.compositorScrollState().stretch.y} window.scrollY=${window.scrollY}`);
         println(`wheel events the page could have canceled: ${cancelableWheelEvents} of ${wheelEvents}`);
 
         await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ended");
-        while (internals.elasticOverscrollStretchY() !== 0)
+        while (internals.compositorScrollState().stretch.y !== 0)
             await animationFrame();
-        println(`sprung back: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);
+        println(`sprung back: viewport stretch=${internals.compositorScrollState().stretch.y} window.scrollY=${window.scrollY}`);
 
         // A mouse wheel from the UI at the top of the page never stretches it.
         await internals.wheelThroughUIProcess(400, 300, 0, -400);
         await animationFrame();
         await animationFrame();
-        println(`mouse wheel: viewport stretch=${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY}`);
+        println(`mouse wheel: viewport stretch=${internals.compositorScrollState().stretch.y} window.scrollY=${window.scrollY}`);
     });
 </script>

@@ -30,7 +30,7 @@
 
         // A document in a frame passes a gesture it cannot scroll by on to the page instead of stretching.
         await internals.wheel(100, 100, 0, 100, true, "ongoing");
-        println(`after a gesture over the frame: window.scrollY=${window.scrollY} frame scrollY=${frameWindow.scrollY} viewport stretch=${internals.elasticOverscrollStretchY()}`);
+        println(`after a gesture over the frame: window.scrollY=${window.scrollY} frame scrollY=${frameWindow.scrollY} viewport stretch=${internals.compositorScrollState().stretch.y}`);
         await internals.wheel(100, 100, 0, 0, true, "ended");
     });
 </script>

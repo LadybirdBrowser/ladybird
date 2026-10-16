@@ -155,7 +155,8 @@ public:
     Optional<ScrollFlingStep> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     void set_scrolls_elastically(bool);
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
-    Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID) const;
+    // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
+    String scroll_state_for_testing(Web::AsyncScrollNodeStableID stretched_scroller) const;
     Web::InputTraceRecorder& input_trace() { return m_input_trace; }
     // Where the first step of a wheel gesture at the position, by the delta in CSS pixels, would go.
     Compositing::FirstWheelStepRouteForTesting route_first_wheel_step_for_testing(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels);

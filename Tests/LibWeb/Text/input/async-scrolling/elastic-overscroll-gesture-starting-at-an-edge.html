@@ -17,11 +17,11 @@
 <div id="nested"><div></div></div>
 <script>
     function printState(label) {
-        println(`${label}: viewport stretch=${internals.elasticOverscrollStretchX()},${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY} nested stretch=${internals.elasticOverscrollStretchY(nested)} nested.scrollTop=${nested.scrollTop}`);
+        println(`${label}: viewport stretch=${internals.compositorScrollState().stretch.x},${internals.compositorScrollState().stretch.y} window.scrollY=${window.scrollY} nested stretch=${internals.compositorScrollState(nested).stretch.y} nested.scrollTop=${nested.scrollTop}`);
     }
 
     async function viewportSprungBack() {
-        while (internals.elasticOverscrollStretchY() !== 0)
+        while (internals.compositorScrollState().stretch.y !== 0)
             await animationFrame();
     }
 

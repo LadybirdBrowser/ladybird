@@ -17,7 +17,7 @@
 <div id="nested"><div></div></div>
 <script>
     function printState(label) {
-        println(`${label}: nested.scrollTop=${nested.scrollTop} nested stretch=${internals.elasticOverscrollStretchY(nested)} window.scrollY=${window.scrollY} viewport stretch=${internals.elasticOverscrollStretchY()}`);
+        println(`${label}: nested.scrollTop=${nested.scrollTop} nested stretch=${internals.compositorScrollState(nested).stretch.y} window.scrollY=${window.scrollY} viewport stretch=${internals.compositorScrollState().stretch.y}`);
     }
 
     promiseTest(async () => {
@@ -33,7 +33,7 @@
 
         await internals.wheel(50, 50, 3, 100, true, "ongoing");
         printState("pulling at the edge");
-        println(`horizontal stretch: ${internals.elasticOverscrollStretchX(nested)}`);
+        println(`horizontal stretch: ${internals.compositorScrollState(nested).stretch.x}`);
 
         // Fingers moving back relax the stretch before they scroll.
         await internals.wheel(50, 50, 0, -100, true, "ongoing");

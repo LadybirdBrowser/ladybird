@@ -24,10 +24,10 @@
 
         // Precise deltas without a gesture phase never say when the fingers lift.
         await internals.wheel(50, 50, 0, 410, true, "none");
-        println(`precise wheel without a phase: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+        println(`precise wheel without a phase: nested.scrollTop=${nested.scrollTop} stretch=${internals.compositorScrollState(nested).stretch.y}`);
 
         await scrollSettled(nested, () => nested.scrollTo(0, 190));
         await scrollSettled(nested, () => internals.wheel(50, 50, 0, 410));
-        println(`mouse wheel: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+        println(`mouse wheel: nested.scrollTop=${nested.scrollTop} stretch=${internals.compositorScrollState(nested).stretch.y}`);
     });
 </script>
