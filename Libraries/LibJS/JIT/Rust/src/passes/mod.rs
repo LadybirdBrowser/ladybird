@@ -65,6 +65,10 @@ const PASSES: &[Pass] = &[
         run: simplify::run,
     },
     Pass {
+        name: "global value numbering",
+        run: gvn::run,
+    },
+    Pass {
         name: "check elimination",
         run: check_elimination::run,
     },

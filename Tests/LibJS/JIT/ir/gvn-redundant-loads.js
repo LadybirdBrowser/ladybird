@@ -11,7 +11,7 @@ jit.compile(sum);
 // CHECK-PASS: graph building
 // CHECK-COUNT-2: CheckShape
 // CHECK-COUNT-2: LoadNamed +0
-// CHECK-PASS: global value numbering
+// CHECK-PASS: global value numbering#2
 // CHECK-COUNT-1: CheckShape
 // CHECK-COUNT-1: LoadNamed
 // CHECK: [[VALUE:v[0-9]+]] = LoadNamed +0
