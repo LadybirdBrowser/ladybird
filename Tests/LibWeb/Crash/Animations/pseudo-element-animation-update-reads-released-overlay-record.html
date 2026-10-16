@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+@keyframes pulse {
+    from { filter: blur(0px); }
+    to { filter: blur(4px); }
+}
+@keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.pulsing::before {
+    content: "x";
+    animation: pulse 1s infinite;
+}
+.ending::after {
+    content: "x";
+}
+.ending.run::after {
+    animation: fade 60ms;
+}
+</style>
+<body>
+<script>
+    for (let i = 0; i < 5; ++i) {
+        const element = document.createElement("div");
+        element.className = "pulsing";
+        document.body.appendChild(element);
+    }
+    const ending = [];
+    for (let i = 0; i < 200; ++i) {
+        const element = document.createElement("div");
+        element.className = "ending";
+        document.body.appendChild(element);
+        ending.push(element);
+    }
+    document.body.offsetHeight;
+    for (const element of ending)
+        element.classList.add("run");
+    let remaining = ending.length;
+    document.body.addEventListener("animationend", () => --remaining);
+    function tick() {
+        document.body.scrollHeight;
+        if (remaining > 0)
+            requestAnimationFrame(tick);
+        else
+            document.documentElement.classList.remove("test-wait");
+    }
+    requestAnimationFrame(tick);
+</script>
+</html>

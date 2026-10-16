@@ -897,7 +897,7 @@ void AnimationUpdateContext::publish()
             // transition baseline once the publication is compared with it, and from its originating element, whose
             // entry may install first and recompute its pseudo-element styles. An element holds its record until it
             // installs the published one, but a pseudo-element holds it nowhere, so the update pins it until its own
-            // entry.
+            // entry ends.
             bool const may_record_baseline = style.animated_overlay() && !CSS::ComputedValuesFFI::rust_animated_overlay_is_empty(style.animated_overlay())
                 && document.is_in_style_stabilization_epoch();
             if (sample.element.pseudo_element().has_value())
@@ -919,8 +919,10 @@ void AnimationUpdateContext::publish()
             bool const republished = element.style_record_identity() != data.style_record_before_update;
             if (!republished && may_record_baseline && (document.style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation))
                 style_computer.record_transition_stabilization_baseline(element, data.style_record_before_update);
-            if (element.pseudo_element().has_value())
-                CSS::StyleEngineFFI::style_engine_unpin_style_record(style_computer.style_engine().host(), data.style_record_before_update.value());
+            ScopeGuard unpin_installed_record = [&] {
+                if (element.pseudo_element().has_value())
+                    CSS::StyleEngineFFI::style_engine_unpin_style_record(style_computer.style_engine().host(), data.style_record_before_update.value());
+            };
             if (republished)
                 continue;
             auto invalidation = CSS::decode_style_invalidation(animated_property_invalidation.invalidation);
