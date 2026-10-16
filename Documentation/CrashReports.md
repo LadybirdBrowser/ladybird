@@ -30,14 +30,15 @@ still awaiting review. While no browser window is active, the popover waits
 until one is. Browsers driven by WebDriver never ask. Ladybird automatically
 offers each report at most once; leaving the crash screen or the popover without
 answering keeps the report on the device without offering it again on a later
-launch. A report of a crash from more than 14 days ago, or from before October
-2, 2026 20:00 UTC, is never offered, but stays in the folder. Reports that have
-been offered move into a `Seen/` subdirectory, where the newest 20 are kept for
-reference. **Settings > Advanced > Crash reports > Open folder** remains
-available even when nothing has crashed. Reload restores the failed page without
-adding a crash-screen history entry; Back and Forward continue to use the
-original session history. The crash screen is native browser UI, so it does not
-depend on a web content process.
+launch. Dismissing the popover, or closing the tab opened for a review, does the
+same for every other report still waiting. A report of a crash from more than 14
+days ago, or from before October 2, 2026 20:00 UTC, is never offered, but stays
+in the folder. Reports that have been offered move into a `Seen/` subdirectory,
+where the newest 20 are kept for reference. **Settings > Advanced > Crash
+reports > Open folder** remains available even when nothing has crashed. Reload
+restores the failed page without adding a crash-screen history entry; Back and
+Forward continue to use the original session history. The crash screen is native
+browser UI, so it does not depend on a web content process.
 
 The review asks what the user was doing and lets them choose whether to send the
 report. Report details lists its main fields, such as the failure, signal,

@@ -57,8 +57,11 @@ void CrashReportNotifier::show_pending()
         return;
 
     // A newer report takes the place of one still on screen, wherever it is, which counts as offered.
-    if (m_popover)
+    if (m_popover) {
+        m_is_replacing_popover = true;
         m_popover->close();
+        m_is_replacing_popover = false;
+    }
     if (m_anchor)
         m_anchor->removeEventFilter(this);
     m_anchor = anchor;
@@ -71,11 +74,14 @@ void CrashReportNotifier::show_pending()
     m_popover->setAttribute(Qt::WA_DeleteOnClose);
 
     // The review marks the report as seen once it opens it. The popover is the report's one automatic prompt, so
-    // however else it is left, the report is not offered again.
+    // however else it is left, the report is not offered again. Leaving it also declines the reports still waiting,
+    // except when a newer report takes its place, which is about to be offered itself.
     m_popover->on_accept = [report_name] { Application::the().review_crash_report(report_name); };
-    m_popover->on_dismiss = [report_name] {
-        if (auto result = WebView::CrashReportStore::the().mark_seen(report_name); result.is_error())
-            warnln("Could not mark crash report as seen: {}", result.error());
+    m_popover->on_dismiss = [this, report_name] {
+        auto& store = WebView::CrashReportStore::the();
+        auto result = m_is_replacing_popover ? store.mark_seen(report_name) : store.mark_all_seen();
+        if (result.is_error())
+            warnln("Could not mark crash reports as seen: {}", result.error());
     };
 
     // The menu button's palette is transparent, so the popover takes its colors from the window instead.

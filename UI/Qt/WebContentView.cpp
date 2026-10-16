@@ -26,6 +26,7 @@
 #include <LibWebCommon/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
+#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/PlatformColors.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
@@ -1386,8 +1387,11 @@ void WebContentView::show_crash_report_review(Optional<ByteString> const& hidden
         return;
     }
     m_crash_report_review->on_exit = [this, is_hidden_crash] {
-        // The tab was opened only for the review, and a report on its way keeps going without it.
+        // The tab was opened only for the review, and a report on its way keeps going without it. Closing it also
+        // declines the reports still waiting, so none of them is offered again.
         if (is_hidden_crash) {
+            if (auto result = WebView::CrashReportStore::the().mark_all_seen(); result.is_error())
+                warnln("Could not mark crash reports as seen: {}", result.error());
             if (on_close)
                 on_close();
             return;

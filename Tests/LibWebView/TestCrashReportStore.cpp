@@ -154,6 +154,30 @@ TEST_CASE(a_seen_report_is_no_longer_pending)
     EXPECT(store.has_pending_reports(now));
 }
 
+TEST_CASE(marking_all_reports_seen_leaves_none_pending)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto older = report_name("2026-03-04T05-06-07Z"sv);
+    auto newer = report_name("2026-03-05T05-06-07Z"sv);
+    auto stale = report_name("2026-03-03T05-06-07Z"sv);
+    write_file(older, "Older report\n"sv);
+    write_file(newer, "Newer report\n"sv);
+    write_file(stale, "Stale report\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 1, 0, 0, 0, 0));
+    auto store = test_store();
+
+    MUST(store.mark_all_seen(now));
+    EXPECT(!store.has_pending_reports(now));
+    EXPECT_EQ(directory_entries(), Vector<ByteString> { stale });
+    EXPECT_EQ(directory_entries("Seen"sv).size(), 2u);
+    EXPECT_EQ(MUST(store.saved_report(older)).text, "Older report\n"sv);
+    EXPECT_EQ(MUST(store.saved_report(newer)).text, "Newer report\n"sv);
+
+    MUST(store.mark_all_seen(now));
+    EXPECT_EQ(directory_entries("Seen"sv).size(), 2u);
+}
+
 TEST_CASE(a_report_from_before_the_hard_cutoff_date_is_not_pending)
 {
     cleanup();

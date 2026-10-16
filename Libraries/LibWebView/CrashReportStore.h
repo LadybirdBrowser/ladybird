@@ -41,6 +41,7 @@ public:
 
     // Seen reports move into a subdirectory, where the newest of them are kept for reference and never offered again.
     ErrorOr<void> mark_seen(ByteString const& name) const;
+    ErrorOr<void> mark_all_seen(UnixDateTime now = UnixDateTime::now()) const;
     ErrorOr<void> remove_sent_report(ByteString const& name) const;
 
     ErrorOr<ByteString> store_report(ProcessType, StringView text, UnixDateTime crashed_at) const;
