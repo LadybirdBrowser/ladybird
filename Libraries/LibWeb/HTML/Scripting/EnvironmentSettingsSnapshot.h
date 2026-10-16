@@ -30,6 +30,7 @@ public:
     virtual GC::Ref<PolicyContainer> policy_container() const override { return m_policy_container; }
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return CanUseCrossOriginIsolatedAPIs::No; }
     virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
+    virtual CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const override { return m_agent_cluster_cross_origin_isolation_mode; }
     virtual double time_origin() const override { return m_time_origin; }
 
     // The global object of the environment this was taken from, which its own global object isn't: A snapshot runs in
@@ -45,6 +46,7 @@ private:
     bool m_has_cross_site_ancestor;
     GC::Ref<PolicyContainer> m_policy_container;
     Optional<u64> m_agent_cluster_id;
+    CrossOriginIsolationMode m_agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
     double m_time_origin { 0 };
     SerializedGlobal m_serialized_global;
 };

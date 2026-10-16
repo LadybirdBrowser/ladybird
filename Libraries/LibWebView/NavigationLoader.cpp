@@ -454,6 +454,7 @@ void NavigationLoader::set_document(CanonicalDocument const& document, Canonical
     }
     navigation_params->reserved_environment->id = window.relevant_settings_object().id();
     navigation_params->agent_cluster_id = window.agent().agent_cluster_id();
+    navigation_params->agent_cluster_cross_origin_isolation_mode = window.agent().agent_cluster_cross_origin_isolation_mode();
 
     if (&document.browsing_context() != &navigable.active_browsing_context())
         navigation_params->new_browsing_context_group_id = document.browsing_context().group()->id();

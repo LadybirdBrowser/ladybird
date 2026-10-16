@@ -11,6 +11,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Export.h>
+#include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 
@@ -54,6 +55,7 @@ struct SerializedEnvironmentSettingsObject {
     SerializedPolicyContainer policy_container;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability;
     Optional<u64> agent_cluster_id;
+    CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode;
     double time_origin;
     SerializedGlobal global;
 };

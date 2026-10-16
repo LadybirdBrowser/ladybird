@@ -31,10 +31,11 @@ public:
     virtual GC::Ref<PolicyContainer> policy_container() const override;
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return m_cross_origin_isolated_capability; }
     virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
+    virtual CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const override { return m_agent_cluster_cross_origin_isolation_mode; }
     virtual double time_origin() const override { return m_time_origin; }
 
 private:
-    WorkletEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext>, GC::Ref<WorkletGlobalScope>, URL::URL api_base_url, URL::Origin, bool has_cross_site_ancestor, GC::Ref<PolicyContainer>, CanUseCrossOriginIsolatedAPIs, Optional<u64> agent_cluster_id, double time_origin);
+    WorkletEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext>, GC::Ref<WorkletGlobalScope>, URL::URL api_base_url, URL::Origin, bool has_cross_site_ancestor, GC::Ref<PolicyContainer>, CanUseCrossOriginIsolatedAPIs, Optional<u64> agent_cluster_id, CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, double time_origin);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -46,6 +47,7 @@ private:
     GC::Ref<PolicyContainer> m_policy_container;
     CanUseCrossOriginIsolatedAPIs m_cross_origin_isolated_capability { CanUseCrossOriginIsolatedAPIs::No };
     Optional<u64> m_agent_cluster_id;
+    CrossOriginIsolationMode m_agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
     double m_time_origin { 0 };
 };
 
