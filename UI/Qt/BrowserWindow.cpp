@@ -197,7 +197,7 @@ static QIcon const& app_icon()
     return icon;
 }
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, Optional<WebView::SessionWindowId> restored_session_window_id)
     : m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
     , m_tabs_container(new TabWidget(this))
@@ -205,7 +205,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 {
     auto const& browser_options = WebView::Application::browser_options();
 
-    register_window_with_session_store();
+    // A restored window keeps the session row the store re-adopted for it.
+    if (restored_session_window_id.has_value())
+        m_session_window_id = restored_session_window_id;
+    else
+        register_window_with_session_store();
 
 #if defined(AK_OS_MACOS)
     setWindowFlag(Qt::ExpandedClientAreaHint);
@@ -541,6 +545,39 @@ void BrowserWindow::open_history_entry_in_new_tab(Tab& source_tab, int delta)
 
     auto& tab = create_new_tab(Web::HTML::ActivateTab::No, TabLocation::after_tab(source_tab));
     (void)tab.view().restore_session_history_from_snapshot(AK::move(history));
+}
+
+void BrowserWindow::restore_tabs(Vector<WebView::RestoredSessionTab> const& tabs, i64 active_tab_index)
+{
+    if (tabs.is_empty())
+        return;
+
+    // The first tab a strip gets becomes its current tab, so the active tab goes in first, at what's then index 0, and
+    // every other tab goes in around it at its own index.
+    auto active_index = static_cast<size_t>(clamp<i64>(active_tab_index, 0, static_cast<i64>(tabs.size()) - 1));
+    create_restored_tab(tabs[active_index], 0);
+    for (size_t i = 0; i < tabs.size(); ++i) {
+        if (i != active_index)
+            create_restored_tab(tabs[i], static_cast<int>(i));
+    }
+}
+
+Tab& BrowserWindow::create_restored_tab(WebView::RestoredSessionTab const& restored, int index)
+{
+    auto* tab = new Tab(this);
+    // The tab already has a row, so initialize_tab() doesn't register a new one.
+    tab->view().set_session_tab_id(restored.tab_id);
+    tab->set_pinned(restored.pinned);
+
+    if (!m_current_tab)
+        set_current_tab(tab);
+    m_tabs_container->insert_tab(index, tab, "New Tab");
+    initialize_tab(tab);
+
+    auto history = m_session->session_store->load_tab_history(restored.tab_id);
+    if (!history.has_value() || tab->view().restore_session_history_from_snapshot(history.release_value()).is_error())
+        tab->navigate(restored.url);
+    return *tab;
 }
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<WebView::CanonicalTraversable&> traversable)
@@ -1318,6 +1355,8 @@ bool BrowserWindow::event(QEvent* event)
     if (event->type() == QEvent::WindowActivate) {
         Application::the().set_active_window(*this);
         WebView::Application::the().update_actions_for_active_web_view();
+        if (m_session_window_id.has_value())
+            m_session->session_store->window_activated(*m_session_window_id);
         QTimer::singleShot(0, this, [this] {
             refresh_resize_cursor_at_current_position(true);
             Application::the().crash_report_notifier().show_pending();

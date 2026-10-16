@@ -53,6 +53,11 @@ public:
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<WebView::CanonicalTraversable&> traversable = {}, ShowWindow = ShowWindow::Yes, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation = {});
     WindowConfiguration configuration_for_new_window() const;
 
+    // Opens the windows startup recovery kept open, and returns the frontmost one, if any.
+    BrowserWindow* restore_previous_session(WindowConfiguration const& frontmost_window_configuration);
+    void open_startup_tabs(BrowserWindow&, Vector<URL::URL> const&);
+    virtual WebView::SessionLaunchPolicy launch_restore_policy() const override;
+
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);
     void reopen_recently_closed_tab(BrowserWindow* target_window);
@@ -108,6 +113,7 @@ public:
     QAction* quit_action();
 
 private:
+    void present_window(BrowserWindow&, WindowConfiguration const&, ShowWindow);
     explicit Application();
 
     void ask_next_window_to_close_for_private_session_restart();

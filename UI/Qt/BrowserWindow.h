@@ -139,7 +139,7 @@ public:
         int m_index { 0 };
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<WebView::CanonicalTraversable&> traversable = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<WebView::CanonicalTraversable&> traversable = {}, Optional<WebView::SessionWindowId> restored_session_window_id = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
@@ -162,6 +162,8 @@ public:
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
     void duplicate_tab(Tab&);
     void open_history_entry_in_new_tab(Tab&, int delta);
+    // Opens a window's restored tabs, keeping the session rows the store re-adopted for them.
+    void restore_tabs(Vector<WebView::RestoredSessionTab> const&, i64 active_tab_index);
     Tab* current_tab() const { return m_current_tab; }
     Tab* activate_tab_with_url(URL::URL const&, URL::ExcludeFragment);
     // Asks every tab's page if the window may close, without closing it, and reports the answer. Once the pages agree,
@@ -233,6 +235,7 @@ private:
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     Tab& create_new_tab(Web::HTML::ActivateTab, Optional<WebView::CanonicalTraversable&>);
+    Tab& create_restored_tab(WebView::RestoredSessionTab const&, int index);
     void initialize_tab(Tab*);
     void uninitialize_tab(Tab*);
     void update_window_title(QString const&);
