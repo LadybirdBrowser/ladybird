@@ -20,6 +20,7 @@ namespace Compositor {
 CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Compositing::CanvasSurfaceRegistry& canvas_surface_registry)
     : m_skia_backend_context(move(skia_backend_context))
     , m_canvas_surface_registry(canvas_surface_registry)
+    , m_canvas_surface_owner_id(canvas_surface_registry.allocate_owner_id())
 {
 }
 
@@ -45,7 +46,7 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         if (auto* canvas_context = context->get_pointer<Canvas2DContext>())
             return canvas_context->command_player->surface().ptr();
         // WebGL sources are presented separately and resolve via the registry.
-        return m_canvas_surface_registry.canvas_surface(Compositing::CanvasId { canvas_id });
+        return m_canvas_surface_registry.canvas_surface(m_canvas_surface_owner_id, Compositing::CanvasId { canvas_id });
     };
     auto text_blob_resolver = [this](u64 font_id, ReadonlySpan<Gfx::CanvasGlyph> glyphs) {
         if (!m_text_resources.has_font(Compositing::FontResourceId { font_id }))
@@ -97,7 +98,7 @@ bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize
         return false;
 
     auto presented_surface = create_presented_canvas_surface(command_player->surface());
-    m_canvas_surface_registry.set_canvas_surface(canvas_id, presented_surface);
+    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, presented_surface);
     Canvas2DContext context {
         .command_player = command_player.release_nonnull(),
         .presented_surface = move(presented_surface),
@@ -140,7 +141,7 @@ CanvasHost::Context* CanvasHost::context(Compositing::CanvasId canvas_id)
 void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canvas2DContext& context)
 {
     copy_surface_contents(context.command_player->surface(), context.presented_surface);
-    m_canvas_surface_registry.set_canvas_surface(canvas_id, context.presented_surface);
+    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, context.presented_surface);
     context.has_uncommitted_commands = false;
 }
 
@@ -179,7 +180,7 @@ void CanvasHost::execute_webgl_commands(Compositing::CanvasId canvas_id, Readonl
     auto& webgl_context = as_webgl(*context);
     MUST(webgl_context.execute_commands(commands, bitmaps));
     if (auto surface = webgl_context.surface())
-        m_canvas_surface_registry.set_canvas_surface(canvas_id, surface.release_nonnull());
+        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, surface.release_nonnull());
 }
 
 void CanvasHost::set_webgl_shared_command_buffer(Compositing::CanvasId canvas_id, Compositing::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
@@ -206,7 +207,7 @@ bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId
     webgl_context.store_executed_flush_sequence_number(flush_sequence_number);
 
     if (auto surface = webgl_context.surface())
-        m_canvas_surface_registry.set_canvas_surface(canvas_id, surface.release_nonnull());
+        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, surface.release_nonnull());
     return true;
 }
 
@@ -237,7 +238,7 @@ void CanvasHost::present_webgl_canvas(Compositing::CanvasId canvas_id, bool pres
     VERIFY(context);
 
     auto surface = MUST(as_webgl(*context).prepare_for_compositing(preserve_drawing_buffer));
-    m_canvas_surface_registry.set_canvas_surface(canvas_id, move(surface));
+    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, move(surface));
 }
 
 void CanvasHost::clear_webgl_drawing_buffer(Compositing::CanvasId canvas_id)

@@ -102,7 +102,7 @@ void CompositorState::commit_placeholder_canvas(Compositing::CanvasId canvas_id,
         if (!placeholder.surface || placeholder.surface->size() != source_surface->size())
             placeholder.surface = Gfx::PaintingSurface::create_with_size(source_surface->size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
         placeholder.surface->copy_from_surface(*source_surface);
-        m_canvas_surface_registry.set_canvas_surface(canvas_id, *placeholder.surface);
+        m_canvas_surface_registry.set_canvas_surface(placeholder.owner->canvas_surface_owner_id(), canvas_id, *placeholder.surface);
     } else {
         placeholder.surface = nullptr;
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);
@@ -134,7 +134,7 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
         VERIFY(context_id == Web::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [&] {
-        return make<ContextState>(context_id, page_id, web_content_client, m_canvas_surface_registry, [this, context_id](Gfx::IntRect damage_rect) {
+        return make<ContextState>(context_id, page_id, web_content_client, Compositing::OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, [this, context_id](Gfx::IntRect damage_rect) {
             schedule_caret_repaint(context_id, damage_rect);
         });
     });

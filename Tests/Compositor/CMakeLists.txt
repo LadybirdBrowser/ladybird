@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestAsyncScrollTree.cpp
+    TestCanvasSurfaceRegistry.cpp
     TestContextState.cpp
     TestScrollbarController.cpp
     TestVSyncScheduler.cpp

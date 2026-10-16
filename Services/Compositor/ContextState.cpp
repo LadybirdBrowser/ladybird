@@ -47,11 +47,11 @@ static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWi
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::CanvasSurfaceRegistry const& canvas_surface_registry, Function<void(Gfx::IntRect)> schedule_caret_repaint)
+ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::OwnedCanvasSurfaces canvas_surfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint)
     : m_web_content_client(web_content_client)
     , m_context_id(context_id)
     , m_page_id(page_id)
-    , m_presenter(m_scene, canvas_surface_registry, page_id.has_value())
+    , m_presenter(m_scene, canvas_surfaces, page_id.has_value())
     , m_caret_blink_timer([this] { return damage_rect_of_blinking_carets(); }, move(schedule_caret_repaint))
 {
 }

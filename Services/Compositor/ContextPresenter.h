@@ -16,6 +16,7 @@
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/CompositedContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/Forward.h>
@@ -70,7 +71,7 @@ public:
         CompositedContextResolver const* composited_context_resolver { nullptr };
     };
 
-    ContextPresenter(ContextScene&, Compositing::CanvasSurfaceRegistry const&, bool presents_to_client);
+    ContextPresenter(ContextScene&, Compositing::OwnedCanvasSurfaces, bool presents_to_client);
     ~ContextPresenter();
 
     bool presents_to_client() const { return m_presents_to_client; }
@@ -145,7 +146,7 @@ private:
     void stop_surplus_backing_store_retirement_timer();
 
     ContextScene& m_scene;
-    Compositing::CanvasSurfaceRegistry const& m_canvas_surface_registry;
+    Compositing::OwnedCanvasSurfaces m_canvas_surfaces;
     bool m_presents_to_client { false };
 
     Gfx::IntSize m_viewport_size;

@@ -17,6 +17,8 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, ImageFrameResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoSinkResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, DisplayListResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CanvasId);
+// Names the connection whose canvases a surface belongs to. Never reused, unlike connection IDs.
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CanvasSurfaceOwnerId);
 
 inline VideoSinkResourceId allocate_video_sink_resource_id()
 {

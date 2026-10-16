@@ -23,6 +23,7 @@ class AccumulatedVisualContextTree;
 class Canvas2DCommandStream;
 struct Canvas2DCommandStreamSegment;
 class CanvasSurfaceRegistry;
+class OwnedCanvasSurfaces;
 class DisplayList;
 struct DisplayListGlyph;
 class DisplayListResourceStorage;

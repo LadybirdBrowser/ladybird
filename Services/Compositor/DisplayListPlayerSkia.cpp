@@ -86,7 +86,7 @@ void DisplayListPlayerSkia::execute(
     DisplayListRasterCache& raster_cache,
     ScrollStateSnapshot const& scroll_state_snapshot,
     RefPtr<Gfx::PaintingSurface> surface,
-    CanvasSurfaceRegistry const* canvas_surface_registry,
+    OwnedCanvasSurfaces const* canvas_surfaces,
     CompositedContextResolver const* composited_context_resolver)
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
@@ -102,7 +102,7 @@ void DisplayListPlayerSkia::execute(
         resource_storage,
         scroll_state_snapshot,
         move(surface),
-        canvas_surface_registry);
+        canvas_surfaces);
 }
 
 static SkRRect to_skia_rrect(auto const& rect, Gfx::CornerRadii const& corner_radii)
@@ -342,11 +342,11 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
 
 void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
 {
-    auto const* registry = canvas_surface_registry();
-    if (!registry)
+    auto const* surfaces = canvas_surfaces();
+    if (!surfaces)
         return;
 
-    auto* canvas_surface = registry->canvas_surface(command.canvas_id);
+    auto* canvas_surface = surfaces->canvas_surface(command.canvas_id);
     if (!canvas_surface)
         return;
 

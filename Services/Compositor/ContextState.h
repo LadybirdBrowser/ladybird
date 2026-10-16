@@ -83,7 +83,7 @@ public:
         static ContextUpdateResult declined(Web::InputRoutingDecision decision) { return { .routing_decision = decision }; }
     };
 
-    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::CanvasSurfaceRegistry const&, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
+    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;

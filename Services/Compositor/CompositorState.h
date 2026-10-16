@@ -65,6 +65,8 @@ public:
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) = 0;
+    // The owner of this client's canvases, which are the only ones its contexts may draw.
+    virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const = 0;
 };
 
 class CompositorState final : public RefCounted<CompositorState> {
