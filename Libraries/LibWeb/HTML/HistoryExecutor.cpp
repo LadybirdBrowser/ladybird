@@ -581,8 +581,9 @@ Optional<HistoryExecutor::DequeuedChangingNavigableContinuation> HistoryExecutor
     // 6. Let navigable be changingNavigableContinuation's navigable.
     auto navigable = continuation->navigable;
 
-    // AD-HOC: This process can destroy the navigable, or the displayed document, before the UI process removes it.
-    if (navigable->has_been_destroyed() || !displayed_document->navigable())
+    // AD-HOC: This process can destroy the navigable, an ancestor of it, or the displayed document, before the UI
+    //         process removes it.
+    if (navigable->is_in_a_destroyed_subtree() || !displayed_document->navigable())
         return {};
 
     // 7. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
