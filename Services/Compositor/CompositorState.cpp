@@ -1220,6 +1220,14 @@ Gfx::FloatPoint CompositorState::elastic_overscroll_stretch_for_testing(Web::Com
     return context->elastic_overscroll_stretch_for_testing(stable_node_id);
 }
 
+Optional<Compositing::FirstWheelStepRouteForTesting> CompositorState::route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return {};
+    return context->route_first_wheel_step_for_testing(position, delta_in_css_pixels);
+}
+
 void CompositorState::begin_input_trace_for_testing(Web::CompositorContextId context_id)
 {
     if (auto* context = context_if_present(context_id))

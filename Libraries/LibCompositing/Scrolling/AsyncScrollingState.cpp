@@ -230,6 +230,13 @@ Web::InputRoutingDecision input_routing_decision_for_wheel_step_not_admitted_by(
     VERIFY_NOT_REACHED();
 }
 
+WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& state, u64 newest_wheel_event_listener_state_generation)
+{
+    if (state.wheel_event_listener_state_generation < newest_wheel_event_listener_state_generation)
+        return WheelRoutingAdmission::StaleWheelEventListeners;
+    return wheel_routing_admission_for(state);
+}
+
 Utf16View wheel_routing_admission_to_utf16_view(WheelRoutingAdmission admission)
 {
     switch (admission) {

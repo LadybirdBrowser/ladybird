@@ -490,6 +490,19 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
     return hit_test_result_for_scroll_node(*viewport_node_id, delta, in_flight_destination_for, scroll_nodes_behind_scroll_chaining_barriers);
 }
 
+FirstWheelStepRoute AsyncScrollTree::route_first_wheel_step(WheelRoutingAdmission admission, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta) const
+{
+    if (admission != WheelRoutingAdmission::Accepted)
+        return { input_routing_decision_for_wheel_step_not_admitted_by(admission) };
+    auto scroll_target = hit_test_scroll_node_for_wheel(visual_context_tree, position, delta);
+    FirstWheelStepRoute route { input_routing_decision_for_first_wheel_step(scroll_target.outcome) };
+    if (scroll_target.node_id.has_value()) {
+        if (auto const* node = scroll_node_for_id(*scroll_target.node_id))
+            route.scroller = node->stable_node_id;
+    }
+    return route;
+}
+
 bool AsyncScrollTree::is_covered_by_hit_test_target_painted_after(u32 paint_order_index, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position) const
 {
     if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())

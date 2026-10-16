@@ -18,14 +18,8 @@ static float position_slop_in_device_pixels(Compositing::AsyncScrollTree const& 
 
 void WheelGestureRouting::did_install_scrolling_state(Compositing::AsyncScrollingState const& async_scrolling_state)
 {
-    auto wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
-    auto admission = Compositing::wheel_routing_admission_for(async_scrolling_state);
-    if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
-        admission = Compositing::WheelRoutingAdmission::StaleWheelEventListeners;
-    else
-        m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
-
-    m_admission = admission;
+    m_admission = Compositing::wheel_routing_admission_for(async_scrolling_state, m_wheel_event_listener_state_generation);
+    m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, async_scrolling_state.wheel_event_listener_state_generation);
     m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
 }
 
