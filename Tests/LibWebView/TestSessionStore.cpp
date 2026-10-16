@@ -75,6 +75,7 @@ static SessionTabId open_tab(SessionStore& store, SessionWindowId window, String
 // Takes the schema back to SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION, so every migration after it runs again.
 static void rewind_sessions_schema_to_version_4(Database::Database& database)
 {
+    MUST(database.execute_raw("DROP TABLE SessionLifecycle;"sv));
     MUST(database.execute_raw("ALTER TABLE SessionTabs DROP COLUMN pinned;"sv));
     MUST(database.execute_raw("UPDATE SchemaVersions SET version = 4 WHERE store = 'Sessions';"sv));
 }
@@ -87,7 +88,7 @@ TEST_CASE(fresh_database_migrates_to_the_latest_schema)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 5u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 6u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -134,7 +135,7 @@ TEST_CASE(version_4_database_migrates_to_the_latest_schema)
     rewind_sessions_schema_to_version_4(*database);
 
     EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 5u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 6u });
     EXPECT_EQ(select_i64(*database, "SELECT pinned FROM SessionTabs WHERE id = 2;"_string), 0);
 }
 
@@ -1296,6 +1297,39 @@ TEST_CASE(aborted_quit_resumes_demotion)
     TRY_OR_FAIL(store->tab_closed({ .tab_id = tab, .closed_at = UnixDateTime::now() }));
 
     EXPECT(store->has_closed_units());
+}
+
+TEST_CASE(a_first_run_counts_as_following_a_clean_exit)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    EXPECT_EQ(store->consecutive_unclean_exits(), 0u);
+}
+
+TEST_CASE(a_corrupt_lifecycle_row_counts_as_following_a_clean_exit)
+{
+    auto database = create_session_database();
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SessionLifecycle (id, clean_exit, consecutive_unclean_exits) VALUES (1, 0, -1);"sv));
+
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 0u);
+
+    // The run start rewrote the row, so the next run counts the one before it as unclean.
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 1u);
+}
+
+TEST_CASE(unclean_exits_count_up_until_a_clean_exit)
+{
+    auto database = create_session_database();
+
+    // A store destroyed without mark_clean_exit() is what a crash leaves behind.
+    (void)TRY_OR_FAIL(SessionStore::create(*database));
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 1u);
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        EXPECT_EQ(store->consecutive_unclean_exits(), 2u);
+        store->mark_clean_exit();
+    }
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 0u);
 }
 
 TEST_CASE(retention_keeps_the_newest_closed_units)

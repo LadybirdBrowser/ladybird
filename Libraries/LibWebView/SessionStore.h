@@ -120,6 +120,14 @@ public:
     void application_quitting();
     void application_quit_aborted();
 
+    // How many runs in a row, ending with the one before this, ended without mark_clean_exit().
+    u32 consecutive_unclean_exits() const { return m_consecutive_unclean_exits; }
+
+    // Records that this run is ending normally. Only a normal teardown calls it, so a crash never records one.
+    void mark_clean_exit();
+
+    bool is_persistent() const { return m_persisted_storage.has_value(); }
+
     bool has_closed_units() const;
     ErrorOr<Optional<ClosedSessionUnit>> take_most_recently_closed();
     ErrorOr<void> remove_entries_accessed_since(UnixDateTime);
@@ -176,6 +184,8 @@ private:
         Database::StatementID select_open_sessions;
         Database::StatementID recover_open_session;
         Database::StatementID delete_empty_open_sessions;
+        Database::StatementID select_lifecycle;
+        Database::StatementID write_lifecycle;
         SessionHistorySnapshotStatements snapshot_statements;
     };
 
@@ -303,6 +313,10 @@ private:
         u32 closed_window_limit { 0 };
     };
 
+    struct RecoveryResult {
+        u32 consecutive_unclean_exits { 0 };
+    };
+
     // Applies mutations atomically while preserving persisted row invariants.
     struct PersistedStorage {
         static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode);
@@ -316,9 +330,10 @@ private:
         ErrorOr<void> close_window(ClosedWindowWrite const&);
         ErrorOr<void> discard_tab(DiscardTabWrite const&);
         ErrorOr<void> clear_closed_units(ClearClosedUnitsWrite const&);
-        ErrorOr<void> recover_open_windows(RecoveryWrite const&, IdAllocator& close_sequence_allocator);
+        ErrorOr<RecoveryResult> recover_open_windows(RecoveryWrite const&, IdAllocator& close_sequence_allocator);
         ErrorOr<void> delete_session_rows(SessionWindowId);
         ErrorOr<void> prune_closed_units(UnitKind, u32 max_units);
+        ErrorOr<void> write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits);
 
         ErrorOr<IdAllocators> create_id_allocators();
         ErrorOr<SessionHistorySnapshot> load_tab_snapshot(SessionTabId, size_t current_used_step_index);
@@ -329,6 +344,7 @@ private:
         Statements statements;
 
     private:
+        ErrorOr<u32> record_run_start();
         ErrorOr<void> apply_tab_row_write(TabWrite const&);
         ErrorOr<void> apply_window_metadata(WindowMetadataWrite const&);
         ErrorOr<void> insert_closed_unit_row(ClosedUnitWrite const&);
@@ -433,6 +449,7 @@ private:
     Optional<PendingClearClosedUnits> m_pending_clear_closed_units;
     Vector<WindowMetadataWrite> m_retired_window_metadata;
     bool m_quitting { false };
+    u32 m_consecutive_unclean_exits { 0 };
 
     IdAllocator m_session_id_allocator;
     IdAllocator m_tab_id_allocator;

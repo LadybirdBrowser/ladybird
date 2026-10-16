@@ -533,6 +533,7 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
 
     // Take the database back to the baseline schema, keeping the entry's row.
     TRY_OR_FAIL(database->execute_raw(R"#(
+        DROP TABLE SessionLifecycle;
         ALTER TABLE SessionTabs DROP COLUMN pinned;
         ALTER TABLE SessionPolicyContainers DROP COLUMN force_load_at_top;
         ALTER TABLE SessionEntries DROP COLUMN directive_state_value;
@@ -543,7 +544,7 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 5u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 6u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 42, 0));
     EXPECT_EQ(loaded.entries.size(), 1uz);

@@ -588,6 +588,7 @@ private:
     OwnPtr<Core::File> m_cpu_profiler_control_socket;
     bool m_cpu_profiler_claimed { false };
     Vector<int> m_cpu_profiler_signal_handlers;
+    Vector<int> m_session_signal_handlers;
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
     RefPtr<FontService> m_font_service;
