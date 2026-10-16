@@ -2241,16 +2241,14 @@ void WebContentPage::did_fail_download(u64 download_id, String error)
 
 void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id)
 {
-    auto navigable = hosted_navigable(navigable_id);
-    if (!navigable.has_value())
+    // NB: Only the page hosting the active document finishes loading it. A page standing in for a document the
+    //     navigable lost, as the page displaying the tab after its process crashed does, finishes loading the stand-in;
+    //     that must not surface in the view.
+    auto navigable = traversable().find(navigable_id);
+    if (!navigable.has_value() || navigable->active_document().host() != this)
         return;
 
     if (navigation_id != navigable->tracked_load_navigation_id())
-        return;
-
-    // A page standing in for a document the navigable lost, as the page displaying the tab after its process crashed
-    // does, finishes loading the stand-in; that must not surface in the view.
-    if (navigable->active_document().host() != this)
         return;
 
     navigable->clear_active_document_load();
