@@ -1,4 +1,4 @@
-Only changed cells need measurement: true
+Measured cells: none
 Control position: 0,40
 Unchanged grid: true
 Grow grid: true

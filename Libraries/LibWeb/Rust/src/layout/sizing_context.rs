@@ -2357,7 +2357,6 @@ impl<'pass> SizingContext<'pass> {
             return cached.automatic_content_inline_size;
         }
 
-        self.callbacks.arena().note_intrinsic_measurement();
         let trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
         let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
@@ -2442,7 +2441,6 @@ impl<'pass> SizingContext<'pass> {
             return cached.size;
         }
 
-        self.callbacks.arena().note_intrinsic_measurement();
         let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
         let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);

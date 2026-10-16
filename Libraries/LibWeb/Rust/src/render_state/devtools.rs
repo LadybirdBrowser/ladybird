@@ -11,7 +11,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use std::ffi::c_void;
 
-/// How many layout passes, tree builds and measurements a document's layout has run, and how many rows it holds.
+/// How many layout passes and tree builds a document's layout has run, and how many rows it holds.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct FfiLayoutCounts {
@@ -22,9 +22,6 @@ pub struct FfiLayoutCounts {
     pub last_tree_build_escaped_rebuild_roots: bool,
     pub live_slots: u64,
     pub pre_order_relabels: u64,
-    pub intrinsic_measurements: u64,
-    pub intrinsic_inline_measurements: u64,
-    pub table_cell_measurement_cache_misses: u64,
 }
 
 /// Mints the forced reads of this module's entries; only this module can make one.
@@ -49,7 +46,7 @@ fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&LayoutNodeArena) -> R) 
     })
 }
 
-/// How many layout passes, tree builds and measurements the document's layout has run, and how many rows it holds.
+/// How many layout passes and tree builds the document's layout has run, and how many rows it holds.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCounts {
     read_arena(host, |arena| {
@@ -62,9 +59,6 @@ pub extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCo
             last_tree_build_escaped_rebuild_roots: tree_builds.last_build_escaped_rebuild_roots,
             live_slots: arena.live_slot_count().into(),
             pre_order_relabels: arena.pre_order_relabel_count(),
-            intrinsic_measurements: arena.intrinsic_measurement_count(),
-            intrinsic_inline_measurements: arena.intrinsic_inline_measurement_count(),
-            table_cell_measurement_cache_misses: arena.table_cell_measurement_cache_miss_count(),
         }
     })
 }

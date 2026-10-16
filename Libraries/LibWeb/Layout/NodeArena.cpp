@@ -33,21 +33,6 @@ Node* NodeArena::node_if_live(Layout::BegunRead const& read, Compositing::RustFF
     return static_cast<Node*>(RustFFI::render_state_node_shell_if_live(host(), &read, slot));
 }
 
-u64 NodeArena::table_cell_measurement_cache_miss_count() const
-{
-    return RustFFI::render_state_layout_counts(host()).table_cell_measurement_cache_misses;
-}
-
-u64 NodeArena::intrinsic_measurement_count() const
-{
-    return RustFFI::render_state_layout_counts(host()).intrinsic_measurements;
-}
-
-u64 NodeArena::intrinsic_inline_measurement_count() const
-{
-    return RustFFI::render_state_layout_counts(host()).intrinsic_inline_measurements;
-}
-
 void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)
 {
     RustFFI::render_state_set_box_presence_host(host(), this, [](void* context, u32 style_node, u8 bits) {

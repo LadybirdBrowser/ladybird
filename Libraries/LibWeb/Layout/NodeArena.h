@@ -38,9 +38,6 @@ public:
     Node* node_if_live(Layout::BegunRead const& read, Compositing::RustFFI::NodeSlotId) const;
     RustFFI::DocumentHost* host() const { return m_render_document->host(); }
     RenderDocument const& render_document() const { return *m_render_document; }
-    u64 table_cell_measurement_cache_miss_count() const;
-    u64 intrinsic_measurement_count() const;
-    u64 intrinsic_inline_measurement_count() const;
 
     DOM::Document* document() const { return m_document.ptr(); }
     void set_document(Badge<DOM::Document>, DOM::Document* document) { m_document = document; }

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../layout-test.js"></script>
 <style>
     #flex { display: flex; width: 500px; font-size: 16px; }
     #flex > div { flex: 1 1 auto; border: 1px solid currentcolor; }
@@ -16,14 +17,17 @@
         flex.offsetWidth;
         let width = 500;
         function resizeAfter(label, change, shouldMeasure) {
-            change();
-            internals.updateStyle();
-            const before = internals.intrinsicMeasurementCount();
-            width = width === 500 ? 501 : 500;
-            flex.style.width = `${width}px`;
+            const work = layoutWork(() => {
+                change();
+                internals.updateStyle();
+                width = width === 500 ? 501 : 500;
+                flex.style.width = `${width}px`;
+            });
             const actualWidth = flex.offsetWidth;
-            const measurements = internals.intrinsicMeasurementCount() - before;
-            println(`${label}: ${shouldMeasure ? measurements > 0 : measurements === 0}`);
+            const measurements = work.count({ event: "measure", cache: "miss" });
+            // Measurements the cache keeps still answer the layout at the new width.
+            const reused = work.count({ event: "measure", cache: "hit" }) > 0;
+            println(`${label}: ${shouldMeasure ? measurements > 0 : measurements === 0 && reused}`);
             println(`${label} container width: ${actualWidth}`);
         }
         resizeAfter("unchanged children reuse measurements", () => {}, false);

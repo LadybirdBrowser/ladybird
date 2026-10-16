@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
+<script src="layout-test.js"></script>
 <style>
     body { margin: 0; }
     table { border-collapse: collapse; width: 400px; }
@@ -13,39 +14,29 @@
         const ROWS = 40;
         const parts = [];
         for (let i = 0; i < ROWS; ++i)
-            parts.push(`<tr><td class="num">${i}</td><td class="num">${i}</td><td>line ${i} with <span>some</span> <b>markup</b></td></tr>`);
-        document.getElementById("rows").innerHTML = parts.join("");
-        const cells = document.querySelectorAll("td");
-        const table = document.getElementById("table");
+            parts.push(`<tr><td class="num" id="r${i}c0">${i}</td><td class="num" id="r${i}c1">${i}</td><td id="r${i}c2">line ${i} with <span>some</span> <b>markup</b></td></tr>`);
+        const missedCells = work => work.events.filter(event => event.event === "measure cell" && event.cache === "miss");
 
         const lines = [];
-        const missesAfterLayout = () => {
-            document.body.offsetHeight;
-            return internals.tableCellMeasurementCacheMissCount();
-        };
-
-        let misses = missesAfterLayout();
+        let work = layoutWork(() => document.getElementById("rows").innerHTML = parts.join(""));
+        const cells = document.querySelectorAll("td");
+        const table = document.getElementById("table");
         lines.push(`cells: ${cells.length}`);
-        lines.push(`misses during the initial layout: ${misses}`);
+        lines.push(`misses during the initial layout: ${missedCells(work).length}`);
 
-        table.style.marginTop = "10px";
-        let previous = misses;
-        misses = missesAfterLayout();
-        lines.push(`misses after restyling the table: ${misses - previous}`);
+        work = layoutWork(() => table.style.marginTop = "10px");
+        lines.push(`misses after restyling the table: ${missedCells(work).length}`);
 
         const heightBefore = table.getBoundingClientRect().height;
         const marker = document.createElement("span");
         marker.className = "marker";
-        cells[3].appendChild(marker);
-        previous = misses;
-        misses = missesAfterLayout();
-        lines.push(`misses after inserting an abspos marker into one cell: ${misses - previous}`);
+        work = layoutWork(() => cells[3].appendChild(marker));
+        lines.push(`misses after inserting an abspos marker into one cell: ${missedCells(work).length}`);
         lines.push(`table height unchanged by the marker: ${table.getBoundingClientRect().height === heightBefore}`);
 
-        cells[8].firstChild.data = "changed";
-        previous = misses;
-        misses = missesAfterLayout();
-        lines.push(`misses after changing the text of another cell: ${misses - previous}`);
+        // The cell that took the marker is measured again too, with this next layout of the table.
+        work = layoutWork(() => cells[8].firstChild.data = "changed");
+        lines.push(`misses after changing the text of another cell: ${missedCells(work).map(event => event.box).join(", ")}`);
 
         for (const line of lines)
             println(line);
