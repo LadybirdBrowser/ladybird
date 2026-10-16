@@ -31,8 +31,10 @@ list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladyb
 
 set(SITE_COMPATIBILITY_RESOURCES
     aljazeera.com.json
+    apnews.com.json
     cnn.com.json
     nytimes.com.json
+    politico.com.json
 )
 list(TRANSFORM SITE_COMPATIBILITY_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/WebCompat/")
 

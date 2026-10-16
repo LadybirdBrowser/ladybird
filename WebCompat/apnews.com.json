@@ -1,0 +1,9 @@
+{
+    "matches": [
+        "https://apnews.com/*",
+        "https://*.apnews.com/*"
+    ],
+    "user_agent": [
+        "force_Ladybird"
+    ]
+}
