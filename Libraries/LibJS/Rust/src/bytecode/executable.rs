@@ -277,6 +277,17 @@ fn megamorphic_secondary_index(shape: Gc<Shape>, key: u64) -> usize {
         & (MEGAMORPHIC_SECONDARY_CACHE_SIZE - 1)
 }
 
+/// The slot of a megamorphic cache's hash tables that holds the entry for `shape` and `key`, if one does.
+fn megamorphic_slot_for_shape(data: &MegamorphicData, shape: Gc<Shape>, key: u64) -> Option<&PropertyLookupCacheEntry> {
+    let is_for_shape = |slot: &&PropertyLookupCacheEntry| {
+        let entry = slot.get();
+        entry.lookup_shape() == Some(shape) && entry.key == key
+    };
+    Some(&data.primary_entries[megamorphic_primary_index(shape, key)])
+        .filter(is_for_shape)
+        .or_else(|| Some(&data.secondary_entries[megamorphic_secondary_index(shape, key)]).filter(is_for_shape))
+}
+
 fn insert_megamorphic_entry(data: &MegamorphicData, entry: &PropertyLookupCacheEntryData) {
     let lookup_shape = entry.lookup_shape().expect("a megamorphic entry has a lookup shape");
 
@@ -416,20 +427,18 @@ impl PropertyLookupCache {
         let Some(data) = self.megamorphic_data() else {
             return self.entries();
         };
-
-        let find_entry = |entries: &[PropertyLookupCacheEntry], index: usize| {
-            let entry = entries[index].get();
-            (entry.lookup_shape() == Some(shape) && entry.key == key).then_some(entry)
-        };
-
-        let entry = find_entry(&data.primary_entries, megamorphic_primary_index(shape, key))
-            .or_else(|| find_entry(&data.secondary_entries, megamorphic_secondary_index(shape, key)));
-        let Some(entry) = entry else {
+        let Some(slot) = megamorphic_slot_for_shape(data, shape, key) else {
             return &[];
         };
 
-        data.entry.set(entry);
+        data.entry.set(slot.get());
         core::slice::from_ref(&data.entry)
+    }
+
+    /// The entry a megamorphic cache has for `shape` and `key`, if it has one, without moving it to the front like
+    /// `entry_slots_for_shape()` does.
+    pub fn megamorphic_entry_for_shape(&self, shape: Gc<Shape>, key: u64) -> Option<&PropertyLookupCacheEntry> {
+        megamorphic_slot_for_shape(self.megamorphic_data()?, shape, key)
     }
 
     /// Records an entry of `entry_type`, filled in by `callback`, moving the cache to the next tier when it has no

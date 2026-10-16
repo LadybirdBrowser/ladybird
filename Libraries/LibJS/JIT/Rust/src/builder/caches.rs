@@ -19,6 +19,8 @@
 //! same entries.
 
 use super::GraphBuilder;
+use super::SlotState;
+use crate::bytecode::Operand;
 use crate::ir::AccessorPart;
 use crate::ir::Block;
 use crate::ir::BranchCondition;
@@ -213,6 +215,26 @@ impl GraphBuilder<'_> {
             return None;
         }
         cache.entries.iter().map(CacheEntry::of).collect()
+    }
+
+    /// The entry of megamorphic property lookup cache `cache` for the shape
+    /// the code knows the object in `object` has (see
+    /// `AbstractFrame::fresh_shapes`), if the snapshot captured one.
+    pub(super) fn megamorphic_entries_for_known_shape(&self, cache: u32, object: Operand) -> Option<Vec<CacheEntry>> {
+        let cache = self.function.executable.property_caches.get(cache as usize)?;
+        if cache.kind != PropertyCacheKind::Megamorphic {
+            return None;
+        }
+        let SlotState::Value { node, .. } = self.peek(object) else {
+            return None;
+        };
+        let shape = self.fresh_shape(node)?;
+        let entry = cache
+            .entries
+            .iter()
+            .filter_map(CacheEntry::of)
+            .find(|entry| entry.shape.shape == shape)?;
+        Some(vec![entry])
     }
 
     /// The shape guard of an entry. Records whether the shape was stable,

@@ -103,6 +103,9 @@ struct SnapshotBuilder<'vm> {
     lexical_environment_templates: Vec<Option<LexicalEnvironmentTemplateSnapshot>>,
     /// The environment templates of the direct calls of the executable whose snapshot is being made.
     environment_templates: Vec<EnvironmentTemplateSnapshot>,
+    /// For the constructors among the inlining candidates, by index: the shape of the `this` value their inlined
+    /// constructs create, whose entries their megamorphic caches describe.
+    construct_this_shapes: HashMap<u32, Gc<Shape>>,
 }
 
 /// The number of bytecode instructions of an executable, counted up to one past `limit`.
@@ -353,7 +356,14 @@ impl SnapshotBuilder<'_> {
         }
     }
 
-    fn property_cache(&mut self, cache: &PropertyLookupCache, caller: &Entry) -> PropertyCacheSnapshot {
+    /// What property lookup cache `cache` of `caller` knows. Of a megamorphic cache, that is the entry for
+    /// `known_shape` if it has one: JIT code only uses megamorphic entries for objects whose shape it knows.
+    fn property_cache(
+        &mut self,
+        cache: &PropertyLookupCache,
+        caller: &Entry,
+        known_shape: Option<Gc<Shape>>,
+    ) -> PropertyCacheSnapshot {
         let kind = match cache.tier() {
             PropertyLookupCacheTier::Empty => PropertyCacheKind::Empty,
             PropertyLookupCacheTier::Monomorphic => PropertyCacheKind::Monomorphic,
@@ -371,7 +381,12 @@ impl SnapshotBuilder<'_> {
         ];
         let mut sees_primitives = false;
         let mut entries = Vec::new();
-        for slot in cache.entries() {
+        let known_shape_slot = known_shape.and_then(|shape| cache.megamorphic_entry_for_shape(shape, 0));
+        let slots = match known_shape_slot {
+            Some(slot) => core::slice::from_ref(slot),
+            None => cache.entries(),
+        };
+        for slot in slots {
             let entry = slot.get();
             if entry
                 .shape
@@ -751,6 +766,7 @@ impl SnapshotBuilder<'_> {
             empty_shape.create_prototype_transition(self.vm, Some(prototype))
         };
         let index = self.inlined_function_index(function, caller)?;
+        self.construct_this_shapes.insert(index, this_shape);
         Some(ConstructTarget {
             executable: index,
             function_shape: self.cell(function_shape),
@@ -868,10 +884,15 @@ impl SnapshotBuilder<'_> {
             keyed,
         };
 
+        let construct_this_shape = entry
+            .function
+            .and_then(|function| self.indices.get(&function))
+            .and_then(|index| self.construct_this_shapes.get(index))
+            .copied();
         let property_caches = executable
             .property_lookup_caches()
             .iter()
-            .map(|cache| self.property_cache(cache, entry))
+            .map(|cache| self.property_cache(cache, entry, construct_this_shape))
             .collect();
         let object_shape_caches = executable
             .object_shape_caches()
@@ -1138,6 +1159,7 @@ pub fn capture_snapshot(
         closure_templates: Vec::new(),
         environment_templates: Vec::new(),
         lexical_environment_templates: Vec::new(),
+        construct_this_shapes: HashMap::new(),
     };
     builder.closure_templates = closure_template_snapshots(closure_templates, |sample| builder.cell(sample));
     builder.lexical_environment_templates =
