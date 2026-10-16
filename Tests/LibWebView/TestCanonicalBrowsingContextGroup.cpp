@@ -178,6 +178,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
         .request_current_url = {},
         .origin = destination_url.origin(),
         .opener_policy = {},
+        .embedder_policy = {},
         .environment_id = {},
         .document_id = {},
     });
@@ -232,6 +233,7 @@ TEST_CASE(child_navigation_under_a_document_that_switched_groups_uses_its_group)
         .request_current_url = {},
         .origin = destination_url.origin(),
         .opener_policy = {},
+        .embedder_policy = {},
         .environment_id = {},
         .document_id = {},
     });
@@ -271,6 +273,7 @@ TEST_CASE(child_navigation_under_a_document_that_switched_groups_uses_its_group)
         .request_current_url = {},
         .origin = frame_url.origin(),
         .opener_policy = {},
+        .embedder_policy = {},
         .environment_id = {},
         .document_id = {},
     });
@@ -447,6 +450,7 @@ static NonnullRefPtr<WebView::CanonicalDocument> navigate_to_a_new_group(WebView
         .request_current_url = {},
         .origin = destination_url.origin(),
         .opener_policy = opener_policy,
+        .embedder_policy = {},
         .environment_id = {},
         .document_id = {},
     });

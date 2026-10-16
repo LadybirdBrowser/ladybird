@@ -47,6 +47,8 @@ public:
         Optional<URL::URL> request_current_url;
         URL::Origin origin;
         Web::HTML::OpenerPolicy opener_policy;
+        // The embedder policy of navigationParams's policy container.
+        Web::HTML::EmbedderPolicy embedder_policy;
         Web::HTML::SandboxingFlagSet final_sandboxing_flag_set {};
         // The id of the window environment a process created the document with before the UI process heard of it.
         Optional<Web::HTML::EnvironmentId> environment_id;
