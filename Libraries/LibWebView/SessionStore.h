@@ -29,6 +29,7 @@ using SessionCloseSequence = i64;
 struct ClosedSessionTab {
     URL::URL active_url;
     Optional<SessionHistorySnapshot> history;
+    bool pinned { false };
 };
 
 struct ClosedSessionUnit {
@@ -110,6 +111,10 @@ public:
     void tab_detached(SessionTabId);
     void tab_moved(TabMoved);
     void tab_order_changed(TabOrderChanged);
+
+    // A pin writes through at once, since launch restore depends on it. And every later flush of the tab's row rewrites
+    // the flag, so a write that fails is repaired by the next one.
+    ErrorOr<void> tab_pinned_changed(SessionTabId, bool pinned);
     void active_tab_changed(SessionTabId);
     void application_quitting();
     void application_quit_aborted();
@@ -155,6 +160,7 @@ private:
         Database::StatementID insert_tab;
         Database::StatementID insert_tab_if_missing;
         Database::StatementID update_tab_row;
+        Database::StatementID update_tab_pinned;
         Database::StatementID update_tab_parent;
         Database::StatementID update_session_closed;
         Database::StatementID update_session_active_tab_index;
@@ -186,6 +192,7 @@ private:
         // transient mode.
         Optional<SessionHistorySnapshot> history;
         bool dirty { false };
+        bool pinned { false };
     };
 
     struct OpenWindow {
@@ -200,6 +207,7 @@ private:
         size_t current_used_step_index { 0 };
         // Transient mode captures the snapshot at demotion; persisted mode loads it on reopen.
         Optional<SessionHistorySnapshot> history;
+        bool pinned { false };
     };
 
     struct ClosedUnit {
@@ -228,6 +236,7 @@ private:
         i64 current_used_step_index { 0 };
         SnapshotDisposition snapshot_disposition { SnapshotDisposition::Preserve };
         SessionHistorySnapshot const* snapshot { nullptr };
+        bool pinned { false };
     };
 
     // Always the complete live-plus-pending order, so persisted units stay contiguous while failed
@@ -300,6 +309,7 @@ private:
         ErrorOr<void> insert_open_window(SessionWindowId);
         ErrorOr<void> open_tab(OpenTabWrite const&);
         ErrorOr<void> flush_tab(TabWrite const&);
+        ErrorOr<void> set_tab_pinned(SessionTabId, bool pinned);
         ErrorOr<void> write_windows_metadata(Vector<WindowMetadataWrite> const&);
         ErrorOr<void> close_tab(ClosedTabWrite const&);
         ErrorOr<void> close_window(ClosedWindowWrite const&);
@@ -355,6 +365,7 @@ private:
         Optional<size_t> tab_index(SessionTabId) const;
 
         void set_tab_state(SessionTabId, Optional<SessionHistorySnapshot>, URL::URL, bool dirty);
+        bool set_tab_pinned(SessionTabId, bool pinned);
         void mark_tab_flushed(SessionTabId, size_t current_used_step_index);
         Optional<SessionHistorySnapshot> take_tab_history(SessionTabId);
         void set_active_tab(SessionTabId);

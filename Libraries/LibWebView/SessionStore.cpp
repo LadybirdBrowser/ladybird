@@ -21,6 +21,7 @@ static constexpr u32 SESSIONS_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 SESSIONS_SCHEMA_USER_AGENT_INITIATED_VERSION = 2u;
 static constexpr u32 SESSIONS_SCHEMA_DIRECTIVE_STATE_VERSION = 3u;
 static constexpr u32 SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION = 4u;
+static constexpr u32 SESSIONS_SCHEMA_PINNED_TABS_VERSION = 5u;
 static constexpr u32 MAX_CLOSED_TABS = 25;
 static constexpr u32 MAX_CLOSED_WINDOWS = 5;
 static constexpr size_t MAX_ACTIVE_URL_BYTES = 8uz * 1024 * 1024;
@@ -214,6 +215,12 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
                 ALTER TABLE SessionPolicyContainers ADD COLUMN force_load_at_top INTEGER NOT NULL DEFAULT 0;
             )#"sv,
         },
+        {
+            .version = SESSIONS_SCHEMA_PINNED_TABS_VERSION,
+            .sql = R"#(
+                ALTER TABLE SessionTabs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
     });
 
     return database.migrate("Sessions"sv, migrations, mode);
@@ -233,7 +240,8 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     statements.insert_session = TRY(database.prepare_statement("INSERT INTO Sessions (id, kind, closed_time, close_sequence, source_window_id, source_tab_index, origin, active_tab_index) VALUES (:id, :kind, :closed_time, :close_sequence, :source_window_id, :source_tab_index, :origin, :active_tab_index);"sv));
     statements.insert_tab = TRY(database.prepare_statement("INSERT INTO SessionTabs (id, session_id, tab_ordinal, active_url, current_used_step_index) VALUES (:id, :session_id, :tab_ordinal, :active_url, :current_used_step_index);"sv));
     statements.insert_tab_if_missing = TRY(database.prepare_statement("INSERT OR IGNORE INTO SessionTabs (id, session_id, tab_ordinal, active_url, current_used_step_index) VALUES (:id, :session_id, :tab_ordinal, :active_url, :current_used_step_index);"sv));
-    statements.update_tab_row = TRY(database.prepare_statement("UPDATE SessionTabs SET active_url = :active_url, current_used_step_index = :current_used_step_index WHERE id = :id;"sv));
+    statements.update_tab_row = TRY(database.prepare_statement("UPDATE SessionTabs SET active_url = :active_url, current_used_step_index = :current_used_step_index, pinned = :pinned WHERE id = :id;"sv));
+    statements.update_tab_pinned = TRY(database.prepare_statement("UPDATE SessionTabs SET pinned = :pinned WHERE id = :id;"sv));
     statements.update_tab_parent = TRY(database.prepare_statement("UPDATE SessionTabs SET session_id = :session_id, tab_ordinal = :tab_ordinal WHERE id = :id;"sv));
     statements.update_session_closed = TRY(database.prepare_statement("UPDATE Sessions SET kind = :kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = :source_window_id, source_tab_index = :source_tab_index, origin = :origin, active_tab_index = :active_tab_index WHERE id = :id;"sv));
     statements.update_session_active_tab_index = TRY(database.prepare_statement("UPDATE Sessions SET active_tab_index = :active_tab_index WHERE id = :id;"sv));
@@ -247,7 +255,7 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     statements.select_max_tab_id = TRY(database.prepare_statement("SELECT MAX(id) AS maximum_id FROM SessionTabs;"sv));
     statements.select_max_close_sequence = TRY(database.prepare_statement("SELECT MAX(close_sequence) AS maximum_id FROM Sessions;"sv));
     statements.select_closed_sessions = TRY(database.prepare_statement("SELECT id, closed_time, close_sequence, source_window_id, source_tab_index, origin, active_tab_index FROM Sessions WHERE kind = :kind ORDER BY close_sequence DESC, closed_time DESC, id DESC LIMIT :max_units;"sv));
-    statements.select_session_tabs = TRY(database.prepare_statement("SELECT id, tab_ordinal, active_url, current_used_step_index FROM SessionTabs WHERE session_id = :session_id ORDER BY tab_ordinal;"sv));
+    statements.select_session_tabs = TRY(database.prepare_statement("SELECT id, tab_ordinal, active_url, current_used_step_index, pinned FROM SessionTabs WHERE session_id = :session_id ORDER BY tab_ordinal;"sv));
     statements.select_open_sessions = TRY(database.prepare_statement("SELECT id FROM Sessions WHERE kind = :open_window_kind ORDER BY id;"sv));
     statements.recover_open_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :closed_window_kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.delete_empty_open_sessions = TRY(database.prepare_statement("DELETE FROM Sessions WHERE kind = :open_window_kind AND NOT EXISTS (SELECT 1 FROM SessionTabs WHERE session_id = Sessions.id);"sv));
@@ -338,6 +346,16 @@ void SessionStore::TransientStorage::set_tab_state(SessionTabId tab_id, Optional
     tab->value.history = move(history);
     tab->value.current_used_step_index = tab->value.history.has_value() ? tab->value.history->current_used_step_index : 0;
     tab->value.dirty = dirty;
+}
+
+bool SessionStore::TransientStorage::set_tab_pinned(SessionTabId tab_id, bool pinned)
+{
+    auto tab = m_tabs.find(tab_id);
+    if (tab == m_tabs.end())
+        return false;
+
+    tab->value.pinned = pinned;
+    return true;
 }
 
 void SessionStore::TransientStorage::mark_tab_flushed(SessionTabId tab_id, size_t current_used_step_index)
@@ -553,6 +571,7 @@ ErrorOr<void> SessionStore::PersistedStorage::apply_tab_row_write(TabWrite const
     TRY(database->try_execute_bound_statement(statements.update_tab_row, [&](auto& bind) -> ErrorOr<void> {
         TRY(bind("active_url"sv, persistable_active_url(write.url)));
         TRY(bind("current_used_step_index"sv, write.current_used_step_index));
+        TRY(bind("pinned"sv, i64 { write.pinned ? 1 : 0 }));
         TRY(bind("id"sv, write.id));
         return {};
     }));
@@ -636,6 +655,15 @@ ErrorOr<void> SessionStore::PersistedStorage::flush_tab(TabWrite const& write)
 {
     return database->transaction([&]() -> ErrorOr<void> {
         return apply_tab_row_write(write);
+    });
+}
+
+ErrorOr<void> SessionStore::PersistedStorage::set_tab_pinned(SessionTabId tab_id, bool pinned)
+{
+    return database->try_execute_bound_statement(statements.update_tab_pinned, [&](auto& bind) -> ErrorOr<void> {
+        TRY(bind("pinned"sv, i64 { pinned ? 1 : 0 }));
+        TRY(bind("id"sv, tab_id));
+        return {};
     });
 }
 
@@ -891,11 +919,13 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
                         auto url = URL::Parser::basic_parse(TRY(row.read_text("active_url"sv, MAX_ACTIVE_URL_BYTES)));
                         if (!url.has_value())
                             return Error::from_string_literal("Closed session tab has an unparseable active url");
+                        auto pinned = TRY(row.read_integer<i64>("pinned"sv)) != 0;
                         tabs.append({
                             .active_url = url.release_value(),
                             .tab_id = TRY(row.read_integer<i64>("id"sv)),
                             .current_used_step_index = current_used_step_index,
                             .history = {},
+                            .pinned = pinned,
                         });
                         return {};
                     }();
@@ -949,6 +979,7 @@ ErrorOr<Vector<ClosedSessionTab>> SessionStore::PersistedStorage::take_closed_un
             SessionTabId tab_id { 0 };
             URL::URL active_url;
             size_t current_used_step_index { 0 };
+            bool pinned { false };
         };
         Vector<TabRow> tab_rows;
         TRY(database->try_execute_bound_statement(
@@ -967,6 +998,7 @@ ErrorOr<Vector<ClosedSessionTab>> SessionStore::PersistedStorage::take_closed_un
                         .tab_id = tab_id,
                         .active_url = url.release_value(),
                         .current_used_step_index = current_used_step_index,
+                        .pinned = TRY(row.read_integer<i64>("pinned"sv)) != 0,
                     };
                 }();
                 // Skip corrupt tabs without making the closed unit unreopenable.
@@ -980,6 +1012,7 @@ ErrorOr<Vector<ClosedSessionTab>> SessionStore::PersistedStorage::take_closed_un
             tabs.append({
                 .active_url = tab_row.active_url,
                 .history = history.is_error() ? Optional<SessionHistorySnapshot> {} : Optional<SessionHistorySnapshot> { history.release_value() },
+                .pinned = tab_row.pinned,
             });
         }
         return database->try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
@@ -1210,6 +1243,7 @@ SessionStore::TabWrite SessionStore::tab_write_for(SessionTabId tab_id, OpenTab 
         .current_used_step_index = index_as_i64(tab.current_used_step_index),
         .snapshot_disposition = SnapshotDisposition::Preserve,
         .snapshot = nullptr,
+        .pinned = tab.pinned,
     };
     if (tab.dirty) {
         if (is_storable(tab.history)) {
@@ -1383,6 +1417,15 @@ void SessionStore::tab_order_changed(TabOrderChanged changed)
     m_transient_storage.set_tab_order(changed.window_id, changed.ordered_tabs);
 }
 
+ErrorOr<void> SessionStore::tab_pinned_changed(SessionTabId tab_id, bool pinned)
+{
+    if (!m_transient_storage.set_tab_pinned(tab_id, pinned))
+        return {};
+    if (!m_persisted_storage.has_value())
+        return {};
+    return m_persisted_storage->set_tab_pinned(tab_id, pinned);
+}
+
 void SessionStore::tab_moved(TabMoved moved)
 {
     auto ordinal = index_as_size(moved.ordinal);
@@ -1429,6 +1472,7 @@ void SessionStore::append_closed_tab_unit(PendingTabClose const& pending)
         .tab_id = pending.tab_id,
         .current_used_step_index = mirror_step_index,
         .history = m_persisted_storage.has_value() ? Optional<SessionHistorySnapshot> {} : pending.tab.history,
+        .pinned = pending.tab.pinned,
     });
     m_transient_storage.append_closed_unit(move(unit));
 }
@@ -1455,6 +1499,7 @@ void SessionStore::append_closed_window_unit(PendingWindowClose const& pending)
             .tab_id = member.tab_id,
             .current_used_step_index = mirror_step_index,
             .history = m_persisted_storage.has_value() ? Optional<SessionHistorySnapshot> {} : member.tab.history,
+            .pinned = member.tab.pinned,
         });
     }
     m_transient_storage.append_closed_unit(move(unit));
@@ -1793,7 +1838,7 @@ ErrorOr<Optional<ClosedSessionUnit>> SessionStore::take_most_recently_closed()
     } else {
         auto taken = m_transient_storage.take_last_closed_unit();
         for (auto& tab : taken.tabs)
-            result.tabs.append({ .active_url = move(tab.active_url), .history = move(tab.history) });
+            result.tabs.append({ .active_url = move(tab.active_url), .history = move(tab.history), .pinned = tab.pinned });
     }
 
     if (result.tabs.is_empty())
