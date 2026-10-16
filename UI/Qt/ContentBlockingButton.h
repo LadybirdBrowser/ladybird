@@ -31,7 +31,7 @@ private:
 
     QIcon m_logo { ":/Icons/ladybird.png" };
     WebView::ContentBlockingSnapshot m_snapshot;
-    bool m_show_count_badge { true };
+    bool m_show_count_badge { false };
 };
 
 }

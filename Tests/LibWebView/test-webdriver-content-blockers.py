@@ -141,7 +141,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert command("execute/sync", {"script": "return location.href", "args": []}) == "about:about"
         command("url", {"url": "about:blocking"})
         state = settings()
-        assert state["contentBlockers"]["showBlockedCount"] is True
+        assert state["contentBlockers"]["showBlockedCount"] is False
         features = command(
             "execute/async",
             {
