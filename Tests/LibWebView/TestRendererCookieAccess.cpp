@@ -117,7 +117,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& blob_url_store = *view->page().client().session().blob_url_store;
     auto victim_blob_url = "blob:https://victim.example/entry"_utf16;
     auto forged_blob_url = "blob:https://victim.example/forged"_utf16;
-    Web::FileAPI::SerializedBlobURLEntry victim_entry { .object = Web::FileAPI::SerializedBlobURLEntry::MediaSource {}, .origin = victim_url.origin() };
+    Web::FileAPI::SerializedBlobURLEntry victim_entry { .object = Web::FileAPI::SerializedBlobURLEntry::MediaSource {}, .origin = victim_url.origin(), .environment_policy_container = {} };
     blob_url_store.add_entry(victim_blob_url, victim_entry, WeakPtr<WebView::WebContentClient> {});
     for (auto const& environment_id : { Web::HTML::EnvironmentId::generate(), page_environment_id }) {
         stub.did_add_blob_url_entry(page_id, environment_id, forged_blob_url, victim_entry);

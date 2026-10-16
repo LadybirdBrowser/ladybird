@@ -13,6 +13,7 @@
 #include <LibURL/BlobURLEntry.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Export.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 
 namespace Web::FileAPI {
 
@@ -30,6 +31,9 @@ struct SerializedBlobURLEntry {
 
     Object object;
     URL::Origin origin;
+
+    // The policy container of the entry's environment.
+    HTML::SerializedPolicyContainer environment_policy_container;
 };
 
 class WEBCOMMON_API BlobURLObject final : public URL::BlobURLEntry::OpaqueObject {

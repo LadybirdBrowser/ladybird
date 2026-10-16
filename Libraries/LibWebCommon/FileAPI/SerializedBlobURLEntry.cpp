@@ -21,6 +21,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::FileAPI::SerializedBlobURLEntry cons
         TRY(encoder.encode(blob->data));
     }
     TRY(encoder.encode(entry.origin));
+    TRY(encoder.encode(entry.environment_policy_container));
     return {};
 }
 
@@ -35,7 +36,8 @@ ErrorOr<Web::FileAPI::SerializedBlobURLEntry> decode(Decoder& decoder)
         object = Web::FileAPI::SerializedBlobURLEntry::Blob { .token = token, .type = move(type), .data = move(data) };
     }
     auto origin = TRY(decoder.decode<URL::Origin>());
-    return Web::FileAPI::SerializedBlobURLEntry { .object = move(object), .origin = move(origin) };
+    auto environment_policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>());
+    return Web::FileAPI::SerializedBlobURLEntry { .object = move(object), .origin = move(origin), .environment_policy_container = move(environment_policy_container) };
 }
 
 }
