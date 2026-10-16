@@ -253,12 +253,16 @@ void SettingsUI::complete_first_run(JsonValue const& data)
         return;
 
     auto& settings = Application::settings();
+
     auto tab_settings = settings.tab_settings();
     if (Application::the().supports_vertical_tabs())
         tab_settings.vertical_tabs_enabled = *vertical_tabs_enabled;
     settings.set_tab_settings(tab_settings);
+
     set_search_engine_settings(*search_engine_settings);
+
     settings.set_content_blocker_enabled(*content_blocker_enabled);
+    settings.set_filter_list_updates_enabled(*content_blocker_enabled);
     lists->for_each([&](auto const& list) {
         set_content_blocker_list_enabled(list);
     });
