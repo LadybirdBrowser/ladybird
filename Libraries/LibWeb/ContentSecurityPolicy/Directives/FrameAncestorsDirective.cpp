@@ -13,8 +13,8 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 

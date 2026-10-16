@@ -34,7 +34,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
-#include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
@@ -46,6 +45,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
