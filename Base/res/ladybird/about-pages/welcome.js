@@ -50,16 +50,21 @@ function initialize() {
 
         const row = document.createElement("label");
         row.className = "filter-list";
+        row.title = list.url;
+
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.dataset.identifier = list.identifier;
         checkbox.checked = list.enabled;
+
         const name = document.createElement("span");
         name.textContent = list.name;
+
         const description = document.createElement("p");
         description.id = `description-${list.identifier}`;
         description.textContent = filterListDescriptions[list.identifier];
         checkbox.setAttribute("aria-describedby", description.id);
+
         row.append(checkbox, name, description);
         contentBlockerLists.append(row);
     }
