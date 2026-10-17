@@ -754,7 +754,7 @@ fn frame_writes_after_slow_paths_that_may_initialize_the_frame_check_first() {
     };
     let mut graph = Graph::default();
     graph.add_block(Block::default());
-    let initialize = node(&mut graph, Op::InitializeFrame, vec![], None);
+    let initialize = node(&mut graph, Op::InitializeFrame { clobbers_floats: false }, vec![], None);
     let call = node(
         &mut graph,
         Op::CallSlowPath {
@@ -785,7 +785,7 @@ fn frame_writes_after_slow_paths_that_may_initialize_the_frame_check_first() {
         ops.as_slice(),
         [
             Op::CallSlowPath { .. },
-            Op::EnsureFrameInitialized,
+            Op::EnsureFrameInitialized { .. },
             Op::StoreSlot { .. }
         ]
     ));

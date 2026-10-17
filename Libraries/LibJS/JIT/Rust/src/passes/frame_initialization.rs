@@ -73,15 +73,16 @@ impl State {
     }
 
     /// The node to put before a node with `need`, if any, and the state
-    /// after both.
-    fn satisfy(self, need: &Need) -> (Option<Op>, State) {
+    /// after both. If `clobbers_floats`, that node clobbers the floating
+    /// point registers anyway (see `Op::InitializeFrame`).
+    fn satisfy(self, need: &Need, clobbers_floats: bool) -> (Option<Op>, State) {
         const INITIALIZED: State = State {
             published: Holds::Yes,
             initialized: Holds::Yes,
         };
         match (need, self.initialized, self.published) {
-            (Need::Initialized, Holds::No, _) => (Some(Op::InitializeFrame), INITIALIZED),
-            (Need::Initialized, Holds::Maybe, _) => (Some(Op::EnsureFrameInitialized), INITIALIZED),
+            (Need::Initialized, Holds::No, _) => (Some(Op::InitializeFrame { clobbers_floats }), INITIALIZED),
+            (Need::Initialized, Holds::Maybe, _) => (Some(Op::EnsureFrameInitialized { clobbers_floats }), INITIALIZED),
             (Need::Published, _, Holds::No | Holds::Maybe) => (
                 Some(Op::PublishFrame),
                 State {
@@ -153,7 +154,7 @@ pub fn run(graph: &mut Graph, layout: &FrameLayout) {
         block
             .body
             .iter()
-            .find(|node| graph.node(**node).op == Op::InitializeFrame)
+            .find(|node| matches!(graph.node(**node).op, Op::InitializeFrame { .. }))
             .map(|node| (index, *node))
     }) else {
         return;
@@ -215,7 +216,9 @@ pub fn run(graph: &mut Graph, layout: &FrameLayout) {
                     }
                     continue;
                 }
-                let (op, after) = current.satisfy(&need);
+                let op = &graph.node(*node).op;
+                let clobbers_floats = op.properties().is_call || crate::regalloc::saves_only_gprs(op);
+                let (op, after) = current.satisfy(&need, clobbers_floats);
                 if let Some(op) = op {
                     insertions.push((block, index, op));
                 }

@@ -111,8 +111,8 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::LoadSlot { slot } => with_inputs(&format!("LoadSlot {}", slot_name(layout, *slot))),
         Op::StoreSlot { slot } => with_inputs(&format!("StoreSlot {}", slot_name(layout, *slot))),
         Op::Phi => with_inputs("Phi"),
-        Op::InitializeFrame => with_inputs("InitializeFrame"),
-        Op::EnsureFrameInitialized => with_inputs("EnsureFrameInitialized"),
+        Op::InitializeFrame { .. } => with_inputs("InitializeFrame"),
+        Op::EnsureFrameInitialized { .. } => with_inputs("EnsureFrameInitialized"),
         Op::PublishFrame => with_inputs("PublishFrame"),
         Op::Suspend { continuation, kind } => {
             let continuation = continuation.map_or("completed".to_string(), |pc| format!("pc {pc}"));

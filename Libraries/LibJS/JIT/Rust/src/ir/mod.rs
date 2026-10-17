@@ -437,7 +437,12 @@ pub enum Op {
     Phi,
     /// The `Enter` bytecode: fills the registers and locals with the empty
     /// value, copies the constants into the frame and marks it initialized.
-    InitializeFrame,
+    /// If `clobbers_floats`, the node it initializes the frame for clobbers
+    /// the floating point registers anyway, so it stores through one of
+    /// them, two slots at a time.
+    InitializeFrame {
+        clobbers_floats: bool,
+    },
     /// Makes the frame the running execution context, where other code (the
     /// garbage collector, stack walks, runtime functions) sees it. Direct
     /// calls of compiled functions leave their frame unpublished until it
@@ -446,7 +451,9 @@ pub enum Op {
     PublishFrame,
     /// Does what `InitializeFrame` does, unless the frame is initialized
     /// already. See `passes::frame_initialization`.
-    EnsureFrameInitialized,
+    EnsureFrameInitialized {
+        clobbers_floats: bool,
+    },
     /// The suspension of the `Yield`, `YieldIteratorResult` and `Await`
     /// bytecodes, right before the `Return` of the yielded or awaited value:
     /// records in the frame where its generator or async function resumes
@@ -1285,7 +1292,7 @@ impl Op {
                 ..P::PURE
             },
             Op::Phi => P::PURE,
-            Op::InitializeFrame | Op::EnsureFrameInitialized | Op::PublishFrame => P {
+            Op::InitializeFrame { .. } | Op::EnsureFrameInitialized { .. } | Op::PublishFrame => P {
                 writes: Locations::FRAME,
                 ..P::PURE
             },
@@ -1597,8 +1604,8 @@ impl Op {
             Op::LoadSlot { .. } => "LoadSlot",
             Op::StoreSlot { .. } => "StoreSlot",
             Op::Phi => "Phi",
-            Op::InitializeFrame => "InitializeFrame",
-            Op::EnsureFrameInitialized => "EnsureFrameInitialized",
+            Op::InitializeFrame { .. } => "InitializeFrame",
+            Op::EnsureFrameInitialized { .. } => "EnsureFrameInitialized",
             Op::Suspend { .. } => "Suspend",
             Op::PublishFrame => "PublishFrame",
             Op::BoxCell => "BoxCell",
