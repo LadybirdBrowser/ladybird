@@ -619,19 +619,29 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
     replacements.apply(graph);
     edit::remove_nodes(graph, &removed);
     // NB: Folds can give a check users that need the int32, like the
-    //     unboxing of a boxing of it, which keep the check. The other users
-    //     of the checks that go took the doubles above, and frame states
-    //     take them now.
+    //     unboxing of a boxing of it, and the loop never visits the nodes
+    //     that folds add before the node they replace. A check that any node
+    //     still uses stays, and frame states take the doubles of the others.
     if dissolvable.is_empty() {
         if changed_control_flow {
             edit::clean_up_control_flow(graph);
         }
         return;
     }
-    let still_dissolvable = dissolvable_checks(graph);
+    let mut dissolvable = dissolvable;
+    dissolvable.subtract(&removed);
+    for block in &graph.blocks {
+        for node in block.nodes() {
+            for input in &graph.node(node).inputs {
+                if input.index() < dissolvable.capacity() {
+                    dissolvable.remove(input.index());
+                }
+            }
+        }
+    }
     let mut replacements = Replacements::new(graph);
     let mut removed = BitSet::new(graph.nodes.len());
-    for check in dissolvable.iter().filter(|check| still_dissolvable.contains(*check)) {
+    for check in dissolvable.iter() {
         let check = NodeId::from_index(check);
         let double = checked_double(graph, check).expect("dissolvable checks check doubles");
         replacements.replace(check, double);
