@@ -342,7 +342,13 @@ fn measure_scrollable_overflow_impl(
             in_flow_and_floated_content_bounds.unite(line_rect);
         }
         for fragment in side_data.fragments() {
-            let mut fragment_rect = text_fragment::absolute_rect(layout_arena, fragment);
+            // NB: The box holding the line boxes is the containing block of each of their fragments, and their
+            //     offsets are relative to it, also for a fragment whose node left the tree since it was laid out.
+            debug_assert!(
+                text_fragment::containing_block_paintable(layout_arena, fragment)
+                    .is_none_or(|block| block == box_paintable)
+            );
+            let mut fragment_rect = text_fragment::rect_in_containing_block(fragment).translated_by(absolute_position);
             if layout_arena.node_is_in_focused_text_control(fragment.layout_node)
                 && let Some(style_source_style) =
                     layout_arena.node_style_if_live(text_fragment::style_source(layout_arena, fragment))
