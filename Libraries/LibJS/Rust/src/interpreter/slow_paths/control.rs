@@ -19,7 +19,9 @@ use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
-use crate::runtime::array_iterator::{ArrayIterator, iterated_array_like_element, iterated_array_like_length};
+use crate::runtime::array_iterator::{
+    ArrayIterator, iterated_array_like_element, iterated_array_like_length, packed_array_iteration_is_unobservable,
+};
 use crate::runtime::async_from_sync_iterator_prototype::create_async_from_sync_iterator;
 use crate::runtime::async_generator::AsyncGenerator;
 use crate::runtime::completion::{Completion, Must, ThrowCompletionOr, completion_type_from_bytecode};
@@ -219,9 +221,7 @@ pub fn array_append(
             //               array can be appended in bulk if its next method is also unchanged.
             let realm = current_realm(vm);
             if let Some(rhs_array) = rhs_array
-                && iterator_method == realm.array_prototype_values_function()
-                && rhs_array.is_simple_packed_array()
-                && realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
+                && packed_array_iteration_is_unobservable(vm, realm, &rhs_array, iterator_method)
                 && rhs_array.indexed_packed_element_count() <= u32::MAX - lhs_size
             {
                 lhs_array.indexed_append_packed_elements_of(&rhs_array);
