@@ -1,0 +1,2 @@
+decapsulateBits used the altered ciphertext: true
+decapsulateKey used the altered ciphertext: true

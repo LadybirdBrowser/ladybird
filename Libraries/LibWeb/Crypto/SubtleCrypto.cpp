@@ -1326,27 +1326,27 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(JS::Realm& realm, Algorit
     //    decapsulationAlgorithm, decapsulationKey, sharedKeyAlgorithm, extractable and keyUsages parameters passed to
     //    the decapsulateKey() method, respectively.
 
-    // 2. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
-    //    decapsulateKey() method.
-    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(WebIDL::BufferSource { ciphertext }));
-
-    // 3. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
+    // 2. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
     //    decapsulationAlgorithm and op set to "decapsulate".
     auto normalized_decapsulation_algorithm = normalize_an_algorithm(realm, decapsulation_algorithm, "decapsulate"_string);
 
-    // 4. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
+    // 3. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
     if (normalized_decapsulation_algorithm.is_error()) {
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_decapsulation_algorithm.release_error());
     }
 
-    // 5. Let normalizedSharedKeyAlgorithm be the result of normalizing an algorithm, with alg
+    // 4. Let normalizedSharedKeyAlgorithm be the result of normalizing an algorithm, with alg
     //    set to sharedKeyAlgorithm and op set to "importKey".
     auto normalized_shared_key_algorithm = normalize_an_algorithm(realm, shared_key_algorithm, "importKey"_string);
 
-    // 6. If an error occurred, return a Promise rejected with normalizedSharedKeyAlgorithm.
+    // 5. If an error occurred, return a Promise rejected with normalizedSharedKeyAlgorithm.
     if (normalized_shared_key_algorithm.is_error()) {
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_shared_key_algorithm.release_error());
     }
+
+    // 6. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
+    //    decapsulateKey() method.
+    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(WebIDL::BufferSource { ciphertext }));
 
     // 7. Let realm be the relevant realm of this.
 
@@ -1432,18 +1432,18 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(JS::Realm& realm, Algori
     // 1. Let decapsulationAlgorithm and decapsulationKey be the decapsulationAlgorithm and decapsulationKey
     //    parameters passed to the decapsulateBits() method, respectively.
 
-    // 2. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
-    //    decapsulateBits() method.
-    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(WebIDL::BufferSource { ciphertext }));
-
-    // 3. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
+    // 2. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
     //    decapsulationAlgorithm and op set to "decapsulate".
     auto normalized_decapsulation_algorithm = normalize_an_algorithm(realm, decapsulation_algorithm, "decapsulate"_string);
 
-    // 4. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
+    // 3. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
     if (normalized_decapsulation_algorithm.is_error()) {
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_decapsulation_algorithm.release_error());
     }
+
+    // 4. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
+    //    decapsulateBits() method.
+    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(WebIDL::BufferSource { ciphertext }));
 
     // 5. Let realm be the relevant realm of this.
 

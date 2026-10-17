@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const equal = (a, b) => a.byteLength === b.byteLength && new Uint8Array(a).every((byte, i) => byte === new Uint8Array(b)[i]);
+
+        const { publicKey, privateKey } = await crypto.subtle.generateKey("ML-KEM-768", false, ["encapsulateBits", "decapsulateBits", "decapsulateKey"]);
+
+        const encapsulated = await crypto.subtle.encapsulateBits("ML-KEM-768", publicKey);
+        const zeroed = await crypto.subtle.decapsulateBits("ML-KEM-768", privateKey, new Uint8Array(encapsulated.ciphertext.byteLength));
+
+        const bits = await crypto.subtle.decapsulateBits({
+            get name() {
+                new Uint8Array(encapsulated.ciphertext).fill(0);
+                return "ML-KEM-768";
+            },
+        }, privateKey, encapsulated.ciphertext);
+        println(`decapsulateBits used the altered ciphertext: ${equal(bits, zeroed)}`);
+
+        const reencapsulated = await crypto.subtle.encapsulateBits("ML-KEM-768", publicKey);
+        const sharedKey = await crypto.subtle.decapsulateKey("ML-KEM-768", privateKey, reencapsulated.ciphertext, {
+            get name() {
+                new Uint8Array(reencapsulated.ciphertext).fill(0);
+                return "HMAC";
+            },
+            hash: "SHA-256",
+        }, true, ["sign"]);
+        println(`decapsulateKey used the altered ciphertext: ${equal(await crypto.subtle.exportKey("raw", sharedKey), zeroed)}`);
+    });
+</script>
