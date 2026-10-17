@@ -1,0 +1,4 @@
+start: 1, 1
+input changed: 1, 2
+seek: 1, 2
+running: 2, 2

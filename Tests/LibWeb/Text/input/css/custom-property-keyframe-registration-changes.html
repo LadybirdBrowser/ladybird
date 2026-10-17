@@ -1,0 +1,45 @@
+<!doctype html>
+<style id="registration"></style>
+<div id="target" style="--input: 1"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        CSS.registerProperty({ name: "--universal", syntax: "*", inherits: true });
+        const prefix = { "--prefix": "var(--input)" };
+        const earlier = target.animate([prefix, prefix], 1000);
+        earlier.pause();
+        earlier.currentTime = 0;
+        const keyframe = { "--sample": "var(--input)", "--kept": "var(--input)", "--universal": "var(--input)" };
+        const keyframes = [keyframe, keyframe];
+        const animation = target.animate(keyframes, { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 0;
+        function dump(label) {
+            const style = getComputedStyle(target);
+            const values = ["--sample", "--kept", "--universal"].map(name => style.getPropertyValue(name).trim());
+            println(`${label}: ${values.join(", ")}`);
+        }
+        dump("start");
+        target.style.setProperty("--input", "2");
+        dump("input changed");
+        const expanded = { ...prefix, "--extra": "var(--input)" };
+        earlier.effect.setKeyframes([expanded, expanded]);
+        dump("other effect changed");
+        earlier.cancel();
+        dump("other effect removed");
+        CSS.registerProperty({ name: "--unrelated", syntax: "<integer>", inherits: false, initialValue: "0" });
+        dump("unrelated registration");
+        registration.textContent = "@property --sample { syntax: '<integer>'; inherits: false; initial-value: 0; }";
+        dump("registered");
+        target.style.setProperty("--input", "3");
+        dump("registered input changed");
+        registration.textContent = "";
+        dump("unregistered");
+        target.style.setProperty("--input", "4");
+        dump("unregistered input changed");
+        animation.effect.setKeyframes(keyframes);
+        dump("keyframes replaced");
+        target.style.setProperty("--input", "5");
+        dump("replacement retained");
+    });
+</script>

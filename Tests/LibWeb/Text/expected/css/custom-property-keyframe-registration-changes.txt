@@ -1,0 +1,11 @@
+start: 1, 1, 1
+input changed: 1, 1, 1
+other effect changed: 1, 1, 1
+other effect removed: 1, 1, 1
+unrelated registration: 1, 1, 1
+registered: 2, 1, 1
+registered input changed: 3, 1, 1
+unregistered: 3, 1, 1
+unregistered input changed: 3, 1, 1
+keyframes replaced: 4, 4, 4
+replacement retained: 4, 4, 4

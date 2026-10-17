@@ -3013,6 +3013,13 @@ pub(crate) unsafe fn take_style_transaction(
         != computation_inputs.custom_property_registration_generation;
     if engine.custom_property_registrations_changed {
         engine.custom_property_environments.registrations_changed();
+        let previous_registry = engine.custom_property_registry.clone();
+        engine.animation_effect_descriptions.registrations_changed(
+            previous_registry
+                .as_deref()
+                .unwrap_or_else(|| CustomPropertyRegistry::shared_empty()),
+            computation_inputs.custom_property_registry(),
+        );
     }
     if engine.document_style_computation_inputs != computation_inputs {
         // Persistent records are derived from every document computation input, not only the

@@ -9,10 +9,12 @@
 // Animation values use the same thread-confined shared graph as the rest of the style core.
 #![allow(clippy::arc_with_non_send_sync)]
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::css::easing::{Easing, FfiEasingDescriptor, FfiLinearEasingPoint, evaluate_easing_descriptor};
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
+use crate::css::style::effect_descriptions::{PublishedEffect, PublishedValue};
 use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, CssStringList, FILTER_KIND_BLUR, FILTER_KIND_COLOR, FILTER_KIND_DROP_SHADOW,
     FILTER_KIND_HUE_ROTATE, GridTrackEntryKind, OwnedBasicShapeData, RetainedGridTrackEntry,
@@ -748,7 +750,7 @@ struct AnimationKeyframePlan {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiCompositeOperation {
     Replace,
@@ -6928,6 +6930,66 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
     })
 }
 
+#[derive(Clone, Copy)]
+struct CustomPropertyKeyframeLookup {
+    keyframe_index: usize,
+    declaration_index: usize,
+}
+
+/// Build a sequence of lookups for each custom property, in keyframe order.
+fn build_custom_property_keyframe_lookups(
+    effect: &PublishedEffect,
+    custom_properties: &mut AnimatedCustomProperties,
+) -> BTreeMap<u32, Vec<CustomPropertyKeyframeLookup>> {
+    let mut property_lookups = BTreeMap::<_, Vec<_>>::new();
+    let mut declaration_index = 0;
+    for (keyframe_index, keyframe) in effect.keyframes.iter().enumerate() {
+        for declaration in effect.custom_declarations_of(keyframe) {
+            let name_id = custom_properties.mint(&declaration.name);
+
+            property_lookups
+                .entry(name_id)
+                .or_default()
+                .push(CustomPropertyKeyframeLookup {
+                    keyframe_index,
+                    declaration_index,
+                });
+
+            declaration_index += 1;
+        }
+    }
+    property_lookups
+}
+
+fn select_custom_property_interval_span(
+    effect: &PublishedEffect,
+    keyframe_lookups: &[CustomPropertyKeyframeLookup],
+    current_key: f64,
+) -> [CustomPropertyKeyframeLookup; 2] {
+    let first_lookup = keyframe_lookups[0];
+    let first_composite = effect.keyframes[first_lookup.keyframe_index].composite;
+    let first_value = &effect.custom_declaration_at(first_lookup.declaration_index).value;
+
+    let can_use_constant_interpolation = !matches!(first_value, PublishedValue::ElementValue)
+        && keyframe_lookups.iter().all(|lookup| {
+            let composite = effect.keyframes[lookup.keyframe_index].composite;
+            let value = &effect.custom_declaration_at(lookup.declaration_index).value;
+            composite == first_composite && value == first_value
+        });
+
+    // When declared values and composite operations are equal, use the same endpoints
+    // across all intervals so discrete properties reuse their retained values.
+    let (start, end) = if can_use_constant_interpolation {
+        (0, keyframe_lookups.len() - 1)
+    } else {
+        keyframe_interval(keyframe_lookups.len(), current_key, |index| {
+            effect.keyframes[keyframe_lookups[index].keyframe_index].key
+        })
+    };
+
+    [keyframe_lookups[start], keyframe_lookups[end]]
+}
+
 /// Resolve the declarations of the effects an element samples from their descriptions: each
 /// keyframe's easing and each value written as a token stream substituted against the element, a
 /// keyframe holding the element's own value given it, and every custom property minted into a
@@ -7046,31 +7108,43 @@ pub(crate) fn resolve_published_animation_declarations(
                     is_transition,
                 });
             }
-            for declaration in effect.custom_declarations_of(keyframe) {
-                let name_id = custom_properties.mint(&declaration.name);
-                let (value, use_initial) = match &declaration.value {
-                    PublishedValue::ElementValue => (custom_properties.underlying_value(registry, name_id), true),
-                    // A custom property's value is a token stream; only the substitution functions
-                    // in it resolve against the element.
-                    PublishedValue::Declared(value) if holds_arbitrary_substitution(value.data()) => (
-                        substitute(
-                            crate::css::property_metadata::property_id::CUSTOM,
-                            custom_properties.units(name_id),
-                            value,
-                        ),
-                        false,
-                    ),
-                    PublishedValue::Declared(value) => (value.clone_retained(), false),
-                };
+        }
+        for (name_id, keyframe_lookups) in build_custom_property_keyframe_lookups(effect, &mut custom_properties) {
+            let important = custom_properties.is_important(name_id);
+            if keyframe_lookups.len() < 2 || important && !is_transition {
+                continue;
+            }
+            let name = custom_properties.units(name_id);
+            let interval_span = select_custom_property_interval_span(effect, &keyframe_lookups, selection.current_key);
+            let interval_values = effect.resolve_custom_property_interval_values(
+                interval_span.map(|lookup| lookup.declaration_index),
+                registry.name_has_interpolable_syntax(name),
+                || {
+                    interval_span.map(|lookup| {
+                        let declaration = effect.custom_declaration_at(lookup.declaration_index);
+                        match &declaration.value {
+                            PublishedValue::ElementValue => custom_properties.underlying_value(registry, name_id),
+                            // A custom property's value is a token stream; only the substitution functions
+                            // in it resolve against the element.
+                            PublishedValue::Declared(value) if holds_arbitrary_substitution(value.data()) => {
+                                substitute(crate::css::property_metadata::property_id::CUSTOM, name, value)
+                            }
+                            PublishedValue::Declared(value) => value.clone_retained(),
+                        }
+                    })
+                },
+            );
+            for (lookup, value) in interval_span.into_iter().zip(interval_values) {
+                let declaration = effect.custom_declaration_at(lookup.declaration_index);
                 declarations.push(AnimationDeclaration {
-                    keyframe_index,
+                    keyframe_index: first_keyframe_index + lookup.keyframe_index,
                     property_id: crate::css::property_metadata::property_id::CUSTOM,
                     custom_name_id: name_id,
-                    custom_is_inherited: registry.name_inherits(custom_properties.units(name_id)),
-                    custom_is_important: custom_properties.is_important(name_id),
+                    custom_is_inherited: registry.name_inherits(name),
+                    custom_is_important: important,
                     value,
                     style_sheet_resource_context,
-                    use_initial,
+                    use_initial: matches!(declaration.value, PublishedValue::ElementValue),
                     is_transition,
                 });
             }

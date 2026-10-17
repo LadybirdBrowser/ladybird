@@ -1,0 +1,59 @@
+<!doctype html>
+<style>
+    @keyframes sample {
+        0% {
+            --sample: var(--input);
+            --shared: start;
+            --constant: var(--input);
+            --sparse: var(--input);
+            --neutral: var(--input);
+        }
+
+        25% {
+            opacity: 0.5;
+        }
+
+        50% {
+            --sample: middle;
+            --shared: var(--input);
+            --constant: var(--input);
+        }
+
+        100% {
+            --sample: var(--input);
+            --shared: end;
+            --constant: var(--input);
+            --sparse: end;
+        }
+    }
+    #target {
+        --input: 1;
+        --neutral: underlying;
+        animation: sample 1s linear both paused;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const animation = target.getAnimations()[0];
+        function sample(label, time) {
+            if (time !== undefined) animation.currentTime = time;
+            const style = getComputedStyle(target);
+            const values = ["--sample", "--shared", "--constant", "--sparse", "--neutral"].map(name =>
+                style.getPropertyValue(name).trim()
+            );
+            println(`${label}: ${values.join(", ")}`);
+        }
+        sample("start");
+        target.style.setProperty("--input", "2");
+        sample("input changed");
+        sample("first interval", 400);
+        sample("second interval", 600);
+        sample("last endpoint", 900);
+        sample("return to first interval", 100);
+        target.style.setProperty("--input", "3");
+        sample("return to second interval", 600);
+        sample("last endpoint retained", 900);
+    });
+</script>
