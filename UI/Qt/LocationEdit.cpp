@@ -556,7 +556,8 @@ void LocationEdit::update_chrome_style()
         return;
 
     m_is_updating_chrome_style = true;
-    setStyleSheet(ChromeStyle::location_edit_style_sheet(palette()));
+    // Match the popup's palette without feeding our styled background into the next style update.
+    setStyleSheet(ChromeStyle::location_edit_style_sheet(QApplication::palette()));
     m_is_updating_chrome_style = false;
     update_zoom_indicator();
 }

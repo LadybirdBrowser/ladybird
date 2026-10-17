@@ -28,6 +28,8 @@
 #include <QPalette>
 #include <QPixmap>
 #include <QPoint>
+#include <QStyle>
+#include <QStyleOption>
 #include <QStyledItemDelegate>
 #include <QTextLayout>
 #include <QTimer>
@@ -54,6 +56,25 @@ enum AutocompleteRole {
     SourceRole,
     SuggestionIndexRole,
     HighlightInputRole,
+};
+
+class AutocompletePopup final : public QFrame {
+    AK_ALLOC_WITH_KMALLOC;
+
+public:
+    using QFrame::QFrame;
+
+protected:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        // Translucent top-level frames need their styled background painted explicitly.
+        QStyleOption option;
+        option.initFrom(this);
+        QPainter painter(this);
+        style()->drawPrimitive(QStyle::PE_Widget, &option, &painter, this);
+        auto separator_color = ChromeStyle::mix(palette().color(QPalette::Window), ChromeStyle::chrome_text(palette()), 0.12);
+        painter.fillRect(QRect(CELL_HORIZONTAL_PADDING, 0, width() - CELL_HORIZONTAL_PADDING * 2, 1), separator_color);
+    }
 };
 
 static QFont autocomplete_primary_font()
@@ -341,14 +362,16 @@ void Autocomplete::create_popup()
 {
     // Use a non-activating top-level window so it can stack above native web
     // content windows without moving keyboard focus away from the address bar.
-    m_popup = new QFrame(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+    m_popup = new AutocompletePopup(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     connect(m_popup, &QObject::destroyed, this, [this] {
         // The popup dies with its parent window, which can go away while this object lives on (for
         // example when the tab is moved to another window); it is recreated on the next show.
         m_popup = nullptr;
         m_list_view = nullptr;
+        set_anchor_popup_open(false);
     });
     m_popup->setObjectName("LadybirdAutocompletePopup");
+    m_popup->setAttribute(Qt::WA_TranslucentBackground);
 #if defined(AK_OS_MACOS)
     // The web content view is a native QRhiWidget on macOS, so the popup must
     // also be native to receive mouse events while overlapping it.
@@ -359,7 +382,6 @@ void Autocomplete::create_popup()
     m_popup->setFocusPolicy(Qt::NoFocus);
     m_popup->setFrameShape(QFrame::StyledPanel);
     m_popup->setFrameShadow(QFrame::Raised);
-    m_popup->setAutoFillBackground(true);
     m_popup->hide();
 
     m_list_view = new QListView(m_popup);
@@ -375,7 +397,7 @@ void Autocomplete::create_popup()
     update_chrome_style();
 
     auto* layout = new QVBoxLayout(m_popup);
-    layout->setContentsMargins(0, POPUP_PADDING, 0, POPUP_PADDING);
+    layout->setContentsMargins(0, POPUP_PADDING, 0, ChromeStyle::LOCATION_EDIT_CORNER_RADIUS);
     layout->setSpacing(0);
     layout->addWidget(m_list_view);
 
@@ -389,8 +411,10 @@ void Autocomplete::create_popup()
 Autocomplete::~Autocomplete()
 {
     qApp->removeEventFilter(this);
-    if (m_popup)
+    if (m_popup) {
+        disconnect(m_popup, nullptr, this, nullptr);
         delete m_popup;
+    }
 }
 
 void Autocomplete::update_chrome_style()
@@ -469,6 +493,16 @@ bool Autocomplete::close()
     return true;
 }
 
+void Autocomplete::set_anchor_popup_open(bool open)
+{
+    if (m_anchor->property("autocompleteOpen").toBool() == open)
+        return;
+    m_anchor->setProperty("autocompleteOpen", open);
+    m_anchor->style()->unpolish(m_anchor);
+    m_anchor->style()->polish(m_anchor);
+    m_anchor->update();
+}
+
 bool Autocomplete::is_visible() const
 {
     return m_popup && m_popup->isVisible();
@@ -477,6 +511,13 @@ bool Autocomplete::is_visible() const
 bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
 {
     auto type = event->type();
+    if (watched == m_popup && (type == QEvent::Show || type == QEvent::Hide))
+        set_anchor_popup_open(type == QEvent::Show);
+
+    if (is_visible() && (watched == m_anchor || watched == m_anchor->window())
+        && (type == QEvent::Move || type == QEvent::Resize))
+        position_popup();
+
     if (type == QEvent::ApplicationPaletteChange || type == QEvent::ThemeChange
         || (type == QEvent::PaletteChange && (watched == m_anchor || watched == m_popup || watched == m_list_view)))
         schedule_chrome_style_update();
@@ -531,7 +572,7 @@ void Autocomplete::position_popup()
 
     int width = std::max(m_anchor->width(), MINIMUM_POPUP_WIDTH);
     int frame_overhead = m_popup->frameWidth() * 2;
-    int popup_height = total_height + POPUP_PADDING * 2 + frame_overhead;
+    int popup_height = total_height + POPUP_PADDING + ChromeStyle::LOCATION_EDIT_CORNER_RADIUS + frame_overhead;
 
     m_list_view->setFixedHeight(total_height);
     m_popup->setFixedSize(width, popup_height);

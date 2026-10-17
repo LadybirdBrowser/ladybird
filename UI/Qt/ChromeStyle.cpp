@@ -586,6 +586,18 @@ QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerResetZoomButto
         text, background, surface_hover, surface_pressed);
 }
 
+static QColor autocomplete_surface(QPalette const& palette)
+{
+    if (is_dark(palette))
+        return mix(chrome_background(palette), material_color_anchors(true).recessed, 0.5);
+    return chrome_surface(palette);
+}
+
+static QColor location_edit_focus_border(QPalette const& palette)
+{
+    return mix(chrome_border(palette), chrome_accent(), is_dark(palette) ? 0.50 : 0.54);
+}
+
 QString location_edit_style_sheet(QPalette const& palette)
 {
     auto dark = is_dark(palette);
@@ -597,11 +609,12 @@ QString location_edit_style_sheet(QPalette const& palette)
 
     auto border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.36) : chrome_border(palette);
     auto hover_border_color = border_color;
-    auto focus_border_color = mix(chrome_border(palette), chrome_accent(), dark ? 0.50 : 0.54);
+    auto focus_border_color = location_edit_focus_border(palette);
 
     auto surface = style_sheet_color(surface_color);
     auto hover = style_sheet_color(hover_color);
     auto focus = style_sheet_color(focus_color);
+    auto popup_surface = style_sheet_color(autocomplete_surface(palette));
     auto border = style_sheet_color(border_color);
     auto hover_border = style_sheet_color(hover_border_color);
     auto focus_border = style_sheet_color(focus_border_color);
@@ -625,7 +638,7 @@ QLineEdit#LadybirdLocationEdit {{
     color: {4};
     background: {0};
     border: 1px solid {2};
-    border-radius: 16px;
+    border-radius: {20}px;
     min-height: 32px;
     padding: 0 16px;
     selection-background-color: {6};
@@ -641,6 +654,14 @@ QLineEdit#LadybirdLocationEdit:hover {{
 QLineEdit#LadybirdLocationEdit:focus {{
     background: {19};
     border-color: {3};
+}}
+
+QLineEdit#LadybirdLocationEdit[autocompleteOpen="true"] {{
+    background: {21};
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: 0;
+    padding-bottom: 1px;
 }}
 
 QLineEdit#LadybirdLocationEdit:disabled {{
@@ -696,7 +717,7 @@ QToolButton#LadybirdLocationAction {{
 }}
 )",
         surface, hover, border, focus_border, text, placeholder, selection, selection_text, hover_border,
-        not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border, focus);
+        not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border, focus, LOCATION_EDIT_CORNER_RADIUS, popup_surface);
 }
 
 QString bookmarks_bar_style_sheet(QPalette const& palette)
@@ -1288,8 +1309,8 @@ QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)
 {
-    auto surface = style_sheet_color(chrome_surface(palette));
-    auto border = style_sheet_color(chrome_border(palette));
+    auto surface = style_sheet_color(autocomplete_surface(palette));
+    auto border = style_sheet_color(location_edit_focus_border(palette));
     auto text = style_sheet_color(chrome_text(palette));
 
     return qformatted(R"(
@@ -1297,7 +1318,9 @@ QFrame#LadybirdAutocompletePopup {{
     color: {2};
     background: {0};
     border: 1px solid {1};
-    border-radius: 0 0 10px 10px;
+    border-top: 0;
+    border-bottom-left-radius: {3}px;
+    border-bottom-right-radius: {3}px;
 }}
 
 QListView#LadybirdAutocompleteList {{
@@ -1307,7 +1330,7 @@ QListView#LadybirdAutocompleteList {{
     outline: 0;
 }}
 )",
-        surface, border, text);
+        surface, border, text, LOCATION_EDIT_CORNER_RADIUS);
 }
 
 QString downloads_popover_style_sheet(QPalette const& palette)
