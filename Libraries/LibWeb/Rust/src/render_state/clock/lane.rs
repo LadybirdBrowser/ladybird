@@ -133,6 +133,19 @@ enum FramePlan {
     Sealed(ClockPlan),
 }
 
+/// Lets go of `lanes`, whose forks copy the document's whole render state: they are dropped once the owner no longer
+/// holds the render states, which the host may be waiting for.
+fn retire(lanes: Lanes) {
+    owner::drop_after_hold(lanes);
+}
+
+/// On the render owner: drops the slot of a retired document, whose lanes it lets go of.
+pub(in crate::render_state) fn retire_slot(slot: Option<LaneSlot>) {
+    if let Some(mut slot) = slot {
+        retire(std::mem::take(&mut slot.lanes));
+    }
+}
+
 /// What hands the lane of a frame the pieces the Paint thread makes, once it presented the frame.
 pub(crate) struct LaneDelivery {
     ticks: Arc<ClockTicks>,
@@ -195,7 +208,10 @@ pub(in crate::render_state) fn note_sampled(ticks: &Arc<ClockTicks>) -> LaneDeli
                 lane.state.move_on();
                 Some(lane)
             }
-            Lanes::Coming { earlier, .. } => earlier,
+            Lanes::Coming { pieces, earlier } => {
+                retire(Lanes::Coming { pieces, earlier: None });
+                earlier
+            }
             Lanes::None => None,
         };
         slot.lanes = Lanes::Coming {
@@ -295,7 +311,9 @@ impl LaneSlot {
         if let Lanes::Coming { pieces, earlier } = &mut self.lanes {
             pieces.recorder = Some(recorder);
             // The frame presented, and the presenter takes no frame of the lane of an earlier one after it.
-            *earlier = None;
+            if let Some(earlier) = earlier.take() {
+                retire(Lanes::Newest(earlier));
+            }
             self.come_together();
         }
     }
@@ -303,7 +321,7 @@ impl LaneSlot {
     /// Has the frame `frame`, from which no lane starts, end the lanes: a move waits for nothing more.
     fn forget_coming_lane(&mut self, frame: u64) {
         if frame == self.sampled && matches!(self.lanes, Lanes::Coming { .. }) {
-            self.lanes = Lanes::None;
+            self.retire_lanes();
         }
     }
 
@@ -338,8 +356,13 @@ impl LaneSlot {
             // One that seals no plan leaves a lane that showed no sample following nothing: a later update that presents
             // no frame of its own has it follow its plan again, which a lane that went away could not.
             (Lanes::Newest(lane), None) if lane.samples_nothing() => lane.unplan(),
-            (_, _) => self.lanes = Lanes::None,
+            (_, _) => self.retire_lanes(),
         }
+    }
+
+    /// Lets go of the lanes.
+    fn retire_lanes(&mut self) {
+        retire(std::mem::take(&mut self.lanes));
     }
 
     /// Has the lane of the frame sampled last take the place of the lane before it, once its pieces have come with a
@@ -354,8 +377,13 @@ impl LaneSlot {
                         recorder: Some(recorder),
                         plan: FramePlan::Sealed(plan),
                     },
-                ..
-            } => Lane::new(recorder, plan, state),
+                earlier,
+            } => {
+                if let Some(earlier) = earlier {
+                    retire(Lanes::Newest(earlier));
+                }
+                Lane::new(recorder, plan, state)
+            }
             // A frame with no plan yet has no lane: the moves are the host's.
             Lanes::Coming {
                 pieces:
@@ -364,8 +392,11 @@ impl LaneSlot {
                         plan: FramePlan::None,
                         ..
                     },
-                ..
+                earlier,
             } => {
+                if let Some(earlier) = earlier {
+                    retire(Lanes::Newest(earlier));
+                }
                 self.lanes = Lanes::Coming { pieces, earlier: None };
                 return;
             }
