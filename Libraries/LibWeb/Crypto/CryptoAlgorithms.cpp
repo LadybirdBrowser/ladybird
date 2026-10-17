@@ -4166,14 +4166,20 @@ WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const&
 // https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
-    // NOTE: This is a parameter to the function
-    // 1. Let keyData be the key data to be imported.
-
     auto const& normalized_algorithm = static_cast<EcKeyImportParams const&>(params);
+
+    // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a value
+    //    specified in an applicable specification that specifies the use of that value with ECDSA, then throw a
+    //    NotSupportedError.
+    if (!normalized_algorithm.named_curve.is_one_of("P-256"_utf16, "P-384"_utf16, "P-521"_utf16))
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Unsupported named curve '{}'", normalized_algorithm.named_curve));
+
+    // NOTE: This is a parameter to the function
+    // 2. Let keyData be the key data to be imported.
 
     GC::Ptr<CryptoKey> key = nullptr;
 
-    // 2. If format is "spki":
+    // 3. If format is "spki":
     if (key_format == KeyFormat::Spki) {
         // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
@@ -4275,7 +4281,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDSA"_utf16, named_curve });
     }
 
-    // 2. If format is "pkcs8":
+    // 3. If format is "pkcs8":
     else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
@@ -4388,7 +4394,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDSA"_utf16, named_curve });
     }
 
-    // 2. If format is "jwk":
+    // 3. If format is "jwk":
     else if (key_format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
@@ -4577,7 +4583,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDSA"_utf16, named_curve });
     }
 
-    // 2. If format is "raw":
+    // 3. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
     else if (key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic) {
@@ -4631,7 +4637,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
-    // 3. Return key.
+    // 4. Return key.
     return GC::Ref { *key };
 }
 
@@ -5141,14 +5147,20 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
 // https://w3c.github.io/webcrypto/#ecdh-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
-    // NOTE: This is a parameter to the function
-    // 1. Let keyData be the key data to be imported.
-
     auto const& normalized_algorithm = static_cast<EcKeyImportParams const&>(params);
+
+    // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a value
+    //    specified in an applicable specification that specifies the use of that value with ECDH, then throw a
+    //    NotSupportedError.
+    if (!normalized_algorithm.named_curve.is_one_of("P-256"_utf16, "P-384"_utf16, "P-521"_utf16))
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Unsupported named curve '{}'", normalized_algorithm.named_curve));
+
+    // NOTE: This is a parameter to the function
+    // 2. Let keyData be the key data to be imported.
 
     GC::Ptr<CryptoKey> key = nullptr;
 
-    // 2. If format is "spki":
+    // 3. If format is "spki":
     if (key_format == KeyFormat::Spki) {
         // 1. If usages is not empty then throw a SyntaxError.
         if (!usages.is_empty())
@@ -5247,7 +5259,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDH"_utf16, named_curve });
     }
 
-    // 2. If format is "pkcs8":
+    // 3. If format is "pkcs8":
     else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
@@ -5360,7 +5372,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDH"_utf16, named_curve });
     }
 
-    // 2. If format is "jwk":
+    // 3. If format is "jwk":
     else if (key_format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
@@ -5518,7 +5530,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDH"_utf16, named_curve });
     }
 
-    // 2. If format is "raw":
+    // 3. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
     else if (key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic) {
@@ -5563,7 +5575,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDH"_utf16, normalized_algorithm.named_curve });
     }
 
-    // 3. Return key.
+    // 4. Return key.
     return GC::Ref { *key };
 }
 
