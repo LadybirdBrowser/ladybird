@@ -1,0 +1,8 @@
+Ladybird answers outerWidth, outerHeight, screenX and screenY from the
+window geometry the UI hands each page, and now hands it to every page
+a tab is hosted by. Blink’s LocalDOMWindow::outerWidth() asks the
+ChromeClient::RootWindowRect() for the browser window’s rect; WebKit’s
+LocalDOMWindow::outerWidth() reads page->chrome().windowRect(); and
+Gecko’s nsGlobalWindowOuter::GetOuterSize() asks the tree owner window
+through nsIBaseWindow::GetSize(). All three answer from the live window
+for every frame of every tab, which is what every page gets here now.
