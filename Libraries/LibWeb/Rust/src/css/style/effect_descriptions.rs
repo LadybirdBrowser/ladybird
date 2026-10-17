@@ -20,6 +20,7 @@ use super::bridge::{
 };
 use super::tree::StyleNodeID;
 use crate::css::animation::FfiCompositeOperation;
+use crate::css::custom_properties::CustomPropertyRegistry;
 use crate::css::easing::{Easing, FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::FfiEffectTiming;
@@ -27,10 +28,10 @@ use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ops::Range;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// What a published keyframe declares for a property.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub(crate) enum PublishedValue {
     /// The element's own value, held by a keyframe the host synthesized, and not known until the
     /// element is sampled.
@@ -171,6 +172,9 @@ pub(crate) struct PublishedResourceContext {
     pub(crate) origin_clean: bool,
 }
 
+/// Maps an interval's declaration indices to its substituted values.
+type CustomPropertyIntervalValues = HashMap<[usize; 2], [RetainedStyleValueData; 2]>;
+
 /// One of an element's animation effects, described for the style engine.
 #[derive(Clone)]
 pub(crate) struct PublishedEffect {
@@ -183,6 +187,8 @@ pub(crate) struct PublishedEffect {
     pub(crate) keyframes: Box<[PublishedKeyframe]>,
     declarations: Box<[PublishedDeclaration]>,
     custom_declarations: Box<[PublishedCustomDeclaration]>,
+    /// Substituted interval values retained for this effect version.
+    custom_property_interval_values: Arc<Mutex<CustomPropertyIntervalValues>>,
     /// The timing the host last sampled the effect with, which moves without the description.
     pub(crate) timing: Option<EffectTiming>,
     /// What a transition reverses to, and how much shorter a reversing transition runs, where the effect is one.
@@ -245,6 +251,7 @@ impl PublishedEffect {
                 value: PublishedValue::Declared(value),
             })),
             custom_declarations: Box::new([]),
+            custom_property_interval_values: Default::default(),
             timing,
             reversing: None,
         }
@@ -258,6 +265,37 @@ impl PublishedEffect {
     #[must_use]
     pub(crate) fn custom_declarations_of(&self, keyframe: &PublishedKeyframe) -> &[PublishedCustomDeclaration] {
         &self.custom_declarations[keyframe.custom_declarations.clone()]
+    }
+
+    #[must_use]
+    pub(crate) fn custom_declaration_at(&self, index: usize) -> &PublishedCustomDeclaration {
+        &self.custom_declarations[index]
+    }
+
+    /// Resolve interval values afresh for interpolable syntaxes or neutral keyframes; retain them otherwise.
+    pub(crate) fn resolve_custom_property_interval_values(
+        &self,
+        declaration_indices: [usize; 2],
+        has_interpolable_syntax: bool,
+        resolve_values: impl FnOnce() -> [RetainedStyleValueData; 2],
+    ) -> [RetainedStyleValueData; 2] {
+        let has_neutral_endpoint = declaration_indices
+            .iter()
+            .any(|&index| matches!(self.custom_declarations[index].value, PublishedValue::ElementValue));
+
+        if has_interpolable_syntax || has_neutral_endpoint {
+            return resolve_values();
+        }
+
+        // AD-HOC: Match Chromium's retention of substituted interval values for discrete interpolations
+        // without checking substitution dependencies. Chromium also does this for some standard
+        // properties via CSSDefaultInterpolationType; we currently limit it to custom properties.
+        self.custom_property_interval_values
+            .lock()
+            .unwrap()
+            .entry(declaration_indices)
+            .or_insert_with(resolve_values)
+            .clone()
     }
 }
 
@@ -334,6 +372,7 @@ impl PublishedEffectBuffers<'_> {
                     keyframes,
                     declarations: declarations.into(),
                     custom_declarations: custom_declarations.into(),
+                    custom_property_interval_values: Default::default(),
                     timing: None,
                     reversing: (!effect.reversing_adjusted_start_value.is_null()).then(|| TransitionReversing {
                         adjusted_start_value: unsafe { retained(effect.reversing_adjusted_start_value) },
@@ -382,10 +421,39 @@ pub(crate) struct AnimationEffectDescriptions {
 }
 
 impl AnimationEffectDescriptions {
+    pub(super) fn registrations_changed(
+        &mut self,
+        previous: &CustomPropertyRegistry,
+        registry: &CustomPropertyRegistry,
+    ) {
+        for (_, effects) in self.rows.values_mut().flatten() {
+            for effect in effects {
+                let mut retained_values = effect.custom_property_interval_values.lock().unwrap().clone();
+                retained_values.retain(|declaration_indices, _| {
+                    let name = &effect.custom_declarations[declaration_indices[0]].name;
+                    registry.registration_matches(previous, &name.to_utf16())
+                });
+                // Leave values held by older style snapshots intact.
+                effect.custom_property_interval_values = Arc::new(Mutex::new(retained_values));
+            }
+        }
+    }
+
     /// Replace one list. An empty list drops it.
-    pub(crate) fn set(&mut self, node: StyleNodeID, slot: AnimationSlot, effects: Box<[PublishedEffect]>) {
+    pub(crate) fn set(&mut self, node: StyleNodeID, slot: AnimationSlot, mut effects: Box<[PublishedEffect]>) {
         let lists = self.rows.entry(node).or_default();
         let existing = lists.iter().position(|(list_slot, _)| *list_slot == slot);
+        if let Some(index) = existing {
+            let previous_effects = &lists[index].1;
+            for effect in &mut effects {
+                if let Some(previous_effect) = previous_effects
+                    .iter()
+                    .find(|previous| previous.identity == effect.identity && previous.generation == effect.generation)
+                {
+                    effect.custom_property_interval_values = previous_effect.custom_property_interval_values.clone();
+                }
+            }
+        }
         match (existing, effects.is_empty()) {
             (Some(index), true) => {
                 lists.swap_remove(index);

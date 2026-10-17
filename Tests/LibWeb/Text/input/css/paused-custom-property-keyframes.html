@@ -1,0 +1,36 @@
+<!doctype html>
+<style>
+    @property --registered {
+        syntax: "<integer>";
+        inherits: true;
+        initial-value: 0;
+    }
+    @keyframes sample {
+        from,
+        to {
+            --sample: var(--input);
+            --registered: var(--input);
+        }
+    }
+    #target {
+        --input: 1;
+        animation: sample 1s paused;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function dump(label) {
+            const style = getComputedStyle(target);
+            println(`${label}: ${style.getPropertyValue("--sample")}, ${style.getPropertyValue("--registered")}`);
+        }
+        dump("start");
+        target.style.setProperty("--input", "2");
+        dump("input changed");
+        target.getAnimations()[0].currentTime = 750;
+        dump("seek");
+        target.style.animationPlayState = "running";
+        dump("running");
+    });
+</script>

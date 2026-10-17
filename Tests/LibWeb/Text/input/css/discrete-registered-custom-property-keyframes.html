@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["ident", "<custom-ident>", "alpha", "beta"],
+            ["literal", "alpha | beta", "alpha", "beta"],
+            ["string", "<string>", '"alpha"', '"beta"'],
+            ["url", "<url>", 'url("data:,alpha")', 'url("data:,beta")'],
+            ["image", "<image>", 'url("data:,alpha")', 'url("data:,beta")'],
+            ["ident-list", "<custom-ident>+", "alpha beta", "gamma delta"],
+            ["string-list", "<string>#", '"alpha", "beta"', '"gamma", "delta"'],
+            ["url-list", "<url>+", 'url("data:,alpha") url("data:,beta")', 'url("data:,gamma") url("data:,delta")'],
+            ["alternatives", "<custom-ident> | <string>", "alpha", '"beta"'],
+            ["number-list", "<number>+", "1 2", "3 4"],
+            ["mixed-number", "<number> | <custom-ident>", "1", "2"],
+            ["mixed-ident", "<number> | <custom-ident>", "alpha", "beta"],
+        ];
+        println("Retained values after: input change, seek, return, keyframe replacement");
+        for (const [label, syntax, first, second] of cases) {
+            const name = `--${label}`;
+            CSS.registerProperty({ name, syntax, inherits: false, initialValue: first });
+            for (const constant of [false, true]) {
+                const target = document.body.appendChild(document.createElement("div"));
+                target.style.setProperty("--input", first);
+                const written = { [name]: "var(--input)" };
+                const keyframes = constant ? [written, written] : [written, { [name]: first }, written];
+                const animation = target.animate(keyframes, { duration: 1000, fill: "both" });
+                animation.pause();
+                animation.currentTime = 0;
+                const sample = () => getComputedStyle(target).getPropertyValue(name).trim();
+                const initial = sample();
+                if (initial === "") throw new Error(`${label}: missing initial value`);
+                target.style.setProperty("--input", second);
+                const retained = [sample() === initial];
+                animation.currentTime = 900;
+                retained.push(sample() === initial);
+                animation.currentTime = 0;
+                retained.push(sample() === initial);
+                animation.effect.setKeyframes(keyframes);
+                retained.push(sample() === initial);
+                println(`${label} ${constant ? "constant" : "intervals"}: ${retained.join(", ")}`);
+                target.remove();
+            }
+        }
+    });
+</script>

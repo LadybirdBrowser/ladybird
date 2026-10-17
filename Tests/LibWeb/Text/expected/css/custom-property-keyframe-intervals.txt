@@ -1,0 +1,8 @@
+start: 1, start, 1, 1, 1
+input changed: 1, start, 1, 1, 2
+first interval: middle, 1, 1, 1, 2
+second interval: middle, 2, 1, end, underlying
+last endpoint: 2, end, 1, end, underlying
+return to first interval: 1, start, 1, 1, 2
+return to second interval: middle, 2, 1, end, underlying
+last endpoint retained: 2, end, 1, end, underlying

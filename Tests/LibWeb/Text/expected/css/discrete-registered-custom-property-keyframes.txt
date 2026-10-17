@@ -1,0 +1,25 @@
+Retained values after: input change, seek, return, keyframe replacement
+ident intervals: true, false, true, false
+ident constant: true, true, true, false
+literal intervals: true, false, true, false
+literal constant: true, true, true, false
+string intervals: true, false, true, false
+string constant: true, true, true, false
+url intervals: true, false, true, false
+url constant: true, true, true, false
+image intervals: true, false, true, false
+image constant: true, true, true, false
+ident-list intervals: true, false, true, false
+ident-list constant: true, true, true, false
+string-list intervals: true, false, true, false
+string-list constant: true, true, true, false
+url-list intervals: true, false, true, false
+url-list constant: true, true, true, false
+alternatives intervals: true, false, true, false
+alternatives constant: true, true, true, false
+number-list intervals: false, false, false, false
+number-list constant: false, false, false, false
+mixed-number intervals: false, false, false, false
+mixed-number constant: false, false, false, false
+mixed-ident intervals: false, false, false, false
+mixed-ident constant: false, false, false, false

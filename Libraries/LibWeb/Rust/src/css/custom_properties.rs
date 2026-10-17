@@ -132,6 +132,7 @@ type RegisteredValueParse = (RetainedStyleValueData, Option<RetainedStyleValueDa
 /// How many parses the registry keeps before it starts over.
 const MAX_REGISTERED_VALUE_PARSES: usize = 4096;
 
+#[derive(PartialEq)]
 struct RegisteredCustomProperty {
     syntax: SyntaxNode,
     inherits: bool,
@@ -263,6 +264,11 @@ impl CustomPropertyRegistry {
         self.registrations.contains_key(name)
     }
 
+    /// Whether a name has the same effective registration in two document registries.
+    pub(crate) fn registration_matches(&self, other: &Self, name: &[u16]) -> bool {
+        self.registrations.get(name) == other.registrations.get(name)
+    }
+
     /// Whether a custom property of this name inherits: only a registration can say it does not.
     pub(crate) fn name_inherits(&self, name: &[u16]) -> bool {
         self.registrations
@@ -276,6 +282,25 @@ impl CustomPropertyRegistry {
         self.registrations
             .get(name)
             .is_some_and(|registration| !matches!(registration.syntax, SyntaxNode::Universal))
+    }
+
+    /// Whether a registration's syntax permits smooth interpolation.
+    pub(crate) fn name_has_interpolable_syntax(&self, name: &[u16]) -> bool {
+        fn is_interpolable(syntax: &SyntaxNode) -> bool {
+            match syntax {
+                SyntaxNode::Universal
+                | SyntaxNode::Ident { .. }
+                | SyntaxNode::Type(
+                    SyntaxType::CustomIdent | SyntaxType::Image | SyntaxType::String | SyntaxType::Url,
+                ) => false,
+                SyntaxNode::Type(_) => true,
+                SyntaxNode::Multiplier { child, .. } => is_interpolable(child),
+                SyntaxNode::Alternatives(alternatives) => alternatives.iter().any(is_interpolable),
+            }
+        }
+        self.registrations
+            .get(name)
+            .is_some_and(|registration| is_interpolable(&registration.syntax))
     }
 
     /// A custom property's initial value: what its registration's initial value computes to, and
