@@ -4869,6 +4869,20 @@ impl LayoutNodeArena {
         (!self.fragment_cache_epoch_changed_during_layout_pass.get()).then(|| data.fragment_cache_epoch.get())
     }
 
+    /// Whether `id` committed `link` already, placed the same way, in a layout its geometry is still current for.
+    pub(crate) fn holds_current_committed_fragment_link(
+        &self,
+        id: NodeSlotId,
+        link: &super::fragment_tree::FragmentLink,
+    ) -> bool {
+        self.paintable_rows.holds_current_committed_fragment_link(
+            id.slot_index(),
+            id.generation(),
+            self.data(id).fragment_cache_epoch.get(),
+            link,
+        )
+    }
+
     pub(crate) fn with_current_committed_fragment<R>(
         &self,
         node: NodeSlotId,

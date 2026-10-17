@@ -578,6 +578,26 @@ impl PaintableRowStore {
         Some(read(&slot.link.as_ref()?.fragment))
     }
 
+    /// Whether the slot holds `link` already, placed the same way, with geometry current for `geometry_epoch`.
+    pub(crate) fn holds_current_committed_fragment_link(
+        &self,
+        layout_slot_index: u32,
+        layout_slot_generation: u8,
+        geometry_epoch: u32,
+        link: &fragment_tree::FragmentLink,
+    ) -> bool {
+        let slots = self.committed_fragment_links.borrow();
+        slots.get(layout_slot_index as usize).is_some_and(|slot| {
+            slot.layout_slot_generation == layout_slot_generation
+                && slot.geometry_is_current
+                && slot.geometry_epoch == geometry_epoch
+                && slot
+                    .link
+                    .as_ref()
+                    .is_some_and(|committed| link.places_same_fragment_identically_to(committed))
+        })
+    }
+
     pub(crate) fn invalidate_committed_geometry(&self, layout_slot_index: u32) {
         if let Some(mut slot) = RowMut::new(self.committed_fragment_links.borrow_mut(), layout_slot_index as usize) {
             slot.geometry_is_current = false;
