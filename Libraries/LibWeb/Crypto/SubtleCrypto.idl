@@ -41,7 +41,7 @@ dictionary JsonWebKey {
     sequence<RsaOtherPrimesInfo> oth;
     DOMString k;
 
-    // The following fields are defined in draft-ietf-cose-dilithium-07
+    // The following fields are defined in RFC 9964
     DOMString pub;
     DOMString priv;
 };
