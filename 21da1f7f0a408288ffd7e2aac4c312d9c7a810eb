@@ -1,0 +1,10 @@
+Ladybird answers navigator.storage.estimate() with a fixed 10 GiB
+quota. Firefox’s QuotaManager::GetGroupLimitForLimit() caps a group
+at min(a fifth of the temporary storage limit, 10 GB), which is the
+10 GiB it reports on a large disk. Chrome’s QuotaSettings sets
+per_storage_key_quota to a third of a pool that is 80% of the disk
+(storage/browser/quota/quota_settings.cc, quota_features.cc), and
+reported the same 10 GiB on the measured machine. WebKit computes an
+origin quota from WebsiteDataStoreConfiguration’s origin quota ratio
+of the volume, and Safari reported 82 GB. Ladybird uses the
+disk-independent figure of the three.
