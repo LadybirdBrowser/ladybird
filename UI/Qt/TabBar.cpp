@@ -135,25 +135,6 @@ static bool target_can_accept_tab_drop(QWidget& target, QDropEvent& event)
     return source_window->is_private() == target_window->is_private();
 }
 
-static QPainterPath tab_shape_path(QRectF const& rect, qreal top_radius, qreal bottom_radius)
-{
-    top_radius = min(top_radius, rect.height() / 2.0);
-    bottom_radius = min(bottom_radius, rect.height() / 2.0);
-
-    QPainterPath path;
-    path.moveTo(rect.left() + top_radius, rect.top());
-    path.lineTo(rect.right() - top_radius, rect.top());
-    path.quadTo(rect.right(), rect.top(), rect.right(), rect.top() + top_radius);
-    path.lineTo(rect.right(), rect.bottom() - bottom_radius);
-    path.quadTo(rect.right(), rect.bottom(), rect.right() - bottom_radius, rect.bottom());
-    path.lineTo(rect.left() + bottom_radius, rect.bottom());
-    path.quadTo(rect.left(), rect.bottom(), rect.left(), rect.bottom() - bottom_radius);
-    path.lineTo(rect.left(), rect.top() + top_radius);
-    path.quadTo(rect.left(), rect.top(), rect.left() + top_radius, rect.top());
-    path.closeSubpath();
-    return path;
-}
-
 static void clear_layout(QLayout& layout)
 {
     while (auto* item = layout.takeAt(0))
@@ -232,6 +213,15 @@ static QColor selected_tab_border(QPalette const& palette, bool collapsed)
     return color;
 }
 
+static QColor selected_tab_top_edge_highlight(QPalette const& palette, QColor border)
+{
+    if (!ChromeStyle::is_dark(palette))
+        return border;
+    auto highlight = QColor(255, 255, 255);
+    highlight.setAlpha(border.alpha() + 26);
+    return highlight;
+}
+
 static QColor selected_tab_shadow(QPalette const& palette, int layer)
 {
     auto dark = ChromeStyle::is_dark(palette);
@@ -295,7 +285,9 @@ private:
             : (is_horizontal_new_tab_button
                       ? horizontal_new_tab_button_shape_rect(QRectF(rect()))
                       : QRectF(rect()).adjusted(4.0, 3.0, -4.0, -3.0));
-        auto tab_path = tab_shape_path(shape_rect, 9.0, 9.0);
+        // NB: The horizontal new tab button's shape is square, so this pill is a circle.
+        QPainterPath tab_path;
+        tab_path.addRoundedRect(shape_rect, shape_rect.height() / 2.0, shape_rect.height() / 2.0);
         auto hovered = underMouse();
 
         if (isDown()) {
@@ -686,7 +678,6 @@ void TabBar::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    auto border = ChromeStyle::chrome_border(palette());
     auto dark = ChromeStyle::is_dark(palette());
     auto text_color = ChromeStyle::chrome_text(palette());
     auto is_vertical = tab_layout() != TabLayout::Horizontal;
@@ -712,7 +703,8 @@ void TabBar::paintEvent(QPaintEvent*)
             shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect));
         else
             shape_rect = tab_card_shape_rect(QRectF(tab_rect));
-        auto tab_path = tab_shape_path(shape_rect, 9.0, 9.0);
+        QPainterPath tab_path;
+        tab_path.addRoundedRect(shape_rect, shape_rect.height() / 2.0, shape_rect.height() / 2.0);
 
         if (is_selected) {
             painter.setPen(Qt::NoPen);
@@ -721,26 +713,18 @@ void TabBar::paintEvent(QPaintEvent*)
             painter.setBrush(selected_tab_shadow(palette(), 0));
             painter.drawPath(tab_path.translated(0, 1));
 
-            auto selected_gradient = QLinearGradient(shape_rect.topLeft(), shape_rect.bottomLeft());
-            selected_gradient.setColorAt(0.0, ChromeStyle::chrome_active_tab_surface_top(palette()));
-            selected_gradient.setColorAt(1.0, ChromeStyle::chrome_active_tab_surface_bottom(palette()));
-            painter.setBrush(selected_gradient);
-            painter.setPen(QPen(selected_tab_border(palette(), is_collapsed_vertical), 1));
+            // The fill is flat; only the border brightens toward the top edge, for a little depth.
+            auto border_color = selected_tab_border(palette(), is_collapsed_vertical);
+            auto border_gradient = QLinearGradient(shape_rect.topLeft(), shape_rect.bottomLeft());
+            border_gradient.setColorAt(0.0, selected_tab_top_edge_highlight(palette(), border_color));
+            border_gradient.setColorAt(0.45, border_color);
+            painter.setBrush(ChromeStyle::chrome_active_tab_surface(palette()));
+            painter.setPen(QPen(QBrush(border_gradient), 1));
             painter.drawPath(tab_path);
         } else if (is_hovered) {
             painter.setBrush(tab_hover_surface(palette(), hover_progress));
             painter.setPen(Qt::NoPen);
             painter.drawPath(tab_path);
-        }
-
-        if (!is_selected && !is_hovered && index > 0 && index != currentIndex() + 1 && !is_collapsed_vertical) {
-            auto separator = border;
-            separator.setAlpha(dark ? 24 : 20);
-            painter.setPen(separator);
-            if (is_vertical)
-                painter.drawLine(QPoint(tab_rect.left() + 16, tab_rect.top()), QPoint(tab_rect.right() - 16, tab_rect.top()));
-            else
-                painter.drawLine(QPoint(tab_rect.left(), 15), QPoint(tab_rect.left(), height() - 15));
         }
 
         auto icon = tabIcon(index);

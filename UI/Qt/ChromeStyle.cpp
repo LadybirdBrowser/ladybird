@@ -120,7 +120,9 @@ QColor chrome_background(QPalette const& palette)
 {
     auto window = chrome_window(palette);
     auto dark = is_dark(palette);
-    return mix(window, material_color_anchors(dark).background, dark ? 0.34 : 0.68);
+    if (dark)
+        return mix(window, QColor(17, 20, 25), 0.70);
+    return mix(window, material_color_anchors(dark).background, 0.68);
 }
 
 QColor chrome_surface(QPalette const& palette)
@@ -172,24 +174,16 @@ QColor chrome_control_border(QPalette const& palette)
     return mix(chrome_border(palette), material_color_anchors(dark).border, 0.18);
 }
 
-QColor chrome_active_tab_surface_top(QPalette const& palette)
+// The active tab is lifted toward a cool slate rather than plain white, to match the tint of the dark chrome.
+static constexpr QColor active_tab_tint { 150, 165, 180 };
+
+QColor chrome_active_tab_surface(QPalette const& palette)
 {
     auto dark = is_dark(palette);
     if (!dark)
         return QColor(255, 255, 255);
 
-    auto background = chrome_background(palette);
-    return mix(background, QColor(255, 255, 255), 0.22);
-}
-
-QColor chrome_active_tab_surface_bottom(QPalette const& palette)
-{
-    auto dark = is_dark(palette);
-    if (!dark)
-        return QColor(251, 251, 251);
-
-    auto background = chrome_background(palette);
-    return mix(background, QColor(255, 255, 255), 0.20);
+    return mix(chrome_background(palette), active_tab_tint, 0.24);
 }
 
 QColor chrome_border(QPalette const& palette)
@@ -343,10 +337,12 @@ QString toolbar_container_style_sheet(QPalette const& palette)
 {
     auto dark = is_dark(palette);
 
-    auto background = style_sheet_color(chrome_background(palette));
+    auto background_color = chrome_background(palette);
+    auto background = style_sheet_color(background_color);
     auto surface_hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto surface_pressed = style_sheet_color(chrome_control_surface_pressed(palette));
-    auto separator = style_sheet_color(chrome_border(palette));
+    // In dark mode, the line under the toolbar is as soft as the one under the tab strip.
+    auto separator = style_sheet_color(dark ? mix(background_color, chrome_border(palette), 0.44) : chrome_border(palette));
     auto window_controls_separator = style_sheet_color(mix(chrome_background(palette), chrome_border(palette), dark ? 0.36 : 0.46));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
@@ -1553,7 +1549,7 @@ void paint_circular_control_frame(QPainter& painter, QAbstractButton const& butt
 
     auto const& palette = button.window()->palette();
     auto background = frame_style == CircularControlFrameStyle::ActiveTabOverlay
-        ? chrome_active_tab_surface_top(palette)
+        ? chrome_active_tab_surface(palette)
         : chrome_control_surface_hover(palette);
     auto border = frame_style == CircularControlFrameStyle::ActiveTabOverlay
         ? chrome_control_surface_hover(palette)
