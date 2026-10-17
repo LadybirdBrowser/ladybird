@@ -312,11 +312,19 @@ impl JitState {
 
     /// With the "coverage" option, counts `key`, which is only formatted then: what compiled code contained when it was
     /// installed (see `libjs_jit::coverage`), and what happened to it ("exit.BadShape", "discard", "osr-entry", ...).
+    #[inline]
     pub(crate) fn count_coverage(&self, key: impl core::fmt::Display) {
+        // OPTIMIZATION: Hot paths count, so the check that coverage is off is inlined into them.
         if self.options.coverage.is_none() {
             return;
         }
-        *self.coverage.borrow_mut().entry(key.to_string()).or_default() += 1;
+        self.count_coverage_key(&key.to_string());
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn count_coverage_key(&self, key: &str) {
+        *self.coverage.borrow_mut().entry(key.to_owned()).or_default() += 1;
     }
 
     /// With the "coverage" option, writes the coverage counts into a new file in the coverage directory and starts
