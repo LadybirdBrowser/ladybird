@@ -212,6 +212,19 @@ void HTMLIFrameElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* o
 
     // When an iframe element is removed from a document, the user agent must destroy the nested navigable of the element.
     destroy_the_child_navigable();
+
+    // AD-HOC: A lazy loading iframe's resumption steps navigate its content navigable, which is gone now. Inserting
+    //         the iframe again processes its attributes, and lazy loads it anew.
+    stop_lazy_loading();
+}
+
+// Stops intersection-observing the iframe as a lazy loading element, and sets its lazy load resumption steps to null.
+// NB: Only an iframe that has lazy load resumption steps is intersection-observed. One without a src never started lazy
+//     loading, and its document can have no lazy load intersection observer to stop.
+void HTMLIFrameElement::stop_lazy_loading()
+{
+    if (take_lazy_load_resumption_steps_internal())
+        document().stop_intersection_observing_a_lazy_loading_element(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#iframe-load-event-steps
