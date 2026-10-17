@@ -10484,8 +10484,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
                 return WebIDL::DataError::create("Invalid alg field for KMAC256"_utf16);
         }
 
-        // 6. If usages is non-empty and the use field of jwk is present and is not "sign", then throw a DataError.
-        if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sign"sv)
+        // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
+        if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sig"sv)
             return WebIDL::DataError::create("Invalid use in JsonWebKey"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
