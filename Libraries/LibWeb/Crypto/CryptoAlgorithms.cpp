@@ -8833,13 +8833,15 @@ WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyForm
         if (key->type() != KeyType::Public)
             return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
-        // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+        // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-        //      * -> If the name member of normalizedAlgorithm is "ML-DSA-44":
+        //      * -> If the name member of keyAlgorithm is "ML-DSA-44":
         //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
-        //        -> If the name member of normalizedAlgorithm is "ML-DSA-65":
+        //        -> If the name member of keyAlgorithm is "ML-DSA-65":
         //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
-        //        -> If the name member of normalizedAlgorithm is "ML-DSA-87":
+        //        -> If the name member of keyAlgorithm is "ML-DSA-87":
         //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
         //        -> Otherwise:
         //           throw a NotSupportedError.
@@ -8859,7 +8861,7 @@ WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyForm
         VERIFY(handle.has<::Crypto::PK::MLDSAPublicKey>());
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<::Crypto::PK::MLDSAPublicKey>().public_key(), algorithm_oid));
 
-        // 3. Let result be the result of DER-encoding data.
+        // 4. Let result be the result of DER-encoding data.
         result = ExportKeyResult { data };
     }
     //   -> If format is "pkcs8":
@@ -8868,29 +8870,31 @@ WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyForm
         if (key->type() != KeyType::Private)
             return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
-        // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+        // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    * Set the version field to 0.
         //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-        //      * => If the name member of normalizedAlgorithm is "ML-DSA-44":
+        //      * => If the name member of keyAlgorithm is "ML-DSA-44":
         //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
-        //      * => If the name member of normalizedAlgorithm is "ML-DSA-65":
+        //      * => If the name member of keyAlgorithm is "ML-DSA-65":
         //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
-        //      * => If the name member of normalizedAlgorithm is "ML-DSA-87":
+        //      * => If the name member of keyAlgorithm is "ML-DSA-87":
         //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
         //      * => Otherwise:
         //           throw a NotSupportedError.
         //    * Set the privateKey field as follows:
-        //      * => If the name member of normalizedAlgorithm is "ML-DSA-44":
+        //      * => If the name member of keyAlgorithm is "ML-DSA-44":
         //           Set the privateKey field to the result of DER-encoding a ML-DSA-44-PrivateKey
         //           ASN.1 type that represents the ML-DSA private key seed represented by the
         //           [[handle]] internal slot of key using the seed-only format (using a context-
         //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-        //      * => If the name member of normalizedAlgorithm is "ML-DSA-65":
+        //      * => If the name member of keyAlgorithm is "ML-DSA-65":
         //           Set the privateKey field to the result of DER-encoding a ML-DSA-65-PrivateKey
         //           ASN.1 type that represents the ML-DSA private key seed represented by the
         //           [[handle]] internal slot of key using the seed-only format (using a context-
         //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-        //      * => If the name member of normalizedAlgorithm is "ML-DSA-87":
+        //      * => If the name member of keyAlgorithm is "ML-DSA-87":
         //           Set the privateKey field to the result of DER-encoding a ML-DSA-87-PrivateKey
         //           ASN.1 type that represents the ML-DSA private key seed represented by the
         //           [[handle]] internal slot of key using the seed-only format (using a context-
@@ -8912,7 +8916,7 @@ WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyForm
         VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
         auto const data = TRY_OR_THROW_OOM(realm.vm(), ::Crypto::PK::wrap_in_private_key_info(handle.get<::Crypto::PK::MLDSAPrivateKey>(), algorithm_oid));
 
-        // 3. Let result be the result of DER-encoding data.
+        // 4. Let result be the result of DER-encoding data.
         result = ExportKeyResult { data };
     }
     //   -> If format is "raw-public":
@@ -8946,33 +8950,35 @@ WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyForm
         // 1. Let jwk be a new JsonWebKey dictionary.
         auto jwk = JsonWebKey {};
 
-        // 2. Set the kty attribute of jwk to "AKP".
+        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+        // 3. Set the kty attribute of jwk to "AKP".
         jwk.kty = "AKP"_utf16;
 
-        // 3. Set the alg attribute of jwk to the name member of normalizedAlgorithm.
+        // 4. Set the alg attribute of jwk to the name member of keyAlgorithm.
         jwk.alg = key->algorithm_name();
 
-        // 4. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]] internal slot of key.
+        // 5. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]] internal slot of key.
         jwk.pub = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.visit([](::Crypto::PK::MLDSAPublicKey const& public_key) -> ReadonlyBytes { return public_key.public_key(); }, [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ReadonlyBytes { return private_key.public_key(); }, [](auto) -> ReadonlyBytes { VERIFY_NOT_REACHED(); })));
 
-        // 5. -> If the [[type]] internal slot of key is "private":
+        // 6. -> If the [[type]] internal slot of key is "private":
         //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
         if (key->type() == KeyType::Private) {
             VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
             jwk.priv = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.get<::Crypto::PK::MLDSAPrivateKey>().seed()));
         }
 
-        // 6. Set the key_ops attribute of jwk to the usages attribute of key.
+        // 7. Set the key_ops attribute of jwk to the usages attribute of key.
         jwk.key_ops = Vector<Utf16String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
             jwk.key_ops->unchecked_append(Utf16String::from_utf8(key_usage_to_string(usage)));
         }
 
-        // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+        // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
-        // 8. Let result be jwk.
+        // 9. Let result be jwk.
         result = ExportKeyResult { move(jwk) };
     }
     //   -> Otherwise:
@@ -9283,13 +9289,15 @@ WebIDL::ExceptionOr<ExportKeyResult> MLKEM::export_key(JS::Realm& realm, KeyForm
         if (key->type() != KeyType::Public)
             return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
-        // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+        // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-        //      * -> If the name member of normalizedAlgorithm is "ML-KEM-512":
+        //      * -> If the name member of keyAlgorithm is "ML-KEM-512":
         //           Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
-        //        -> If the name member of normalizedAlgorithm is "ML-KEM-768":
+        //        -> If the name member of keyAlgorithm is "ML-KEM-768":
         //           Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
-        //        -> If the name member of normalizedAlgorithm is "ML-KEM-1024":
+        //        -> If the name member of keyAlgorithm is "ML-KEM-1024":
         //           Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
         //        -> Otherwise:
         //           throw a NotSupportedError.
@@ -9309,7 +9317,7 @@ WebIDL::ExceptionOr<ExportKeyResult> MLKEM::export_key(JS::Realm& realm, KeyForm
         VERIFY(handle.has<::Crypto::PK::MLKEMPublicKey>());
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<::Crypto::PK::MLKEMPublicKey>().public_key(), algorithm_oid));
 
-        // 3. Let result be the result of DER-encoding data.
+        // 4. Let result be the result of DER-encoding data.
         result = ExportKeyResult { data };
     }
     //   -> If format is "pkcs8":
@@ -9318,29 +9326,31 @@ WebIDL::ExceptionOr<ExportKeyResult> MLKEM::export_key(JS::Realm& realm, KeyForm
         if (key->type() != KeyType::Private)
             return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
-        // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+        // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    * Set the version field to 0.
         //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-        //      * => If the name member of normalizedAlgorithm is "ML-KEM-512":
+        //      * => If the name member of keyAlgorithm is "ML-KEM-512":
         //           Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
-        //      * => If the name member of normalizedAlgorithm is "ML-KEM-768":
+        //      * => If the name member of keyAlgorithm is "ML-KEM-768":
         //           Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
-        //      * => If the name member of normalizedAlgorithm is "ML-KEM-1024":
+        //      * => If the name member of keyAlgorithm is "ML-KEM-1024":
         //           Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
         //      * => Otherwise:
         //           throw a NotSupportedError.
         //    * Set the privateKey field as follows:
-        //      * => If the name member of normalizedAlgorithm is "ML-KEM-512":
+        //      * => If the name member of keyAlgorithm is "ML-KEM-512":
         //           Set the privateKey field to the result of DER-encoding a ML-KEM-512-PrivateKey
         //           ASN.1 type that represents the ML-KEM private key seed represented by the
         //           [[handle]] internal slot of key using the seed-only format (using a context-
         //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-        //      * => If the name member of normalizedAlgorithm is "ML-KEM-768":
+        //      * => If the name member of keyAlgorithm is "ML-KEM-768":
         //           Set the privateKey field to the result of DER-encoding a ML-KEM-65-PrivateKey
         //           ASN.1 type that represents the ML-KEM private key seed represented by the
         //           [[handle]] internal slot of key using the seed-only format (using a context-
         //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-        //      * => If the name member of normalizedAlgorithm is "ML-KEM-1024":
+        //      * => If the name member of keyAlgorithm is "ML-KEM-1024":
         //           Set the privateKey field to the result of DER-encoding a ML-KEM-1024-PrivateKey
         //           ASN.1 type that represents the ML-KEM private key seed represented by the
         //           [[handle]] internal slot of key using the seed-only format (using a context-
@@ -9362,7 +9372,7 @@ WebIDL::ExceptionOr<ExportKeyResult> MLKEM::export_key(JS::Realm& realm, KeyForm
         VERIFY(handle.has<::Crypto::PK::MLKEMPrivateKey>());
         auto const data = TRY_OR_THROW_OOM(realm.vm(), ::Crypto::PK::wrap_in_private_key_info(handle.get<::Crypto::PK::MLKEMPrivateKey>(), algorithm_oid));
 
-        // 3. Let result be the result of DER-encoding data.
+        // 4. Let result be the result of DER-encoding data.
         result = ExportKeyResult { data };
     }
     //   -> If format is "raw-public":
