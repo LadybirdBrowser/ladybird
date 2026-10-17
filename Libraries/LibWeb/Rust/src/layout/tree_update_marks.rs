@@ -329,7 +329,7 @@ impl LayoutNodeArena {
                 engine.element_adjustment_facts(node) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
             })
         };
-        let mut is_inside_top_layer_member = node.is_some_and(&is_in_top_layer);
+        let mut is_inside_top_layer_member = node.is_some_and(is_in_top_layer);
         let mut current = node;
         while let Some(child) = current {
             current = self.flat_tree_parent(child);
@@ -337,7 +337,7 @@ impl LayoutNodeArena {
             let Some(parent) = current.or(document) else {
                 break;
             };
-            is_inside_top_layer_member |= current.is_some_and(&is_in_top_layer);
+            is_inside_top_layer_member |= current.is_some_and(is_in_top_layer);
             if self
                 .layout_tree_update_marks()
                 .borrow_mut()
