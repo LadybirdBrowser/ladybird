@@ -10372,8 +10372,9 @@ WebIDL::ExceptionOr<bool> KMAC::verify(JS::Realm& realm, AlgorithmParams const& 
         customization.map([](auto const& v) { return v.span(); })));
 
     // 3. Let computedMac be a byte sequence containing mac.
-    // 4. Return true if computedMac is equal to signature and false otherwise.
-    return mac == signature;
+    // 4. Return true if computedMac is equal to signature and false otherwise. This comparison must be performed in
+    //    constant-time.
+    return mac.size() == signature.size() && timing_safe_compare(mac.data(), signature.data(), mac.size());
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-generate-key
