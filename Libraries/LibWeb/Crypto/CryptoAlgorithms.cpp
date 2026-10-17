@@ -10397,10 +10397,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> KMAC::generate_k
         if (!kind.has_value())
             return WebIDL::OperationError::create("Unsupported KMAC algorithm"_utf16);
         length = ::Crypto::Authentication::KMAC::default_key_length(*kind);
-    } else if (normalized_algorithm.length.value() != 0) {
-        length = normalized_algorithm.length.value();
     } else {
-        return WebIDL::OperationError::create("Invalid key length"_utf16);
+        length = normalized_algorithm.length.value();
     }
 
     // 3. Generate a key of length bits.
@@ -10513,7 +10511,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
             return WebIDL::DataError::create("Invalid data size"_utf16);
 
         // 2. If the length member of normalizedAlgorithm is less than or equal to length minus eight, then throw a DataError.
-        if (requested_length <= length - 8)
+        if (requested_length + 8 <= length)
             return WebIDL::DataError::create("Invalid data size"_utf16);
 
         // 3. Otherwise:
