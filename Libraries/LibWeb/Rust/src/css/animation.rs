@@ -6615,28 +6615,23 @@ fn composite_batch_value<'a>(
     BatchAnimationValue::Owned(value.into_arc())
 }
 
-fn evaluate_animation_value(
-    context: &FfiAnimationContext,
-    input: &AnimationValueInput,
-    underlying_override: Option<&StyleValueData>,
-) -> AnimatedProperty {
-    let keyframes = input.keyframes;
-    assert!(keyframes.len() >= 2);
-    let plan = |index: usize| &input.keyframe_plans[keyframes[index].keyframe];
-
+/// The endpoint indices in a property's keyframe sequence for the current sample.
+fn keyframe_interval(keyframe_count: usize, current_key: f64, key_at: impl Fn(usize) -> i64) -> (usize, usize) {
+    assert!(keyframe_count >= 2);
     // https://drafts.csswg.org/web-animations-1/#the-effect-value-of-a-keyframe-animation-effect
-    // 10. Let interval endpoints be an empty sequence of keyframes.
-    // 11. Populate interval endpoints by following the steps from the first matching condition from below:
+    // 1. Let interval endpoints be an empty sequence of keyframes.
+    // 2. Populate interval endpoints by following the steps from the first matching condition from below:
     // NB: The first and the last property-specific keyframes are at the computed keyframe offsets 0 and 1.
-    let last_index = keyframes.len() - 1;
+    let last_index = keyframe_count - 1;
+
     let mut start_index = 0;
     let mut end_index = 1;
-    if input.current_key < plan(0).key as f64 && plan(1).key == plan(0).key {
+    if current_key < key_at(0) as f64 && key_at(1) == key_at(0) {
         // If iteration progress < 0 and there is more than one keyframe in property-specific keyframes with a computed
         // keyframe offset of 0,
         //     Add the first keyframe in property-specific keyframes to interval endpoints.
         end_index = start_index;
-    } else if input.current_key >= plan(last_index).key as f64 && plan(last_index - 1).key == plan(last_index).key {
+    } else if current_key >= key_at(last_index) as f64 && key_at(last_index - 1) == key_at(last_index) {
         // If iteration progress ≥ 1 and there is more than one keyframe in property-specific keyframes with a computed
         // keyframe offset of 1,
         //     Add the last keyframe in property-specific keyframes to interval endpoints.
@@ -6648,14 +6643,26 @@ fn evaluate_animation_value(
         //    to iteration progress and less than 1. If there is no such keyframe (because, for example, the iteration progress is negative),
         //    add the last keyframe whose computed keyframe offset is 0.
         // 2. Append to interval endpoints the next keyframe in property-specific keyframes after the one added in the previous step.
-        for next_index in 2..keyframes.len() {
-            if input.current_key < plan(end_index).key as f64 {
+        for next_index in 2..keyframe_count {
+            if current_key < key_at(end_index) as f64 {
                 break;
             }
             start_index = end_index;
             end_index = next_index;
         }
     }
+
+    (start_index, end_index)
+}
+
+fn evaluate_animation_value(
+    context: &FfiAnimationContext,
+    input: &AnimationValueInput,
+    underlying_override: Option<&StyleValueData>,
+) -> AnimatedProperty {
+    let keyframes = input.keyframes;
+    let plan = |index: usize| &input.keyframe_plans[keyframes[index].keyframe];
+    let (start_index, end_index) = keyframe_interval(keyframes.len(), input.current_key, |index| plan(index).key);
     let start_keyframe = &keyframes[start_index];
     let end_keyframe = &keyframes[end_index];
     let (start_plan, end_plan) = (plan(start_index), plan(end_index));
