@@ -835,7 +835,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         // For example, percentage values of flex-basis are resolved against the flex item’s containing block
         // (i.e. its flex container); and if that containing block’s size is indefinite,
         // the used value for flex-basis is content.
-        if value.is_percentage() && !self.has_definite_main_size_used(self.container_used()) {
+        // NB: A main size property that contains a percentage of an indefinite size behaves as auto, as in block layout.
+        let percentage_is_unresolvable =
+            value.is_percentage() || (property != SizingProperty::FlexBasis && value.contains_percentage());
+        if percentage_is_unresolvable && !self.has_definite_main_size_used(self.container_used()) {
             return UsedFlexBasis::Content;
         }
         UsedFlexBasis::Size { value, property }
