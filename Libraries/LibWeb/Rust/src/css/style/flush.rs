@@ -1737,6 +1737,9 @@ impl StyleEngine {
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch);
                     completion_begin_timer.stop(Counter::CompletionBatchBeginMicroseconds, &self.retained.counters);
                 } else if let Some(mut traversal) = self.retained.batch_matching_traversal.take() {
+                    // Rows matched outside the batch may belong to nodes this transaction removed.
+                    traversal.unbatched_facts = StyleNodeFacts::new();
+                    traversal.unbatched_facts_memory.release();
                     if let Some(batch) = traversal.batch.as_ref() {
                         self.prepare_prefix_rows_for_batch(batch, &mut traversal.prefix_contexts);
                     }

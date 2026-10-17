@@ -1749,6 +1749,10 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) dispatch_workspace_bytes: u64,
     pub(super) cascade_compaction_workspace: ordering::CascadeCompactionWorkspace,
     pub(super) cascade_compaction_workspace_memory: MemoryLease,
+    /// The fact rows the traversal's elements matched outside a batch, one per node. Facts do not change while the
+    /// traversal runs, and the elements it matches share most of their ancestors.
+    pub(super) unbatched_facts: StyleNodeFacts,
+    pub(super) unbatched_facts_memory: MemoryLease,
 }
 
 /// Current-side matching scratch produced by the transaction immediately before a style
