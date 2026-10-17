@@ -1,0 +1,225 @@
+Harness status: OK
+
+Found 219 tests
+
+217 Pass
+2 Fail
+Pass	round(23px, 10px) should be used-value-equivalent to 20px
+Pass	round(18px, 10px) should be used-value-equivalent to 20px
+Pass	round(15px, 10px) should be used-value-equivalent to 20px
+Pass	round(13px, 10px) should be used-value-equivalent to 10px
+Pass	round(-13px, 10px) should be used-value-equivalent to -10px
+Pass	round(-18px, 10px) should be used-value-equivalent to -20px
+Pass	round(23, 10) should be used-value-equivalent to 20
+Pass	round(18, 10) should be used-value-equivalent to 20
+Pass	round(15, 10) should be used-value-equivalent to 20
+Pass	round(13, 10) should be used-value-equivalent to 10
+Pass	round(-13, 10) should be used-value-equivalent to -10
+Pass	round(-18, 10) should be used-value-equivalent to -20
+Pass	round(nearest, 23px, 10px) should be used-value-equivalent to 20px
+Pass	round(nearest, 18px, 10px) should be used-value-equivalent to 20px
+Pass	round(nearest, 15px, 10px) should be used-value-equivalent to 20px
+Pass	round(nearest, 13px, 10px) should be used-value-equivalent to 10px
+Pass	round(nearest, -13px, 10px) should be used-value-equivalent to -10px
+Pass	round(nearest, -18px, 10px) should be used-value-equivalent to -20px
+Pass	round(nearest, 23, 10) should be used-value-equivalent to 20
+Pass	round(nearest, 18, 10) should be used-value-equivalent to 20
+Pass	round(nearest, 15, 10) should be used-value-equivalent to 20
+Pass	round(nearest, 13, 10) should be used-value-equivalent to 10
+Pass	round(nearest, -13, 10) should be used-value-equivalent to -10
+Pass	round(nearest, -18, 10) should be used-value-equivalent to -20
+Pass	round(down, 23px, 10px) should be used-value-equivalent to 20px
+Pass	round(down, 18px, 10px) should be used-value-equivalent to 10px
+Pass	round(down, 15px, 10px) should be used-value-equivalent to 10px
+Pass	round(down, 13px, 10px) should be used-value-equivalent to 10px
+Pass	round(down, -13px, 10px) should be used-value-equivalent to -20px
+Pass	round(down, -18px, 10px) should be used-value-equivalent to -20px
+Pass	round(down, 23, 10) should be used-value-equivalent to 20
+Pass	round(down, 18, 10) should be used-value-equivalent to 10
+Pass	round(down, 15, 10) should be used-value-equivalent to 10
+Pass	round(down, 13, 10) should be used-value-equivalent to 10
+Pass	round(down, -13, 10) should be used-value-equivalent to -20
+Pass	round(down, -18, 10) should be used-value-equivalent to -20
+Pass	round(up, 23px, 10px) should be used-value-equivalent to 30px
+Pass	round(up, 18px, 10px) should be used-value-equivalent to 20px
+Pass	round(up, 15px, 10px) should be used-value-equivalent to 20px
+Pass	round(up, 13px, 10px) should be used-value-equivalent to 20px
+Pass	round(up, -13px, 10px) should be used-value-equivalent to -10px
+Pass	round(up, -18px, 10px) should be used-value-equivalent to -10px
+Pass	round(up, 23, 10) should be used-value-equivalent to 30
+Pass	round(up, 18, 10) should be used-value-equivalent to 20
+Pass	round(up, 15, 10) should be used-value-equivalent to 20
+Pass	round(up, 13, 10) should be used-value-equivalent to 20
+Pass	round(up, -13, 10) should be used-value-equivalent to -10
+Pass	round(up, -18, 10) should be used-value-equivalent to -10
+Pass	round(to-zero, 23px, 10px) should be used-value-equivalent to 20px
+Pass	round(to-zero, 18px, 10px) should be used-value-equivalent to 10px
+Pass	round(to-zero, 15px, 10px) should be used-value-equivalent to 10px
+Pass	round(to-zero, 13px, 10px) should be used-value-equivalent to 10px
+Pass	round(to-zero, -13px, 10px) should be used-value-equivalent to -10px
+Pass	round(to-zero, -18px, 10px) should be used-value-equivalent to -10px
+Pass	round(to-zero, 23, 10) should be used-value-equivalent to 20
+Pass	round(to-zero, 18, 10) should be used-value-equivalent to 10
+Pass	round(to-zero, 15, 10) should be used-value-equivalent to 10
+Pass	round(to-zero, 13, 10) should be used-value-equivalent to 10
+Pass	round(to-zero, -13, 10) should be used-value-equivalent to -10
+Pass	round(to-zero, -18, 10) should be used-value-equivalent to -10
+Pass	round(23px, -10px) should be used-value-equivalent to 20px
+Pass	round(18px, -10px) should be used-value-equivalent to 20px
+Fail	round(15px, -10px) should be used-value-equivalent to 20px
+Pass	round(13px, -10px) should be used-value-equivalent to 10px
+Pass	round(-13px, -10px) should be used-value-equivalent to -10px
+Pass	round(-18px, -10px) should be used-value-equivalent to -20px
+Pass	round(23, -10) should be used-value-equivalent to 20
+Pass	round(18, -10) should be used-value-equivalent to 20
+Fail	round(15, -10) should be used-value-equivalent to 20
+Pass	round(13, -10) should be used-value-equivalent to 10
+Pass	round(-13, -10) should be used-value-equivalent to -10
+Pass	round(-18, -10) should be used-value-equivalent to -20
+Pass	round(10px, 5px) should be used-value-equivalent to 10px
+Pass	round(nearest, 10px, 5px) should be used-value-equivalent to 10px
+Pass	round(down, 10px, 5px) should be used-value-equivalent to 10px
+Pass	round(up, 10px, 5px) should be used-value-equivalent to 10px
+Pass	round(to-zero, 10px, 5px) should be used-value-equivalent to 10px
+Pass	round(10, 5) should be used-value-equivalent to 10
+Pass	round(nearest, 10, 5) should be used-value-equivalent to 10
+Pass	round(down, 10, 5) should be used-value-equivalent to 10
+Pass	round(up, 10, 5) should be used-value-equivalent to 10
+Pass	round(to-zero, 10, 5) should be used-value-equivalent to 10
+Pass	round(-10px, 5px) should be used-value-equivalent to -10px
+Pass	round(nearest, -10px, 5px) should be used-value-equivalent to -10px
+Pass	round(down, -10px, 5px) should be used-value-equivalent to -10px
+Pass	round(up, -10px, 5px) should be used-value-equivalent to -10px
+Pass	round(to-zero, -10px, 5px) should be used-value-equivalent to -10px
+Pass	round(-10, 5) should be used-value-equivalent to -10
+Pass	round(nearest, -10, 5) should be used-value-equivalent to -10
+Pass	round(down, -10, 5) should be used-value-equivalent to -10
+Pass	round(up, -10, 5) should be used-value-equivalent to -10
+Pass	round(to-zero, -10, 5) should be used-value-equivalent to -10
+Pass	calc(0px - round(23px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(18px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(15px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(13px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(-13px, 10px)) should be used-value-equivalent to 10px
+Pass	calc(0px - round(-18px, 10px)) should be used-value-equivalent to 20px
+Pass	calc(0 - round(23, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(18, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(15, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(13, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(-13, 10)) should be used-value-equivalent to 10
+Pass	calc(0 - round(-18, 10)) should be used-value-equivalent to 20
+Pass	calc(0px - round(nearest, 23px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(nearest, 18px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(nearest, 15px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(nearest, 13px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(nearest, -13px, 10px)) should be used-value-equivalent to 10px
+Pass	calc(0px - round(nearest, -18px, 10px)) should be used-value-equivalent to 20px
+Pass	calc(0 - round(nearest, 23, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(nearest, 18, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(nearest, 15, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(nearest, 13, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(nearest, -13, 10)) should be used-value-equivalent to 10
+Pass	calc(0 - round(nearest, -18, 10)) should be used-value-equivalent to 20
+Pass	calc(0px - round(down, 23px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(down, 18px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(down, 15px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(down, 13px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(down, -13px, 10px)) should be used-value-equivalent to 20px
+Pass	calc(0px - round(down, -18px, 10px)) should be used-value-equivalent to 20px
+Pass	calc(0 - round(down, 23, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(down, 18, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(down, 15, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(down, 13, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(down, -13, 10)) should be used-value-equivalent to 20
+Pass	calc(0 - round(down, -18, 10)) should be used-value-equivalent to 20
+Pass	calc(0px - round(up, 23px, 10px)) should be used-value-equivalent to -30px
+Pass	calc(0px - round(up, 18px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(up, 15px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(up, 13px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(up, -13px, 10px)) should be used-value-equivalent to 10px
+Pass	calc(0px - round(up, -18px, 10px)) should be used-value-equivalent to 10px
+Pass	calc(0 - round(up, 23, 10)) should be used-value-equivalent to -30
+Pass	calc(0 - round(up, 18, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(up, 15, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(up, 13, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(up, -13, 10)) should be used-value-equivalent to 10
+Pass	calc(0 - round(up, -18, 10)) should be used-value-equivalent to 10
+Pass	calc(0px - round(to-zero, 23px, 10px)) should be used-value-equivalent to -20px
+Pass	calc(0px - round(to-zero, 18px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(to-zero, 15px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(to-zero, 13px, 10px)) should be used-value-equivalent to -10px
+Pass	calc(0px - round(to-zero, -13px, 10px)) should be used-value-equivalent to 10px
+Pass	calc(0px - round(to-zero, -18px, 10px)) should be used-value-equivalent to 10px
+Pass	calc(0 - round(to-zero, 23, 10)) should be used-value-equivalent to -20
+Pass	calc(0 - round(to-zero, 18, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(to-zero, 15, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(to-zero, 13, 10)) should be used-value-equivalent to -10
+Pass	calc(0 - round(to-zero, -13, 10)) should be used-value-equivalent to 10
+Pass	calc(0 - round(to-zero, -18, 10)) should be used-value-equivalent to 10
+Pass	round(1.5) should be used-value-equivalent to 2
+Pass	round(up, 1.5) should be used-value-equivalent to 2
+Pass	round(down, 1.5) should be used-value-equivalent to 1
+Pass	round(to-zero, 1.5) should be used-value-equivalent to 1
+Pass	round(-1.5) should be used-value-equivalent to -1
+Pass	round(up, -1.5) should be used-value-equivalent to -1
+Pass	round(down, -1.5) should be used-value-equivalent to -2
+Pass	round(to-zero, -1.5) should be used-value-equivalent to -1
+Pass	round(5, 0) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(5, 0)) should be used-value-equivalent to calc(NaN)
+Pass	round(infinity, infinity) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(infinity, infinity)) should be used-value-equivalent to calc(NaN)
+Pass	round(infinity, -infinity) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(infinity, -infinity)) should be used-value-equivalent to calc(NaN)
+Pass	round(-infinity, infinity) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(-infinity, infinity)) should be used-value-equivalent to calc(NaN)
+Pass	round(-infinity, -infinity) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(-infinity, -infinity)) should be used-value-equivalent to calc(NaN)
+Pass	round(NaN, 5) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(NaN, 5)) should be used-value-equivalent to calc(NaN)
+Pass	round(NaN, -5) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(NaN, -5)) should be used-value-equivalent to calc(NaN)
+Pass	round(NaN, 0) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(NaN, 0)) should be used-value-equivalent to calc(NaN)
+Pass	round(NaN, infinity) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(NaN, infinity)) should be used-value-equivalent to calc(NaN)
+Pass	round(NaN, -infinity) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(NaN, -infinity)) should be used-value-equivalent to calc(NaN)
+Pass	round(5, NaN) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(5, NaN)) should be used-value-equivalent to calc(NaN)
+Pass	round(-5, NaN) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(-5, NaN)) should be used-value-equivalent to calc(NaN)
+Pass	round(0, NaN) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(0, NaN)) should be used-value-equivalent to calc(NaN)
+Pass	round(infinity, NaN) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(infinity, NaN)) should be used-value-equivalent to calc(NaN)
+Pass	round(NaN, NaN) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(NaN, NaN)) should be used-value-equivalent to calc(NaN)
+Pass	round(nearest, NaN, 5) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(nearest, NaN, 5)) should be used-value-equivalent to calc(NaN)
+Pass	round(up, NaN, 5) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(up, NaN, 5)) should be used-value-equivalent to calc(NaN)
+Pass	round(down, NaN, 5) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(down, NaN, 5)) should be used-value-equivalent to calc(NaN)
+Pass	round(to-zero, NaN, 5) should be used-value-equivalent to calc(NaN)
+Pass	calc(-1 * round(to-zero, NaN, 5)) should be used-value-equivalent to calc(NaN)
+Pass	round(infinity, 5) should be used-value-equivalent to calc(infinity)
+Pass	round(infinity, -5) should be used-value-equivalent to calc(infinity)
+Pass	round(-infinity, 5) should be used-value-equivalent to calc(-infinity)
+Pass	round(-infinity, -5) should be used-value-equivalent to calc(-infinity)
+Pass	calc(1 / round(5, infinity)) should be used-value-equivalent to calc(infinity)
+Pass	calc(1 / round(5, -infinity)) should be used-value-equivalent to calc(infinity)
+Pass	calc(1 / round(-5, infinity)) should be used-value-equivalent to calc(-infinity)
+Pass	calc(1 / round(-5, -infinity)) should be used-value-equivalent to calc(-infinity)
+Pass	calc(1 / round(to-zero, 5, infinity)) should be used-value-equivalent to calc(infinity)
+Pass	calc(1 / round(to-zero, 5, -infinity)) should be used-value-equivalent to calc(infinity)
+Pass	calc(1 / round(to-zero, -5, infinity)) should be used-value-equivalent to calc(-infinity)
+Pass	calc(1 / round(to-zero, -5, -infinity)) should be used-value-equivalent to calc(-infinity)
+Pass	round(up, 1, infinity) should be used-value-equivalent to calc(infinity)
+Pass	calc(1 / round(up, 0, infinity)) should be used-value-equivalent to calc(infinity)
+Pass	calc(1 / round(up, -1 * 0, infinity)) should be used-value-equivalent to calc(-infinity)
+Pass	calc(1 / round(up, -1, infinity)) should be used-value-equivalent to calc(-infinity)
+Pass	round(down, -1, infinity) should be used-value-equivalent to calc(-infinity)
+Pass	calc(1 / round(down, -1 * 0, infinity)) should be used-value-equivalent to calc(-infinity)
+Pass	calc(1 / round(down, 0, infinity)) should be used-value-equivalent to calc(infinity)
+Pass	calc(1 / round(down, 1, infinity)) should be used-value-equivalent to calc(infinity)
+Pass	round(down, (7 - 1) / 3, 1) should be used-value-equivalent to 2

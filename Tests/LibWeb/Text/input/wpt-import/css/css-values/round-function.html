@@ -1,0 +1,270 @@
+<!doctype html>
+<title>round() function</title>
+<meta charset=utf-8>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+
+<meta name=author content="Tab Atkins-Bittner">
+<link rel=help href="https://drafts.csswg.org/css-values-4/#round-func">
+
+<div id=target></div>
+<script>
+// No-op round should be same as nearest
+test_math_used("round(23px, 10px)", "20px");
+test_math_used("round(18px, 10px)", "20px");
+test_math_used("round(15px, 10px)", "20px");
+test_math_used("round(13px, 10px)", "10px");
+test_math_used("round(-13px, 10px)", "-10px");
+test_math_used("round(-18px, 10px)", "-20px");
+
+test_math_used("round(23, 10)", "20", { type: "integer" });
+test_math_used("round(18, 10)", "20", { type: "integer" });
+test_math_used("round(15, 10)", "20", { type: "integer" });
+test_math_used("round(13, 10)", "10", { type: "integer" });
+test_math_used("round(-13, 10)", "-10", { type: "integer" });
+test_math_used("round(-18, 10)", "-20", { type: "integer" });
+
+// Test nearest
+test_math_used("round(nearest, 23px, 10px)", "20px");
+test_math_used("round(nearest, 18px, 10px)", "20px");
+test_math_used("round(nearest, 15px, 10px)", "20px");
+test_math_used("round(nearest, 13px, 10px)", "10px");
+test_math_used("round(nearest, -13px, 10px)", "-10px");
+test_math_used("round(nearest, -18px, 10px)", "-20px");
+
+test_math_used("round(nearest, 23, 10)", "20", { type: "integer" });
+test_math_used("round(nearest, 18, 10)", "20", { type: "integer" });
+test_math_used("round(nearest, 15, 10)", "20", { type: "integer" });
+test_math_used("round(nearest, 13, 10)", "10", { type: "integer" });
+test_math_used("round(nearest, -13, 10)", "-10", { type: "integer" });
+test_math_used("round(nearest, -18, 10)", "-20", { type: "integer" });
+
+// Test down
+test_math_used("round(down, 23px, 10px)", "20px");
+test_math_used("round(down, 18px, 10px)", "10px");
+test_math_used("round(down, 15px, 10px)", "10px");
+test_math_used("round(down, 13px, 10px)", "10px");
+test_math_used("round(down, -13px, 10px)", "-20px");
+test_math_used("round(down, -18px, 10px)", "-20px");
+
+test_math_used("round(down, 23, 10)", "20", { type: "integer" });
+test_math_used("round(down, 18, 10)", "10", { type: "integer" });
+test_math_used("round(down, 15, 10)", "10", { type: "integer" });
+test_math_used("round(down, 13, 10)", "10", { type: "integer" });
+test_math_used("round(down, -13, 10)", "-20", { type: "integer" });
+test_math_used("round(down, -18, 10)", "-20", { type: "integer" });
+
+// Test up
+test_math_used("round(up, 23px, 10px)", "30px");
+test_math_used("round(up, 18px, 10px)", "20px");
+test_math_used("round(up, 15px, 10px)", "20px");
+test_math_used("round(up, 13px, 10px)", "20px");
+test_math_used("round(up, -13px, 10px)", "-10px");
+test_math_used("round(up, -18px, 10px)", "-10px");
+
+test_math_used("round(up, 23, 10)", "30", { type: "integer" });
+test_math_used("round(up, 18, 10)", "20", { type: "integer" });
+test_math_used("round(up, 15, 10)", "20", { type: "integer" });
+test_math_used("round(up, 13, 10)", "20", { type: "integer" });
+test_math_used("round(up, -13, 10)", "-10", { type: "integer" });
+test_math_used("round(up, -18, 10)", "-10", { type: "integer" });
+
+// Test to-zero
+test_math_used("round(to-zero, 23px, 10px)", "20px");
+test_math_used("round(to-zero, 18px, 10px)", "10px");
+test_math_used("round(to-zero, 15px, 10px)", "10px");
+test_math_used("round(to-zero, 13px, 10px)", "10px");
+test_math_used("round(to-zero, -13px, 10px)", "-10px");
+test_math_used("round(to-zero, -18px, 10px)", "-10px");
+
+test_math_used("round(to-zero, 23, 10)", "20", { type: "integer" });
+test_math_used("round(to-zero, 18, 10)", "10", { type: "integer" });
+test_math_used("round(to-zero, 15, 10)", "10", { type: "integer" });
+test_math_used("round(to-zero, 13, 10)", "10", { type: "integer" });
+test_math_used("round(to-zero, -13, 10)", "-10", { type: "integer" });
+test_math_used("round(to-zero, -18, 10)", "-10", { type: "integer" });
+
+// Test a negative step
+test_math_used("round(23px, -10px)", "20px");
+test_math_used("round(18px, -10px)", "20px");
+test_math_used("round(15px, -10px)", "20px");
+test_math_used("round(13px, -10px)", "10px");
+test_math_used("round(-13px, -10px)", "-10px");
+test_math_used("round(-18px, -10px)", "-20px");
+
+test_math_used("round(23, -10)", "20", { type: "integer" });
+test_math_used("round(18, -10)", "20", { type: "integer" });
+test_math_used("round(15, -10)", "20", { type: "integer" });
+test_math_used("round(13, -10)", "10", { type: "integer" });
+test_math_used("round(-13, -10)", "-10", { type: "integer" });
+test_math_used("round(-18, -10)", "-20", { type: "integer" });
+
+// Test with value that is an exact multiple of step
+test_math_used("round(10px, 5px)", "10px");
+test_math_used("round(nearest, 10px, 5px)", "10px");
+test_math_used("round(down, 10px, 5px)", "10px");
+test_math_used("round(up, 10px, 5px)", "10px");
+test_math_used("round(to-zero, 10px, 5px)", "10px");
+
+test_math_used("round(10, 5)", "10", { type: "integer" });
+test_math_used("round(nearest, 10, 5)", "10", { type: "integer" });
+test_math_used("round(down, 10, 5)", "10", { type: "integer" });
+test_math_used("round(up, 10, 5)", "10", { type: "integer" });
+test_math_used("round(to-zero, 10, 5)", "10", { type: "integer" });
+
+test_math_used("round(-10px, 5px)", "-10px");
+test_math_used("round(nearest, -10px, 5px)", "-10px");
+test_math_used("round(down, -10px, 5px)", "-10px");
+test_math_used("round(up, -10px, 5px)", "-10px");
+test_math_used("round(to-zero, -10px, 5px)", "-10px");
+
+test_math_used("round(-10, 5)", "-10", { type: "integer" });
+test_math_used("round(nearest, -10, 5)", "-10", { type: "integer" });
+test_math_used("round(down, -10, 5)", "-10", { type: "integer" });
+test_math_used("round(up, -10, 5)", "-10", { type: "integer" });
+test_math_used("round(to-zero, -10, 5)", "-10", { type: "integer" });
+
+// Test negation of the round operation
+test_math_used("calc(0px - round(23px, 10px))", "-20px");
+test_math_used("calc(0px - round(18px, 10px))", "-20px");
+test_math_used("calc(0px - round(15px, 10px))", "-20px");
+test_math_used("calc(0px - round(13px, 10px))", "-10px");
+test_math_used("calc(0px - round(-13px, 10px))", "10px");
+test_math_used("calc(0px - round(-18px, 10px))", "20px");
+
+test_math_used("calc(0 - round(23, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(18, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(15, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(13, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(-13, 10))", "10", { type: "integer" });
+test_math_used("calc(0 - round(-18, 10))", "20", { type: "integer" });
+
+// Test negation of nearest
+test_math_used("calc(0px - round(nearest, 23px, 10px))", "-20px");
+test_math_used("calc(0px - round(nearest, 18px, 10px))", "-20px");
+test_math_used("calc(0px - round(nearest, 15px, 10px))", "-20px");
+test_math_used("calc(0px - round(nearest, 13px, 10px))", "-10px");
+test_math_used("calc(0px - round(nearest, -13px, 10px))", "10px");
+test_math_used("calc(0px - round(nearest, -18px, 10px))", "20px");
+
+test_math_used("calc(0 - round(nearest, 23, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(nearest, 18, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(nearest, 15, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(nearest, 13, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(nearest, -13, 10))", "10", { type: "integer" });
+test_math_used("calc(0 - round(nearest, -18, 10))", "20", { type: "integer" });
+
+// Test negation of down
+test_math_used("calc(0px - round(down, 23px, 10px))", "-20px");
+test_math_used("calc(0px - round(down, 18px, 10px))", "-10px");
+test_math_used("calc(0px - round(down, 15px, 10px))", "-10px");
+test_math_used("calc(0px - round(down, 13px, 10px))", "-10px");
+test_math_used("calc(0px - round(down, -13px, 10px))", "20px");
+test_math_used("calc(0px - round(down, -18px, 10px))", "20px");
+
+test_math_used("calc(0 - round(down, 23, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(down, 18, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(down, 15, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(down, 13, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(down, -13, 10))", "20", { type: "integer" });
+test_math_used("calc(0 - round(down, -18, 10))", "20", { type: "integer" });
+
+// Test negation of up
+test_math_used("calc(0px - round(up, 23px, 10px))", "-30px");
+test_math_used("calc(0px - round(up, 18px, 10px))", "-20px");
+test_math_used("calc(0px - round(up, 15px, 10px))", "-20px");
+test_math_used("calc(0px - round(up, 13px, 10px))", "-20px");
+test_math_used("calc(0px - round(up, -13px, 10px))", "10px");
+test_math_used("calc(0px - round(up, -18px, 10px))", "10px");
+
+test_math_used("calc(0 - round(up, 23, 10))", "-30", { type: "integer" });
+test_math_used("calc(0 - round(up, 18, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(up, 15, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(up, 13, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(up, -13, 10))", "10", { type: "integer" });
+test_math_used("calc(0 - round(up, -18, 10))", "10", { type: "integer" });
+
+// Test negation of to-zero
+test_math_used("calc(0px - round(to-zero, 23px, 10px))", "-20px");
+test_math_used("calc(0px - round(to-zero, 18px, 10px))", "-10px");
+test_math_used("calc(0px - round(to-zero, 15px, 10px))", "-10px");
+test_math_used("calc(0px - round(to-zero, 13px, 10px))", "-10px");
+test_math_used("calc(0px - round(to-zero, -13px, 10px))", "10px");
+test_math_used("calc(0px - round(to-zero, -18px, 10px))", "10px");
+
+test_math_used("calc(0 - round(to-zero, 23, 10))", "-20", { type: "integer" });
+test_math_used("calc(0 - round(to-zero, 18, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(to-zero, 15, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(to-zero, 13, 10))", "-10", { type: "integer" });
+test_math_used("calc(0 - round(to-zero, -13, 10))", "10", { type: "integer" });
+test_math_used("calc(0 - round(to-zero, -18, 10))", "10", { type: "integer" });
+
+// Test omission of <step> argument
+test_math_used("round(1.5)", "2", { type: "integer" });
+test_math_used("round(up, 1.5)", "2", { type: "integer" });
+test_math_used("round(down, 1.5)", "1", { type: "integer" });
+test_math_used("round(to-zero, 1.5)", "1", { type: "integer" });
+test_math_used("round(-1.5)", "-1", { type: "integer" });
+test_math_used("round(up, -1.5)", "-1", { type: "integer" });
+test_math_used("round(down, -1.5)", "-2", { type: "integer" });
+test_math_used("round(to-zero, -1.5)", "-1", { type: "integer" });
+
+// Extreme cases:
+
+// 0 step is NaN
+test_nan("round(5, 0)");
+// both infinite is NaN
+test_nan("round(infinity, infinity)");
+test_nan("round(infinity, -infinity)");
+test_nan("round(-infinity, infinity)");
+test_nan("round(-infinity, -infinity)");
+// NaN is infectious.
+// https://drafts.csswg.org/css-values-4/#calc-ieee
+test_nan("round(NaN, 5)");
+test_nan("round(NaN, -5)");
+test_nan("round(NaN, 0)");
+test_nan("round(NaN, infinity)");
+test_nan("round(NaN, -infinity)");
+test_nan("round(5, NaN)");
+test_nan("round(-5, NaN)");
+test_nan("round(0, NaN)");
+test_nan("round(infinity, NaN)");
+test_nan("round(NaN, NaN)");
+test_nan("round(nearest, NaN, 5)");
+test_nan("round(up, NaN, 5)");
+test_nan("round(down, NaN, 5)");
+test_nan("round(to-zero, NaN, 5)");
+
+// infinite value with finite step is the same infinity
+test_plus_infinity("round(infinity, 5)");
+test_plus_infinity("round(infinity, -5)");
+test_minus_infinity("round(-infinity, 5)");
+test_minus_infinity("round(-infinity, -5)");
+
+// Finite value with infinite step depends on rounding strategy.
+// 'nearest' and 'to-zero': pos and +0 go to +0, neg and -0 go to -0
+test_plus_zero("round(5, infinity)");
+test_plus_zero("round(5, -infinity)");
+test_minus_zero("round(-5, infinity)");
+test_minus_zero("round(-5, -infinity)");
+test_plus_zero("round(to-zero, 5, infinity)");
+test_plus_zero("round(to-zero, 5, -infinity)");
+test_minus_zero("round(to-zero, -5, infinity)");
+test_minus_zero("round(to-zero, -5, -infinity)");
+// 'up': pos goes to +inf, 0+ goes to 0+, else 0-
+test_plus_infinity("round(up, 1, infinity)");
+test_plus_zero("round(up, 0, infinity)");
+test_minus_zero("round(up, -1 * 0, infinity)");
+test_minus_zero("round(up, -1, infinity)");
+// 'down': neg goes to -inf, -0 goes to -0, else 0+
+test_minus_infinity("round(down, -1, infinity)");
+test_minus_zero("round(down, -1 * 0, infinity)");
+test_plus_zero("round(down, 0, infinity)");
+test_plus_zero("round(down, 1, infinity)");
+
+// In this test if the multiplication is factored into the sum first, the
+// result of the round will be incorrect, because of floating point inprecision.
+// round(down, 2.3333333 - 0.33333334, 1) = round(down, 1.99999996, 1) = 1
+test_math_used('round(down, (7 - 1) / 3, 1)', '2', {type:'number'});
+</script>
