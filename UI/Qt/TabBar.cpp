@@ -94,6 +94,7 @@ static constexpr int TAB_PREVIEW_THUMBNAIL_HEIGHT = 180;
 static constexpr int TAB_PREVIEW_SHADOW_MARGIN = 12;
 static constexpr int TAB_PREVIEW_CARD_GAP = 6;
 static constexpr int TAB_BUTTON_SIZE = 22;
+static constexpr int TAB_BUTTON_ICON_SIZE = 14;
 static constexpr int TAB_ICON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_BUTTON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_ICON_SIZE = 12;
@@ -1383,11 +1384,24 @@ void TabBar::update_tab_button_geometry()
 
     if (tab_layout() == TabLayout::Horizontal) {
         for (int index = 0; index < count(); ++index) {
-            prepare_button(tabButton(index, QTabBar::LeftSide), false);
+            auto shape_rect = horizontal_tab_card_shape_rect(QRectF(tabRect(index)));
+            auto* left_button = tabButton(index, QTabBar::LeftSide);
+            prepare_button(left_button, false);
+            // NB: The style puts a tab's left button 1pt inside the tab's pill, where its icon looks flush against the
+            //     pill's edge. Give it 3pt.
+            if (left_button) {
+                auto x = qRound(shape_rect.left()) + 3;
+                if (left_button->x() != x)
+                    left_button->move(x, left_button->y());
+            }
             auto* close_button = tabButton(index, QTabBar::RightSide);
             prepare_button(close_button, false);
             if (!close_button)
                 continue;
+            // NB: Likewise, keep the close button's center 14pt in from the pill's right edge.
+            auto close_button_x = qRound(shape_rect.right()) - 14 - (close_button->width() / 2);
+            if (close_button->x() != close_button_x)
+                close_button->move(close_button_x, close_button->y());
             auto minimum_width = index == currentIndex() ? HORIZONTAL_ACTIVE_TAB_CLOSE_BUTTON_MIN_WIDTH : HORIZONTAL_TAB_CLOSE_BUTTON_MIN_WIDTH;
             auto show_close_button = tabRect(index).width() >= minimum_width;
             if (close_button->isVisible() != show_close_button)
@@ -1411,7 +1425,8 @@ void TabBar::update_tab_button_geometry()
         if (button_size.isEmpty())
             return;
 
-        auto x = position == QTabBar::RightSide ? shape_rect.right() - button_size.width() - 6 : shape_rect.left() + 6;
+        // Buttons are centered 18pt in from the card's edges.
+        auto x = position == QTabBar::RightSide ? shape_rect.right() - 18 - (button_size.width() / 2) : shape_rect.left() + 18 - (button_size.width() / 2);
         auto icon_left = shape_rect.left() + TAB_CONTENT_HORIZONTAL_INSET;
         if (position == QTabBar::RightSide) {
             if (auto* left_button = tabButton(index, QTabBar::LeftSide); left_button && left_button->isVisible())
@@ -2555,7 +2570,7 @@ void TabBarButton::set_collapsed_vertical_overlay(bool enabled)
     setProperty(COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY, enabled);
 
     QSize button_size { TAB_BUTTON_SIZE, TAB_BUTTON_SIZE };
-    QSize icon_size { TAB_ICON_SIZE, TAB_ICON_SIZE };
+    QSize icon_size { TAB_BUTTON_ICON_SIZE, TAB_BUTTON_ICON_SIZE };
     if (enabled) {
         button_size = { COLLAPSED_VERTICAL_TAB_BUTTON_SIZE, COLLAPSED_VERTICAL_TAB_BUTTON_SIZE };
         icon_size = { COLLAPSED_VERTICAL_TAB_ICON_SIZE, COLLAPSED_VERTICAL_TAB_ICON_SIZE };
@@ -2573,7 +2588,7 @@ TabBarButton::TabBarButton(QIcon const& icon, QWidget* parent)
 {
     setObjectName("LadybirdTabButton");
     setFixedSize({ TAB_BUTTON_SIZE, TAB_BUTTON_SIZE });
-    setIconSize({ TAB_ICON_SIZE, TAB_ICON_SIZE });
+    setIconSize({ TAB_BUTTON_ICON_SIZE, TAB_BUTTON_ICON_SIZE });
     setFocusPolicy(Qt::NoFocus);
     setFlat(true);
     hide();
