@@ -907,6 +907,17 @@ impl GraphBuilder<'_> {
         )
     }
 
+    /// Makes the cold edges of a bitwise operation with `feedback` exit
+    /// instead of running its slow path, if the feedback saw nothing but
+    /// numbers and booleans: the slow path then only handles operands that
+    /// never came, and running it would make the code after the operation
+    /// forget what it knew (see `exit_instead_of_slow_path()`).
+    fn exit_for_rare_bitwise_operands(&mut self, paths: &mut SlowPaths, feedback: u8) {
+        if feedback & (arith_feedback::STRING | arith_feedback::BIG_INT | arith_feedback::OTHER) == 0 {
+            self.exit_instead_of_slow_path(paths);
+        }
+    }
+
     /// Whether int32 operations that exit where their results are no int32
     /// fit an instruction with `feedback`.
     fn may_speculate_int32_results(&self, feedback: u8) -> bool {
@@ -968,6 +979,7 @@ impl GraphBuilder<'_> {
             let (lhs, rhs) = (self.boolean_as_int32(lhs), self.boolean_as_int32(rhs));
             let doubles = feedback & arith_feedback::DOUBLE != 0 || !self.may_be_int32(&[lhs, rhs]);
             let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
+            self.exit_for_rare_bitwise_operands(&mut paths, feedback);
             let lhs = self.int32_of_operand_on_path(&mut paths, lhs, doubles, booleans);
             let rhs = self.int32_of_operand_on_path(&mut paths, rhs, doubles, booleans);
             let result = if op == BinaryOp::UnsignedRightShift && !int32_results {
@@ -1094,6 +1106,9 @@ impl GraphBuilder<'_> {
             return Ok(None);
         }
         let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        if matches!(op, UnaryOp::BitwiseNot | UnaryOp::ToInt32) {
+            self.exit_for_rare_bitwise_operands(&mut paths, feedback);
+        }
         match op {
             UnaryOp::Plus => {
                 // NB: ToNumber of a number is the number itself.
