@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1128 Pass
-652 Fail
+1141 Pass
+639 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1712,21 +1712,21 @@ Pass	SVGElement interface: objects.set must inherit property "ownerSVGElement" w
 Pass	SVGElement interface: objects.set must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.set must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.set must inherit property "correspondingUseElement" with the proper type
-Fail	SVGAnimateMotionElement interface: existence and properties of interface object
-Fail	SVGAnimateMotionElement interface object length
-Fail	SVGAnimateMotionElement interface object name
-Fail	SVGAnimateMotionElement interface: existence and properties of interface prototype object
-Fail	SVGAnimateMotionElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimateMotionElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimateMotionElement must be primary interface of objects.animateMotion
-Fail	Stringification of objects.animateMotion
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "targetElement" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "onbegin" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "onend" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "onrepeat" with the proper type
+Pass	SVGAnimateMotionElement interface: existence and properties of interface object
+Pass	SVGAnimateMotionElement interface object length
+Pass	SVGAnimateMotionElement interface object name
+Pass	SVGAnimateMotionElement interface: existence and properties of interface prototype object
+Pass	SVGAnimateMotionElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimateMotionElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimateMotionElement must be primary interface of objects.animateMotion
+Pass	Stringification of objects.animateMotion
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "targetElement" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "onbegin" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "onend" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "onrepeat" with the proper type
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getStartTime()" with the proper type
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getCurrentTime()" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getSimpleDuration()" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "getSimpleDuration()" with the proper type
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElement()" with the proper type
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElementAt(float)" with the proper type
 Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.animateMotion with too few arguments must throw TypeError

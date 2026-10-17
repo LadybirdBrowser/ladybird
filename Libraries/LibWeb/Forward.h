@@ -1140,6 +1140,7 @@ class SVGAnimatedLengthList;
 class SVGAnimatedNumber;
 class SVGAnimatedNumberList;
 class SVGAnimatedRect;
+class SVGAnimateMotionElement;
 class SVGAnimationElement;
 class SVGCircleElement;
 class SVGClipPathElement;
