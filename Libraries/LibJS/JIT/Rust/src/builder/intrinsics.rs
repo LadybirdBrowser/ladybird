@@ -285,7 +285,6 @@ impl GraphBuilder<'_> {
     /// if `callee` is the builtin of any realm. `charAt` makes the strings
     /// of ASCII code units, which the VM keeps. The instruction's slow path,
     /// which calls the callee, handles everything else.
-    #[expect(clippy::too_many_arguments, reason = "the operands of the instruction")]
     pub(super) fn build_string_character(
         &mut self,
         character: StringCharacter,
