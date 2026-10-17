@@ -427,46 +427,53 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::generate_key(JS::Realm& realm, AlgorithmI
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-importKey
 GC::Ref<WebIDL::Promise> SubtleCrypto::import_key(JS::Realm& realm, KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<KeyUsage> key_usages)
 {
-    // 1. Let format, algorithm, extractable and usages, be the format, algorithm, extractable
-    // and key_usages parameters passed to the importKey() method, respectively.
+    // 1. Let format, algorithm, extractable and usages, be the format, algorithm, extractable and keyUsages
+    //    parameters passed to the importKey() method, respectively.
 
     Variant<ByteBuffer, JsonWebKey, Empty> real_key_data;
-    // 2. If format is equal to the string "raw", "pkcs8", or "spki":
-    if (format == KeyFormat::Raw
-        || format == KeyFormat::RawPublic
-        || format == KeyFormat::RawPrivate
-        || format == KeyFormat::RawSeed
-        || format == KeyFormat::RawSecret
-        || format == KeyFormat::Pkcs8
-        || format == KeyFormat::Spki) {
-        // 2. Let keyData be the result of getting a copy of the bytes held by the keyData parameter passed to the importKey() method.
-        real_key_data = MUST(WebIDL::get_buffer_source_copy(key_data.downcast<WebIDL::BufferSourceVariant>()));
-    }
 
+    // 2. If format is equal to the string "jwk":
     if (format == KeyFormat::Jwk) {
+        // 1. If the keyData parameter passed to the importKey() method is not a JsonWebKey dictionary, throw a TypeError.
+        if (!key_data.has<JsonWebKey>())
+            return WebIDL::create_rejected_promise_from_exception(realm, realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "JsonWebKey"));
+
         // 2. Let keyData be the keyData parameter passed to the importKey() method.
         real_key_data = move(key_data.get<JsonWebKey>());
     }
+    // Otherwise:
+    else {
+        // 1. If the keyData parameter passed to the importKey() method is a JsonWebKey dictionary, throw a TypeError.
+        if (key_data.has<JsonWebKey>())
+            return WebIDL::create_rejected_promise_from_exception(realm, realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource"));
 
-    // NOTE: The spec jumps to 5 here for some reason?
-    // 5. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "importKey".
+        // 2. Let keyData be the result of getting a copy of the bytes held by the keyData parameter passed to the
+        //    importKey() method.
+        real_key_data = MUST(WebIDL::get_buffer_source_copy(key_data.downcast<WebIDL::BufferSourceVariant>()));
+    }
+
+    // 3. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "importKey".
     auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "importKey"_string);
 
-    // 6. If an error occurred, return a Promise rejected with normalizedAlgorithm.
+    // 4. If an error occurred, return a Promise rejected with normalizedAlgorithm.
     if (normalized_algorithm.is_error())
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
-    // 7. Let promise be a new Promise.
+    // 5. Let realm be the relevant realm of this.
+
+    // 6. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
-    // 8. Return promise and perform the remaining steps in parallel.
+    // 7. Return promise and perform the remaining steps in parallel.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, real_key_data = move(real_key_data), normalized_algorithm = normalized_algorithm.release_value(), promise, format, extractable, key_usages = move(key_usages), algorithm = move(algorithm)]() mutable -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
-        // 9. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
+        // FIXME: 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
+        //    crypto task source, given realm's global object, to reject promise with the returned error; and then
+        //    terminate the algorithm.
 
-        // 10. Let result be the CryptoKey object that results from performing the import key operation
-        // specified by normalizedAlgorithm using keyData, algorithm, format, extractable and usages.
+        // 9. Let result be the CryptoKey object that results from performing the import key operation
+        //    specified by normalizedAlgorithm using keyData, algorithm, format, extractable and usages.
         auto maybe_result = normalized_algorithm.methods->import_key(realm, *normalized_algorithm.parameter, format, real_key_data.downcast<CryptoKey::ImportKeyData>(), extractable, key_usages);
         if (maybe_result.is_error()) {
             WebIDL::reject_promise_with_exception(promise, maybe_result.release_error());
@@ -474,19 +481,22 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::import_key(JS::Realm& realm, KeyFormat fo
         }
         auto result = maybe_result.release_value();
 
-        // 11. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
+        // 10. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
         if ((result->type() == KeyType::Secret || result->type() == KeyType::Private) && key_usages.is_empty()) {
             WebIDL::reject_promise(promise, WebIDL::SyntaxError::create("usages must not be empty"_utf16));
             return;
         }
 
-        // 12. Set the [[extractable]] internal slot of result to extractable.
+        // 11. Set the [[extractable]] internal slot of result to extractable.
         result->set_extractable(extractable);
 
-        // 13. Set the [[usages]] internal slot of result to the normalized value of usages.
+        // 12. Set the [[usages]] internal slot of result to the normalized value of usages.
         result->set_usages(normalized_key_usages(key_usages));
 
-        // 14. Resolve promise with result.
+        // FIXME: 13. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        // FIXME: 14. Let result be the result of converting result to an ECMAScript Object in realm, as defined by [WebIDL].
+
+        // 15. Resolve promise with result.
         resolve_crypto_key_promise(realm, promise, result);
     }));
 
@@ -913,8 +923,13 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(JS::Realm& realm, KeyFormat form
             return;
         }
 
-        // 14. If format is equal to the string "jwk", serialize the exported
-        //     JsonWebKey. Otherwise, let bytes be exportedKey.
+        // 14. If format is equal to the string "jwk":
+        //     1. Let json be the result of representing exportedKey as a UTF-16 string conforming to the JSON grammar;
+        //        for example, by executing the JSON.stringify algorithm specified in [ECMA-262] in the context of a new
+        //        global object.
+        //     2. Let bytes be the result of UTF-8 encoding json.
+        //     Otherwise:
+        //     Let bytes be exportedKey.
         auto bytes_or_error = export_key_result_to_bytes(realm, exported_key_or_error.release_value());
         if (bytes_or_error.is_error()) {
             WebIDL::reject_promise(promise, bytes_or_error.release_error().release_value());
@@ -1072,17 +1087,9 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(JS::Realm& realm, KeyFormat fo
         }
 
         // Otherwise:
-        else if (format == KeyFormat::Raw
-            || format == KeyFormat::RawPublic
-            || format == KeyFormat::RawPrivate
-            || format == KeyFormat::RawSeed
-            || format == KeyFormat::RawSecret
-            || format == KeyFormat::Pkcs8
-            || format == KeyFormat::Spki) {
+        else {
             // Let key be bytes.
             key = move(bytes);
-        } else {
-            VERIFY_NOT_REACHED();
         }
 
         // 16. Let result be the result of performing the import key operation specified by normalizedKeyAlgorithm
@@ -1737,35 +1744,6 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_algorithm_dictionary(JS::Realm
     auto dictionary = JS::Object::create(realm, realm.intrinsics().object_prototype());
     TRY(dictionary->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), name)));
     return dictionary;
-}
-
-static bool key_format_expects_buffer_source(KeyFormat format)
-{
-    return format == KeyFormat::Raw
-        || format == KeyFormat::RawPublic
-        || format == KeyFormat::RawPrivate
-        || format == KeyFormat::RawSeed
-        || format == KeyFormat::RawSecret
-        || format == KeyFormat::Pkcs8
-        || format == KeyFormat::Spki;
-}
-
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> import_key(
-    JS::Realm& realm,
-    Crypto::SubtleCrypto& subtle_crypto,
-    KeyFormat format,
-    Crypto::KeyDataType key_data,
-    Crypto::AlgorithmIdentifier algorithm,
-    bool extractable,
-    Vector<KeyUsage> key_usages)
-{
-    if (key_format_expects_buffer_source(format) && key_data.has<JsonWebKey>())
-        return realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-
-    if (format == KeyFormat::Jwk && !key_data.has<JsonWebKey>())
-        return realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "JsonWebKey");
-
-    return subtle_crypto.import_key(realm, format, move(key_data), move(algorithm), extractable, move(key_usages));
 }
 
 }
