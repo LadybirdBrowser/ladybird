@@ -94,6 +94,7 @@ use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
+use crate::ir::SuspendKind;
 use crate::ir::value;
 use crate::regalloc::Allocation;
 use crate::regalloc::Location;
@@ -1300,19 +1301,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let environment = self.frame_field(self.runtime.offsets.execution_context_lexical_environment);
                 self.masm.store64(&environment, output);
             }
-            Op::Suspend {
-                continuation,
-                value_is_iterator_result,
-            } => {
+            Op::Suspend { continuation, kind } => {
                 let offsets = self.runtime.offsets;
                 let continuation = continuation.unwrap_or(NO_YIELD_CONTINUATION);
                 let mut fields = [
                     (offsets.execution_context_yield_continuation, 4, u64::from(continuation)),
-                    (offsets.execution_context_yield_is_await, 1, 0),
+                    (
+                        offsets.execution_context_yield_is_await,
+                        1,
+                        u64::from(*kind == SuspendKind::Await),
+                    ),
                     (
                         offsets.execution_context_yield_value_is_iterator_result,
                         1,
-                        u64::from(*value_is_iterator_result),
+                        u64::from(*kind == SuspendKind::YieldIteratorResult),
                     ),
                 ];
                 self.emit_constant_fields(self.pinned.frame, self.pinned.scratch, &mut fields)?;

@@ -206,6 +206,20 @@ pub enum TypeofKind {
     Function,
 }
 
+/// Which bytecode a `Suspend` suspends the frame for, which tells the code
+/// resuming it what the returned value is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SuspendKind {
+    /// A generator's `Yield`.
+    Yield,
+    /// A generator's `YieldIteratorResult`, whose value is an iterator
+    /// result already.
+    YieldIteratorResult,
+    /// An `Await` of an async function or async generator, whose value is
+    /// the awaited one.
+    Await,
+}
+
 /// Which function of an accessor property an access calls.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessorPart {
@@ -430,15 +444,16 @@ pub enum Op {
     /// Does what `InitializeFrame` does, unless the frame is initialized
     /// already. See `passes::frame_initialization`.
     EnsureFrameInitialized,
-    /// The suspension of the `Yield` and `YieldIteratorResult` bytecodes,
-    /// right before the `Return` of the yielded value: records in the
-    /// frame where its generator resumes (`continuation`, or nowhere once it
-    /// completes) and whether the value is an iterator result already. The
-    /// `StoreSlot`s before it put every slot live at the continuation in
-    /// frame memory, from where the runtime resumes the frame.
+    /// The suspension of the `Yield`, `YieldIteratorResult` and `Await`
+    /// bytecodes, right before the `Return` of the yielded or awaited value:
+    /// records in the frame where its generator or async function resumes
+    /// (`continuation`, or nowhere once it completes) and what the value is
+    /// (`kind`). The `StoreSlot`s before it put every slot live at the
+    /// continuation in frame memory, from where the runtime resumes the
+    /// frame.
     Suspend {
         continuation: Option<u32>,
-        value_is_iterator_result: bool,
+        kind: SuspendKind,
     },
     /// The environment the environment at the `Repr::Pointer` input 0 is in
     /// (its outer environment), as a `Repr::Pointer`. Environments keep

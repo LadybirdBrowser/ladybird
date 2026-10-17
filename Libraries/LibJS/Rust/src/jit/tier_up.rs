@@ -26,7 +26,6 @@ use crate::layout::value::Value;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::realm_watchpoints;
-use crate::runtime::shared_function_instance_data::FunctionKind;
 
 /// `threshold` invocations.
 fn threshold_budget(options: &Options) -> i32 {
@@ -113,15 +112,11 @@ fn function_to_compile(vm: &Vm) -> Option<Gc<EcmascriptFunctionObject>> {
     if vm.debugging_enabled() {
         return None;
     }
-    // NB: Async functions resume in the middle, and top-level code runs once.
+    // NB: Top-level code runs once, like the body of a module with top-level await, which runs as an async function.
+    //     Generators, async functions and async generators resume in their code at the entries of their
+    //     continuations.
     let function = as_ecmascript_function_object(vm.running_execution_context_ref().function.get()?)?;
-    is_compiled_kind(function.kind()).then_some(function)
-}
-
-/// Whether the JIT compiles functions of this kind. Generators resume in their code at the entries of their
-/// continuations.
-fn is_compiled_kind(kind: FunctionKind) -> bool {
-    matches!(kind, FunctionKind::Normal | FunctionKind::Generator)
+    (!function.shared_data().is_module_wrapper()).then_some(function)
 }
 
 /// Whether the running frame runs a builtin written in JavaScript.
@@ -426,7 +421,7 @@ fn compile(
 /// Compiles the executable of `function` right away, from the feedback it has, unless it has code, is being compiled or
 /// is never compiled. Returns whether it has code afterwards. For tests (see `jit::testing`).
 pub fn compile_now(vm: &Vm, function: Gc<EcmascriptFunctionObject>) -> bool {
-    if !vm.jit.options.enabled || vm.debugging_enabled() || !is_compiled_kind(function.kind()) {
+    if !vm.jit.options.enabled || vm.debugging_enabled() {
         return false;
     }
     let executable = function.compiled_executable(vm);

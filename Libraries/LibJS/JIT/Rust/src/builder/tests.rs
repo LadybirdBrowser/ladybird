@@ -384,22 +384,14 @@ fn instructions_whose_feedback_is_empty_never_ran() {
 
 #[test]
 fn unsupported_instructions_fail_cleanly() {
-    let program = assemble(|label| {
-        vec![
-            Instruction::Await {
-                continuation_label: label(1),
-                argument: r(5),
-            },
-            Instruction::Return { value: r(5) },
-        ]
-    });
+    let program = assemble(|_| vec![Instruction::Catch { dst: r(5) }, Instruction::Return { value: r(5) }]);
     let snapshot = snapshot_for(&program, test_layout());
     let failure = build_graph(&snapshot).unwrap_err();
     assert!(matches!(
         failure,
         CompileFailure::UnsupportedInstruction {
             pc: 0,
-            opcode: crate::bytecode::OpCode::Await,
+            opcode: crate::bytecode::OpCode::Catch,
             ..
         }
     ));

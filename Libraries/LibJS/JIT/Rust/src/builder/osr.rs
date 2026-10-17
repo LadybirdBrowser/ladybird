@@ -20,12 +20,12 @@
 //! that step itself instead. Its edges are forward edges into the loop and the
 //! loop exit, so the values it loaded meet the other paths in phis.
 //!
-//! A generator resumes the same way: a suspended generator's frame holds every
-//! value live at the continuation it resumes at (see `build_suspend()`), so
-//! each continuation of a `Yield` or `YieldIteratorResult` gets an entry block
-//! that loads them and jumps to the continuation's block, which compiled code
-//! reaches from nowhere else. The runtime enters there like at an on-stack
-//! replacement entry.
+//! Generators and async functions resume the same way: a suspended frame holds
+//! every value live at the continuation it resumes at (see `build_suspend()`),
+//! so each continuation of a `Yield`, `YieldIteratorResult` or `Await` gets an
+//! entry block that loads them and jumps to the continuation's block, which
+//! compiled code reaches from nowhere else. The runtime enters there like at
+//! an on-stack replacement entry.
 
 use super::AbstractFrame;
 use super::Flow;
@@ -147,9 +147,10 @@ impl GraphBuilder<'_> {
         Ok(())
     }
 
-    /// Builds an entry block for every continuation of a generator's
-    /// suspension in the compiled function, after the on-stack replacement
-    /// entries, before any of its bytecode blocks is started.
+    /// Builds an entry block for every continuation of a suspension of a
+    /// generator or async function in the compiled function, after the
+    /// on-stack replacement entries, before any of its bytecode blocks is
+    /// started.
     pub(super) fn build_resume_entries(&mut self) -> Result<(), CompileFailure> {
         debug_assert!(!self.function.is_virtual());
         for index in 0..self.function.instructions.len() {
@@ -158,6 +159,10 @@ impl GraphBuilder<'_> {
                 ..
             }
             | Instruction::YieldIteratorResult {
+                continuation_label: continuation,
+                ..
+            }
+            | Instruction::Await {
                 continuation_label: continuation,
                 ..
             }) = self.function.instructions[index].instruction
