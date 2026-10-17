@@ -1187,6 +1187,23 @@ inline fn continue_running_execution_context() @profiling {
     goto_handler(pc);
 }
 
+# Continues the running frame in its executable's JIT code after the Catch
+# that just ran, if the code has an entry there. Like at loop back edges, an
+# exit from that code resumes after the Catch, so the frame always makes
+# progress.
+inline fn enter_jit_code_after_catch() @profiling {
+    let executable = exec_ctx.executable;
+    if executable.jit_compile_state == JIT_COMPILE_STATE_INSTALLED {
+        let control: i32 = call_helper_with_two_arguments(asm_helper_enter_jit_code_after_catch, current_vm(), pc);
+        if control != 0 {
+            guard control > 0 else @cold {
+                exit;
+            };
+            continue_running_execution_context();
+        }
+    }
+}
+
 # Starts running the frame that just became the running execution context,
 # at its entry: in its executable's JIT code if it has some, and in the
 # interpreter otherwise.
@@ -2057,6 +2074,7 @@ handler Catch(
     record_value_feedback(value_feedback, exception);
     store(dst, exception);
     exec_ctx.exception = Value<Empty>;
+    enter_jit_code_after_catch();
     dispatch_next;
 }
 

@@ -6,11 +6,12 @@
 
 //! Control flow graph of an executable's bytecode.
 //!
-//! Blocks start at the entry, at jump targets, after terminators, and at the
-//! start, end and target of every exception handler range, so every block lies
-//! entirely inside or outside each handler range. Edges come in two kinds:
-//! normal control flow (jumps and fallthrough) and exceptional control flow
-//! from a block inside a handler range to the handler.
+//! Blocks start at the entry, at jump targets, after terminators, after
+//! `Catch`, and at the start, end and target of every exception handler range,
+//! so every block lies entirely inside or outside each handler range. Edges
+//! come in two kinds: normal control flow (jumps and fallthrough) and
+//! exceptional control flow from a block inside a handler range to the
+//! handler.
 //!
 //! Generator continuations (the labels of `Await`, `Yield` and
 //! `YieldIteratorResult`) are treated as ordinary successors: the frame
@@ -19,6 +20,7 @@
 use super::DecodedInstruction;
 use super::ExceptionHandler;
 use super::FrameLayout;
+use super::OpCode;
 use super::RESERVED_REGISTER_COUNT;
 use crate::bitset::BitSet;
 use std::ops::Range;
@@ -146,7 +148,11 @@ impl Cfg {
                 }
             });
             result?;
-            if instruction.instruction.is_terminator() && index + 1 < instructions.len() {
+            // NB: Compiled code enters handlers after their Catch, which the
+            //     interpreter runs (see `build_catch_entries()`).
+            let ends_block =
+                instruction.instruction.is_terminator() || instruction.instruction.opcode() == OpCode::Catch;
+            if ends_block && index + 1 < instructions.len() {
                 is_leader[index + 1] = true;
             }
         }
@@ -497,14 +503,16 @@ mod tests {
             .iter()
             .map(|block| block.instructions.clone())
             .collect::<Vec<_>>();
-        assert_eq!(instruction_ranges, [0..1, 1..3, 3..5, 5..6]);
+        // The Catch ends its block.
+        assert_eq!(instruction_ranges, [0..1, 1..3, 3..4, 4..5, 5..6]);
         assert_eq!(cfg.blocks[0].successors, [1]);
         assert!(cfg.blocks[1].successors.is_empty());
         assert_eq!(cfg.blocks[1].exception_handler, Some(2));
         assert_eq!(cfg.blocks[2].exception_predecessors, [1]);
         assert_eq!(cfg.blocks[2].predecessor_count(), 0);
-        assert_eq!(cfg.reverse_post_order, [0, 1, 2]);
-        assert_eq!(cfg.blocks[3].rpo_number, None);
+        assert_eq!(cfg.blocks[2].successors, [3]);
+        assert_eq!(cfg.reverse_post_order, [0, 1, 2, 3]);
+        assert_eq!(cfg.blocks[4].rpo_number, None);
     }
 
     #[test]

@@ -10,7 +10,7 @@ use core::ptr::NonNull;
 
 use libjs_jit::code::CompiledCode;
 
-use super::code::{CompileState, EntryStatus, JitCode, SnapshotExecutable};
+use super::code::{CompileState, JitCode, SnapshotExecutable};
 use super::compile_queue::CompileResult;
 use super::executable_memory::ExecutableMemory;
 use super::snapshot::capture_snapshot;
@@ -22,7 +22,6 @@ use crate::jit::InterpreterTier;
 use crate::jit::options::Options;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::function_object::EcmascriptFunctionObject;
-use crate::layout::value::Value;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::realm_watchpoints;
@@ -264,18 +263,7 @@ pub fn tier_up_check(vm: &Vm, encoded_pc: u64) -> i64 {
         }
         return 0;
     };
-    match result.status {
-        EntryStatus::Returned => {
-            // NB: Like the interpreter's Return, a frame without a caller, or whose caller waits in native code,
-            //     returns from the interpreter.
-            let frame = vm.running_execution_context_ref();
-            let exits_interpreter = frame.caller_frame.get().is_null() || frame.returns_to_native_caller.get();
-            vm.return_from_running_frame(Value(result.value));
-            if exits_interpreter { -1 } else { 1 }
-        }
-        EntryStatus::Resume => 1,
-        EntryStatus::ExitInterpreter => -1,
-    }
+    super::entry_exit::control_after_entry(vm, result)
 }
 
 /// Whether the code of a finished compile goes into executable memory. Code whose dependencies stopped holding since
@@ -315,7 +303,8 @@ fn install(
         snapshot,
     )
     .with_invalidation(id, compiled.invalidation_patches)
-    .with_osr_outer_loop_back_edges(compiled.osr_outer_loop_back_edges);
+    .with_osr_outer_loop_back_edges(compiled.osr_outer_loop_back_edges)
+    .with_uncaught_handlers(compiled.uncaught_handlers);
     vm.jit.dependents.register(vm, executable, id, &compiled.dependencies);
     // NB: Code may be installed while frames of the executable loop in the interpreter, because the compile was
     //     queued (from the tier-up check of another executable, like a callee's), or because they exited from the

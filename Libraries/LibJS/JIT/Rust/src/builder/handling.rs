@@ -122,7 +122,9 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::IsCallable
         | O::GetArgumentCount => Handling::Native,
 
-        O::Catch => Handling::Unsupported("starts an exception handler; handler blocks are not built"),
+        // NB: The interpreter runs it, and compiled code is entered after it
+        //     (see `build_catch_entries()`).
+        O::Catch => Handling::Unsupported("starts an exception handler, which the interpreter runs"),
 
         // Calls.
         O::Call

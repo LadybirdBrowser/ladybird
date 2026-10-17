@@ -14,8 +14,8 @@ LibJS has two tiers: the bytecode interpreter, whose instructions keep per-site 
 feedback, and this optimizing JIT. An executable that uses up its tier-up budget (calls and loop
 iterations) is snapshotted and compiled on one of the compile threads. The interpreter keeps running
 it meanwhile; the main thread installs the code when the job finishes. Loops that run long enough
-enter compiled code at their back edges (on-stack replacement), and generators and async functions
-enter it where they resume (section 4.1). A call from compiled code into a function the interpreter
+enter compiled code at their back edges (on-stack replacement), generators and async functions
+enter it where they resume (section 4.1), and exception handlers after their `Catch` (section 4.2). A call from compiled code into a function the interpreter
 runs counts as several invocations of it (`callee-boost`): code hot enough to be compiled calls it,
 so it is likely to be hot as well, and there is no baseline tier to run it in meanwhile.
 
@@ -42,8 +42,9 @@ and are rematerialized at every use. Every value has a representation (`Repr`): 
 float64, bool or pointer. Cold blocks hold code that rarely runs (slow paths of checks); they come last
 in the final block order.
 
-Blocks without predecessors are entries: block 0, the on-stack replacement entries and the resume
-entries of generators (section 4.1). Every block is reachable from one.
+Blocks without predecessors are entries: block 0, the on-stack replacement entries, the resume
+entries of generators (section 4.1) and the catch entries of exception handlers (section 4.2). Every
+block is reachable from one.
 
 The compiled function's slots are SSA values. The builder tracks, per slot, whether only frame
 memory holds it or which value holds it (and whether memory holds that too). Merges and loop
@@ -299,6 +300,27 @@ with (`GetCompletionFields`), which compiled code loads from the generator objec
 generator's completion comes from its `AsyncGenerator` through the slow path. The function's start
 is compiled like any function's: its `Enter`, and for generators and async generators the initial
 `Yield`. Async functions have no initial `Yield`; their call runs the body until it first awaits.
+
+### 4.2 Exception handlers
+
+The graph has no exceptional edges. An exception thrown in compiled code, or in a call it makes,
+leaves the code like any slow path that does not continue: the runtime unwinds to the handler
+(`Vm::handle_exception()`), which puts the exception in the frame and moves its pc to the handler,
+and the leave writes the frame state of the throwing node, whose live slots include everything live
+into the handler (`bytecode/liveness.rs`). The interpreter then runs the handler's `Catch`, which
+compiled code never builds.
+
+Handlers start with a `Catch`, and the block after it is where the handler continues. Each handler
+that caught an exception before the compile (the value feedback of its `Catch`) gets a catch entry
+there (`builder/osr.rs`), like a resume entry: a block without predecessors that loads the slots live
+there from the frame. Handlers that never caught anything get none, so their blocks are not built
+and do not merge into the paths after them. Catch entries are listed in `Graph::osr_entries` too.
+
+The profiling interpreter's `Catch` continues the frame in compiled code at the catch entry after it,
+if the code has one (`entry_exit::helper_enter_jit_code_after_catch()`). An exit from there resumes
+after the `Catch`, so a frame never enters and exits at the same pc. A catch where the code has no
+entry counts like an exit, so that code compiled before the handler first caught is discarded and
+compiled again with the entry once catches keep happening there.
 
 ## 5. Dependencies and invalidation
 

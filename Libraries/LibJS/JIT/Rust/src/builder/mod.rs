@@ -610,6 +610,7 @@ impl<'a> GraphBuilder<'a> {
         if self.build_osr_entries {
             self.build_osr_entries()?;
             self.build_resume_entries()?;
+            self.build_catch_entries()?;
         }
         self.build_function()?;
 

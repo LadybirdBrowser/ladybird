@@ -118,7 +118,7 @@ pub struct JitCode {
     /// keep their addresses for as long as the code may run.
     embedded_cells: Vec<Gc<CellHeader>>,
     snapshot_executables: Vec<SnapshotExecutable>,
-    /// Where a frame running in the interpreter at the loop back edge `pc` can continue in this code.
+    /// Where a frame running in the interpreter at `pc` can continue in this code (see `osr_entry()`).
     osr_entries: Vec<(u32, JitEntry)>,
     /// The loop back edges from where a frame running in the interpreter reaches one of the `osr_entries` without
     /// leaving the loop it is in.
@@ -126,6 +126,9 @@ pub struct JitCode {
     /// The loop back edges in the loops around those of the `osr_entries`, from where a frame running in the
     /// interpreter may reach one of them on a later iteration.
     osr_outer_loop_back_edges: Vec<u32>,
+    /// The pcs of the `Catch` of the exception handlers that have no catch entry only because they never caught an
+    /// exception before the compile.
+    uncaught_handlers: Vec<u32>,
     /// Identifies the code among all code the VM installed, for the dependencies it registers (see
     /// `super::dependencies`).
     id: u64,
@@ -165,6 +168,7 @@ impl JitCode {
             osr_entries,
             osr_loop_back_edges,
             osr_outer_loop_back_edges: Vec::new(),
+            uncaught_handlers: Vec::new(),
             id: 0,
             invalidation_patches: Vec::new(),
             invalidated: Cell::new(false),
@@ -182,6 +186,17 @@ impl JitCode {
     pub fn with_osr_outer_loop_back_edges(mut self, osr_outer_loop_back_edges: Vec<u32>) -> Self {
         self.osr_outer_loop_back_edges = osr_outer_loop_back_edges;
         self
+    }
+
+    pub fn with_uncaught_handlers(mut self, uncaught_handlers: Vec<u32>) -> Self {
+        self.uncaught_handlers = uncaught_handlers;
+        self
+    }
+
+    /// Whether the handler whose `Catch` is at `pc` has no catch entry only because it never caught an exception
+    /// before the compile, so that a compile now would give it one.
+    pub fn compiled_before_handler_caught(&self, pc: u32) -> bool {
+        self.uncaught_handlers.contains(&pc)
     }
 
     pub fn id(&self) -> u64 {
@@ -207,7 +222,8 @@ impl JitCode {
     }
 
     /// The entry at `pc` for a frame whose memory holds every value live there: an on-stack replacement entry at a
-    /// loop back edge, or the resume entry at a continuation of a generator's suspension.
+    /// loop back edge, the resume entry at a continuation of a generator's suspension, or the catch entry after the
+    /// `Catch` of an exception handler.
     pub fn osr_entry(&self, pc: u32) -> Option<JitEntry> {
         self.osr_entries
             .iter()

@@ -160,6 +160,10 @@ pub mod entry_exit {
     pub fn helper_enter_jit_code(_vm: &Vm) -> i64 {
         unreachable!("only the profiling interpreter enters JIT code");
     }
+
+    pub fn helper_enter_jit_code_after_catch(_vm: &Vm, _pc: u32) -> i64 {
+        unreachable!("only the profiling interpreter enters JIT code");
+    }
 }
 
 pub mod translate {

@@ -26,12 +26,20 @@
 //! entry block that loads them and jumps to the continuation's block, which
 //! compiled code reaches from nowhere else. The runtime enters there like at
 //! an on-stack replacement entry.
+//!
+//! Exception handlers are entered the same way. An exception thrown in
+//! compiled code leaves it with the frame state of the throwing instruction,
+//! which lists every value live into the handler, and the interpreter runs
+//! the handler's `Catch`. Each handler that caught an exception before the
+//! compile gets an entry block after its `Catch`, where the interpreter then
+//! continues the frame in compiled code.
 
 use super::AbstractFrame;
 use super::Flow;
 use super::GraphBuilder;
 use crate::CompileFailure;
 use crate::bytecode::Instruction;
+use crate::bytecode::Label;
 use crate::bytecode::OpCode;
 use crate::bytecode::RESERVED_REGISTER_COUNT;
 use crate::bytecode::cfg::BlockIndex;
@@ -178,28 +186,73 @@ impl GraphBuilder<'_> {
                     reason: "continuation that does not start a block",
                 });
             }
-            // NB: An on-stack replacement entry at a back edge that starts the
-            //     block resumes the frame there just the same.
-            if target_block.rpo_number.is_none() || self.graph.osr_entries.iter().any(|(entry_pc, _)| *entry_pc == pc) {
+            if target_block.rpo_number.is_some() {
+                self.build_entry_into_block(target)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Builds an entry block for every exception handler of the compiled
+    /// function that caught an exception and whose handler range is
+    /// reachable, after the resume entries, before any of its bytecode blocks
+    /// is started. Handlers start with a `Catch`, which the interpreter runs:
+    /// compiled code never builds it, and is entered after it, where the
+    /// handler's block continues. Handlers that never caught anything get no
+    /// entry, which would merge into the paths after them.
+    pub(super) fn build_catch_entries(&mut self) -> Result<(), CompileFailure> {
+        debug_assert!(!self.function.is_virtual());
+        for handler in 0..self.function.cfg.blocks.len() {
+            let handler_block = &self.function.cfg.blocks[handler];
+            let reachable = handler_block
+                .exception_predecessors
+                .iter()
+                .any(|predecessor| self.function.cfg.blocks[*predecessor].rpo_number.is_some());
+            let catch = &self.function.instructions[handler_block.instructions.start];
+            if !reachable || catch.instruction.opcode() != OpCode::Catch {
                 continue;
             }
-            let block = self.start_new_block(Vec::new());
-            self.frame = AbstractFrame::in_memory(self.function.layout.tracked_slot_count());
-            let start = target_block.instructions.start;
-            self.function.instruction_index = start;
-            self.function.pc = pc;
-            self.function.eager_frame_state = None;
-            let live = self.function.liveness.live_in(start).clone();
-            for slot in live.iter() {
-                if slot >= RESERVED_REGISTER_COUNT as usize {
-                    let operand = self.function.layout.operand_for_tracked_index(slot);
-                    self.read_tracked(slot, operand);
-                }
+            if !(self.has_run)(catch.pc) {
+                self.graph.uncaught_handlers.push(catch.pc);
+                continue;
             }
-            self.end_with_jump(target)?;
-            self.graph.osr_entries.push((pc, block));
-            self.note_loops_entered_at(&[target]);
+            // NB: The Catch ends its block, which falls through to the block
+            //     that continues the handler.
+            let Ok(target) = self.block_for_label(Label(catch.next_pc())) else {
+                continue;
+            };
+            self.build_entry_into_block(target)?;
         }
+        Ok(())
+    }
+
+    /// Builds an entry block for a frame whose memory holds every value live
+    /// at the start of `target`: it loads them and jumps there. The runtime
+    /// enters it like an on-stack replacement entry.
+    fn build_entry_into_block(&mut self, target: BlockIndex) -> Result<(), CompileFailure> {
+        let target_block = &self.function.cfg.blocks[target];
+        let pc = target_block.start_pc;
+        // NB: An on-stack replacement entry at a back edge that starts the
+        //     block enters the frame there just the same.
+        if self.graph.osr_entries.iter().any(|(entry_pc, _)| *entry_pc == pc) {
+            return Ok(());
+        }
+        let block = self.start_new_block(Vec::new());
+        self.frame = AbstractFrame::in_memory(self.function.layout.tracked_slot_count());
+        let start = target_block.instructions.start;
+        self.function.instruction_index = start;
+        self.function.pc = pc;
+        self.function.eager_frame_state = None;
+        let live = self.function.liveness.live_in(start).clone();
+        for slot in live.iter() {
+            if slot >= RESERVED_REGISTER_COUNT as usize {
+                let operand = self.function.layout.operand_for_tracked_index(slot);
+                self.read_tracked(slot, operand);
+            }
+        }
+        self.end_with_jump(target)?;
+        self.graph.osr_entries.push((pc, block));
+        self.note_loops_entered_at(&[target]);
         Ok(())
     }
 
