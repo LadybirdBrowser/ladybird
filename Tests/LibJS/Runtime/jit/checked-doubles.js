@@ -125,3 +125,42 @@ test("folds that give doubles checked to be int32 values int32 users keep the ch
     expect(sum(1.25, 2, 2, 1)).toBe(6);
     expect(sum(1.25, 2, 2, "b")).toBe("b2.52.5");
 });
+
+test("number conversions of boxed doubles checked to be int32 values keep the checks", () => {
+    const keys = new Float64Array([1, 2, 3, 4]);
+    const add = new Function("x", "j", "const y = +x; return j + (y | 0);");
+    // NB: Math.min() needs the key as an int32, so compiled code checks that it is one.
+    //     The inlined `+x` then converts that int32 back, through the loop's copy of the key.
+    const addKey = new Function(
+        "add",
+        "keys",
+        "i",
+        "n",
+        `const key = +keys[i];
+        Math.min(key, key);
+        let index = key;
+        let sum = 0;
+        for (let j = 0; j < n; ++j) {
+            sum = add(index, j);
+            const same = index;
+            index = same;
+        }
+        return sum;`
+    );
+    jit.prepare(add);
+    jit.prepare(addKey);
+    for (let k = 0; k < 10; ++k) {
+        add(1, k);
+        add("5", k);
+        add(1.5, k);
+    }
+    for (let k = 0; k < 10; ++k) addKey(add, keys, k & 3, 2);
+    expect(jit.compile(addKey)).toBe(jit.enabled);
+    expect(addKey(add, keys, 1, 2)).toBe(3);
+    expect(addKey(add, keys, 2, 3)).toBe(5);
+    keys.set([0.5, 2.75, -1.5, 2 ** 40]);
+    expect(addKey(add, keys, 0, 2)).toBe(1);
+    expect(addKey(add, keys, 1, 2)).toBe(3);
+    expect(addKey(add, keys, 2, 2)).toBe(0);
+    expect(addKey(add, keys, 3, 2)).toBe(1);
+});
