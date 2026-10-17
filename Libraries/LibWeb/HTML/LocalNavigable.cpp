@@ -3382,10 +3382,8 @@ void LocalNavigable::adopt_navigation_started_in_ui_process(Utf16String navigati
     //     then stop intersection-observing a lazy loading element container and set container's lazy load resumption steps to null.
     if (container && container->is_html_iframe_element()) {
         auto& iframe_element = static_cast<HTMLIFrameElement&>(*container);
-        if (iframe_element.will_lazy_load_element()) {
-            iframe_element.document().stop_intersection_observing_a_lazy_loading_element(iframe_element);
-            iframe_element.set_lazy_load_resumption_steps(nullptr);
-        }
+        if (iframe_element.will_lazy_load_element())
+            iframe_element.stop_lazy_loading();
     }
 
     // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
@@ -3519,10 +3517,8 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     //     then stop intersection-observing a lazy loading element container and set container's lazy load resumption steps to null.
     if (container && container->is_html_iframe_element()) {
         auto& iframe_element = static_cast<HTMLIFrameElement&>(*container);
-        if (iframe_element.will_lazy_load_element()) {
-            iframe_element.document().stop_intersection_observing_a_lazy_loading_element(iframe_element);
-            iframe_element.set_lazy_load_resumption_steps(nullptr);
-        }
+        if (iframe_element.will_lazy_load_element())
+            iframe_element.stop_lazy_loading();
     }
 
     // 12. If historyHandling is "auto", then:
