@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation's `Accept` value follows the navigator compatibility mode: each mode sends what the engine it names
+    // sends, the spec's value included, since that is one of them.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        try {
+            for (const mode of ["chrome", "gecko", "webkit"]) {
+                internals.setNavigatorCompatibilityMode(mode);
+
+                const url = await httpServer.createEcho("GET", `/document-accept-header-probe-${mode}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body: "<!doctype html><title>probe</title>",
+                });
+
+                const iframe = document.createElement("iframe");
+                const loaded = new Promise(resolve => (iframe.onload = resolve));
+                iframe.src = url;
+                document.body.appendChild(iframe);
+                await loaded;
+
+                const response = await fetch(httpServer.recordedRequestHeadersURL(new URL(url)));
+                const headers = await response.json();
+                println(`${mode}: ${headers["Accept"][0]}`);
+            }
+        } finally {
+            internals.setNavigatorCompatibilityMode("chrome");
+        }
+    });
+</script>

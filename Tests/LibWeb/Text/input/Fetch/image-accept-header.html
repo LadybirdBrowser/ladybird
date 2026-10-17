@@ -1,32 +1,40 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
+    // The image `Accept` value follows the navigator compatibility mode: each mode sends what the engine it names sends.
     promiseTest(async () => {
         const httpServer = httpTestServer();
 
         // A 1x1 transparent PNG.
         const transparentPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
-        const url = await httpServer.createEcho("GET", "/image-accept-header-probe", {
-            status: 200,
-            headers: {
-                "Content-Type": "image/png",
-            },
-            body_encoding: "base64",
-            body: transparentPng,
-        });
+        try {
+            for (const mode of ["chrome", "gecko", "webkit"]) {
+                internals.setNavigatorCompatibilityMode(mode);
 
-        const image = new Image();
-        await new Promise((resolve) => {
-            image.onload = resolve;
-            image.onerror = resolve;
-            image.src = url;
-        });
+                // A path per mode: a second load of the same URL would come from the image cache, with no request.
+                const url = await httpServer.createEcho("GET", `/image-accept-header-probe-${mode}`, {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "image/png",
+                    },
+                    body_encoding: "base64",
+                    body: transparentPng,
+                });
 
-        const echoUrl = new URL(url);
-        const response = await fetch(httpServer.recordedRequestHeadersURL(echoUrl));
-        const headers = await response.json();
+                const image = new Image();
+                await new Promise((resolve) => {
+                    image.onload = resolve;
+                    image.onerror = resolve;
+                    image.src = url;
+                });
 
-        println(headers["Accept"][0]);
+                const response = await fetch(httpServer.recordedRequestHeadersURL(new URL(url)));
+                const headers = await response.json();
+                println(`${mode}: ${headers["Accept"][0]}`);
+            }
+        } finally {
+            internals.setNavigatorCompatibilityMode("chrome");
+        }
     });
 </script>

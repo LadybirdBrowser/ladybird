@@ -184,6 +184,36 @@ static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructur
     http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list(), response.javascript_bytecode_cache(), response.javascript_bytecode_cache_vary_key());
 }
 
+// AD-HOC: Set the appropriate Accept-header value based on what compat mode the user has set. Only WebKit sends the
+//         Accept value the spec requires; Blink and Gecko don't. Some bot-blocking services are known to check Accept
+//         against what's expected for the browser given in the UA value, and will block us if those don't match.
+static StringView document_accept_header_value_for_navigator_compatibility_mode()
+{
+    switch (ResourceLoader::navigator_compatibility_mode()) {
+    case NavigatorCompatibilityMode::Chrome:
+        return "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"sv;
+    case NavigatorCompatibilityMode::Gecko:
+        return "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8"sv;
+    case NavigatorCompatibilityMode::WebKit:
+        return document_accept_header_value;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static StringView image_accept_header_value_for_navigator_compatibility_mode()
+{
+    switch (ResourceLoader::navigator_compatibility_mode()) {
+    case NavigatorCompatibilityMode::Chrome:
+        return "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"sv;
+    case NavigatorCompatibilityMode::Gecko:
+    case NavigatorCompatibilityMode::WebKit:
+        // The spec default omits AVIF and WebP, which causes CDNs that perform format negotiation to potentially fall
+        // back to non alpha-preserving formats. Spec issue: https://github.com/whatwg/fetch/issues/1740
+        return "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // https://fetch.spec.whatwg.org/#concept-fetch
 GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue, CreateResponseBodyTransferLease create_response_body_transfer_lease)
 {
@@ -295,7 +325,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 
         // 2. If request’s initiator is "prefetch", then set value to the document `Accept` header value.
         if (request.initiator() == Infrastructure::Request::Initiator::Prefetch) {
-            value = document_accept_header_value;
+            value = document_accept_header_value_for_navigator_compatibility_mode();
         }
 
         // 3. Otherwise, the user agent should set value to the first matching statement, if any, switching on request’s destination:
@@ -308,15 +338,12 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             case Infrastructure::Request::Destination::Frame:
             case Infrastructure::Request::Destination::IFrame:
                 // the document `Accept` header value
-                value = document_accept_header_value;
+                value = document_accept_header_value_for_navigator_compatibility_mode();
                 break;
             // -> "image"
             case Infrastructure::Request::Destination::Image:
                 // `image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5`
-                // AD-HOC: The spec default omits AVIF and WebP, which causes CDNs that perform format negotiation to
-                //         potentially fall back to non alpha-preserving formats.
-                //         Spec issue: https://github.com/whatwg/fetch/issues/1740
-                value = "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"sv;
+                value = image_accept_header_value_for_navigator_compatibility_mode();
                 break;
             // -> "json"
             case Infrastructure::Request::Destination::JSON:

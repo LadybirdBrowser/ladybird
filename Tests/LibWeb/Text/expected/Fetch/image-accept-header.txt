@@ -1,1 +1,3 @@
-image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5
+chrome: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+gecko: image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5
+webkit: image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5
