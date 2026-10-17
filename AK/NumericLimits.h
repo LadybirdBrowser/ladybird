@@ -119,6 +119,7 @@ struct NumericLimits<float> {
     static constexpr float epsilon() { return __FLT_EPSILON__; }
     static constexpr bool is_signed() { return true; }
     static constexpr size_t digits() { return __FLT_MANT_DIG__; }
+    static constexpr size_t max_exponent10() { return __FLT_MAX_10_EXP__; }
 };
 
 template<>
@@ -130,6 +131,7 @@ struct NumericLimits<double> {
     static constexpr double epsilon() { return __DBL_EPSILON__; }
     static constexpr bool is_signed() { return true; }
     static constexpr size_t digits() { return __DBL_MANT_DIG__; }
+    static constexpr size_t max_exponent10() { return __DBL_MAX_10_EXP__; }
 };
 
 template<>
@@ -141,6 +143,7 @@ struct NumericLimits<long double> {
     static constexpr long double epsilon() { return __LDBL_EPSILON__; }
     static constexpr bool is_signed() { return true; }
     static constexpr size_t digits() { return __LDBL_MANT_DIG__; }
+    static constexpr size_t max_exponent10() { return __LDBL_MAX_10_EXP__; }
 };
 
 template<>
