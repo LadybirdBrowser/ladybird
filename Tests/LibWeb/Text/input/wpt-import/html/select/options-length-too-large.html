@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="timeout" content="long">
+    <title>select options.length too large</title>
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <select id="test">
+      <option value="1"></option>
+      <option value="2"></option>
+      <option value="3"></option>
+    </select>
+
+    <script>
+    var mySelect = document.getElementById("test");
+
+    test(function() {
+        mySelect.options.length = -1;
+        assert_equals(mySelect.options.length, 3, "Length of <select> should remain unchanged");
+    });
+
+    test(function() {
+        mySelect.options.length = 100001;
+        assert_equals(mySelect.options.length, 3, "Length of <select> should remain unchanged");
+    });
+
+    test(function() {
+        mySelect.options.length = Number.MAX_SAFE_INTEGER;
+        assert_equals(mySelect.options.length, 3, "Length of <select> should remain unchanged");
+    });
+
+    test(function() {
+        mySelect.options.length = 100000;
+        assert_equals(mySelect.options.length, 100000, "Length of <select> should be 100,000");
+    });
+
+    test(function() {
+        mySelect.appendChild(new Option());
+        mySelect.appendChild(new Option());
+        assert_equals(mySelect.options.length, 100002, "Manual expansion still works");
+        mySelect.options.length = 100001;
+        assert_equals(mySelect.options.length, 100001, "Truncation works if over the limit");
+    });
+    </script>
+  </body>
+</html>

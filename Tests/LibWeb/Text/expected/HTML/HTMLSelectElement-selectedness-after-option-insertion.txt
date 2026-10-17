@@ -1,0 +1,4 @@
+After selectedIndex = -1: 0
+After setting a value with no matching option: 0
+After adding a selected attribute: 1, a=false, b=true
+After moving a selected option: from=0, to=1

@@ -87,6 +87,12 @@ void HTMLOptionElement::set_selected_internal(bool selected)
     if (m_selected != selected) {
         CSS::Invalidation::invalidate_style_after_option_selected_state_change(*this, selected);
         document().bump_option_selectedness_version();
+        if (m_cached_nearest_select_element) {
+            if (selected)
+                ++m_cached_nearest_select_element->m_number_of_selected_options;
+            else
+                --m_cached_nearest_select_element->m_number_of_selected_options;
+        }
     }
 
     m_selected = selected;
@@ -224,17 +230,27 @@ void HTMLOptionElement::update_nearest_select_element()
 
     // 3. If oldSelect is not newSelect:
     if (old_select != new_select) {
+        // OPTIMIZATION: Do step 4 first and move this option between the selects' counts of selected options, so that
+        //               selectedness changes made by the algorithms below are counted against newSelect.
+        if (selected()) {
+            if (old_select)
+                --old_select->m_number_of_selected_options;
+            if (new_select)
+                ++new_select->m_number_of_selected_options;
+        }
+        m_cached_nearest_select_element = new_select;
+
         // 1. If oldSelect is not null, then run the selectedness setting algorithm given oldSelect.
         if (old_select)
             old_select->update_selectedness();
 
         // 2. If newSelect is not null, then run the selectedness setting algorithm given newSelect.
-        if (new_select)
+        if (new_select && !new_select->can_skip_selectedness_update_for_inserted_option(*this))
             new_select->update_selectedness();
     }
 
     // 4. Set option's cached nearest ancestor select element to newSelect.
-    m_cached_nearest_select_element = new_select;
+    // NOTE: Done in step 3.
 }
 
 Optional<ARIA::Role> HTMLOptionElement::default_role() const
