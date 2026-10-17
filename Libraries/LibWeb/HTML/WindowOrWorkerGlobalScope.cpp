@@ -1743,7 +1743,7 @@ bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces()
 // A site-compatibility rule can expose a gated interface or member to the documents and workers it matches, without
 // exposing it to the web at large. The rule is keyed by the URL the environment was created with, so it holds for the
 // lifetime of that global, the same way the global switch does.
-bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(EnvironmentSettingsObject& settings, StringView name)
+bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(EnvironmentSettingsObject const& settings, StringView name)
 {
     if (s_experimental_interfaces_exposed)
         return true;
