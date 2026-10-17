@@ -2153,16 +2153,40 @@ impl<'pass> GridFormattingContext<'pass> {
         // If the item has a preferred aspect ratio and its preferred size in the opposite axis is definite, then the transferred
         // size suggestion is that size (clamped by the opposite-axis minimum and maximum sizes if they are definite), converted
         // through the aspect ratio. It is otherwise undefined.
-        let preferred_aspect_ratio = self.facts(item.box_).preferred_aspect_ratio()?;
-
-        let preferred_size_in_opposite_axis = self.preferred_size(item, axis.opposite());
-        if preferred_size_in_opposite_axis.is_length() {
-            let opposite_axis_size = preferred_size_in_opposite_axis.to_px(CssPixels::default());
-            // FIXME: Clamp by opposite-axis minimum and maximum sizes if they are definite
-            return Some(preferred_aspect_ratio.multiply(opposite_axis_size));
+        self.facts(item.box_).preferred_aspect_ratio()?;
+        if !self.preferred_size(item, axis.opposite()).is_length() {
+            return None;
         }
-
-        None
+        let opposite = axis.opposite();
+        let available = self.item_available_space(item);
+        let constraints = self.track_sizing_constraints();
+        let inner_size = |property: SizingProperty| {
+            self.sizing().calculate_inner_size_for_property(
+                item.box_,
+                opposite.sizing_axis(),
+                property,
+                available,
+                constraints,
+            )
+        };
+        let mut opposite_axis_size = inner_size(opposite.select(SizingProperty::Width, SizingProperty::Height));
+        if self.maximum_size(item, opposite).is_length() {
+            opposite_axis_size = opposite_axis_size.min(inner_size(
+                opposite.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
+            ));
+        }
+        if self.minimum_size(item, opposite).is_length() {
+            opposite_axis_size = opposite_axis_size.max(inner_size(
+                opposite.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
+            ));
+        }
+        Some(if axis.is_column() {
+            self.sizing()
+                .content_inline_size_from_aspect_ratio(item.box_, opposite_axis_size)
+        } else {
+            self.sizing()
+                .content_block_size_from_aspect_ratio(item.box_, opposite_axis_size)
+        })
     }
 
     fn content_based_minimum_size(&self, item: GridItem, axis: Axis) -> CssPixels {
