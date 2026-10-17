@@ -392,9 +392,10 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         // 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin, browsingContext's group, and requestsOAC.
         // NB: The UI process obtains the agent, and names its agent cluster.
         auto agent_cluster_id = navigation_params.agent_cluster_id;
+        auto agent_cluster_cross_origin_isolation_mode = navigation_params.agent_cluster_cross_origin_isolation_mode;
 
-        // 5. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
-        auto realm_execution_context = HTML::create_window_realm(window, *browsing_context);
+        // 5. Let realmExecutionContext be the result of creating a new realm given agent and the following customizations:
+        auto realm_execution_context = HTML::create_window_realm(window, *browsing_context, agent_cluster_cross_origin_isolation_mode);
 
         // 6. Set window to the global object of realmExecutionContext's Realm component.
         window = HTML::window_from_global_object(realm_execution_context->realm->global_object());
@@ -430,7 +431,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             navigation_params.reserved_environment,
             top_level_creation_url.value(),
             top_level_origin,
-            agent_cluster_id);
+            agent_cluster_id,
+            agent_cluster_cross_origin_isolation_mode);
     }
 
     // AD-HOC: The fetch controller is only available in the process that ran the navigation fetch. Navigation params
@@ -6810,6 +6812,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::Camera:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::CrossOriginIsolated:
+        // FIXME: Implement the allow attribute, which a container uses to delegate the feature to another origin.
+        return default_allowlist_enables_feature_in(*this);
     case PolicyControlledFeature::FocusWithoutUserActivation:
         // FIXME: Implement the allow attribute, which a container uses to delegate the feature to another origin.
         return default_allowlist_enables_feature_in(*this);

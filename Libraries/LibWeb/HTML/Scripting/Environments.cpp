@@ -31,11 +31,11 @@
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/SecureContexts/AbstractOperations.h>
 #include <LibWeb/ServiceWorker/ServiceWorker.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerRegistration.h>
 #include <LibWeb/StorageAPI/StorageManager.h>
 #include <LibWeb/WebLocks/LockManager.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 namespace Web::HTML {
 
@@ -692,12 +692,14 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
     auto serialized_global = [this]() -> SerializedGlobal {
         bool relevant_settings_object_is_secure_context = is_secure_context(*this);
+        auto relevant_settings_object_policy_container = policy_container()->serialize();
         auto& global = global_object();
         if (auto const* window = window_from_global_object(global)) {
             return SerializedWindow {
                 .associated_document {
                     .url = window->associated_document().url(),
                     .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
+                    .relevant_settings_object_policy_container = move(relevant_settings_object_policy_container),
                 }
             };
         }
@@ -707,6 +709,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         auto supported_animation_frame_provider = dedicated_worker_global_scope && dedicated_worker_global_scope->is_supported();
         return SerializedWorkerGlobalScope {
             .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
+            .relevant_settings_object_policy_container = move(relevant_settings_object_policy_container),
             .is_supported_animation_frame_provider = supported_animation_frame_provider,
         };
     }();
@@ -722,6 +725,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         .policy_container = policy_container()->serialize(),
         .cross_origin_isolated_capability = cross_origin_isolated_capability(),
         .agent_cluster_id = agent_cluster_id(),
+        .agent_cluster_cross_origin_isolation_mode = agent_cluster_cross_origin_isolation_mode(),
         .time_origin = this->time_origin(),
         .global = move(serialized_global),
     };

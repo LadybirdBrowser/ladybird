@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
+#include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
@@ -52,8 +53,10 @@ struct NavigationParams : GC::Cell {
     //         still sees it.
     RefPtr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info { nullptr };
 
-    // AD-HOC: The agent cluster of the agent the UI process obtained for the new Document's window.
+    // AD-HOC: The agent cluster of the agent the UI process obtained for the new Document's window, and that agent
+    //         cluster's cross-origin isolation mode.
     Optional<u64> agent_cluster_id;
+    CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
 
     // AD-HOC: The id the UI process gave the new Document.
     Optional<CrossProcessId> document_id;

@@ -6,6 +6,7 @@ set(SOURCES
     CSS/StyleSheetIdentifier.cpp
     CSS/SystemColor.cpp
     Fetch/Infrastructure/HTTP/Statuses.cpp
+    Fetch/Infrastructure/URL.cpp
     FileAPI/BlobURLStore.cpp
     FileAPI/SerializedBlobURLEntry.cpp
     Gamepad/GamepadSharedState.cpp
@@ -14,6 +15,7 @@ set(SOURCES
     HTML/AutoplayPolicy.cpp
     HTML/BroadcastChannelMessage.cpp
     HTML/BrowsingContext.cpp
+    HTML/CrossOrigin/OpenerPolicy.cpp
     HTML/CrossOrigin/OpenerPolicyEnforcement.cpp
     HTML/CrossProcessId.cpp
     HTML/EmbedderPolicy.cpp
@@ -53,6 +55,7 @@ set(SOURCES
     Page/SpellingError.cpp
     PixelUnits.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
+    SecureContexts/AbstractOperations.cpp
     StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
     WebDriver/Capabilities.cpp

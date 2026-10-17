@@ -43,7 +43,7 @@ static ErrorOr<SerializedBlobURLEntry> serialize_blob_url_entry(BlobURLEntry con
             return SerializedBlobURLEntry::MediaSource {};
         }));
 
-    return SerializedBlobURLEntry { .object = move(object), .origin = entry.environment->origin() };
+    return SerializedBlobURLEntry { .object = move(object), .origin = entry.environment->origin(), .environment_policy_container = entry.environment->policy_container()->serialize() };
 }
 
 // https://w3c.github.io/FileAPI/#unicodeBlobURL
@@ -216,8 +216,13 @@ Optional<SerializedBlobURLEntry> blob_url_entry_in_the_user_agent_store(Page& pa
             [](URL::BlobURLEntry::MediaSource const&) -> Optional<SerializedBlobURLEntry::Object> {
                 return SerializedBlobURLEntry::MediaSource {};
             });
-        if (object.has_value())
-            return SerializedBlobURLEntry { .object = object.release_value(), .origin = entry->environment.origin };
+        if (object.has_value()) {
+            // NB: The URL record does not hold the environment's policy container, which this process's store has
+            //     while the entry is in it.
+            auto local_entry = local_blob_url_entry(url);
+            auto environment_policy_container = local_entry.has_value() ? local_entry->environment->policy_container()->serialize() : HTML::SerializedPolicyContainer {};
+            return SerializedBlobURLEntry { .object = object.release_value(), .origin = entry->environment.origin, .environment_policy_container = move(environment_policy_container) };
+        }
     }
 
     // https://w3c.github.io/FileAPI/#blob-url-resolve

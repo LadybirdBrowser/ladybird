@@ -58,6 +58,7 @@ GC::Ref<HTML::WorkletGlobalScope> AudioWorklet::create_global_scope()
     GC::Ptr<AudioWorkletGlobalScope> scope;
     auto realm_execution_context = Bindings::create_a_new_javascript_realm(
         Bindings::main_thread_vm(),
+        outside_settings.agent_cluster_cross_origin_isolation_mode(),
         [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             scope = AudioWorkletGlobalScope::create(*this, m_context->sample_rate());
             return Bindings::create_global_object_wrapper(realm, GC::Ref { *scope });

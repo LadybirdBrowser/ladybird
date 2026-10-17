@@ -1,0 +1,214 @@
+<!doctype html>
+<title>COEP and dedicated worker</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script src="../../common/get-host-info.sub.js"></script>
+<script src="resources/worker-support.js"></script>
+<body>
+<script>
+
+const targetUrl = resolveUrl("/common/blank.html", {
+    host: get_host_info().REMOTE_HOST,
+}).href;
+
+function workerUrl(options) {
+  return resolveUrl("resources/dedicated-worker.js", options);
+}
+
+async function createWorker(t, url, options) {
+  const { ownerCoep, workerOptions } = options || {};
+
+  const frameUrl = resolveUrl("/common/blank.html", {
+    coep: ownerCoep,
+  });
+  const frame = await withIframe(t, frameUrl);
+
+  return new frame.contentWindow.Worker(url, workerOptions);
+}
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl());
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'LOADED');
+}, 'COEP: none worker in COEP: none frame');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl(), {
+    ownerCoep: "require-corp",
+  });
+  await new Promise(resolve => {
+    worker.onerror = resolve;
+  });
+}, 'COEP: none worker in COEP: require-corp frame');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl({ coep: "require-corp" }));
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, 'COEP: require-corp worker in COEP: none frame');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl({ coep: "require-corp" }), {
+    ownerCoep: "require-corp",
+  });
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, 'COEP: require-corp worker in COEP: require-corp frame');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl(), {
+    workerOptions: { type: 'module' },
+  });
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'LOADED');
+}, 'COEP: none module worker in COEP: none frame');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl(), {
+    ownerCoep: "require-corp",
+    workerOptions: { type: 'module' },
+  });
+  await new Promise(resolve => {
+    worker.onerror = resolve;
+  });
+}, 'COEP: none module worker in COEP: require-corp frame');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl({ coep: "require-corp" }), {
+    workerOptions: { type: 'module' },
+  });
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, 'COEP: require-corp module worker in COEP: none frame');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, workerUrl({ coep: "require-corp" }), {
+    ownerCoep: "require-corp",
+    workerOptions: { type: 'module' },
+  });
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, 'COEP: require-corp module worker in COEP: require-corp frame');
+
+promise_test(async (t) => {
+  const url = await createLocalUrl(t, {
+    url: workerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "blob",
+  });
+
+  const worker = await createWorker(t, url, { ownerCoep: "require-corp" });
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, "COEP: worker inherits COEP for blob URL.");
+
+promise_test(async (t) => {
+  const url = await createLocalUrl(t, {
+    url: workerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "blob",
+  });
+
+  const worker = await createWorker(t, url);
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, "COEP: worker inherits COEP from blob URL creator, not owner.");
+
+promise_test(async (t) => {
+  const url = await createLocalUrl(t, {
+    url: workerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "data",
+  });
+
+  const worker = await createWorker(t, url, { ownerCoep: "require-corp" });
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, "COEP: worker inherits COEP for data URL.");
+
+promise_test(async (t) => {
+  const url = await createLocalUrl(t, {
+    url: workerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "data",
+  });
+
+  const worker = await createWorker(t, url);
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'LOADED');
+}, "COEP: worker inherits COEP from owner, not data URL creator.");
+
+promise_test(async (t) => {
+  const url = await createLocalUrl(t, {
+    url: workerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "filesystem",
+  });
+
+  const worker = await createWorker(t, url, { ownerCoep: "require-corp" });
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, "COEP: worker inherits COEP for filesystem URL.");
+
+promise_test(async (t) => {
+  const url = await createLocalUrl(t, {
+    url: workerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "filesystem",
+  });
+
+  const worker = await createWorker(t, url);
+  worker.onerror = t.unreached_func('Worker.onerror should not be called');
+
+  worker.postMessage(targetUrl);
+
+  const result = await waitForMessage(worker);
+  assert_equals(result.data, 'FAILED');
+}, "COEP: worker inherits COEP from filesystem URL creator, not owner.");
+
+</script>
+</body>

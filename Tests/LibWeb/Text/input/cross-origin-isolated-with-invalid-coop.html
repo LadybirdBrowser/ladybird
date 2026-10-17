@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // "same-origin;" is not a valid structured field item, so the opener policy is ignored.
+        println("crossOriginIsolated: " + self.crossOriginIsolated);
+    });
+</script>

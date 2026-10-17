@@ -7,8 +7,7 @@
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/SecureContexts/AbstractOperations.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 namespace Web::SecureContexts {
 

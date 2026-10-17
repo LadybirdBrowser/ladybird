@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const load = async (name, { crossOrigin, headers = {}, credentials = "same-origin" }) => {
+            const url = new URL(await server.createEcho("GET", `/${name}`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain", ...headers },
+                body: "",
+            }));
+            if (crossOrigin)
+                url.hostname = uniqueLocalhostHostname(name);
+            try {
+                await fetch(url, { mode: "no-cors", credentials });
+                println(`${name}: loaded`);
+            } catch {
+                println(`${name}: blocked`);
+            }
+        };
+
+        // Without a Cross-Origin-Resource-Policy header, require-corp treats a no-cors response as "same-origin".
+        await load("same-origin-without-corp", { crossOrigin: false });
+        await load("cross-origin-without-corp", { crossOrigin: true });
+        await load("cross-origin-with-cross-origin-corp", { crossOrigin: true, headers: { "Cross-Origin-Resource-Policy": "cross-origin" } });
+        await load("cross-origin-with-same-origin-corp", { crossOrigin: true, headers: { "Cross-Origin-Resource-Policy": "same-origin" } });
+        await load("cross-origin-with-invalid-corp", { crossOrigin: true, headers: { "Cross-Origin-Resource-Policy": "same-site, cross-origin" } });
+        done();
+    });
+</script>

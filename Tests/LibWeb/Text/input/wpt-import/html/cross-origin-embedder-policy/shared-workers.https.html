@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>COEP - policy derivation for Shared Workers</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../common/get-host-info.sub.js"></script>
+<script src="resources/worker-support.js"></script>
+<body>
+<p>Verify the Cross-Origin Embedder Policy for Shared Workers by performing a
+cross-domain "fetch" request for a resource that does not specify a COEP. Only
+Shared Workers with the default COEP should be able to successfully perform
+this operation.</p>
+<script>
+'use strict';
+
+const testUrl = resolveUrl("resources/empty-coep.py", {
+  host: get_host_info().REMOTE_HOST,
+}).href;
+
+function makeWorkerUrl(options) {
+  return resolveUrl("resources/shared-worker-fetch.js.py", options);
+}
+
+/**
+ * Create a Shared Worker within an iframe
+ *
+ * @param {object} t - a testharness.js subtest instance (used to reset global
+ *                     state)
+ * @param {string} url - the URL from which the Shared Worker should be
+ *                       created
+ * @param {string} options.ownerCoep - the Cross-Origin Embedder Policy of the
+                                       iframe
+ */
+async function createWorker(t, url, options) {
+  const { ownerCoep } = options || {};
+  const frameUrl = resolveUrl("/common/blank.html", { coep: ownerCoep });
+
+  const iframe = await withIframe(t, frameUrl);
+
+  const sw = new iframe.contentWindow.SharedWorker(url);
+  sw.onerror = t.unreached_func('SharedWorker.onerror should not be called');
+
+  await new Promise((resolve) => {
+    sw.port.addEventListener('message', resolve, { once: true });
+    sw.port.start();
+  });
+
+  return sw;
+}
+
+/**
+ * Instruct a Shared Worker to fetch from a specified URL and report on the
+ * success of the operation.
+ *
+ * @param {SharedWorker} worker
+ * @param {string} url - the URL that the worker should fetch
+ */
+function fetchFromWorker(worker, url) {
+  return new Promise((resolve) => {
+    worker.port.postMessage(url);
+    worker.port.addEventListener(
+      'message', (event) => resolve(event.data), { once: true }
+    );
+  });
+};
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, makeWorkerUrl());
+  const result = await fetchFromWorker(worker, testUrl);
+  assert_equals(result, 'success');
+}, 'default policy (derived from response)');
+
+promise_test(async (t) => {
+  const worker = await createWorker(t, makeWorkerUrl({ coep: 'require-corp' }));
+  const result = await fetchFromWorker(worker, testUrl);
+  assert_equals(result, 'failure');
+}, '"require-corp" (derived from response)');
+
+promise_test(async (t) => {
+  const blobUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    scheme: "blob",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, blobUrl),
+    createWorker(t, blobUrl),
+    createWorker(t, blobUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'success');
+}, 'default policy (derived from owner set due to use of local scheme - blob URL)');
+
+promise_test(async (t) => {
+  const blobUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "blob",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, blobUrl),
+    createWorker(t, blobUrl),
+    createWorker(t, blobUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'failure');
+}, 'require-corp (derived from blob URL creator)');
+
+promise_test(async (t) => {
+  const blobUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    scheme: "blob",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, blobUrl),
+    createWorker(t, blobUrl, { ownerCoep: 'require-corp' }),
+    createWorker(t, blobUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'failure');
+}, '"require-corp" (derived from owner set due to use of local scheme - blob URL)');
+
+promise_test(async (t) => {
+  const dataUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    scheme: "data",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, dataUrl),
+    createWorker(t, dataUrl),
+    createWorker(t, dataUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'success');
+}, 'default policy (derived from owner set due to use of local scheme - data URL)');
+
+promise_test(async (t) => {
+  const dataUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "data",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, dataUrl),
+    createWorker(t, dataUrl),
+    createWorker(t, dataUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'success');
+}, 'default policy (not derived from data URL creator)');
+
+promise_test(async (t) => {
+  const dataUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    scheme: "data",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, dataUrl),
+    createWorker(t, dataUrl, { ownercoep: 'require-corp' }),
+    createWorker(t, dataUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'failure');
+}, '"require-corp" (derived from owner set due to use of local scheme - data URL)');
+
+promise_test(async (t) => {
+  const filesystemUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    scheme: "filesystem",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, filesystemUrl),
+    createWorker(t, filesystemUrl),
+    createWorker(t, filesystemUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'success');
+}, 'default policy (derived from owner set due to use of local scheme - filesystem URL)');
+
+promise_test(async (t) => {
+  const filesystemUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    creatorCoep: "require-corp",
+    scheme: "filesystem",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, filesystemUrl),
+    createWorker(t, filesystemUrl),
+    createWorker(t, filesystemUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'failure');
+}, 'require-corp (derived from filesystem URL creator)');
+
+promise_test(async (t) => {
+  const filesystemUrl = await createLocalUrl(t, {
+    url: makeWorkerUrl(),
+    scheme: "filesystem",
+  });
+
+  const workers = await Promise.all([
+    createWorker(t, filesystemUrl),
+    createWorker(t, filesystemUrl, { ownerCoep: 'require-corp' }),
+    createWorker(t, filesystemUrl),
+  ]);
+
+  const result = await fetchFromWorker(workers[0], testUrl);
+  assert_equals(result, 'failure');
+}, '"require-corp" (derived from owner set due to use of local scheme - filesystem URL)');
+</script>
+</body>
+</html>

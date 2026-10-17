@@ -1322,6 +1322,8 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
     auto operation_id = operation.operation_id;
     auto navigable_id = changing_navigable.id;
     auto navigable = changing_navigable.navigable().make_weak_ptr();
+    loader->obtain_the_response_policies(*navigable);
+    loader->check_the_responses_adherence_to_its_embedder_policy(*navigable);
     auto host_or_error = navigable->obtain_page_to_populate_document(target_entry, *loader, *endpoint);
 
     // Obtaining the page can replace the tab's process, whose change callbacks can end the job, and with its operation
@@ -1961,6 +1963,7 @@ void CanonicalTraversable::did_attempt_to_populate_the_history_entry_document(We
         .request_current_url = {},
         .origin = *initiator_origin,
         .opener_policy = coop,
+        .embedder_policy = navigable->active_document().embedder_policy(),
         .final_sandboxing_flag_set = navigable->active_document().active_sandboxing_flag_set(),
         .environment_id = parameters.environment_id,
         .document_id = *parameters.document_id,

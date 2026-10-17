@@ -16,6 +16,7 @@ set(SOURCES
     NetworkIsolationKey.cpp
     Port.cpp
     Proxy.cpp
+    StructuredFields.cpp
 )
 
 include(hsts_preload)

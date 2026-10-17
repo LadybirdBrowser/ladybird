@@ -12,6 +12,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Weakable.h>
+#include <LibHTTP/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/Request.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
@@ -46,6 +47,8 @@ public:
         Optional<URL::URL> request_current_url;
         URL::Origin origin;
         Web::HTML::OpenerPolicy opener_policy;
+        // The embedder policy of navigationParams's policy container.
+        Web::HTML::EmbedderPolicy embedder_policy;
         Web::HTML::SandboxingFlagSet final_sandboxing_flag_set {};
         // The id of the window environment a process created the document with before the UI process heard of it.
         Optional<Web::HTML::EnvironmentId> environment_id;
@@ -56,6 +59,8 @@ public:
 
     void did_finish_navigation_params_creation(Web::HTML::NavigationPopulationResult);
     void acquire_response_body(Function<void(bool)> completion_steps);
+    void obtain_the_response_policies(CanonicalNavigable const&);
+    void check_the_responses_adherence_to_its_embedder_policy(CanonicalNavigable const&);
     // Moves the response over to the RequestServer of the process that will host the document, if that is another one.
     void move_response_body_to(RequestServerInstance&, Function<void(bool)> completion_steps);
     bool response_body_matches(int request_server_client_id, u64 request_server_request_id) const;
@@ -82,6 +87,7 @@ private:
     Web::HTML::NavigationPopulationRequest m_request;
     Optional<Web::HTML::NavigationPopulationResult> m_result;
     RefPtr<Requests::Request> m_response_body_request;
+    RefPtr<HTTP::HeaderList> m_response_header_list;
     RefPtr<RequestServerInstance> m_response_body_request_server;
     Optional<int> m_response_body_request_server_client_id;
     Optional<u64> m_response_body_request_server_request_id;

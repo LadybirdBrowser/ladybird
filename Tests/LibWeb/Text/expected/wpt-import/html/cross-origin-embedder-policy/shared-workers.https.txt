@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+6 Pass
+5 Fail
+Pass	default policy (derived from response)
+Pass	"require-corp" (derived from response)
+Pass	default policy (derived from owner set due to use of local scheme - blob URL)
+Pass	require-corp (derived from blob URL creator)
+Fail	"require-corp" (derived from owner set due to use of local scheme - blob URL)
+Pass	default policy (derived from owner set due to use of local scheme - data URL)
+Pass	default policy (not derived from data URL creator)
+Fail	"require-corp" (derived from owner set due to use of local scheme - data URL)
+Fail	default policy (derived from owner set due to use of local scheme - filesystem URL)
+Fail	require-corp (derived from filesystem URL creator)
+Fail	"require-corp" (derived from owner set due to use of local scheme - filesystem URL)

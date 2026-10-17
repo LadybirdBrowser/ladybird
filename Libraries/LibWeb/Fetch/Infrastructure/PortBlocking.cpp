@@ -7,7 +7,7 @@
 #include <LibHTTP/Port.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/PortBlocking.h>
-#include <LibWeb/Fetch/Infrastructure/URL.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 
 namespace Web::Fetch::Infrastructure {
 

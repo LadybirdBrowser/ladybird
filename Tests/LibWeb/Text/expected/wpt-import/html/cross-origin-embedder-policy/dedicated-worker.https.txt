@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 14 tests
+
+12 Pass
+2 Fail
+Pass	COEP: none worker in COEP: none frame
+Pass	COEP: none worker in COEP: require-corp frame
+Pass	COEP: require-corp worker in COEP: none frame
+Pass	COEP: require-corp worker in COEP: require-corp frame
+Pass	COEP: none module worker in COEP: none frame
+Pass	COEP: none module worker in COEP: require-corp frame
+Pass	COEP: require-corp module worker in COEP: none frame
+Pass	COEP: require-corp module worker in COEP: require-corp frame
+Pass	COEP: worker inherits COEP for blob URL.
+Pass	COEP: worker inherits COEP from blob URL creator, not owner.
+Pass	COEP: worker inherits COEP for data URL.
+Pass	COEP: worker inherits COEP from owner, not data URL creator.
+Fail	COEP: worker inherits COEP for filesystem URL.
+Fail	COEP: worker inherits COEP from filesystem URL creator, not owner.

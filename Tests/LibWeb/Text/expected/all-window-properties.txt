@@ -487,7 +487,6 @@ ServiceWorkerContainer
 ServiceWorkerRegistration
 Set
 ShadowRoot
-SharedArrayBuffer
 SharedWorker
 SourceBuffer
 SourceBufferList

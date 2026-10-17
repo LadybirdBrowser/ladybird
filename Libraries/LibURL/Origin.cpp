@@ -103,6 +103,33 @@ bool Origin::is_same_site(Origin const& other) const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/browsers.html#schemelessly-same-site
+bool Origin::is_schemelessly_same_site(Origin const& other) const
+{
+    // 1. If A and B are the same opaque origin, then return true.
+    if (is_opaque() && other.is_opaque())
+        return opaque_data().nonce == other.opaque_data().nonce;
+
+    // 2. If A and B are both tuple origins:
+    if (!is_opaque() && !other.is_opaque()) {
+        // 1. Let hostA be A's host, and let hostB be B's host.
+        auto const& host_a = host();
+        auto const& host_b = other.host();
+
+        // 2. If hostA equals hostB and hostA's registrable domain is null, then return true.
+        auto registrable_domain_a = host_a.registrable_domain();
+        if (host_a == host_b && !registrable_domain_a.has_value())
+            return true;
+
+        // 3. If hostA's registrable domain equals hostB's registrable domain and is non-null, then return true.
+        if (registrable_domain_a.has_value() && registrable_domain_a == host_b.registrable_domain())
+            return true;
+    }
+
+    // 3. Return false.
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
 String Origin::serialize() const
 {

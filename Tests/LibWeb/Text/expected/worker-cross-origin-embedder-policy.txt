@@ -1,0 +1,6 @@
+dedicated worker without COEP: blocked
+dedicated worker with COEP: loaded, crossOriginIsolated: true
+blob: dedicated worker: loaded, crossOriginIsolated: true
+data: dedicated worker: loaded, crossOriginIsolated: false
+shared worker without COEP: crossOriginIsolated: false
+shared worker with COEP: crossOriginIsolated: true

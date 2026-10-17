@@ -41,11 +41,11 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/SpellCheckController.h>
+#include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CheckUnloadingCanceledState.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -98,6 +98,7 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
 #include <LibWebCommon/CSS/SystemColor.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcement.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
@@ -2005,87 +2006,6 @@ static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL
     return heap.allocate<PolicyContainer>(heap);
 }
 
-// https://html.spec.whatwg.org/multipage/browsers.html#obtain-coop
-static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
-{
-    // 1. Let policy be a new opener policy.
-    OpenerPolicy policy = {};
-
-    // AD-HOC: We don't yet setup environments in all cases
-    if (!reserved_client)
-        return policy;
-
-    auto& reserved_environment = *reserved_client;
-
-    // 2. If reservedEnvironment is a non-secure context, then return policy.
-    if (is_non_secure_context(reserved_environment))
-        return policy;
-
-    // AD-HOC: The spec gets these headers as structured field values (with "item"). We instead do a minimal token
-    //         parse: the header value up to any parameters (';'), trimmed. That recognizes the bare values which
-    //         determine cross-origin isolation — but doesn't parse structured-field parameters (so the "report-to"
-    //         parameter in step 4.4 isn't extracted).
-    auto header_token = [](Optional<ByteString> const& header) -> StringView {
-        if (!header.has_value())
-            return {};
-        auto value = header->view();
-        auto semicolon = value.find(';');
-        return (semicolon.has_value() ? value.substring_view(0, *semicolon) : value).trim_whitespace();
-    };
-
-    // 3. Let parsedItem be the result of getting a structured field value given `Cross-Origin-Opener-Policy` and "item" from response's header list.
-    auto parsed_item_header = response->header_list()->get("Cross-Origin-Opener-Policy"sv);
-    auto parsed_item = header_token(parsed_item_header);
-
-    // 4. If parsedItem is not null:
-    if (parsed_item_header.has_value()) {
-        // 1. If parsedItem[0] is "same-origin":
-        if (parsed_item == "same-origin"sv) {
-            // 1. Let coep be the result of obtaining a cross-origin embedder policy from response and reservedEnvironment.
-            // AD-HOC: Rather than running the full "obtain an embedder policy" algorithm, we read the
-            //         Cross-Origin-Embedder-Policy header directly — with the same minimal token parse as above.
-            auto coep_header = response->header_list()->get("Cross-Origin-Embedder-Policy"sv);
-            auto coep = header_token(coep_header);
-
-            // 2. If coep's value is compatible with cross-origin isolation, then set policy's value to "same-origin-plus-COEP".
-            // NB: An embedder policy value is compatible with cross-origin isolation when it's "require-corp" or "credentialless".
-            if (coep == "require-corp"sv || coep == "credentialless"sv) {
-                policy.value = OpenerPolicyValue::SameOriginPlusCOEP;
-            }
-            // 3. Otherwise, set policy's value to "same-origin".
-            else {
-                policy.value = OpenerPolicyValue::SameOrigin;
-            }
-        }
-        // 2. If parsedItem[0] is "same-origin-allow-popups", then set policy's value to "same-origin-allow-popups".
-        else if (parsed_item == "same-origin-allow-popups"sv) {
-            policy.value = OpenerPolicyValue::SameOriginAllowPopups;
-        }
-        // 3. If parsedItem[0] is "noopener-allow-popups", then set policy's value to "noopener-allow-popups".
-        else if (parsed_item == "noopener-allow-popups"sv) {
-            policy.value = OpenerPolicyValue::NoopenerAllowPopups;
-        }
-
-        // 4. If parsedItem[1]["report-to"] exists and it is a string, then set policy's reporting endpoint to
-        //            parsedItem[1]["report-to"].
-        //    FIXME: Not implemented: We don't yet parse structured-field parameters.
-    }
-
-    // FIXME: Steps 5-6 obtain the report-only opener policy from Cross-Origin-Opener-Policy-Report-Only. We don't
-    //        yet implement report-only.
-    // 5. Set parsedItem to the result of getting a structured field value given `Cross-Origin-Opener-Policy-Report-Only` and "item" from response's header list.
-    // 6. If parsedItem is not null:
-    //     1. If parsedItem[0] is "same-origin":
-    //         1. Let coep be the result of obtaining a cross-origin embedder policy from response and reservedEnvironment.
-    //         2. If coep's value is compatible with cross-origin isolation or coep's report-only value is compatible with cross-origin isolation, then set policy's report-only value to "same-origin-plus-COEP".
-    //         3. Otherwise, set policy's report-only value to "same-origin".
-    //     2. If parsedItem[0] is "same-origin-allow-popups", then set policy's report-only value to "same-origin-allow-popups".
-    //     3. If parsedItem[1]["report-to"] exists and it is a string, then set policy's report-only reporting endpoint to parsedItem[1]["report-to"].
-
-    // 7. Return policy.
-    return policy;
-}
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#hand-off-to-external-software
 // FIXME: `resource` can also be a response: https://fetch.spec.whatwg.org/#concept-response
 static void hand_off_to_external_software(URL::URL const& resource, GC::Ref<LocalNavigable> navigable, SandboxingFlagSet sandboxing_flags, bool has_transient_activation, URL::Origin const& initiator_origin)
@@ -2376,7 +2296,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         }
 
         // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
-        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, nullptr);
+        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, state_holder->request->reserved_client());
 
         // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
         state_holder->final_sandbox_flags = state_holder->target_snapshot_params.sandboxing_flags | state_holder->response_policy_container->csp_list->csp_derived_sandboxing_flags();
@@ -2384,15 +2304,17 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and entry's document state's initiator origin.
         state_holder->response_origin = determine_the_origin(state_holder->response->url(), state_holder->final_sandbox_flags, state_holder->initiator_origin);
 
-        // 12. If navigable is a top-level traversable, then:
+        // 12. If navigable is a top-level traversable:
         // AD-HOC: Skip a network error, which may have no URL to enforce an opener policy with. This algorithm returns
         //         null for it, so the enforcement result would go unused.
         if (!state_holder->response->is_network_error() && state_holder->navigable->is_top_level_traversable()) {
             // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
-            state_holder->response_coop = obtain_an_opener_policy(*state_holder->response, state_holder->request->reserved_client());
+            // AD-HOC: We don't yet set up environments in all cases. Without one, responseCOOP stays a new opener policy.
+            if (auto const& reserved_client = state_holder->request->reserved_client())
+                state_holder->response_coop = obtain_an_opener_policy(*state_holder->response->header_list(), is_non_secure_context(*reserved_client));
 
             // 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
-            //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult and request's referrer.
+            //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult, and request's referrer.
             auto const& active_document = *state_holder->navigable->active_document();
             state_holder->coop_enforcement_result = enforce_a_responses_opener_policy(active_document.is_initial_about_blank(), state_holder->response->url().value(), *state_holder->response_origin, state_holder->response_coop, state_holder->coop_enforcement_result);
 
@@ -2408,11 +2330,25 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             }
         }
 
-        // 13. FIXME: If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
+        // 13. If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
         //    with navigable's container document's origin, navigable's container document's relevant settings object, request's destination, response,
         //    and true is blocked, then set response to a network error and break.
-        // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself
+        // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself.
         //       This is because we care about the same-originness of the embedded content against the parent context, not the navigation source.
+        // NB: The container document is the parent navigable's active document, which can be hosted in another process.
+        if (!state_holder->response->is_network_error()) {
+            if (auto parent = state_holder->navigable->parent()) {
+                auto container_document_origin = parent->active_document_origin();
+                if (container_document_origin.has_value()
+                    && Fetch::Fetching::cross_origin_resource_policy_check(*container_document_origin, state_holder->navigable->container_document_embedder_policy(), *state_holder->response, Fetch::Fetching::ForNavigation::Yes) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked) {
+                    // AD-HOC: Stop the fetch, as nothing will consume the response this replaces.
+                    state_holder->fetch_controller->stop_fetch();
+                    state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Blocked by Cross-Origin-Resource-Policy"_string);
+                    fetch_completion_steps->function()();
+                    return;
+                }
+            }
+        }
 
         // 14. Set locationURL to response's location URL given currentURL's fragment.
         auto location_url_without_an_inherited_fragment = state_holder->response->location_url({});
@@ -3070,9 +3006,11 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
         // 4. Otherwise, if any of the following are true:
         //  - navigationParams is null;
         //  - the result of should navigation response to navigation request of type in target be blocked by Content Security Policy? given navigationParams's request, navigationParams's response, navigationParams's policy container's CSP list, cspNavigationType, and navigable is "Blocked";
-        //  - FIXME: navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
+        //  - navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
         //  - the result of checking a navigation response's adherence to `X-Frame-Options` given navigationParams's response, navigable, navigationParams's policy container's CSP list, and navigationParams's origin is false,
         //    then:
+        // NB: The UI process checks the response's adherence to its embedder policy, as it holds navigable's container
+        //     document.
         else if (navigation_params.visit(
                      [](NullOrError) { return true; },
                      [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
@@ -4041,6 +3979,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     //     obtains for it is the active document's: the origins are the same, or share the site that keys the agent
     //     cluster, since an origin-keyed window cannot set document.domain.
     navigation_params->agent_cluster_id = active_document()->relevant_settings_object().agent_cluster_id();
+    navigation_params->agent_cluster_cross_origin_isolation_mode = active_document()->relevant_settings_object().agent_cluster_cross_origin_isolation_mode();
 
     // 17. Return the result of loading an HTML document given navigationParams.
     // NB: The response body is a known byte sequence, so we can pass it directly for sniffing.

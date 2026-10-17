@@ -261,6 +261,7 @@ struct DocumentUnloadTimingInfo {
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     Camera,
+    CrossOriginIsolated,
     EncryptedMedia,
     FocusWithoutUserActivation,
     Fullscreen,

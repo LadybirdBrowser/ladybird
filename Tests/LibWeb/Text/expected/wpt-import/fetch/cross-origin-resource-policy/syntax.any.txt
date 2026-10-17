@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Parsing Cross-Origin-Resource-Policy: same
+Pass	Parsing Cross-Origin-Resource-Policy: same, same-origin
+Pass	Parsing Cross-Origin-Resource-Policy: SAME-ORIGIN
+Pass	Parsing Cross-Origin-Resource-Policy: Same-Origin
+Pass	Parsing Cross-Origin-Resource-Policy: same-origin, <>
+Pass	Parsing Cross-Origin-Resource-Policy: same-origin, same-origin
+Pass	Parsing Cross-Origin-Resource-Policy: https://www.example.com

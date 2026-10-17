@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/MimeSniff/Resource.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 
 namespace {
 

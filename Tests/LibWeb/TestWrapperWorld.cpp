@@ -268,6 +268,7 @@ GC::Ref<JS::Realm> create_test_principal_realm(JS::VM& vm)
     GC::Ptr<JS::HostObject> global_this;
     auto execution_context = Web::Bindings::create_a_new_javascript_realm(
         vm,
+        Web::HTML::CrossOriginIsolationMode::None,
         [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             window = Web::HTML::Window::create();
             global_this = Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *window });
@@ -287,7 +288,8 @@ GC::Ref<JS::Realm> create_test_principal_realm(JS::VM& vm)
         nullptr,
         URL::about_blank(),
         origin,
-        {});
+        {},
+        Web::HTML::CrossOriginIsolationMode::None);
     return *realm;
 }
 

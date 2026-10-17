@@ -311,6 +311,9 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (!navigation || !navigation->state.has<CanonicalNavigation::AcquiringResponseBody>())
         return false;
 
+    navigation->loader()->obtain_the_response_policies(*navigable);
+    navigation->loader()->check_the_responses_adherence_to_its_embedder_policy(*navigable);
+
     NonnullRefPtr history_entry = *navigation->history_entry;
     auto host_or_error = navigable->obtain_page_to_populate_document(history_entry, *navigation->loader(), *this);
     if (host_or_error.is_error()) {
@@ -786,6 +789,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     }
 
     hosted_state.container.document_active_sandboxing_flag_set = container_document->active_sandboxing_flag_set();
+    hosted_state.container.document_embedder_policy = container_document->embedder_policy();
     traversable.adopt_nested_history_for_created_child(*parent_navigable, *container_document, frame_id);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable

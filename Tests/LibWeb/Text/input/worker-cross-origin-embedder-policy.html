@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const reportIsolation = "postMessage(self.crossOriginIsolated);";
+
+        const dedicatedWorker = (name, url) => new Promise(resolve => {
+            const worker = new Worker(url);
+            worker.onmessage = e => {
+                println(`${name}: loaded, crossOriginIsolated: ${e.data}`);
+                worker.terminate();
+                resolve();
+            };
+            worker.onerror = () => {
+                println(`${name}: blocked`);
+                resolve();
+            };
+        });
+
+        const sharedWorker = (name, url) => new Promise(resolve => {
+            const worker = new SharedWorker(url);
+            worker.port.onmessage = e => {
+                println(`${name}: crossOriginIsolated: ${e.data}`);
+                resolve();
+            };
+        });
+
+        const script = (path, headers, body) => server.createEcho("GET", path, {
+            status: 200,
+            headers: { "Content-Type": "text/javascript", ...headers },
+            body,
+        });
+
+        const coep = { "Cross-Origin-Embedder-Policy": "require-corp" };
+        await dedicatedWorker("dedicated worker without COEP", await script("/without-coep.js", {}, reportIsolation));
+        await dedicatedWorker("dedicated worker with COEP", await script("/with-coep.js", coep, reportIsolation));
+        await dedicatedWorker("blob: dedicated worker", URL.createObjectURL(new Blob([reportIsolation], { type: "text/javascript" })));
+        await dedicatedWorker("data: dedicated worker", `data:text/javascript,${reportIsolation}`);
+
+        const reportIsolationOnConnect = "onconnect = e => e.ports[0].postMessage(self.crossOriginIsolated);";
+        await sharedWorker("shared worker without COEP", await script("/shared-without-coep.js", {}, reportIsolationOnConnect));
+        await sharedWorker("shared worker with COEP", await script("/shared-with-coep.js", coep, reportIsolationOnConnect));
+
+        done();
+    });
+</script>
