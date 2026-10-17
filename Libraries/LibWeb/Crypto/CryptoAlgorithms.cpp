@@ -2721,7 +2721,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, Alg
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCbc::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -3049,7 +3049,7 @@ WebIDL::ExceptionOr<Optional<u32>> AesCtr::get_key_length(JS::Realm&, AlgorithmP
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCtr::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -3458,7 +3458,7 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::decrypt(JS::Realm& realm, AlgorithmParam
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesGcm::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -3697,7 +3697,7 @@ WebIDL::ExceptionOr<Optional<u32>> AesKw::get_key_length(JS::Realm&, AlgorithmPa
 // https://w3c.github.io/webcrypto/#aes-kw-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesKw::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains any entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -3853,7 +3853,7 @@ WebIDL::ExceptionOr<ByteBuffer> SHA::digest(JS::Realm&, AlgorithmParams const& a
 // https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDSA::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -4141,7 +4141,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
 
     // 2. If format is "spki":
     if (key_format == KeyFormat::Spki) {
-        // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != KeyUsage::Verify) {
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -4243,7 +4243,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
 
     // 2. If format is "pkcs8":
     else if (key_format == KeyFormat::Pkcs8) {
-        // 1. If usages contains a value which is not "sign" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != KeyUsage::Sign) {
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -4551,7 +4551,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         if (!normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv))
             return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
-        // 2. If usages contains a value which is not "verify" then throw a SyntaxError.
+        // 2. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != KeyUsage::Verify) {
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -4597,7 +4597,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
-    // 3. Return key
+    // 3. Return key.
     return GC::Ref { *key };
 }
 
@@ -5071,7 +5071,7 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
         return WebIDL::DataError::create("Invalid algorithm"_utf16);
     }
 
-    // 8. If length is null: Return secret
+    // 8. If length is null: Return secret.
     if (!length_optional.has_value()) {
         return secret;
     }
@@ -5516,7 +5516,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDH"_utf16, normalized_algorithm.named_curve });
     }
 
-    // 3. Return key
+    // 3. Return key.
     return GC::Ref { *key };
 }
 
@@ -5812,7 +5812,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDH::export_key(JS::Realm&, KeyFormat form
 // https://w3c.github.io/webcrypto/#ed25519-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ED25519::generate_key(JS::Realm&, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -5886,7 +5886,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
 
     // 2. If format is "spki":
     if (format == KeyFormat::Spki) {
-        // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != KeyUsage::Verify) {
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -5924,7 +5924,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
 
     // 2. If format is "pkcs8":
     else if (format == KeyFormat::Pkcs8) {
-        // 1. If usages contains a value which is not "sign" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != KeyUsage::Sign) {
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -6093,7 +6093,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
     else if (format == KeyFormat::Raw || format == KeyFormat::RawPublic) {
-        // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != KeyUsage::Verify) {
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -6123,6 +6123,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
         return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
+    // 3. Return key.
     return GC::Ref { *key };
 }
 
@@ -6989,7 +6990,7 @@ WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmP
     if (or_bytes == 0)
         return WebIDL::OperationError::create("Secret is the all-zero value"_utf16);
 
-    // 7. If length is null: Return secret
+    // 7. If length is null: Return secret.
     if (!length_optional.has_value()) {
         auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(secret));
         return result;
@@ -7307,7 +7308,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
         return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
-    // 3. Return key
+    // 3. Return key.
     return GC::Ref { *key };
 }
 
@@ -7977,7 +7978,7 @@ WebIDL::ExceptionOr<bool> HMAC::verify(JS::Realm& realm, AlgorithmParams const&,
 // https://w3c.github.io/webcrypto/#hmac-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
-    // 1. If usages contains any entry which is not "sign" or "verify", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
         if (usage != KeyUsage::Sign && usage != KeyUsage::Verify)
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
