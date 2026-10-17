@@ -1,0 +1,13 @@
+Ladybird resolves the six system font keywords to system-ui at fixed
+sizes. WebKit’s SystemFontDatabaseCoreText::systemFontShorthandInfo()
+answers caption, icon, and message-box with the Core Text system UI
+font (“system-ui”), menu with its menu font (“-apple-menu”),
+small-caption with the small caption font, and status-bar with the
+status bar font (“-apple-status-bar”), each at the size Core Text
+reports. Gecko’s gfxMacPlatformFontList::LookupSystemFont() maps
+caption and menu to NSFont.systemFontOfSize(0), message-box and
+status-bar to the small system font, small-caption to the bold small
+system font, and icon to the control content font, all exposed as
+“-apple-system”. Blink’s LayoutThemeFontProvider::SystemFontFamily()
+returns its default GUI font, Arial, at the default font size on
+every platform but Windows.
