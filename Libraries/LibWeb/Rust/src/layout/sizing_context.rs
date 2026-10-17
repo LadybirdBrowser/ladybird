@@ -1119,7 +1119,11 @@ impl<'pass> SizingContext<'pass> {
                     return false;
                 }
                 formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {
-                    return true;
+                    // NB: Like auto, a definite inline size transfers through the aspect ratio of a non-replaced box.
+                    return !(self.used(node).has_definite_inline_size()
+                        && !facts.is_replaced_box()
+                        && facts.has_preferred_aspect_ratio()
+                        && self.preferred_block_size(node, constraints).is_auto());
                 }
                 formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {}
             }
