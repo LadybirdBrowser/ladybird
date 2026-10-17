@@ -27,12 +27,12 @@
 //! compiled code reaches from nowhere else. The runtime enters there like at
 //! an on-stack replacement entry.
 //!
-//! Exception handlers are entered the same way. An exception thrown in
-//! compiled code leaves it with the frame state of the throwing instruction,
-//! which lists every value live into the handler, and the interpreter runs
-//! the handler's `Catch`. Each handler that caught an exception before the
-//! compile gets an entry block after its `Catch`, where the interpreter then
-//! continues the frame in compiled code.
+//! Exception handlers are entered the same way. The frame state of an
+//! instruction that throws lists every value live into its handler. Each
+//! handler that caught an exception before the compile gets an entry block
+//! after its `Catch`, where compiled code continues after writing that frame
+//! state to the frame and running the `Catch` itself, or the interpreter
+//! after running the `Catch` (see `ARCHITECTURE.md`, section 4.2).
 
 use super::AbstractFrame;
 use super::Flow;

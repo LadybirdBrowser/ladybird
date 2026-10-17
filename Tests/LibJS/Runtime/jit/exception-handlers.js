@@ -155,6 +155,50 @@ describe("exception handlers in compiled code", () => {
         expect(closes(iterable([2, 4, 5, 6]))).toBe(5006);
         expect(closed).toBe(1);
     });
+    test("keep unboxed values live into handlers", () => {
+        const mixed = prepared(
+            "n",
+            "let count = 0; let ratio = 0.5; let flag = false; let log = []; for (let i = 0; i < n; ++i) { count += 3; ratio *= 1.5; flag = !flag; try { thrower(i); } catch (e) { log.push([count, ratio, flag, e]); } } return log;"
+        );
+        compile(mixed, () => mixed(4));
+        const expected = [];
+        let count = 0;
+        let ratio = 0.5;
+        let flag = false;
+        for (let i = 0; i < 6; ++i) {
+            count += 3;
+            ratio *= 1.5;
+            flag = !flag;
+            if (i & 1) expected.push([count, ratio, flag, i]);
+        }
+        expect(mixed(6)).toEqual(expected);
+    });
+
+    test("catch exceptions thrown before the frame was observed", () => {
+        const first = prepared("x", "try { return thrower(x); } catch (e) { return -e; }");
+        compile(first, () => [first(1), first(2)]);
+        const results = [];
+        for (let i = 0; i < 100; ++i) results.push(first(i));
+        expect(results).toEqual(results.map((_, i) => (i & 1 ? -i : i)));
+    });
+
+    test("catch exceptions thrown by calls that invalidated the code", () => {
+        const make = new Function(
+            "jit",
+            "class Point { constructor(x) { this.x = x; } } const read = function (point, poison) { let total = 0; try { total += point.x; poison(); total += point.x; } catch (e) { total += point.x * 10 + e; } return total; }; jit.prepare(read); return [read, Point];"
+        );
+        const [read, Point] = make(jit);
+        const harmless = () => {};
+        compile(read, () => read(new Point(1), harmless));
+        const point = new Point(2);
+        const poison = () => {
+            Object.defineProperty(Point.prototype, "x", { get: () => 100, configurable: true });
+            delete point.x;
+            throw 7;
+        };
+        expect(read(point, poison)).toBe(2 + 100 * 10 + 7);
+        expect(read({ x: 3 }, harmless)).toBe(6);
+    });
 });
 
 describe("exception handlers in compiled generators", () => {

@@ -304,11 +304,16 @@ is compiled like any function's: its `Enter`, and for generators and async gener
 ### 4.2 Exception handlers
 
 The graph has no exceptional edges. An exception thrown in compiled code, or in a call it makes,
-leaves the code like any slow path that does not continue: the runtime unwinds to the handler
-(`Vm::handle_exception()`), which puts the exception in the frame and moves its pc to the handler,
-and the leave writes the frame state of the throwing node, whose live slots include everything live
-into the handler (`bytecode/liveness.rs`). The interpreter then runs the handler's `Catch`, which
-compiled code never builds.
+reaches its slow path's leave like any slow path that does not continue: the runtime unwinds to the
+handler (`Vm::handle_exception()`), which puts the exception in the frame and moves its pc to the
+handler. The frame state of the throwing node lists everything live into the handler
+(`bytecode/liveness.rs`). Where the handler is in the compiled function's frame and has a catch
+entry (below), the leave stub continues in compiled code (`Codegen::emit_catch_in_frame()`): it
+writes the frame state into the frame with compiled stores, initializing the frame first if nothing
+observed it yet, runs the handler's `Catch`, and jumps to the catch entry, which loads the values
+back. Once the code is invalidated, a patched jump skips this. Otherwise the leave writes the frame
+state through the runtime, and the interpreter runs the handler's `Catch`, which compiled code never
+builds.
 
 Handlers start with a `Catch`, and the block after it is where the handler continues. Each handler
 that caught an exception before the compile (the value feedback of its `Catch`) gets a catch entry
