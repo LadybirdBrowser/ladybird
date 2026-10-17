@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let select = document.createElement("select");
+        select.append(new Option("a"));
+        select.selectedIndex = -1;
+        select.append(new Option("b"));
+        println(`After selectedIndex = -1: ${select.selectedIndex}`);
+
+        select = document.createElement("select");
+        select.append(new Option("a"));
+        select.value = "missing";
+        select.append(new Option("b"));
+        println(`After setting a value with no matching option: ${select.selectedIndex}`);
+
+        select = document.createElement("select");
+        const a = new Option("a");
+        const b = new Option("b");
+        select.append(a, b);
+        b.setAttribute("selected", "");
+        select.append(new Option("c"));
+        println(`After adding a selected attribute: ${select.selectedIndex}, a=${a.selected}, b=${b.selected}`);
+
+        const from = document.createElement("select");
+        const moved = new Option("moved");
+        from.append(new Option("x"), moved);
+        moved.selected = true;
+        const to = document.createElement("select");
+        to.append(new Option("y"));
+        to.append(moved);
+        from.append(new Option("z"));
+        to.append(new Option("w"));
+        println(`After moving a selected option: from=${from.selectedIndex}, to=${to.selectedIndex}`);
+    });
+</script>

@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	select options.length too large
+Pass	select options.length too large 1
+Pass	select options.length too large 2
+Pass	select options.length too large 3
+Pass	select options.length too large 4
