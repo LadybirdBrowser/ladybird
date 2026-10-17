@@ -16,6 +16,9 @@ pub use instruction::*;
 /// exception, this value, return value and saved lexical environment.
 pub const RESERVED_REGISTER_COUNT: u32 = 5;
 
+/// The reserved register holding the exception a handler receives.
+pub const EXCEPTION_REGISTER: u32 = 1;
+
 /// The reserved register holding the frame's `this` value.
 pub const THIS_VALUE_REGISTER: u32 = 2;
 
