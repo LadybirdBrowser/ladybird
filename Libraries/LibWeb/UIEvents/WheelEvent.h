@@ -9,6 +9,7 @@
 #include <AK/Utf16String.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/UIEvent.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -50,8 +51,8 @@ public:
     [[nodiscard]] static GC::Ref<WheelEvent> create_for_constructor(FlyString const&, Bindings::WheelEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static GC::Ref<WheelEvent> create_for_constructor(Utf16String const&, Bindings::WheelEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
-    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
-    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
+    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, WheelDeltaPrecision, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
+    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, WheelDeltaPrecision, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
 
     virtual ~WheelEvent() override;
 
