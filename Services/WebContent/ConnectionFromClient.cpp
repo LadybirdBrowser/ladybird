@@ -889,6 +889,8 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
     if (auto const* last_mouse_event = event_to_coalesce()) {
         event.wheel_delta_x += last_mouse_event->wheel_delta_x;
         event.wheel_delta_y += last_mouse_event->wheel_delta_y;
+        event.wheel_tick_120ths_x += last_mouse_event->wheel_tick_120ths_x;
+        event.wheel_tick_120ths_y += last_mouse_event->wheel_tick_120ths_y;
 
         auto coalesced_event_id = last_mouse_event->id;
         m_input_event_queue.tail().event = move(event);

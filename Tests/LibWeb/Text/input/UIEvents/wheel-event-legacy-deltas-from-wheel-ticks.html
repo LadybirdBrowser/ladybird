@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 4000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        let resolveNextWheelEvent = null;
+        window.addEventListener("wheel", event => {
+            if (resolveNextWheelEvent)
+                resolveNextWheelEvent(event);
+            resolveNextWheelEvent = null;
+        });
+
+        async function printLegacyDeltasOfWheelStep(label, deltaX, deltaY, ticks) {
+            const nextWheelEvent = new Promise(resolve => (resolveNextWheelEvent = resolve));
+            internals.wheelThroughUIProcess(50, 50, deltaX, deltaY, false, "none", ticks);
+            const event = await nextWheelEvent;
+            println(`${label}: deltaX=${event.deltaX.toFixed(2)} deltaY=${event.deltaY.toFixed(2)} wheelDeltaX=${event.wheelDeltaX} wheelDeltaY=${event.wheelDeltaY} wheelDelta=${event.wheelDelta}`);
+        }
+
+        await printLegacyDeltasOfWheelStep("notch counted from pixels", 0, 120);
+        await printLegacyDeltasOfWheelStep("one accelerated line", 0, 40, { y: 1 });
+        await printLegacyDeltasOfWheelStep("accelerated lines down", 0, 146, { y: 3.65 });
+        await printLegacyDeltasOfWheelStep("accelerated lines left and up", -80, -600, { x: -2, y: -15 });
+    });
+</script>

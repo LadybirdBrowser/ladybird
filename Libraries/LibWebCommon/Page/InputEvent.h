@@ -77,6 +77,23 @@ enum class WheelDeltaPrecision : u8 {
     Precise,
 };
 
+// Besides its pixel delta, wheel input counts how far the wheel turned in 120ths of a tick, the unit of the legacy
+// wheelDelta. A tick is a wheel notch, or one line on platforms that accelerate the wheel by whole lines. Input that
+// reports only a pixel delta counts its ticks from that: a notch scrolls three 40-pixel lines, and precise input has
+// no notches, so it counts one tick per 40-pixel line step.
+// INTEROP: For macOS touchpad scrolling, Blink, WebKit, and Gecko all report 3 units per pixel; Blink and WebKit
+//          truncate, Gecko rounds. For the ctrl-wheel events of a pinch, WebKit and Gecko also report 3 units per
+//          pixel, while Blink reports 120 units per event.
+constexpr double wheel_tick_120ths_from_pixel_delta(double pixel_delta, WheelDeltaPrecision precision)
+{
+    constexpr double tick_120ths_per_tick = 120;
+    constexpr double pixels_per_notch = 3 * 40;
+    constexpr double pixels_per_precise_tick = 40;
+    if (precision == WheelDeltaPrecision::Precise)
+        return pixel_delta * (tick_120ths_per_tick / pixels_per_precise_tick);
+    return pixel_delta * (tick_120ths_per_tick / pixels_per_notch);
+}
+
 // Input that scrolls with a gesture, such as a touchpad, reports whether the user is still making that gesture,
 // whether a flick has handed the scrolling over to momentum, and when it ends.
 enum class ScrollGesturePhase : u8 {
@@ -106,6 +123,8 @@ struct WEBCOMMON_API MouseEvent {
     Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
     double wheel_delta_x { 0 };
     double wheel_delta_y { 0 };
+    double wheel_tick_120ths_x { 0 };
+    double wheel_tick_120ths_y { 0 };
     WheelDeltaPrecision wheel_delta_precision { WheelDeltaPrecision::Discrete };
     ScrollGesturePhase scroll_gesture_phase { ScrollGesturePhase::None };
     int click_count { 0 };

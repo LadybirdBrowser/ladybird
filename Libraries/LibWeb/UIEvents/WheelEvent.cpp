@@ -13,7 +13,6 @@
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Web::UIEvents {
@@ -25,18 +24,9 @@ static WebIDL::Long legacy_wheel_delta_from_delta(double delta)
     return AK::clamp_to<WebIDL::Long>(-delta);
 }
 
-// Legacy wheelDelta counts 120 units per wheel notch. Discrete input keeps one unit per pixel, as the UI scrolls a
-// notch by three 40-pixel lines. Precise input has no notches, so it counts one notch per 40-pixel line step.
-// INTEROP: For macOS touchpad scrolling, Blink, WebKit, and Gecko all report 3 units per pixel; Blink and WebKit
-//          truncate, Gecko rounds. For the ctrl-wheel events of a pinch, WebKit and Gecko also report 3 units per
-//          pixel, while Blink reports 120 units per event.
-static WebIDL::Long legacy_wheel_delta_from_platform_delta(double delta, WheelDeltaPrecision delta_precision)
+static WebIDL::Long legacy_wheel_delta_from_wheel_tick_120ths(double wheel_tick_120ths)
 {
-    static constexpr double legacy_wheel_delta_units_per_notch = 120;
-    static constexpr double precise_delta_pixels_per_notch = 40;
-    if (delta_precision == WheelDeltaPrecision::Precise)
-        delta *= legacy_wheel_delta_units_per_notch / precise_delta_pixels_per_notch;
-    return legacy_wheel_delta_from_delta(AK::trunc(delta));
+    return legacy_wheel_delta_from_delta(AK::trunc(wheel_tick_120ths));
 }
 
 WheelEvent::WheelEvent(FlyString const& event_name, WheelEventOptions const& options, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
@@ -99,7 +89,7 @@ GC::Ref<WheelEvent> WheelEvent::create_for_constructor(Utf16String const& event_
     return create(Utf16FlyString::from_utf16(event_name.utf16_view()), options, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, WheelDeltaPrecision delta_precision, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable is_cancelable)
+WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable is_cancelable)
 {
     WheelEventOptions event_options;
     event_options.ctrl_key = modifiers & Mod_Ctrl;
@@ -115,8 +105,8 @@ WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(
     event_options.delta_x = delta_x;
     event_options.delta_y = delta_y;
     event_options.delta_mode = WheelDeltaMode::DOM_DELTA_PIXEL;
-    event_options.wheel_delta_x = legacy_wheel_delta_from_platform_delta(delta_x, delta_precision);
-    event_options.wheel_delta_y = legacy_wheel_delta_from_platform_delta(delta_y, delta_precision);
+    event_options.wheel_delta_x = legacy_wheel_delta_from_wheel_tick_120ths(wheel_tick_120ths_x);
+    event_options.wheel_delta_y = legacy_wheel_delta_from_wheel_tick_120ths(wheel_tick_120ths_y);
     event_options.view = window_proxy;
     auto event = WheelEvent::create(event_name, event_options, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
     event->set_is_trusted(true);
@@ -126,7 +116,7 @@ WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, WheelDeltaPrecision delta_precision, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable is_cancelable)
+WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable is_cancelable)
 {
     WheelEventOptions event_options;
     event_options.ctrl_key = modifiers & Mod_Ctrl;
@@ -142,8 +132,8 @@ WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(
     event_options.delta_x = delta_x;
     event_options.delta_y = delta_y;
     event_options.delta_mode = WheelDeltaMode::DOM_DELTA_PIXEL;
-    event_options.wheel_delta_x = legacy_wheel_delta_from_platform_delta(delta_x, delta_precision);
-    event_options.wheel_delta_y = legacy_wheel_delta_from_platform_delta(delta_y, delta_precision);
+    event_options.wheel_delta_x = legacy_wheel_delta_from_wheel_tick_120ths(wheel_tick_120ths_x);
+    event_options.wheel_delta_y = legacy_wheel_delta_from_wheel_tick_120ths(wheel_tick_120ths_y);
     event_options.view = window_proxy;
     auto event = WheelEvent::create(event_name, event_options, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
     event->set_is_trusted(true);

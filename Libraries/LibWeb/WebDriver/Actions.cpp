@@ -1390,6 +1390,8 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
     event.wheel_delta_x = static_cast<double>(action_object.delta_x);
     event.wheel_delta_y = static_cast<double>(action_object.delta_y);
     event.wheel_delta_precision = Web::WheelDeltaPrecision::Discrete;
+    event.wheel_tick_120ths_x = Web::wheel_tick_120ths_from_pixel_delta(event.wheel_delta_x, event.wheel_delta_precision);
+    event.wheel_tick_120ths_y = Web::wheel_tick_120ths_from_pixel_delta(event.wheel_delta_y, event.wheel_delta_precision);
     dispatch_mouse_event(move(event));
 
     // 12. Return success with data null.
