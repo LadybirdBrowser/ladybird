@@ -1,0 +1,7 @@
+Ladybird reports MacIntel on macOS, Win32 on Windows, iPhone on iOS,
+and the kernel’s name and machine elsewhere. Blink’s
+NavigatorID::platform() returns "MacIntel" on Mac and "Win32" on
+Windows, and uname()’s sysname and machine on other systems. WebKit’s
+NavigatorBase::platform() does the same, with PAL::deviceName() on
+iOS. Gecko’s Navigator::GetPlatform() always answers "MacIntel" on
+macOS, even on ARM64, and takes nsHttpHandler’s mPlatform elsewhere.
