@@ -183,9 +183,15 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         // 1. Assert: userInvolvement is not "browser UI".
         VERIFY(params.user_involvement != UserNavigationInvolvement::BrowserUI);
 
+        // AD-HOC: sourceDocument can have no node navigable, e.g. a document without a browsing context that a form
+        //         moved into after it planned a navigation. There is nothing to navigate from.
+        auto source_navigable = source_document->navigable();
+        if (!source_navigable)
+            return {};
+
         // 2. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given
         //    sourceSnapshotParams:
-        if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, snapshots.source_snapshot_params)) {
+        if (!source_navigable->allowed_by_sandboxing_to_navigate(*this, snapshots.source_snapshot_params)) {
             // 1. If exceptionsEnabled is true, then throw a "SecurityError" DOMException.
             if (params.exceptions_enabled)
                 return WebIDL::SecurityError::create("Source document's node navigable is not allowed to navigate"_utf16);

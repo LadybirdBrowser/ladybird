@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe name="target"></iframe>
+<form action="?submitted" target="target"></form>
+<script>
+    const form = document.querySelector("form");
+    form.submit();
+    document.implementation.createHTMLDocument().body.appendChild(form);
+    setTimeout(() => {
+        document.documentElement.classList.remove("test-wait");
+    }, 100);
+</script>
