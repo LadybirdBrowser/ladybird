@@ -3309,8 +3309,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
         // 4. Once the cross size of a flex line has been determined,
         //    the cross sizes of items in auto-sized flex containers are also considered definite for the purpose of layout.
+        // NB: This refers to step 11, which stretches items. Other engines leave the content-based cross size of an item
+        //     that is not stretched indefinite.
         if self.should_treat_cross_size_as_auto(self.run.box_) {
             for index in 0..self.flex_items.len() {
+                // NB: A button centers its content within its used block size, so it keeps it definite.
+                if !self.flex_item_is_stretched(index) && !self.facts(self.flex_items[index].box_).uses_button_layout()
+                {
+                    continue;
+                }
                 let size = self.flex_items[index].cross_size.unwrap();
                 self.set_cross_size(index, size);
                 self.set_has_definite_cross_size(index);
