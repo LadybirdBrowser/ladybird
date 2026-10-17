@@ -565,8 +565,15 @@ pub unsafe extern "C" fn rust_numeric_type_matches(
 }
 
 /// https://drafts.csswg.org/css-values-4/#round-func
-/// The rounding strategy of round(), opaque code from the C++ side.
-pub type CalcRoundingStrategy = u8;
+/// The rounding strategy of round()
+#[derive(Clone, Copy, PartialEq)]
+pub enum CalcRoundingStrategy {
+    Nearest,
+    Up,
+    Down,
+    ToZero,
+    // FIXME: Support line-width
+}
 
 /// One node of a calculation tree. Child nodes are shared immutably.
 ///
@@ -1518,10 +1525,6 @@ impl CalcNode {
                     })
                 };
 
-                // Rounding strategy codes follow the generated C++ RoundingStrategy
-                // order: down, nearest, to-zero, up.
-                let (down, nearest, to_zero, up) = (0u8, 1u8, 2u8, 3u8);
-
                 // https://drafts.csswg.org/css-values-4/#round-infinities
                 // In round(A, B), if B is 0, the result is NaN. If A and B are both infinite, the result is NaN.
                 if b == 0.0 || (a.is_infinite() && b.is_infinite()) {
@@ -1535,11 +1538,11 @@ impl CalcNode {
                 if a.is_finite() && b.is_infinite() {
                     let negative_zero = a.is_sign_negative();
                     let signed_zero = if negative_zero { -0.0 } else { 0.0 };
-                    let result = match *strategy {
+                    let result = match strategy {
                         // nearest, to-zero: If A is positive or 0+, return 0+. Otherwise, return 0-.
-                        s if s == nearest || s == to_zero => signed_zero,
+                        CalcRoundingStrategy::Nearest | CalcRoundingStrategy::ToZero => signed_zero,
                         // up: If A is positive (not zero), return +Infinity; else the signed zero.
-                        s if s == up => {
+                        CalcRoundingStrategy::Up => {
                             if a > 0.0 {
                                 f64::INFINITY
                             } else {
@@ -1547,14 +1550,13 @@ impl CalcNode {
                             }
                         }
                         // down: If A is negative (not zero), return -Infinity; else the signed zero.
-                        s if s == down => {
+                        CalcRoundingStrategy::Down => {
                             if a < 0.0 {
                                 f64::NEG_INFINITY
                             } else {
                                 signed_zero
                             }
                         }
-                        _ => unreachable!("invalid rounding strategy {strategy}"),
                     };
                     return result_with(result);
                 }
@@ -1573,28 +1575,27 @@ impl CalcNode {
                 //        if upper B would be zero, it is specifically equal to 0⁻.
                 let lower_b = (a / b).floor() * b;
                 let upper_b = (a / b).ceil() * b;
-                let rounded = match *strategy {
+                let rounded = match strategy {
                     // nearest: whichever of lower B and upper B has the smallest absolute
                     // difference from A; ties choose upper B.
-                    s if s == nearest => {
+                    CalcRoundingStrategy::Nearest => {
                         if (upper_b - a).abs() <= (lower_b - a).abs() {
                             upper_b
                         } else {
                             lower_b
                         }
                     }
-                    s if s == up => upper_b,
-                    s if s == down => lower_b,
+                    CalcRoundingStrategy::Up => upper_b,
+                    CalcRoundingStrategy::Down => lower_b,
                     // to-zero: whichever of lower B and upper B has the smallest absolute
                     // difference from 0.
-                    s if s == to_zero => {
+                    CalcRoundingStrategy::ToZero => {
                         if upper_b.abs() < lower_b.abs() {
                             upper_b
                         } else {
                             lower_b
                         }
                     }
-                    _ => unreachable!("invalid rounding strategy {strategy}"),
                 };
                 result_with(rounded)
             }
@@ -3733,11 +3734,10 @@ impl CalcSerializer<'_> {
         //         hope for the best.
         if let CalcNode::Round { strategy, .. } = &**node {
             self.literal(match *strategy {
-                0 => "down",
-                1 => "nearest",
-                2 => "to-zero",
-                3 => "up",
-                _ => unreachable!("invalid rounding strategy"),
+                CalcRoundingStrategy::Down => "down",
+                CalcRoundingStrategy::Nearest => "nearest",
+                CalcRoundingStrategy::ToZero => "to-zero",
+                CalcRoundingStrategy::Up => "up",
             });
             first = false;
         }
