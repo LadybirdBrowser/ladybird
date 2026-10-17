@@ -11,32 +11,28 @@ block0:
   [  38] End value:reg5
 
 
-f$d3dfd701 async-await.js:7:5
+f$d11be5f1 async-await.js:7:5
   Registers: 10
-  Blocks:    5
+  Blocks:    4
   Constants:
-    [0] = Undefined
-    [1] = Int32(42)
-    [2] = Int32(1)
+    [0] = Int32(42)
+    [1] = Int32(1)
 
 block0:
   [   0] Enter
-  [   8] Yield continuation_label:block1, value:Undefined
+  [   8] GetGlobal value_feedback:0, dst:reg6, `Promise`
+  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `resolve` (Promise.resolve)
+  [  30] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
+  [  58] Mov dst:reg7, src:reg0
+  [  68] Await continuation_label:block1, argument:reg5
 
 block1:
-  [  18] GetGlobal value_feedback:0, dst:reg6, `Promise`
-  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `resolve` (Promise.resolve)
-  [  40] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
-  [  68] Mov dst:reg7, src:reg0
-  [  78] Await continuation_label:block2, argument:reg5
+  [  78] Mov dst:reg7, src:reg0
+  [  88] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
+  [  98] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block2, false_target:block3
 
 block2:
-  [  88] Mov dst:reg7, src:reg0
-  [  98] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
-  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block3, false_target:block4
+  [  b0] Yield value:reg8
 
 block3:
-  [  c0] Yield value:reg8
-
-block4:
-  [  d0] Throw src:reg8
+  [  c0] Throw src:reg8

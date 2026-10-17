@@ -145,13 +145,11 @@ impl NativeJavaScriptBackedFunction {
         let running_execution_context = vm
             .running_execution_context()
             .expect("a NativeJavaScriptBackedFunction runs in its own execution context");
-        let result = vm
-            .run_executable(running_execution_context, function.bytecode_executable(vm), 0)
-            .map_err(Throw::new)?;
+        let result = vm.run_executable(running_execution_context, function.bytecode_executable(vm), 0);
 
         let kind = function.kind();
         if kind == FunctionKind::Normal {
-            return Ok(result);
+            return result.map_err(Throw::new);
         }
 
         let realm = vm
@@ -161,6 +159,17 @@ impl NativeJavaScriptBackedFunction {
             GeneratingFunction::NativeJavaScriptBacked(function.as_native_javascript_backed_function_gc());
         // SAFETY: The running execution context is live.
         let running_execution_context = unsafe { running_execution_context.as_ref() };
+        if kind == FunctionKind::Async {
+            return Ok(Value::from_object(AsyncFunctionDriverWrapper::start(
+                vm,
+                realm,
+                generating_function,
+                running_execution_context,
+                result,
+            )));
+        }
+        result.map_err(Throw::new)?;
+
         if kind == FunctionKind::AsyncGenerator {
             return Ok(Value::from_object(AsyncGenerator::create(
                 vm,
@@ -170,20 +179,13 @@ impl NativeJavaScriptBackedFunction {
             )));
         }
 
-        let generator_object =
-            GeneratorObject::create(vm, realm, generating_function, running_execution_context.copy());
-
-        // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise.
-        if kind == FunctionKind::Async {
-            return Ok(Value::from_object(AsyncFunctionDriverWrapper::create(
-                vm,
-                realm,
-                generator_object,
-            )));
-        }
-
         assert!(kind == FunctionKind::Generator);
-        Ok(Value::from_object(generator_object))
+        Ok(Value::from_object(GeneratorObject::create(
+            vm,
+            realm,
+            generating_function,
+            running_execution_context.copy(),
+        )))
     }
 
     pub fn bytecode_executable(&self, vm: &Vm) -> Gc<Executable> {

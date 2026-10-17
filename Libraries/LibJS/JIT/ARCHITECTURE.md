@@ -297,7 +297,8 @@ which enters compiled code at the resume entry if the executable has code with o
 interprets it otherwise. A continuation starts by reading the completion the generator resumed
 with (`GetCompletionFields`), which compiled code loads from the generator object; an async
 generator's completion comes from its `AsyncGenerator` through the slow path. The function's start
-(its `Enter` and the initial `Yield`) is compiled like any function's.
+is compiled like any function's: its `Enter`, and for generators and async generators the initial
+`Yield`. Async functions have no initial `Yield`; their call runs the body until it first awaits.
 
 ## 5. Dependencies and invalidation
 
