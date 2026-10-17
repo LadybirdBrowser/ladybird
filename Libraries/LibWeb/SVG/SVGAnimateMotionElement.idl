@@ -1,0 +1,4 @@
+// https://svgwg.org/specs/animations/#InterfaceSVGAnimateMotionElement
+[Exposed=Window]
+interface SVGAnimateMotionElement : SVGAnimationElement {
+};
