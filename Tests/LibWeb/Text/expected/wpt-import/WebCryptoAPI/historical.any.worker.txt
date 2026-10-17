@@ -1,8 +1,3 @@
-Harness status: OK
+Harness status: Error
 
-Found 3 tests
-
-3 Fail
-Fail	Non-secure context window does not have access to crypto.subtle
-Fail	Non-secure context window does not have access to SubtleCrypto
-Fail	Non-secure context window does not have access to CryptoKey
+Found 0 tests
