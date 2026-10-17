@@ -1,0 +1,8 @@
+Ladybird reports navigator.hardwareConcurrency as 4 or 8 in WebKit mode
+and as the real count in Chrome and Gecko modes, which is what each
+engine does by default. WebKit’s NavigatorBase::hardwareConcurrency()
+returns 8, or 4 when numberOfProcessorCores() is below 8. Blink’s
+NavigatorConcurrentHardware::hardwareConcurrency() returns the count
+from base::SysInfo::NumberOfProcessors(). And Gecko’s RuntimeService::
+ClampedHardwareConcurrency() returns the real count unless the user has
+resistFingerprinting on, when it returns 8 on macOS and 4 elsewhere.
