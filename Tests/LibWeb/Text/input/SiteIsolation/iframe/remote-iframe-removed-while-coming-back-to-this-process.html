@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Going back takes each iframe from a document another process hosts back to one this process hosts, and each is
+    // removed at a different point of that, so some are removed after their document is populated here and before it
+    // activates.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const FRAME_COUNT = 30;
+
+        const localUrl = await httpServer.createEcho("GET", "/remote-iframe-removed-while-coming-back-local", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: "<!DOCTYPE html>local",
+        });
+        const remoteUrl = new URL(
+            await httpServer.createEcho("GET", "/remote-iframe-removed-while-coming-back-remote", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>remote",
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("remote-iframe-removed-while-coming-back");
+
+        const frames = [];
+        for (let i = 0; i < FRAME_COUNT; ++i) {
+            const frame = document.createElement("iframe");
+            frame.src = localUrl;
+            frames.push(frame);
+            document.body.appendChild(frame);
+            await new Promise(resolve => (frame.onload = resolve));
+        }
+        for (const frame of frames) {
+            frame.contentWindow.location.href = remoteUrl.href;
+            await new Promise(resolve => (frame.onload = resolve));
+        }
+        if (remoteFrameCount() !== FRAME_COUNT) {
+            println("iframes did not become remote");
+            return;
+        }
+
+        history.go(-FRAME_COUNT);
+        await Promise.all(frames.map((frame, i) => new Promise(resolve => {
+            setTimeout(() => {
+                frame.remove();
+                resolve();
+            }, i * 25);
+        })));
+
+        if (!(await waitForCondition(() => remoteFrameCount() === 0))) {
+            println("frame tree still has remote frames");
+            return;
+        }
+        await animationFrame();
+        await animationFrame();
+        println("all iframes removed");
+    });
+</script>
