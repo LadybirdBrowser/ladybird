@@ -14,7 +14,8 @@ use super::value_parser::{
     TIME_UNIT_NAMES, context_allows_tree_counting_functions, parse_calculated_numeric_value_with_ranges,
 };
 use crate::css::calc::{
-    CalcNode, CalcNumericType, CalcNumericValue, resolve_as_for_value_type, simplify_parsed_calculation,
+    CalcNode, CalcNumericType, CalcNumericValue, CalcRoundingStrategy, resolve_as_for_value_type,
+    simplify_parsed_calculation,
 };
 use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_channel_keyword};
 use crate::css::css_string::CssString;
@@ -508,16 +509,31 @@ pub(crate) fn parse_a_calc_function_node(
             })
         }
         MathFunction::Round => {
-            if !(2..=3).contains(&arguments.len()) {
+            let (strategy, arguments) = match parse_rounding_strategy(arguments[0]) {
+                Some(strategy) => (strategy, &arguments[1..]),
+                None => (CalcRoundingStrategy::Nearest, arguments.as_slice()),
+            };
+
+            if !(1..=2).contains(&arguments.len()) {
                 return Err(CalcParseError::Invalid);
             }
-            let (strategy, arguments) = if arguments.len() == 3 {
-                let strategy = parse_rounding_strategy(arguments[0]).ok_or(CalcParseError::Invalid)?;
-                (strategy, &arguments[1..])
-            } else {
-                (1, arguments.as_slice())
-            };
-            let nodes = parse_fixed_arguments(arguments, 2, context)?;
+
+            let mut nodes = arguments
+                .iter()
+                .map(|argument| parse_argument(argument, context))
+                .collect::<Result<Vec<_>>>()?;
+
+            // https://drafts.csswg.org/css-values-4/#funcdef-round
+            // If the type of A matches <number>, then B may be omitted, and defaults to 1.
+            // NB: We add the default interval of 1 if it is omitted and let the later type check reject the non-number
+            //     A argument case.
+            if nodes.len() == 1 {
+                nodes.push(Arc::new(CalcNode::Numeric(CalcNumericValue::Number {
+                    value: 1.0,
+                    number_type: 0,
+                })));
+            }
+
             let types = nodes
                 .iter()
                 .map(|node| argument_type(node, percentages_resolve_as))
@@ -540,20 +556,20 @@ pub(crate) fn parse_a_calc_function_node(
         .ok_or(CalcParseError::Invalid)
 }
 
-fn parse_rounding_strategy(values: &[ComponentValue]) -> Option<u8> {
+fn parse_rounding_strategy(values: &[ComponentValue]) -> Option<CalcRoundingStrategy> {
     let mut values = values.iter().filter(|value| !value.is_whitespace());
     let identifier = values.next()?.ident()?;
     if values.next().is_some() {
         return None;
     }
     if equals_ascii_case_insensitive(identifier, b"down") {
-        Some(0)
+        Some(CalcRoundingStrategy::Down)
     } else if equals_ascii_case_insensitive(identifier, b"nearest") {
-        Some(1)
+        Some(CalcRoundingStrategy::Nearest)
     } else if equals_ascii_case_insensitive(identifier, b"to-zero") {
-        Some(2)
+        Some(CalcRoundingStrategy::ToZero)
     } else if equals_ascii_case_insensitive(identifier, b"up") {
-        Some(3)
+        Some(CalcRoundingStrategy::Up)
     } else {
         None
     }
