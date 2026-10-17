@@ -1,0 +1,2 @@
+popup.closed: true
+opener survived
