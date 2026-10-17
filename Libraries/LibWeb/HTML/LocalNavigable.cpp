@@ -1263,7 +1263,10 @@ void LocalNavigable::run_ui_descendant_unload_task(ChildNavigableDestruction chi
                 // Another page hosts the navigable's next document, or destroys the navigable. A RemoteNavigable takes
                 // the navigable's place in the same task, so no task here sees the navigable without an active
                 // document.
-                if (stop_hosting_after_unload == StopHostingAfterUnload::Yes)
+                // NB: An unload handler can remove the navigable's container, which destroys the navigable. Nothing is
+                //     left to stop hosting then: the container's removal tells the UI process the navigable is gone, and
+                //     scripts holding the WindowProxy see the window of a removed iframe.
+                if (stop_hosting_after_unload == StopHostingAfterUnload::Yes && !navigable->has_been_destroyed())
                     navigable->page().stop_hosting(*navigable, move(replicated_state));
             }
             on_complete->function()();
