@@ -119,6 +119,31 @@ impl ExecutionContext {
         }
         copy
     }
+
+    /// A copy of the context that runs nothing: an uninitialized frame of the same function, realm, script and
+    /// environments, whose slots hold no values. It keeps none of the values the context's frame held alive.
+    pub fn copy_without_values(&self) -> OwnedExecutionContext {
+        let slot_count = self.registers_and_constants_and_locals_and_arguments_count.get();
+        let argument_count = self.argument_count.get();
+        let copy = OwnedExecutionContext::create(slot_count - argument_count, 0, argument_count);
+        copy.function.set(self.function.get());
+        copy.realm.set(self.realm.get());
+        copy.script_or_module.set(self.script_or_module.get());
+        copy.lexical_environment.set(self.lexical_environment.get());
+        copy.variable_environment.set(self.variable_environment.get());
+        copy.private_environment.set(self.private_environment.get());
+        copy.program_counter.set(self.program_counter.get());
+        copy.frame_id.set(self.frame_id.get());
+        copy.caller_is_construct.set(self.caller_is_construct.get());
+        copy.this_value.set(self.this_value.get());
+        copy.executable.set(self.executable.get());
+        // NB: An uninitialized frame holds values only in its reserved registers, which the new context starts with
+        //     empty, and its arguments.
+        for argument in copy.arguments() {
+            argument.set(Value::EMPTY);
+        }
+        copy
+    }
 }
 
 // SAFETY: Visits every cell a frame can reach. Until the frame is initialized only its reserved registers and its

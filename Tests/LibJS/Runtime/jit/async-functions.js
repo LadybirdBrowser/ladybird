@@ -162,6 +162,73 @@ describe("async functions in compiled code", () => {
     });
 });
 
+describe("async functions run in their call until they first await", () => {
+    test("reject when evaluating a parameter throws", () => {
+        const parameters = prepared(AsyncFunction, "a = (() => { throw new TypeError('parameter'); })()", "return a;");
+        compile(parameters, () => parameters(1));
+        let promise;
+        expect(() => (promise = parameters())).not.toThrow();
+        const { error } = settle(promise);
+        expect(error).toBeInstanceOf(TypeError);
+        expect(error.message).toBe("parameter");
+        expect(settle(parameters(5))).toEqual({ value: 5 });
+    });
+
+    test("run synchronously up to the first await, and reject when they throw before it", () => {
+        const steps = [];
+        const make = new Function(
+            "steps",
+            "jit",
+            "const f = async function (fail) { steps.push('body'); if (fail) throw new RangeError('before'); await 0; steps.push('after'); }; jit.prepare(f); return f;"
+        );
+        const f = make(steps, jit);
+        compile(f, () => f(false));
+        steps.length = 0;
+        const promise = f(false);
+        steps.push("returned");
+        runQueuedPromiseJobs();
+        expect(steps).toEqual(["body", "returned", "after"]);
+        let thrown;
+        expect(() => (thrown = f(true))).not.toThrow();
+        const { error } = settle(thrown);
+        expect(error).toBeInstanceOf(RangeError);
+        expect(error.message).toBe("before");
+        expect(settle(promise)).toEqual({ value: undefined });
+    });
+
+    test("resolve when they return without awaiting, adopting returned thenables", () => {
+        const identity = prepared(AsyncFunction, "value", "return value;");
+        compile(identity, () => identity(1));
+        expect(settle(identity(7))).toEqual({ value: 7 });
+        expect(settle(identity())).toEqual({ value: undefined });
+        const thenable = { then: resolve => resolve("adopted") };
+        expect(settle(identity(thenable))).toEqual({ value: "adopted" });
+        expect(settle(identity(Promise.resolve("promise")))).toEqual({ value: "promise" });
+        const rejected = settle(identity(Promise.reject(new SyntaxError("rejected"))));
+        expect(rejected.error).toBeInstanceOf(SyntaxError);
+    });
+
+    test("catch a rejection of their first await", () => {
+        const guarded = prepared(
+            AsyncFunction,
+            "promise",
+            "try { await promise; return 'resolved'; } catch (error) { return 'caught ' + error; }"
+        );
+        expect(settle(guarded(Promise.reject("oops")))).toEqual({ value: "caught oops" });
+        expect(settle(guarded(Promise.resolve()))).toEqual({ value: "resolved" });
+    });
+
+    test("show up once in stack traces before their first await", () => {
+        async function listsItselfOnce() {
+            const stack = new Error().stack;
+            await 0;
+            return stack;
+        }
+        const { value } = settle(listsItselfOnce());
+        expect(value.split("\n").filter(line => line.includes("listsItselfOnce"))).toHaveLength(1);
+    });
+});
+
 describe("async generators in compiled code", () => {
     test("yield and await with the values live across both", () => {
         const values = prepared(

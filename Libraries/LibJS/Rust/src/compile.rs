@@ -750,8 +750,8 @@ pub(crate) fn collect_module_var_names(
 
 /// Compile a module body as an async function (for TLA modules).
 ///
-/// Emits async-function wrapping (initial Yield, final Yield) around the
-/// module body statements.
+/// Emits async-function wrapping (a final Yield, which completes it) around
+/// the module body statements.
 pub(crate) fn new_module_async_generator(
     source_len: usize,
     function_table: ast::FunctionTable,
@@ -783,14 +783,8 @@ pub(crate) fn compile_module_as_async_to_bytecode(
     generator.switch_to_basic_block(entry_block);
     generator.emit(Instruction::Enter {});
 
-    // Async function start: emit initial Yield before GetLexicalEnvironment.
-    let start_block = generator.make_block();
-    let undef = generator.add_constant_undefined();
-    generator.emit(Instruction::Yield {
-        continuation_label: Some(start_block),
-        value: undef.operand(),
-    });
-    generator.switch_to_basic_block(start_block);
+    // NB: Like an async function's, the module body runs in the call until it first awaits, without an initial Yield
+    //     (see AsyncFunctionDriverWrapper::start()).
     generator.capture_saved_lexical_environment_with_coordinates(true);
 
     // Generate module body statements.
@@ -1936,19 +1930,9 @@ pub(crate) fn compile_function_payload_to_bytecode(
     generator.switch_to_basic_block(entry_block);
     generator.emit(bytecode::instruction::Instruction::Enter {});
 
-    // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
-    // For async (non-generator) functions, emit the initial Yield BEFORE
-    // GetLexicalEnvironment so that parameter evaluation errors are caught
-    // by the async promise wrapper.
-    if generator.is_in_async_function() && !generator.is_in_generator_function() {
-        let start_block = generator.make_block();
-        let undef = generator.add_constant_undefined();
-        generator.emit(bytecode::instruction::Instruction::Yield {
-            continuation_label: Some(start_block),
-            value: undef.operand(),
-        });
-        generator.switch_to_basic_block(start_block);
-    }
+    // NB: Async (non-generator) functions run FunctionDeclarationInstantiation and their body in the call until they
+    //     first await, and have no initial Yield. The call rejects their promise if that throws (see
+    //     AsyncFunctionDriverWrapper::start()).
 
     generator.capture_saved_lexical_environment_with_coordinates(sfd_metadata.function_environment_needed);
 

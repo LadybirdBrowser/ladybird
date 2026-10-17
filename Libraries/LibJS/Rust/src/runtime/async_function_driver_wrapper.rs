@@ -21,7 +21,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::call_function_object;
 use crate::runtime::completion::{Completion, CompletionType, Must, ThrowCompletionOr};
-use crate::runtime::generator_object::{GeneratorObject, IterationResult};
+use crate::runtime::generator_object::{GeneratingFunction, GeneratorObject, GeneratorState, IterationResult};
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::promise::{Promise, PromiseState, promise_resolve};
 use crate::runtime::realm::Realm;
@@ -60,8 +60,47 @@ fn is_settled_intrinsic_promise(vm: &Vm, realm: Gc<Realm>, promise: &Promise) ->
 }
 
 impl AsyncFunctionDriverWrapper {
-    pub fn create(vm: &Vm, realm: Gc<Realm>, generator_object: Gc<GeneratorObject>) -> Gc<Promise> {
+    // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluateasyncfunctionbody
+    // 27.7.5.1 AsyncFunctionStart ( promiseCapability, asyncFunctionBody ), https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
+    /// Starts an async function whose bytecode just ran in its call's execution context `context`, from
+    /// FunctionDeclarationInstantiation until it first awaited, returned or threw (`result`), and returns its promise.
+    ///
+    /// OPTIMIZATION: The spec runs the body in a copy of the call's execution context (asyncContext). The bytecode runs
+    ///               it in the call's own context until it first awaits, and the async function gets its copy and a
+    ///               driver only then, since nothing resumes the call's context. A function that never awaits needs
+    ///               neither.
+    pub fn start(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        generating_function: GeneratingFunction,
+        context: &ExecutionContext,
+        result: Result<Value, Value>,
+    ) -> Gc<Promise> {
+        // 1. Let promiseCapability be ! NewPromiseCapability(%Promise%).
         let top_level_promise = Promise::create(vm, realm);
+
+        let value = match result {
+            // 3. If completion is an abrupt completion, then
+            //     a. Perform ! Call(promiseCapability.[[Reject]], undefined, « completion.[[Value]] »).
+            // NB: The same goes for a throw completion of the body (AsyncBlockStart).
+            Err(exception) => {
+                top_level_promise.reject(vm, exception);
+                return top_level_promise;
+            }
+            Ok(value) if value.is_empty() => Value::UNDEFINED,
+            Ok(value) => value,
+        };
+
+        // NB: The body returned without awaiting.
+        if context.yield_continuation.get() == ExecutionContext::NO_YIELD_CONTINUATION {
+            let resolving_functions = top_level_promise.create_resolving_functions(vm);
+            call_function_object(vm, resolving_functions.resolve, Value::UNDEFINED, &[value]).must();
+            return top_level_promise;
+        }
+
+        // NB: The body awaits `value`, suspended like a generator at a yield.
+        let generator_object = GeneratorObject::create(vm, realm, generating_function, context.copy());
+        generator_object.set_generator_state(GeneratorState::SuspendedYield);
         // Note: The top_level_promise is also kept alive by this Wrapper
         let wrapper = realm.create_object(
             vm,
@@ -75,9 +114,7 @@ impl AsyncFunctionDriverWrapper {
                 is_initial_execution: Cell::new(true),
             },
         );
-        // Prime the generator:
-        // This runs until the first `await value;`
-        Self::continue_async_execution(wrapper, vm, Value::UNDEFINED, true);
+        Self::run(wrapper, vm, Ok(IterationResult::new(value, false)));
 
         top_level_promise
     }
@@ -95,11 +132,14 @@ impl AsyncFunctionDriverWrapper {
         let realm = vm.current_realm().expect("there is a current realm");
 
         // 1. Let asyncContext be the running execution context.
+        // NB: The generator object keeps the context the async function resumes in. This one only runs the steps that
+        //     settle what it awaits, as the running context of the function's realm and script, so it holds none of
+        //     the values of the function's frame.
         if this.suspended_execution_context.borrow().is_none() {
             let copy = vm
                 .running_execution_context_if_any()
                 .expect("an async function awaits in an execution context")
-                .copy();
+                .copy_without_values();
             *this.suspended_execution_context.borrow_mut() = Some(copy);
         }
 
@@ -217,13 +257,19 @@ impl AsyncFunctionDriverWrapper {
 
     fn continue_async_execution(this: Gc<AsyncFunctionDriverWrapper>, vm: &Vm, value: Value, is_successful: bool) {
         let generator_object = this.generator_object.get();
-        let mut generator_result = if is_successful {
+        let generator_result = if is_successful {
             generator_object.resume(vm, value, None)
         } else {
             crate::embedding::completion::log_exception_if_enabled(vm, value);
             generator_object.resume_abrupt(vm, Completion::new(CompletionType::Throw, value), None)
         };
+        Self::run(this, vm, generator_result);
+    }
 
+    /// Continues the async function from what its generator last returned (`generator_result`): settles its promise if
+    /// it completed, and awaits the value it awaits otherwise, resuming it right away where it can.
+    fn run(this: Gc<AsyncFunctionDriverWrapper>, vm: &Vm, mut generator_result: ThrowCompletionOr<IterationResult>) {
+        let generator_object = this.generator_object.get();
         let result: ThrowCompletionOr<()> = loop {
             let result: IterationResult = match generator_result {
                 Err(throw) => break Err(throw),

@@ -25,7 +25,7 @@ new with message and cause: CompileError: problem
   Error.isError: true
   name: CompileError, message: "problem"
   stack head: CompileError: problem
-  stack frames: CompileError > <script> > <script> > <script>
+  stack frames: CompileError > <script> > <script>
   message: problem (writable=true, enumerable=false, configurable=true)
   cause: 42 (writable=true, enumerable=false, configurable=true)
 called without new: CompileError: called
@@ -37,7 +37,7 @@ called without new: CompileError: called
   Error.isError: true
   name: CompileError, message: "called"
   stack head: CompileError: called
-  stack frames: CompileError > <script> > <script> > <script>
+  stack frames: CompileError > <script> > <script>
 new without arguments: CompileError
   own keys: 
   prototype is CompileError.prototype: true
@@ -47,7 +47,7 @@ new without arguments: CompileError
   Error.isError: true
   name: CompileError, message: ""
   stack head: CompileError
-  stack frames: CompileError > <script> > <script> > <script>
+  stack frames: CompileError > <script> > <script>
 undefined message and no cause: CompileError
   own keys: 
   prototype is CompileError.prototype: true
@@ -57,7 +57,7 @@ undefined message and no cause: CompileError
   Error.isError: true
   name: CompileError, message: ""
   stack head: CompileError
-  stack frames: CompileError > <script> > <script> > <script>
+  stack frames: CompileError > <script> > <script>
 coerced message: CompileError: coerced
   own keys: message
   prototype is CompileError.prototype: true
@@ -67,7 +67,7 @@ coerced message: CompileError: coerced
   Error.isError: true
   name: CompileError, message: "coerced"
   stack head: CompileError: coerced
-  stack frames: CompileError > <script> > <script> > <script>
+  stack frames: CompileError > <script> > <script>
 argument evaluation order: message,cause
 throwing message: TypeError: from toString
 throwing cause: RangeError: from cause
@@ -80,7 +80,7 @@ subclass: CompileError: derived
   Error.isError: true
   name: CompileError, message: "derived"
   stack head: CompileError: derived
-  stack frames: CompileError > Subclass > <script> > <script> > <script>
+  stack frames: CompileError > Subclass > <script> > <script>
   instanceof CompileError: true, extra: true
 Reflect.construct with Object as new.target: prototype is Object.prototype: true
   Object.prototype.toString: [object Error], Error.isError: true
@@ -115,7 +115,7 @@ new with message and cause: LinkError: problem
   Error.isError: true
   name: LinkError, message: "problem"
   stack head: LinkError: problem
-  stack frames: LinkError > <script> > <script> > <script>
+  stack frames: LinkError > <script> > <script>
   message: problem (writable=true, enumerable=false, configurable=true)
   cause: 42 (writable=true, enumerable=false, configurable=true)
 called without new: LinkError: called
@@ -127,7 +127,7 @@ called without new: LinkError: called
   Error.isError: true
   name: LinkError, message: "called"
   stack head: LinkError: called
-  stack frames: LinkError > <script> > <script> > <script>
+  stack frames: LinkError > <script> > <script>
 new without arguments: LinkError
   own keys: 
   prototype is LinkError.prototype: true
@@ -137,7 +137,7 @@ new without arguments: LinkError
   Error.isError: true
   name: LinkError, message: ""
   stack head: LinkError
-  stack frames: LinkError > <script> > <script> > <script>
+  stack frames: LinkError > <script> > <script>
 undefined message and no cause: LinkError
   own keys: 
   prototype is LinkError.prototype: true
@@ -147,7 +147,7 @@ undefined message and no cause: LinkError
   Error.isError: true
   name: LinkError, message: ""
   stack head: LinkError
-  stack frames: LinkError > <script> > <script> > <script>
+  stack frames: LinkError > <script> > <script>
 coerced message: LinkError: coerced
   own keys: message
   prototype is LinkError.prototype: true
@@ -157,7 +157,7 @@ coerced message: LinkError: coerced
   Error.isError: true
   name: LinkError, message: "coerced"
   stack head: LinkError: coerced
-  stack frames: LinkError > <script> > <script> > <script>
+  stack frames: LinkError > <script> > <script>
 argument evaluation order: message,cause
 throwing message: TypeError: from toString
 throwing cause: RangeError: from cause
@@ -170,7 +170,7 @@ subclass: LinkError: derived
   Error.isError: true
   name: LinkError, message: "derived"
   stack head: LinkError: derived
-  stack frames: LinkError > Subclass > <script> > <script> > <script>
+  stack frames: LinkError > Subclass > <script> > <script>
   instanceof LinkError: true, extra: true
 Reflect.construct with Object as new.target: prototype is Object.prototype: true
   Object.prototype.toString: [object Error], Error.isError: true
@@ -205,7 +205,7 @@ new with message and cause: RuntimeError: problem
   Error.isError: true
   name: RuntimeError, message: "problem"
   stack head: RuntimeError: problem
-  stack frames: RuntimeError > <script> > <script> > <script>
+  stack frames: RuntimeError > <script> > <script>
   message: problem (writable=true, enumerable=false, configurable=true)
   cause: 42 (writable=true, enumerable=false, configurable=true)
 called without new: RuntimeError: called
@@ -217,7 +217,7 @@ called without new: RuntimeError: called
   Error.isError: true
   name: RuntimeError, message: "called"
   stack head: RuntimeError: called
-  stack frames: RuntimeError > <script> > <script> > <script>
+  stack frames: RuntimeError > <script> > <script>
 new without arguments: RuntimeError
   own keys: 
   prototype is RuntimeError.prototype: true
@@ -227,7 +227,7 @@ new without arguments: RuntimeError
   Error.isError: true
   name: RuntimeError, message: ""
   stack head: RuntimeError
-  stack frames: RuntimeError > <script> > <script> > <script>
+  stack frames: RuntimeError > <script> > <script>
 undefined message and no cause: RuntimeError
   own keys: 
   prototype is RuntimeError.prototype: true
@@ -237,7 +237,7 @@ undefined message and no cause: RuntimeError
   Error.isError: true
   name: RuntimeError, message: ""
   stack head: RuntimeError
-  stack frames: RuntimeError > <script> > <script> > <script>
+  stack frames: RuntimeError > <script> > <script>
 coerced message: RuntimeError: coerced
   own keys: message
   prototype is RuntimeError.prototype: true
@@ -247,7 +247,7 @@ coerced message: RuntimeError: coerced
   Error.isError: true
   name: RuntimeError, message: "coerced"
   stack head: RuntimeError: coerced
-  stack frames: RuntimeError > <script> > <script> > <script>
+  stack frames: RuntimeError > <script> > <script>
 argument evaluation order: message,cause
 throwing message: TypeError: from toString
 throwing cause: RangeError: from cause
@@ -260,7 +260,7 @@ subclass: RuntimeError: derived
   Error.isError: true
   name: RuntimeError, message: "derived"
   stack head: RuntimeError: derived
-  stack frames: RuntimeError > Subclass > <script> > <script> > <script>
+  stack frames: RuntimeError > Subclass > <script> > <script>
   instanceof RuntimeError: true, extra: true
 Reflect.construct with Object as new.target: prototype is Object.prototype: true
   Object.prototype.toString: [object Error], Error.isError: true
@@ -278,7 +278,7 @@ invalid module: CompileError: Unexpected end-of-file
   Error.isError: true
   name: CompileError, message: "Unexpected end-of-file"
   stack head: CompileError: Unexpected end-of-file
-  stack frames: Module > <script> > thrownBy > <script> > <script> > <script>
+  stack frames: Module > <script> > thrownBy > <script> > <script>
 rejected compile: CompileError: Unexpected end-of-file
   own keys: message
   prototype is CompileError.prototype: true

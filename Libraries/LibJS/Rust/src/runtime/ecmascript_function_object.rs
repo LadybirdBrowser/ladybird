@@ -636,15 +636,24 @@ impl EcmascriptFunctionObject {
         let executable = self
             .bytecode_executable()
             .expect("a function is compiled before it is called");
-        let result = vm
-            .run_executable(NonNull::from(context), executable, 0)
-            .map_err(Throw::new)?;
+        let result = vm.run_executable(NonNull::from(context), executable, 0);
 
         // NOTE: Running the bytecode should eventually return a completion.
         // Until it does, we assume "return" and include the undefined fallback from the call site.
         if self.kind() == FunctionKind::Normal {
-            return Ok(result);
+            return result.map_err(Throw::new);
         }
+
+        if self.kind() == FunctionKind::Async {
+            return Ok(Value::from_object(AsyncFunctionDriverWrapper::start(
+                vm,
+                context.realm.get().expect("a function runs in a realm"),
+                GeneratingFunction::Ecmascript(self.as_ecmascript_function_gc()),
+                context,
+                result,
+            )));
+        }
+        result.map_err(Throw::new)?;
 
         let realm = context.realm.get().expect("a function runs in a realm");
         if self.kind() == FunctionKind::AsyncGenerator {
@@ -656,24 +665,13 @@ impl EcmascriptFunctionObject {
             )));
         }
 
-        let generator_object = GeneratorObject::create(
+        debug_assert!(self.kind() == FunctionKind::Generator);
+        Ok(Value::from_object(GeneratorObject::create(
             vm,
             realm,
             GeneratingFunction::Ecmascript(self.as_ecmascript_function_gc()),
             context.copy(),
-        );
-
-        // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise.
-        if self.kind() == FunctionKind::Async {
-            return Ok(Value::from_object(AsyncFunctionDriverWrapper::create(
-                vm,
-                realm,
-                generator_object,
-            )));
-        }
-
-        debug_assert!(self.kind() == FunctionKind::Generator);
-        Ok(Value::from_object(generator_object))
+        )))
     }
 
     pub fn set_name(&self, vm: &Vm, name: &Utf16FlyString) {

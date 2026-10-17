@@ -12,47 +12,44 @@ block0:
   [  50] End value:reg5
 
 
-f$0298e68c async-await-in-try-catch.js:2:5
+f$0ae4b9bc async-await-in-try-catch.js:2:5
   Registers: 10
-  Blocks:    8
+  Blocks:    7
   Locals:    e~0
   Constants:
-    [0] = Undefined
-    [1] = Int32(1)
+    [0] = Int32(1)
+    [1] = Undefined
 
 block0:
   [   0] Enter
-  [   8] Yield continuation_label:block1, value:Undefined
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] Jump target:block3
 
 block1:
-  [  18] GetLexicalEnvironment dst:reg4
-  [  20] Jump target:block4
+  [  18] Catch dst:reg5
+  [  20] SetLexicalEnvironment environment:reg4
+  [  28] Mov dst:e~0, src:reg5
 
 block2:
-  [  28] Catch dst:reg5
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Mov dst:e~0, src:reg5
+  [  38] Yield value:Undefined
 
 block3:
-  [  48] Yield value:Undefined
+  [  48] EnterObjectEnvironment dst:reg5, object:arg0
+  [  58] Mov dst:reg6, src:reg0
+  [  68] Await continuation_label:block4, argument:Int32(1)
 
 block4:
-  [  58] EnterObjectEnvironment dst:reg5, object:arg0
-  [  68] Mov dst:reg6, src:reg0
-  [  78] Await continuation_label:block5, argument:Int32(1)
+  [  78] Mov dst:reg6, src:reg0
+  [  88] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  98] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:1, true_target:block5, false_target:block6
 
 block5:
-  [  88] Mov dst:reg6, src:reg0
-  [  98] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:1, true_target:block6, false_target:block7
+  [  b0] SetLexicalEnvironment environment:reg4
+  [  b8] JumpLoop target:block2
 
 block6:
   [  c0] SetLexicalEnvironment environment:reg4
-  [  c8] JumpLoop target:block3
-
-block7:
-  [  d0] SetLexicalEnvironment environment:reg4
-  [  d8] Throw src:reg8
+  [  c8] Throw src:reg8
 
 Exception handlers:
-  [  58 ..   e0] => handler block2
+  [  48 ..   d0] => handler block1
