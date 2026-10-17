@@ -1,0 +1,3 @@
+assigned to a slot: outer stays open
+not assigned to a slot: outer closed
+its slot removed: outer closed
