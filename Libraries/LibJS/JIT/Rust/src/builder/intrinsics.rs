@@ -212,9 +212,24 @@ impl GraphBuilder<'_> {
         double: fn(&mut Self, NodeId) -> NodeId,
         otherwise: impl FnOnce(&mut Self, BranchCondition, Vec<NodeId>) -> NodeId,
     ) -> NodeId {
-        let (int32_block, other) = self.branch_both_ways(BranchCondition::Int32Value, vec![value]);
+        self.on_integer_or_double(BranchCondition::Int32Value, value, repr, int32, double, otherwise)
+    }
+
+    /// Like `on_int32_or_double()`, with `integer` deciding the first case:
+    /// `BranchCondition::Int32Value`, or `BranchCondition::Int32OrBoolean`,
+    /// whose booleans `UnboxInt32` makes 0 or 1 of.
+    pub(super) fn on_integer_or_double(
+        &mut self,
+        integer: BranchCondition,
+        value: NodeId,
+        repr: Repr,
+        int32: fn(&mut Self, NodeId) -> NodeId,
+        double: fn(&mut Self, NodeId) -> NodeId,
+        otherwise: impl FnOnce(&mut Self, BranchCondition, Vec<NodeId>) -> NodeId,
+    ) -> NodeId {
+        let (int32_block, other) = self.branch_both_ways(integer, vec![value]);
         self.block = int32_block;
-        let refined = self.refine(BranchCondition::Int32Value, true, vec![value]);
+        let refined = self.refine(integer, true, vec![value]);
         let integer = self.emit(Op::UnboxInt32, vec![refined], Some(Repr::Int32));
         let int32_value = int32(self, integer);
         let int32_end = self.block;

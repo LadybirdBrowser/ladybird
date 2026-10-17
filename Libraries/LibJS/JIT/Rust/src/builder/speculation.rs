@@ -707,7 +707,7 @@ impl GraphBuilder<'_> {
         let lhs = if constant_compares_by_identity {
             lhs
         } else {
-            let identity_kinds = arith_feedback::OTHER | arith_feedback::OBJECT_PAIR;
+            let identity_kinds = arith_feedback::OTHER | arith_feedback::OBJECT_PAIR | arith_feedback::BOOLEAN;
             if feedback == 0 || feedback & !identity_kinds != 0 || !self.may_speculate(ExitKind::BadType) {
                 return Ok(None);
             }
@@ -875,13 +875,30 @@ impl GraphBuilder<'_> {
         )
     }
 
-    /// ToInt32 of `value`, as a `Repr::Int32`, where it is an int32 or, if
-    /// `doubles`, a double: tests send other values on.
-    fn int32_of_number_on_path(&mut self, paths: &mut SlowPaths, value: NodeId, doubles: bool) -> NodeId {
-        if !doubles || self.int32_value_of(value).is_some() || self.int32_constant_of(value).is_some() {
+    /// ToInt32 of `value`, as a `Repr::Int32`, where it is an int32, a
+    /// boolean if `booleans`, or a double if `doubles`: tests send other
+    /// values on.
+    fn int32_of_operand_on_path(
+        &mut self,
+        paths: &mut SlowPaths,
+        value: NodeId,
+        doubles: bool,
+        booleans: bool,
+    ) -> NodeId {
+        if (!doubles && !booleans) || self.int32_value_of(value).is_some() || self.int32_constant_of(value).is_some() {
             return self.int32_on_path(paths, value);
         }
-        self.on_int32_or_double(
+        let integer = if booleans {
+            BranchCondition::Int32OrBoolean
+        } else {
+            BranchCondition::Int32Value
+        };
+        if !doubles {
+            let refined = self.branch_to_next_case(paths, integer, vec![value], true);
+            return self.emit(Op::UnboxInt32, vec![refined], Some(Repr::Int32));
+        }
+        self.on_integer_or_double(
+            integer,
             value,
             Repr::Int32,
             |_, integer| integer,
@@ -939,17 +956,20 @@ impl GraphBuilder<'_> {
             let known_int32 = [lhs, rhs]
                 .iter()
                 .all(|value| self.int32_value_of(*value).is_some() || self.is_boolean(*value));
+            // NB: Operands that are sometimes booleans, like a local that
+            //     holds a comparison or an int32, saw booleans.
+            let booleans = feedback & arith_feedback::BOOLEAN != 0;
             if !known_int32
-                && (feedback & (arith_feedback::SAW_INT32 | arith_feedback::DOUBLE) == 0
-                    || !self.may_be_number(&[lhs, rhs]))
+                && (feedback & (arith_feedback::SAW_INT32 | arith_feedback::DOUBLE | arith_feedback::BOOLEAN) == 0
+                    || !(booleans || self.may_be_number(&[lhs, rhs])))
             {
                 return Ok(None);
             }
             let (lhs, rhs) = (self.boolean_as_int32(lhs), self.boolean_as_int32(rhs));
             let doubles = feedback & arith_feedback::DOUBLE != 0 || !self.may_be_int32(&[lhs, rhs]);
             let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
-            let lhs = self.int32_of_number_on_path(&mut paths, lhs, doubles);
-            let rhs = self.int32_of_number_on_path(&mut paths, rhs, doubles);
+            let lhs = self.int32_of_operand_on_path(&mut paths, lhs, doubles, booleans);
+            let rhs = self.int32_of_operand_on_path(&mut paths, rhs, doubles, booleans);
             let result = if op == BinaryOp::UnsignedRightShift && !int32_results {
                 let bits = self.emit(Op::Uint32ShiftRight, vec![lhs, rhs], Some(Repr::Int32));
                 let number = self.emit(Op::Uint32ToFloat64, vec![bits], Some(Repr::Float64));
@@ -1068,7 +1088,9 @@ impl GraphBuilder<'_> {
     ) -> Result<Option<SlowPaths>, CompileFailure> {
         let int32s = feedback & arith_feedback::SAW_INT32 != 0;
         let doubles = feedback & arith_feedback::DOUBLE != 0;
-        if !int32s && !doubles {
+        // NB: ToInt32 of a boolean is 0 or 1 (see `build_binary_paths()`).
+        let booleans = matches!(op, UnaryOp::BitwiseNot | UnaryOp::ToInt32) && feedback & arith_feedback::BOOLEAN != 0;
+        if !int32s && !doubles && !booleans {
             return Ok(None);
         }
         let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
@@ -1119,7 +1141,7 @@ impl GraphBuilder<'_> {
                 }
             }
             UnaryOp::BitwiseNot | UnaryOp::ToInt32 => {
-                let integer = self.int32_of_number_on_path(&mut paths, value, doubles);
+                let integer = self.int32_of_operand_on_path(&mut paths, value, doubles, booleans);
                 let result = if op == UnaryOp::BitwiseNot {
                     let all_ones = self.int32_constant(-1);
                     self.int32_binary(BinaryOp::BitwiseXor, integer, all_ones)

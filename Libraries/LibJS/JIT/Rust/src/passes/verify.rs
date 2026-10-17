@@ -475,6 +475,7 @@ fn branch_input_reprs(condition: crate::ir::BranchCondition) -> Vec<Repr> {
         | crate::ir::BranchCondition::Object
         | crate::ir::BranchCondition::NonNegativeInt32
         | crate::ir::BranchCondition::Int32Value
+        | crate::ir::BranchCondition::Int32OrBoolean
         | crate::ir::BranchCondition::Double
         | crate::ir::BranchCondition::String
         | crate::ir::BranchCondition::ElementsKind(_)

@@ -245,6 +245,9 @@ fn constant_condition(graph: &Graph, condition: BranchCondition, input: NodeId, 
     if condition == BranchCondition::Int32Value && graph.node(input).op == Op::BoxInt32 {
         return Some(true);
     }
+    if condition == BranchCondition::Int32OrBoolean && matches!(graph.node(input).op, Op::BoxInt32 | Op::BoxBool) {
+        return Some(true);
+    }
     let bits = graph.constant_value(input)?;
     let tag = value::tag(bits);
     match condition {
@@ -260,6 +263,7 @@ fn constant_condition(graph: &Graph, condition: BranchCondition, input: NodeId, 
         BranchCondition::Object => Some(tag == value::OBJECT_TAG),
         BranchCondition::NonNegativeInt32 => Some(value::as_int32(bits).is_some_and(|integer| integer >= 0)),
         BranchCondition::Int32Value => Some(tag == value::INT32_TAG),
+        BranchCondition::Int32OrBoolean => Some(tag == value::INT32_TAG || tag == value::BOOLEAN_TAG),
         BranchCondition::Double => Some(value::is_double(bits)),
         BranchCondition::String => Some(tag == value::STRING_TAG),
         // NB: Constant strings are made as such, but strings may become

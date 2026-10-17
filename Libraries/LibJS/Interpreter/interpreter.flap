@@ -1059,6 +1059,8 @@ inline fn arith_feedback_bits(value: Value) -> i32 {
         bits = ARITH_FEEDBACK_STRING;
     } else if tag == BIGINT_TAG {
         bits = ARITH_FEEDBACK_BIGINT;
+    } else if tag == BOOLEAN_TAG {
+        bits = ARITH_FEEDBACK_BOOLEAN;
     }
     bits
 }

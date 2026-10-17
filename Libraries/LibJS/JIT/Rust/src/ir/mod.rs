@@ -161,6 +161,9 @@ pub enum BranchCondition {
     TaggedEquals { equal: bool },
     /// The input is a tagged value: is it an int32?
     Int32Value,
+    /// The input is a tagged value: is it an int32 or a boolean, whose low
+    /// 32 bits are its ToInt32 either way?
+    Int32OrBoolean,
     /// The input is a tagged value: is it a double, a number that is no
     /// int32?
     Double,
@@ -941,7 +944,8 @@ pub enum Op {
     },
     // Numbers and strings.
     /// The `Repr::Int32` of the tagged input 0, which must be an int32: a
-    /// branch on `BranchCondition::Int32Value` decides that first.
+    /// branch on `BranchCondition::Int32Value` decides that first. Of a
+    /// boolean (see `BranchCondition::Int32OrBoolean`), it is 0 or 1.
     UnboxInt32,
     /// The absolute value of the `Repr::Int32` input 0, which must not be
     /// `i32::MIN`, as a `Repr::Int32`.

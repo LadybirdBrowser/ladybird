@@ -54,6 +54,8 @@ pub mod arith_feedback {
     pub const OTHER: u8 = 1 << 5;
     /// Equality comparisons where both operands are objects.
     pub const OBJECT_PAIR: u8 = 1 << 6;
+    /// Boolean operands of arithmetic and bitwise operations, which `OTHER` does not include there.
+    pub const BOOLEAN: u8 = 1 << 7;
 }
 
 /// The union of the kinds of values produced by an instruction, as `ValueFeedback` bits. The bit for a boxed value is
