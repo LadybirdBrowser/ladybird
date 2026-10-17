@@ -1,0 +1,12 @@
+When a text control’s relevant value changes, Ladybird clamps both ends
+of its selection, or its caret, against the new value. Gecko does the
+same for both elements: TextControlState’s SelectionProperties::
+SetMaxLength() re-runs SetStart() and SetEnd(), each of which clamps
+against the new length. WebKit’s HTMLTextAreaElement::setValueCommon()
+and Blink’s HTMLTextAreaElement::SetValueCommon() also clamp both ends
+for a textarea reset (TextControlSetValueSelection::Clamp and kClamp).
+
+For an input reset, WebKit’s HTMLInputElement::reset() and Blink’s
+HTMLInputElement::ResetImpl() go through setValue() and SetValue(),
+which move the caret to the end of the new value instead — so there too,
+no offset is left past the end.
