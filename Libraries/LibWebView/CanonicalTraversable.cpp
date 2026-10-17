@@ -384,6 +384,10 @@ void CanonicalTraversable::stop_hosting_in_page(CanonicalNavigable& navigable, N
 
 void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> page)
 {
+    // A closed page has been let go of already, and the client of one whose process was lost can be gone, e.g. when
+    // recovering from the crash abandons a history job that populated a document in the page.
+    if (!page->is_open())
+        return;
     if (page_hosts_any(page))
         return;
     // A page left hosting none of the tab's documents goes on representing the tab to a process holding part of
