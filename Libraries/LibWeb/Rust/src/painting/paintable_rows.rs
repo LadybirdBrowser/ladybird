@@ -32,8 +32,11 @@ mod tests {
 
     #[test]
     #[cfg(target_pointer_width = "64")]
-    fn committed_geometry_validity_fits_in_the_link_slots_existing_padding() {
-        assert_eq!(std::mem::size_of::<CommittedFragmentLinkSlot>(), 16);
+    fn committed_geometry_validity_costs_at_most_a_word_beside_the_link() {
+        assert!(
+            std::mem::size_of::<CommittedFragmentLinkSlot>()
+                <= std::mem::size_of::<fragment_tree::FragmentLink>() + std::mem::size_of::<u64>()
+        );
     }
 
     #[test]
@@ -42,7 +45,7 @@ mod tests {
         let link = fragment_tree::FragmentLink::for_test(node);
         let slot_with = |link: fragment_tree::FragmentLink| CommittedFragmentLinkSlot {
             layout_slot_generation: 1,
-            link: Some(Arc::new(link)),
+            link: Some(link),
             ..Default::default()
         };
         assert!(slot_with(link.clone()) == slot_with(link.clone()));
@@ -259,7 +262,7 @@ pub(crate) struct CommittedFragmentLinkSlot {
     layout_slot_generation: u8,
     geometry_epoch: u32,
     geometry_is_current: bool,
-    link: Option<Arc<fragment_tree::FragmentLink>>,
+    link: Option<fragment_tree::FragmentLink>,
 }
 
 /// Slots are the same when they hold the same link, or links that place the same fragment the
@@ -269,9 +272,11 @@ impl PartialEq for CommittedFragmentLinkSlot {
         self.layout_slot_generation == other.layout_slot_generation
             && self.geometry_epoch == other.geometry_epoch
             && self.geometry_is_current == other.geometry_is_current
-            && crate::cow_column::same_payload(self.link.as_ref(), other.link.as_ref(), |a, b| {
-                a.places_same_fragment_identically_to(b)
-            })
+            && match (&self.link, &other.link) {
+                (None, None) => true,
+                (Some(a), Some(b)) => a.places_same_fragment_identically_to(b),
+                _ => false,
+            }
     }
 }
 
@@ -550,7 +555,7 @@ where
 
 impl CommittedFragmentLinkSlot {
     pub(crate) fn link(&self) -> Option<&fragment_tree::FragmentLink> {
-        self.link.as_deref()
+        self.link.as_ref()
     }
 }
 
@@ -570,7 +575,7 @@ impl PaintableRowStore {
         {
             return None;
         }
-        Some(read(&slot.link.as_deref()?.fragment))
+        Some(read(&slot.link.as_ref()?.fragment))
     }
 
     pub(crate) fn invalidate_committed_geometry(&self, layout_slot_index: u32) {
@@ -588,7 +593,7 @@ impl PaintableRowStore {
             .borrow()
             .get(layout_slot_index as usize)
             .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
-            .and_then(|slot| slot.link.as_deref().cloned())
+            .and_then(|slot| slot.link.clone())
     }
 
     pub(crate) fn with_committed_fragment_link<R>(
@@ -602,7 +607,7 @@ impl PaintableRowStore {
             slots
                 .get(layout_slot_index as usize)
                 .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
-                .and_then(|slot| slot.link.as_deref()),
+                .and_then(|slot| slot.link.as_ref()),
         )
     }
 
@@ -621,13 +626,11 @@ impl PaintableRowStore {
         if slot.layout_slot_generation != layout_slot_generation {
             *slot = CommittedFragmentLinkSlot {
                 layout_slot_generation,
-                link: Some(Arc::new(link)),
+                link: Some(link),
                 ..Default::default()
             };
-        } else if let Some(retained_link) = &mut slot.link {
-            *Arc::make_mut(retained_link) = link;
         } else {
-            slot.link = Some(Arc::new(link));
+            slot.link = Some(link);
         }
         slot.geometry_epoch = geometry_epoch.unwrap_or_default();
         slot.geometry_is_current = geometry_epoch.is_some();
@@ -641,7 +644,6 @@ impl PaintableRowStore {
         RowMut::new(self.committed_fragment_links.borrow_mut(), layout_slot_index as usize)
             .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
             .and_then(|mut slot| slot.link.take())
-            .map(Arc::unwrap_or_clone)
     }
 
     pub(crate) fn reset_committed_fragment_link_slot(&self, layout_slot_index: u32) {
@@ -785,7 +787,7 @@ impl LayoutNodeArena {
         read(
             slots
                 .get(node.slot_index() as usize)
-                .and_then(|entry| entry.link.as_deref()),
+                .and_then(|entry| entry.link.as_ref()),
         )
     }
 
