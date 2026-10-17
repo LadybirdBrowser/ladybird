@@ -214,9 +214,9 @@ bool KmallocAllocationVisitor::TraverseTypeTraitExpr(clang::TypeTraitExpr* expre
     return traverse_unevaluated(expression, [&](auto* node) { return RecursiveASTVisitor::TraverseTypeTraitExpr(node); });
 }
 
-bool KmallocAllocationVisitor::TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc type_loc)
+bool KmallocAllocationVisitor::TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc type_loc, bool traverse_qualifier)
 {
-    return traverse_unevaluated(type_loc, [&](auto node) { return RecursiveASTVisitor::TraverseDecltypeTypeLoc(node); });
+    return traverse_unevaluated(type_loc, [&](auto node) { return RecursiveASTVisitor::TraverseDecltypeTypeLoc(node, traverse_qualifier); });
 }
 
 bool KmallocAllocationVisitor::VisitCXXNewExpr(clang::CXXNewExpr* new_expression)
