@@ -1,0 +1,162 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="webgl-helpers.js"></script>
+<script>
+    function createTexture(gl, target = gl.TEXTURE_2D) {
+        const texture = gl.createTexture();
+        gl.bindTexture(target, texture);
+        gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        return texture;
+    }
+
+    function setUnpackFlags(gl, flipY, premultiplyAlpha) {
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
+    }
+
+    // The rows come back in the order in which they are in the texture, the first uploaded row first.
+    function readTexture(gl, texture, width, height, format, type, ArrayType) {
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        const pixels = new ArrayType(width * height * 4);
+        gl.readPixels(0, 0, width, height, format, type, pixels);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.deleteFramebuffer(framebuffer);
+
+        const rows = [];
+        for (let row = 0; row < height; ++row) {
+            const texels = [];
+            for (let column = 0; column < width; ++column) {
+                const offset = (row * width + column) * 4;
+                texels.push(Array.from(pixels.slice(offset, offset + 4)).join(","));
+            }
+            rows.push(texels.join(" "));
+        }
+        return rows.join(" | ");
+    }
+
+    function readRGBA8Texture(gl, texture, width, height) {
+        return readTexture(gl, texture, width, height, gl.RGBA, gl.UNSIGNED_BYTE, Uint8Array);
+    }
+
+    function readFloatTexture(gl, texture, width, height) {
+        return readTexture(gl, texture, width, height, gl.RGBA, gl.FLOAT, Float32Array);
+    }
+
+    const transparentWhite = [255, 255, 255, 0];
+    const oneFifthOpaque = [200, 100, 50, 51];
+    const opaque = [10, 20, 30, 255];
+    const outside = [9, 9, 9, 9];
+
+    function runSubImageOfDataStoreTest(gl) {
+        // A data store of three by three pixels, of which the image is the two by two at the bottom right.
+        gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 3);
+        gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, 1);
+        gl.pixelStorei(gl.UNPACK_SKIP_ROWS, 1);
+        const data = new Uint8Array([
+            outside, outside, outside,
+            outside, oneFifthOpaque, transparentWhite,
+            outside, opaque, opaque,
+        ].flat());
+
+        for (const [flipY, premultiplyAlpha] of [[false, false], [true, false], [false, true], [true, true]]) {
+            const texture = createTexture(gl);
+            setUnpackFlags(gl, flipY, premultiplyAlpha);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            const texImageError = errorName(gl, gl.getError());
+            const texImageRows = readRGBA8Texture(gl, texture, 2, 2);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 2, 2, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            const texSubImageError = errorName(gl, gl.getError());
+            const texSubImageRows = readRGBA8Texture(gl, texture, 2, 2);
+
+            println(`row length 3, skip 1 pixel and 1 row, flipY=${flipY}, premultiplyAlpha=${premultiplyAlpha}`);
+            println(`    texImage2D: ${texImageError}, texture rows: ${texImageRows}`);
+            println(`    texSubImage2D: ${texSubImageError}, texture rows: ${texSubImageRows}`);
+        }
+        setUnpackFlags(gl, false, false);
+        gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 0);
+        gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, 0);
+        gl.pixelStorei(gl.UNPACK_SKIP_ROWS, 0);
+        println(`source data unchanged: ${data.join(",") === [outside, outside, outside, outside, oneFifthOpaque, transparentWhite, outside, opaque, opaque].flat().join(",")}`);
+    }
+
+    function runSourceOffsetTest(gl) {
+        // The image starts at the third element of the source.
+        const data = new Uint8Array([outside, outside, oneFifthOpaque, transparentWhite].flat());
+        const texture = createTexture(gl);
+        setUnpackFlags(gl, true, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, data, 8);
+        println(`texImage2D with source offset, flipY+premultiplyAlpha: ${errorName(gl, gl.getError())}, texture rows: ${readRGBA8Texture(gl, texture, 1, 2)}`);
+
+        setUnpackFlags(gl, true, true);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1, 2, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([outside, opaque, oneFifthOpaque].flat()), 4);
+        println(`texSubImage2D with source offset, flipY+premultiplyAlpha: ${errorName(gl, gl.getError())}, texture rows: ${readRGBA8Texture(gl, texture, 1, 2)}`);
+        setUnpackFlags(gl, false, false);
+    }
+
+    function runFloatTest(gl, label, internalformat, type, data) {
+        const texture = createTexture(gl);
+        setUnpackFlags(gl, true, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, internalformat, 1, 2, 0, gl.RGBA, type, data);
+        const error = errorName(gl, gl.getError());
+        setUnpackFlags(gl, false, false);
+        println(`${label}, flipY+premultiplyAlpha: ${error}, texture rows: ${readFloatTexture(gl, texture, 1, 2)}`);
+    }
+
+    function runPackedTest(gl) {
+        // Red 1023, green 300, blue 0 and alpha 2 of 3, then opaque blue.
+        const data = new Uint32Array([(2 << 30) | (300 << 10) | 1023, (3 << 30) | (1023 << 20)]);
+        const texture = createTexture(gl);
+        setUnpackFlags(gl, false, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB10_A2, 1, 2, 0, gl.RGBA, gl.UNSIGNED_INT_2_10_10_10_REV, data);
+        const error = errorName(gl, gl.getError());
+        setUnpackFlags(gl, false, false);
+
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        const texels = new Uint32Array(2);
+        gl.readPixels(0, 0, 1, 2, gl.RGBA, gl.UNSIGNED_INT_2_10_10_10_REV, texels);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        const components = Array.from(texels).map(texel => [texel & 0x3ff, (texel >>> 10) & 0x3ff, (texel >>> 20) & 0x3ff, texel >>> 30].join(","));
+        println(`RGB10_A2/UNSIGNED_INT_2_10_10_10_REV, premultiplyAlpha: ${error}, texture rows: ${components.join(" | ")}`);
+    }
+
+    function run3DUploadTests(gl) {
+        const texture = createTexture(gl, gl.TEXTURE_2D_ARRAY);
+        const data = new Uint8Array(oneFifthOpaque);
+        for (const [flipY, premultiplyAlpha] of [[false, false], [true, false], [false, true], [true, true]]) {
+            setUnpackFlags(gl, flipY, premultiplyAlpha);
+            const label = `flipY=${flipY}, premultiplyAlpha=${premultiplyAlpha}`;
+
+            gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, 1, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            printError(`texImage3D from an ArrayBufferView, ${label}`, gl);
+            gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, 1, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data, 0);
+            printError(`texImage3D from an ArrayBufferView with source offset, ${label}`, gl);
+            gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, 1, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            printError(`texImage3D from null, ${label}`, gl);
+            gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, 0, 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            printError(`texSubImage3D from an ArrayBufferView, ${label}`, gl);
+        }
+        setUnpackFlags(gl, false, false);
+    }
+
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl2");
+        gl.getExtension("EXT_color_buffer_float");
+        clearErrors(gl);
+
+        runSubImageOfDataStoreTest(gl);
+        runSourceOffsetTest(gl);
+        runFloatTest(gl, "RGBA32F/FLOAT", gl.RGBA32F, gl.FLOAT, new Float32Array([1, 0.75, 0.5, 0.25, 0.75, 1, 0.5, 0.5]));
+        // The same values as half floats.
+        runFloatTest(gl, "RGBA16F/HALF_FLOAT", gl.RGBA16F, gl.HALF_FLOAT, new Uint16Array([0x3c00, 0x3a00, 0x3800, 0x3400, 0x3a00, 0x3c00, 0x3800, 0x3800]));
+        runPackedTest(gl);
+        run3DUploadTests(gl);
+    });
+</script>

@@ -1,0 +1,212 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="webgl-helpers.js"></script>
+<script>
+    const vertexShaderSource = `
+        attribute vec2 position;
+        varying vec2 textureCoordinate;
+        void main() {
+            textureCoordinate = position * 0.5 + 0.5;
+            gl_Position = vec4(position, 0.0, 1.0);
+        }`;
+    const fragmentShaderSource = `
+        precision highp float;
+        uniform sampler2D sampler;
+        varying vec2 textureCoordinate;
+        void main() {
+            gl_FragColor = texture2D(sampler, textureCoordinate);
+        }`;
+
+    function compileShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return shader;
+    }
+
+    function setUpTextureDrawing(gl) {
+        const program = gl.createProgram();
+        gl.attachShader(program, compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource));
+        gl.attachShader(program, compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource));
+        gl.bindAttribLocation(program, 0, "position");
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    }
+
+    function createTexture(gl) {
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return texture;
+    }
+
+    // Draws the texture into an RGBA framebuffer of its size, so that texels of every format read back as RGBA bytes.
+    // The rows come back in the order in which they are in the texture, the first uploaded row first.
+    function readTexture(gl, texture, width, height) {
+        const target = createTexture(gl);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target, 0);
+
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.viewport(0, 0, width, height);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        const pixels = new Uint8Array(width * height * 4);
+        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        const rows = [];
+        for (let row = 0; row < height; ++row) {
+            const texels = [];
+            for (let column = 0; column < width; ++column) {
+                const offset = (row * width + column) * 4;
+                texels.push(Array.from(pixels.slice(offset, offset + 4)).join(","));
+            }
+            rows.push(texels.join(" "));
+        }
+        return rows.join(" | ");
+    }
+
+    function setUnpackFlags(gl, flipY, premultiplyAlpha) {
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
+    }
+
+    function flagsLabel(flipY, premultiplyAlpha) {
+        const flags = [];
+        if (flipY)
+            flags.push("flipY");
+        if (premultiplyAlpha)
+            flags.push("premultiplyAlpha");
+        return flags.length ? flags.join("+") : "no flags";
+    }
+
+    const flagCombinations = [
+        [false, false],
+        [true, false],
+        [false, true],
+        [true, true],
+    ];
+
+    function uploadAndRead(gl, { format, type, width, height, data }, useTexSubImage2D) {
+        const texture = createTexture(gl);
+        if (useTexSubImage2D) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, type, new data.constructor(data.length));
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, format, type, data);
+        } else {
+            gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, type, data);
+        }
+        const error = errorName(gl, gl.getError());
+        setUnpackFlags(gl, false, false);
+        return `${error}, texture rows: ${readTexture(gl, texture, width, height)}`;
+    }
+
+    function runCase(gl, label, image, flagCombinationsToRun = flagCombinations) {
+        for (const useTexSubImage2D of [false, true]) {
+            for (const [flipY, premultiplyAlpha] of flagCombinationsToRun) {
+                const dataBefore = Array.from(image.data).join(",");
+                setUnpackFlags(gl, flipY, premultiplyAlpha);
+                const result = uploadAndRead(gl, image, useTexSubImage2D);
+                const dataIsUnchanged = Array.from(image.data).join(",") === dataBefore;
+                println(`${label}, ${useTexSubImage2D ? "texSubImage2D" : "texImage2D"}, ${flagsLabel(flipY, premultiplyAlpha)}: ${result}${dataIsUnchanged ? "" : " (source data changed)"}`);
+            }
+        }
+    }
+
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl");
+        setUpTextureDrawing(gl);
+        clearErrors(gl);
+
+        // A pixel with one fifth alpha, and a transparent one with white color.
+        runCase(gl, "RGBA/UNSIGNED_BYTE", {
+            format: gl.RGBA,
+            type: gl.UNSIGNED_BYTE,
+            width: 1,
+            height: 2,
+            data: new Uint8Array([200, 100, 50, 51, 255, 255, 255, 0]),
+        });
+
+        // Rows of six bytes padded to eight by the default UNPACK_ALIGNMENT of 4. The padding is not a pixel.
+        runCase(gl, "RGB/UNSIGNED_BYTE", {
+            format: gl.RGB,
+            type: gl.UNSIGNED_BYTE,
+            width: 2,
+            height: 2,
+            data: new Uint8Array([10, 20, 30, 40, 50, 60, 99, 99, 70, 80, 90, 100, 110, 120]),
+        }, [[true, true]]);
+
+        runCase(gl, "LUMINANCE_ALPHA/UNSIGNED_BYTE", {
+            format: gl.LUMINANCE_ALPHA,
+            type: gl.UNSIGNED_BYTE,
+            width: 1,
+            height: 2,
+            data: new Uint8Array([200, 51, 99, 99, 100, 255]),
+        }, [[false, true], [true, true]]);
+
+        runCase(gl, "ALPHA/UNSIGNED_BYTE", {
+            format: gl.ALPHA,
+            type: gl.UNSIGNED_BYTE,
+            width: 1,
+            height: 2,
+            data: new Uint8Array([51, 99, 99, 99, 255]),
+        }, [[true, true]]);
+
+        runCase(gl, "LUMINANCE/UNSIGNED_BYTE", {
+            format: gl.LUMINANCE,
+            type: gl.UNSIGNED_BYTE,
+            width: 1,
+            height: 2,
+            data: new Uint8Array([51, 99, 99, 99, 255]),
+        }, [[true, true]]);
+
+        // Red 15, green 10, blue 5 and alpha 6 of 15, then transparent white.
+        runCase(gl, "RGBA/UNSIGNED_SHORT_4_4_4_4", {
+            format: gl.RGBA,
+            type: gl.UNSIGNED_SHORT_4_4_4_4,
+            width: 1,
+            height: 2,
+            data: new Uint16Array([0xfa56, 0x9999, 0xfff0]),
+        }, [[false, true], [true, true]]);
+
+        // Opaque red with half green, then transparent white.
+        runCase(gl, "RGBA/UNSIGNED_SHORT_5_5_5_1", {
+            format: gl.RGBA,
+            type: gl.UNSIGNED_SHORT_5_5_5_1,
+            width: 1,
+            height: 2,
+            data: new Uint16Array([0xfc01, 0x9999, 0xfffe]),
+        }, [[false, true], [true, true]]);
+
+        // Red, then cyan.
+        runCase(gl, "RGB/UNSIGNED_SHORT_5_6_5", {
+            format: gl.RGB,
+            type: gl.UNSIGNED_SHORT_5_6_5,
+            width: 1,
+            height: 2,
+            data: new Uint16Array([0xf800, 0x9999, 0x07ff]),
+        }, [[true, true]]);
+
+        // A source too short for the image is an error, whatever the flags.
+        createTexture(gl);
+        setUnpackFlags(gl, true, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(7));
+        printError("too short source, texImage2D, flipY+premultiplyAlpha", gl);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(8));
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1, 2, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(7));
+        printError("too short source, texSubImage2D, flipY+premultiplyAlpha", gl);
+        setUnpackFlags(gl, false, false);
+    });
+</script>

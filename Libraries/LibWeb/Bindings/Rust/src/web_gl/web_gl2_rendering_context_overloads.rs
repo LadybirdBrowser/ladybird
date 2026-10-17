@@ -165,7 +165,7 @@ impl RenderingContext<WebGL2> {
         let buf_size = texture_data.gl_size();
         // SAFETY: Recording the command neither runs script nor allocates a cell.
         unsafe {
-            self.upload_through_nullable_pointer(&texture_data, |texture_data| {
+            self.upload_texture_data(&texture_data, |texture_data| {
                 self.proxy.tex_image2d_robust_angle(
                     target,
                     level,
@@ -252,7 +252,7 @@ impl RenderingContext<WebGL2> {
         let buf_size = texture_data.gl_size();
         // SAFETY: Recording the command neither runs script nor allocates a cell.
         unsafe {
-            self.upload_through_nullable_pointer(&texture_data, |texture_data| {
+            self.upload_texture_data(&texture_data, |texture_data| {
                 self.proxy.tex_image2d_robust_angle(
                     target,
                     level,
@@ -300,7 +300,7 @@ impl RenderingContext<WebGL2> {
         let buf_size = texture_data.gl_size();
         // SAFETY: Recording the command neither runs script nor allocates a cell.
         unsafe {
-            self.upload_through_nullable_pointer(&texture_data, |texture_data| {
+            self.upload_texture_data(&texture_data, |texture_data| {
                 self.proxy.tex_sub_image2d_robust_angle(
                     target,
                     level,
@@ -381,7 +381,7 @@ impl RenderingContext<WebGL2> {
         let buf_size = texture_data.gl_size();
         // SAFETY: Recording the command neither runs script nor allocates a cell.
         unsafe {
-            self.upload_through_nullable_pointer(&texture_data, |texture_data| {
+            self.upload_texture_data(&texture_data, |texture_data| {
                 self.proxy.tex_sub_image2d_robust_angle(
                     target,
                     level,

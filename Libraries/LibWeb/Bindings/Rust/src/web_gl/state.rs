@@ -14,12 +14,13 @@ use core::ops::Deref;
 
 use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
 
-use super::canvas::{Canvas, PixelUnpackState, TexImageSourceFrame, TexImageSourceKind, read_tex_image_source};
+use super::canvas::{Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_source};
 use super::constants::{
     GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_NO_ERROR,
 };
 use super::extensions::{EnabledEmptyExtension, EnabledExtension};
 use super::host::{CppTransport, Frame};
+use super::pixel_unpacking::PixelUnpackState;
 use super::proxy::custom::FrameUpload;
 use super::proxy::recorder::Proxy;
 use super::web_gl_buffer::WebGLBuffer;
@@ -378,6 +379,18 @@ impl ContextState {
             premultiply_alpha: self.unpack_premultiply_alpha.get(),
         };
         Some((frame, upload))
+    }
+
+    /// https://registry.khronos.org/webgl/specs/latest/2.0/#PIXEL_STORE_PARAM_CONSTRAINTS
+    /// If UNPACK_FLIP_Y_WEBGL or UNPACK_PREMULTIPLY_ALPHA_WEBGL is set to true, texImage3D and texSubImage3D generate
+    /// an INVALID_OPERATION error if they upload data from a PIXEL_UNPACK_BUFFER or a non-null client side
+    /// ArrayBufferView.
+    pub(crate) fn unpack_flags_allow_3d_upload_from_array_buffer_view(&self) -> bool {
+        if self.unpack_flip_y.get() || self.unpack_premultiply_alpha.get() {
+            self.set_error(GL_INVALID_OPERATION);
+            return false;
+        }
+        true
     }
 
     pub(crate) fn uniform_location_handle(&self, location: Ref<WebGLUniformLocation>) -> Option<i32> {

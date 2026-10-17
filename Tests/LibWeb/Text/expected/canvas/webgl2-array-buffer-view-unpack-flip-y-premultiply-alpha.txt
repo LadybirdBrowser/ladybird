@@ -1,0 +1,34 @@
+row length 3, skip 1 pixel and 1 row, flipY=false, premultiplyAlpha=false
+    texImage2D: NO_ERROR, texture rows: 200,100,50,51 255,255,255,0 | 10,20,30,255 10,20,30,255
+    texSubImage2D: NO_ERROR, texture rows: 200,100,50,51 255,255,255,0 | 10,20,30,255 10,20,30,255
+row length 3, skip 1 pixel and 1 row, flipY=true, premultiplyAlpha=false
+    texImage2D: NO_ERROR, texture rows: 10,20,30,255 10,20,30,255 | 200,100,50,51 255,255,255,0
+    texSubImage2D: NO_ERROR, texture rows: 10,20,30,255 10,20,30,255 | 200,100,50,51 255,255,255,0
+row length 3, skip 1 pixel and 1 row, flipY=false, premultiplyAlpha=true
+    texImage2D: NO_ERROR, texture rows: 40,20,10,51 0,0,0,0 | 10,20,30,255 10,20,30,255
+    texSubImage2D: NO_ERROR, texture rows: 40,20,10,51 0,0,0,0 | 10,20,30,255 10,20,30,255
+row length 3, skip 1 pixel and 1 row, flipY=true, premultiplyAlpha=true
+    texImage2D: NO_ERROR, texture rows: 10,20,30,255 10,20,30,255 | 40,20,10,51 0,0,0,0
+    texSubImage2D: NO_ERROR, texture rows: 10,20,30,255 10,20,30,255 | 40,20,10,51 0,0,0,0
+source data unchanged: true
+texImage2D with source offset, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,0 | 40,20,10,51
+texSubImage2D with source offset, flipY+premultiplyAlpha: NO_ERROR, texture rows: 40,20,10,51 | 10,20,30,255
+RGBA32F/FLOAT, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0.375,0.5,0.25,0.5 | 0.25,0.1875,0.125,0.25
+RGBA16F/HALF_FLOAT, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0.375,0.5,0.25,0.5 | 0.25,0.1875,0.125,0.25
+RGB10_A2/UNSIGNED_INT_2_10_10_10_REV, premultiplyAlpha: NO_ERROR, texture rows: 682,200,0,2 | 0,0,1023,3
+texImage3D from an ArrayBufferView, flipY=false, premultiplyAlpha=false: NO_ERROR
+texImage3D from an ArrayBufferView with source offset, flipY=false, premultiplyAlpha=false: NO_ERROR
+texImage3D from null, flipY=false, premultiplyAlpha=false: NO_ERROR
+texSubImage3D from an ArrayBufferView, flipY=false, premultiplyAlpha=false: NO_ERROR
+texImage3D from an ArrayBufferView, flipY=true, premultiplyAlpha=false: INVALID_OPERATION
+texImage3D from an ArrayBufferView with source offset, flipY=true, premultiplyAlpha=false: INVALID_OPERATION
+texImage3D from null, flipY=true, premultiplyAlpha=false: NO_ERROR
+texSubImage3D from an ArrayBufferView, flipY=true, premultiplyAlpha=false: INVALID_OPERATION
+texImage3D from an ArrayBufferView, flipY=false, premultiplyAlpha=true: INVALID_OPERATION
+texImage3D from an ArrayBufferView with source offset, flipY=false, premultiplyAlpha=true: INVALID_OPERATION
+texImage3D from null, flipY=false, premultiplyAlpha=true: NO_ERROR
+texSubImage3D from an ArrayBufferView, flipY=false, premultiplyAlpha=true: INVALID_OPERATION
+texImage3D from an ArrayBufferView, flipY=true, premultiplyAlpha=true: INVALID_OPERATION
+texImage3D from an ArrayBufferView with source offset, flipY=true, premultiplyAlpha=true: INVALID_OPERATION
+texImage3D from null, flipY=true, premultiplyAlpha=true: NO_ERROR
+texSubImage3D from an ArrayBufferView, flipY=true, premultiplyAlpha=true: INVALID_OPERATION
