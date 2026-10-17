@@ -134,6 +134,7 @@
 #include <LibWeb/SVG/SVGRectElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
+#include <LibWeb/SVG/SVGSetElement.h>
 #include <LibWeb/SVG/SVGStopElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGSwitchElement.h>
@@ -584,6 +585,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
         return create_element_on_heap<SVG::SVGRectElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::g)
         return create_element_on_heap<SVG::SVGGElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::set)
+        return create_element_on_heap<SVG::SVGSetElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::stop)
         return create_element_on_heap<SVG::SVGStopElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::style)

@@ -50,6 +50,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(radialGradient, "radialGradient")           \
     __ENUMERATE_SVG_TAG(rect, "rect")                               \
     __ENUMERATE_SVG_TAG(script, "script")                           \
+    __ENUMERATE_SVG_TAG(set, "set")                                 \
     __ENUMERATE_SVG_TAG(stop, "stop")                               \
     __ENUMERATE_SVG_TAG(style, "style")                             \
     __ENUMERATE_SVG_TAG(svg, "svg")                                 \

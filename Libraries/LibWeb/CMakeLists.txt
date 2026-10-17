@@ -944,6 +944,7 @@ set(SOURCES
     SVG/SVGRadialGradientElement.cpp
     SVG/SVGRectElement.cpp
     SVG/SVGScriptElement.cpp
+    SVG/SVGSetElement.cpp
     SVG/SVGStopElement.cpp
     SVG/SVGStyleElement.cpp
     SVG/SVGSVGElement.cpp

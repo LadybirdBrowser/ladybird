@@ -459,6 +459,7 @@ SVGRect
 SVGRectElement
 SVGSVGElement
 SVGScriptElement
+SVGSetElement
 SVGStopElement
 SVGStyleElement
 SVGSwitchElement
