@@ -2126,7 +2126,7 @@ impl<'pass> SizingContext<'pass> {
         // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a replaced element
         // with a natural aspect ratio and no natural size in that axis.
         if !facts.has_preferred_aspect_ratio()
-            || !style.width().is_auto()
+            || (facts.is_replaced_box() && !style.width().is_auto())
             || style.height().is_auto()
             || style.height().is_intrinsic_sizing_constraint()
         {
@@ -2138,16 +2138,23 @@ impl<'pass> SizingContext<'pass> {
                 inline_size: AvailableSize::MaxContent,
                 block_size: AvailableSize::Indefinite,
             });
-        if self.should_treat_block_size_as_auto(node, available_space, constraints) {
+        // NB: A cyclic percentage width of a non-replaced box behaves as auto for its intrinsic sizes.
+        if !self.should_treat_inline_size_as_auto(node, available_space)
+            || self.should_treat_block_size_as_auto(node, available_space, constraints)
+        {
             return None;
         }
+        // NB: Replaced elements resolve their sizes here without a percentage basis.
+        let sizing_constraints = if facts.is_replaced_box() {
+            ContainingBlockConstraints::default()
+        } else {
+            constraints
+        };
         // https://drafts.csswg.org/css2/#inline-replaced-width
         // "(used height) * (intrinsic ratio)"
-        let inline_size =
-            self.compute_inline_size_for_replaced_element(node, available_space, ContainingBlockConstraints::default());
+        let inline_size = self.compute_inline_size_for_replaced_element(node, available_space, sizing_constraints);
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
-        let block_size =
-            self.compute_block_size_for_replaced_element(node, available_space, ContainingBlockConstraints::default());
+        let block_size = self.compute_block_size_for_replaced_element(node, available_space, sizing_constraints);
         let minimum = self.automatic_minimum_size_from_aspect_ratio(
             node,
             SizingAxis::Inline,

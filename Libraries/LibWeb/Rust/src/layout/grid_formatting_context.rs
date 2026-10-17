@@ -1956,8 +1956,47 @@ impl<'pass> GridFormattingContext<'pass> {
             .constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints)
     }
 
+    // The sum of the max track sizing functions of the tracks the item spans in the axis, and the gutters between them,
+    // if those functions are all fixed.
+    fn fixed_track_span_size(&self, item: GridItem, axis: Axis) -> Option<CssPixels> {
+        let available = self.axis_available(axis);
+        let tracks = self.axis_tracks(axis);
+        let gaps = self.axis_gaps(axis);
+        let start = item.position(axis).max(0) as usize;
+        let end = start.saturating_add(item.span(axis)).min(tracks.len());
+        let mut size = CssPixels::default();
+        for (index, track) in tracks.iter().enumerate().take(end).skip(start) {
+            if !track.max_sizing.is_fixed(available) {
+                return None;
+            }
+            size += track.max_sizing.resolve(available);
+            if index + 1 < end {
+                size += gaps.get(index).map_or(CssPixels::default(), |gap| gap.base_size);
+            }
+        }
+        Some(size)
+    }
+
+    // https://drafts.csswg.org/css-grid-2/#algo-overview
+    // If calculating the layout of a grid item in this step depends on the available space in the block axis, assume
+    // the available space that it would have if any row with a definite max track sizing function had that size and all
+    // other rows were infinite.
+    fn column_sizing_constraints(
+        &self,
+        item: GridItem,
+        mut constraints: ContainingBlockConstraints,
+    ) -> ContainingBlockConstraints {
+        if constraints.percentage_basis_block_size.is_none() {
+            constraints.percentage_basis_block_size = self.fixed_track_span_size(item, Axis::Row);
+        }
+        constraints
+    }
+
     fn intrinsic_contribution_constraints(&self, item: GridItem, axis: Axis) -> ContainingBlockConstraints {
-        let constraints = self.container_constraints();
+        let mut constraints = self.container_constraints();
+        if axis.is_column() {
+            constraints = self.column_sizing_constraints(item, constraints);
+        }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         // A table's width, min-width and max-width apply to the table box inside the wrapper, so the wrapper's own
         // preferred size looks auto. Those percentages still resolve against the grid area, which the column
@@ -3006,7 +3045,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 block_size: AvailableSize::definite(clamp_to_max_dimension_value(containing_block)),
             };
             let mut constraints = self.grid_area_constraints(item);
-            if !axis.is_column() {
+            if axis.is_column() {
+                constraints = self.column_sizing_constraints(item, constraints);
+            } else {
                 constraints.percentage_basis_block_size = Some(containing);
             }
             let preferred = self.item_preferred_size(item, axis);
