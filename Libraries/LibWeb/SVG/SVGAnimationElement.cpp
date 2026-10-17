@@ -19,37 +19,37 @@ SVGAnimationElement::SVGAnimationElement(DOM::Document& document, DOM::Qualified
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onbegin
 void SVGAnimationElement::set_onbegin(GC::Ptr<WebIDL::CallbackType> value)
 {
-    set_event_handler_attribute(HTML::EventNames::begin, value);
+    set_event_handler_attribute(HTML::EventNames::beginEvent, value);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onbegin
 GC::Ptr<WebIDL::CallbackType> SVGAnimationElement::onbegin()
 {
-    return event_handler_attribute(HTML::EventNames::begin);
+    return event_handler_attribute(HTML::EventNames::beginEvent);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onend
 void SVGAnimationElement::set_onend(GC::Ptr<WebIDL::CallbackType> value)
 {
-    set_event_handler_attribute(HTML::EventNames::end, value);
+    set_event_handler_attribute(HTML::EventNames::endEvent, value);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onend
 GC::Ptr<WebIDL::CallbackType> SVGAnimationElement::onend()
 {
-    return event_handler_attribute(HTML::EventNames::end);
+    return event_handler_attribute(HTML::EventNames::endEvent);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onrepeat
 void SVGAnimationElement::set_onrepeat(GC::Ptr<WebIDL::CallbackType> value)
 {
-    set_event_handler_attribute(HTML::EventNames::repeat, value);
+    set_event_handler_attribute(HTML::EventNames::repeatEvent, value);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onrepeat
 GC::Ptr<WebIDL::CallbackType> SVGAnimationElement::onrepeat()
 {
-    return event_handler_attribute(HTML::EventNames::repeat);
+    return event_handler_attribute(HTML::EventNames::repeatEvent);
 }
 
 }
