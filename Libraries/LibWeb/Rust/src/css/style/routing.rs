@@ -234,6 +234,16 @@ impl RetainedState {
                 {
                     continue;
                 }
+                let sheet = self.program.rule_sheet(rule);
+                if !self.programs.get(selector_program).can_leave_its_scope()
+                    && !changed_sheets.contains(&sheet)
+                    && !self
+                        .program
+                        .sheet_rules_apply_in_scope(sheet, self.tree.tree_scope(node))
+                {
+                    self.counters.bump(Counter::ScopeConfinedRoutesSkipped);
+                    continue;
+                }
                 let path = routing.path_of(route);
                 if !is_arrival
                     && point.anchor.is_none()

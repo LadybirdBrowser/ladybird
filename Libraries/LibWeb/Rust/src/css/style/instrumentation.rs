@@ -296,6 +296,7 @@ define_counters! {
     RoutedEntryPoints => "routedEntryPoints",
     OriginTruthRoutesFired => "originTruthRoutesFired",
     OriginTruthRoutesSkipped => "originTruthRoutesSkipped",
+    ScopeConfinedRoutesSkipped => "scopeConfinedRoutesSkipped",
     ArrivingNodeFactsFolded => "arrivingNodeFactsFolded",
     SheetChangeCandidatesRejected => "sheetChangeCandidatesRejected",
     RelationalAnchorsConsidered => "relationalAnchorsConsidered",

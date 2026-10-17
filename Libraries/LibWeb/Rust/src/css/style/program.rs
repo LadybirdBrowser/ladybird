@@ -1501,6 +1501,24 @@ impl StyleSheetProgram {
         self.scopes_using_document_sheets.contains(tree_scope.0 as usize)
     }
 
+    #[must_use]
+    pub fn sheet_rules_apply_in_scope(&self, sheet: SheetID, tree_scope: TreeScopeID) -> bool {
+        self.sheet_is_attached_in_scope(sheet, tree_scope)
+            || (tree_scope != TreeScopeID::DOCUMENT
+                && self.sheet_is_attached_in_scope(sheet, TreeScopeID::DOCUMENT)
+                && (matches!(self.sheet_origin(sheet), CascadeOrigin::UserAgent | CascadeOrigin::User)
+                    || self.scope_uses_document_sheets(tree_scope)))
+    }
+
+    fn sheet_is_attached_in_scope(&self, sheet: SheetID, tree_scope: TreeScopeID) -> bool {
+        let attachments = self.sheet_attachments(sheet);
+        let sheets = self.sheets_in_scope(tree_scope);
+        match attachments.len() <= sheets.len() {
+            true => attachments.iter().any(|attachment| attachment.tree_scope == tree_scope),
+            false => sheets.contains(&sheet),
+        }
+    }
+
     /// The attachment of a sheet in one tree scope, if it is attached there.
     #[must_use]
     pub fn attachment_in_scope(&self, sheet: SheetID, tree_scope: TreeScopeID) -> Option<Attachment> {
