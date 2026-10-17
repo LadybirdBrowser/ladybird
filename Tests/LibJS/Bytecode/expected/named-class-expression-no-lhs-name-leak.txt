@@ -16,7 +16,7 @@ block0:
   [  50] Jump target:block3
 
 block1:
-  [  58] Catch dst:reg11
+  [  58] Catch value_feedback:0, dst:reg11
   [  60] SetLexicalEnvironment environment:reg4
   [  68] Mov dst:reg10, src:Int32(1)
   [  78] JumpIf condition:reg9, true_target:block13, false_target:block12

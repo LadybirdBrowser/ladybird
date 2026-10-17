@@ -31,7 +31,7 @@ block1:
   [  20] Jump target:block4
 
 block2:
-  [  28] Catch dst:reg6
+  [  28] Catch value_feedback:0, dst:reg6
   [  30] SetLexicalEnvironment environment:reg4
   [  38] Mov dst:reg5, src:Int32(1)
 

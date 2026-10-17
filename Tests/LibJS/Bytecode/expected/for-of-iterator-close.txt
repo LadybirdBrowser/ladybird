@@ -41,7 +41,7 @@ block2:
   [  80] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
-  [  90] Catch dst:reg9
+  [  90] Catch value_feedback:0, dst:reg9
   [  98] SetLexicalEnvironment environment:reg4
   [  a0] Mov dst:reg5, src:Int32(1)
 
@@ -104,7 +104,7 @@ block2:
   [  80] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
-  [  90] Catch dst:reg9
+  [  90] Catch value_feedback:0, dst:reg9
   [  98] SetLexicalEnvironment environment:reg4
   [  a0] Mov dst:reg5, src:Int32(1)
 
@@ -158,7 +158,7 @@ block2:
   [  70] Await continuation_label:block5, argument:reg12
 
 block3:
-  [  80] Catch dst:reg9
+  [  80] Catch value_feedback:2, dst:reg9
   [  88] SetLexicalEnvironment environment:reg4
   [  90] Mov dst:reg8, src:Int32(1)
 
@@ -204,7 +204,7 @@ block14:
   [ 1c8] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:4, lhs:reg8, rhs:3, true_target:block1, false_target:block19
 
 block15:
-  [ 1e0] Call value_feedback:2, call_feedback:0, dst:reg13, callee:reg12, this_value:reg5
+  [ 1e0] Call value_feedback:3, call_feedback:0, dst:reg13, callee:reg12, this_value:reg5
   [ 200] Await continuation_label:block16, argument:reg13
 
 block16:
@@ -232,7 +232,7 @@ block22:
   [ 288] Throw src:reg9
 
 block23:
-  [ 290] Catch dst:reg12
+  [ 290] Catch value_feedback:5, dst:reg12
   [ 298] JumpLoop target:block22
 
 block24:
@@ -240,7 +240,7 @@ block24:
   [ 2b8] JumpUndefined condition:reg12, true_target:block22, false_target:block25
 
 block25:
-  [ 2c8] Call value_feedback:3, call_feedback:1, dst:reg13, callee:reg12, this_value:reg5
+  [ 2c8] Call value_feedback:4, call_feedback:1, dst:reg13, callee:reg12, this_value:reg5
   [ 2e8] Await continuation_label:block26, argument:reg13
 
 block26:

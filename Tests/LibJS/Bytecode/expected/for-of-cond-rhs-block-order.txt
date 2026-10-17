@@ -52,7 +52,7 @@ block5:
   [ 120] JumpLoop target:block2
 
 block6:
-  [ 128] Catch dst:reg9
+  [ 128] Catch value_feedback:5, dst:reg9
   [ 130] SetLexicalEnvironment environment:reg4
   [ 138] Mov dst:reg7, src:Int32(1)
 
@@ -65,7 +65,7 @@ block8:
   [ 190] Jump target:block11
 
 block9:
-  [ 198] Catch dst:reg17
+  [ 198] Catch value_feedback:4, dst:reg17
   [ 1a0] SetLexicalEnvironment environment:reg4
   [ 1a8] Mov dst:reg16, src:Int32(1)
   [ 1b8] JumpIf condition:reg15, true_target:block22, false_target:block21

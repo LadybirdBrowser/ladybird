@@ -298,7 +298,10 @@ mod tests {
                     Instruction::Mov { dst: r(6), src: a(0) },
                     Instruction::Mov { dst: r(5), src: c(1) },
                     Instruction::Throw { src: r(6) },
-                    Instruction::Catch { dst: r(7) },
+                    Instruction::Catch {
+                        value_feedback: 0,
+                        dst: r(7),
+                    },
                     Instruction::Add {
                         arith_feedback: 0,
                         dst: r(7),

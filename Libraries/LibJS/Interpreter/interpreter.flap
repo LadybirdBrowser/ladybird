@@ -2050,9 +2050,12 @@ handler ToBoolean(
 }
 
 handler Catch(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand
 ) {
-    store(dst, exec_ctx.exception);
+    let exception = exec_ctx.exception;
+    record_value_feedback(value_feedback, exception);
+    store(dst, exception);
     exec_ctx.exception = Value<Empty>;
     dispatch_next;
 }

@@ -35,7 +35,7 @@ block0:
   [  60] Jump target:block3
 
 block1:
-  [  68] Catch dst:reg11
+  [  68] Catch value_feedback:0, dst:reg11
   [  70] SetLexicalEnvironment environment:reg4
   [  78] Mov dst:reg10, src:Int32(1)
   [  88] JumpIf condition:reg9, true_target:block13, false_target:block12
@@ -146,13 +146,13 @@ block0:
   [  80] Jump target:block3
 
 block1:
-  [  88] Catch dst:reg11
+  [  88] Catch value_feedback:0, dst:reg11
   [  90] SetLexicalEnvironment environment:reg4
   [  98] Mov dst:reg10, src:Int32(1)
   [  a8] JumpIf condition:reg9, true_target:block11, false_target:block10
 
 block2:
-  [  b8] GetInitializedBinding value_feedback:0, dst:reg5, `setValue`
+  [  b8] GetInitializedBinding value_feedback:1, dst:reg5, `setValue`
   [  d0] Return value:reg5
 
 block3:
