@@ -1,0 +1,6 @@
+min-height: 300x150
+min-width: 300x150
+max-height: 60x30
+min-height-with-width: 200x150
+block-min-height: 300x150
+block-max-height: 60x30

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    canvas {
+        display: block;
+    }
+</style>
+<div style="width: 200px">
+    <canvas id="min-height" width="100" height="50" style="min-height: 150px"></canvas>
+    <canvas id="min-width" width="100" height="50" style="min-width: 300px"></canvas>
+    <canvas id="max-height" width="400" height="200" style="max-height: 30px"></canvas>
+    <canvas id="min-height-with-width" width="100" height="50" style="width: 100%; min-height: 150px"></canvas>
+    <div id="block-min-height" style="aspect-ratio: 2 / 1; min-height: 150px"></div>
+    <div id="block-max-height" style="aspect-ratio: 2 / 1; max-height: 30px"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["min-height", "min-width", "max-height", "min-height-with-width", "block-min-height", "block-max-height"]) {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: ${rect.width}x${rect.height}`);
+        }
+    });
+</script>

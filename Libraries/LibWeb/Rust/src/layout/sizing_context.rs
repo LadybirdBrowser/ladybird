@@ -497,9 +497,10 @@ impl<'pass> SizingContext<'pass> {
         } else {
             self.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints)
         };
+        // NB: A maximum of 'none' places no limit, so the table can grow a size to satisfy a minimum in the other axis.
         let specified_max_inline =
             if self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
-                input_inline_size
+                max_dimension_value()
             } else {
                 self.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints)
             };
@@ -511,7 +512,7 @@ impl<'pass> SizingContext<'pass> {
         };
         let specified_max_block =
             if self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints) {
-                input_block_size
+                max_dimension_value()
             } else {
                 self.calculate_inner_block_size(node, available_space, style.max_height(), constraints)
             };
