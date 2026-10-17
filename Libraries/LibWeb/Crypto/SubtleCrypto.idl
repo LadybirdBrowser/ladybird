@@ -70,8 +70,7 @@ interface SubtleCrypto {
 
     [NeedsCallerRealm] Promise<(CryptoKey or CryptoKeyPair)> generateKey(AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
     [NeedsCallerRealm] Promise<CryptoKey> deriveKey(AlgorithmIdentifier algorithm, CryptoKey baseKey, AlgorithmIdentifier derivedKeyType, boolean extractable, sequence<KeyUsage> keyUsages);
-    // FIXME: Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional unsigned long? length = null);
-    [NeedsCallerRealm] Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional unsigned long? length);
+    [NeedsCallerRealm] Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional [EnforceRange] unsigned long? length = null);
 
     [NeedsCallerRealm] Promise<CryptoKey> importKey(KeyFormat format, (BufferSource or JsonWebKey) keyData,  AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
     [NeedsCallerRealm] Promise<(ArrayBuffer or JsonWebKey)> exportKey(KeyFormat format, CryptoKey key);
