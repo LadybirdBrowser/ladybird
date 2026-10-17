@@ -217,7 +217,7 @@ void BodyMixin::text(GC::Ref<WebIDL::Promise> promise) const
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
         VERIFY(decoder.has_value());
 
-        auto utf8_text = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, bytes));
+        auto utf8_text = MUST(decoder->to_utf8(bytes, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
         return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(utf8_text));
     }));
 }
