@@ -89,9 +89,10 @@ void GCAllocatedWrappable::visit_edges(GC::Cell::Visitor& visitor)
 
 GC::Ptr<JS::HostObject> Wrappable::cached_main_world_wrapper(WrapperWorld const& world) const
 {
+    // NB: set_cached_main_world_wrapper() verified that the wrapper belongs to the main world when it cached it, so a
+    //     read only walks to the wrapper's realm again in debug builds.
     VERIFY(world.is_main_world());
-    if (m_main_world_wrapper)
-        VERIFY(&host_defined_wrapper_world(m_main_world_wrapper->shape().realm()) == &world);
+    ASSERT(!m_main_world_wrapper || &host_defined_wrapper_world(m_main_world_wrapper->shape().realm()) == &world);
     return m_main_world_wrapper.ptr();
 }
 
