@@ -9535,8 +9535,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm&, Algorithm
 WebIDL::ExceptionOr<ByteBuffer> Argon2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length)
 {
     auto const& normalized_algorithm = static_cast<Argon2Params const&>(params);
-    // 1. If length is null, or is less than 32 (4*8), then throw an OperationError.
-    if (!length.has_value() || length.value() < 32u)
+    // 1. If length is null, or is less than 32 (4*8), or is not a multiple of 8, then throw an OperationError.
+    if (!length.has_value() || length.value() < 32u || length.value() % 8 != 0)
         return WebIDL::OperationError::create("Length must be equal or greater than 32"_utf16);
 
     // 2. If the version member of normalizedAlgorithm is present and is not 19 (0x13), then throw an OperationError.
