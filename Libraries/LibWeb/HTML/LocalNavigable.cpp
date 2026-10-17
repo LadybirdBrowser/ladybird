@@ -1257,7 +1257,11 @@ void LocalNavigable::run_ui_descendant_unload_task(ChildNavigableDestruction chi
                 // The browsing context's WindowProxy outlives the document, since scripts hold it for the navigable.
                 if (auto browsing_context = active_document->browsing_context())
                     navigable->m_window_proxy_after_unload = browsing_context->window_proxy();
-                auto replicated_state = navigable->replicated_state();
+                // NB: The navigable can be destroyed after this task was queued, which can leave its parent without the
+                //     active document its replicated state reads. A destroyed navigable has nothing to stop hosting.
+                Optional<ReplicatedNavigableState> replicated_state;
+                if (stop_hosting_after_unload == StopHostingAfterUnload::Yes && !navigable->has_been_destroyed())
+                    replicated_state = navigable->replicated_state();
                 active_document->unload();
 
                 // Another page hosts the navigable's next document, or destroys the navigable. A RemoteNavigable takes
@@ -1266,8 +1270,8 @@ void LocalNavigable::run_ui_descendant_unload_task(ChildNavigableDestruction chi
                 // NB: An unload handler can remove the navigable's container, which destroys the navigable. Nothing is
                 //     left to stop hosting then: the container's removal tells the UI process the navigable is gone, and
                 //     scripts holding the WindowProxy see the window of a removed iframe.
-                if (stop_hosting_after_unload == StopHostingAfterUnload::Yes && !navigable->has_been_destroyed())
-                    navigable->page().stop_hosting(*navigable, move(replicated_state));
+                if (replicated_state.has_value() && !navigable->has_been_destroyed())
+                    navigable->page().stop_hosting(*navigable, replicated_state.release_value());
             }
             on_complete->function()();
         }));
