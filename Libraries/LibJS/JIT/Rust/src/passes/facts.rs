@@ -161,10 +161,11 @@ impl Kinds {
     const DOUBLE: Self = Self(1 << 1);
     const STRING: Self = Self(1 << 2);
     const OBJECT: Self = Self(1 << 3);
-    /// Every other kind of value: `undefined`, `null`, booleans, symbols
-    /// and big integers.
+    /// Every other kind of value: `undefined`, `null`, symbols and big
+    /// integers.
     const OTHER: Self = Self(1 << 4);
-    const ALL: Self = Self((1 << 5) - 1);
+    const BOOLEAN: Self = Self(1 << 5);
+    const ALL: Self = Self((1 << 6) - 1);
     const NUMBER: Self = Self(Self::INT32.0 | Self::DOUBLE.0);
 
     fn of(kind: ValueKind) -> Self {
@@ -197,6 +198,7 @@ impl Kinds {
             BranchCondition::Object => exactly(Self::OBJECT),
             BranchCondition::String => exactly(Self::STRING),
             BranchCondition::Int32Value => exactly(Self::INT32),
+            BranchCondition::Int32OrBoolean => exactly(Self(Self::INT32.0 | Self::BOOLEAN.0)),
             BranchCondition::Double => exactly(Self::DOUBLE),
             // NB: These also depend on more than the kind: values of the
             //     kind may fail them.
@@ -349,6 +351,7 @@ impl Facts {
             (Some(Repr::Float64), _) => Kinds::NUMBER,
             (_, Op::BoxInt32) => self.kinds(value).intersect(Kinds::INT32),
             (_, Op::BoxFloat64) => self.kinds(value).intersect(Kinds::NUMBER),
+            (_, Op::BoxBool) => self.kinds(value).intersect(Kinds::BOOLEAN),
             _ => self.kinds(value),
         }
     }
@@ -913,6 +916,8 @@ mod tests {
             Repr::Tagged,
             Repr::Tagged,
             Repr::Int32,
+            Repr::Tagged,
+            Repr::Tagged,
         ] {
             graph.add_node(crate::ir::Node {
                 op: crate::ir::Op::LoadSlot { slot: 0 },
@@ -950,6 +955,29 @@ mod tests {
             facts.decides(&graph, NodeId(5), BranchCondition::Int32Value),
             Some(true)
         );
+        assert_eq!(
+            facts.decides(&graph, NodeId(5), BranchCondition::Int32OrBoolean),
+            Some(true)
+        );
+        // An int32 or a boolean is neither nullish nor an object, and a value
+        // that is neither is no int32.
+        let integer_or_boolean = NodeId(6);
+        facts.set_passed(integer_or_boolean, BranchCondition::Int32OrBoolean);
+        assert_eq!(
+            facts.decides(&graph, integer_or_boolean, BranchCondition::Nullish),
+            Some(false)
+        );
+        assert_eq!(
+            facts.decides(&graph, integer_or_boolean, BranchCondition::Object),
+            Some(false)
+        );
+        assert_eq!(
+            facts.decides(&graph, integer_or_boolean, BranchCondition::Int32Value),
+            None
+        );
+        let neither = NodeId(7);
+        facts.set_failed(neither, BranchCondition::Int32OrBoolean);
+        assert_eq!(facts.decides(&graph, neither, BranchCondition::Int32Value), Some(false));
         let object = NodeId(2);
         facts.set_passed(object, BranchCondition::ElementsKind(ElementsKind::Packed));
         assert!(facts.is_object(object));

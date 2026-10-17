@@ -277,6 +277,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.constant("ARITH_FEEDBACK_BIGINT", arith_feedback::BIG_INT);
     w.constant("ARITH_FEEDBACK_OTHER", arith_feedback::OTHER);
     w.constant("ARITH_FEEDBACK_OBJECT_PAIR", arith_feedback::OBJECT_PAIR);
+    w.constant("ARITH_FEEDBACK_BOOLEAN", arith_feedback::BOOLEAN);
     w.constant("ARITH_FEEDBACK_INT32_AND_DOUBLE", arith_feedback::INT32 | arith_feedback::DOUBLE);
     w.constant("ARITH_FEEDBACK_INT32_AND_OTHER", arith_feedback::INT32 | arith_feedback::OTHER);
     offset!(w, "CALL_FEEDBACK_TARGET", CallFeedback, target);

@@ -2245,6 +2245,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             BranchCondition::Int32Value => {
                 self.branch_on_tag(when(Condition::Equal), input, value::INT32_TAG, scratch, target);
             }
+            BranchCondition::Int32OrBoolean => {
+                // NB: The int32 tag follows the boolean tag.
+                const _: () = assert!(value::INT32_TAG == value::BOOLEAN_TAG + 1);
+                self.masm.shr64_imm(scratch, input, value::TAG_SHIFT);
+                self.masm.sub32_imm(scratch, scratch, i32::from(value::BOOLEAN_TAG));
+                self.masm
+                    .branch32_imm(when(Condition::BelowOrEqual), scratch, 1, target);
+            }
             BranchCondition::String => {
                 self.branch_on_tag(when(Condition::Equal), input, value::STRING_TAG, scratch, target);
             }

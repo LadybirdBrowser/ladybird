@@ -86,6 +86,7 @@ fn condition_text(condition: BranchCondition) -> String {
         BranchCondition::TaggedEquals { equal: true } => "TaggedEquals".to_string(),
         BranchCondition::TaggedEquals { equal: false } => "TaggedNotEquals".to_string(),
         BranchCondition::Int32Value => "Int32Value".to_string(),
+        BranchCondition::Int32OrBoolean => "Int32OrBoolean".to_string(),
         BranchCondition::Double => "Double".to_string(),
         BranchCondition::String => "String".to_string(),
         BranchCondition::ResolvedString => "ResolvedString".to_string(),

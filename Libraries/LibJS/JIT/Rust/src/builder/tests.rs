@@ -2440,6 +2440,39 @@ mod arguments {
     }
 }
 
+fn dump_bitwise_or(feedback: u8) -> String {
+    let program = assemble(|_| {
+        vec![
+            Instruction::BitwiseOr {
+                dst: r(5),
+                lhs: a(0),
+                rhs: r(6),
+                arith_feedback: 0,
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let mut snapshot = snapshot_for(&program, test_layout());
+    snapshot.executables[0].feedback.arith = vec![feedback];
+    dump(&optimized_graph(&snapshot), &test_layout())
+}
+
+#[test]
+fn bitwise_operands_that_were_booleans_are_read_as_int32s() {
+    use crate::snapshot::arith_feedback::{BOOLEAN, INT32, OTHER};
+    let text = dump_bitwise_or(INT32 | BOOLEAN);
+    assert_eq!(text.matches("BranchInt32OrBoolean").count(), 2, "{text}");
+    assert!(text.contains("Int32BitwiseOr"), "{text}");
+    assert_eq!(text.matches("CallSlowPath BitwiseOr").count(), 1, "{text}");
+    // Other operands, like undefined, are no booleans.
+    let text = dump_bitwise_or(INT32 | OTHER);
+    assert!(!text.contains("BranchInt32OrBoolean"), "{text}");
+    // Without booleans, int32 speculation checks the operands instead.
+    let text = dump_bitwise_or(INT32);
+    assert!(!text.contains("BranchInt32OrBoolean"), "{text}");
+    assert_eq!(text.matches("CheckInt32").count(), 2, "{text}");
+}
+
 #[test]
 fn numeric_feedback_uses_number_guards_instead_of_type_dispatch() {
     let program = assemble(|_| {

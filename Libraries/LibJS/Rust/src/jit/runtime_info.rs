@@ -371,6 +371,7 @@ const _: () = {
     assert!(libjs_jit::snapshot::arith_feedback::BIG_INT == crate::layout::feedback::arith_feedback::BIG_INT);
     assert!(libjs_jit::snapshot::arith_feedback::OTHER == crate::layout::feedback::arith_feedback::OTHER);
     assert!(libjs_jit::snapshot::arith_feedback::OBJECT_PAIR == crate::layout::feedback::arith_feedback::OBJECT_PAIR);
+    assert!(libjs_jit::snapshot::arith_feedback::BOOLEAN == crate::layout::feedback::arith_feedback::BOOLEAN);
     assert!(
         libjs_jit::snapshot::call_feedback_flags::POLYMORPHIC
             == crate::layout::feedback::call_feedback_flags::POLYMORPHIC

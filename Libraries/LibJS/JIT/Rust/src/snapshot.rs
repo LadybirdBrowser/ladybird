@@ -298,7 +298,10 @@ pub mod arith_feedback {
     pub const OTHER: u8 = 1 << 5;
     /// Equality comparisons where both operands are objects.
     pub const OBJECT_PAIR: u8 = 1 << 6;
-    pub const NON_NUMERIC: u8 = STRING | BIG_INT | OTHER | OBJECT_PAIR;
+    /// Boolean operands of arithmetic and bitwise operations, which `OTHER`
+    /// does not include there.
+    pub const BOOLEAN: u8 = 1 << 7;
+    pub const NON_NUMERIC: u8 = STRING | BIG_INT | OTHER | OBJECT_PAIR | BOOLEAN;
 }
 
 /// `value_feedback` bits: the types of the values an instruction produced.
