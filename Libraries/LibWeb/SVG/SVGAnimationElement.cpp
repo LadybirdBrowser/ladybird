@@ -11,8 +11,6 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGAnimationElement);
-
 SVGAnimationElement::SVGAnimationElement(DOM::Document& document, DOM::QualifiedName name)
     : SVGElement(document, name)
 {

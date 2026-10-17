@@ -1182,6 +1182,7 @@ class SVGPolygonElement;
 class SVGPolylineElement;
 class SVGRectElement;
 class SVGScriptElement;
+class SVGSetElement;
 class SVGSVGElement;
 class SVGSwitchElement;
 class SVGSymbolElement;

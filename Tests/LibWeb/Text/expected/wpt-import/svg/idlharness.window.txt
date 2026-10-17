@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1113 Pass
-667 Fail
+1124 Pass
+656 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1684,18 +1684,18 @@ Pass	SVGElement interface: objects.animate must inherit property "ownerSVGElemen
 Pass	SVGElement interface: objects.animate must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.animate must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.animate must inherit property "correspondingUseElement" with the proper type
-Fail	SVGSetElement interface: existence and properties of interface object
-Fail	SVGSetElement interface object length
-Fail	SVGSetElement interface object name
-Fail	SVGSetElement interface: existence and properties of interface prototype object
-Fail	SVGSetElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGSetElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGSetElement must be primary interface of objects.set
-Fail	Stringification of objects.set
+Pass	SVGSetElement interface: existence and properties of interface object
+Pass	SVGSetElement interface object length
+Pass	SVGSetElement interface object name
+Pass	SVGSetElement interface: existence and properties of interface prototype object
+Pass	SVGSetElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGSetElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGSetElement must be primary interface of objects.set
+Pass	Stringification of objects.set
 Fail	SVGAnimationElement interface: objects.set must inherit property "targetElement" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "onbegin" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "onend" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "onrepeat" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "onbegin" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "onend" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "onrepeat" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "getStartTime()" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "getCurrentTime()" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "getSimpleDuration()" with the proper type

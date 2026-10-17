@@ -12,10 +12,10 @@
 
 namespace Web::SVG {
 
-class SVGAnimationElement final : public SVGElement {
+class SVGAnimationElement : public SVGElement {
     WEB_WRAPPABLE(SVGAnimationElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGAnimationElement);
 
+public:
     void set_onbegin(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onbegin();
 
@@ -25,7 +25,7 @@ class SVGAnimationElement final : public SVGElement {
     void set_onrepeat(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onrepeat();
 
-private:
+protected:
     SVGAnimationElement(DOM::Document&, DOM::QualifiedName);
 };
 
