@@ -70,17 +70,20 @@ pub(crate) fn site(
         .into_iter()
         .map(|frame_state| {
             let frame_state = graph.frame_state(frame_state);
-            let values = frame_state
+            let mut values = frame_state
                 .values
                 .iter()
                 .map(|(_, value)| location_of(*value))
-                .collect();
+                .collect::<Vec<_>>();
+            values.sort_unstable_by_key(|(slot, _)| *slot);
+            let mut in_frame = frame_state.in_frame.clone();
+            in_frame.sort_unstable();
             CodeFrameState {
                 executable: frame_state.executable,
                 pc: frame_state.pc,
                 mode: frame_state.mode,
                 values,
-                in_frame: frame_state.in_frame.clone(),
+                in_frame,
                 passed_argument_count: frame_state.passed_argument_count,
             }
         })

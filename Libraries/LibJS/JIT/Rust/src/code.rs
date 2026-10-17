@@ -235,12 +235,13 @@ pub struct FrameState {
     pub executable: u32,
     pub pc: u32,
     pub mode: ResumeMode,
-    /// The value of each frame slot that differs from what the frame already holds.
+    /// The value of each frame slot that differs from what the frame already
+    /// holds, in slot order.
     pub values: Vec<(u32, ValueLocation)>,
     /// The live slots whose value the frame already holds (see
-    /// `ir::FrameState::in_frame`). Exits clear the registers and locals
-    /// listed in neither, except a `ResumeAfter` destination, which exits
-    /// never write either.
+    /// `ir::FrameState::in_frame`), in slot order. Exits clear the registers
+    /// and locals listed in neither, except a `ResumeAfter` destination,
+    /// which exits never write either.
     pub in_frame: Vec<u32>,
     /// See `ir::FrameState::passed_argument_count`.
     pub passed_argument_count: Option<u32>,
