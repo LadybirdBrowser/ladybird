@@ -361,7 +361,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
             let converted = (graph.node(node).op == Op::CheckNumber)
                 .then(|| graph.node(graph.unrefined(inputs[0])))
                 .filter(|unrefined| unrefined.op == Op::BoxInt32)
-                .map(|unrefined| unrefined.inputs[0]);
+                .map(|unrefined| replacements.resolve(unrefined.inputs[0]));
             // NB: ToInt32 of double arithmetic of int32 values is wrapping
             //     int32 arithmetic.
             let wrapping = (graph.node(node).op == Op::Float64ToInt32)
@@ -515,6 +515,9 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
             });
             let folded = folded.or_else(|| {
                 let integer = converted?;
+                if let Some(double) = dissolved_double(graph, integer) {
+                    return Some(double);
+                }
                 let pc = graph.node(node).pc;
                 let conversion = graph.add_node(Node::new(Op::Int32ToFloat64, vec![integer], Some(Repr::Float64), pc));
                 graph.blocks[block.index()].body.insert(index - 1, conversion);
