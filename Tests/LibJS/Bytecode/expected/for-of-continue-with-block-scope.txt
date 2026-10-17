@@ -39,7 +39,7 @@ block2:
   [  98] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
 
 block3:
-  [  a8] Catch dst:reg9
+  [  a8] Catch value_feedback:6, dst:reg9
   [  b0] SetLexicalEnvironment environment:reg4
   [  b8] Mov dst:reg8, src:Int32(1)
   [  c8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg8, rhs:1, true_target:block7, false_target:block8

@@ -481,7 +481,10 @@ mod tests {
                     Instruction::Mov { dst: r(5), src: c(0) },
                     Instruction::Mov { dst: r(6), src: a(0) },
                     Instruction::Throw { src: r(6) },
-                    Instruction::Catch { dst: r(7) },
+                    Instruction::Catch {
+                        value_feedback: 0,
+                        dst: r(7),
+                    },
                     Instruction::Return { value: r(5) },
                     Instruction::Jump { target: label(0) },
                 ]

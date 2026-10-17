@@ -50,7 +50,7 @@ use crate::compile::CompiledProgramBytecode;
 use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 29;
+const FORMAT_VERSION: u32 = 30;
 /// The size of the source hash a blob is keyed by.
 pub(crate) const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;

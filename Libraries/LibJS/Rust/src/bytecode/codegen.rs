@@ -7631,7 +7631,9 @@ fn generate_for_of_statement_inner(
 
     // --- Exception preamble: catch thrown exception, route to iterator close ---
     generator.switch_to_basic_block(exception_preamble_block);
+    let value_feedback = generator.next_value_feedback();
     generator.emit(Instruction::Catch {
+        value_feedback,
         dst: close_completion_value.operand(),
     });
     if let Some(env) = &lexical_env_at_entry {
@@ -7843,7 +7845,9 @@ fn generate_for_of_statement_inner(
         generator.current_unwind_handler = old_close_handler;
         generator.switch_to_basic_block(close_catch_block);
         let discarded = generator.allocate_register();
+        let value_feedback = generator.next_value_feedback();
         generator.emit(Instruction::Catch {
+            value_feedback,
             dst: discarded.operand(),
         });
         generator.emit(Instruction::Jump { target: rethrow_block });
@@ -8302,7 +8306,9 @@ fn generate_array_binding_pattern(
     });
 
     generator.switch_to_basic_block(exception_preamble_block);
+    let value_feedback = generator.next_value_feedback();
     generator.emit(Instruction::Catch {
+        value_feedback,
         dst: close_completion_value.operand(),
     });
     if let Some(env) = &lexical_env_at_entry {
@@ -8604,7 +8610,11 @@ fn generate_try_statement(
         let ctx_index = generator.current_finally_context.expect("no active finally context");
         let cv = generator.finally_contexts[ctx_index].completion_value.clone();
         let ct = generator.finally_contexts[ctx_index].completion_type.clone();
-        generator.emit(Instruction::Catch { dst: cv.operand() });
+        let value_feedback = generator.next_value_feedback();
+        generator.emit(Instruction::Catch {
+            value_feedback,
+            dst: cv.operand(),
+        });
         generator.emit(Instruction::SetLexicalEnvironment {
             environment: saved_env.operand(),
         });
@@ -8627,7 +8637,9 @@ fn generate_try_statement(
         generator.switch_to_basic_block(hb);
 
         let caught_value = generator.allocate_register();
+        let value_feedback = generator.next_value_feedback();
         generator.emit(Instruction::Catch {
+            value_feedback,
             dst: caught_value.operand(),
         });
         generator.emit(Instruction::SetLexicalEnvironment {

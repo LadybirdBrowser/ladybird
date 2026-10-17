@@ -40,7 +40,7 @@ block2:
   [  b8] End value:Undefined
 
 block3:
-  [  c0] Catch dst:reg12
+  [  c0] Catch value_feedback:1, dst:reg12
   [  c8] SetLexicalEnvironment environment:reg4
   [  d0] Mov dst:reg11, src:Int32(1)
   [  e0] JumpIf condition:reg10, true_target:block16, false_target:block15

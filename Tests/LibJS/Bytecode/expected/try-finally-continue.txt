@@ -50,7 +50,7 @@ block4:
   [  60] Return value:result~1
 
 block5:
-  [  68] Catch dst:reg6
+  [  68] Catch value_feedback:0, dst:reg6
   [  70] SetLexicalEnvironment environment:reg4
   [  78] Mov dst:reg5, src:Int32(1)
 
@@ -124,7 +124,7 @@ block4:
   [  60] Return value:result~1
 
 block5:
-  [  68] Catch dst:reg6
+  [  68] Catch value_feedback:0, dst:reg6
   [  70] SetLexicalEnvironment environment:reg4
   [  78] Mov dst:reg5, src:Int32(1)
 
