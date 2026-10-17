@@ -1,0 +1,25 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <!--
+    This needs to be a testharness.js test rather than a crashtest so that we
+    can explicitly call done().
+    -->
+  <head>
+    <title>Test for crash with stop() in onreadystatechange handler</title>
+    <script src="../resources/testharness.js" />
+    <script src="../resources/testharnessreport.js" />
+  </head>
+  <body>
+    <script>
+      setup({ single_test: true });
+      document.addEventListener("readystatechange", function () {
+        window.stop();
+
+        // Call done() explicitly because stop() would otherwise lead to a
+        // timeout (at least in a crashtest), and also explicitly dispatch the
+        // "load" event to keep WPT happy.
+        done();
+        window.dispatchEvent(new Event("load"));
+      }, { once: true });
+    </script>
+  </body>
+</html>

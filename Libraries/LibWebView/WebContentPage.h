@@ -313,7 +313,7 @@ private:
     virtual void did_receive_download_data(u64 download_id, ByteBuffer data) override;
     virtual void did_finish_download(u64 download_id) override;
     virtual void did_fail_download(u64 download_id, String error) override;
-    virtual void did_finish_loading(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id) override;
+    virtual void did_finish_loading(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId document_id) override;
     virtual void did_change_title(Utf16String title) override;
     virtual void did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target, Optional<Utf16String> misspelled_word, Optional<u64> text_fragment_generation_id) override;
     virtual void did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<u64> text_fragment_generation_id) override;
