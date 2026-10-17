@@ -1,0 +1,4 @@
+nothing assigned to the slot: outer stays open
+right after assigning a node to the slot: outer closed
+a node assigned to the slot: outer closed
+right after unassigning the last node from the slot: outer stays open
