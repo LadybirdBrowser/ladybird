@@ -1160,15 +1160,26 @@ impl<'pass> SizingContext<'pass> {
         }
         let ratio = facts.preferred_aspect_ratio()?;
         let style = self.style(node);
+        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
+        // NB: The block axis padding may not be resolved into the used values yet, so it is resolved from the style.
         let definite_block_size = |size: &ComputedSize| -> Option<CssPixels> {
             if !size.is_length_percentage()
                 || (size.contains_percentage() && constraints.percentage_basis_block_size.is_none())
             {
                 return None;
             }
-            Some(self.calculate_inner_block_size(node, available_space, size, constraints))
+            let value = size.to_px(constraints.block_basis());
+            if style.box_sizing() != box_sizing::BORDER_BOX {
+                return Some(value);
+            }
+            Some(formatting_context::subtract_border_box_adjustment(
+                value,
+                style.border_top_width(),
+                style.padding_top().to_px(containing_block_inline_size),
+                style.border_bottom_width(),
+                style.padding_bottom().to_px(containing_block_inline_size),
+            ))
         };
-        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let to_inline_size = |block_size: CssPixels| {
             formatting_context::content_inline_size_from_aspect_ratio_values(
                 block_size,
@@ -2172,6 +2183,37 @@ impl<'pass> SizingContext<'pass> {
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
     ) -> CssPixels {
+        let size = self.calculate_min_content_inline_size_before_transferred_limits(node, constraints, block_size);
+        self.apply_transferred_limits_to_intrinsic_inline_size(node, size, AvailableSize::MinContent, constraints)
+    }
+
+    // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
+    // NB: When the block size of a box with a preferred aspect ratio is indefinite, its intrinsic inline sizes honor the
+    //     min/max block sizes transferred through the ratio.
+    fn apply_transferred_limits_to_intrinsic_inline_size(
+        &self,
+        node: Node,
+        inline_size: CssPixels,
+        available: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        if !self.facts(node).has_preferred_aspect_ratio() || !self.preferred_block_size(node, constraints).is_auto() {
+            return inline_size;
+        }
+        let available_space = AvailableSpace {
+            inline_size: available,
+            block_size: AvailableSize::Indefinite,
+        };
+        self.transferred_inline_size_limits(node, available_space, constraints)
+            .map_or(inline_size, |limits| limits.clamp(inline_size))
+    }
+
+    fn calculate_min_content_inline_size_before_transferred_limits(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
+    ) -> CssPixels {
         let facts = self.facts(node);
         let style = self.style(node);
         if facts.is_replaced_box() && (style.width().contains_percentage() || style.max_width().contains_percentage()) {
@@ -2279,6 +2321,16 @@ impl<'pass> SizingContext<'pass> {
     }
 
     fn calculate_max_content_inline_size_with_block_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
+    ) -> CssPixels {
+        let size = self.calculate_max_content_inline_size_before_transferred_limits(node, constraints, block_size);
+        self.apply_transferred_limits_to_intrinsic_inline_size(node, size, AvailableSize::MaxContent, constraints)
+    }
+
+    fn calculate_max_content_inline_size_before_transferred_limits(
         &self,
         node: Node,
         constraints: ContainingBlockConstraints,
