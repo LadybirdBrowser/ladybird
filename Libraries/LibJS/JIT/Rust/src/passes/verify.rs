@@ -486,6 +486,7 @@ fn branch_input_reprs(condition: crate::ir::BranchCondition) -> Vec<Repr> {
         | crate::ir::BranchCondition::Extensible
         | crate::ir::BranchCondition::HoleFillableArray
         | crate::ir::BranchCondition::ArrayIterator
+        | crate::ir::BranchCondition::GeneratorObject
         | crate::ir::BranchCondition::PlainArrayPrototypeChain => vec![Repr::Pointer],
         crate::ir::BranchCondition::Shape(_) => vec![Repr::Tagged, Repr::Pointer],
         crate::ir::BranchCondition::PropertyIteratorCacheValid => tagged(2),
@@ -529,7 +530,11 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::LoadElementsLength | Op::LoadElementsCapacity => Some(vec![Repr::Pointer]),
         Op::LoadPropertyIteratorKey => Some(vec![Repr::Tagged, Repr::Int32]),
         Op::OpenArrayIteration => Some(tagged(1)),
-        Op::LoadArrayIteratorArray | Op::LoadArrayIteratorIndex | Op::FinishArrayIterator => Some(vec![Repr::Pointer]),
+        Op::LoadArrayIteratorArray
+        | Op::LoadArrayIteratorIndex
+        | Op::FinishArrayIterator
+        | Op::LoadGeneratorCompletionType
+        | Op::LoadGeneratorCompletionValue => Some(vec![Repr::Pointer]),
         Op::StoreArrayIteratorIndex => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::BranchOnPc { .. } => Some(vec![Repr::Int32]),
         Op::BoxInt32 | Op::CheckNonNegativeInt32 => Some(vec![Repr::Int32]),

@@ -1795,6 +1795,31 @@ impl<'a> GraphBuilder<'a> {
         Ok(Flow::Ended)
     }
 
+    /// Builds `GetCompletionFields` (`Handling::Expanded`), which a
+    /// resumed generator starts with: the type and the value of the
+    /// completion it resumed with, which the generator object it finds in
+    /// its accumulator holds, and the slow path for other completion
+    /// sources (async generators).
+    pub(super) fn build_get_completion_fields(
+        &mut self,
+        type_dst: Operand,
+        value_dst: Operand,
+        completion: Operand,
+    ) -> Result<Flow, CompileFailure> {
+        let source = self.read(completion)?;
+        let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        let object = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, vec![source], true);
+        let object = self.cell_address(object);
+        let generator = self.branch_to_slow_path(&mut slow_paths, BranchCondition::GeneratorObject, vec![object], true);
+        let completion_type = self.emit(Op::LoadGeneratorCompletionType, vec![generator], Some(Repr::Int32));
+        let completion_type = self.emit(Op::BoxInt32, vec![completion_type], Some(Repr::Tagged));
+        let value = self.emit(Op::LoadGeneratorCompletionValue, vec![generator], Some(Repr::Tagged));
+        let outputs = self.join_paths(slow_paths, vec![completion_type, value], |_, outputs| outputs);
+        self.write(type_dst, outputs[0])?;
+        self.write(value_dst, outputs[1])?;
+        Ok(Flow::Continue)
+    }
+
     /// Builds an instruction as its handling table entry says.
     fn build_by_handling(&mut self, instruction: &Instruction) -> Result<Flow, CompileFailure> {
         let opcode = instruction.opcode();

@@ -166,6 +166,11 @@ impl GraphBuilder<'_> {
             Instruction::GetById { .. } => self.build_get_by_id(instruction),
             Instruction::PutById { .. } => self.build_put_by_id(instruction),
             Instruction::IteratorClose { .. } => self.build_iterator_close(instruction),
+            Instruction::GetCompletionFields {
+                type_dst,
+                value_dst,
+                completion,
+            } => self.build_get_completion_fields(type_dst, value_dst, completion),
             Instruction::GetGlobal { .. } => self.build_get_global(instruction),
             Instruction::SetGlobal { .. } => self.build_set_global(instruction),
             _ => match super::speculation::Operation::of(instruction) {

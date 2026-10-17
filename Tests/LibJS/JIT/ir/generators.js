@@ -1,6 +1,7 @@
 // A generator suspends in compiled code like the interpreter's Yield: it writes the slots live at the continuation to
 // its frame, records the continuation, and returns the value. It resumes at an entry block of the continuation, which
-// loads those slots from the frame like an on-stack replacement entry.
+// loads those slots from the frame like an on-stack replacement entry, and reads the completion it resumed with from
+// its generator object.
 
 function* counter(limit) {
     for (let i = 0; i < limit; ++i) yield i;
@@ -24,6 +25,10 @@ jit.compile(counter);
 // CHECK-NEXT: Suspend pc [[NEXT:[0-9]+]]
 // CHECK-NEXT: Return ([[VALUE]])
 // CHECK: [[CONTINUATION]] (pc [[NEXT]]) <- [[RESUME:b[0-9]+]]:
+// CHECK: [[GENERATOR:v[0-9]+]]:pointer = RefineGeneratorObject
+// CHECK-NEXT: LoadGeneratorCompletionType ([[GENERATOR]])
+// CHECK-NEXT: BoxInt32
+// CHECK-NEXT: LoadGeneratorCompletionValue ([[GENERATOR]])
 // CHECK: osr entry at pc [[START]]: {{b[0-9]+}}
 // CHECK-NEXT: osr entry at pc [[NEXT]]: [[RESUME]]
 

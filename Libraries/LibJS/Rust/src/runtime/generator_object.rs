@@ -108,9 +108,9 @@ pub struct GeneratorObject {
     yield_continuation: Cell<u32>,
     generator_state: Cell<GeneratorState>,
     generator_brand: Option<&'static str>,
-    pending_completion_value: Cell<Value>,
+    pub(crate) pending_completion_value: Cell<Value>,
     #[gc(untraced)]
-    pending_completion_type: Cell<CompletionType>,
+    pub(crate) pending_completion_type: Cell<CompletionType>,
     #[gc(untraced)]
     execute: GeneratorExecuteFunction,
 }

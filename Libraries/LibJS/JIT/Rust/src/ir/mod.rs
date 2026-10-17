@@ -139,6 +139,10 @@ pub enum BranchCondition {
     /// The input is the `Repr::Pointer` of an object: is it an array
     /// iterator over values, like `%Array.prototype.values%` makes?
     ArrayIterator,
+    /// The input is the `Repr::Pointer` of an object: is it the generator
+    /// object of a generator or of an async function (and no async
+    /// generator)?
+    GeneratorObject,
     /// The input is the `Repr::Pointer` of an object: is it an array whose
     /// prototype is the realm's `%Array.prototype%`, and do that and
     /// `%Object.prototype%` have no indexed properties and nothing that may
@@ -1055,6 +1059,13 @@ pub enum Op {
     /// Sets the `[[IteratedArrayLike]]` of the array iterator at the
     /// `Repr::Pointer` input 0 to `undefined`, which makes it done.
     FinishArrayIterator,
+    /// The type of the completion the generator object at the
+    /// `Repr::Pointer` input 0 resumed with, as the `Repr::Int32` that
+    /// `GetCompletionFields` writes.
+    LoadGeneratorCompletionType,
+    /// The value of the completion the generator object at the
+    /// `Repr::Pointer` input 0 resumed with, as a tagged value.
+    LoadGeneratorCompletionValue,
 
     // For-in loops.
     /// The number of keys of the property iterator cache input 0, as a
@@ -1507,7 +1518,10 @@ impl Op {
                 allocates: true,
                 ..P::PURE
             },
-            Op::LoadArrayIteratorArray | Op::LoadArrayIteratorIndex => P {
+            Op::LoadArrayIteratorArray
+            | Op::LoadArrayIteratorIndex
+            | Op::LoadGeneratorCompletionType
+            | Op::LoadGeneratorCompletionValue => P {
                 reads: Locations::ITERATORS,
                 ..P::PURE
             },
@@ -1639,6 +1653,8 @@ impl Op {
             Op::OpenArrayIteration => "OpenArrayIteration",
             Op::LoadArrayIteratorArray => "LoadArrayIteratorArray",
             Op::LoadArrayIteratorIndex => "LoadArrayIteratorIndex",
+            Op::LoadGeneratorCompletionType => "LoadGeneratorCompletionType",
+            Op::LoadGeneratorCompletionValue => "LoadGeneratorCompletionValue",
             Op::StoreArrayIteratorIndex => "StoreArrayIteratorIndex",
             Op::FinishArrayIterator => "FinishArrayIterator",
             Op::SlowPathOutput { .. } => "SlowPathOutput",
