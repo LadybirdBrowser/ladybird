@@ -380,6 +380,7 @@ public:
     URL::URL url() const { return m_url; }
     URL::URL fallback_base_url() const;
     URL::URL base_url() const;
+    Optional<URL::URL> get_the_base_url() const;
     String const& serialized_url() const;
     String const& serialized_base_url() const;
 
@@ -621,6 +622,7 @@ public:
     void tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>);
 
     virtual bool is_child_allowed(Node const&) const override;
+    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
     Layout::Viewport const* layout_node(Layout::BegunRead const& read) const;
     Layout::Viewport* layout_node(Layout::BegunRead const& read);
@@ -1024,6 +1026,13 @@ public:
     void set_about_base_url(Optional<URL::URL> url)
     {
         m_about_base_url = move(url);
+        m_serialized_base_url.clear();
+    }
+
+    // https://dom.spec.whatwg.org/#document-base-url-override
+    void set_base_url_override(Optional<URL::URL> url)
+    {
+        m_base_url_override = move(url);
         m_serialized_base_url.clear();
     }
 
@@ -2022,6 +2031,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-about-base-url
     Optional<URL::URL> m_about_base_url;
+
+    // https://dom.spec.whatwg.org/#document-base-url-override
+    Optional<URL::URL> m_base_url_override;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-coop
     HTML::OpenerPolicy m_opener_policy;

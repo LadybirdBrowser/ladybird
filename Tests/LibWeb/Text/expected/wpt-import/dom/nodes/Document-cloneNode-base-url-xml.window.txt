@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Clone of an XML document ignores a non-HTML <base> element
+Pass	Clone of an XHTML document with a <base>
+Pass	Clone of an XML document without a <base>
