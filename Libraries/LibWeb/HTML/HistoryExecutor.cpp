@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationParamsDescriptor.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -606,6 +607,14 @@ Optional<HistoryExecutor::DequeuedChangingNavigableContinuation> HistoryExecutor
     // 12. In both cases, let afterPotentialUnloads be the following steps:
     bool const update_only = continuation->update_only;
     auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document = GC::Ref { *displayed_document }, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = continuation->navigation_type, on_complete] {
+        // AD-HOC: A provisional navigable stands in for a navigable another process hosts, which is destroyed as soon
+        //         as its container is removed, e.g. while displayedDocument unloads. The provisional navigable is only
+        //         discarded once that navigable's subtree has unloaded, and has no container to take over until then.
+        if (auto provisional_for = navigable->provisional_for(); provisional_for && provisional_for->is_in_a_destroyed_subtree()) {
+            on_complete->function()({}, {});
+            return;
+        }
+
         // NB: Only step 14.10 applies a same-document push or replace: its targetEntry's document is displayedDocument.
         if (is_same_document_push_or_replace(navigation_type, *target_entry, displayed_document)
             && navigable->active_session_history_entry() != target_entry) {
