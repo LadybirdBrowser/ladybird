@@ -1,10 +1,10 @@
-empty: 200x0
-nested: 200x0
-tall: 200x300
-tall-overflow-hidden: 200x300
+empty: 200x100
+nested: 200x100
+tall: 200x100
+tall-overflow-hidden: 200x100
 percentage-width: 100x50
 float: 100x50
 inline-block: 100x50
 auto-height-tall: 200x300
-image-container: 200x0
-image: 200x0
+image-container: 200x100
+image: 200x100
