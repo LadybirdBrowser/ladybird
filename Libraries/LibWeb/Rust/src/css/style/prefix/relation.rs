@@ -30,6 +30,9 @@ pub(super) struct PrefixRelationProgram {
     compound_step_offsets: Vec<u32>,
     compound_steps: Vec<u32>,
     has_following_steps: bool,
+    /// Whether any step is reached over each geometry axis, in the order of `PrefixRelation::geometry_targets`: the
+    /// child, descendant, next-sibling and following-sibling axes.
+    geometry_axes: [bool; 4],
     compounds_by_key: HashMap<DispatchKey, std::ops::Range<u32>>,
     keyed_compounds: Vec<u32>,
     terminal_steps: HashMap<EntryID, SmallVec<[usize; 1]>>,
@@ -816,9 +819,14 @@ impl PrefixRelation {
             self.nested_capacity_bytes = self.nested_capacity_bytes - before + members.shallow_capacity_bytes();
         }
         let mut geometry_memberships: [HashMap<usize, Vec<usize>>; 4] = std::array::from_fn(|_| HashMap::default());
+        // An arrival's memberships are all changes of its compounds already, which every step of those compounds
+        // visits, so geometry only reaches retained nodes, over the axes some step is reached by.
         for (axis, targets) in self.geometry_targets.iter().enumerate() {
+            if !self.program.geometry_axes[axis] {
+                continue;
+            }
             for &position in targets {
-                if !self.live[position] {
+                if !self.live[position] || has_bit(&self.arrived, position) {
                     continue;
                 }
                 let node = self.nodes[position];
@@ -861,6 +869,10 @@ impl PrefixRelation {
         let mut descendants = Vec::new();
         let mut following_parents = HashSet::default();
         let mut walk_truth = std::mem::take(&mut self.walk_truth);
+        // Which question `walk_truth` answers: whether a position's ancestors, or previous siblings, hold a member of a
+        // predecessor step. Steps sharing a predecessor and axis share the answers, as a step's members are final once
+        // it ran and steps run in dependency order.
+        let mut walk_truth_question: Option<(usize, u8)> = None;
         let mut ancestor_chain = Vec::new();
         // Every local change is seeded before evaluation. Dependency order ensures that a step
         // runs once, after all changes to its predecessor, and only propagates a changed result.
@@ -960,6 +972,7 @@ impl PrefixRelation {
                                 );
                             } else {
                                 walk_truth.clear();
+                                walk_truth_question = None;
                                 for position in candidates.iter() {
                                     ancestor_chain.clear();
                                     let mut source = self.parents[position];
@@ -1011,7 +1024,11 @@ impl PrefixRelation {
                 if affected.is_empty() {
                     continue;
                 }
-                walk_truth.clear();
+                let question = predecessor.map(|predecessor| (predecessor, axis as u8));
+                if question.is_none() || question != walk_truth_question {
+                    walk_truth.clear();
+                    walk_truth_question = question;
+                }
                 for &position in &affected {
                     // A step runs once per update, so what it held is what it held before, which no arrival is in.
                     let previously_matched =
@@ -1444,6 +1461,16 @@ impl PrefixAutomaton {
             let has_following_steps = queue
                 .iter()
                 .any(|(_, axis)| matches!(axis, PrefixOutputKind::FollowingSibling));
+            let mut geometry_axes = [false; 4];
+            for (_, axis) in &queue {
+                match axis {
+                    PrefixOutputKind::Child => geometry_axes[0] = true,
+                    PrefixOutputKind::Descendant => geometry_axes[1] = true,
+                    PrefixOutputKind::NextSibling => geometry_axes[2] = true,
+                    PrefixOutputKind::FollowingSibling => geometry_axes[3] = true,
+                    PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal => {}
+                }
+            }
             let mut program = PrefixRelationProgram {
                 queue: queue
                     .into_iter()
@@ -1460,6 +1487,7 @@ impl PrefixAutomaton {
                 compound_step_offsets,
                 compound_steps,
                 has_following_steps,
+                geometry_axes,
                 compounds_by_key,
                 keyed_compounds,
                 terminal_steps,
