@@ -854,9 +854,8 @@ impl<A: AtomSpace> SelectorProgram<A> {
 
     #[must_use]
     pub fn contains_relational_selector(&self) -> bool {
-        self.nodes
-            .iter()
-            .any(|node| matches!(node, SelectorOp::RelativeExists(_)))
+        // Every relative query is pushed together with the one RelativeExists node evaluating it.
+        !self.relative_queries.is_empty()
     }
 
     /// Whether any node in this subtree tests sibling position. A retained witness for a
