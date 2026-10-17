@@ -1,0 +1,54 @@
+<!doctype html>
+
+<head>
+    <script src="../../../../../resources/testharness.js"></script>
+    <script src="../../../../../resources/testharnessreport.js"></script>
+    <script src="../../../../../common/utils.js"></script>
+</head>
+
+<body>
+    <script>
+        setup({allow_uncaught_exception: true});
+        promise_test(function (test) {
+            const uuid = token();
+            const worker = new Worker(`./resources/worker.sub.js?key=${uuid}`, {
+                type: "module"
+            });
+            return new Promise((resolve, reject) => {
+                worker.addEventListener("error", resolve);
+                worker.addEventListener("message", reject);
+            }).then(async () => {
+                const fetchResponse = await fetch(`./resources/record-fetch.py?key=${uuid}&action=getCount`);
+                const fetchData = await fetchResponse.json();
+                assert_equals(fetchData.count, 0, "Shouldn't have tried fetching CSS module in worker");
+            });
+        }, "A static import CSS Module within a web worker should not load and should not attempt to fetch the module.");
+
+        promise_test(function (test) {
+            const uuid = token();
+            const worker = new Worker(`./resources/worker-dynamic-import.sub.js?key=${uuid}`, {
+                type: "module"
+            });
+
+            return new Promise(resolve => {
+                worker.addEventListener("message", resolve);
+            }).then(async (event) => {
+                assert_equals(event.data, "NOT LOADED");
+                const fetchResponse = await fetch(`./resources/record-fetch.py?key=${uuid}&action=getCount`);
+                const fetchData = await fetchResponse.json();
+                assert_equals(fetchData.count, 0, "Shouldn't have tried fetching CSS module in worker");
+            });
+        }, "A dynamic import CSS Module within a web worker should not load and should not attempt to fetch the module.");
+
+        promise_test(function (test) {
+            const worker = new Worker("./resources/basic.css", {
+                type: "module"
+            });
+            return new Promise(resolve => {
+                worker.onerror = resolve;
+            });
+        }, "An attempt to load a CSS module as a worker should fail.");
+
+    </script>
+
+</body>

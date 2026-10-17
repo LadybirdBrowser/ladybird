@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	A static import CSS Module within a web worker should not load and should not attempt to fetch the module.
+Pass	A dynamic import CSS Module within a web worker should not load and should not attempt to fetch the module.
+Pass	An attempt to load a CSS module as a worker should fail.
