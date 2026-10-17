@@ -13,11 +13,11 @@
         const parentDocument = parentIframe.contentDocument;
         parentDocument.open().write('<iframe id="child" srcdoc="Initial child document"></iframe>');
         const childIframe = parentDocument.querySelector("#child");
-        const initialChildLoad = new Promise(resolve => childIframe.addEventListener("load", resolve, { once: true }));
+        const initialChildLoad = new Promise(resolve => childIframe.addEventListener("load", () => setTimeout(resolve), { once: true }));
         await initialChildLoad;
 
         const childDocument = childIframe.contentDocument;
-        const firstChildLoad = new Promise(resolve => childIframe.addEventListener("load", resolve, { once: true }));
+        const firstChildLoad = new Promise(resolve => childIframe.addEventListener("load", () => setTimeout(resolve), { once: true }));
         childDocument.open().write("<body>First child document</body>");
         childDocument.close();
         await firstChildLoad;

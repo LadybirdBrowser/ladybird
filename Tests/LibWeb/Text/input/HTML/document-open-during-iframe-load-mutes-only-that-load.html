@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        let loadCount = 0;
+        iframe.addEventListener("load", () => {
+            ++loadCount;
+            const childDocument = iframe.contentDocument;
+            if (loadCount > 1) {
+                println(`Load ${loadCount}: ${childDocument.body.textContent}`);
+                iframe.remove();
+                done();
+                return;
+            }
+
+            childDocument.open();
+            childDocument.addEventListener("readystatechange", () => {
+                if (childDocument.readyState !== "complete")
+                    return;
+                setTimeout(() => {
+                    childDocument.open();
+                    childDocument.write("<body>Reopened after the load event</body>");
+                    childDocument.close();
+                });
+            });
+            childDocument.write("<body>Reopened during the load event</body>");
+            childDocument.close();
+        });
+        iframe.srcdoc = "Initial document";
+        document.body.appendChild(iframe);
+    });
+</script>
