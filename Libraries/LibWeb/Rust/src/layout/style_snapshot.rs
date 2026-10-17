@@ -37,21 +37,15 @@ pub(crate) struct CommittedGeometry {
 }
 
 impl LayoutNodeArena {
-    /// The style node a node's row is for, and whether the node's style makes it a size container;
-    /// `None` for a node whose box the style engine takes no row of.
-    fn snapshot_target(&self, node: NodeSlotId) -> Option<(StyleNodeID, bool)> {
+    /// The style node a node's row is for; `None` for a node whose box the style engine takes no row of.
+    fn snapshot_target(&self, node: NodeSlotId) -> Option<StyleNodeID> {
         let style_node = self
             .node_style_node(node)
             .filter(|style_node| style_node.element_index().is_some())?;
         if !self.has_style_engine() || self.bound_row(style_node) != node {
             return None;
         }
-        let style = crate::layout::node_facts::node_style_view(self.data(node));
-        let is_size_container = style.is_some_and(|style| {
-            let box_values = style.box_values();
-            box_values.is_size_container || box_values.is_inline_size_container
-        });
-        Some((style_node, is_size_container))
+        Some(style_node)
     }
 
     fn committed_geometry(&self, node: NodeSlotId, style_node: StyleNodeID) -> CommittedGeometry {
@@ -74,7 +68,15 @@ impl LayoutNodeArena {
     /// and about scroll-state containers, whose rows the scroll state makes; an element that
     /// stops being one keeps its row up to date until it goes.
     pub(crate) fn gather_layout_style_snapshot_geometry(&self, node: NodeSlotId) {
-        let Some((style_node, is_size_container)) = self.snapshot_target(node) else {
+        let is_size_container = node_is_size_container(self, node);
+        // OPTIMIZATION: Most committed boxes are no size container, and while no container is held, none is gathered.
+        if !is_size_container
+            && self.has_style_engine()
+            && !self.with_style_store(|engine| engine.has_layout_style_snapshots())
+        {
+            return;
+        }
+        let Some(style_node) = self.snapshot_target(node) else {
             return;
         };
         if !is_size_container && !self.with_style_store(|engine| engine.layout_style_snapshot(style_node).is_some()) {
@@ -88,7 +90,10 @@ impl LayoutNodeArena {
     /// container, which the last commit gathered no row for. Until the next commit, a size query
     /// on it reads that box, as the host's evaluation reads the box it holds.
     pub(crate) fn publish_new_size_container_geometry(&self, node: NodeSlotId) {
-        let Some((style_node, true)) = self.snapshot_target(node) else {
+        if !node_is_size_container(self, node) {
+            return;
+        }
+        let Some(style_node) = self.snapshot_target(node) else {
             return;
         };
         if self.with_style_store(|engine| engine.layout_style_snapshot(style_node).is_some()) {
@@ -160,4 +165,11 @@ mod tests {
         assert!(row.has_committed_box);
         assert_eq!((row.content_width_raw, row.stuck), (11, 0));
     }
+}
+
+fn node_is_size_container(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+    crate::layout::node_facts::node_style_view(arena.data(node)).is_some_and(|style| {
+        let box_values = style.box_values();
+        box_values.is_size_container || box_values.is_inline_size_container
+    })
 }

@@ -1307,6 +1307,12 @@ impl RetainedState {
         self.layout_style_snapshots.get(&node).copied()
     }
 
+    /// Whether any container's box is held. Size and scroll-state containers get rows, and an element that stops being
+    /// one keeps its row until it goes.
+    pub(crate) fn has_layout_style_snapshots(&self) -> bool {
+        !self.layout_style_snapshots.is_empty()
+    }
+
     /// Take the box geometry a completed layout commit gathered, keeping each row's scroll state.
     pub(crate) fn apply_layout_style_snapshot_commit(
         &mut self,
