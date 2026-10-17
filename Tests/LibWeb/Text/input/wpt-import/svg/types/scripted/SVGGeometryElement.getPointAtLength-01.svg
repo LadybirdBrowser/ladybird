@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:html="http://www.w3.org/1999/xhtml">
+  <title>SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length]</title>
+  <metadata>
+    <html:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getPointAtLength"/>
+    <html:meta name="assert" content="SVGGeometryElement.prototype.getPointAtLength clamps its argument."/>
+  </metadata>
+  <g stroke="blue">
+    <line id="line" x1="50" y1="60" x2="100" y2="60"/>
+    <path id="path" d="M40,70L110,70"/>
+  </g>
+  <html:script src="../../../resources/testharness.js"/>
+  <html:script src="../../../resources/testharnessreport.js"/>
+  <script><![CDATA[
+  test(function() {
+    let line = document.getElementById('line');
+    let point = line.getPointAtLength(-10);
+    assert_equals(point.x, 50, 'starting x');
+    assert_equals(point.y, 60, 'starting y');
+  }, document.title+', less than zero (SVGLineElement).');
+  test(function() {
+    let path = document.getElementById('path');
+    let point = path.getPointAtLength(-10);
+    assert_equals(point.x, 40, 'starting x');
+    assert_equals(point.y, 70, 'starting y');
+  }, document.title+', less than zero (SVGPathElement).');
+
+  test(function() {
+    let line = document.getElementById('line');
+    assert_less_than(line.getTotalLength(), 80);
+    let point = line.getPointAtLength(80);
+    assert_equals(point.x, 100, 'ending x');
+    assert_equals(point.y, 60, 'ending y');
+  }, document.title+', greater than \'length\' (SVGLineElement).');
+  test(function() {
+    let path = document.getElementById('path');
+    assert_less_than(path.getTotalLength(), 80);
+    let point = path.getPointAtLength(80);
+    assert_equals(point.x, 110, 'ending x');
+    assert_equals(point.y, 70, 'ending y');
+  }, document.title+', greater than \'length\' (SVGPathElement).');
+  ]]></script>
+</svg>

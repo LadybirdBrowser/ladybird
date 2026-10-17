@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	When SVGGeometryElement.getPointAtLength is called with an element that is not in the document, either succeed or throw exception with SVGPathElement
+Pass	When SVGGeometryElement.getPointAtLength is called with an element that is not in the document, either succeed or throw exception with SVGRectElement
+Pass	When SVGGeometryElement.getPointAtLength is called with an element that is not in the document, either succeed or throw exception with SVGCircleElement

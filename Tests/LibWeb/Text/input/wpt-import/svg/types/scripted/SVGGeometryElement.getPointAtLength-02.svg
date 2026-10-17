@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVGGeometryElement.prototype.getPointAtLength() query with 'pathLength'</title>
+  <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getPointAtLength"/>
+  <path id='pathElement' d='M0,0L100,0L100,100' pathLength="1000"/>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <script>
+test(function() {
+    let path = document.getElementById('pathElement');
+
+    var point = path.getPointAtLength(50);
+    assert_approx_equals(point.x, 50, 1e-5);
+    assert_approx_equals(point.y, 0, 1e-5);
+    var point = path.getPointAtLength(150);
+    assert_approx_equals(point.x, 100, 1e-5);
+    assert_approx_equals(point.y, 50, 1e-5);
+});
+  </script>
+</svg>

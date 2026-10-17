@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	getTotalLength and getPointAtLength do not take pathLength into account
+Pass	getPointAtLength() returns instance of SVGPoint
+Pass	getTotalLength and getPointAtLength are not affected by zoom

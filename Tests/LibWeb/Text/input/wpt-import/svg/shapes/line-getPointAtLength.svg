@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <h:link rel="help" href="https://www.w3.org/TR/SVG2/shapes.html#InterfaceSVGLineElement"/>
+    <h:link rel="help" href="https://www.w3.org/TR/SVG2/types.html#InterfaceSVGGeometryElement"/>
+    <h:meta name="assert" content="The line element supports getPointAtLength."/>
+  </metadata>
+  <line id="interval" x1="300" y1="400" x2="500" y2="400"/>
+  <h:script src="../../resources/testharness.js"/>
+  <h:script src="../../resources/testharnessreport.js"/>
+  <script><![CDATA[
+    test(function() {
+      var interval = document.getElementById('interval');
+      assert_not_equals(interval.getTotalLength, undefined, 'getTotalLength is defined for SVGLineElement');
+      assert_not_equals(interval.getPointAtLength, undefined, 'getPointAtLength is defined for SVGLineElement');
+      assert_equals(interval.getTotalLength(), 200, 'total length');
+
+      var point = interval.getPointAtLength(10);
+      assert_equals(point.x, 310, 'x');
+      assert_equals(point.y, 400, 'y');
+    }, 'line supports getPointAtLength');
+
+    test(function() {
+      var interval = document.getElementById('interval');
+      interval.setAttribute('pathLength', '25');
+
+      assert_equals(interval.getTotalLength(), 200, 'total length');
+
+      var point = interval.getPointAtLength(10);
+      assert_equals(point.x, 310, 'x');
+      assert_equals(point.y, 400, 'y');
+    }, 'line getPointAtLength ignores pathLength');
+  ]]></script>
+</svg>

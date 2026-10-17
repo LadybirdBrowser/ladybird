@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:html="http://www.w3.org/1999/xhtml"
+     viewBox="0 0 200 200">
+  <title>SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods</title>
+  <metadata>
+    <html:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/shapes.html#EllipseElement"/>
+    <html:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGGeometryElement"/>
+    <html:meta name="assert" content="Per SVG 2 §10.4, an 'auto' value for either rx or ry on an ellipse resolves to the used value of the other property; if both are auto, both used values are 0. This resolution must apply uniformly to every SVGGeometryElement method (getTotalLength, getPointAtLength, isPointInFill, isPointInStroke)."/>
+  </metadata>
+  <html:script src="../../../resources/testharness.js"/>
+  <html:script src="../../../resources/testharnessreport.js"/>
+
+  <ellipse id="auto-rx" cx="50" cy="50" rx="auto" ry="50"/>
+  <ellipse id="auto-ry" cx="50" cy="50" rx="50" ry="auto"/>
+  <ellipse id="auto-both" cx="50" cy="50"/>
+  <ellipse id="explicit" cx="50" cy="50" rx="50" ry="50"/>
+
+  <ellipse id="stroke-auto-rx" cx="100" cy="100" rx="auto" ry="50"
+           stroke="black" stroke-width="4" stroke-dasharray="4 2" fill="none"/>
+  <ellipse id="stroke-auto-ry" cx="100" cy="100" rx="50" ry="auto"
+           stroke="black" stroke-width="4" stroke-dasharray="4 2" fill="none"/>
+  <ellipse id="stroke-explicit" cx="100" cy="100" rx="50" ry="50"
+           stroke="black" stroke-width="4" stroke-dasharray="4 2" fill="none"/>
+
+  <!--
+    Percentage cases. Inner <svg> establishes its own 200x100 viewport so
+    that a percentage on rx resolves against width=200 and a percentage on
+    ry resolves against height=100. With auto on the other axis, the used
+    value of the auto axis equals the resolved (axis-correct) pixel value
+    of the non-auto axis.
+  -->
+  <svg id="pct-viewport" x="0" y="200" width="200" height="100">
+    <ellipse id="pct-auto-rx-50ry" cx="100" cy="50" rx="auto" ry="50%"/>
+    <ellipse id="pct-50rx-auto-ry" cx="100" cy="50" rx="50%"  ry="auto"/>
+    <ellipse id="pct-auto-rx-25ry" cx="100" cy="50" rx="auto" ry="25%"/>
+  </svg>
+
+  <script><![CDATA[
+    'use strict';
+
+    test(function() {
+      const expected = document.getElementById('explicit').getTotalLength();
+      assert_approx_equals(document.getElementById('auto-rx').getTotalLength(),
+                           expected, 0.5,
+                           'auto rx should resolve to ry');
+      assert_approx_equals(document.getElementById('auto-ry').getTotalLength(),
+                           expected, 0.5,
+                           'auto ry should resolve to rx');
+    }, document.title + ', getTotalLength resolves auto rx/ry.');
+
+    test(function() {
+      assert_equals(document.getElementById('auto-both').getTotalLength(), 0,
+                    'both auto means rendering disabled');
+    }, document.title + ', getTotalLength returns 0 when both rx and ry are auto.');
+
+    test(function() {
+      const expectedPoint = { x: 100, y: 50 };
+      const explicitPt = document.getElementById('explicit').getPointAtLength(0);
+      assert_approx_equals(explicitPt.x, expectedPoint.x, 0.5, 'explicit x');
+      assert_approx_equals(explicitPt.y, expectedPoint.y, 0.5, 'explicit y');
+
+      const autoRxPt = document.getElementById('auto-rx').getPointAtLength(0);
+      assert_approx_equals(autoRxPt.x, expectedPoint.x, 0.5, 'auto-rx x');
+      assert_approx_equals(autoRxPt.y, expectedPoint.y, 0.5, 'auto-rx y');
+
+      const autoRyPt = document.getElementById('auto-ry').getPointAtLength(0);
+      assert_approx_equals(autoRyPt.x, expectedPoint.x, 0.5, 'auto-ry x');
+      assert_approx_equals(autoRyPt.y, expectedPoint.y, 0.5, 'auto-ry y');
+    }, document.title + ', getPointAtLength(0) at the 3 o\'clock starting point.');
+
+    test(function() {
+      const center = { x: 50, y: 50 };
+      const outside = { x: 200, y: 50 };
+      ['auto-rx', 'auto-ry', 'explicit'].forEach(function(id) {
+        const el = document.getElementById(id);
+        assert_true(el.isPointInFill(center),
+                    id + ': center is in fill');
+        assert_false(el.isPointInFill(outside),
+                     id + ': point outside the resolved ellipse is not in fill');
+      });
+    }, document.title + ', isPointInFill resolves auto rx/ry.');
+
+    test(function() {
+      const onBoundary = { x: 150, y: 100 };
+      assert_true(document.getElementById('stroke-explicit')
+                  .isPointInStroke(onBoundary),
+                  'explicit: point on boundary is in stroke');
+      assert_true(document.getElementById('stroke-auto-rx')
+                  .isPointInStroke(onBoundary),
+                  'auto-rx: point on boundary is in stroke (auto rx resolves to ry=50)');
+      assert_true(document.getElementById('stroke-auto-ry')
+                  .isPointInStroke(onBoundary),
+                  'auto-ry: point on boundary is in stroke (auto ry resolves to rx=50)');
+    }, document.title + ', isPointInStroke with dasharray resolves auto rx/ry.');
+
+    // Inner <svg> viewport is 200x100. Percentages must resolve against the
+    // non-auto axis (a 50% on ry resolves against height=100, not width=200);
+    // the auto axis then takes that resolved pixel value.
+    test(function() {
+      // rx=auto, ry=50% in 200x100 -> ry = 50, rx = 50, perimeter = 2*pi*50.
+      assert_approx_equals(document.getElementById('pct-auto-rx-50ry').getTotalLength(),
+                           2 * Math.PI * 50, 1.0,
+                           'auto rx with ry=50% must resolve via height axis (50), not width axis (100)');
+      // rx=50%, ry=auto in 200x100 -> rx = 100, ry = 100, perimeter = 2*pi*100.
+      assert_approx_equals(document.getElementById('pct-50rx-auto-ry').getTotalLength(),
+                           2 * Math.PI * 100, 1.0,
+                           'auto ry with rx=50% must resolve via width axis (100), not height axis (50)');
+      // rx=auto, ry=25% in 200x100 -> ry = 25, rx = 25, perimeter = 2*pi*25.
+      assert_approx_equals(document.getElementById('pct-auto-rx-25ry').getTotalLength(),
+                           2 * Math.PI * 25, 0.5,
+                           'auto rx with ry=25% must resolve via height axis (25)');
+    }, document.title + ', getTotalLength resolves auto rx/ry against percentage values on the correct axis.');
+
+    test(function() {
+      // Path begins at the 3 o'clock point: (cx + rx, cy).
+      // For rx=auto, ry=50% in 200x100: (100 + 50, 50) = (150, 50).
+      const p = document.getElementById('pct-auto-rx-50ry').getPointAtLength(0);
+      assert_approx_equals(p.x, 150, 0.5, 'auto-rx + ry=50% starting point x');
+      assert_approx_equals(p.y, 50,  0.5, 'auto-rx + ry=50% starting point y');
+    }, document.title + ', getPointAtLength(0) with percentage ry uses height-axis resolution.');
+  ]]></script>
+</svg>
