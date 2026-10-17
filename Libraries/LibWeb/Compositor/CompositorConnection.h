@@ -36,9 +36,6 @@
 namespace Web::Compositor {
 
 class CompositorConnectionFrameSink;
-// What a test of the transport, which has no Paint thread, reaches a connection's frame sink through. Only the test
-// defines it.
-struct TransportTestAccess;
 
 class WEB_API CompositorConnection final
     : public IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>
@@ -104,10 +101,6 @@ public:
     Function<void()> on_request_video_presentation_channel;
 
 private:
-    // Only a test of the transport hands a frame straight to the compositor.
-    friend struct TransportTestAccess;
-    void submit_frame_for_testing(CompositorFrame&&);
-
     struct PendingScreenshot {
         NonnullRefPtr<Gfx::Bitmap> target_bitmap;
 

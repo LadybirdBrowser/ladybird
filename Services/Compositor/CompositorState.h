@@ -174,7 +174,6 @@ private:
 
 public:
     void present_pending_frames_for_testing() { present_pending_frames_on_vsync({}, MonotonicTime::now()); }
-    void retire_idle_surplus_backing_stores_for_testing(Web::CompositorContextId context_id) { retire_idle_surplus_backing_stores(context_id); }
     size_t pending_async_present_count_for_testing() const { return m_pending_async_presents.size(); }
 
     // What was not published yet, for a caller that needs the compositor's state as of now.

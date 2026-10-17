@@ -2281,11 +2281,6 @@ void PageClient::did_output_js_console_message(WebView::ConsoleOutput console_ou
     client().async_did_output_js_console_message(m_id, move(console_output));
 }
 
-void PageClient::console_peer_did_misbehave(char const* reason)
-{
-    client().did_misbehave(reason);
-}
-
 static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::StyleSheetState& sheet)
 {
     if (auto identifier = Web::CSS::style_sheet_identifier_for(sheet); identifier.has_value())
