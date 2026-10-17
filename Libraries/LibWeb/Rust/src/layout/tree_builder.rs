@@ -1479,9 +1479,43 @@ fn update_layout_tree_for_dom_children(
 ) {
     let mut node = host.first_dom_child(parent);
     while let Some(current) = node {
-        update_layout_tree(host, state, current, context, must_create_subtree, insertion_mode);
+        if !keeps_its_box_as_it_is(host, current, context, must_create_subtree) {
+            update_layout_tree(host, state, current, context, must_create_subtree, insertion_mode);
+        }
         node = host.next_dom_sibling(current);
     }
+}
+
+/// OPTIMIZATION: A node that holds no layout tree update mark, and has none below it, keeps its attached box as it
+/// is, so the walk passes it by without looking at its style, as it passes by every node outside the marked paths.
+/// Inside SVG and top-layer walks, where the walk itself decides which boxes the nodes get, it visits every node.
+fn keeps_its_box_as_it_is(
+    host: &TreeBuilderHost<'_>,
+    node: StyleNodeID,
+    context: &TreeBuilderContext,
+    must_create_subtree: bool,
+) -> bool {
+    if must_create_subtree
+        || context.document_needs_full_layout_tree_update
+        || context.has_svg_root
+        || context.layout_top_layer
+    {
+        return false;
+    }
+    let arena = host.arena();
+    if arena.needs_layout_tree_update(node) || arena.child_needs_layout_tree_update(Some(node)) {
+        return false;
+    }
+    let row = arena.bound_row(node);
+    if row.is_invalid() || host.parent(row).is_invalid() {
+        return false;
+    }
+    host.element_type_facts(Some(node))
+        & (element_adjustment_fact::IS_SVG_CONTAINER
+            | element_adjustment_fact::REQUIRES_SVG_CONTAINER
+            | element_adjustment_fact::IS_SVG_FOREIGN_OBJECT_ELEMENT
+            | element_adjustment_fact::RENDERED_IN_TOP_LAYER)
+        == 0
 }
 
 /// Updates every shadow-root child in tree order and clears the root's update flags.
