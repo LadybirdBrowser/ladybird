@@ -377,6 +377,8 @@ void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, Sty
         Layout::RustFFI::render_state_set_layer_image_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), nullptr, 0);
     // NB: A box a layout built beside the removal of its element has no DOM node left to take facts from. It paints from
     //     its style until the removal takes it away.
+    // NB: LayoutNodeArena::owe_style_image_resources_once() lists the kinds this switch takes facts for, and the two
+    //     must stay in sync.
     auto* dom_node = layout_node.dom_node();
     switch (layout_node.kind()) {
     case Layout::RustFFI::NodeKind::CheckBox:

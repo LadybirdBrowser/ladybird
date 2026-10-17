@@ -401,6 +401,15 @@ impl OwedImage {
         arena.with_style_engine(|engine| {
             owed.into_iter()
                 .filter(|&(row, _)| arena.slot_is_live(row))
+                // A box a build visits again with the style record it was owed resources for holds them already.
+                .filter(|&(row, owed)| {
+                    !matches!(
+                        owed,
+                        OwedImageResources::StyleResources {
+                            owns_content_replacement_image: false
+                        }
+                    ) || arena.owe_style_image_resources_once(row)
+                })
                 .map(|(row, owed)| Self {
                     row,
                     owed,

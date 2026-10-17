@@ -1177,6 +1177,9 @@ pub(crate) struct LayoutNodeArena {
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     style_records: Vec<Cell<u64>>,
+    /// The style record whose image resources the host was last owed for each row, or zero. A row whose record has not
+    /// changed since holds those resources still, so a build that visits it again owes it nothing.
+    image_resources_owed_records: Vec<Cell<u64>>,
     style_record_pins: Vec<Cell<ArenaStylePin>>,
     /// The style record the host pinned for its readers of a row that outlive the row's place in
     /// the tree (a detached box is read until its row is freed), or zero. A pin is counted, so this
@@ -1323,6 +1326,7 @@ impl LayoutNodeArena {
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             style_records: Vec::new(),
+            image_resources_owed_records: Vec::new(),
             style_record_pins: Vec::new(),
             style_records_pinned_by_host: Vec::new(),
             style_nodes: Vec::new(),
@@ -1566,6 +1570,7 @@ impl LayoutNodeArena {
             }
             self.slot_metadata.push(SlotMetadata::default());
             self.style_records.push(Cell::new(0));
+            self.image_resources_owed_records.push(Cell::new(0));
             self.style_record_pins.push(Cell::new(ArenaStylePin::None));
             self.style_records_pinned_by_host.push(Cell::new(0));
             self.style_nodes.push(Cell::new(None));
@@ -1692,6 +1697,7 @@ impl LayoutNodeArena {
         self.unbind_row(id);
         self.set_node_style_node(id, None);
         self.style_records[index as usize].set(0);
+        self.image_resources_owed_records[index as usize].set(0);
         self.style_record_pins[index as usize].set(ArenaStylePin::None);
         self.style_records_pinned_by_host[index as usize].set(0);
 
@@ -2288,7 +2294,7 @@ impl LayoutNodeArena {
         self.note_row_style(id);
         self.set_node_flag(id, NodeFlag::FollowsPrincipalStyle, false);
         self.invalidate_overflow_after_style_change(id);
-        let previous = self.style_records[id.slot_index() as usize].replace(style_record);
+        let previous = self.replace_style_record(id.slot_index() as usize, style_record);
         self.shape_writes.note_style();
         self.write_shape(id).mark();
         if self.style_record_pins[id.slot_index() as usize].replace(ArenaStylePin::None) != ArenaStylePin::None {
@@ -2713,7 +2719,7 @@ impl LayoutNodeArena {
         relayout: StyleRelayout,
     ) {
         let previous_payloads = self.data(row).style.get();
-        self.style_records[row.slot_index() as usize].set(style.record);
+        self.replace_style_record(row.slot_index() as usize, style.record);
         let shape = self.write_shape(row);
         shape.set_style(style.payloads);
         shape.mark();
@@ -2813,6 +2819,39 @@ impl LayoutNodeArena {
     /// See [`crate::painting::svg_paint_resources::SvgPaintResources::share_enrolled_flag`].
     pub(crate) fn share_svg_paint_resources_enrolled(&mut self, flag: std::sync::Arc<std::sync::atomic::AtomicBool>) {
         self.svg_paint_resources.share_enrolled_flag(flag);
+    }
+
+    /// Gives the row at `index` the style record `record`, answering the one it held. A row whose record changes no
+    /// longer holds the image resources it was owed for the old one.
+    fn replace_style_record(&self, index: usize, record: u64) -> u64 {
+        let previous = self.style_records[index].replace(record);
+        if previous != record {
+            self.image_resources_owed_records[index].set(0);
+        }
+        previous
+    }
+
+    /// Whether the host has to attach the image resources of `id`'s current style record, noting that it is owed them
+    /// if so. The host attached them already where it was owed them for the record the row still holds. Boxes whose
+    /// paint facts also follow their element's own state, such as a form control's or a media element's, are owed
+    /// them on every visit.
+    pub(crate) fn owe_style_image_resources_once(&self, id: NodeSlotId) -> bool {
+        // NB: These are the kinds whose paint facts push_paint_facts_after_style_attach() in Painting/PaintFacts.cpp
+        //     takes from their element, and the two must stay in sync.
+        if matches!(
+            self.data(id).kind.get(),
+            NodeKind::CheckBox
+                | NodeKind::RadioButton
+                | NodeKind::CanvasBox
+                | NodeKind::ImageBox
+                | NodeKind::SVGImageBox
+                | NodeKind::VideoBox
+        ) {
+            return true;
+        }
+        let index = id.slot_index() as usize;
+        let record = self.style_records[index].get();
+        record == 0 || self.image_resources_owed_records[index].replace(record) != record
     }
 
     pub(crate) fn node_style_record(&self, id: NodeSlotId) -> u64 {
@@ -3926,7 +3965,7 @@ impl LayoutNodeArena {
         assert!(derived.record != 0 && !derived.payloads.is_null());
         data.set_kind(kind);
         data.set_flags(super::node_facts::construction_flags(kind, true, 0));
-        self.style_records[slot.slot_index() as usize].set(derived.record);
+        self.replace_style_record(slot.slot_index() as usize, derived.record);
         self.style_record_pins[slot.slot_index() as usize].set(ArenaStylePin::Derived);
         data.set_style(derived.payloads);
         data.mark();
@@ -4031,7 +4070,7 @@ impl LayoutNodeArena {
         let previously_pinned =
             self.style_record_pins[slot.slot_index() as usize].replace(ArenaStylePin::Derived) != ArenaStylePin::None;
         assert!(derived.record != 0 && !derived.payloads.is_null());
-        let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
+        let previous_style_record = self.replace_style_record(slot.slot_index() as usize, derived.record);
         self.shape_writes.note_style();
         let shape = self.write_shape(slot);
         shape.set_style(derived.payloads);
