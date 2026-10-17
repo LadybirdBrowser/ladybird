@@ -363,14 +363,11 @@ fn write_frame_state(
 ) {
     // NB: The frame holds the slots listed as in it, and the destination of the instruction it resumes after is never
     //     cleared.
-    let mut held = frame_state.in_frame.clone();
-    let mut kept = None;
-    if let ResumeMode::ResumeAfter { dst } = frame_state.mode {
-        held.push(dst);
-        if destination == Destination::Keep {
-            kept = Some(dst);
-        }
-    }
+    let resume_destination = match frame_state.mode {
+        ResumeMode::ResumeAfter { dst } => Some(dst),
+        ResumeMode::ResumeAt => None,
+    };
+    let kept = resume_destination.filter(|_| destination == Destination::Keep);
     // NB: Compiled code initializes its frame lazily, before anything observes the frame (see
     //     passes/frame_initialization.rs), and pushes the frames of inlined calls for slow paths uninitialized. Until
     //     then nothing wrote the frame's registers and locals, so the ones the frame state lists as held in the frame
@@ -380,21 +377,15 @@ fn write_frame_state(
     }
     let slots = frame.slots();
     // NB: Frame states list every live slot, so the others are dead. Clearing them keeps the interpreter from seeing
-    //     values the compiled code no longer maintains, and drops references to them.
-    let registers_and_locals_count = executable_of(frame).registers_and_locals_count() as usize;
-    let mut listed = vec![false; registers_and_locals_count];
-    for slot in held.iter().chain(frame_state.values.iter().map(|(slot, _)| slot)) {
-        if let Some(listed) = listed.get_mut(*slot as usize) {
-            *listed = true;
-        }
-    }
-    for (index, listed) in listed
-        .iter()
-        .enumerate()
-        .skip(register::RESERVED_REGISTER_COUNT as usize)
-    {
-        if !listed {
-            slots[index].set(Value::EMPTY);
+    //     values the compiled code no longer maintains, and drops references to them. Both lists are in slot order.
+    let registers_and_locals_count = executable_of(frame).registers_and_locals_count();
+    let mut held = frame_state.in_frame.iter().copied().peekable();
+    let mut written = frame_state.values.iter().map(|(slot, _)| *slot).peekable();
+    for index in register::RESERVED_REGISTER_COUNT..registers_and_locals_count {
+        let is_held = sorted_slots_contain(&mut held, index);
+        let is_written = sorted_slots_contain(&mut written, index);
+        if !is_held && !is_written && resume_destination != Some(index) {
+            slots[index as usize].set(Value::EMPTY);
         }
     }
     // NB: Every slot holding the arguments object the code never created holds the same object, which is created from
@@ -417,6 +408,12 @@ fn write_frame_state(
             slots[*slot as usize].set(arguments_object);
         }
     }
+}
+
+/// Whether the slots, in slot order, contain `slot`, skipping those below it. Called with ascending slots.
+fn sorted_slots_contain(slots: &mut core::iter::Peekable<impl Iterator<Item = u32>>, slot: u32) -> bool {
+    while slots.next_if(|listed| *listed < slot).is_some() {}
+    slots.next_if_eq(&slot).is_some()
 }
 
 /// Whether Full translation writes the compiled function's frame too.
