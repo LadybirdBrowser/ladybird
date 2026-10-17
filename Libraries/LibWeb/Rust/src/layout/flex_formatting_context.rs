@@ -1618,9 +1618,16 @@ impl<'pass> FlexFormattingContext<'pass> {
                 != self.inline_axis_is_horizontal(self.run.box_);
             let container_has_vertical_inline_main_axis =
                 self.is_row_layout() && !self.inline_axis_is_horizontal(self.run.box_);
+            // INTEROP: The block size of a non-replaced item with an aspect ratio follows from its inline size, so other
+            //          engines treat its post-flexing main size as definite when the main axis is its block axis.
+            let node = self.flex_items[index].box_;
+            let aspect_ratio_provides_block_main_size = !self.main_axis_is_parallel_to_inline_axis(node)
+                && !self.facts(node).is_replaced_box()
+                && self.facts(node).has_preferred_aspect_ratio();
             if self.has_definite_main_size_used(self.container_used())
                 || self.flex_items[index].used_flex_basis_is_definite
                 || self.flex_items[index].main_size_was_resolved_from_aspect_ratio
+                || aspect_ratio_provides_block_main_size
                 || container_has_vertical_inline_main_axis
                 || (item_is_orthogonal && self.main_axis_is_parallel_to_inline_axis(self.flex_items[index].box_))
             {
