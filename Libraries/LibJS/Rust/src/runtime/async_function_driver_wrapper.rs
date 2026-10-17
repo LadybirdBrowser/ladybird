@@ -19,8 +19,7 @@ use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::call_function_object;
-use crate::runtime::completion::{Completion, CompletionType, Must, ThrowCompletionOr};
+use crate::runtime::completion::{Completion, CompletionType, ThrowCompletionOr};
 use crate::runtime::generator_object::{GeneratingFunction, GeneratorObject, GeneratorState, IterationResult};
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::promise::{Promise, PromiseState, promise_resolve};
@@ -93,8 +92,8 @@ impl AsyncFunctionDriverWrapper {
 
         // NB: The body returned without awaiting.
         if context.yield_continuation.get() == ExecutionContext::NO_YIELD_CONTINUATION {
-            let resolving_functions = top_level_promise.create_resolving_functions(vm);
-            call_function_object(vm, resolving_functions.resolve, Value::UNDEFINED, &[value]).must();
+            // NB: Nothing else resolves the promise, so it needs no resolving functions.
+            top_level_promise.resolve(vm, value);
             return top_level_promise;
         }
 
@@ -279,8 +278,8 @@ impl AsyncFunctionDriverWrapper {
             if result.done {
                 // AsyncBlockStart resolves return completions via promiseCapability.[[Resolve]], which adopts returned
                 // thenables without turning `return value;` into `return await value;`.
-                let resolving_functions = this.top_level_promise.get().create_resolving_functions(vm);
-                call_function_object(vm, resolving_functions.resolve, Value::UNDEFINED, &[promise_value]).must();
+                // NB: Nothing else resolves the promise, so it needs no resolving functions.
+                this.top_level_promise.get().resolve(vm, promise_value);
                 break Ok(());
             }
 
