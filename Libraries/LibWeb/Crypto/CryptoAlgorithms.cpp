@@ -10,6 +10,7 @@
 
 #include <AK/Base64.h>
 #include <AK/HashTable.h>
+#include <AK/Memory.h>
 #include <AK/QuickSort.h>
 #include <AK/Random.h>
 #include <LibCrypto/ASN1/ASN1.h>
@@ -7968,8 +7969,9 @@ WebIDL::ExceptionOr<bool> HMAC::verify(JS::Realm& realm, AlgorithmParams const&,
     auto const& algorithm = key->hmac_algorithm();
     auto mac = TRY(hmac_calculate_message_digest(realm, algorithm.hash(), key_data.bytes(), message.bytes()));
 
-    // 2. Return true if mac is equal to signature and false otherwise.
-    return mac == signature;
+    // 2. Return true if mac is equal to signature and false otherwise. This comparison must be performed in
+    //    constant-time.
+    return mac.size() == signature.size() && timing_safe_compare(mac.data(), signature.data(), mac.size());
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-generate-key
