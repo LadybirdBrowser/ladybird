@@ -1,0 +1,39 @@
+<!doctype html>
+<link rel="match" href="../expected/line-clamp-hides-reused-atomic-inlines-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+
+    #container {
+        width: 100px;
+        line-clamp: 1 no-ellipsis;
+        font-size: 0;
+    }
+
+    .box {
+        display: inline-block;
+        width: 40px;
+        height: 20px;
+        background: green;
+    }
+
+    .pushed {
+        background: red;
+    }
+
+    .pushed > div {
+        width: 10px;
+        height: 10px;
+        background: red;
+    }
+</style>
+<div id="container"><div class="box"></div><div class="box pushed"><div></div></div><div class="box pushed"></div></div>
+<script>
+    // The boxes after the first are laid out before the insertion pushes them past the clamp point.
+    document.body.offsetWidth;
+    const box = document.createElement("div");
+    box.className = "box";
+    container.insertBefore(box, container.firstChild);
+    document.body.offsetWidth;
+</script>
