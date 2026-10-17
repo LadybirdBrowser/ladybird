@@ -8783,7 +8783,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
             }();
             key = CryptoKey::create(private_key);
 
-            // 3. Set the [[type]] internal slot of Key to "private".
+            // 3. Set the [[type]] internal slot of key to "private".
             key->set_type(KeyType::Private);
 
             // 4. If the pub attribute of jwk does not contain the base64url encoded public key
@@ -8808,7 +8808,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
             //    identified by interpreting the pub attribute of jwk as a base64url encoded public key.
             key = CryptoKey::create(::Crypto::PK::MLDSAPublicKey { public_key });
 
-            // 3. Set the [[type]] internal slot of Key to "public".
+            // 3. Set the [[type]] internal slot of key to "public".
             key->set_type(KeyType::Public);
         }
 
