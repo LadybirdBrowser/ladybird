@@ -11,6 +11,7 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/ViewImplementation.h>
+#include <UI/Qt/BrandColors.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/ProcessManagerWindow.h>
@@ -215,7 +216,7 @@ ProcessManagerWindow::ProcessManagerWindow(WebView::ProcessManager& process_mana
     m_search->setPlaceholderText(tr("Search processes"));
     m_search->setAccessibleName(tr("Search processes"));
     m_search->setClearButtonEnabled(true);
-    m_search->setAttribute(Qt::WA_MacSmallSize);
+    m_search->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_search->setMinimumWidth(180);
     m_search->setMaximumWidth(240);
     m_search->addAction(create_chrome_icon(ChromeIcon::Search, palette()), QLineEdit::LeadingPosition);
@@ -310,13 +311,27 @@ void ProcessManagerWindow::update_style()
     auto border = ChromeStyle::style_sheet_color(ChromeStyle::mix(background, text, 0.12));
     auto foreground = ChromeStyle::style_sheet_color(text);
     auto secondary_foreground = ChromeStyle::style_sheet_color(ChromeStyle::chrome_muted_text(palette()));
+    auto search_surface_color = ChromeStyle::chrome_surface(palette());
+    auto search_surface = ChromeStyle::style_sheet_color(search_surface_color);
+    auto search_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette()));
+    auto accent = ChromeStyle::style_sheet_color(ChromeStyle::chrome_accent());
+    auto selection = ChromeStyle::style_sheet_color(BrandColors::SlateBlue900);
+    auto placeholder = ChromeStyle::style_sheet_color(ChromeStyle::mix(text, search_surface_color, 0.4));
 
     m_process_count->setStyleSheet(QStringLiteral("color: %1;").arg(secondary_foreground));
     m_summary->setStyleSheet(QStringLiteral("color: %1;").arg(secondary_foreground));
+    m_search->setStyleSheet(QStringLiteral(
+        "QLineEdit { color: %1; background: %2; border: 1px solid %3; border-radius: 8px;"
+        " min-height: 26px; padding: 2px 9px; selection-background-color: %5; selection-color: white;"
+        " placeholder-text-color: %6; }"
+        "QLineEdit:focus { border-color: %4; }")
+            .arg(foreground, search_surface, search_border, accent, selection, placeholder));
     m_processes->setStyleSheet(QStringLiteral(
-        "QTreeWidget { background: %1; color: %2; border: none; }"
-        "QTreeWidget::item { padding: 0px 8px; }")
-            .arg(surface, foreground));
+        "QTreeWidget { background: %1; color: %2; border: none;"
+        " selection-background-color: %3; selection-color: white; }"
+        "QTreeWidget::item { padding: 0px 8px; }"
+        "QTreeWidget::item:selected { background: %3; color: white; }")
+            .arg(surface, foreground, selection));
     m_processes->header()->setStyleSheet(QStringLiteral(
         "QHeaderView::section { background: %1; color: %2; border: none; border-bottom: 1px solid %3;"
         " padding: 5px 8px; }")
