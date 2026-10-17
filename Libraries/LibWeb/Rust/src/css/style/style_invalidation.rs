@@ -559,6 +559,14 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         if (old.visibility() == collapse) != (new.visibility() == collapse) {
             result.ensure_level(INVALIDATION_RELAYOUT);
         }
+        // Only a visible box has its backdrop filtered.
+        let visible = crate::css::css_enums::visibility::VISIBLE;
+        if (old.visibility() == visible) != (new.visibility() == visible)
+            && (old.effects().backdrop_filter.operations.length != 0
+                || new.effects().backdrop_filter.operations.length != 0)
+        {
+            result.ensure_visual_context(VISUAL_CONTEXT_UPDATE_VALUES);
+        }
         result.ensure_level(INVALIDATION_REPAINT);
     } else if property_metadata::property_affects_layout(property) {
         result.ensure_level(INVALIDATION_RELAYOUT);

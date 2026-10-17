@@ -697,6 +697,11 @@ fn compute_backdrop_filter_data(
     if backdrop_filter.operations.length == 0 {
         return None;
     }
+    // NB: The filtered backdrop is part of the box's own painting, so an invisible box shows none of it, even when
+    //     its visible descendants still paint.
+    if style.visibility() != css_enums::visibility::VISIBLE {
+        return None;
+    }
     let converter = DevicePixelConverter::new(device_pixels_per_css_pixel);
     let region = converter.rounded_device_rect(paintable_geometry::absolute_border_box_rect(layout_arena, slot));
     if region.is_empty() {
