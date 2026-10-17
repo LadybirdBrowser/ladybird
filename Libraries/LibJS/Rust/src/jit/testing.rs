@@ -169,7 +169,7 @@ fn exit_count(vm: &Vm) -> ThrowCompletionOr<Value> {
     let function = function_argument(vm)?;
     let count = function
         .bytecode_executable()
-        .and_then(|executable| executable.jit_code().map(super::code::JitCode::exit_count))
+        .and_then(|executable| executable.jit_code(vm).map(super::code::JitCode::exit_count))
         .unwrap_or(0);
     Ok(Value::from_i32(i32::try_from(count).unwrap_or(i32::MAX)))
 }

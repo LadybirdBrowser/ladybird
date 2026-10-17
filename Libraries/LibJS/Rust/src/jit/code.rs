@@ -317,19 +317,14 @@ impl Executable {
         self.head.jit_compile_state.set(state as u8);
     }
 
-    /// The VM whose heap the executable lives in.
-    fn heap_vm(&self) -> &Vm {
-        Vm::of_cell(self)
-    }
-
-    /// The executable's slot in the JIT entry table and the table, if it has one.
-    fn jit_entry_table_slot(&self) -> Option<(&JitEntryTable, u32)> {
+    /// The executable's slot in the JIT entry table of `vm`, the VM whose heap the executable lives in, and the table,
+    /// if it has one.
+    fn jit_entry_table_slot<'vm>(&self, vm: &'vm Vm) -> Option<(&'vm JitEntryTable, u32)> {
         let slot = self.head.jit_entry_slot.get();
         if slot & JIT_ENTRY_SLOT_MASK == NO_JIT_ENTRY_SLOT {
             return None;
         }
-        let table = self
-            .heap_vm()
+        let table = vm
             .jit
             .entry_table
             .as_ref()
@@ -370,15 +365,15 @@ impl Executable {
         drop(code);
     }
 
-    /// The executable's attached JIT code, if any.
-    pub fn jit_code(&self) -> Option<&JitCode> {
-        let (table, slot) = self.jit_entry_table_slot()?;
+    /// The executable's attached JIT code, if any. `vm` is the VM whose heap the executable lives in.
+    pub fn jit_code<'vm>(&self, vm: &'vm Vm) -> Option<&'vm JitCode> {
+        let (table, slot) = self.jit_entry_table_slot(vm)?;
         table.code(slot)
     }
 
     /// Visits the cells the executable's attached JIT code keeps alive.
     pub fn trace_jit_code(&self, visitor: &mut Visitor) {
-        if let Some(code) = self.jit_code() {
+        if let Some(code) = self.jit_code(Vm::of_cell(self)) {
             code.trace(visitor);
         }
     }
@@ -411,9 +406,9 @@ impl Executable {
 
     /// Makes new frames of the executable run in its JIT code. Frames of it that run in the interpreter count down
     /// `tier_up_budget` from here, and continue in the code at an on-stack replacement entry once it runs out.
-    pub fn install_jit_code(&self, code: Box<JitCode>, tier_up_budget: i32) {
+    pub fn install_jit_code(&self, vm: &Vm, code: Box<JitCode>, tier_up_budget: i32) {
         let (table, slot) = self
-            .jit_entry_table_slot()
+            .jit_entry_table_slot(vm)
             .expect("only executables with a JIT entry slot are compiled");
         table.set_entry(slot, Some(code.entry() as *const c_void));
         assert!(table.set_code(slot, Some(code)).is_none());
@@ -425,7 +420,7 @@ impl Executable {
     /// anymore (see `detach_discarded_jit_code_if_unused()`). The executable may be compiled again later.
     pub fn discard_jit_code(&self, vm: &Vm) {
         assert_eq!(self.jit_compile_state(), CompileState::Installed);
-        let (table, slot) = self.jit_entry_table_slot().expect("the code is attached");
+        let (table, slot) = self.jit_entry_table_slot(vm).expect("the code is attached");
         table.set_entry(slot, None);
         self.set_jit_compile_state(CompileState::Discarding);
         if self.detach_discarded_jit_code_if_unused(vm) {
@@ -475,7 +470,7 @@ impl Executable {
     /// Drops the executable's discarded code, which no frame runs anymore.
     fn detach_jit_code(&self, vm: &Vm) {
         let state = self.jit_state();
-        let (table, slot) = self.jit_entry_table_slot().expect("the code is attached");
+        let (table, slot) = self.jit_entry_table_slot(vm).expect("the code is attached");
         drop(table.set_code(slot, None));
         vm.jit.count_coverage("discard");
         let discard_count = state.discard_count.get() + 1;

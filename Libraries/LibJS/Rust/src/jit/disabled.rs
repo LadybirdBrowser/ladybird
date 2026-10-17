@@ -180,7 +180,12 @@ pub mod translate {
         u64::from(low_half)
     }
 
-    pub fn call_site_frames(_frame: &ExecutionContext, _index: u32, _frame_pointer: u64) -> Vec<CallSiteFrame> {
+    pub fn call_site_frames(
+        _vm: &Vm,
+        _frame: &ExecutionContext,
+        _index: u32,
+        _frame_pointer: u64,
+    ) -> Vec<CallSiteFrame> {
         Vec::new()
     }
 
