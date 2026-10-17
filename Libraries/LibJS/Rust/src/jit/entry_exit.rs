@@ -12,11 +12,14 @@ use core::ptr::NonNull;
 use libjs_abi::register;
 use libjs_jit::code::SiteKind;
 
-use super::code::{CompileState, EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP, EntryStatus, JitEntry, JitResult};
+use super::code::{
+    CompileState, EXIT_COUNT_BEFORE_DISCARD, EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP, EntryStatus, JitEntry, JitResult,
+};
 use super::translate::{self, RegisterDump};
 use super::{executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
 use crate::bytecode::feedback::tier_up_costs;
+use crate::bytecode::{instruction_at, op};
 use crate::interpreter::vm::Vm;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::value::Value;
@@ -106,6 +109,17 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
 /// Resumes the running frame, a generator's frame suspended at the continuation `pc`, in its executable's JIT code if
 /// that has a resume entry there. Returns how the code returned, if it ran.
 pub fn enter_jit_code_at_continuation(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32) -> Option<JitResult> {
+    enter_jit_code_with_frame_in_memory(vm, frame, pc, "resume-entry")
+}
+
+/// Continues the running frame at `pc`, where its memory holds every value live, in its executable's JIT code if that
+/// has an entry there. Returns how the code returned, if it ran.
+fn enter_jit_code_with_frame_in_memory(
+    vm: &Vm,
+    frame: NonNull<ExecutionContext>,
+    pc: u32,
+    coverage_key: &str,
+) -> Option<JitResult> {
     assert_eq!(vm.running_execution_context(), Some(frame));
     let frame_ref = frame_of(frame);
     let executable = executable_of(frame_ref);
@@ -116,9 +130,51 @@ pub fn enter_jit_code_at_continuation(vm: &Vm, frame: NonNull<ExecutionContext>,
         .jit_code(vm)
         .expect("the executable has JIT code")
         .osr_entry(pc)?;
-    vm.jit.count_coverage("resume-entry");
+    vm.jit.count_coverage(coverage_key);
     frame_ref.program_counter.set(pc);
     Some(enter_from_native_code(vm, frame, entry))
+}
+
+/// `asm_helper_enter_jit_code_after_catch`: the interpreter calls this when it ran the `Catch` at `pc` in the running
+/// frame, whose executable has JIT code. Continues the frame in the code's catch entry after the Catch, if it has one
+/// (see `libjs_jit::builder::osr`). Returns the interpreter's control word: 0 to continue interpreting after the
+/// Catch, and otherwise what `control_after_entry()` returns.
+pub fn helper_enter_jit_code_after_catch(vm: &Vm, pc: u32) -> i64 {
+    let frame = vm.running_execution_context().expect("a frame is running");
+    let executable = executable_of(frame_of(frame));
+    let next_pc = pc + instruction_at::<op::Catch>(&executable, pc).length();
+    if let Some(result) = enter_jit_code_with_frame_in_memory(vm, frame, next_pc, "catch-entry") {
+        return control_after_entry(vm, result);
+    }
+    // NB: Code compiled before the handler first caught an exception has no entry after its Catch. Catches there count
+    //     like exits, so that the executable is compiled again with the entry once they keep happening. Handlers
+    //     without an entry for other reasons would get none from a compile either.
+    if !can_enter_jit_code(vm, &executable) {
+        return 0;
+    }
+    let code = executable.jit_code(vm).expect("the executable has JIT code");
+    if code.compiled_before_handler_caught(pc) && code.count_exit() >= EXIT_COUNT_BEFORE_DISCARD {
+        vm.jit.count_coverage("discard-from-catch");
+        executable.discard_jit_code(vm);
+    }
+    0
+}
+
+/// The interpreter's control word after JIT code it entered in the running frame returned: 1 to continue interpreting
+/// the running execution context, negative to leave the interpreter.
+pub fn control_after_entry(vm: &Vm, result: JitResult) -> i64 {
+    match result.status {
+        EntryStatus::Returned => {
+            // NB: Like the interpreter's Return, a frame without a caller, or whose caller waits in native code,
+            //     returns from the interpreter.
+            let frame = vm.running_execution_context_ref();
+            let exits_interpreter = frame.caller_frame.get().is_null() || frame.returns_to_native_caller.get();
+            vm.return_from_running_frame(Value(result.value));
+            if exits_interpreter { -1 } else { 1 }
+        }
+        EntryStatus::Resume => 1,
+        EntryStatus::ExitInterpreter => -1,
+    }
 }
 
 /// Runs the frame that just became the running execution context in its executable's JIT code, if it can, for the

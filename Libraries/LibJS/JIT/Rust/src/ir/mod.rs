@@ -2001,8 +2001,10 @@ pub struct Graph {
     /// them, take at once. Compiled code checks at entry that they fit.
     pub materialized_frame_bytes: u64,
     /// On-stack replacement entries: blocks without predecessors where code
-    /// already running in the interpreter enters compiled code, with the pc of
-    /// the loop back edge each one starts at. The frame holds every value.
+    /// already running in the interpreter enters compiled code, with the pc
+    /// each one starts at: a loop back edge, the continuation of a generator,
+    /// or the instruction after the `Catch` of an exception handler. The frame
+    /// holds every value.
     pub osr_entries: Vec<(u32, BlockId)>,
     /// The pcs of the loop back edges in the loops of the on-stack
     /// replacement entries (including those of the entries), from where a
@@ -2012,6 +2014,10 @@ pub struct Graph {
     /// on-stack replacement entries, from where a frame running in the
     /// interpreter may reach an entry on a later iteration.
     pub osr_outer_loop_back_edges: Vec<u32>,
+    /// The pcs of the `Catch` of the exception handlers that got no catch
+    /// entry because they never caught an exception before the compile (see
+    /// `builder::osr`). A compile after they caught gives them one.
+    pub uncaught_handlers: Vec<u32>,
     /// The register-saving `CallSlowPath` nodes that may run before the
     /// frame is initialized, and so initialize it first if it is not.
     pub slow_paths_initializing_frame: Vec<NodeId>,

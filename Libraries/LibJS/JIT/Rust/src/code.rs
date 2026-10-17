@@ -31,6 +31,8 @@ pub struct CompiledCode {
     /// from where a frame running in the interpreter may reach one of them
     /// on a later iteration.
     pub osr_outer_loop_back_edges: Vec<u32>,
+    /// See `ir::Graph::uncaught_handlers`.
+    pub uncaught_handlers: Vec<u32>,
     /// The sites of the code, by index: exit and leave stubs pass the index of
     /// theirs to the runtime, and calls in inlined callees name theirs.
     pub sites: Vec<Site>,

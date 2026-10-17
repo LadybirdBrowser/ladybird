@@ -54,6 +54,10 @@ impl RuntimeFunctions for Runtime {
         crate::jit::entry_exit::helper_enter_jit_code(vm_from_helper_argument(vm)) as u64
     }
 
+    fn helper_enter_jit_code_after_catch(vm: u64, pc: u64) -> u64 {
+        crate::jit::entry_exit::helper_enter_jit_code_after_catch(vm_from_helper_argument(vm), pc as u32) as u64
+    }
+
     fn helper_empty_string(vm: u64) -> u64 {
         operators::helper_empty_string(vm_from_helper_argument(vm))
     }
