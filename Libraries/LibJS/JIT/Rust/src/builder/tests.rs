@@ -2459,11 +2459,20 @@ fn dump_bitwise_or(feedback: u8) -> String {
 
 #[test]
 fn bitwise_operands_that_were_booleans_are_read_as_int32s() {
-    use crate::snapshot::arith_feedback::{BOOLEAN, INT32, OTHER};
+    use crate::snapshot::arith_feedback::{BOOLEAN, INT32, OTHER, STRING};
     let text = dump_bitwise_or(INT32 | BOOLEAN);
     assert_eq!(text.matches("BranchInt32OrBoolean").count(), 2, "{text}");
     assert!(text.contains("Int32BitwiseOr"), "{text}");
-    assert_eq!(text.matches("CallSlowPath BitwiseOr").count(), 1, "{text}");
+    // Operands of other kinds never came, so they exit rather than run the slow path.
+    assert!(
+        text.contains("Exit SlowPath") && !text.contains("CallSlowPath"),
+        "{text}"
+    );
+    // Other kinds that came, like undefined or strings, take the slow path.
+    for other in [OTHER, STRING] {
+        let text = dump_bitwise_or(INT32 | BOOLEAN | other);
+        assert_eq!(text.matches("CallSlowPath BitwiseOr").count(), 1, "{text}");
+    }
     // Other operands, like undefined, are no booleans.
     let text = dump_bitwise_or(INT32 | OTHER);
     assert!(!text.contains("BranchInt32OrBoolean"), "{text}");
