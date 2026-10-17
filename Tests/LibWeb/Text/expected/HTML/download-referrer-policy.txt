@@ -1,0 +1,1 @@
+PASS: download link honored no-referrer
