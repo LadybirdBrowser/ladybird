@@ -788,12 +788,9 @@ void TabBar::paintEvent(QPaintEvent*)
         painter.setOpacity(1.0);
         contents_rect.setLeft(icon_rect.right() + 8);
 
-        QFont tab_font = font();
-        if (is_selected)
-            tab_font.setWeight(QFont::DemiBold);
-        painter.setFont(tab_font);
+        painter.setFont(font());
 
-        QFontMetrics font_metrics(tab_font);
+        QFontMetrics font_metrics(font());
         auto title = font_metrics.elidedText(tabText(index), Qt::ElideRight, max(0, contents_rect.width()));
         auto tab_text_color = text_color;
         if (!is_selected)
