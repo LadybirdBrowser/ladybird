@@ -2111,8 +2111,10 @@ impl<'pass> SizingContext<'pass> {
         let style = self.style(node);
         // https://drafts.csswg.org/css2/#inline-replaced-width
         // "'width' has a computed value of 'auto', 'height' has some other computed value, and the element does have an intrinsic ratio"
-        if !facts.is_replaced_box()
-            || !facts.has_preferred_aspect_ratio()
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+        // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a replaced element
+        // with a natural aspect ratio and no natural size in that axis.
+        if !facts.has_preferred_aspect_ratio()
             || !style.width().is_auto()
             || style.height().is_auto()
             || style.height().is_intrinsic_sizing_constraint()
@@ -2130,11 +2132,21 @@ impl<'pass> SizingContext<'pass> {
         }
         // https://drafts.csswg.org/css2/#inline-replaced-width
         // "(used height) * (intrinsic ratio)"
-        Some(self.compute_inline_size_for_replaced_element(
+        let inline_size =
+            self.compute_inline_size_for_replaced_element(node, available_space, ContainingBlockConstraints::default());
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+        let block_size =
+            self.compute_block_size_for_replaced_element(node, available_space, ContainingBlockConstraints::default());
+        let minimum = self.automatic_minimum_size_from_aspect_ratio(
             node,
+            SizingAxis::Inline,
+            block_size,
+            inline_size,
             available_space,
-            ContainingBlockConstraints::default(),
-        ))
+            constraints,
+            None,
+        );
+        Some(minimum.map_or(inline_size, |minimum| inline_size.max(minimum)))
     }
 
     pub(crate) fn calculate_min_content_inline_size(
