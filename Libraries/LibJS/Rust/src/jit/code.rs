@@ -87,6 +87,11 @@ impl CompileState {
 pub struct SnapshotExecutable {
     pub executable: Gc<Executable>,
     pub function: Option<InlinedFunction>,
+    /// How many sites where JIT code exited the executable had recorded when the code was compiled, which the code
+    /// knew of (see `Executable::add_jit_exit_site()`). The sites are only ever appended to.
+    pub known_exit_sites: usize,
+    /// For the compiled executable, how many sites in inlined builtins it had recorded then.
+    pub known_builtin_exit_sites: usize,
 }
 
 /// The function object of an inlined executable, which its materialized frames run.
@@ -294,6 +299,11 @@ pub struct ExecutableJitState {
     builtin_exit_sites: RefCell<Vec<(u64, u32, ExitKind)>>,
     /// How often the executable's code was discarded.
     discard_count: Cell<u32>,
+    /// How often in a row the executable's code was discarded without its exits having been at a site the code did not
+    /// know of, so that a recompile would learn nothing from them.
+    fruitless_discard_count: Cell<u32>,
+    /// Whether exits of the executable's code recorded a site it did not know of since its code was last discarded.
+    learned_exit_site: Cell<bool>,
     /// Whether the executable is refused once its discarded code is detached, because it was refused while frames
     /// still ran that code (see `refuse_jit_compile_once_detached()`).
     refused_once_detached: Cell<bool>,
@@ -321,8 +331,16 @@ pub const EXIT_COUNT_BEFORE_DISCARD: u32 = 10;
 /// costs more than code that exits as often elsewhere.
 pub const EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP: u32 = 5;
 
-/// An executable whose code was discarded this often is not compiled again.
-pub const MAX_DISCARD_COUNT: u32 = 8;
+/// An executable whose code was discarded this often in a row without its exits teaching it anything is not compiled
+/// again. Discards after exits at sites the code did not know of make progress: each site is recorded once, and
+/// recompiles no longer speculate there, so code that keeps reaching new paths (like a dispatcher whose program moves
+/// on to new phases) keeps being compiled.
+pub const MAX_FRUITLESS_DISCARD_COUNT: u32 = 8;
+
+/// An executable whose code was discarded this often, whatever its exits taught it, is not compiled again either: each
+/// recompile compiles the whole executable, so code that keeps reaching new sites would otherwise cost compile time
+/// without bound.
+pub const MAX_DISCARD_COUNT: u32 = 64;
 
 impl Executable {
     pub fn jit_compile_state(&self) -> CompileState {
@@ -398,26 +416,46 @@ impl Executable {
         self.jit_state().exit_sites.borrow().clone()
     }
 
-    pub fn add_jit_exit_site(&self, site: (u32, ExitKind)) {
+    pub fn jit_exit_site_count(&self) -> usize {
+        self.jit_state().exit_sites.borrow().len()
+    }
+
+    /// Records a site where JIT code exited, and returns its index among the sites.
+    pub fn add_jit_exit_site(&self, site: (u32, ExitKind)) -> usize {
         let mut sites = self.jit_state().exit_sites.borrow_mut();
-        if !sites.contains(&site) {
-            sites.push(site);
+        if let Some(index) = sites.iter().position(|recorded| *recorded == site) {
+            return index;
         }
+        sites.push(site);
+        sites.len() - 1
     }
 
     pub fn jit_builtin_exit_sites(&self) -> Vec<(u64, u32, ExitKind)> {
         self.jit_state().builtin_exit_sites.borrow().clone()
     }
 
-    pub fn add_jit_builtin_exit_site(&self, site: (u64, u32, ExitKind)) {
+    pub fn jit_builtin_exit_site_count(&self) -> usize {
+        self.jit_state().builtin_exit_sites.borrow().len()
+    }
+
+    /// Records a site where JIT code exited in an inlined builtin, and returns its index among those sites.
+    pub fn add_jit_builtin_exit_site(&self, site: (u64, u32, ExitKind)) -> usize {
         let mut sites = self.jit_state().builtin_exit_sites.borrow_mut();
-        if !sites.contains(&site) {
-            sites.push(site);
+        if let Some(index) = sites.iter().position(|recorded| *recorded == site) {
+            return index;
         }
+        sites.push(site);
+        sites.len() - 1
     }
 
     pub fn jit_discard_count(&self) -> u32 {
         self.jit_state().discard_count.get()
+    }
+
+    /// Notes that an exit of the executable's installed code was at a site the code did not know of, which a
+    /// recompile learns from (see `MAX_FRUITLESS_DISCARD_COUNT`).
+    pub fn note_learned_jit_exit_site(&self) {
+        self.jit_state().learned_exit_site.set(true);
     }
 
     /// Makes new frames of the executable run in its JIT code. Frames of it that run in the interpreter count down
@@ -497,7 +535,17 @@ impl Executable {
                 super::describe_executable(self)
             );
         }
-        if discard_count >= MAX_DISCARD_COUNT || state.refused_once_detached.get() {
+        if state.learned_exit_site.replace(false) {
+            state.fruitless_discard_count.set(0);
+        } else {
+            state
+                .fruitless_discard_count
+                .set(state.fruitless_discard_count.get() + 1);
+        }
+        if discard_count >= MAX_DISCARD_COUNT
+            || state.fruitless_discard_count.get() >= MAX_FRUITLESS_DISCARD_COUNT
+            || state.refused_once_detached.get()
+        {
             super::tier_up::refuse_jit_compile(vm, self);
             return;
         }

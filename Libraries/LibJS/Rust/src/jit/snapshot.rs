@@ -1241,6 +1241,8 @@ pub fn capture_snapshot(
             .map(|entry| SnapshotExecutable {
                 executable: entry.executable,
                 function: entry.function,
+                known_exit_sites: entry.executable.jit_exit_site_count(),
+                known_builtin_exit_sites: entry.executable.jit_builtin_exit_site_count(),
             })
             .collect(),
     }
