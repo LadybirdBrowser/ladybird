@@ -1,0 +1,8 @@
+Ladybird answers “maybe” for a codec-less type whose container implies
+its codec. Gecko and WebKit answer “maybe” for “audio/aac” and
+“audio/flac” without a codecs parameter; Blink answers “probably”
+(media/base/mime_util_internal.cc treats the implied codec as given).
+Gecko’s MP4Decoder::IsSupportedType() accepts “audio/x-m4a” and
+“video/quicktime” as MP4, and Blink registers “audio/x-m4a” in
+mime_util_internal.cc but not “video/quicktime”; WebKit accepts both
+through AVFoundation. Ladybird follows Gecko on both.
