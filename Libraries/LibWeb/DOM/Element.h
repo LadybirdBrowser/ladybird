@@ -398,6 +398,12 @@ public:
     // Terminates or resumes the animations of a subtree whose display, ignoring animations, left or entered none since
     // `before`, and clears the styles of a subtree that became display:none.
     void apply_display_none_change(Layout::BegunRead const& read, DisplayNoneState before);
+    // Clears the styles of the descendants of a display:none element, which have no boxes: a CSSOM read or the subtree's
+    // reveal materializes them again. The styles of the SVG elements visible content can reference are computed again.
+    void clear_computed_styles_from_display_none_descendants(Layout::BegunRead const& read);
+    // Whether a styled descendant is an SVG element visible content can reference, whose style is kept while the element
+    // is display:none.
+    [[nodiscard]] bool has_referenceable_svg_descendant() const;
     // Refreshes the pseudo-element styles of an element whose record the engine settled without them, once the host has
     // composed the element's animations over the record, which the pseudo-elements inherit. `old_computed_values` is
     // the style the element held before the record.
@@ -1039,7 +1045,6 @@ private:
     void publish_custom_property_names();
     void update_anchor_name_registry(CSS::ComputedValues const* old_computed_values, CSS::ComputedValues const& new_computed_values);
     void replace_style_record(CSS::StyleRecordID);
-    void clear_computed_styles_from_display_none_descendants(Layout::BegunRead const& read);
 
     WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(Utf16View where, GC::Ref<Node> node);
 
