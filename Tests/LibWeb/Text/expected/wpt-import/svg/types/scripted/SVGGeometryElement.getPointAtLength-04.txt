@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, path with display: default
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, path with display: none
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, path with display: none and inline style
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, rect with display: default
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, rect with display: none
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, circle with display: default
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, circle with display: none
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, polygon with display: default
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, polygon with display: none
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, polyline with display: default
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, polyline with display: none
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, ellipse with display: default
+Pass	SVGGeometryElement.getPointAtLength: 'display' and a valid path, ellipse with display: none

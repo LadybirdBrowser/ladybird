@@ -24,7 +24,7 @@ public:
     Gfx::Path computed_path();
 
     WebIDL::ExceptionOr<float> get_total_length();
-    GC::Ref<Geometry::DOMPoint> get_point_at_length(float distance);
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> get_point_at_length(float distance);
 
     GC::Ref<SVGAnimatedNumber> path_length();
 

@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::SVG {
 
@@ -111,10 +112,26 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     return computed_path().length();
 }
 
-GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distance)
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getPointAtLength
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> SVGGeometryElement::get_point_at_length(float distance)
 {
-    (void)distance;
-    return Geometry::DOMPoint::create(0, 0, 0, 0);
+    // When getPointAtLength(distance) is called, the following steps are run:
+    auto path = computed_path();
+
+    // 1. If current element is a non-rendered element, and the UA is not able to compute the total length of the path,
+    //    then throw an InvalidStateError.
+    // NB: Like other engines, throw for an empty path whether or not the element is rendered.
+    auto point_along_path = path.point_at_length(distance);
+    if (!point_along_path.has_value())
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's path is empty"_utf16);
+
+    // 2. Let length be the user agent's computed value for the total length of the path, in user units.
+    // 3. Clamp distance to [0, length].
+    // 4. Let (x, y) be the point on the path at distance distance.
+    // NB: Gfx::Path::point_at_length() clamps the distance to the ends of the path.
+
+    // 5. Return a newly created, detached DOMPoint object representing the point (x, y).
+    return Geometry::DOMPoint::create(point_along_path->point.x(), point_along_path->point.y(), 0, 1);
 }
 
 GC::Ref<SVGAnimatedNumber> SVGGeometryElement::path_length()

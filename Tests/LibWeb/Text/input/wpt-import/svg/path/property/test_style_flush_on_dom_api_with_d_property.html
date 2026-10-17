@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<title>Test DOM APIs which flush the style properly, with d property</title>
+<meta charset=utf-8>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+svg {
+  width: 10%;
+  height: 10%;
+  background: #eee;
+}
+svg path {
+  fill: none;
+  stroke: #000;
+}
+</style>
+
+<div id="log"></div>
+
+<svg viewBox="0 0 20 20" id="svgroot"></svg>
+
+<script>
+'use strict';
+
+function createPath(t) {
+  const target = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  document.getElementById('svgroot').appendChild(target);
+
+  if (t && typeof t.add_cleanup === "function") {
+    t.add_cleanup(function() {
+      target.remove();
+    });
+  }
+
+  // Set an initial d and flush style first to make sure the following DOM APIs
+  // do flush again.
+  target.style.d = 'path("M 0 0")';
+  assert_equals(getComputedStyle(target).d, 'path("M 0 0")', "the initial d");
+  return target;
+}
+
+test(function(t) {
+  const target = createPath(t);
+  target.style.d = 'path("M5,5 L10,5 L10,10")';
+  assert_equals(target.getTotalLength(), 10, "the total length");
+}, "getTotalLength() with d property");
+
+test(function(t) {
+  const target = createPath(t);
+  target.style.d = 'path("M5,5 L10,5 L10,10")';
+  // The first segment of path is (5,5) to (10,5), its length is 5.
+  // The second segment of path is (10,5) to (10,10), its length is 5.
+  // So, the length 8 is on the 2nd segment, at (10,8).
+  const point = target.getPointAtLength(8);
+  assert_equals(point.x, 10, "x-axis position");
+  assert_equals(point.y, 8, "y-axis position");
+}, "getPointAtLength() with d property");
+
+test(function(t) {
+  const target = createPath(t);
+  const svgPoint = document.getElementById("svgroot").createSVGPoint();
+  svgPoint.x = 10;
+  svgPoint.y = 8;
+
+  target.style.d = 'path("M5,5 L10,5 L10,10")';
+  assert_equals(target.isPointInFill(svgPoint), true);
+}, "isPointInFill() with d property");
+
+test(function(t) {
+  const target = createPath(t);
+  const svgPoint = document.getElementById("svgroot").createSVGPoint();
+  svgPoint.x = 10;
+  svgPoint.y = 8;
+
+  target.style.d = 'path("M5,5 L10,5 L10,10")';
+  assert_equals(target.isPointInStroke(svgPoint), true);
+}, "isPointInStroke() with d property");
+
+</script>

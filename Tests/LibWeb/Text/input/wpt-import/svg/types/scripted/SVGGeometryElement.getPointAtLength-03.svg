@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:html="http://www.w3.org/1999/xhtml">
+  <title>When SVGGeometryElement.getPointAtLength is called with an element that is not in the document, either succeed or throw exception</title>
+  <html:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getPointAtLength"/>
+  <html:script src="../../../resources/testharness.js"/>
+  <html:script src="../../../resources/testharnessreport.js"/>
+  <script><![CDATA[
+  test(function() {
+    var pathElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    assert_throws_dom("InvalidStateError", function() { pathElement.getPointAtLength(700) });
+  }, document.title + " with SVGPathElement");
+
+  test(function() {
+    var rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rectElement.setAttribute("rx", 0);
+    rectElement.setAttribute("ry", 0);
+    rectElement.setAttribute("width", 200);
+    rectElement.setAttribute("height", 300);
+    try {
+       let rectPoint = rectElement.getPointAtLength(300);
+       assert_equals(rectPoint.x, 200, 'unexpected x position');
+       assert_equals(rectPoint.y, 100, 'unexpected y position');
+    } catch (e) {
+       assert_equals(e.name || e.type, 'InvalidStateError', 'Wrong exception, expected InvalidStateError');
+    }
+  }, document.title + " with SVGRectElement");
+
+  test(function() {
+    var circleElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circleElement.setAttribute("r", 10);
+    try {
+       let circlePoint = circleElement.getPointAtLength(100);
+       assert_approx_equals(circlePoint.x, 10, 0.2, 'unexpected x position');
+       assert_approx_equals(circlePoint.y, 0, 0.2, 'unexpected y position');
+    } catch (e) {
+       assert_equals(e.name || e.type, 'InvalidStateError', 'Wrong exception, expected InvalidStateError');
+    }
+  }, document.title + " with SVGCircleElement");
+  ]]></script>
+</svg>

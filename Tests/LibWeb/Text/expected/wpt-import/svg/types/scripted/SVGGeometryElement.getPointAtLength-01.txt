@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], less than zero (SVGLineElement).
+Pass	SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], less than zero (SVGPathElement).
+Pass	SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], greater than 'length' (SVGLineElement).
+Pass	SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], greater than 'length' (SVGPathElement).

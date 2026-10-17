@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVGGeometryElement.getPointAtLength: 'display' and empty path</title>
+  <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getPointAtLength"/>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <path id='pathElement1' description='path with display: default and an empty path'/>
+  <path id='pathElement2' style='display:none' description='path with display: none and an empty path'/>
+  <rect id='rectElement1' description='rect with display: default and an empty path'/>
+  <rect id='rectElement2' style='display:none' description='rect with display: none and an empty path'/>
+  <circle id='circleElement1' description='circle with display: default and an empty path'/>
+  <circle id='circleElement2' style='display:none' description='circle with display: none and an empty path'/>
+  <polygon id='polygonElement1' description='polygon with display: default and an empty path'/>
+  <polygon id='polygonElement2' style='display:none' description='polygon with display: none and an empty path'/>
+  <polyline id='polylineElement1' description='polyline with display: default and an empty path'/>
+  <polyline id='polylineElement2' style='display:none' description='polyline with display: none and an empty path'/>
+  <ellipse id='ellipseElement1' description='ellipse with display: default and an empty path'/>
+  <ellipse id='ellipseElement2' style='display:none' description='ellipse with display: none and an empty path'/>
+  <script>
+['pathElement1', 'pathElement2'].forEach(elementId => {
+  test(function() {
+    let element = document.getElementById(elementId);
+    assert_throws_dom("InvalidStateError", function() { element.getPointAtLength(300); });
+  }, document.title + ', ' +
+     document.getElementById(elementId).getAttribute('description'));
+});
+
+['rectElement1', 'rectElement2'].forEach(elementId => {
+  test(function() {
+    let element = document.getElementById(elementId);
+    assert_throws_dom("InvalidStateError", function() { element.getPointAtLength(300); });
+  }, document.title + ', ' +
+     document.getElementById(elementId).getAttribute('description'));
+});
+
+['circleElement1', 'circleElement2'].forEach(elementId => {
+  test(function() {
+    let element = document.getElementById(elementId);
+    assert_throws_dom("InvalidStateError", function() { element.getPointAtLength(300); });
+  }, document.title + ', ' +
+     document.getElementById(elementId).getAttribute('description'));
+});
+
+['polygonElement1', 'polygonElement2'].forEach(elementId => {
+  test(function() {
+    let element = document.getElementById(elementId);
+    assert_throws_dom("InvalidStateError", function() { element.getPointAtLength(300); });
+  }, document.title + ', ' +
+     document.getElementById(elementId).getAttribute('description'));
+});
+
+['polylineElement1', 'polylineElement2'].forEach(elementId => {
+  test(function() {
+    let element = document.getElementById(elementId);
+    assert_throws_dom("InvalidStateError", function() { element.getPointAtLength(300); });
+  }, document.title + ', ' +
+     document.getElementById(elementId).getAttribute('description'));
+});
+
+['ellipseElement1', 'ellipseElement2'].forEach(elementId => {
+  test(function() {
+    let element = document.getElementById(elementId);
+    assert_throws_dom("InvalidStateError", function() { element.getPointAtLength(300); });
+  }, document.title + ', ' +
+     document.getElementById(elementId).getAttribute('description'));
+});
+  </script>
+</svg>
