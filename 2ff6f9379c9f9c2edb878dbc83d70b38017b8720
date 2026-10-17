@@ -1,0 +1,11 @@
+Ladybird’s Error constructors capture the stack without their own
+native frame; a subclass constructor’s frame stays. V8’s
+ErrorUtils::Construct() captures with FrameSkipMode SKIP_FIRST, since
+“the first frame is always a BUILTIN_EXIT frame” when the Error
+constructor is called, and with SKIP_UNTIL_SEEN and new_target as the
+caller for a subclass, which drops the subclass constructor’s frame
+too (isolate.cc, StackFrameBuilder). JSC’s ErrorConstructor passes
+useCurrentFrame = false to ErrorInstance::create(), and newTarget as
+subclassCaller for subclasses, to the same effect. SpiderMonkey’s
+CaptureStack() records only script frames in its SavedStacks, so a
+native constructor frame never appears there at all.
