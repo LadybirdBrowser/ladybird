@@ -55,6 +55,7 @@
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/DOM/SubtreeInsertionScope.h>
 #include <LibWeb/DOM/XMLDocument.h>
@@ -2928,18 +2929,37 @@ Element* Node::parent_or_shadow_host_element()
 // https://drafts.csswg.org/css-shadow-1/#flat-tree
 ParentNode* Node::flat_tree_parent()
 {
+    // NB: The flat tree is built top-down from the steps below. This finds the pending node that appends this node.
+
+    // AD-HOC: A shadow root is not part of the flat tree, but some walks start at one, such as those from a range's
+    //         common ancestor container or boundary point, or from the parent of removed children. Continue them at the
+    //         host, as its shadow-including parent. Scrolling a text fragment inside a shadow tree into view relies on
+    //         this, which the spec leaves open: https://github.com/WICG/scroll-to-text-fragment/issues/190
+    if (auto* shadow_root = as_if<ShadowRoot>(*this))
+        return shadow_root->host();
+
     // pending node is a slot
     //     Find slottables for pending node, and append them to pending nodes, with pending node as their associated
     //     parent.
     if (auto slot = assigned_slot_for_node(*this))
         return slot.ptr();
 
+    //     If no slottables were found for pending node, instead append its children to pending nodes, with pending
+    //     node as their associated parent.
+    if (auto* slot = as_if<HTML::HTMLSlotElement>(parent()))
+        return find_slottables(*slot).is_empty() ? slot : nullptr;
+
     // pending node is a shadow host
     //     Append the child nodes of the shadow root of the shadow tree it hosts to pending nodes, with pending node as
     //     their associated parent.
-    auto* parent = parent_or_shadow_host();
+    auto* parent = as<ParentNode>(this->parent());
     if (auto* shadow_root = as_if<ShadowRoot>(parent))
         return shadow_root->host();
+
+    // NB: Only the first matching step applies, so a shadow host does not append its own children: a child of one that
+    //     no slot found above is not part of the flat tree.
+    if (auto* element = as_if<Element>(parent); element && element->is_shadow_host())
+        return nullptr;
 
     // Otherwise,
     //     Append the child nodes of pending node’s light tree to pending nodes, with pending node as their associated

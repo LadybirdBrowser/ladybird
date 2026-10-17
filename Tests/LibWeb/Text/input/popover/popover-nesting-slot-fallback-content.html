@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<div id="host"></div>
+
+<script>
+    test(() => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<div popover id="outer"><slot><div popover id="inner"></div></slot></div>`;
+        const outer = shadow.getElementById("outer");
+        const inner = shadow.getElementById("inner");
+
+        function showBoth(description) {
+            outer.showPopover();
+            inner.showPopover();
+            println(`${description}: outer ${outer.matches(":popover-open") ? "stays open" : "closed"}`);
+            inner.hidePopover();
+            outer.hidePopover();
+        }
+
+        showBoth("nothing assigned to the slot");
+
+        const slottable = document.createElement("span");
+        host.appendChild(slottable);
+        showBoth("right after assigning a node to the slot");
+
+        host.offsetWidth;
+        showBoth("a node assigned to the slot");
+
+        slottable.remove();
+        showBoth("right after unassigning the last node from the slot");
+    });
+</script>
