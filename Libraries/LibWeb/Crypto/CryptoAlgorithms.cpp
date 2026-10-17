@@ -8463,7 +8463,7 @@ WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& param
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLDSA::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
-    // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
         if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -8535,7 +8535,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
     // 1. Let keyData be the key data to be imported.
     // 2. -> If format is "spki":
     if (key_format == KeyFormat::Spki) {
-        // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const usage : usages) {
             if (usage != KeyUsage::Verify)
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -8657,7 +8657,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
     }
     //    -> If format is "raw-public":
     else if (key_format == KeyFormat::RawPublic) {
-        // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const usage : usages) {
             if (usage != KeyUsage::Verify)
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -8725,8 +8725,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         if (!jwk)
             return WebIDL::DataError::create("Data is not a JsonWebKey dictionary"_utf16);
 
-        // 2. If the priv field is present and usages contains a value which is not "sign", or, if the priv field is
-        //    not present and usages contains a value which is not "verify" then throw a SyntaxError.
+        // 2. If the priv field is present and usages contains an entry which is not "sign", or, if the priv field is
+        //    not present and usages contains an entry which is not "verify" then throw a SyntaxError.
         if ((jwk->priv.has_value() && usages.contains([](auto usage) { return usage != KeyUsage::Sign; }))
             || (!jwk->priv.has_value() && usages.contains([](auto usage) { return usage != KeyUsage::Verify; }))) {
             return WebIDL::SyntaxError::create("Invalid usage"_utf16);
@@ -8811,7 +8811,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
-    // 3. Return key
+    // 3. Return key.
     return GC::Ref { *key };
 }
 
@@ -8994,7 +8994,7 @@ WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyForm
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLKEM::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
-    // 1. If usages contains any entry which is not one of "encapsulateKey", "encapsulateBits", "decapsulateKey" or
+    // 1. If usages contains an entry which is not one of "encapsulateKey", "encapsulateBits", "decapsulateKey" or
     //    "decapsulateBits", then throw a SyntaxError.
     for (auto const usage : usages) {
         if (usage != KeyUsage::EncapsulateKey
@@ -9073,7 +9073,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
     // 1. Let keyData be the key data to be imported.
     // 2. -> If format is "spki":
     if (format == KeyFormat::Spki) {
-        // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw
+        // 1. If usages contains an entry which is not "encapsulateKey" or "encapsulateBits" then throw
         //    a SyntaxError.
         for (auto const usage : usages) {
             if (usage != KeyUsage::EncapsulateKey && usage != KeyUsage::EncapsulateBits)
@@ -9196,7 +9196,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
     }
     //    -> If format is "raw-public":
     else if (format == KeyFormat::RawPublic) {
-        // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
+        // 1. If usages contains an entry which is not "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
         for (auto const usage : usages) {
             if (usage != KeyUsage::EncapsulateKey && usage != KeyUsage::EncapsulateBits)
                 return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -9268,7 +9268,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
-    // 3. Return key
+    // 3. Return key.
     return GC::Ref { *key };
 }
 
@@ -9278,12 +9278,14 @@ WebIDL::ExceptionOr<ExportKeyResult> MLKEM::export_key(JS::Realm& realm, KeyForm
     Optional<ExportKeyResult> result;
     auto& vm = realm.vm();
 
-    // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be
+    // 1. Let key be the CryptoKey to be exported.
+
+    // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be
     //    accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    // 2. -> If format is "spki":
+    // 3. -> If format is "spki":
     if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
         if (key->type() != KeyType::Public)
@@ -9762,7 +9764,7 @@ WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::decrypt(JS::Realm&, AlgorithmP
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ChaCha20Poly1305::generate_key(JS::Realm& realm, AlgorithmParams const&, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -10050,7 +10052,7 @@ WebIDL::ExceptionOr<ByteBuffer> AesOcb::decrypt(JS::Realm&, AlgorithmParams cons
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesOcb::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
-    // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
         if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
@@ -10369,8 +10371,8 @@ WebIDL::ExceptionOr<bool> KMAC::verify(JS::Realm& realm, AlgorithmParams const& 
         output_length,
         customization.map([](auto const& v) { return v.span(); })));
 
-    // 3. Let computedMac be the byte sequence containing mac.
-    // 4. Return true if computedMac equals signature and false otherwise.
+    // 3. Let computedMac be a byte sequence containing mac.
+    // 4. Return true if computedMac is equal to signature and false otherwise.
     return mac == signature;
 }
 
