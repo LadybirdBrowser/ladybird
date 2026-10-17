@@ -581,16 +581,16 @@ AK::JsonObject Heap::build_graph(ReadonlySpan<FlatPtr> callee_saved_registers)
         .callee_saved_registers = callee_saved_registers,
     };
 
-    // NB: While an allocator has a block's never-allocated cells out, the block counts them as cells, and the
-    //     conservative scan in gather_roots() would take a possible pointer into one for a live cell. Give them back,
-    //     as a collection does, so that they are the block's lazy region again.
-    give_back_local_free_lists();
-
     // An in-progress incremental sweep would leave parts of the heap as freelist
     // entries while the conservative scan in gather_roots() can still pick up
     // not-yet-swept (but unreachable) cells whose internal pointers lead to
     // those freelist entries. Drain the sweep so we operate on a stable heap.
     finish_pending_incremental_sweep();
+
+    // NB: While an allocator has a block's never-allocated cells out, the block counts them as cells, and the
+    //     conservative scan in gather_roots() would take a possible pointer into one for a live cell. Give them back,
+    //     as a collection does, so that they are the block's lazy region again.
+    give_back_local_free_lists();
 
     HashMap<Cell*, HeapRoot> roots;
     Vector<StackFrameInfo> stack_frames;
@@ -677,8 +677,8 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
 
     VERIFY(!m_collecting_garbage);
 
-    give_back_local_free_lists();
     finish_pending_incremental_sweep();
+    give_back_local_free_lists();
     g_next_incremental_sweep_should_report = false;
 
     {
@@ -859,6 +859,9 @@ void Heap::register_sweep_callback(AK::Function<void()> callback)
 
 void Heap::gather_roots(ConservativeScanOrigin const& origin, HashMap<Cell*, HeapRoot>& roots, Vector<StackFrameInfo>* out_stack_frames, IncludeIncomingCrossHeapMembers include_incoming_cross_heap_members)
 {
+    for (auto& allocator : m_all_cell_allocators)
+        VERIFY(!allocator.m_local_block);
+
     // Cross-heap members targeting this heap act as roots for local collections (as the foreign holder is invisible to a local mark).
     if (include_incoming_cross_heap_members == IncludeIncomingCrossHeapMembers::Yes) {
         for (auto* member : m_incoming_cross_heap_members) {
@@ -1437,6 +1440,7 @@ void Heap::start_incremental_sweep()
     // and don't need sweeping.
     size_t total_blocks = 0;
     for (auto& allocator : m_all_cell_allocators) {
+        VERIFY(!allocator.m_local_block);
         allocator.for_each_block([&](HeapBlock& block) {
             allocator.m_blocks_pending_sweep.append(block);
             ++total_blocks;

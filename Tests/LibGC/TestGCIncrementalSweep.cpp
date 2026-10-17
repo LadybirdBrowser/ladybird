@@ -7,6 +7,7 @@
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
 #include <LibGC/Root.h>
 #include <LibTest/TestCase.h>
 
@@ -15,6 +16,20 @@ namespace {
 bool s_cell_that_allocates_when_destroyed_was_destroyed = false;
 bool s_reachable_cell_was_destroyed = false;
 
+class CellOfAnotherType final : public GC::Cell {
+    GC_CELL(CellOfAnotherType, GC::Cell);
+    GC_DECLARE_ALLOCATOR(CellOfAnotherType);
+
+private:
+    CellOfAnotherType() = default;
+
+    [[maybe_unused]] FlatPtr m_room_for_a_freelist_entry[2] {};
+};
+
+GC_DEFINE_ALLOCATOR(CellOfAnotherType);
+
+CellOfAnotherType* s_cell_of_another_type_allocated_by_a_destructor = nullptr;
+
 class SweptCell final : public GC::Cell {
     GC_CELL(SweptCell, GC::Cell);
     GC_DECLARE_ALLOCATOR(SweptCell);
@@ -22,6 +37,7 @@ class SweptCell final : public GC::Cell {
 public:
     enum class Role : u8 {
         AllocatesWhenDestroyed,
+        AllocatesCellOfAnotherTypeWhenDestroyed,
         Reachable,
         AllocatedByADestructor,
     };
@@ -32,6 +48,9 @@ public:
         case Role::AllocatesWhenDestroyed:
             s_cell_that_allocates_when_destroyed_was_destroyed = true;
             (void)heap().allocate<SweptCell>(Role::AllocatedByADestructor);
+            break;
+        case Role::AllocatesCellOfAnotherTypeWhenDestroyed:
+            s_cell_of_another_type_allocated_by_a_destructor = heap().allocate<CellOfAnotherType>().ptr();
             break;
         case Role::Reachable:
             s_reachable_cell_was_destroyed = true;
@@ -68,6 +87,13 @@ NEVER_INLINE GC::Root<SweptCell> allocate_unreachable_then_reachable_cell(GC::He
     return GC::make_root(heap.allocate<SweptCell>(SweptCell::Role::Reachable));
 }
 
+NEVER_INLINE GC::Root<CellOfAnotherType> allocate_reachable_cell_of_another_type_then_unreachable_cell(GC::Heap& heap)
+{
+    auto reachable_cell = GC::make_root(heap.allocate<CellOfAnotherType>());
+    (void)heap.allocate<SweptCell>(SweptCell::Role::AllocatesCellOfAnotherTypeWhenDestroyed);
+    return reachable_cell;
+}
+
 }
 
 TEST_CASE(allocating_from_a_destructor_during_a_sweep_does_not_free_reachable_cells_of_the_block)
@@ -89,4 +115,31 @@ TEST_CASE(allocating_from_a_destructor_during_a_sweep_does_not_free_reachable_ce
 
     EXPECT(s_cell_that_allocates_when_destroyed_was_destroyed);
     EXPECT(!s_reachable_cell_was_destroyed);
+}
+
+TEST_CASE(free_cells_that_a_destructor_takes_while_a_collection_finishes_the_sweep_go_back_to_their_block)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+
+    auto reachable_cell = allocate_reachable_cell_of_another_type_then_unreachable_cell(heap);
+    scrub_stack();
+
+    // This collection leaves the destruction of the unreachable cell to the incremental sweep.
+    heap.collect_garbage();
+    EXPECT(heap.is_incremental_sweep_active());
+
+    // The next collection finishes that sweep. The destructor takes the free cells of the block that holds the
+    // reachable cell, and the cell it allocates there is unreachable.
+    heap.collect_garbage();
+    auto* cell_allocated_by_the_destructor = s_cell_of_another_type_allocated_by_a_destructor;
+    EXPECT(cell_allocated_by_the_destructor);
+    auto& block = *GC::HeapBlock::from_cell(cell_allocated_by_the_destructor);
+    EXPECT_EQ(&block, GC::HeapBlock::from_cell(reachable_cell.ptr()));
+    EXPECT(block.is_pending_sweep());
+
+    // Sweeping the block, as the sweep timer would, frees that cell. Once no allocator holds free cells of the block,
+    // the next cell comes from the free list of the block.
+    heap.sweep_block(block);
+    auto next_cell = GC::make_root(heap.allocate<CellOfAnotherType>());
+    EXPECT_EQ(next_cell.ptr(), cell_allocated_by_the_destructor);
 }
