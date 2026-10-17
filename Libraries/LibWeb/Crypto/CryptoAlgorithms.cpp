@@ -6803,10 +6803,30 @@ WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm& realm, AlgorithmPar
     if (!length_optional.has_value() || *length_optional % 8 != 0)
         return WebIDL::OperationError::create("Length must be specified and divisible by 8"_utf16);
 
-    // 2. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
+    // 2. Let hashLength be the length in bits of the output of the hash function identified by the hash member of
+    //    normalizedAlgorithm.
+    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
+        if (hash_algorithm == "SHA-1"sv)
+            return ::Crypto::Hash::HashKind::SHA1;
+        if (hash_algorithm == "SHA-256"sv)
+            return ::Crypto::Hash::HashKind::SHA256;
+        if (hash_algorithm == "SHA-384"sv)
+            return ::Crypto::Hash::HashKind::SHA384;
+        if (hash_algorithm == "SHA-512"sv)
+            return ::Crypto::Hash::HashKind::SHA512;
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
+    }());
+    auto hash_length = ::Crypto::Hash::Manager { hash_kind }.digest_size() * 8;
+
+    // 3. If length is greater than 255 * hashLength, then throw an OperationError.
+    if (*length_optional > 255 * hash_length)
+        return WebIDL::OperationError::create("Length is too large for the hash function"_utf16);
+
+    // 4. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
     auto key_derivation_key = key->handle().get<ByteBuffer>();
 
-    // 3. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
+    // 5. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
     //    * the hash member of normalizedAlgorithm as Hash,
     //    * keyDerivationKey as the input keying material, IKM,
     //    * the contents of the salt member of normalizedAlgorithm as salt,
@@ -6822,27 +6842,14 @@ WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm& realm, AlgorithmPar
         return ByteBuffer {};
     }
 
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
-    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
-        if (hash_algorithm == "SHA-1"sv)
-            return ::Crypto::Hash::HashKind::SHA1;
-        if (hash_algorithm == "SHA-256"sv)
-            return ::Crypto::Hash::HashKind::SHA256;
-        if (hash_algorithm == "SHA-384"sv)
-            return ::Crypto::Hash::HashKind::SHA384;
-        if (hash_algorithm == "SHA-512"sv)
-            return ::Crypto::Hash::HashKind::SHA512;
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
-    }());
-
     ::Crypto::Hash::HKDF hkdf(hash_kind);
     auto maybe_result = hkdf.derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
 
-    // 4. If the key derivation operation fails, then throw an OperationError.
+    // 6. If the key derivation operation fails, then throw an OperationError.
     if (maybe_result.is_error())
         return WebIDL::OperationError::create("Failed to derive key"_utf16);
 
-    // 5. Return result
+    // 7. Return result
     return maybe_result.release_value();
 }
 
