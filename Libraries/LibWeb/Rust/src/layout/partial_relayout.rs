@@ -962,7 +962,7 @@ mod tests {
         let plan_with_committed_containing_block = |arena: &LayoutNodeArena, containing_block| {
             let mut link = crate::layout::fragment_tree::FragmentLink::for_test(svg_root.slot);
             link.containing_block = containing_block;
-            arena.set_committed_fragment_link(arena.data(svg_root.slot), link, None);
+            arena.set_committed_fragment_link(svg_root.slot, link, None);
             arena.collect_partial_relayout_roots(&[svg_root.slot], &[])
         };
 

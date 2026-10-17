@@ -4833,15 +4833,14 @@ impl LayoutNodeArena {
 
     pub(crate) fn set_committed_fragment_link(
         &self,
-        data: &NodeData,
+        id: NodeSlotId,
         link: super::fragment_tree::FragmentLink,
         geometry_epoch: Option<u32>,
     ) {
-        let (index, metadata) = self.slot_for_data(data);
         self.paintable_rows
-            .set_committed_fragment_link(index, metadata.generation, geometry_epoch, link);
+            .set_committed_fragment_link(id.slot_index(), id.generation(), geometry_epoch, link);
 
-        let data = self.write_shape_of(data);
+        let data = self.write_shape(id);
         data.set_flags(data.flags.get() | NodeFlag::HasCommittedFragmentLink as u32);
     }
 
@@ -6592,11 +6591,10 @@ mod tests {
         let node = arena.allocate_for_test().slot;
         let current = |arena: &LayoutNodeArena| arena.with_current_committed_fragment(node, |fragment| fragment.node);
         let commit_from_layout = |arena: &LayoutNodeArena| {
-            let data = arena.data(node);
             arena.set_committed_fragment_link(
-                data,
+                node,
                 fragment_tree::FragmentLink::for_test(node),
-                arena.epoch_of_geometry_laid_out_in_this_pass(data),
+                arena.epoch_of_geometry_laid_out_in_this_pass(arena.data(node)),
             );
         };
         commit_from_layout(&arena);
@@ -6608,7 +6606,7 @@ mod tests {
         assert_eq!(current(&arena), Some(node));
 
         let moved = arena.take_committed_fragment_link(arena.data(node)).unwrap();
-        arena.set_committed_fragment_link(arena.data(node), moved, None);
+        arena.set_committed_fragment_link(node, moved, None);
         assert_eq!(current(&arena), None);
 
         arena.begin_active_layout_pass();
@@ -6947,7 +6945,7 @@ mod tests {
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(allocation.slot);
         link.abspos_layout_inputs = Some(inputs);
-        arena.set_committed_fragment_link(arena.data(allocation.slot), link, None);
+        arena.set_committed_fragment_link(allocation.slot, link, None);
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
         assert_eq!(
             arena.saved_abspos_layout_inputs(arena.data(allocation.slot)),
@@ -6977,13 +6975,13 @@ mod tests {
         let mut link = fragment_tree::FragmentLink::for_test(old.slot);
         link.abspos_layout_inputs = Some(inputs);
         let retained_fragment = link.fragment.clone();
-        arena.set_committed_fragment_link(arena.data(old.slot), link, None);
+        arena.set_committed_fragment_link(old.slot, link, None);
 
         let moved = arena
             .take_committed_fragment_link(arena.data(old.slot))
             .expect("old slot must retain its committed fragment");
         assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.set_committed_fragment_link(arena.data(new.slot), moved, None);
+        arena.set_committed_fragment_link(new.slot, moved, None);
 
         assert!(arena.committed_fragment_link(arena.data(old.slot)).is_none());
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(old.slot)), None);
@@ -6992,11 +6990,7 @@ mod tests {
             .committed_fragment_link(arena.data(new.slot))
             .expect("new slot must receive the committed fragment");
         assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.set_committed_fragment_link(
-            arena.data(new.slot),
-            fragment_tree::FragmentLink::for_test(new.slot),
-            None,
-        );
+        arena.set_committed_fragment_link(new.slot, fragment_tree::FragmentLink::for_test(new.slot), None);
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), None);
         arena
             .free_subtree(old.slot)

@@ -277,13 +277,13 @@ mod tests {
         arena.populate_paintable_row(node);
         let mut link = fragment_tree::FragmentLink::for_test(node);
         link.inset_left = CssPixels::from_integer(10);
-        arena.set_committed_fragment_link(arena.data(node), link.clone(), None);
+        arena.set_committed_fragment_link(node, link.clone(), None);
         arena.paintable_rows_mut().paintable_data_mut(node).offset.x = CssPixels::from_integer(10).into();
         arena.committed_side_data_mut(node).piece_indices = Some([0].into());
 
         let published = arena.publish_rows();
         link.inset_left = CssPixels::from_integer(20);
-        arena.set_committed_fragment_link(arena.data(node), link, None);
+        arena.set_committed_fragment_link(node, link, None);
         arena.paintable_rows_mut().paintable_data_mut(node).offset.x = CssPixels::from_integer(20).into();
         arena.committed_side_data_mut(node).piece_indices = None;
 
@@ -336,7 +336,7 @@ mod tests {
             if index % 2 == 0 {
                 let mut link = fragment_tree::FragmentLink::for_test(node);
                 link.inset_top = CssPixels::from_integer(index as i64);
-                arena.set_committed_fragment_link(arena.data(node), link, None);
+                arena.set_committed_fragment_link(node, link, None);
                 arena.committed_side_data_mut(node).overflow_valid_across_recommits = true;
             }
         }

@@ -2672,7 +2672,7 @@ fn update_principal_node_after_entry(
                     && node_facts::kind_is_box(new_data.kind.get())
                     && let Some(link) = arena.take_committed_fragment_link(old_data)
                 {
-                    arena.set_committed_fragment_link(new_data, link, None);
+                    arena.set_committed_fragment_link(layout_node, link, None);
                 }
                 transfer_fragments_to_replacement_box(arena, old_layout_node, layout_node);
                 super::layout_node_arena::prepare_subtree_for_detach(host.host_calls(), arena, old_layout_node);

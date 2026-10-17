@@ -345,11 +345,11 @@ impl<'a> PaintableCommit<'a> {
             data.content_size = new_content_size;
             data.offset = link.committed_offset;
         }
-        let data = self.arena().data(node);
         self.arena().set_committed_fragment_link(
-            data,
+            node,
             link.clone(),
-            self.arena().epoch_of_geometry_laid_out_in_this_pass(data),
+            self.arena()
+                .epoch_of_geometry_laid_out_in_this_pass(self.arena().data(node)),
         );
         ReplacedCommittedFragmentLink {
             content_size_change,
