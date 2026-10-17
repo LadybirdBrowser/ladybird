@@ -89,8 +89,11 @@ pub struct ResolvingFunctions {
 pub struct Promise {
     base: Object,
     // 27.2.6 Properties of Promise Instances, https://tc39.es/ecma262/#sec-properties-of-promise-instances
-    state: Cell<PromiseState>,                              // [[PromiseState]]
-    is_handled: Cell<bool>,                                 // [[PromiseIsHandled]]
+    state: Cell<PromiseState>, // [[PromiseState]]
+    is_handled: Cell<bool>,    // [[PromiseIsHandled]]
+    /// Whether something may resolve the promise: resolving functions CreateResolvingFunctions made for it, or the
+    /// direct resolve() of a promise nothing else resolves.
+    has_resolver: Cell<bool>,
     result: Cell<Value>,                                    // [[PromiseResult]]
     fulfill_reactions: GcRefCell<Vec<Gc<PromiseReaction>>>, // [[PromiseFulfillReactions]]
     reject_reactions: GcRefCell<Vec<Gc<PromiseReaction>>>,  // [[PromiseRejectReactions]]
@@ -133,6 +136,7 @@ impl Promise {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
             state: Cell::new(PromiseState::Pending),
             is_handled: Cell::new(false),
+            has_resolver: Cell::new(false),
             result: Cell::new(Value::UNDEFINED),
             fulfill_reactions: GcRefCell::new(Vec::new()),
             reject_reactions: GcRefCell::new(Vec::new()),
@@ -166,6 +170,7 @@ impl Promise {
     // 27.2.1.3 CreateResolvingFunctions ( promise ), https://tc39.es/ecma262/#sec-createresolvingfunctions
     pub fn create_resolving_functions(&self, vm: &Vm) -> ResolvingFunctions {
         let realm = vm.current_realm().expect("there is a current realm");
+        self.has_resolver.set(true);
 
         // 1. Let alreadyResolved be the Record { [[Value]]: false }.
         // NOTE: This is stored directly on the resolve function. The reject function keeps the resolve function alive and
@@ -198,8 +203,6 @@ impl Promise {
 
     // 27.2.1.3.2 Promise Resolve Functions, https://tc39.es/ecma262/#sec-promise-resolve-functions
     pub fn resolve_function_steps(vm: &Vm, promise: Gc<Promise>, already_resolved: &Cell<bool>) -> Value {
-        let realm = vm.current_realm().expect("there is a current realm");
-
         let resolution = vm.argument(0);
 
         // 1. Let F be the active function object.
@@ -215,6 +218,29 @@ impl Promise {
         // 6. Set alreadyResolved.[[Value]] to true.
         already_resolved.set(true);
 
+        promise.resolve_steps(vm, resolution);
+        Value::UNDEFINED
+    }
+
+    /// Resolves the promise with `resolution` like the resolve function of new resolving functions would, for a promise
+    /// that has none and that nothing else resolves.
+    ///
+    /// OPTIMIZATION: Nothing can call resolving functions that were never created, so resolving the promise directly is
+    ///               the same as creating them and calling the resolve function, which finds alreadyResolved false.
+    pub fn resolve(&self, vm: &Vm, resolution: Value) {
+        assert!(
+            !self.has_resolver.get(),
+            "only a promise that nothing else resolves is resolved directly"
+        );
+        self.has_resolver.set(true);
+        self.resolve_steps(vm, resolution);
+    }
+
+    /// Steps 7 to 16 of the Promise Resolve Functions, which resolve the promise with `resolution`.
+    fn resolve_steps(&self, vm: &Vm, resolution: Value) {
+        let realm = vm.current_realm().expect("there is a current realm");
+        let promise = self.as_gc();
+
         // 7. If SameValue(resolution, promise) is true, then
         if resolution.is_object() && resolution.as_object() == promise.upcast() {
             // a. Let selfResolutionError be a newly created TypeError object.
@@ -225,7 +251,7 @@ impl Promise {
             promise.reject(vm, Value::from_object(self_resolution_error));
 
             // c. Return undefined.
-            return Value::UNDEFINED;
+            return;
         }
 
         // 8. If Type(resolution) is not Object, then
@@ -234,7 +260,7 @@ impl Promise {
             promise.fulfill(vm, resolution);
 
             // b. Return undefined.
-            return Value::UNDEFINED;
+            return;
         }
 
         // 9. Let then be Completion(Get(resolution, "then")).
@@ -247,7 +273,7 @@ impl Promise {
                 promise.reject(vm, throw.value());
 
                 // b. Return undefined.
-                return Value::UNDEFINED;
+                return;
             }
             // 11. Let thenAction be then.[[Value]].
             Ok(then_action) => then_action,
@@ -259,7 +285,7 @@ impl Promise {
             promise.fulfill(vm, resolution);
 
             // b. Return undefined.
-            return Value::UNDEFINED;
+            return;
         }
 
         // 13. Let thenJobCallback be HostMakeJobCallback(thenAction).
@@ -272,7 +298,6 @@ impl Promise {
         vm.host_enqueue_promise_job()(vm, job.job, job.realm);
 
         // 16. Return undefined.
-        Value::UNDEFINED
     }
 
     // 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
