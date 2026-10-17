@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", `/object-bodyless-response-${crypto.randomUUID()}`, {
+            status: 204,
+            headers: { "Content-Type": "text/html" },
+        });
+
+        const object = document.createElement("object");
+        const failure = new Promise(resolve => object.addEventListener("error", resolve, { once: true }));
+        object.data = url;
+        document.body.appendChild(object);
+
+        await failure;
+        println("PASS");
+    });
+</script>
