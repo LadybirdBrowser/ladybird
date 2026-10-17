@@ -1,0 +1,6 @@
+precise down: deltaX=0.00 deltaY=100.00 wheelDeltaX=0 wheelDeltaY=-300 wheelDelta=-300
+precise right and up: deltaX=20.00 deltaY=-7.00 wheelDeltaX=-60 wheelDeltaY=21 wheelDelta=21
+precise sub-unit: deltaX=0.00 deltaY=0.20 wheelDeltaX=0 wheelDeltaY=0 wheelDelta=0
+discrete notch: deltaX=0.00 deltaY=120.00 wheelDeltaX=0 wheelDeltaY=-120 wheelDelta=-120
+pinch out: deltaX=0.00 deltaY=-40.55 wheelDeltaX=0 wheelDeltaY=121 wheelDelta=121
+scrollY: 0

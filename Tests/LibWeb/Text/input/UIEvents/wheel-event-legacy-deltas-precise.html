@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        let lastWheelEvent = null;
+        window.addEventListener("wheel", event => {
+            lastWheelEvent = event;
+            event.preventDefault();
+        }, { passive: false });
+
+        function printLegacyDeltas(label) {
+            println(`${label}: deltaX=${lastWheelEvent.deltaX.toFixed(2)} deltaY=${lastWheelEvent.deltaY.toFixed(2)} wheelDeltaX=${lastWheelEvent.wheelDeltaX} wheelDeltaY=${lastWheelEvent.wheelDeltaY} wheelDelta=${lastWheelEvent.wheelDelta}`);
+        }
+
+        await internals.wheel(50, 50, 0, 100, true);
+        printLegacyDeltas("precise down");
+
+        await internals.wheel(50, 50, 20, -7, true);
+        printLegacyDeltas("precise right and up");
+
+        await internals.wheel(50, 50, 0, 0.2, true);
+        printLegacyDeltas("precise sub-unit");
+
+        await internals.wheel(50, 50, 0, 120, false);
+        printLegacyDeltas("discrete notch");
+
+        internals.pinch(50, 50, 0.5);
+        printLegacyDeltas("pinch out");
+
+        println(`scrollY: ${window.scrollY}`);
+    });
+</script>
