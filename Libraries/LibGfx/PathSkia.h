@@ -40,6 +40,7 @@ public:
     virtual Gfx::FloatPoint last_point() const override;
     virtual Gfx::FloatRect bounding_box() const override;
     virtual float length() const override;
+    virtual Optional<PointAlongPath> point_at_length(float distance) const override;
     virtual bool contains(FloatPoint point, Gfx::WindingRule) const override;
     virtual void set_fill_type(Gfx::WindingRule winding_rule) override;
 
