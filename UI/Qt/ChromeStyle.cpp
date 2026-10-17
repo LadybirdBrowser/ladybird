@@ -1224,10 +1224,10 @@ QToolButton#LadybirdNewTabButton {{
 
 QPushButton#LadybirdAudioState,
 QPushButton#LadybirdTabButton {{
-    min-width: 22px;
-    min-height: 22px;
-    max-width: 22px;
-    max-height: 22px;
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 20px;
+    max-height: 20px;
 }}
 
 QPushButton#LadybirdAudioState[collapsedVerticalTabButton="true"] {{
