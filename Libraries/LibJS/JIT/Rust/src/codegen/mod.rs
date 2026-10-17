@@ -1217,7 +1217,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// may be immediates.
     fn input_value(&self, node: NodeId, index: usize) -> InputValue {
         match self.allocation.node(node).inputs[index] {
-            Location::Register(register) => InputValue::Register(Gpr(register)),
+            Location::Register(register) => match register_of(register) {
+                Register::General(register) => InputValue::Register(register),
+                Register::Float(_) => unreachable!("float64 inputs are read with `float_input()`"),
+            },
             Location::Constant(bits) => InputValue::Constant(bits),
             Location::Stack(_) => unreachable!("inputs are in registers or constants"),
         }
@@ -1225,7 +1228,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     fn output(&self, node: NodeId) -> Gpr {
         match self.allocation.node(node).output {
-            Some(Location::Register(register)) => Gpr(register),
+            Some(Location::Register(register)) => match register_of(register) {
+                Register::General(register) => register,
+                Register::Float(_) => unreachable!("float64 outputs are written with `float_output()`"),
+            },
             _ => unreachable!("the node has a register output"),
         }
     }
