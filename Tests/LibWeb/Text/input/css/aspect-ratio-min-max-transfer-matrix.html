@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .case {
+        position: relative;
+        width: 200px;
+    }
+    .target {
+        aspect-ratio: 2 / 1;
+    }
+    .tall {
+        width: 10px;
+        height: 300px;
+    }
+    .child {
+        height: 50%;
+    }
+</style>
+<div id="cases"></div>
+<script src="../include.js"></script>
+<script>
+    // Each case places a box with aspect-ratio and min/max sizes inside a container, then reports the box's size and
+    // the height of a child with height: 50%, which shows whether the box's height is definite. Min/max sizes in one
+    // axis transfer through the aspect ratio to the other axis.
+    const containers = {
+        "block": "display: block",
+        "block-definite": "display: block; height: 120px",
+        "flex-row": "display: flex; align-items: flex-start",
+        "flex-row-stretch": "display: flex; height: 120px",
+        "flex-column": "display: flex; flex-direction: column; align-items: flex-start",
+        "grid": "display: grid; align-items: start; justify-items: start",
+        "grid-definite-row": "display: grid; grid-template-rows: 120px; align-items: start; justify-items: start",
+        "inline-block": "display: inline-block",
+        "float": "float: left",
+        "abspos": "position: absolute",
+        "table-cell": "display: table-cell",
+    };
+    const targets = {
+        "block": "display: block",
+        "flow-root": "display: flow-root",
+        "inline-block": "display: inline-block; vertical-align: top",
+        "float": "float: left",
+        "flex": "display: flex",
+        "grid": "display: grid",
+        "abspos": "position: absolute; top: 0; left: 0",
+    };
+    const widths = ["auto", "80px", "50%"];
+    const heights = {
+        "auto": "auto",
+        "100%": "100%",
+        "40px": "40px",
+    };
+    const contents = ["empty", "tall"];
+    const extras = {
+        "min-height": "min-height: 60px",
+        "min-height-large": "min-height: 150px",
+        "max-height": "max-height: 30px",
+        "min-width": "min-width: 150px",
+        "max-width": "max-width: 40px",
+        "min-width-max-height": "min-width: 150px; max-height: 30px",
+        "max-width-min-height": "max-width: 40px; min-height: 60px",
+        "border-box-min-height": "padding: 5px; box-sizing: border-box; min-height: 60px",
+        "border-box-max-width": "padding: 5px; box-sizing: border-box; max-width: 40px",
+    };
+
+    const round = value => Math.round(value * 100) / 100;
+
+    test(() => {
+        const casesElement = document.getElementById("cases");
+        const cases = [];
+        for (const [containerName, containerStyle] of Object.entries(containers)) {
+            for (const [targetName, targetStyle] of Object.entries(targets)) {
+                for (const width of widths) {
+                    for (const [heightName, height] of Object.entries(heights)) {
+                        for (const content of contents) {
+                            for (const [extraName, extraStyle] of Object.entries(extras)) {
+                                const wrapper = document.createElement("div");
+                                wrapper.className = "case";
+                                const container = document.createElement("div");
+                                container.style.cssText = containerStyle;
+                                const target = document.createElement("div");
+                                target.className = "target";
+                                target.style.cssText = `${targetStyle}; width: ${width}; height: ${height}; ${extraStyle}`;
+                                const child = document.createElement("div");
+                                child.className = "child";
+                                target.appendChild(child);
+                                if (content === "tall") {
+                                    const tall = document.createElement("div");
+                                    tall.className = "tall";
+                                    target.appendChild(tall);
+                                }
+                                container.appendChild(target);
+                                wrapper.appendChild(container);
+                                casesElement.appendChild(wrapper);
+                                const name = `${containerName} ${targetName} width=${width} height=${heightName} ${content} ${extraName}`;
+                                cases.push({ name, target, child });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // NB: Measure every case before printing, since printing modifies the document and forces a new layout.
+        const lines = cases.map(({ name, target, child }) => {
+            const rect = target.getBoundingClientRect();
+            return `${name}: ${round(rect.width)}x${round(rect.height)} child=${round(child.getBoundingClientRect().height)}`;
+        });
+        casesElement.remove();
+        for (const line of lines)
+            println(line);
+    });
+</script>
