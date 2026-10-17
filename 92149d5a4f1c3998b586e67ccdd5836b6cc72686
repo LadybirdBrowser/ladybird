@@ -1,0 +1,8 @@
+Ladybird answers screen.availWidth and availHeight from the available
+screen rect the UI reports, which the Qt UI takes from QScreen::
+availableGeometry(). Blink’s Screen::availWidth() reads ScreenInfo::
+available_rect, the display’s work area; WebKit’s screenAvailableRect()
+returns the NSScreen’s visibleFrame; Gecko’s nsScreen::GetAvailRect()
+reads widget::Screen’s avail rect, which ScreenHelperCocoa.mm fills from
+[NSScreen visibleFrame]. QScreen::availableGeometry() wraps that same
+visibleFrame on macOS, so all four agree there.
