@@ -63,6 +63,8 @@ public:
     void mark_resource_box_referencing_elements_for_content_change();
     void note_svg_paint_resource_description_may_have_changed();
 
+    RefPtr<CSS::StyleValue const> parse_presentation_attribute(CSS::PropertyID, Utf16View) const;
+
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
@@ -86,7 +88,6 @@ private:
 
     virtual bool is_svg_element() const final { return true; }
 
-    RefPtr<CSS::StyleValue const> parse_presentation_attribute(CSS::PropertyID, Utf16View) const;
     Vector<CSS::StyleProperty> const& presentation_attribute_style() const;
     void update_presentation_attribute_style(Utf16FlyString const& name, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
     void publish_presentation_attribute_style();

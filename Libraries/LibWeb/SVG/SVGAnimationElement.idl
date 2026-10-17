@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface SVGAnimationElement : SVGElement {
 
-    [FIXME] readonly attribute SVGElement? targetElement;
+    readonly attribute SVGElement? targetElement;
 
     attribute EventHandler onbegin;
     attribute EventHandler onend;

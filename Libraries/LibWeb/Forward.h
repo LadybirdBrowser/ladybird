@@ -1132,6 +1132,7 @@ class StorageShelf;
 namespace Web::SVG {
 
 class Path;
+class SMILAnimation;
 class SVGAnimatedEnumeration;
 class SVGAnimatedInteger;
 class SVGAnimatedLength;

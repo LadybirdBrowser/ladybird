@@ -105,6 +105,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(targetX, "targetX")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(targetY, "targetY")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(textLength, "textLength")                                 \
+    __ENUMERATE_SVG_ATTRIBUTE(to, "to")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(transform, "transform")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(type, "type")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(values, "values")                                         \
