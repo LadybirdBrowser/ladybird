@@ -56,3 +56,76 @@ describe("discarded JIT code", () => {
         expect(total).toBe(20 + 499500 + 12497500);
     });
 });
+
+describe("recompiles after discarded code", () => {
+    test("code that exits where it reaches code that never ran is compiled again", () => {
+        // NB: Like the per-frame step of an emulator, which reaches new branches as the program it runs goes on.
+        const cases = Array.from(
+            { length: 16 },
+            (_, phase) => `case ${phase}: x = (x ^ ${phase}) + ${phase} | 0; break;`
+        );
+        const step = new Function("phase", "x", `switch (phase) { ${cases.join(" ")} } return x;`);
+        jit.prepare(step);
+        for (let i = 0; i < 10; ++i) step(0, i);
+        expect(jit.compile(step)).toBe(jit.enabled);
+        for (let phase = 1; phase < 16; ++phase) {
+            for (let i = 0; i < 20; ++i) expect(step(phase, i)).toBe(((i ^ phase) + phase) | 0);
+            expect(jit.compile(step)).toBe(jit.enabled);
+        }
+        // NB: Exits forced at random checks may come before the ones at sites that never ran, which then go unrecorded.
+        if (!jit.forcesExits) expect(jit.discardCount(step)).toBe(jit.enabled ? 15 : 0);
+    });
+
+    test("code that keeps learning is not compiled anymore after many discards", () => {
+        const cases = Array.from(
+            { length: 80 },
+            (_, phase) => `case ${phase}: x = (x ^ ${phase}) + ${phase} | 0; break;`
+        );
+        const step = new Function("phase", "x", `switch (phase) { ${cases.join(" ")} } return x;`);
+        jit.prepare(step);
+        for (let i = 0; i < 10; ++i) step(0, i);
+        for (let phase = 0; phase < 80; ++phase) {
+            for (let i = 0; i < 20; ++i) expect(step(phase, i)).toBe(((i ^ phase) + phase) | 0);
+            jit.compile(step);
+        }
+        if (jit.enabled && !jit.forcesExits) {
+            expect(jit.discardCount(step)).toBe(64);
+            expect(jit.compile(step)).toBeFalse();
+        }
+        expect(step(79, 1)).toBe(((1 ^ 79) + 79) | 0);
+    });
+
+    test("discards that teach the code something start the count of fruitless discards over", () => {
+        const step = new Function(
+            "phase",
+            "x",
+            "switch (phase) { case 0: return x + 1 | 0; case 1: return x ^ 3; } return x;"
+        );
+        jit.prepare(step);
+        for (let i = 0; i < 10; ++i) step(0, i);
+        for (let i = 0; i < 7; ++i) {
+            expect(jit.compile(step)).toBe(jit.enabled);
+            jit.discard(step);
+        }
+        // The code exits where it reaches the case that never ran, which a recompile learns from.
+        expect(jit.compile(step)).toBe(jit.enabled);
+        for (let i = 0; i < 20; ++i) expect(step(1, i)).toBe(i ^ 3);
+        for (let i = 0; i < 7; ++i) {
+            expect(jit.compile(step)).toBe(jit.enabled);
+            jit.discard(step);
+        }
+        expect(jit.compile(step)).toBe(jit.enabled);
+    });
+
+    test("code discarded again and again without new exits is not compiled anymore", () => {
+        const add = new Function("a", "b", "return a + b;");
+        jit.prepare(add);
+        for (let i = 0; i < 10; ++i) add(i, 1);
+        for (let i = 0; i < 8; ++i) {
+            expect(jit.compile(add)).toBe(jit.enabled);
+            jit.discard(add);
+        }
+        expect(jit.compile(add)).toBeFalse();
+        expect(add(2, 3)).toBe(5);
+    });
+});

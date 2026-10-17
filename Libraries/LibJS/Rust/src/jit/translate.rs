@@ -559,14 +559,23 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
     }
     // NB: Exits in inlined builtins count for the code they were inlined into only.
     // NB: Invalidated code was discarded, and its recompile sees that what it depended on no longer holds.
-    if kind == libjs_jit::code::ExitKind::Invalidated {
-    } else if matches!(
-        code.snapshot_executable(frame_state.executable).function,
-        Some(InlinedFunction::Builtin(_))
-    ) {
-        compiled_executable.add_jit_builtin_exit_site((executable.as_ptr() as u64, frame_state.pc, kind));
+    let snapshot_executable = code.snapshot_executable(frame_state.executable);
+    let learned = if kind == libjs_jit::code::ExitKind::Invalidated {
+        false
+    } else if matches!(snapshot_executable.function, Some(InlinedFunction::Builtin(_))) {
+        let index = compiled_executable.add_jit_builtin_exit_site((executable.as_ptr() as u64, frame_state.pc, kind));
+        index >= code.snapshot_executable(0).known_builtin_exit_sites
     } else {
-        executable.add_jit_exit_site((frame_state.pc, kind));
+        // NB: Sites in inlined callees are their executables', but the compiled code learns from them too.
+        executable.add_jit_exit_site((frame_state.pc, kind)) >= snapshot_executable.known_exit_sites
+    };
+    // NB: What code that was discarded already learns counts for no later code.
+    let is_installed_code = compiled_executable.jit_compile_state() == CompileState::Installed
+        && compiled_executable
+            .jit_code(vm)
+            .is_some_and(|installed| core::ptr::eq(installed, code));
+    if learned && is_installed_code {
+        compiled_executable.note_learned_jit_exit_site();
     }
 
     if code.count_exit() >= EXIT_COUNT_BEFORE_DISCARD
