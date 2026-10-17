@@ -29,6 +29,7 @@ static constexpr auto FIRST_RUN_COMPLETE_KEY = "firstRunComplete"sv;
 static constexpr auto NEW_TAB_PAGE_URL_KEY = "newTabPageURL"sv;
 
 static constexpr auto LANGUAGES_KEY = "languages"sv;
+static constexpr auto SITES_FORCED_TO_LADYBIRD_USER_AGENT_KEY = "sitesForcedToLadybirdUserAgent"sv;
 
 static constexpr auto APPEARANCE_KEY = "appearance"sv;
 static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
@@ -308,6 +309,13 @@ Settings Settings::create(ByteString settings_path, Vector<String> platform_lang
     if (auto languages = settings_json.value().get(LANGUAGES_KEY); languages.has_value())
         settings.m_languages = parse_json_languages(*languages);
 
+    if (auto sites = settings_json.value().get_array(SITES_FORCED_TO_LADYBIRD_USER_AGENT_KEY); sites.has_value()) {
+        sites->for_each([&](JsonValue const& site) {
+            if (site.is_string() && !site.as_string().is_empty())
+                settings.m_sites_forced_to_ladybird_user_agent.append(site.as_string());
+        });
+    }
+
     if (auto appearance = settings_json.value().get(APPEARANCE_KEY); appearance.has_value())
         settings.m_appearance = parse_appearance(*appearance);
 
@@ -536,6 +544,12 @@ JsonValue Settings::serialize_json() const
     for (auto const& language : m_languages)
         languages.must_append(language);
     settings.set(LANGUAGES_KEY, move(languages));
+
+    JsonArray sites_forced_to_ladybird_user_agent;
+    sites_forced_to_ladybird_user_agent.ensure_capacity(m_sites_forced_to_ladybird_user_agent.size());
+    for (auto const& site : m_sites_forced_to_ladybird_user_agent)
+        sites_forced_to_ladybird_user_agent.must_append(site);
+    settings.set(SITES_FORCED_TO_LADYBIRD_USER_AGENT_KEY, move(sites_forced_to_ladybird_user_agent));
 
     JsonObject appearance;
     appearance.set(SHOW_MENU_BAR_KEY, m_appearance.show_menu_bar);
@@ -790,6 +804,18 @@ void Settings::set_languages(Vector<String> languages)
 
     for (auto& observer : m_observers)
         observer.languages_changed();
+}
+
+void Settings::add_site_forced_to_ladybird_user_agent(String site)
+{
+    if (m_sites_forced_to_ladybird_user_agent.contains_slow(site))
+        return;
+
+    m_sites_forced_to_ladybird_user_agent.append(move(site));
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.sites_forced_to_ladybird_user_agent_changed();
 }
 
 Appearance Settings::parse_appearance(JsonValue const& settings)

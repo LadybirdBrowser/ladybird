@@ -190,6 +190,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL url) =|
 
     did_is_known_hsts_host(String domain) => (bool result)
+    did_force_ladybird_user_agent_for_site(String site) =|
 
     did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)

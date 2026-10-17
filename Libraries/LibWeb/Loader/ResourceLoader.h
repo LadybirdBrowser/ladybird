@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/HashTable.h>
+#include <AK/HashMap.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Function.h>
@@ -53,9 +53,21 @@ public:
     static bool is_known_hsts_host(Page&, String const& host);
 
     String const& user_agent() const { return m_user_agent; }
-    String user_agent_for_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_url(url, m_user_agent); }
-    String user_agent_for_websocket_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_websocket_url(url, m_user_agent); }
+    String user_agent_for_url(URL::URL const&) const;
+    String user_agent_for_websocket_url(URL::URL const&) const;
     void set_user_agent(String user_agent) { m_user_agent = move(user_agent); }
+
+    // The registrable domain of a URL's host, or the host itself for one that has none (an IP address, "localhost").
+    static Optional<String> site_for_url(URL::URL const&);
+    bool forces_ladybird_user_agent_for_site(StringView site) const { return m_sites_forced_to_ladybird_user_agent.contains(site); }
+    // A navigation that was challenged for a spoofed UA and is about to retry as Ladybird begins; its retry's response
+    // ends it, as loaded or failed. The site keeps our own UA while any retry is pending, and for good once one loaded.
+    enum class RetryAsLadybirdOutcome {
+        Loaded,
+        Failed,
+    };
+    void begin_retry_as_ladybird(String site);
+    void end_retry_as_ladybird(StringView site, RetryAsLadybirdOutcome);
     void set_site_compatibility_data(SiteCompatibilityData data) { m_site_compatibility_data = move(data); }
     bool site_compatibility_exposes_experimental_interface(URL::URL const& url, StringView name) const { return m_site_compatibility_data.exposes_experimental_interface(url, name); }
 
@@ -101,6 +113,14 @@ private:
 
     String m_user_agent;
     SiteCompatibilityData m_site_compatibility_data;
+    // Sites whose navigation was challenged while the user had UA spoofing on, and are being, or were, re-requested
+    // with our own UA. We send our own UA to these sites in every request while a retry is pending, and from then on
+    // once a retry has loaded.
+    struct SiteForcedToLadybirdUserAgent {
+        size_t pending_retries { 0 };
+        bool loaded { false };
+    };
+    HashMap<String, SiteForcedToLadybirdUserAgent> m_sites_forced_to_ladybird_user_agent;
     String m_platform;
     Vector<String> m_preferred_languages = { "en"_string };
     static NavigatorCompatibilityMode s_navigator_compatibility_mode;

@@ -155,6 +155,53 @@ static ByteString sanitized_url_for_logging(URL::URL const& url)
 }
 
 // https://www.rfc-editor.org/rfc/rfc6797#section-8.2
+Optional<String> ResourceLoader::site_for_url(URL::URL const& url)
+{
+    if (!url.host().has_value())
+        return {};
+    if (auto registrable_domain = url.host()->registrable_domain(); registrable_domain.has_value())
+        return registrable_domain;
+    return url.host()->serialize();
+}
+
+String ResourceLoader::user_agent_for_url(URL::URL const& url) const
+{
+    if (!m_sites_forced_to_ladybird_user_agent.is_empty()) {
+        if (auto site = site_for_url(url); site.has_value() && m_sites_forced_to_ladybird_user_agent.contains(*site))
+            return MUST(String::from_utf8(default_user_agent));
+    }
+    return m_site_compatibility_data.user_agent_for_url(url, m_user_agent);
+}
+
+String ResourceLoader::user_agent_for_websocket_url(URL::URL const& url) const
+{
+    if (!m_sites_forced_to_ladybird_user_agent.is_empty()) {
+        if (auto site = site_for_url(url); site.has_value() && m_sites_forced_to_ladybird_user_agent.contains(*site))
+            return MUST(String::from_utf8(default_user_agent));
+    }
+    return m_site_compatibility_data.user_agent_for_websocket_url(url, m_user_agent);
+}
+
+void ResourceLoader::begin_retry_as_ladybird(String site)
+{
+    m_sites_forced_to_ladybird_user_agent.ensure(move(site)).pending_retries++;
+}
+
+void ResourceLoader::end_retry_as_ladybird(StringView site, RetryAsLadybirdOutcome outcome)
+{
+    auto entry = m_sites_forced_to_ladybird_user_agent.find(site);
+    if (entry == m_sites_forced_to_ladybird_user_agent.end())
+        return;
+    VERIFY(entry->value.pending_retries > 0);
+    entry->value.pending_retries--;
+    if (outcome == RetryAsLadybirdOutcome::Loaded)
+        entry->value.loaded = true;
+    // Another retry of the same site may still be in flight, and a site that loaded once stays ours: only once every
+    // retry has failed does the preset's UA come back.
+    if (entry->value.pending_retries == 0 && !entry->value.loaded)
+        m_sites_forced_to_ladybird_user_agent.remove(entry);
+}
+
 bool ResourceLoader::is_known_hsts_host(Page& page, String const& host)
 {
     if (HTTP::HSTSPreloadData::the().is_known_preloaded_hsts_host(host.to_ascii_lowercase()))

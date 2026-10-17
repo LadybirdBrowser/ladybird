@@ -1516,6 +1516,11 @@ void PageClient::page_did_store_hsts_policy_for_testing(String const& domain, HT
         test_connection->did_store_hsts_policy_for_testing(domain, policy);
 }
 
+void PageClient::page_did_force_ladybird_user_agent_for_site(String const& site)
+{
+    client().async_did_force_ladybird_user_agent_for_site(site);
+}
+
 bool PageClient::page_did_is_known_hsts_host(String const& domain)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidIsKnownHstsHost>(domain);

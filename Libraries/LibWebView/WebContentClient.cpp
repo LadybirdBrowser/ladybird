@@ -761,6 +761,15 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
     return m_session->hsts_store->is_known_hsts_host(domain);
 }
 
+void WebContentClient::did_force_ladybird_user_agent_for_site(String site)
+{
+    // A private session's process keeps what it learned to itself: the profile's settings outlive the session, and
+    // would otherwise tell every later visit which sites the user reached in private.
+    if (m_is_private == IsPrivate::Yes)
+        return;
+    Application::the().force_ladybird_user_agent_for_site(move(site));
+}
+
 Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
 {
     // The replacement client is on the RequestServer the process was using.

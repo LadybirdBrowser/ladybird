@@ -118,6 +118,29 @@ TEST_CASE(force_ladybird_undoes_an_earlier_hide)
     EXPECT_EQ(data.user_agent_for_url(url("https://www.example.com/"sv), default_user_agent), Web::default_user_agent);
 }
 
+TEST_CASE(a_site_rule_with_a_port_wildcard_matches_any_port)
+{
+    // The shape Application gives a site the profile learned to address as Ladybird: either scheme, the site and its
+    // subdomains, any port, so that a local test server on an ephemeral port is covered as well as a real site.
+    auto rule = MUST(Web::SiteCompatibilityRule::create(
+        { "http://example.com:*/*"_string, "https://example.com:*/*"_string, "http://*.example.com:*/*"_string, "https://*.example.com:*/*"_string },
+        { Web::UserAgentTransformation::ForceLadybird }));
+
+    EXPECT(rule.matches(url("https://example.com/"sv)));
+    EXPECT(rule.matches(url("http://example.com:8080/page"sv)));
+    EXPECT(rule.matches(url("https://www.example.com:8443/page"sv)));
+    EXPECT(!rule.matches(url("https://example.com.evil.test/"sv)));
+    EXPECT(!rule.matches(url("https://elsewhere.example/"sv)));
+
+    // An IP address gets no subdomain pattern: a wildcard label on it isn't a valid hostname pattern.
+    auto ip_rule = MUST(Web::SiteCompatibilityRule::create(
+        { "http://127.0.0.1:*/*"_string },
+        { Web::UserAgentTransformation::ForceLadybird }));
+    EXPECT(ip_rule.matches(url("http://127.0.0.1:54321/page"sv)));
+    EXPECT(!ip_rule.matches(url("http://127.0.0.2:54321/page"sv)));
+    EXPECT(Web::SiteCompatibilityRule::create({ "http://*.127.0.0.1:*/*"_string }, { Web::UserAgentTransformation::ForceLadybird }).is_error());
+}
+
 TEST_CASE(data_parses_force_ladybird)
 {
     auto data = MUST(Web::SiteCompatibilityData::from_json(MUST(JsonValue::from_string(R"([

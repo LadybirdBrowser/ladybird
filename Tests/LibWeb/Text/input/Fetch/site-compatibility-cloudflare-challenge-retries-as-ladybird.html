@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A Cloudflare challenge (a response carrying cf-mitigated: challenge) of a navigation whose request named another
+    // browser has the request sent again as Ladybird. The echo challenges every request, so the retry is challenged
+    // too, and the site is then addressed as the rules say again.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const challengeURL = await server.createEcho("GET", "/cloudflare-challenge", {
+            status: 403,
+            headers: { "Content-Type": "text/html", "cf-mitigated": "challenge", "server": "cloudflare" },
+            body: "<!doctype html><title>Just a moment...</title>",
+        });
+        const recordedRequestHeadersURL = server.recordedRequestHeadersURL(challengeURL);
+        const lastUserAgent = async () => (await (await fetch(recordedRequestHeadersURL)).json())["User-Agent"][0];
+
+        internals.setSiteCompatibilityData(JSON.stringify([{ matches: [challengeURL], user_agent: ["hide_Ladybird"] }]));
+        try {
+            const iframe = document.createElement("iframe");
+            const loaded = new Promise(resolve => (iframe.onload = resolve));
+            iframe.src = challengeURL;
+            document.body.appendChild(iframe);
+            await loaded;
+
+            println(`retried as Ladybird: ${(await lastUserAgent()).includes("Ladybird/") ? "PASS" : "FAIL"}`);
+
+            // The retry was challenged too, so the site is addressed as the rules say again: a request that isn't a
+            // navigation goes out hiding Ladybird, as before.
+            await fetch(challengeURL, { mode: "no-cors" });
+            println(`addressed as the rules say once the retry was challenged too: ${(await lastUserAgent()).includes("Ladybird/") ? "FAIL" : "PASS"}`);
+
+            // A form's POST is never re-sent: the challenge is what the user sees, with the request as it went out.
+            const postChallengeURL = await server.createEcho("POST", "/cloudflare-challenge-post", {
+                status: 403,
+                headers: { "Content-Type": "text/html", "cf-mitigated": "challenge", "server": "cloudflare" },
+                body: "<!doctype html><title>Just a moment...</title>",
+            });
+            internals.setSiteCompatibilityData(JSON.stringify([{ matches: [challengeURL, postChallengeURL], user_agent: ["hide_Ladybird"] }]));
+            const postFrame = document.createElement("iframe");
+            // Two loads: the srcdoc page with the form, then the challenge page its submission navigates to.
+            const challengeLoaded = new Promise(resolve => {
+                let loads = 0;
+                postFrame.onload = () => ++loads === 2 && resolve();
+            });
+            postFrame.srcdoc = `<form method="post" action="${postChallengeURL}"><input name="q" value="1"></form><script>document.forms[0].submit()</` + `script>`;
+            document.body.appendChild(postFrame);
+            await challengeLoaded;
+            const postUserAgent = (await (await fetch(server.recordedRequestHeadersURL(postChallengeURL))).json())["User-Agent"][0];
+            println(`a challenged POST isn't re-sent: ${postUserAgent.includes("Ladybird/") ? "FAIL" : "PASS"}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            internals.setSiteCompatibilityData("[]");
+        }
+    });
+</script>

@@ -790,6 +790,7 @@ public:
     virtual void page_did_simulate_worker_request_server_connection_loss() { }
     virtual void page_did_store_hsts_policy_for_testing(String const&, HTTP::HSTS::ParsedHSTSPolicy const&) { }
     virtual bool page_did_is_known_hsts_host(String const&) { return false; }
+    virtual void page_did_force_ladybird_user_agent_for_site(String const&) { }
     virtual Optional<Utf16String> page_did_request_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] Web::HTML::EnvironmentId const& environment_id, [[maybe_unused]] Utf16String const& bottle_key) { return {}; }
     virtual WebView::StorageSetResult page_did_set_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] Web::HTML::EnvironmentId const& environment_id, [[maybe_unused]] Utf16String const& bottle_key, [[maybe_unused]] Utf16String const& value) { return WebView::StorageOperationError::QuotaExceededError; }
     virtual void page_did_remove_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] Web::HTML::EnvironmentId const& environment_id, [[maybe_unused]] Utf16String const& bottle_key) { }

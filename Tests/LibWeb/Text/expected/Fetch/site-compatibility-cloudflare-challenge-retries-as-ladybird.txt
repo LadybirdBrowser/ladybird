@@ -1,0 +1,3 @@
+retried as Ladybird: PASS
+addressed as the rules say once the retry was challenged too: PASS
+a challenged POST isn't re-sent: PASS

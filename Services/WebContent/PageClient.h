@@ -297,6 +297,7 @@ private:
     virtual void page_did_simulate_worker_request_server_connection_loss() override;
     virtual void page_did_store_hsts_policy_for_testing(String const&, HTTP::HSTS::ParsedHSTSPolicy const&) override;
     virtual bool page_did_is_known_hsts_host(String const&) override;
+    virtual void page_did_force_ladybird_user_agent_for_site(String const&) override;
     virtual Optional<Utf16String> page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key) override;
     virtual WebView::StorageSetResult page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key, Utf16String const& value) override;
     virtual void page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key) override;

@@ -124,6 +124,7 @@ public:
 
     virtual void new_tab_page_url_changed() { }
     virtual void languages_changed() { }
+    virtual void sites_forced_to_ladybird_user_agent_changed() { }
     virtual void appearance_changed() { }
     virtual void content_settings_changed() { }
     virtual void tab_settings_changed() { }
@@ -162,6 +163,10 @@ public:
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
     void set_languages(Vector<String>);
+
+    // Sites a navigation loaded successfully after we sent our own UA rather than a spoofed one.
+    Vector<String> const& sites_forced_to_ladybird_user_agent() const { return m_sites_forced_to_ladybird_user_agent; }
+    void add_site_forced_to_ladybird_user_agent(String);
 
     static Appearance parse_appearance(JsonValue const&);
     Appearance const& appearance() const { return m_appearance; }
@@ -270,6 +275,7 @@ private:
 
     URL::URL m_new_tab_page_url;
     Vector<String> m_languages;
+    Vector<String> m_sites_forced_to_ladybird_user_agent;
 
     Appearance m_appearance;
     ContentSettings m_content_settings;

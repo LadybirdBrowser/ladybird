@@ -81,6 +81,7 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
@@ -105,6 +106,7 @@
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>
@@ -163,6 +165,21 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC::Ref<Fetch::Infrastructure::Request> request;
     GC::Ptr<LocalNavigable> navigable;
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
+
+    // The site whose Cloudflare challenge of a request claiming another browser's name had the request sent again
+    // as Ladybird, until the response to that retry decides whether the site keeps being addressed that way.
+    Optional<String> site_retried_as_ladybird;
+    bool retried_as_ladybird { false };
+
+    // Ends the retry, as loaded or failed: a retry that was challenged again, failed, went elsewhere, or was abandoned
+    // gives the site back to the preset's User-Agent, unless another retry of it is pending or has loaded.
+    void end_retry_as_ladybird(ResourceLoader::RetryAsLadybirdOutcome outcome)
+    {
+        if (!site_retried_as_ladybird.has_value())
+            return;
+        ResourceLoader::the().end_retry_as_ladybird(*site_retried_as_ladybird, outcome);
+        site_retried_as_ladybird.clear();
+    }
     Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
     TargetSnapshotParams target_snapshot_params;
     Optional<Utf16String> navigation_id;
@@ -2241,6 +2258,17 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         user_involvement);
 }
 
+// https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/detect-response/
+// "the Challenge Page response (regardless of the Challenge Page type) will have the cf-mitigated header present and set
+// to challenge."
+static bool is_cloudflare_challenge_page_response(Fetch::Infrastructure::Response const& response)
+{
+    if (response.is_network_error())
+        return false;
+    auto cf_mitigated = response.header_list()->get("cf-mitigated"sv);
+    return cf_mitigated.has_value() && cf_mitigated->view().trim_whitespace().equals_ignoring_ascii_case("challenge"sv);
+}
+
 static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<NavigationParamsFetchStateHolder> state_holder, GC::Ref<GC::Function<void(GC::Ref<InternalNavigationResult>)>> top_level_completion_steps, GC::Ref<GC::Function<void()>> fetch_completion_steps)
 {
     // 21. While true:
@@ -2360,6 +2388,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
 
             if (continuation_reason == NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged) {
                 if (state_holder->navigable->ongoing_navigation() != *state_holder->navigation_id) {
+                    state_holder->end_retry_as_ladybird(ResourceLoader::RetryAsLadybirdOutcome::Failed);
                     state_holder->fetch_controller->abort(realm, {});
                     auto result = realm.heap().allocate<InternalNavigationResult>();
                     result->navigation_params = LocalNavigable::NullOrError {};
@@ -2367,6 +2396,31 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
                     return;
                 }
             }
+        }
+
+        // AD-HOC: If a user has spoofing set, and we get a Cloudflare challenge, we retry the request — but with the UA
+        //         set to our own. We remember any site that successfully loaded for the retry — so that from then on,
+        //         we send our own UA in every later request to that site.
+        auto site = ResourceLoader::site_for_url(state_holder->current_url);
+        bool is_challenge = is_cloudflare_challenge_page_response(*state_holder->response);
+        if (state_holder->site_retried_as_ladybird.has_value()) {
+            // The retry's response decides: the site is remembered only when it answered the retry with something
+            // other than a challenge or a network error; the override goes away in every other case.
+            if (site == state_holder->site_retried_as_ladybird && !is_challenge && !state_holder->response->is_network_error()) {
+                state_holder->navigable->page().client().page_did_force_ladybird_user_agent_for_site(*site);
+                state_holder->end_retry_as_ladybird(ResourceLoader::RetryAsLadybirdOutcome::Loaded);
+            } else {
+                state_holder->end_retry_as_ladybird(ResourceLoader::RetryAsLadybirdOutcome::Failed);
+            }
+        } else if (site.has_value() && is_challenge && !state_holder->retried_as_ladybird && state_holder->request->method() == "GET"sv && ResourceLoader::the().user_agent_for_url(state_holder->current_url) != default_user_agent) {
+            // Only a GET is re-sent: a form's POST stays with the user, who sees the challenge and decides.
+            state_holder->retried_as_ladybird = true;
+            state_holder->site_retried_as_ladybird = site;
+            ResourceLoader::the().begin_retry_as_ladybird(*site);
+            state_holder->fetch_controller->stop_fetch();
+            state_holder->fetch_controller = nullptr;
+            perform_navigation_params_fetch(realm, state_holder, top_level_completion_steps, fetch_completion_steps);
+            return;
         }
 
         // 8. If request's body is null, then set entry's document state's resource to null.
