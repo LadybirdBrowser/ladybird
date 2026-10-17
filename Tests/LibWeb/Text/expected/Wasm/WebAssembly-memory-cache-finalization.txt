@@ -1,0 +1,2 @@
+Retained buffer size: 65536
+New memory buffers resized successfully

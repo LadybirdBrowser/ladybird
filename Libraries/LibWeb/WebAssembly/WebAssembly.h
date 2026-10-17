@@ -68,6 +68,7 @@ public:
     }
     void add_global_instance(Wasm::GlobalAddress address, GC::Ptr<WebAssembly::Global> global) { m_global_instances.set(address, global); }
     void add_memory_instance(Wasm::MemoryAddress address, GC::Ptr<WebAssembly::Memory> memory) { m_memory_instances.set(address, memory); }
+    void remove_memory_instance(Wasm::MemoryAddress address) { m_memory_instances.remove(address); }
     void add_table_instance(Wasm::TableAddress address, GC::Ptr<WebAssembly::Table> table) { m_table_instances.set(address, table); }
 
     Optional<GC::Ptr<JS::NativeFunction>> get_function_instance(Wasm::FunctionAddress address) { return m_function_instances.get(address); }

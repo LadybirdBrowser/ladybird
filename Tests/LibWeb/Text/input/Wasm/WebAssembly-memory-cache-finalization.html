@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function createBufferFromRemovedFrame() {
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        const Memory = frame.contentWindow.WebAssembly.Memory;
+        for (let index = 0; index < 8; ++index)
+            new Memory({ initial: 0, maximum: 1 });
+
+        // Keep the cache alive through a buffer whose realm survives the frame.
+        const buffer = WebAssembly.Memory.prototype.toResizableBuffer.call(new Memory({ initial: 0, maximum: 1 }));
+        frame.remove();
+        return buffer;
+    }
+
+    asyncTest(async done => {
+        const buffer = createBufferFromRemovedFrame();
+        await animationFrame();
+        await internals.gcAsync();
+
+        for (let index = 0; index < 16; ++index) {
+            const memory = new WebAssembly.Memory({ initial: 0, maximum: 1 });
+            memory.toResizableBuffer().resize(65536);
+        }
+        buffer.resize(65536);
+        println(`Retained buffer size: ${buffer.byteLength}`);
+        println("New memory buffers resized successfully");
+        done();
+    });
+</script>

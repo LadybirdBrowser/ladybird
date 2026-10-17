@@ -315,6 +315,20 @@ void Memory::visit_edges(Visitor& visitor)
     visitor.ignore(m_cache);
 }
 
+void Memory::finalize()
+{
+    Base::finalize();
+
+    // NB: A buffer can keep the cache alive after its realm is gone, so the cache can outlive this Memory. Remove our
+    //     entry and grow hook before this cell is reused.
+    auto entry = m_cache->get_memory_instance(m_address);
+    if (!entry.has_value() || entry.value().ptr() != this)
+        return;
+    m_cache->remove_memory_instance(m_address);
+    if (auto* memory = m_cache->abstract_machine().store().get(m_address))
+        memory->successful_grow_hook = nullptr;
+}
+
 // https://webassembly.github.io/spec/js-api/#dom-memory-grow
 WebIDL::ExceptionOr<u32> Memory::grow(u32 delta)
 {
