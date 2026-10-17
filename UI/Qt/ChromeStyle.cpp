@@ -1237,27 +1237,27 @@ QPushButton#LadybirdTabButton[collapsedVerticalTabButton="true"] {{
     border-radius: 8px;
 }}
 
-QPushButton#LadybirdAudioState:hover,
 QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:hover {{
     color: {4};
     background: {1};
     border-color: {3};
 }}
 
+QPushButton#LadybirdAudioState:hover,
 QPushButton#LadybirdTabButton:hover {{
     color: {4};
     background: transparent;
     border-color: transparent;
 }}
 
-QPushButton#LadybirdAudioState:pressed,
-QPushButton#LadybirdAudioState:checked,
 QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:pressed {{
     color: {4};
     background: {2};
     border-color: {3};
 }}
 
+QPushButton#LadybirdAudioState:pressed,
+QPushButton#LadybirdAudioState:checked,
 QPushButton#LadybirdTabButton:pressed,
 QPushButton#LadybirdTabButton:checked {{
     color: {4};
@@ -1555,12 +1555,21 @@ void paint_circular_control_frame(QPainter& painter, QAbstractButton const& butt
         ? chrome_control_surface_hover(palette)
         : chrome_control_border(palette);
 
-    if (hovered) {
+    // Hovering a frameless button only lifts it with a soft fill; the ring appears once it is pressed.
+    if (hovered && frame_style == CircularControlFrameStyle::InteractionOnly) {
+        background = is_dark(palette) ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 16);
+        border = Qt::transparent;
+    } else if (hovered) {
         background = chrome_control_surface_hover(palette);
         border = chrome_control_border(palette);
     }
     if (pressed) {
-        background = chrome_control_surface_pressed(palette);
+        // A frameless button can sit on the chrome or on a lighter tab, so pressing it deepens the hover fill rather
+        // than painting an opaque color that could be darker than what is below.
+        if (frame_style == CircularControlFrameStyle::InteractionOnly)
+            background = is_dark(palette) ? QColor(255, 255, 255, 40) : QColor(0, 0, 0, 26);
+        else
+            background = chrome_control_surface_pressed(palette);
         border = chrome_control_border(palette);
     }
 

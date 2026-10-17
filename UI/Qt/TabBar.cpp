@@ -2605,6 +2605,8 @@ void TabBarButton::paintEvent(QPaintEvent*)
             ? ChromeStyle::CircularControlFrameStyle::ActiveTabOverlay
             : ChromeStyle::CircularControlFrameStyle::InteractionOnly;
         ChromeStyle::paint_circular_control_frame(painter, *this, frame_style);
+    } else if (objectName() == "LadybirdAudioState") {
+        ChromeStyle::paint_circular_control_frame(painter, *this);
     }
 
     painter.drawControl(QStyle::CE_PushButton, option);
