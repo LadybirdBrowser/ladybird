@@ -849,7 +849,8 @@ void FormAssociatedTextControlElement::relevant_value_was_changed()
     auto relevant_value_length = the_relevant_value.length_in_code_units();
 
     // 1. If the element has a selection:
-    if (m_selection_start < m_selection_end) {
+    // NB: A selection the user extended backward has its start past its end.
+    if (m_selection_start != m_selection_end) {
         // 1. If the start of the selection is now past the end of the relevant value, set it to
         //    the end of the relevant value.
         if (m_selection_start > relevant_value_length)
@@ -870,8 +871,11 @@ void FormAssociatedTextControlElement::relevant_value_was_changed()
 
     // 2. Otherwise, the element must have a text entry cursor position position. If it is now past
     //    the end of the relevant value, set it to the end of the relevant value.
-    if (m_selection_start > relevant_value_length)
+    // NB: With no selection, m_selection_start and m_selection_end both hold the text entry cursor position.
+    if (m_selection_start > relevant_value_length) {
         m_selection_start = relevant_value_length;
+        m_selection_end = relevant_value_length;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-select

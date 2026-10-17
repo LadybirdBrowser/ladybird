@@ -1,0 +1,8 @@
+input, caret at the end, then reset: "" 0 0
+input, selection, then reset: "" 0 0
+input, selection the user extended backward, then reset: "" 0 0
+textarea, caret at the end, then reset: "" 0 0
+textarea, selection, then reset: "" 0 0
+textarea, selection the user extended backward, then reset: "" 0 0
+textarea, selection, then reset to a shorter default value: "ab" 1 2
+input, caret at the end, then value attribute emptied: "" 0 0

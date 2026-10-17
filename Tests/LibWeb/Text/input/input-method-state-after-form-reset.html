@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<form id="form"><input id="input"></form>
+<script>
+    // Once a key event has been handled, WebContent pushes the focused text control's surrounding text to the UI
+    // process, for the platform input method — slicing the control's value at its selection offsets. So, those offsets
+    // have to be within the value by then, even when the keydown listener emptied the value by resetting the form.
+    asyncTest(done => {
+        const form = document.getElementById("form");
+        const input = document.getElementById("input");
+
+        input.focus();
+        input.value = "hello";
+        input.addEventListener("keydown", event => {
+            event.preventDefault();
+            form.reset();
+        });
+        input.addEventListener("keyup", () => {
+            println(`"${input.value}" ${input.selectionStart} ${input.selectionEnd}`);
+            done();
+        });
+        internals.sendTextThroughUIProcess("a");
+    });
+</script>

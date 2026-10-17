@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form id="form">
+    <input id="input">
+    <textarea id="textarea"></textarea>
+    <textarea id="textarea-with-default">ab</textarea>
+</form>
+<input id="input-with-value-attribute" value="hello">
+<script>
+    // Whenever a text control's relevant value changes, a selection offset that's now past the value's end moves back
+    // to the end — whether the control holds a selection, a selection the user extended backward, or just a caret.
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+    test(() => {
+        const form = document.getElementById("form");
+        const report = (description, control) =>
+            println(`${description}: "${control.value}" ${control.selectionStart} ${control.selectionEnd}`);
+
+        for (const id of ["input", "textarea"]) {
+            const control = document.getElementById(id);
+
+            control.focus();
+            control.value = "hello";
+            form.reset();
+            report(`${id}, caret at the end, then reset`, control);
+
+            control.value = "hello";
+            control.setSelectionRange(1, 4);
+            form.reset();
+            report(`${id}, selection, then reset`, control);
+
+            control.value = "hello";
+            internals.sendKey(control, "Left", internals.MOD_SHIFT, 2);
+            form.reset();
+            report(`${id}, selection the user extended backward, then reset`, control);
+        }
+
+        const textareaWithDefault = document.getElementById("textarea-with-default");
+        textareaWithDefault.value = "hello";
+        textareaWithDefault.setSelectionRange(1, 4);
+        form.reset();
+        report("textarea, selection, then reset to a shorter default value", textareaWithDefault);
+
+        const inputWithValueAttribute = document.getElementById("input-with-value-attribute");
+        inputWithValueAttribute.focus();
+        inputWithValueAttribute.setSelectionRange(5, 5);
+        inputWithValueAttribute.setAttribute("value", "");
+        report("input, caret at the end, then value attribute emptied", inputWithValueAttribute);
+    });
+</script>

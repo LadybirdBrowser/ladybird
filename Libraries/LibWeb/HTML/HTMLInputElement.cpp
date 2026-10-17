@@ -782,8 +782,6 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
         //    and the element has a text entry cursor position, move the text entry cursor position to the end of the
         //    text control, unselecting any selected text and resetting the selection direction to "none".
         if (m_value != old_value) {
-            relevant_value_was_changed();
-
             // AD-HOC: Changing the value may change which validity pseudo-classes match.
             CSS::Invalidation::invalidate_style_after_validity_change(*this);
 
@@ -791,6 +789,9 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
                 m_text_node->set_data(m_value);
                 update_placeholder_visibility();
             }
+
+            // NB: The relevant value is read from the text node — so, this has to come after the text node is updated.
+            relevant_value_was_changed();
 
             if (selection_or_range_applies())
                 set_the_selection_range(m_value.length_in_code_units(), m_value.length_in_code_units());
@@ -1662,11 +1663,12 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
             else
                 m_value = {};
 
-            if (m_value != old_value)
-                relevant_value_was_changed();
-
             if (m_text_node)
                 m_text_node->set_data(m_value);
+
+            // The relevant value is read from the text node — so, this has to come after the text node is updated.
+            if (m_value != old_value)
+                relevant_value_was_changed();
 
             update_shadow_tree();
         }
@@ -2149,9 +2151,6 @@ void HTMLInputElement::reset_algorithm()
     // and then invoke the value sanitization algorithm, if the type attribute's current state defines one.
     m_value = value_sanitization_algorithm(m_value);
 
-    if (m_value != old_value)
-        relevant_value_was_changed();
-
     // AD-HOC: Resetting may change the value and the user validity, affecting which validity pseudo-classes match.
     CSS::Invalidation::invalidate_style_after_validity_change(*this);
 
@@ -2159,6 +2158,10 @@ void HTMLInputElement::reset_algorithm()
         m_text_node->set_data(m_value);
         update_placeholder_visibility();
     }
+
+    // NB: The relevant value is read from the text node — so, this has to come after the text node is updated.
+    if (m_value != old_value)
+        relevant_value_was_changed();
 
     update_shadow_tree();
 }
@@ -2188,13 +2191,14 @@ void HTMLInputElement::clear_algorithm()
     // changes caused by the user (and thus, e.g. do cause input events to fire).
     user_interaction_did_change_input_value();
 
-    if (m_value != old_value)
-        relevant_value_was_changed();
-
     if (m_text_node) {
         m_text_node->set_data(m_value);
         update_placeholder_visibility();
     }
+
+    // NB: The relevant value is read from the text node — so, this has to come after the text node is updated.
+    if (m_value != old_value)
+        relevant_value_was_changed();
 
     update_shadow_tree();
 }
