@@ -236,6 +236,69 @@ fn simplification_removes_number_checks_of_numeric_constants() {
     }
 }
 
+#[test]
+fn simplification_removes_int32_checks_that_number_checks_convert() {
+    let mut graph = Graph::default();
+    for predecessors in [vec![], vec![BlockId(0)], vec![BlockId(0)]] {
+        graph.add_block(Block {
+            predecessors,
+            ..Block::default()
+        });
+    }
+    let frame_state = graph.add_frame_state(crate::ir::FrameState {
+        executable: 0,
+        pc: 0,
+        mode: crate::code::ResumeMode::ResumeAt,
+        values: Vec::new(),
+        in_frame: Vec::new(),
+        parent: None,
+        passed_argument_count: None,
+        legacy_arguments: 0..0,
+    });
+    let double = node(&mut graph, Op::Constant(2.0_f64.to_bits()), vec![], Some(Repr::Float64));
+    let boxed_double = node(&mut graph, Op::BoxFloat64, vec![double], Some(Repr::Tagged));
+    let check = node(&mut graph, Op::CheckInt32, vec![boxed_double], Some(Repr::Int32));
+    graph.nodes[check.index()].frame_state = Some(frame_state);
+    let boxed = node(&mut graph, Op::BoxInt32, vec![check], Some(Repr::Tagged));
+    let branch = node(
+        &mut graph,
+        Op::Branch {
+            condition: BranchCondition::Int32Value,
+            if_true: BlockId(1),
+            if_false: BlockId(2),
+        },
+        vec![boxed],
+        None,
+    );
+    graph.blocks[0].body = vec![boxed_double, check, boxed];
+    graph.blocks[0].control = Some(branch);
+    // The number check sees the boxing through a refinement, which
+    // simplification does not replace.
+    let refined = node(
+        &mut graph,
+        Op::Refine {
+            condition: BranchCondition::Int32Value,
+            holds: true,
+        },
+        vec![boxed],
+        Some(Repr::Tagged),
+    );
+    let number = node(&mut graph, Op::CheckNumber, vec![refined], Some(Repr::Float64));
+    graph.nodes[number.index()].frame_state = Some(frame_state);
+    let result = node(&mut graph, Op::BoxFloat64, vec![number], Some(Repr::Tagged));
+    let ret = node(&mut graph, Op::Return, vec![result], None);
+    graph.blocks[1].body = vec![refined, number, result];
+    graph.blocks[1].control = Some(ret);
+    let other_ret = node(&mut graph, Op::Return, vec![boxed], None);
+    graph.blocks[2].control = Some(other_ret);
+    verify(&graph).unwrap();
+
+    super::simplify::run(&mut graph);
+    verify(&graph).unwrap();
+    assert!(!graph.blocks[0].body.contains(&check));
+    assert_eq!(graph.node(result).inputs, vec![double]);
+}
+
 /// A loop that stores elements in their bounds, and loads how many elements
 /// an object it does not change has: the stores change no element count, so
 /// the load moves out of the loop.
