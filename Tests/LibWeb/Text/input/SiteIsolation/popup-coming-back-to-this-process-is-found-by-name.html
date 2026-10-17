@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup in another process navigates back to this page's site, and this process hosts its next document
+    // provisionally while the popup's document unloads. Looking the popup up by name meanwhile finds the popup itself,
+    // not the provisional navigable populating its next document.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const echo = async (name, body) => httpServer.createEcho("GET", `/${name}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>${body}<\/script>`,
+        });
+
+        const sameSiteUrl = await echo("found-by-name-same-site", `opener.postMessage("came back", "*");`);
+        const finalUrl = await echo("found-by-name-final", `opener.postMessage("navigated by name", "*");`);
+        const crossSiteUrl = new URL(await echo("found-by-name-cross-site", `
+            onpagehide = () => {
+                opener.postMessage("unloading", "*");
+                const end = Date.now() + 500;
+                while (Date.now() < end) { }
+            };
+            opener.postMessage("arrived", "*");
+        `));
+        crossSiteUrl.hostname = uniqueLocalhostHostname("found-by-name-cross-site");
+
+        const arrived = nextMessage();
+        const popup = window.open(crossSiteUrl.href, "popup");
+        println(await arrived);
+
+        const unloading = nextMessage();
+        popup.location.href = sameSiteUrl;
+        println(await unloading);
+
+        // The popup's next document can win over this navigation, so either document posting a message will do.
+        const navigated = nextMessage();
+        println(`found the popup by name: ${window.open("", "popup") === popup}`);
+        window.open(finalUrl, "popup");
+        await navigated;
+        println("popup navigated");
+        popup.close();
+    });
+</script>
