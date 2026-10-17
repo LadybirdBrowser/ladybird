@@ -4093,19 +4093,25 @@ WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const&
         else
             VERIFY_NOT_REACHED();
 
-        // Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.3,
-        // with M as the received message, signature as the received signature
-        // and using params as the EC domain parameters, and Q as the public key.
+        // 1. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the
+        //    base point of the elliptic curve identified by params.
+        auto n = Q.scalar_size();
 
-        auto half_size = Q.scalar_size();
-        if (signature.size() != half_size * 2)
+        // 2. If signature does not have a length of n * 2 bytes, then return false.
+        if (signature.size() != n * 2)
             return false;
-        auto r = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(0, half_size));
-        auto s = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(half_size, half_size));
 
+        // 3. Let r be the result of converting the first n bytes of signature to an integer.
+        auto r = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(0, n));
+
+        // 4. Let s be the result of converting the last n bytes of signature to an integer.
+        auto s = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(n, n));
+
+        // 5. Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.4.3, with M as the received
+        //    message, (r, s) as the signature and using params as the EC domain parameters, and Q as the public key.
         auto maybe_result = curve.visit(
             [](Empty const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
-            [&](auto instance) { return instance.verify(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s, half_size }); });
+            [&](auto instance) { return instance.verify(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s, n }); });
 
         if (maybe_result.is_error())
             return WebIDL::OperationError::create(Utf16String::from_utf8(maybe_result.error().string_literal()));
@@ -4117,8 +4123,8 @@ WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const&
         return throw_completion(realm, WebIDL::NotSupportedError::create("Invalid algorithm"_utf16));
     }
 
-    // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
-    // 10. Return result.
+    // 7. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
+    // 8. Return result.
     return result;
 }
 
