@@ -911,6 +911,9 @@ struct GridItem {
     // Whether the item is a subgrid in its columns but not its rows, resolved once at placement since every row-axis
     // sizing step asks.
     is_column_only_subgrid: bool,
+    // The block size transferred through the item's aspect ratio before the automatic minimum size grew it to fit the
+    // content. The content resolves percentages against it.
+    block_size_transferred_through_aspect_ratio: Option<CssPixels>,
 }
 
 impl GridItem {
@@ -1645,6 +1648,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 extra_margin_bottom: CssPixels::default(),
                 extra_margin_left: CssPixels::default(),
                 is_column_only_subgrid,
+                block_size_transferred_through_aspect_ratio: None,
             });
         }
         if !subgridded_columns {
@@ -3031,6 +3035,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 continue;
             }
 
+            let mut transferred_block_size = None;
             let size = if use_replaced {
                 if axis.is_column() {
                     self.sizing()
@@ -3055,17 +3060,19 @@ impl<'pass> GridFormattingContext<'pass> {
                     constraints,
                 );
                 // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
-                self.sizing()
-                    .automatic_minimum_size_from_aspect_ratio(
-                        item.box_,
-                        SizingAxis::Block,
-                        self.used(item).content_inline_size.get(),
-                        size,
-                        available,
-                        constraints,
-                        None,
-                    )
-                    .map_or(size, |minimum| size.max(minimum))
+                let minimum = self.sizing().automatic_minimum_size_from_aspect_ratio(
+                    item.box_,
+                    SizingAxis::Block,
+                    self.used(item).content_inline_size.get(),
+                    size,
+                    available,
+                    constraints,
+                    None,
+                );
+                if minimum.is_some_and(|minimum| minimum > size) {
+                    transferred_block_size = Some(size);
+                }
+                minimum.map_or(size, |minimum| size.max(minimum))
             } else if self.item_is_stretched(item, axis) {
                 // OPTIMIZATION: For auto-sized items with stretch/normal alignment and no auto margins, the item stretches
                 //               to fill the containing block. We can compute this directly without the expensive
@@ -3178,6 +3185,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 used.margin_top.set(resolved.margin_start);
                 used.margin_bottom.set(resolved.margin_end);
                 used.set_content_block_size(resolved.size);
+                // NB: A maximum block size clamps the grown size, and can leave nothing to grow.
+                self.items[item_index].block_size_transferred_through_aspect_ratio =
+                    transferred_block_size.filter(|&transferred| transferred < resolved.size);
             }
         }
     }
@@ -3400,6 +3410,13 @@ impl<'pass> GridFormattingContext<'pass> {
                 used.has_definite_block_size.set(true);
             }
             let mut sizing = RootSizingDirectives::default();
+            if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
+                // NB: The content is laid out against the block size transferred through the aspect ratio, and the item
+                //     grows to its used block size afterwards.
+                let used = self.used(item);
+                sizing.content_block_size_after_inside_layout = Some(used.content_block_size.get());
+                used.set_content_block_size(transferred);
+            }
             if self.facts(item.box_).is_table_wrapper() && self.item_is_stretched(item, Axis::Row) {
                 // A stretched table wrapper stretches the table box inside it, less the size of its captions.
                 let sizes = self.sizing().measure_table_box_block_size_inside_wrapper(
