@@ -157,7 +157,7 @@ impl<'pass> SizingContext<'pass> {
         depends_on_block_size.then_some(block_size)
     }
 
-    fn content_block_size_from_aspect_ratio(&self, node: Node, content_inline_size: CssPixels) -> CssPixels {
+    pub(crate) fn content_block_size_from_aspect_ratio(&self, node: Node, content_inline_size: CssPixels) -> CssPixels {
         let style = self.style(node);
         let used = self.used(node);
         formatting_context::content_block_size_from_aspect_ratio_values(
@@ -171,7 +171,7 @@ impl<'pass> SizingContext<'pass> {
         )
     }
 
-    fn content_inline_size_from_aspect_ratio(&self, node: Node, content_block_size: CssPixels) -> CssPixels {
+    pub(crate) fn content_inline_size_from_aspect_ratio(&self, node: Node, content_block_size: CssPixels) -> CssPixels {
         let style = self.style(node);
         let used = self.used(node);
         formatting_context::content_inline_size_from_aspect_ratio_values(

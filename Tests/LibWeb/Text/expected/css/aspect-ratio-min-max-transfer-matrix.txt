@@ -2273,7 +2273,7 @@ flex-row block width=auto height=auto empty min-width: 150x75 child=37.5
 flex-row block width=auto height=auto empty max-width: 0x0 child=0
 flex-row block width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row block width=auto height=auto empty max-width-min-height: 40x60 child=30
-flex-row block width=auto height=auto empty border-box-min-height: 130x70 child=30
+flex-row block width=auto height=auto empty border-box-min-height: 120x60 child=25
 flex-row block width=auto height=auto empty border-box-max-width: 10x10 child=0
 flex-row block width=auto height=auto tall min-height: 120x60 child=30
 flex-row block width=auto height=auto tall min-height-large: 300x150 child=75
@@ -2282,8 +2282,8 @@ flex-row block width=auto height=auto tall min-width: 150x337.5 child=168.75
 flex-row block width=auto height=auto tall max-width: 10x302.5 child=151.25
 flex-row block width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row block width=auto height=auto tall max-width-min-height: 40x60 child=30
-flex-row block width=auto height=auto tall border-box-min-height: 130x70 child=30
-flex-row block width=auto height=auto tall border-box-max-width: 20x312.5 child=151.25
+flex-row block width=auto height=auto tall border-box-min-height: 120x60 child=25
+flex-row block width=auto height=auto tall border-box-max-width: 20x310 child=150
 flex-row block width=auto height=100% empty min-height: 120x60 child=30
 flex-row block width=auto height=100% empty min-height-large: 300x150 child=75
 flex-row block width=auto height=100% empty max-height: 0x0 child=0
@@ -2291,7 +2291,7 @@ flex-row block width=auto height=100% empty min-width: 150x75 child=37.5
 flex-row block width=auto height=100% empty max-width: 0x0 child=0
 flex-row block width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row block width=auto height=100% empty max-width-min-height: 40x60 child=30
-flex-row block width=auto height=100% empty border-box-min-height: 130x70 child=30
+flex-row block width=auto height=100% empty border-box-min-height: 120x60 child=25
 flex-row block width=auto height=100% empty border-box-max-width: 10x10 child=0
 flex-row block width=auto height=100% tall min-height: 120x60 child=30
 flex-row block width=auto height=100% tall min-height-large: 300x150 child=75
@@ -2300,8 +2300,8 @@ flex-row block width=auto height=100% tall min-width: 150x337.5 child=168.75
 flex-row block width=auto height=100% tall max-width: 10x302.5 child=151.25
 flex-row block width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row block width=auto height=100% tall max-width-min-height: 40x60 child=30
-flex-row block width=auto height=100% tall border-box-min-height: 130x70 child=30
-flex-row block width=auto height=100% tall border-box-max-width: 20x312.5 child=151.25
+flex-row block width=auto height=100% tall border-box-min-height: 120x60 child=25
+flex-row block width=auto height=100% tall border-box-max-width: 20x310 child=150
 flex-row block width=auto height=40px empty min-height: 120x60 child=30
 flex-row block width=auto height=40px empty min-height-large: 300x150 child=75
 flex-row block width=auto height=40px empty max-height: 60x30 child=15
@@ -2309,7 +2309,7 @@ flex-row block width=auto height=40px empty min-width: 150x40 child=20
 flex-row block width=auto height=40px empty max-width: 40x40 child=20
 flex-row block width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row block width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row block width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row block width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row block width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row block width=auto height=40px tall min-height: 120x60 child=30
 flex-row block width=auto height=40px tall min-height-large: 300x150 child=75
@@ -2318,7 +2318,7 @@ flex-row block width=auto height=40px tall min-width: 150x40 child=20
 flex-row block width=auto height=40px tall max-width: 40x40 child=20
 flex-row block width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row block width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row block width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row block width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row block width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row block width=80px height=auto empty min-height: 80x60 child=30
 flex-row block width=80px height=auto empty min-height-large: 80x150 child=75
@@ -2328,7 +2328,7 @@ flex-row block width=80px height=auto empty max-width: 40x20 child=10
 flex-row block width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-row block width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-row block width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-row block width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row block width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-row block width=80px height=auto tall min-height: 80x60 child=30
 flex-row block width=80px height=auto tall min-height-large: 80x150 child=75
 flex-row block width=80px height=auto tall max-height: 80x30 child=15
@@ -2337,7 +2337,7 @@ flex-row block width=80px height=auto tall max-width: 40x310 child=155
 flex-row block width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-row block width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-row block width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-row block width=80px height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row block width=80px height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row block width=80px height=100% empty min-height: 80x60 child=30
 flex-row block width=80px height=100% empty min-height-large: 80x150 child=75
 flex-row block width=80px height=100% empty max-height: 80x30 child=15
@@ -2346,7 +2346,7 @@ flex-row block width=80px height=100% empty max-width: 40x20 child=10
 flex-row block width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-row block width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-row block width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-row block width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row block width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-row block width=80px height=100% tall min-height: 80x60 child=30
 flex-row block width=80px height=100% tall min-height-large: 80x150 child=75
 flex-row block width=80px height=100% tall max-height: 80x30 child=15
@@ -2355,7 +2355,7 @@ flex-row block width=80px height=100% tall max-width: 40x310 child=155
 flex-row block width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-row block width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-row block width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-row block width=80px height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row block width=80px height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row block width=80px height=40px empty min-height: 80x60 child=30
 flex-row block width=80px height=40px empty min-height-large: 80x150 child=75
 flex-row block width=80px height=40px empty max-height: 80x30 child=15
@@ -2382,7 +2382,7 @@ flex-row block width=50% height=auto empty max-width: 40x20 child=10
 flex-row block width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-row block width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-row block width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-row block width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row block width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-row block width=50% height=auto tall min-height: 100x60 child=30
 flex-row block width=50% height=auto tall min-height-large: 100x150 child=75
 flex-row block width=50% height=auto tall max-height: 100x30 child=15
@@ -2391,7 +2391,7 @@ flex-row block width=50% height=auto tall max-width: 40x310 child=155
 flex-row block width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-row block width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-row block width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-row block width=50% height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row block width=50% height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row block width=50% height=100% empty min-height: 100x60 child=30
 flex-row block width=50% height=100% empty min-height-large: 100x150 child=75
 flex-row block width=50% height=100% empty max-height: 100x30 child=15
@@ -2400,7 +2400,7 @@ flex-row block width=50% height=100% empty max-width: 40x20 child=10
 flex-row block width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-row block width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-row block width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-row block width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row block width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-row block width=50% height=100% tall min-height: 100x60 child=30
 flex-row block width=50% height=100% tall min-height-large: 100x150 child=75
 flex-row block width=50% height=100% tall max-height: 100x30 child=15
@@ -2409,7 +2409,7 @@ flex-row block width=50% height=100% tall max-width: 40x310 child=155
 flex-row block width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-row block width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-row block width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-row block width=50% height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row block width=50% height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row block width=50% height=40px empty min-height: 100x60 child=30
 flex-row block width=50% height=40px empty min-height-large: 100x150 child=75
 flex-row block width=50% height=40px empty max-height: 100x30 child=15
@@ -2435,7 +2435,7 @@ flex-row flow-root width=auto height=auto empty min-width: 150x75 child=37.5
 flex-row flow-root width=auto height=auto empty max-width: 0x0 child=0
 flex-row flow-root width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row flow-root width=auto height=auto empty max-width-min-height: 40x60 child=30
-flex-row flow-root width=auto height=auto empty border-box-min-height: 130x70 child=30
+flex-row flow-root width=auto height=auto empty border-box-min-height: 120x60 child=25
 flex-row flow-root width=auto height=auto empty border-box-max-width: 10x10 child=0
 flex-row flow-root width=auto height=auto tall min-height: 120x60 child=30
 flex-row flow-root width=auto height=auto tall min-height-large: 300x150 child=75
@@ -2444,8 +2444,8 @@ flex-row flow-root width=auto height=auto tall min-width: 150x337.5 child=168.75
 flex-row flow-root width=auto height=auto tall max-width: 10x302.5 child=151.25
 flex-row flow-root width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row flow-root width=auto height=auto tall max-width-min-height: 40x60 child=30
-flex-row flow-root width=auto height=auto tall border-box-min-height: 130x70 child=30
-flex-row flow-root width=auto height=auto tall border-box-max-width: 20x312.5 child=151.25
+flex-row flow-root width=auto height=auto tall border-box-min-height: 120x60 child=25
+flex-row flow-root width=auto height=auto tall border-box-max-width: 20x310 child=150
 flex-row flow-root width=auto height=100% empty min-height: 120x60 child=30
 flex-row flow-root width=auto height=100% empty min-height-large: 300x150 child=75
 flex-row flow-root width=auto height=100% empty max-height: 0x0 child=0
@@ -2453,7 +2453,7 @@ flex-row flow-root width=auto height=100% empty min-width: 150x75 child=37.5
 flex-row flow-root width=auto height=100% empty max-width: 0x0 child=0
 flex-row flow-root width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row flow-root width=auto height=100% empty max-width-min-height: 40x60 child=30
-flex-row flow-root width=auto height=100% empty border-box-min-height: 130x70 child=30
+flex-row flow-root width=auto height=100% empty border-box-min-height: 120x60 child=25
 flex-row flow-root width=auto height=100% empty border-box-max-width: 10x10 child=0
 flex-row flow-root width=auto height=100% tall min-height: 120x60 child=30
 flex-row flow-root width=auto height=100% tall min-height-large: 300x150 child=75
@@ -2462,8 +2462,8 @@ flex-row flow-root width=auto height=100% tall min-width: 150x337.5 child=168.75
 flex-row flow-root width=auto height=100% tall max-width: 10x302.5 child=151.25
 flex-row flow-root width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row flow-root width=auto height=100% tall max-width-min-height: 40x60 child=30
-flex-row flow-root width=auto height=100% tall border-box-min-height: 130x70 child=30
-flex-row flow-root width=auto height=100% tall border-box-max-width: 20x312.5 child=151.25
+flex-row flow-root width=auto height=100% tall border-box-min-height: 120x60 child=25
+flex-row flow-root width=auto height=100% tall border-box-max-width: 20x310 child=150
 flex-row flow-root width=auto height=40px empty min-height: 120x60 child=30
 flex-row flow-root width=auto height=40px empty min-height-large: 300x150 child=75
 flex-row flow-root width=auto height=40px empty max-height: 60x30 child=15
@@ -2471,7 +2471,7 @@ flex-row flow-root width=auto height=40px empty min-width: 150x40 child=20
 flex-row flow-root width=auto height=40px empty max-width: 40x40 child=20
 flex-row flow-root width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row flow-root width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row flow-root width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row flow-root width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row flow-root width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row flow-root width=auto height=40px tall min-height: 120x60 child=30
 flex-row flow-root width=auto height=40px tall min-height-large: 300x150 child=75
@@ -2480,7 +2480,7 @@ flex-row flow-root width=auto height=40px tall min-width: 150x40 child=20
 flex-row flow-root width=auto height=40px tall max-width: 40x40 child=20
 flex-row flow-root width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row flow-root width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row flow-root width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row flow-root width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row flow-root width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row flow-root width=80px height=auto empty min-height: 80x60 child=30
 flex-row flow-root width=80px height=auto empty min-height-large: 80x150 child=75
@@ -2490,7 +2490,7 @@ flex-row flow-root width=80px height=auto empty max-width: 40x20 child=10
 flex-row flow-root width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-row flow-root width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-row flow-root width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-row flow-root width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row flow-root width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-row flow-root width=80px height=auto tall min-height: 80x60 child=30
 flex-row flow-root width=80px height=auto tall min-height-large: 80x150 child=75
 flex-row flow-root width=80px height=auto tall max-height: 80x30 child=15
@@ -2499,7 +2499,7 @@ flex-row flow-root width=80px height=auto tall max-width: 40x310 child=155
 flex-row flow-root width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-row flow-root width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-row flow-root width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-row flow-root width=80px height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row flow-root width=80px height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row flow-root width=80px height=100% empty min-height: 80x60 child=30
 flex-row flow-root width=80px height=100% empty min-height-large: 80x150 child=75
 flex-row flow-root width=80px height=100% empty max-height: 80x30 child=15
@@ -2508,7 +2508,7 @@ flex-row flow-root width=80px height=100% empty max-width: 40x20 child=10
 flex-row flow-root width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-row flow-root width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-row flow-root width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-row flow-root width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row flow-root width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-row flow-root width=80px height=100% tall min-height: 80x60 child=30
 flex-row flow-root width=80px height=100% tall min-height-large: 80x150 child=75
 flex-row flow-root width=80px height=100% tall max-height: 80x30 child=15
@@ -2517,7 +2517,7 @@ flex-row flow-root width=80px height=100% tall max-width: 40x310 child=155
 flex-row flow-root width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-row flow-root width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-row flow-root width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-row flow-root width=80px height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row flow-root width=80px height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row flow-root width=80px height=40px empty min-height: 80x60 child=30
 flex-row flow-root width=80px height=40px empty min-height-large: 80x150 child=75
 flex-row flow-root width=80px height=40px empty max-height: 80x30 child=15
@@ -2544,7 +2544,7 @@ flex-row flow-root width=50% height=auto empty max-width: 40x20 child=10
 flex-row flow-root width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-row flow-root width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-row flow-root width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-row flow-root width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row flow-root width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-row flow-root width=50% height=auto tall min-height: 100x60 child=30
 flex-row flow-root width=50% height=auto tall min-height-large: 100x150 child=75
 flex-row flow-root width=50% height=auto tall max-height: 100x30 child=15
@@ -2553,7 +2553,7 @@ flex-row flow-root width=50% height=auto tall max-width: 40x310 child=155
 flex-row flow-root width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-row flow-root width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-row flow-root width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-row flow-root width=50% height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row flow-root width=50% height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row flow-root width=50% height=100% empty min-height: 100x60 child=30
 flex-row flow-root width=50% height=100% empty min-height-large: 100x150 child=75
 flex-row flow-root width=50% height=100% empty max-height: 100x30 child=15
@@ -2562,7 +2562,7 @@ flex-row flow-root width=50% height=100% empty max-width: 40x20 child=10
 flex-row flow-root width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-row flow-root width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-row flow-root width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-row flow-root width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row flow-root width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-row flow-root width=50% height=100% tall min-height: 100x60 child=30
 flex-row flow-root width=50% height=100% tall min-height-large: 100x150 child=75
 flex-row flow-root width=50% height=100% tall max-height: 100x30 child=15
@@ -2571,7 +2571,7 @@ flex-row flow-root width=50% height=100% tall max-width: 40x310 child=155
 flex-row flow-root width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-row flow-root width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-row flow-root width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-row flow-root width=50% height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row flow-root width=50% height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row flow-root width=50% height=40px empty min-height: 100x60 child=30
 flex-row flow-root width=50% height=40px empty min-height-large: 100x150 child=75
 flex-row flow-root width=50% height=40px empty max-height: 100x30 child=15
@@ -2597,7 +2597,7 @@ flex-row inline-block width=auto height=auto empty min-width: 150x75 child=37.5
 flex-row inline-block width=auto height=auto empty max-width: 0x0 child=0
 flex-row inline-block width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row inline-block width=auto height=auto empty max-width-min-height: 40x60 child=30
-flex-row inline-block width=auto height=auto empty border-box-min-height: 130x70 child=30
+flex-row inline-block width=auto height=auto empty border-box-min-height: 120x60 child=25
 flex-row inline-block width=auto height=auto empty border-box-max-width: 10x10 child=0
 flex-row inline-block width=auto height=auto tall min-height: 120x60 child=30
 flex-row inline-block width=auto height=auto tall min-height-large: 300x150 child=75
@@ -2606,8 +2606,8 @@ flex-row inline-block width=auto height=auto tall min-width: 150x337.5 child=168
 flex-row inline-block width=auto height=auto tall max-width: 10x302.5 child=151.25
 flex-row inline-block width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row inline-block width=auto height=auto tall max-width-min-height: 40x60 child=30
-flex-row inline-block width=auto height=auto tall border-box-min-height: 130x70 child=30
-flex-row inline-block width=auto height=auto tall border-box-max-width: 20x312.5 child=151.25
+flex-row inline-block width=auto height=auto tall border-box-min-height: 120x60 child=25
+flex-row inline-block width=auto height=auto tall border-box-max-width: 20x310 child=150
 flex-row inline-block width=auto height=100% empty min-height: 120x60 child=30
 flex-row inline-block width=auto height=100% empty min-height-large: 300x150 child=75
 flex-row inline-block width=auto height=100% empty max-height: 0x0 child=0
@@ -2615,7 +2615,7 @@ flex-row inline-block width=auto height=100% empty min-width: 150x75 child=37.5
 flex-row inline-block width=auto height=100% empty max-width: 0x0 child=0
 flex-row inline-block width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row inline-block width=auto height=100% empty max-width-min-height: 40x60 child=30
-flex-row inline-block width=auto height=100% empty border-box-min-height: 130x70 child=30
+flex-row inline-block width=auto height=100% empty border-box-min-height: 120x60 child=25
 flex-row inline-block width=auto height=100% empty border-box-max-width: 10x10 child=0
 flex-row inline-block width=auto height=100% tall min-height: 120x60 child=30
 flex-row inline-block width=auto height=100% tall min-height-large: 300x150 child=75
@@ -2624,8 +2624,8 @@ flex-row inline-block width=auto height=100% tall min-width: 150x337.5 child=168
 flex-row inline-block width=auto height=100% tall max-width: 10x302.5 child=151.25
 flex-row inline-block width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row inline-block width=auto height=100% tall max-width-min-height: 40x60 child=30
-flex-row inline-block width=auto height=100% tall border-box-min-height: 130x70 child=30
-flex-row inline-block width=auto height=100% tall border-box-max-width: 20x312.5 child=151.25
+flex-row inline-block width=auto height=100% tall border-box-min-height: 120x60 child=25
+flex-row inline-block width=auto height=100% tall border-box-max-width: 20x310 child=150
 flex-row inline-block width=auto height=40px empty min-height: 120x60 child=30
 flex-row inline-block width=auto height=40px empty min-height-large: 300x150 child=75
 flex-row inline-block width=auto height=40px empty max-height: 60x30 child=15
@@ -2633,7 +2633,7 @@ flex-row inline-block width=auto height=40px empty min-width: 150x40 child=20
 flex-row inline-block width=auto height=40px empty max-width: 40x40 child=20
 flex-row inline-block width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row inline-block width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row inline-block width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row inline-block width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row inline-block width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row inline-block width=auto height=40px tall min-height: 120x60 child=30
 flex-row inline-block width=auto height=40px tall min-height-large: 300x150 child=75
@@ -2642,7 +2642,7 @@ flex-row inline-block width=auto height=40px tall min-width: 150x40 child=20
 flex-row inline-block width=auto height=40px tall max-width: 40x40 child=20
 flex-row inline-block width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row inline-block width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row inline-block width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row inline-block width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row inline-block width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row inline-block width=80px height=auto empty min-height: 80x60 child=30
 flex-row inline-block width=80px height=auto empty min-height-large: 80x150 child=75
@@ -2652,7 +2652,7 @@ flex-row inline-block width=80px height=auto empty max-width: 40x20 child=10
 flex-row inline-block width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-row inline-block width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-row inline-block width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-row inline-block width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row inline-block width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-row inline-block width=80px height=auto tall min-height: 80x60 child=30
 flex-row inline-block width=80px height=auto tall min-height-large: 80x150 child=75
 flex-row inline-block width=80px height=auto tall max-height: 80x30 child=15
@@ -2661,7 +2661,7 @@ flex-row inline-block width=80px height=auto tall max-width: 40x310 child=155
 flex-row inline-block width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-row inline-block width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-row inline-block width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-row inline-block width=80px height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row inline-block width=80px height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row inline-block width=80px height=100% empty min-height: 80x60 child=30
 flex-row inline-block width=80px height=100% empty min-height-large: 80x150 child=75
 flex-row inline-block width=80px height=100% empty max-height: 80x30 child=15
@@ -2670,7 +2670,7 @@ flex-row inline-block width=80px height=100% empty max-width: 40x20 child=10
 flex-row inline-block width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-row inline-block width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-row inline-block width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-row inline-block width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row inline-block width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-row inline-block width=80px height=100% tall min-height: 80x60 child=30
 flex-row inline-block width=80px height=100% tall min-height-large: 80x150 child=75
 flex-row inline-block width=80px height=100% tall max-height: 80x30 child=15
@@ -2679,7 +2679,7 @@ flex-row inline-block width=80px height=100% tall max-width: 40x310 child=155
 flex-row inline-block width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-row inline-block width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-row inline-block width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-row inline-block width=80px height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row inline-block width=80px height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row inline-block width=80px height=40px empty min-height: 80x60 child=30
 flex-row inline-block width=80px height=40px empty min-height-large: 80x150 child=75
 flex-row inline-block width=80px height=40px empty max-height: 80x30 child=15
@@ -2706,7 +2706,7 @@ flex-row inline-block width=50% height=auto empty max-width: 40x20 child=10
 flex-row inline-block width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-row inline-block width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-row inline-block width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-row inline-block width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row inline-block width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-row inline-block width=50% height=auto tall min-height: 100x60 child=30
 flex-row inline-block width=50% height=auto tall min-height-large: 100x150 child=75
 flex-row inline-block width=50% height=auto tall max-height: 100x30 child=15
@@ -2715,7 +2715,7 @@ flex-row inline-block width=50% height=auto tall max-width: 40x310 child=155
 flex-row inline-block width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-row inline-block width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-row inline-block width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-row inline-block width=50% height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row inline-block width=50% height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row inline-block width=50% height=100% empty min-height: 100x60 child=30
 flex-row inline-block width=50% height=100% empty min-height-large: 100x150 child=75
 flex-row inline-block width=50% height=100% empty max-height: 100x30 child=15
@@ -2724,7 +2724,7 @@ flex-row inline-block width=50% height=100% empty max-width: 40x20 child=10
 flex-row inline-block width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-row inline-block width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-row inline-block width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-row inline-block width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row inline-block width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-row inline-block width=50% height=100% tall min-height: 100x60 child=30
 flex-row inline-block width=50% height=100% tall min-height-large: 100x150 child=75
 flex-row inline-block width=50% height=100% tall max-height: 100x30 child=15
@@ -2733,7 +2733,7 @@ flex-row inline-block width=50% height=100% tall max-width: 40x310 child=155
 flex-row inline-block width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-row inline-block width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-row inline-block width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-row inline-block width=50% height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row inline-block width=50% height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row inline-block width=50% height=40px empty min-height: 100x60 child=30
 flex-row inline-block width=50% height=40px empty min-height-large: 100x150 child=75
 flex-row inline-block width=50% height=40px empty max-height: 100x30 child=15
@@ -2759,7 +2759,7 @@ flex-row float width=auto height=auto empty min-width: 150x75 child=37.5
 flex-row float width=auto height=auto empty max-width: 0x0 child=0
 flex-row float width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row float width=auto height=auto empty max-width-min-height: 40x60 child=30
-flex-row float width=auto height=auto empty border-box-min-height: 130x70 child=30
+flex-row float width=auto height=auto empty border-box-min-height: 120x60 child=25
 flex-row float width=auto height=auto empty border-box-max-width: 10x10 child=0
 flex-row float width=auto height=auto tall min-height: 120x60 child=30
 flex-row float width=auto height=auto tall min-height-large: 300x150 child=75
@@ -2768,8 +2768,8 @@ flex-row float width=auto height=auto tall min-width: 150x337.5 child=168.75
 flex-row float width=auto height=auto tall max-width: 10x302.5 child=151.25
 flex-row float width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row float width=auto height=auto tall max-width-min-height: 40x60 child=30
-flex-row float width=auto height=auto tall border-box-min-height: 130x70 child=30
-flex-row float width=auto height=auto tall border-box-max-width: 20x312.5 child=151.25
+flex-row float width=auto height=auto tall border-box-min-height: 120x60 child=25
+flex-row float width=auto height=auto tall border-box-max-width: 20x310 child=150
 flex-row float width=auto height=100% empty min-height: 120x60 child=30
 flex-row float width=auto height=100% empty min-height-large: 300x150 child=75
 flex-row float width=auto height=100% empty max-height: 0x0 child=0
@@ -2777,7 +2777,7 @@ flex-row float width=auto height=100% empty min-width: 150x75 child=37.5
 flex-row float width=auto height=100% empty max-width: 0x0 child=0
 flex-row float width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row float width=auto height=100% empty max-width-min-height: 40x60 child=30
-flex-row float width=auto height=100% empty border-box-min-height: 130x70 child=30
+flex-row float width=auto height=100% empty border-box-min-height: 120x60 child=25
 flex-row float width=auto height=100% empty border-box-max-width: 10x10 child=0
 flex-row float width=auto height=100% tall min-height: 120x60 child=30
 flex-row float width=auto height=100% tall min-height-large: 300x150 child=75
@@ -2786,8 +2786,8 @@ flex-row float width=auto height=100% tall min-width: 150x337.5 child=168.75
 flex-row float width=auto height=100% tall max-width: 10x302.5 child=151.25
 flex-row float width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row float width=auto height=100% tall max-width-min-height: 40x60 child=30
-flex-row float width=auto height=100% tall border-box-min-height: 130x70 child=30
-flex-row float width=auto height=100% tall border-box-max-width: 20x312.5 child=151.25
+flex-row float width=auto height=100% tall border-box-min-height: 120x60 child=25
+flex-row float width=auto height=100% tall border-box-max-width: 20x310 child=150
 flex-row float width=auto height=40px empty min-height: 120x60 child=30
 flex-row float width=auto height=40px empty min-height-large: 300x150 child=75
 flex-row float width=auto height=40px empty max-height: 60x30 child=15
@@ -2795,7 +2795,7 @@ flex-row float width=auto height=40px empty min-width: 150x40 child=20
 flex-row float width=auto height=40px empty max-width: 40x40 child=20
 flex-row float width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row float width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row float width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row float width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row float width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row float width=auto height=40px tall min-height: 120x60 child=30
 flex-row float width=auto height=40px tall min-height-large: 300x150 child=75
@@ -2804,7 +2804,7 @@ flex-row float width=auto height=40px tall min-width: 150x40 child=20
 flex-row float width=auto height=40px tall max-width: 40x40 child=20
 flex-row float width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row float width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row float width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row float width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row float width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row float width=80px height=auto empty min-height: 80x60 child=30
 flex-row float width=80px height=auto empty min-height-large: 80x150 child=75
@@ -2814,7 +2814,7 @@ flex-row float width=80px height=auto empty max-width: 40x20 child=10
 flex-row float width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-row float width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-row float width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-row float width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row float width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-row float width=80px height=auto tall min-height: 80x60 child=30
 flex-row float width=80px height=auto tall min-height-large: 80x150 child=75
 flex-row float width=80px height=auto tall max-height: 80x30 child=15
@@ -2823,7 +2823,7 @@ flex-row float width=80px height=auto tall max-width: 40x310 child=155
 flex-row float width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-row float width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-row float width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-row float width=80px height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row float width=80px height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row float width=80px height=100% empty min-height: 80x60 child=30
 flex-row float width=80px height=100% empty min-height-large: 80x150 child=75
 flex-row float width=80px height=100% empty max-height: 80x30 child=15
@@ -2832,7 +2832,7 @@ flex-row float width=80px height=100% empty max-width: 40x20 child=10
 flex-row float width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-row float width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-row float width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-row float width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row float width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-row float width=80px height=100% tall min-height: 80x60 child=30
 flex-row float width=80px height=100% tall min-height-large: 80x150 child=75
 flex-row float width=80px height=100% tall max-height: 80x30 child=15
@@ -2841,7 +2841,7 @@ flex-row float width=80px height=100% tall max-width: 40x310 child=155
 flex-row float width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-row float width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-row float width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-row float width=80px height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row float width=80px height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row float width=80px height=40px empty min-height: 80x60 child=30
 flex-row float width=80px height=40px empty min-height-large: 80x150 child=75
 flex-row float width=80px height=40px empty max-height: 80x30 child=15
@@ -2868,7 +2868,7 @@ flex-row float width=50% height=auto empty max-width: 40x20 child=10
 flex-row float width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-row float width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-row float width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-row float width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row float width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-row float width=50% height=auto tall min-height: 100x60 child=30
 flex-row float width=50% height=auto tall min-height-large: 100x150 child=75
 flex-row float width=50% height=auto tall max-height: 100x30 child=15
@@ -2877,7 +2877,7 @@ flex-row float width=50% height=auto tall max-width: 40x310 child=155
 flex-row float width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-row float width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-row float width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-row float width=50% height=auto tall border-box-max-width: 40x317.5 child=153.75
+flex-row float width=50% height=auto tall border-box-max-width: 40x315 child=152.5
 flex-row float width=50% height=100% empty min-height: 100x60 child=30
 flex-row float width=50% height=100% empty min-height-large: 100x150 child=75
 flex-row float width=50% height=100% empty max-height: 100x30 child=15
@@ -2886,7 +2886,7 @@ flex-row float width=50% height=100% empty max-width: 40x20 child=10
 flex-row float width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-row float width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-row float width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-row float width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row float width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-row float width=50% height=100% tall min-height: 100x60 child=30
 flex-row float width=50% height=100% tall min-height-large: 100x150 child=75
 flex-row float width=50% height=100% tall max-height: 100x30 child=15
@@ -2895,7 +2895,7 @@ flex-row float width=50% height=100% tall max-width: 40x310 child=155
 flex-row float width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-row float width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-row float width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-row float width=50% height=100% tall border-box-max-width: 40x317.5 child=153.75
+flex-row float width=50% height=100% tall border-box-max-width: 40x315 child=152.5
 flex-row float width=50% height=40px empty min-height: 100x60 child=30
 flex-row float width=50% height=40px empty min-height-large: 100x150 child=75
 flex-row float width=50% height=40px empty max-height: 100x30 child=15
@@ -2921,7 +2921,7 @@ flex-row flex width=auto height=auto empty min-width: 150x75 child=37.5
 flex-row flex width=auto height=auto empty max-width: 0x0 child=0
 flex-row flex width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row flex width=auto height=auto empty max-width-min-height: 40x60 child=30
-flex-row flex width=auto height=auto empty border-box-min-height: 130x70 child=30
+flex-row flex width=auto height=auto empty border-box-min-height: 120x60 child=25
 flex-row flex width=auto height=auto empty border-box-max-width: 10x10 child=0
 flex-row flex width=auto height=auto tall min-height: 120x60 child=30
 flex-row flex width=auto height=auto tall min-height-large: 300x150 child=75
@@ -2930,7 +2930,7 @@ flex-row flex width=auto height=auto tall min-width: 150x300 child=150
 flex-row flex width=auto height=auto tall max-width: 10x300 child=150
 flex-row flex width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row flex width=auto height=auto tall max-width-min-height: 40x60 child=30
-flex-row flex width=auto height=auto tall border-box-min-height: 130x70 child=30
+flex-row flex width=auto height=auto tall border-box-min-height: 120x60 child=25
 flex-row flex width=auto height=auto tall border-box-max-width: 20x310 child=150
 flex-row flex width=auto height=100% empty min-height: 120x60 child=30
 flex-row flex width=auto height=100% empty min-height-large: 300x150 child=75
@@ -2939,7 +2939,7 @@ flex-row flex width=auto height=100% empty min-width: 150x75 child=37.5
 flex-row flex width=auto height=100% empty max-width: 0x0 child=0
 flex-row flex width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row flex width=auto height=100% empty max-width-min-height: 40x60 child=30
-flex-row flex width=auto height=100% empty border-box-min-height: 130x70 child=30
+flex-row flex width=auto height=100% empty border-box-min-height: 120x60 child=25
 flex-row flex width=auto height=100% empty border-box-max-width: 10x10 child=0
 flex-row flex width=auto height=100% tall min-height: 120x60 child=30
 flex-row flex width=auto height=100% tall min-height-large: 300x150 child=75
@@ -2948,7 +2948,7 @@ flex-row flex width=auto height=100% tall min-width: 150x300 child=150
 flex-row flex width=auto height=100% tall max-width: 10x300 child=150
 flex-row flex width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row flex width=auto height=100% tall max-width-min-height: 40x60 child=30
-flex-row flex width=auto height=100% tall border-box-min-height: 130x70 child=30
+flex-row flex width=auto height=100% tall border-box-min-height: 120x60 child=25
 flex-row flex width=auto height=100% tall border-box-max-width: 20x310 child=150
 flex-row flex width=auto height=40px empty min-height: 120x60 child=30
 flex-row flex width=auto height=40px empty min-height-large: 300x150 child=75
@@ -2957,7 +2957,7 @@ flex-row flex width=auto height=40px empty min-width: 150x40 child=20
 flex-row flex width=auto height=40px empty max-width: 40x40 child=20
 flex-row flex width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row flex width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row flex width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row flex width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row flex width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row flex width=auto height=40px tall min-height: 120x60 child=30
 flex-row flex width=auto height=40px tall min-height-large: 300x150 child=75
@@ -2966,7 +2966,7 @@ flex-row flex width=auto height=40px tall min-width: 150x40 child=20
 flex-row flex width=auto height=40px tall max-width: 40x40 child=20
 flex-row flex width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row flex width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row flex width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row flex width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row flex width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row flex width=80px height=auto empty min-height: 80x60 child=30
 flex-row flex width=80px height=auto empty min-height-large: 80x150 child=75
@@ -2976,7 +2976,7 @@ flex-row flex width=80px height=auto empty max-width: 40x20 child=10
 flex-row flex width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-row flex width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-row flex width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-row flex width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row flex width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-row flex width=80px height=auto tall min-height: 80x60 child=30
 flex-row flex width=80px height=auto tall min-height-large: 80x150 child=75
 flex-row flex width=80px height=auto tall max-height: 80x30 child=15
@@ -2994,7 +2994,7 @@ flex-row flex width=80px height=100% empty max-width: 40x20 child=10
 flex-row flex width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-row flex width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-row flex width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-row flex width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row flex width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-row flex width=80px height=100% tall min-height: 80x60 child=30
 flex-row flex width=80px height=100% tall min-height-large: 80x150 child=75
 flex-row flex width=80px height=100% tall max-height: 80x30 child=15
@@ -3030,7 +3030,7 @@ flex-row flex width=50% height=auto empty max-width: 40x20 child=10
 flex-row flex width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-row flex width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-row flex width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-row flex width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row flex width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-row flex width=50% height=auto tall min-height: 100x60 child=30
 flex-row flex width=50% height=auto tall min-height-large: 100x150 child=75
 flex-row flex width=50% height=auto tall max-height: 100x30 child=15
@@ -3048,7 +3048,7 @@ flex-row flex width=50% height=100% empty max-width: 40x20 child=10
 flex-row flex width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-row flex width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-row flex width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-row flex width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row flex width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-row flex width=50% height=100% tall min-height: 100x60 child=30
 flex-row flex width=50% height=100% tall min-height-large: 100x150 child=75
 flex-row flex width=50% height=100% tall max-height: 100x30 child=15
@@ -3083,7 +3083,7 @@ flex-row grid width=auto height=auto empty min-width: 150x75 child=37.5
 flex-row grid width=auto height=auto empty max-width: 0x0 child=0
 flex-row grid width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row grid width=auto height=auto empty max-width-min-height: 40x60 child=30
-flex-row grid width=auto height=auto empty border-box-min-height: 130x70 child=30
+flex-row grid width=auto height=auto empty border-box-min-height: 120x60 child=25
 flex-row grid width=auto height=auto empty border-box-max-width: 10x10 child=0
 flex-row grid width=auto height=auto tall min-height: 120x60 child=0
 flex-row grid width=auto height=auto tall min-height-large: 300x150 child=0
@@ -3092,7 +3092,7 @@ flex-row grid width=auto height=auto tall min-width: 150x300 child=0
 flex-row grid width=auto height=auto tall max-width: 10x300 child=0
 flex-row grid width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-row grid width=auto height=auto tall max-width-min-height: 40x60 child=0
-flex-row grid width=auto height=auto tall border-box-min-height: 130x70 child=0
+flex-row grid width=auto height=auto tall border-box-min-height: 120x60 child=0
 flex-row grid width=auto height=auto tall border-box-max-width: 20x310 child=0
 flex-row grid width=auto height=100% empty min-height: 120x60 child=30
 flex-row grid width=auto height=100% empty min-height-large: 300x150 child=75
@@ -3101,7 +3101,7 @@ flex-row grid width=auto height=100% empty min-width: 150x75 child=37.5
 flex-row grid width=auto height=100% empty max-width: 0x0 child=0
 flex-row grid width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row grid width=auto height=100% empty max-width-min-height: 40x60 child=30
-flex-row grid width=auto height=100% empty border-box-min-height: 130x70 child=30
+flex-row grid width=auto height=100% empty border-box-min-height: 120x60 child=25
 flex-row grid width=auto height=100% empty border-box-max-width: 10x10 child=0
 flex-row grid width=auto height=100% tall min-height: 120x60 child=0
 flex-row grid width=auto height=100% tall min-height-large: 300x150 child=0
@@ -3110,7 +3110,7 @@ flex-row grid width=auto height=100% tall min-width: 150x300 child=0
 flex-row grid width=auto height=100% tall max-width: 10x300 child=0
 flex-row grid width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-row grid width=auto height=100% tall max-width-min-height: 40x60 child=0
-flex-row grid width=auto height=100% tall border-box-min-height: 130x70 child=0
+flex-row grid width=auto height=100% tall border-box-min-height: 120x60 child=0
 flex-row grid width=auto height=100% tall border-box-max-width: 20x310 child=0
 flex-row grid width=auto height=40px empty min-height: 120x60 child=30
 flex-row grid width=auto height=40px empty min-height-large: 300x150 child=75
@@ -3119,7 +3119,7 @@ flex-row grid width=auto height=40px empty min-width: 150x40 child=20
 flex-row grid width=auto height=40px empty max-width: 40x40 child=20
 flex-row grid width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row grid width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row grid width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row grid width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row grid width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row grid width=auto height=40px tall min-height: 120x60 child=0
 flex-row grid width=auto height=40px tall min-height-large: 300x150 child=0
@@ -3128,7 +3128,7 @@ flex-row grid width=auto height=40px tall min-width: 150x40 child=0
 flex-row grid width=auto height=40px tall max-width: 40x40 child=0
 flex-row grid width=auto height=40px tall min-width-max-height: 150x30 child=0
 flex-row grid width=auto height=40px tall max-width-min-height: 40x60 child=0
-flex-row grid width=auto height=40px tall border-box-min-height: 130x60 child=0
+flex-row grid width=auto height=40px tall border-box-min-height: 120x60 child=0
 flex-row grid width=auto height=40px tall border-box-max-width: 40x40 child=0
 flex-row grid width=80px height=auto empty min-height: 80x60 child=30
 flex-row grid width=80px height=auto empty min-height-large: 80x150 child=75
@@ -3138,7 +3138,7 @@ flex-row grid width=80px height=auto empty max-width: 40x20 child=10
 flex-row grid width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-row grid width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-row grid width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-row grid width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row grid width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-row grid width=80px height=auto tall min-height: 80x60 child=0
 flex-row grid width=80px height=auto tall min-height-large: 80x150 child=0
 flex-row grid width=80px height=auto tall max-height: 80x30 child=0
@@ -3156,7 +3156,7 @@ flex-row grid width=80px height=100% empty max-width: 40x20 child=10
 flex-row grid width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-row grid width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-row grid width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-row grid width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row grid width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-row grid width=80px height=100% tall min-height: 80x60 child=0
 flex-row grid width=80px height=100% tall min-height-large: 80x150 child=0
 flex-row grid width=80px height=100% tall max-height: 80x30 child=0
@@ -3192,7 +3192,7 @@ flex-row grid width=50% height=auto empty max-width: 40x20 child=10
 flex-row grid width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-row grid width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-row grid width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-row grid width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-row grid width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-row grid width=50% height=auto tall min-height: 100x60 child=0
 flex-row grid width=50% height=auto tall min-height-large: 100x150 child=0
 flex-row grid width=50% height=auto tall max-height: 100x30 child=0
@@ -3210,7 +3210,7 @@ flex-row grid width=50% height=100% empty max-width: 40x20 child=10
 flex-row grid width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-row grid width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-row grid width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-row grid width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-row grid width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-row grid width=50% height=100% tall min-height: 100x60 child=0
 flex-row grid width=50% height=100% tall min-height-large: 100x150 child=0
 flex-row grid width=50% height=100% tall max-height: 100x30 child=0
@@ -3407,7 +3407,7 @@ flex-row-stretch block width=auto height=auto empty min-width: 200x120 child=60
 flex-row-stretch block width=auto height=auto empty max-width: 40x120 child=60
 flex-row-stretch block width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row-stretch block width=auto height=auto empty max-width-min-height: 40x120 child=60
-flex-row-stretch block width=auto height=auto empty border-box-min-height: 230x120 child=55
+flex-row-stretch block width=auto height=auto empty border-box-min-height: 240x120 child=55
 flex-row-stretch block width=auto height=auto empty border-box-max-width: 40x120 child=55
 flex-row-stretch block width=auto height=auto tall min-height: 240x120 child=60
 flex-row-stretch block width=auto height=auto tall min-height-large: 300x150 child=75
@@ -3416,7 +3416,7 @@ flex-row-stretch block width=auto height=auto tall min-width: 200x120 child=60
 flex-row-stretch block width=auto height=auto tall max-width: 40x120 child=60
 flex-row-stretch block width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row-stretch block width=auto height=auto tall max-width-min-height: 40x120 child=60
-flex-row-stretch block width=auto height=auto tall border-box-min-height: 230x120 child=55
+flex-row-stretch block width=auto height=auto tall border-box-min-height: 240x120 child=55
 flex-row-stretch block width=auto height=auto tall border-box-max-width: 40x120 child=55
 flex-row-stretch block width=auto height=100% empty min-height: 240x120 child=60
 flex-row-stretch block width=auto height=100% empty min-height-large: 300x150 child=75
@@ -3425,7 +3425,7 @@ flex-row-stretch block width=auto height=100% empty min-width: 200x120 child=60
 flex-row-stretch block width=auto height=100% empty max-width: 40x120 child=60
 flex-row-stretch block width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row-stretch block width=auto height=100% empty max-width-min-height: 40x120 child=60
-flex-row-stretch block width=auto height=100% empty border-box-min-height: 230x120 child=55
+flex-row-stretch block width=auto height=100% empty border-box-min-height: 240x120 child=55
 flex-row-stretch block width=auto height=100% empty border-box-max-width: 40x120 child=55
 flex-row-stretch block width=auto height=100% tall min-height: 240x120 child=60
 flex-row-stretch block width=auto height=100% tall min-height-large: 300x150 child=75
@@ -3434,7 +3434,7 @@ flex-row-stretch block width=auto height=100% tall min-width: 200x120 child=60
 flex-row-stretch block width=auto height=100% tall max-width: 40x120 child=60
 flex-row-stretch block width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row-stretch block width=auto height=100% tall max-width-min-height: 40x120 child=60
-flex-row-stretch block width=auto height=100% tall border-box-min-height: 230x120 child=55
+flex-row-stretch block width=auto height=100% tall border-box-min-height: 240x120 child=55
 flex-row-stretch block width=auto height=100% tall border-box-max-width: 40x120 child=55
 flex-row-stretch block width=auto height=40px empty min-height: 120x60 child=30
 flex-row-stretch block width=auto height=40px empty min-height-large: 300x150 child=75
@@ -3443,7 +3443,7 @@ flex-row-stretch block width=auto height=40px empty min-width: 150x40 child=20
 flex-row-stretch block width=auto height=40px empty max-width: 40x40 child=20
 flex-row-stretch block width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row-stretch block width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row-stretch block width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row-stretch block width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row-stretch block width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row-stretch block width=auto height=40px tall min-height: 120x60 child=30
 flex-row-stretch block width=auto height=40px tall min-height-large: 300x150 child=75
@@ -3452,7 +3452,7 @@ flex-row-stretch block width=auto height=40px tall min-width: 150x40 child=20
 flex-row-stretch block width=auto height=40px tall max-width: 40x40 child=20
 flex-row-stretch block width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row-stretch block width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row-stretch block width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row-stretch block width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row-stretch block width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row-stretch block width=80px height=auto empty min-height: 80x120 child=60
 flex-row-stretch block width=80px height=auto empty min-height-large: 80x150 child=75
@@ -3569,7 +3569,7 @@ flex-row-stretch flow-root width=auto height=auto empty min-width: 200x120 child
 flex-row-stretch flow-root width=auto height=auto empty max-width: 40x120 child=60
 flex-row-stretch flow-root width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row-stretch flow-root width=auto height=auto empty max-width-min-height: 40x120 child=60
-flex-row-stretch flow-root width=auto height=auto empty border-box-min-height: 230x120 child=55
+flex-row-stretch flow-root width=auto height=auto empty border-box-min-height: 240x120 child=55
 flex-row-stretch flow-root width=auto height=auto empty border-box-max-width: 40x120 child=55
 flex-row-stretch flow-root width=auto height=auto tall min-height: 240x120 child=60
 flex-row-stretch flow-root width=auto height=auto tall min-height-large: 300x150 child=75
@@ -3578,7 +3578,7 @@ flex-row-stretch flow-root width=auto height=auto tall min-width: 200x120 child=
 flex-row-stretch flow-root width=auto height=auto tall max-width: 40x120 child=60
 flex-row-stretch flow-root width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row-stretch flow-root width=auto height=auto tall max-width-min-height: 40x120 child=60
-flex-row-stretch flow-root width=auto height=auto tall border-box-min-height: 230x120 child=55
+flex-row-stretch flow-root width=auto height=auto tall border-box-min-height: 240x120 child=55
 flex-row-stretch flow-root width=auto height=auto tall border-box-max-width: 40x120 child=55
 flex-row-stretch flow-root width=auto height=100% empty min-height: 240x120 child=60
 flex-row-stretch flow-root width=auto height=100% empty min-height-large: 300x150 child=75
@@ -3587,7 +3587,7 @@ flex-row-stretch flow-root width=auto height=100% empty min-width: 200x120 child
 flex-row-stretch flow-root width=auto height=100% empty max-width: 40x120 child=60
 flex-row-stretch flow-root width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row-stretch flow-root width=auto height=100% empty max-width-min-height: 40x120 child=60
-flex-row-stretch flow-root width=auto height=100% empty border-box-min-height: 230x120 child=55
+flex-row-stretch flow-root width=auto height=100% empty border-box-min-height: 240x120 child=55
 flex-row-stretch flow-root width=auto height=100% empty border-box-max-width: 40x120 child=55
 flex-row-stretch flow-root width=auto height=100% tall min-height: 240x120 child=60
 flex-row-stretch flow-root width=auto height=100% tall min-height-large: 300x150 child=75
@@ -3596,7 +3596,7 @@ flex-row-stretch flow-root width=auto height=100% tall min-width: 200x120 child=
 flex-row-stretch flow-root width=auto height=100% tall max-width: 40x120 child=60
 flex-row-stretch flow-root width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row-stretch flow-root width=auto height=100% tall max-width-min-height: 40x120 child=60
-flex-row-stretch flow-root width=auto height=100% tall border-box-min-height: 230x120 child=55
+flex-row-stretch flow-root width=auto height=100% tall border-box-min-height: 240x120 child=55
 flex-row-stretch flow-root width=auto height=100% tall border-box-max-width: 40x120 child=55
 flex-row-stretch flow-root width=auto height=40px empty min-height: 120x60 child=30
 flex-row-stretch flow-root width=auto height=40px empty min-height-large: 300x150 child=75
@@ -3605,7 +3605,7 @@ flex-row-stretch flow-root width=auto height=40px empty min-width: 150x40 child=
 flex-row-stretch flow-root width=auto height=40px empty max-width: 40x40 child=20
 flex-row-stretch flow-root width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row-stretch flow-root width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row-stretch flow-root width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row-stretch flow-root width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row-stretch flow-root width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row-stretch flow-root width=auto height=40px tall min-height: 120x60 child=30
 flex-row-stretch flow-root width=auto height=40px tall min-height-large: 300x150 child=75
@@ -3614,7 +3614,7 @@ flex-row-stretch flow-root width=auto height=40px tall min-width: 150x40 child=2
 flex-row-stretch flow-root width=auto height=40px tall max-width: 40x40 child=20
 flex-row-stretch flow-root width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row-stretch flow-root width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row-stretch flow-root width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row-stretch flow-root width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row-stretch flow-root width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row-stretch flow-root width=80px height=auto empty min-height: 80x120 child=60
 flex-row-stretch flow-root width=80px height=auto empty min-height-large: 80x150 child=75
@@ -3731,7 +3731,7 @@ flex-row-stretch inline-block width=auto height=auto empty min-width: 200x120 ch
 flex-row-stretch inline-block width=auto height=auto empty max-width: 40x120 child=60
 flex-row-stretch inline-block width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row-stretch inline-block width=auto height=auto empty max-width-min-height: 40x120 child=60
-flex-row-stretch inline-block width=auto height=auto empty border-box-min-height: 230x120 child=55
+flex-row-stretch inline-block width=auto height=auto empty border-box-min-height: 240x120 child=55
 flex-row-stretch inline-block width=auto height=auto empty border-box-max-width: 40x120 child=55
 flex-row-stretch inline-block width=auto height=auto tall min-height: 240x120 child=60
 flex-row-stretch inline-block width=auto height=auto tall min-height-large: 300x150 child=75
@@ -3740,7 +3740,7 @@ flex-row-stretch inline-block width=auto height=auto tall min-width: 200x120 chi
 flex-row-stretch inline-block width=auto height=auto tall max-width: 40x120 child=60
 flex-row-stretch inline-block width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row-stretch inline-block width=auto height=auto tall max-width-min-height: 40x120 child=60
-flex-row-stretch inline-block width=auto height=auto tall border-box-min-height: 230x120 child=55
+flex-row-stretch inline-block width=auto height=auto tall border-box-min-height: 240x120 child=55
 flex-row-stretch inline-block width=auto height=auto tall border-box-max-width: 40x120 child=55
 flex-row-stretch inline-block width=auto height=100% empty min-height: 240x120 child=60
 flex-row-stretch inline-block width=auto height=100% empty min-height-large: 300x150 child=75
@@ -3749,7 +3749,7 @@ flex-row-stretch inline-block width=auto height=100% empty min-width: 200x120 ch
 flex-row-stretch inline-block width=auto height=100% empty max-width: 40x120 child=60
 flex-row-stretch inline-block width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row-stretch inline-block width=auto height=100% empty max-width-min-height: 40x120 child=60
-flex-row-stretch inline-block width=auto height=100% empty border-box-min-height: 230x120 child=55
+flex-row-stretch inline-block width=auto height=100% empty border-box-min-height: 240x120 child=55
 flex-row-stretch inline-block width=auto height=100% empty border-box-max-width: 40x120 child=55
 flex-row-stretch inline-block width=auto height=100% tall min-height: 240x120 child=60
 flex-row-stretch inline-block width=auto height=100% tall min-height-large: 300x150 child=75
@@ -3758,7 +3758,7 @@ flex-row-stretch inline-block width=auto height=100% tall min-width: 200x120 chi
 flex-row-stretch inline-block width=auto height=100% tall max-width: 40x120 child=60
 flex-row-stretch inline-block width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row-stretch inline-block width=auto height=100% tall max-width-min-height: 40x120 child=60
-flex-row-stretch inline-block width=auto height=100% tall border-box-min-height: 230x120 child=55
+flex-row-stretch inline-block width=auto height=100% tall border-box-min-height: 240x120 child=55
 flex-row-stretch inline-block width=auto height=100% tall border-box-max-width: 40x120 child=55
 flex-row-stretch inline-block width=auto height=40px empty min-height: 120x60 child=30
 flex-row-stretch inline-block width=auto height=40px empty min-height-large: 300x150 child=75
@@ -3767,7 +3767,7 @@ flex-row-stretch inline-block width=auto height=40px empty min-width: 150x40 chi
 flex-row-stretch inline-block width=auto height=40px empty max-width: 40x40 child=20
 flex-row-stretch inline-block width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row-stretch inline-block width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row-stretch inline-block width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row-stretch inline-block width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row-stretch inline-block width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row-stretch inline-block width=auto height=40px tall min-height: 120x60 child=30
 flex-row-stretch inline-block width=auto height=40px tall min-height-large: 300x150 child=75
@@ -3776,7 +3776,7 @@ flex-row-stretch inline-block width=auto height=40px tall min-width: 150x40 chil
 flex-row-stretch inline-block width=auto height=40px tall max-width: 40x40 child=20
 flex-row-stretch inline-block width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row-stretch inline-block width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row-stretch inline-block width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row-stretch inline-block width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row-stretch inline-block width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row-stretch inline-block width=80px height=auto empty min-height: 80x120 child=60
 flex-row-stretch inline-block width=80px height=auto empty min-height-large: 80x150 child=75
@@ -3893,7 +3893,7 @@ flex-row-stretch float width=auto height=auto empty min-width: 200x120 child=60
 flex-row-stretch float width=auto height=auto empty max-width: 40x120 child=60
 flex-row-stretch float width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row-stretch float width=auto height=auto empty max-width-min-height: 40x120 child=60
-flex-row-stretch float width=auto height=auto empty border-box-min-height: 230x120 child=55
+flex-row-stretch float width=auto height=auto empty border-box-min-height: 240x120 child=55
 flex-row-stretch float width=auto height=auto empty border-box-max-width: 40x120 child=55
 flex-row-stretch float width=auto height=auto tall min-height: 240x120 child=60
 flex-row-stretch float width=auto height=auto tall min-height-large: 300x150 child=75
@@ -3902,7 +3902,7 @@ flex-row-stretch float width=auto height=auto tall min-width: 200x120 child=60
 flex-row-stretch float width=auto height=auto tall max-width: 40x120 child=60
 flex-row-stretch float width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row-stretch float width=auto height=auto tall max-width-min-height: 40x120 child=60
-flex-row-stretch float width=auto height=auto tall border-box-min-height: 230x120 child=55
+flex-row-stretch float width=auto height=auto tall border-box-min-height: 240x120 child=55
 flex-row-stretch float width=auto height=auto tall border-box-max-width: 40x120 child=55
 flex-row-stretch float width=auto height=100% empty min-height: 240x120 child=60
 flex-row-stretch float width=auto height=100% empty min-height-large: 300x150 child=75
@@ -3911,7 +3911,7 @@ flex-row-stretch float width=auto height=100% empty min-width: 200x120 child=60
 flex-row-stretch float width=auto height=100% empty max-width: 40x120 child=60
 flex-row-stretch float width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row-stretch float width=auto height=100% empty max-width-min-height: 40x120 child=60
-flex-row-stretch float width=auto height=100% empty border-box-min-height: 230x120 child=55
+flex-row-stretch float width=auto height=100% empty border-box-min-height: 240x120 child=55
 flex-row-stretch float width=auto height=100% empty border-box-max-width: 40x120 child=55
 flex-row-stretch float width=auto height=100% tall min-height: 240x120 child=60
 flex-row-stretch float width=auto height=100% tall min-height-large: 300x150 child=75
@@ -3920,7 +3920,7 @@ flex-row-stretch float width=auto height=100% tall min-width: 200x120 child=60
 flex-row-stretch float width=auto height=100% tall max-width: 40x120 child=60
 flex-row-stretch float width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row-stretch float width=auto height=100% tall max-width-min-height: 40x120 child=60
-flex-row-stretch float width=auto height=100% tall border-box-min-height: 230x120 child=55
+flex-row-stretch float width=auto height=100% tall border-box-min-height: 240x120 child=55
 flex-row-stretch float width=auto height=100% tall border-box-max-width: 40x120 child=55
 flex-row-stretch float width=auto height=40px empty min-height: 120x60 child=30
 flex-row-stretch float width=auto height=40px empty min-height-large: 300x150 child=75
@@ -3929,7 +3929,7 @@ flex-row-stretch float width=auto height=40px empty min-width: 150x40 child=20
 flex-row-stretch float width=auto height=40px empty max-width: 40x40 child=20
 flex-row-stretch float width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row-stretch float width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row-stretch float width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row-stretch float width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row-stretch float width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row-stretch float width=auto height=40px tall min-height: 120x60 child=30
 flex-row-stretch float width=auto height=40px tall min-height-large: 300x150 child=75
@@ -3938,7 +3938,7 @@ flex-row-stretch float width=auto height=40px tall min-width: 150x40 child=20
 flex-row-stretch float width=auto height=40px tall max-width: 40x40 child=20
 flex-row-stretch float width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row-stretch float width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row-stretch float width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row-stretch float width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row-stretch float width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row-stretch float width=80px height=auto empty min-height: 80x120 child=60
 flex-row-stretch float width=80px height=auto empty min-height-large: 80x150 child=75
@@ -4055,7 +4055,7 @@ flex-row-stretch flex width=auto height=auto empty min-width: 200x120 child=60
 flex-row-stretch flex width=auto height=auto empty max-width: 40x120 child=60
 flex-row-stretch flex width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row-stretch flex width=auto height=auto empty max-width-min-height: 40x120 child=60
-flex-row-stretch flex width=auto height=auto empty border-box-min-height: 230x120 child=55
+flex-row-stretch flex width=auto height=auto empty border-box-min-height: 240x120 child=55
 flex-row-stretch flex width=auto height=auto empty border-box-max-width: 40x120 child=55
 flex-row-stretch flex width=auto height=auto tall min-height: 240x120 child=60
 flex-row-stretch flex width=auto height=auto tall min-height-large: 300x150 child=75
@@ -4064,7 +4064,7 @@ flex-row-stretch flex width=auto height=auto tall min-width: 200x120 child=60
 flex-row-stretch flex width=auto height=auto tall max-width: 40x120 child=60
 flex-row-stretch flex width=auto height=auto tall min-width-max-height: 150x30 child=15
 flex-row-stretch flex width=auto height=auto tall max-width-min-height: 40x120 child=60
-flex-row-stretch flex width=auto height=auto tall border-box-min-height: 230x120 child=55
+flex-row-stretch flex width=auto height=auto tall border-box-min-height: 240x120 child=55
 flex-row-stretch flex width=auto height=auto tall border-box-max-width: 40x120 child=55
 flex-row-stretch flex width=auto height=100% empty min-height: 240x120 child=60
 flex-row-stretch flex width=auto height=100% empty min-height-large: 300x150 child=75
@@ -4073,7 +4073,7 @@ flex-row-stretch flex width=auto height=100% empty min-width: 200x120 child=60
 flex-row-stretch flex width=auto height=100% empty max-width: 40x120 child=60
 flex-row-stretch flex width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row-stretch flex width=auto height=100% empty max-width-min-height: 40x120 child=60
-flex-row-stretch flex width=auto height=100% empty border-box-min-height: 230x120 child=55
+flex-row-stretch flex width=auto height=100% empty border-box-min-height: 240x120 child=55
 flex-row-stretch flex width=auto height=100% empty border-box-max-width: 40x120 child=55
 flex-row-stretch flex width=auto height=100% tall min-height: 240x120 child=60
 flex-row-stretch flex width=auto height=100% tall min-height-large: 300x150 child=75
@@ -4082,7 +4082,7 @@ flex-row-stretch flex width=auto height=100% tall min-width: 200x120 child=60
 flex-row-stretch flex width=auto height=100% tall max-width: 40x120 child=60
 flex-row-stretch flex width=auto height=100% tall min-width-max-height: 150x30 child=15
 flex-row-stretch flex width=auto height=100% tall max-width-min-height: 40x120 child=60
-flex-row-stretch flex width=auto height=100% tall border-box-min-height: 230x120 child=55
+flex-row-stretch flex width=auto height=100% tall border-box-min-height: 240x120 child=55
 flex-row-stretch flex width=auto height=100% tall border-box-max-width: 40x120 child=55
 flex-row-stretch flex width=auto height=40px empty min-height: 120x60 child=30
 flex-row-stretch flex width=auto height=40px empty min-height-large: 300x150 child=75
@@ -4091,7 +4091,7 @@ flex-row-stretch flex width=auto height=40px empty min-width: 150x40 child=20
 flex-row-stretch flex width=auto height=40px empty max-width: 40x40 child=20
 flex-row-stretch flex width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row-stretch flex width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row-stretch flex width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row-stretch flex width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row-stretch flex width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row-stretch flex width=auto height=40px tall min-height: 120x60 child=30
 flex-row-stretch flex width=auto height=40px tall min-height-large: 300x150 child=75
@@ -4100,7 +4100,7 @@ flex-row-stretch flex width=auto height=40px tall min-width: 150x40 child=20
 flex-row-stretch flex width=auto height=40px tall max-width: 40x40 child=20
 flex-row-stretch flex width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-row-stretch flex width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-row-stretch flex width=auto height=40px tall border-box-min-height: 130x60 child=25
+flex-row-stretch flex width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-row-stretch flex width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-row-stretch flex width=80px height=auto empty min-height: 80x120 child=60
 flex-row-stretch flex width=80px height=auto empty min-height-large: 80x150 child=75
@@ -4217,7 +4217,7 @@ flex-row-stretch grid width=auto height=auto empty min-width: 200x120 child=60
 flex-row-stretch grid width=auto height=auto empty max-width: 40x120 child=60
 flex-row-stretch grid width=auto height=auto empty min-width-max-height: 150x30 child=15
 flex-row-stretch grid width=auto height=auto empty max-width-min-height: 40x120 child=60
-flex-row-stretch grid width=auto height=auto empty border-box-min-height: 230x120 child=55
+flex-row-stretch grid width=auto height=auto empty border-box-min-height: 240x120 child=55
 flex-row-stretch grid width=auto height=auto empty border-box-max-width: 40x120 child=55
 flex-row-stretch grid width=auto height=auto tall min-height: 240x120 child=0
 flex-row-stretch grid width=auto height=auto tall min-height-large: 300x150 child=0
@@ -4226,7 +4226,7 @@ flex-row-stretch grid width=auto height=auto tall min-width: 200x120 child=0
 flex-row-stretch grid width=auto height=auto tall max-width: 40x120 child=0
 flex-row-stretch grid width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-row-stretch grid width=auto height=auto tall max-width-min-height: 40x120 child=0
-flex-row-stretch grid width=auto height=auto tall border-box-min-height: 230x120 child=0
+flex-row-stretch grid width=auto height=auto tall border-box-min-height: 240x120 child=0
 flex-row-stretch grid width=auto height=auto tall border-box-max-width: 40x120 child=0
 flex-row-stretch grid width=auto height=100% empty min-height: 240x120 child=60
 flex-row-stretch grid width=auto height=100% empty min-height-large: 300x150 child=75
@@ -4235,7 +4235,7 @@ flex-row-stretch grid width=auto height=100% empty min-width: 200x120 child=60
 flex-row-stretch grid width=auto height=100% empty max-width: 40x120 child=60
 flex-row-stretch grid width=auto height=100% empty min-width-max-height: 150x30 child=15
 flex-row-stretch grid width=auto height=100% empty max-width-min-height: 40x120 child=60
-flex-row-stretch grid width=auto height=100% empty border-box-min-height: 230x120 child=55
+flex-row-stretch grid width=auto height=100% empty border-box-min-height: 240x120 child=55
 flex-row-stretch grid width=auto height=100% empty border-box-max-width: 40x120 child=55
 flex-row-stretch grid width=auto height=100% tall min-height: 240x120 child=0
 flex-row-stretch grid width=auto height=100% tall min-height-large: 300x150 child=0
@@ -4244,7 +4244,7 @@ flex-row-stretch grid width=auto height=100% tall min-width: 200x120 child=0
 flex-row-stretch grid width=auto height=100% tall max-width: 40x120 child=0
 flex-row-stretch grid width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-row-stretch grid width=auto height=100% tall max-width-min-height: 40x120 child=0
-flex-row-stretch grid width=auto height=100% tall border-box-min-height: 230x120 child=0
+flex-row-stretch grid width=auto height=100% tall border-box-min-height: 240x120 child=0
 flex-row-stretch grid width=auto height=100% tall border-box-max-width: 40x120 child=0
 flex-row-stretch grid width=auto height=40px empty min-height: 120x60 child=30
 flex-row-stretch grid width=auto height=40px empty min-height-large: 300x150 child=75
@@ -4253,7 +4253,7 @@ flex-row-stretch grid width=auto height=40px empty min-width: 150x40 child=20
 flex-row-stretch grid width=auto height=40px empty max-width: 40x40 child=20
 flex-row-stretch grid width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-row-stretch grid width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-row-stretch grid width=auto height=40px empty border-box-min-height: 130x60 child=25
+flex-row-stretch grid width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-row-stretch grid width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-row-stretch grid width=auto height=40px tall min-height: 120x60 child=0
 flex-row-stretch grid width=auto height=40px tall min-height-large: 300x150 child=0
@@ -4262,7 +4262,7 @@ flex-row-stretch grid width=auto height=40px tall min-width: 150x40 child=0
 flex-row-stretch grid width=auto height=40px tall max-width: 40x40 child=0
 flex-row-stretch grid width=auto height=40px tall min-width-max-height: 150x30 child=0
 flex-row-stretch grid width=auto height=40px tall max-width-min-height: 40x60 child=0
-flex-row-stretch grid width=auto height=40px tall border-box-min-height: 130x60 child=0
+flex-row-stretch grid width=auto height=40px tall border-box-min-height: 120x60 child=0
 flex-row-stretch grid width=auto height=40px tall border-box-max-width: 40x40 child=0
 flex-row-stretch grid width=80px height=auto empty min-height: 80x120 child=60
 flex-row-stretch grid width=80px height=auto empty min-height-large: 80x150 child=75
@@ -4541,8 +4541,8 @@ flex-column block width=auto height=auto empty min-width: 150x75 child=0
 flex-column block width=auto height=auto empty max-width: 0x0 child=0
 flex-column block width=auto height=auto empty min-width-max-height: 150x30 child=0
 flex-column block width=auto height=auto empty max-width-min-height: 40x60 child=0
-flex-column block width=auto height=auto empty border-box-min-height: 110x60 child=0
-flex-column block width=auto height=auto empty border-box-max-width: 10x10 child=0
+flex-column block width=auto height=auto empty border-box-min-height: 120x60 child=0
+flex-column block width=auto height=auto empty border-box-max-width: 20x10 child=0
 flex-column block width=auto height=auto tall min-height: 120x60 child=0
 flex-column block width=auto height=auto tall min-height-large: 300x150 child=0
 flex-column block width=auto height=auto tall max-height: 10x5 child=0
@@ -4550,8 +4550,8 @@ flex-column block width=auto height=auto tall min-width: 150x75 child=0
 flex-column block width=auto height=auto tall max-width: 10x5 child=0
 flex-column block width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-column block width=auto height=auto tall max-width-min-height: 40x60 child=0
-flex-column block width=auto height=auto tall border-box-min-height: 110x60 child=0
-flex-column block width=auto height=auto tall border-box-max-width: 20x15 child=0
+flex-column block width=auto height=auto tall border-box-min-height: 120x60 child=0
+flex-column block width=auto height=auto tall border-box-max-width: 30x15 child=0
 flex-column block width=auto height=100% empty min-height: 120x60 child=0
 flex-column block width=auto height=100% empty min-height-large: 300x150 child=0
 flex-column block width=auto height=100% empty max-height: 0x0 child=0
@@ -4559,8 +4559,8 @@ flex-column block width=auto height=100% empty min-width: 150x75 child=0
 flex-column block width=auto height=100% empty max-width: 0x0 child=0
 flex-column block width=auto height=100% empty min-width-max-height: 150x30 child=0
 flex-column block width=auto height=100% empty max-width-min-height: 40x60 child=0
-flex-column block width=auto height=100% empty border-box-min-height: 110x60 child=0
-flex-column block width=auto height=100% empty border-box-max-width: 10x10 child=0
+flex-column block width=auto height=100% empty border-box-min-height: 120x60 child=0
+flex-column block width=auto height=100% empty border-box-max-width: 20x10 child=0
 flex-column block width=auto height=100% tall min-height: 120x60 child=0
 flex-column block width=auto height=100% tall min-height-large: 300x150 child=0
 flex-column block width=auto height=100% tall max-height: 10x5 child=0
@@ -4568,8 +4568,8 @@ flex-column block width=auto height=100% tall min-width: 150x75 child=0
 flex-column block width=auto height=100% tall max-width: 10x5 child=0
 flex-column block width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-column block width=auto height=100% tall max-width-min-height: 40x60 child=0
-flex-column block width=auto height=100% tall border-box-min-height: 110x60 child=0
-flex-column block width=auto height=100% tall border-box-max-width: 20x15 child=0
+flex-column block width=auto height=100% tall border-box-min-height: 120x60 child=0
+flex-column block width=auto height=100% tall border-box-max-width: 30x15 child=0
 flex-column block width=auto height=40px empty min-height: 120x60 child=30
 flex-column block width=auto height=40px empty min-height-large: 300x150 child=75
 flex-column block width=auto height=40px empty max-height: 60x30 child=15
@@ -4577,7 +4577,7 @@ flex-column block width=auto height=40px empty min-width: 150x40 child=20
 flex-column block width=auto height=40px empty max-width: 40x40 child=20
 flex-column block width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-column block width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-column block width=auto height=40px empty border-box-min-height: 110x60 child=25
+flex-column block width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-column block width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-column block width=auto height=40px tall min-height: 120x60 child=30
 flex-column block width=auto height=40px tall min-height-large: 300x150 child=75
@@ -4586,7 +4586,7 @@ flex-column block width=auto height=40px tall min-width: 150x40 child=20
 flex-column block width=auto height=40px tall max-width: 40x40 child=20
 flex-column block width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-column block width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-column block width=auto height=40px tall border-box-min-height: 110x60 child=25
+flex-column block width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-column block width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-column block width=80px height=auto empty min-height: 80x60 child=30
 flex-column block width=80px height=auto empty min-height-large: 80x150 child=75
@@ -4596,7 +4596,7 @@ flex-column block width=80px height=auto empty max-width: 40x20 child=10
 flex-column block width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-column block width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-column block width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-column block width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column block width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-column block width=80px height=auto tall min-height: 80x60 child=30
 flex-column block width=80px height=auto tall min-height-large: 80x150 child=75
 flex-column block width=80px height=auto tall max-height: 80x30 child=15
@@ -4605,7 +4605,7 @@ flex-column block width=80px height=auto tall max-width: 40x20 child=10
 flex-column block width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-column block width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-column block width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-column block width=80px height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column block width=80px height=auto tall border-box-max-width: 40x20 child=5
 flex-column block width=80px height=100% empty min-height: 80x60 child=30
 flex-column block width=80px height=100% empty min-height-large: 80x150 child=75
 flex-column block width=80px height=100% empty max-height: 80x30 child=15
@@ -4614,7 +4614,7 @@ flex-column block width=80px height=100% empty max-width: 40x20 child=10
 flex-column block width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-column block width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-column block width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-column block width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column block width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-column block width=80px height=100% tall min-height: 80x60 child=30
 flex-column block width=80px height=100% tall min-height-large: 80x150 child=75
 flex-column block width=80px height=100% tall max-height: 80x30 child=15
@@ -4623,7 +4623,7 @@ flex-column block width=80px height=100% tall max-width: 40x20 child=10
 flex-column block width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-column block width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-column block width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-column block width=80px height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column block width=80px height=100% tall border-box-max-width: 40x20 child=5
 flex-column block width=80px height=40px empty min-height: 80x60 child=30
 flex-column block width=80px height=40px empty min-height-large: 80x150 child=75
 flex-column block width=80px height=40px empty max-height: 80x30 child=15
@@ -4650,7 +4650,7 @@ flex-column block width=50% height=auto empty max-width: 40x20 child=10
 flex-column block width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-column block width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-column block width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-column block width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column block width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-column block width=50% height=auto tall min-height: 100x60 child=30
 flex-column block width=50% height=auto tall min-height-large: 100x150 child=75
 flex-column block width=50% height=auto tall max-height: 100x30 child=15
@@ -4659,7 +4659,7 @@ flex-column block width=50% height=auto tall max-width: 40x20 child=10
 flex-column block width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-column block width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-column block width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-column block width=50% height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column block width=50% height=auto tall border-box-max-width: 40x20 child=5
 flex-column block width=50% height=100% empty min-height: 100x60 child=30
 flex-column block width=50% height=100% empty min-height-large: 100x150 child=75
 flex-column block width=50% height=100% empty max-height: 100x30 child=15
@@ -4668,7 +4668,7 @@ flex-column block width=50% height=100% empty max-width: 40x20 child=10
 flex-column block width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-column block width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-column block width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-column block width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column block width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-column block width=50% height=100% tall min-height: 100x60 child=30
 flex-column block width=50% height=100% tall min-height-large: 100x150 child=75
 flex-column block width=50% height=100% tall max-height: 100x30 child=15
@@ -4677,7 +4677,7 @@ flex-column block width=50% height=100% tall max-width: 40x20 child=10
 flex-column block width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-column block width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-column block width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-column block width=50% height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column block width=50% height=100% tall border-box-max-width: 40x20 child=5
 flex-column block width=50% height=40px empty min-height: 100x60 child=30
 flex-column block width=50% height=40px empty min-height-large: 100x150 child=75
 flex-column block width=50% height=40px empty max-height: 100x30 child=15
@@ -4703,8 +4703,8 @@ flex-column flow-root width=auto height=auto empty min-width: 150x75 child=0
 flex-column flow-root width=auto height=auto empty max-width: 0x0 child=0
 flex-column flow-root width=auto height=auto empty min-width-max-height: 150x30 child=0
 flex-column flow-root width=auto height=auto empty max-width-min-height: 40x60 child=0
-flex-column flow-root width=auto height=auto empty border-box-min-height: 110x60 child=0
-flex-column flow-root width=auto height=auto empty border-box-max-width: 10x10 child=0
+flex-column flow-root width=auto height=auto empty border-box-min-height: 120x60 child=0
+flex-column flow-root width=auto height=auto empty border-box-max-width: 20x10 child=0
 flex-column flow-root width=auto height=auto tall min-height: 120x60 child=0
 flex-column flow-root width=auto height=auto tall min-height-large: 300x150 child=0
 flex-column flow-root width=auto height=auto tall max-height: 10x5 child=0
@@ -4712,8 +4712,8 @@ flex-column flow-root width=auto height=auto tall min-width: 150x75 child=0
 flex-column flow-root width=auto height=auto tall max-width: 10x5 child=0
 flex-column flow-root width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-column flow-root width=auto height=auto tall max-width-min-height: 40x60 child=0
-flex-column flow-root width=auto height=auto tall border-box-min-height: 110x60 child=0
-flex-column flow-root width=auto height=auto tall border-box-max-width: 20x15 child=0
+flex-column flow-root width=auto height=auto tall border-box-min-height: 120x60 child=0
+flex-column flow-root width=auto height=auto tall border-box-max-width: 30x15 child=0
 flex-column flow-root width=auto height=100% empty min-height: 120x60 child=0
 flex-column flow-root width=auto height=100% empty min-height-large: 300x150 child=0
 flex-column flow-root width=auto height=100% empty max-height: 0x0 child=0
@@ -4721,8 +4721,8 @@ flex-column flow-root width=auto height=100% empty min-width: 150x75 child=0
 flex-column flow-root width=auto height=100% empty max-width: 0x0 child=0
 flex-column flow-root width=auto height=100% empty min-width-max-height: 150x30 child=0
 flex-column flow-root width=auto height=100% empty max-width-min-height: 40x60 child=0
-flex-column flow-root width=auto height=100% empty border-box-min-height: 110x60 child=0
-flex-column flow-root width=auto height=100% empty border-box-max-width: 10x10 child=0
+flex-column flow-root width=auto height=100% empty border-box-min-height: 120x60 child=0
+flex-column flow-root width=auto height=100% empty border-box-max-width: 20x10 child=0
 flex-column flow-root width=auto height=100% tall min-height: 120x60 child=0
 flex-column flow-root width=auto height=100% tall min-height-large: 300x150 child=0
 flex-column flow-root width=auto height=100% tall max-height: 10x5 child=0
@@ -4730,8 +4730,8 @@ flex-column flow-root width=auto height=100% tall min-width: 150x75 child=0
 flex-column flow-root width=auto height=100% tall max-width: 10x5 child=0
 flex-column flow-root width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-column flow-root width=auto height=100% tall max-width-min-height: 40x60 child=0
-flex-column flow-root width=auto height=100% tall border-box-min-height: 110x60 child=0
-flex-column flow-root width=auto height=100% tall border-box-max-width: 20x15 child=0
+flex-column flow-root width=auto height=100% tall border-box-min-height: 120x60 child=0
+flex-column flow-root width=auto height=100% tall border-box-max-width: 30x15 child=0
 flex-column flow-root width=auto height=40px empty min-height: 120x60 child=30
 flex-column flow-root width=auto height=40px empty min-height-large: 300x150 child=75
 flex-column flow-root width=auto height=40px empty max-height: 60x30 child=15
@@ -4739,7 +4739,7 @@ flex-column flow-root width=auto height=40px empty min-width: 150x40 child=20
 flex-column flow-root width=auto height=40px empty max-width: 40x40 child=20
 flex-column flow-root width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-column flow-root width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-column flow-root width=auto height=40px empty border-box-min-height: 110x60 child=25
+flex-column flow-root width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-column flow-root width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-column flow-root width=auto height=40px tall min-height: 120x60 child=30
 flex-column flow-root width=auto height=40px tall min-height-large: 300x150 child=75
@@ -4748,7 +4748,7 @@ flex-column flow-root width=auto height=40px tall min-width: 150x40 child=20
 flex-column flow-root width=auto height=40px tall max-width: 40x40 child=20
 flex-column flow-root width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-column flow-root width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-column flow-root width=auto height=40px tall border-box-min-height: 110x60 child=25
+flex-column flow-root width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-column flow-root width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-column flow-root width=80px height=auto empty min-height: 80x60 child=30
 flex-column flow-root width=80px height=auto empty min-height-large: 80x150 child=75
@@ -4758,7 +4758,7 @@ flex-column flow-root width=80px height=auto empty max-width: 40x20 child=10
 flex-column flow-root width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-column flow-root width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-column flow-root width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-column flow-root width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-column flow-root width=80px height=auto tall min-height: 80x60 child=30
 flex-column flow-root width=80px height=auto tall min-height-large: 80x150 child=75
 flex-column flow-root width=80px height=auto tall max-height: 80x30 child=15
@@ -4767,7 +4767,7 @@ flex-column flow-root width=80px height=auto tall max-width: 40x20 child=10
 flex-column flow-root width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-column flow-root width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-column flow-root width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-column flow-root width=80px height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=80px height=auto tall border-box-max-width: 40x20 child=5
 flex-column flow-root width=80px height=100% empty min-height: 80x60 child=30
 flex-column flow-root width=80px height=100% empty min-height-large: 80x150 child=75
 flex-column flow-root width=80px height=100% empty max-height: 80x30 child=15
@@ -4776,7 +4776,7 @@ flex-column flow-root width=80px height=100% empty max-width: 40x20 child=10
 flex-column flow-root width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-column flow-root width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-column flow-root width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-column flow-root width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-column flow-root width=80px height=100% tall min-height: 80x60 child=30
 flex-column flow-root width=80px height=100% tall min-height-large: 80x150 child=75
 flex-column flow-root width=80px height=100% tall max-height: 80x30 child=15
@@ -4785,7 +4785,7 @@ flex-column flow-root width=80px height=100% tall max-width: 40x20 child=10
 flex-column flow-root width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-column flow-root width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-column flow-root width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-column flow-root width=80px height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=80px height=100% tall border-box-max-width: 40x20 child=5
 flex-column flow-root width=80px height=40px empty min-height: 80x60 child=30
 flex-column flow-root width=80px height=40px empty min-height-large: 80x150 child=75
 flex-column flow-root width=80px height=40px empty max-height: 80x30 child=15
@@ -4812,7 +4812,7 @@ flex-column flow-root width=50% height=auto empty max-width: 40x20 child=10
 flex-column flow-root width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-column flow-root width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-column flow-root width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-column flow-root width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-column flow-root width=50% height=auto tall min-height: 100x60 child=30
 flex-column flow-root width=50% height=auto tall min-height-large: 100x150 child=75
 flex-column flow-root width=50% height=auto tall max-height: 100x30 child=15
@@ -4821,7 +4821,7 @@ flex-column flow-root width=50% height=auto tall max-width: 40x20 child=10
 flex-column flow-root width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-column flow-root width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-column flow-root width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-column flow-root width=50% height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=50% height=auto tall border-box-max-width: 40x20 child=5
 flex-column flow-root width=50% height=100% empty min-height: 100x60 child=30
 flex-column flow-root width=50% height=100% empty min-height-large: 100x150 child=75
 flex-column flow-root width=50% height=100% empty max-height: 100x30 child=15
@@ -4830,7 +4830,7 @@ flex-column flow-root width=50% height=100% empty max-width: 40x20 child=10
 flex-column flow-root width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-column flow-root width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-column flow-root width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-column flow-root width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-column flow-root width=50% height=100% tall min-height: 100x60 child=30
 flex-column flow-root width=50% height=100% tall min-height-large: 100x150 child=75
 flex-column flow-root width=50% height=100% tall max-height: 100x30 child=15
@@ -4839,7 +4839,7 @@ flex-column flow-root width=50% height=100% tall max-width: 40x20 child=10
 flex-column flow-root width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-column flow-root width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-column flow-root width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-column flow-root width=50% height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column flow-root width=50% height=100% tall border-box-max-width: 40x20 child=5
 flex-column flow-root width=50% height=40px empty min-height: 100x60 child=30
 flex-column flow-root width=50% height=40px empty min-height-large: 100x150 child=75
 flex-column flow-root width=50% height=40px empty max-height: 100x30 child=15
@@ -4865,8 +4865,8 @@ flex-column inline-block width=auto height=auto empty min-width: 150x75 child=0
 flex-column inline-block width=auto height=auto empty max-width: 0x0 child=0
 flex-column inline-block width=auto height=auto empty min-width-max-height: 150x30 child=0
 flex-column inline-block width=auto height=auto empty max-width-min-height: 40x60 child=0
-flex-column inline-block width=auto height=auto empty border-box-min-height: 110x60 child=0
-flex-column inline-block width=auto height=auto empty border-box-max-width: 10x10 child=0
+flex-column inline-block width=auto height=auto empty border-box-min-height: 120x60 child=0
+flex-column inline-block width=auto height=auto empty border-box-max-width: 20x10 child=0
 flex-column inline-block width=auto height=auto tall min-height: 120x60 child=0
 flex-column inline-block width=auto height=auto tall min-height-large: 300x150 child=0
 flex-column inline-block width=auto height=auto tall max-height: 10x5 child=0
@@ -4874,8 +4874,8 @@ flex-column inline-block width=auto height=auto tall min-width: 150x75 child=0
 flex-column inline-block width=auto height=auto tall max-width: 10x5 child=0
 flex-column inline-block width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-column inline-block width=auto height=auto tall max-width-min-height: 40x60 child=0
-flex-column inline-block width=auto height=auto tall border-box-min-height: 110x60 child=0
-flex-column inline-block width=auto height=auto tall border-box-max-width: 20x15 child=0
+flex-column inline-block width=auto height=auto tall border-box-min-height: 120x60 child=0
+flex-column inline-block width=auto height=auto tall border-box-max-width: 30x15 child=0
 flex-column inline-block width=auto height=100% empty min-height: 120x60 child=0
 flex-column inline-block width=auto height=100% empty min-height-large: 300x150 child=0
 flex-column inline-block width=auto height=100% empty max-height: 0x0 child=0
@@ -4883,8 +4883,8 @@ flex-column inline-block width=auto height=100% empty min-width: 150x75 child=0
 flex-column inline-block width=auto height=100% empty max-width: 0x0 child=0
 flex-column inline-block width=auto height=100% empty min-width-max-height: 150x30 child=0
 flex-column inline-block width=auto height=100% empty max-width-min-height: 40x60 child=0
-flex-column inline-block width=auto height=100% empty border-box-min-height: 110x60 child=0
-flex-column inline-block width=auto height=100% empty border-box-max-width: 10x10 child=0
+flex-column inline-block width=auto height=100% empty border-box-min-height: 120x60 child=0
+flex-column inline-block width=auto height=100% empty border-box-max-width: 20x10 child=0
 flex-column inline-block width=auto height=100% tall min-height: 120x60 child=0
 flex-column inline-block width=auto height=100% tall min-height-large: 300x150 child=0
 flex-column inline-block width=auto height=100% tall max-height: 10x5 child=0
@@ -4892,8 +4892,8 @@ flex-column inline-block width=auto height=100% tall min-width: 150x75 child=0
 flex-column inline-block width=auto height=100% tall max-width: 10x5 child=0
 flex-column inline-block width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-column inline-block width=auto height=100% tall max-width-min-height: 40x60 child=0
-flex-column inline-block width=auto height=100% tall border-box-min-height: 110x60 child=0
-flex-column inline-block width=auto height=100% tall border-box-max-width: 20x15 child=0
+flex-column inline-block width=auto height=100% tall border-box-min-height: 120x60 child=0
+flex-column inline-block width=auto height=100% tall border-box-max-width: 30x15 child=0
 flex-column inline-block width=auto height=40px empty min-height: 120x60 child=30
 flex-column inline-block width=auto height=40px empty min-height-large: 300x150 child=75
 flex-column inline-block width=auto height=40px empty max-height: 60x30 child=15
@@ -4901,7 +4901,7 @@ flex-column inline-block width=auto height=40px empty min-width: 150x40 child=20
 flex-column inline-block width=auto height=40px empty max-width: 40x40 child=20
 flex-column inline-block width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-column inline-block width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-column inline-block width=auto height=40px empty border-box-min-height: 110x60 child=25
+flex-column inline-block width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-column inline-block width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-column inline-block width=auto height=40px tall min-height: 120x60 child=30
 flex-column inline-block width=auto height=40px tall min-height-large: 300x150 child=75
@@ -4910,7 +4910,7 @@ flex-column inline-block width=auto height=40px tall min-width: 150x40 child=20
 flex-column inline-block width=auto height=40px tall max-width: 40x40 child=20
 flex-column inline-block width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-column inline-block width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-column inline-block width=auto height=40px tall border-box-min-height: 110x60 child=25
+flex-column inline-block width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-column inline-block width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-column inline-block width=80px height=auto empty min-height: 80x60 child=30
 flex-column inline-block width=80px height=auto empty min-height-large: 80x150 child=75
@@ -4920,7 +4920,7 @@ flex-column inline-block width=80px height=auto empty max-width: 40x20 child=10
 flex-column inline-block width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-column inline-block width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-column inline-block width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-column inline-block width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-column inline-block width=80px height=auto tall min-height: 80x60 child=30
 flex-column inline-block width=80px height=auto tall min-height-large: 80x150 child=75
 flex-column inline-block width=80px height=auto tall max-height: 80x30 child=15
@@ -4929,7 +4929,7 @@ flex-column inline-block width=80px height=auto tall max-width: 40x20 child=10
 flex-column inline-block width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-column inline-block width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-column inline-block width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-column inline-block width=80px height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=80px height=auto tall border-box-max-width: 40x20 child=5
 flex-column inline-block width=80px height=100% empty min-height: 80x60 child=30
 flex-column inline-block width=80px height=100% empty min-height-large: 80x150 child=75
 flex-column inline-block width=80px height=100% empty max-height: 80x30 child=15
@@ -4938,7 +4938,7 @@ flex-column inline-block width=80px height=100% empty max-width: 40x20 child=10
 flex-column inline-block width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-column inline-block width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-column inline-block width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-column inline-block width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-column inline-block width=80px height=100% tall min-height: 80x60 child=30
 flex-column inline-block width=80px height=100% tall min-height-large: 80x150 child=75
 flex-column inline-block width=80px height=100% tall max-height: 80x30 child=15
@@ -4947,7 +4947,7 @@ flex-column inline-block width=80px height=100% tall max-width: 40x20 child=10
 flex-column inline-block width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-column inline-block width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-column inline-block width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-column inline-block width=80px height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=80px height=100% tall border-box-max-width: 40x20 child=5
 flex-column inline-block width=80px height=40px empty min-height: 80x60 child=30
 flex-column inline-block width=80px height=40px empty min-height-large: 80x150 child=75
 flex-column inline-block width=80px height=40px empty max-height: 80x30 child=15
@@ -4974,7 +4974,7 @@ flex-column inline-block width=50% height=auto empty max-width: 40x20 child=10
 flex-column inline-block width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-column inline-block width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-column inline-block width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-column inline-block width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-column inline-block width=50% height=auto tall min-height: 100x60 child=30
 flex-column inline-block width=50% height=auto tall min-height-large: 100x150 child=75
 flex-column inline-block width=50% height=auto tall max-height: 100x30 child=15
@@ -4983,7 +4983,7 @@ flex-column inline-block width=50% height=auto tall max-width: 40x20 child=10
 flex-column inline-block width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-column inline-block width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-column inline-block width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-column inline-block width=50% height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=50% height=auto tall border-box-max-width: 40x20 child=5
 flex-column inline-block width=50% height=100% empty min-height: 100x60 child=30
 flex-column inline-block width=50% height=100% empty min-height-large: 100x150 child=75
 flex-column inline-block width=50% height=100% empty max-height: 100x30 child=15
@@ -4992,7 +4992,7 @@ flex-column inline-block width=50% height=100% empty max-width: 40x20 child=10
 flex-column inline-block width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-column inline-block width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-column inline-block width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-column inline-block width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-column inline-block width=50% height=100% tall min-height: 100x60 child=30
 flex-column inline-block width=50% height=100% tall min-height-large: 100x150 child=75
 flex-column inline-block width=50% height=100% tall max-height: 100x30 child=15
@@ -5001,7 +5001,7 @@ flex-column inline-block width=50% height=100% tall max-width: 40x20 child=10
 flex-column inline-block width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-column inline-block width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-column inline-block width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-column inline-block width=50% height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column inline-block width=50% height=100% tall border-box-max-width: 40x20 child=5
 flex-column inline-block width=50% height=40px empty min-height: 100x60 child=30
 flex-column inline-block width=50% height=40px empty min-height-large: 100x150 child=75
 flex-column inline-block width=50% height=40px empty max-height: 100x30 child=15
@@ -5027,8 +5027,8 @@ flex-column float width=auto height=auto empty min-width: 150x75 child=0
 flex-column float width=auto height=auto empty max-width: 0x0 child=0
 flex-column float width=auto height=auto empty min-width-max-height: 150x30 child=0
 flex-column float width=auto height=auto empty max-width-min-height: 40x60 child=0
-flex-column float width=auto height=auto empty border-box-min-height: 110x60 child=0
-flex-column float width=auto height=auto empty border-box-max-width: 10x10 child=0
+flex-column float width=auto height=auto empty border-box-min-height: 120x60 child=0
+flex-column float width=auto height=auto empty border-box-max-width: 20x10 child=0
 flex-column float width=auto height=auto tall min-height: 120x60 child=0
 flex-column float width=auto height=auto tall min-height-large: 300x150 child=0
 flex-column float width=auto height=auto tall max-height: 10x5 child=0
@@ -5036,8 +5036,8 @@ flex-column float width=auto height=auto tall min-width: 150x75 child=0
 flex-column float width=auto height=auto tall max-width: 10x5 child=0
 flex-column float width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-column float width=auto height=auto tall max-width-min-height: 40x60 child=0
-flex-column float width=auto height=auto tall border-box-min-height: 110x60 child=0
-flex-column float width=auto height=auto tall border-box-max-width: 20x15 child=0
+flex-column float width=auto height=auto tall border-box-min-height: 120x60 child=0
+flex-column float width=auto height=auto tall border-box-max-width: 30x15 child=0
 flex-column float width=auto height=100% empty min-height: 120x60 child=0
 flex-column float width=auto height=100% empty min-height-large: 300x150 child=0
 flex-column float width=auto height=100% empty max-height: 0x0 child=0
@@ -5045,8 +5045,8 @@ flex-column float width=auto height=100% empty min-width: 150x75 child=0
 flex-column float width=auto height=100% empty max-width: 0x0 child=0
 flex-column float width=auto height=100% empty min-width-max-height: 150x30 child=0
 flex-column float width=auto height=100% empty max-width-min-height: 40x60 child=0
-flex-column float width=auto height=100% empty border-box-min-height: 110x60 child=0
-flex-column float width=auto height=100% empty border-box-max-width: 10x10 child=0
+flex-column float width=auto height=100% empty border-box-min-height: 120x60 child=0
+flex-column float width=auto height=100% empty border-box-max-width: 20x10 child=0
 flex-column float width=auto height=100% tall min-height: 120x60 child=0
 flex-column float width=auto height=100% tall min-height-large: 300x150 child=0
 flex-column float width=auto height=100% tall max-height: 10x5 child=0
@@ -5054,8 +5054,8 @@ flex-column float width=auto height=100% tall min-width: 150x75 child=0
 flex-column float width=auto height=100% tall max-width: 10x5 child=0
 flex-column float width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-column float width=auto height=100% tall max-width-min-height: 40x60 child=0
-flex-column float width=auto height=100% tall border-box-min-height: 110x60 child=0
-flex-column float width=auto height=100% tall border-box-max-width: 20x15 child=0
+flex-column float width=auto height=100% tall border-box-min-height: 120x60 child=0
+flex-column float width=auto height=100% tall border-box-max-width: 30x15 child=0
 flex-column float width=auto height=40px empty min-height: 120x60 child=30
 flex-column float width=auto height=40px empty min-height-large: 300x150 child=75
 flex-column float width=auto height=40px empty max-height: 60x30 child=15
@@ -5063,7 +5063,7 @@ flex-column float width=auto height=40px empty min-width: 150x40 child=20
 flex-column float width=auto height=40px empty max-width: 40x40 child=20
 flex-column float width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-column float width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-column float width=auto height=40px empty border-box-min-height: 110x60 child=25
+flex-column float width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-column float width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-column float width=auto height=40px tall min-height: 120x60 child=30
 flex-column float width=auto height=40px tall min-height-large: 300x150 child=75
@@ -5072,7 +5072,7 @@ flex-column float width=auto height=40px tall min-width: 150x40 child=20
 flex-column float width=auto height=40px tall max-width: 40x40 child=20
 flex-column float width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-column float width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-column float width=auto height=40px tall border-box-min-height: 110x60 child=25
+flex-column float width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-column float width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-column float width=80px height=auto empty min-height: 80x60 child=30
 flex-column float width=80px height=auto empty min-height-large: 80x150 child=75
@@ -5082,7 +5082,7 @@ flex-column float width=80px height=auto empty max-width: 40x20 child=10
 flex-column float width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-column float width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-column float width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-column float width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column float width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-column float width=80px height=auto tall min-height: 80x60 child=30
 flex-column float width=80px height=auto tall min-height-large: 80x150 child=75
 flex-column float width=80px height=auto tall max-height: 80x30 child=15
@@ -5091,7 +5091,7 @@ flex-column float width=80px height=auto tall max-width: 40x20 child=10
 flex-column float width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-column float width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-column float width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-column float width=80px height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column float width=80px height=auto tall border-box-max-width: 40x20 child=5
 flex-column float width=80px height=100% empty min-height: 80x60 child=30
 flex-column float width=80px height=100% empty min-height-large: 80x150 child=75
 flex-column float width=80px height=100% empty max-height: 80x30 child=15
@@ -5100,7 +5100,7 @@ flex-column float width=80px height=100% empty max-width: 40x20 child=10
 flex-column float width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-column float width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-column float width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-column float width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column float width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-column float width=80px height=100% tall min-height: 80x60 child=30
 flex-column float width=80px height=100% tall min-height-large: 80x150 child=75
 flex-column float width=80px height=100% tall max-height: 80x30 child=15
@@ -5109,7 +5109,7 @@ flex-column float width=80px height=100% tall max-width: 40x20 child=10
 flex-column float width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-column float width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-column float width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-column float width=80px height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column float width=80px height=100% tall border-box-max-width: 40x20 child=5
 flex-column float width=80px height=40px empty min-height: 80x60 child=30
 flex-column float width=80px height=40px empty min-height-large: 80x150 child=75
 flex-column float width=80px height=40px empty max-height: 80x30 child=15
@@ -5136,7 +5136,7 @@ flex-column float width=50% height=auto empty max-width: 40x20 child=10
 flex-column float width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-column float width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-column float width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-column float width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column float width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-column float width=50% height=auto tall min-height: 100x60 child=30
 flex-column float width=50% height=auto tall min-height-large: 100x150 child=75
 flex-column float width=50% height=auto tall max-height: 100x30 child=15
@@ -5145,7 +5145,7 @@ flex-column float width=50% height=auto tall max-width: 40x20 child=10
 flex-column float width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-column float width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-column float width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-column float width=50% height=auto tall border-box-max-width: 40x25 child=7.5
+flex-column float width=50% height=auto tall border-box-max-width: 40x20 child=5
 flex-column float width=50% height=100% empty min-height: 100x60 child=30
 flex-column float width=50% height=100% empty min-height-large: 100x150 child=75
 flex-column float width=50% height=100% empty max-height: 100x30 child=15
@@ -5154,7 +5154,7 @@ flex-column float width=50% height=100% empty max-width: 40x20 child=10
 flex-column float width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-column float width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-column float width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-column float width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column float width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-column float width=50% height=100% tall min-height: 100x60 child=30
 flex-column float width=50% height=100% tall min-height-large: 100x150 child=75
 flex-column float width=50% height=100% tall max-height: 100x30 child=15
@@ -5163,7 +5163,7 @@ flex-column float width=50% height=100% tall max-width: 40x20 child=10
 flex-column float width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-column float width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-column float width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-column float width=50% height=100% tall border-box-max-width: 40x25 child=7.5
+flex-column float width=50% height=100% tall border-box-max-width: 40x20 child=5
 flex-column float width=50% height=40px empty min-height: 100x60 child=30
 flex-column float width=50% height=40px empty min-height-large: 100x150 child=75
 flex-column float width=50% height=40px empty max-height: 100x30 child=15
@@ -5189,8 +5189,8 @@ flex-column flex width=auto height=auto empty min-width: 150x75 child=0
 flex-column flex width=auto height=auto empty max-width: 0x0 child=0
 flex-column flex width=auto height=auto empty min-width-max-height: 150x30 child=0
 flex-column flex width=auto height=auto empty max-width-min-height: 40x60 child=0
-flex-column flex width=auto height=auto empty border-box-min-height: 110x60 child=0
-flex-column flex width=auto height=auto empty border-box-max-width: 10x10 child=0
+flex-column flex width=auto height=auto empty border-box-min-height: 120x60 child=0
+flex-column flex width=auto height=auto empty border-box-max-width: 20x10 child=0
 flex-column flex width=auto height=auto tall min-height: 120x60 child=0
 flex-column flex width=auto height=auto tall min-height-large: 300x150 child=0
 flex-column flex width=auto height=auto tall max-height: 60x30 child=0
@@ -5198,8 +5198,8 @@ flex-column flex width=auto height=auto tall min-width: 600x300 child=0
 flex-column flex width=auto height=auto tall max-width: 40x20 child=0
 flex-column flex width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-column flex width=auto height=auto tall max-width-min-height: 40x60 child=0
-flex-column flex width=auto height=auto tall border-box-min-height: 110x60 child=0
-flex-column flex width=auto height=auto tall border-box-max-width: 40x30 child=0
+flex-column flex width=auto height=auto tall border-box-min-height: 120x60 child=0
+flex-column flex width=auto height=auto tall border-box-max-width: 40x20 child=0
 flex-column flex width=auto height=100% empty min-height: 120x60 child=0
 flex-column flex width=auto height=100% empty min-height-large: 300x150 child=0
 flex-column flex width=auto height=100% empty max-height: 0x0 child=0
@@ -5207,8 +5207,8 @@ flex-column flex width=auto height=100% empty min-width: 150x75 child=0
 flex-column flex width=auto height=100% empty max-width: 0x0 child=0
 flex-column flex width=auto height=100% empty min-width-max-height: 150x30 child=0
 flex-column flex width=auto height=100% empty max-width-min-height: 40x60 child=0
-flex-column flex width=auto height=100% empty border-box-min-height: 110x60 child=0
-flex-column flex width=auto height=100% empty border-box-max-width: 10x10 child=0
+flex-column flex width=auto height=100% empty border-box-min-height: 120x60 child=0
+flex-column flex width=auto height=100% empty border-box-max-width: 20x10 child=0
 flex-column flex width=auto height=100% tall min-height: 120x60 child=0
 flex-column flex width=auto height=100% tall min-height-large: 300x150 child=0
 flex-column flex width=auto height=100% tall max-height: 60x30 child=0
@@ -5216,8 +5216,8 @@ flex-column flex width=auto height=100% tall min-width: 600x300 child=0
 flex-column flex width=auto height=100% tall max-width: 40x20 child=0
 flex-column flex width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-column flex width=auto height=100% tall max-width-min-height: 40x60 child=0
-flex-column flex width=auto height=100% tall border-box-min-height: 110x60 child=0
-flex-column flex width=auto height=100% tall border-box-max-width: 40x30 child=0
+flex-column flex width=auto height=100% tall border-box-min-height: 120x60 child=0
+flex-column flex width=auto height=100% tall border-box-max-width: 40x20 child=0
 flex-column flex width=auto height=40px empty min-height: 120x60 child=30
 flex-column flex width=auto height=40px empty min-height-large: 300x150 child=75
 flex-column flex width=auto height=40px empty max-height: 60x30 child=15
@@ -5225,7 +5225,7 @@ flex-column flex width=auto height=40px empty min-width: 150x40 child=20
 flex-column flex width=auto height=40px empty max-width: 40x40 child=20
 flex-column flex width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-column flex width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-column flex width=auto height=40px empty border-box-min-height: 110x60 child=25
+flex-column flex width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-column flex width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-column flex width=auto height=40px tall min-height: 120x60 child=30
 flex-column flex width=auto height=40px tall min-height-large: 300x150 child=75
@@ -5234,7 +5234,7 @@ flex-column flex width=auto height=40px tall min-width: 150x40 child=20
 flex-column flex width=auto height=40px tall max-width: 40x40 child=20
 flex-column flex width=auto height=40px tall min-width-max-height: 150x30 child=15
 flex-column flex width=auto height=40px tall max-width-min-height: 40x60 child=30
-flex-column flex width=auto height=40px tall border-box-min-height: 110x60 child=25
+flex-column flex width=auto height=40px tall border-box-min-height: 120x60 child=25
 flex-column flex width=auto height=40px tall border-box-max-width: 40x40 child=15
 flex-column flex width=80px height=auto empty min-height: 80x60 child=30
 flex-column flex width=80px height=auto empty min-height-large: 80x150 child=75
@@ -5244,7 +5244,7 @@ flex-column flex width=80px height=auto empty max-width: 40x20 child=10
 flex-column flex width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-column flex width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-column flex width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-column flex width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column flex width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-column flex width=80px height=auto tall min-height: 80x60 child=30
 flex-column flex width=80px height=auto tall min-height-large: 80x150 child=75
 flex-column flex width=80px height=auto tall max-height: 80x30 child=15
@@ -5253,7 +5253,7 @@ flex-column flex width=80px height=auto tall max-width: 40x20 child=10
 flex-column flex width=80px height=auto tall min-width-max-height: 150x30 child=15
 flex-column flex width=80px height=auto tall max-width-min-height: 40x60 child=30
 flex-column flex width=80px height=auto tall border-box-min-height: 80x60 child=25
-flex-column flex width=80px height=auto tall border-box-max-width: 40x30 child=10
+flex-column flex width=80px height=auto tall border-box-max-width: 40x20 child=5
 flex-column flex width=80px height=100% empty min-height: 80x60 child=30
 flex-column flex width=80px height=100% empty min-height-large: 80x150 child=75
 flex-column flex width=80px height=100% empty max-height: 80x30 child=15
@@ -5262,7 +5262,7 @@ flex-column flex width=80px height=100% empty max-width: 40x20 child=10
 flex-column flex width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-column flex width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-column flex width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-column flex width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column flex width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-column flex width=80px height=100% tall min-height: 80x60 child=30
 flex-column flex width=80px height=100% tall min-height-large: 80x150 child=75
 flex-column flex width=80px height=100% tall max-height: 80x30 child=15
@@ -5271,7 +5271,7 @@ flex-column flex width=80px height=100% tall max-width: 40x20 child=10
 flex-column flex width=80px height=100% tall min-width-max-height: 150x30 child=15
 flex-column flex width=80px height=100% tall max-width-min-height: 40x60 child=30
 flex-column flex width=80px height=100% tall border-box-min-height: 80x60 child=25
-flex-column flex width=80px height=100% tall border-box-max-width: 40x30 child=10
+flex-column flex width=80px height=100% tall border-box-max-width: 40x20 child=5
 flex-column flex width=80px height=40px empty min-height: 80x60 child=30
 flex-column flex width=80px height=40px empty min-height-large: 80x150 child=75
 flex-column flex width=80px height=40px empty max-height: 80x30 child=15
@@ -5298,7 +5298,7 @@ flex-column flex width=50% height=auto empty max-width: 40x20 child=10
 flex-column flex width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-column flex width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-column flex width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-column flex width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column flex width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-column flex width=50% height=auto tall min-height: 100x60 child=30
 flex-column flex width=50% height=auto tall min-height-large: 100x150 child=75
 flex-column flex width=50% height=auto tall max-height: 100x30 child=15
@@ -5307,7 +5307,7 @@ flex-column flex width=50% height=auto tall max-width: 40x20 child=10
 flex-column flex width=50% height=auto tall min-width-max-height: 150x30 child=15
 flex-column flex width=50% height=auto tall max-width-min-height: 40x60 child=30
 flex-column flex width=50% height=auto tall border-box-min-height: 100x60 child=25
-flex-column flex width=50% height=auto tall border-box-max-width: 40x30 child=10
+flex-column flex width=50% height=auto tall border-box-max-width: 40x20 child=5
 flex-column flex width=50% height=100% empty min-height: 100x60 child=30
 flex-column flex width=50% height=100% empty min-height-large: 100x150 child=75
 flex-column flex width=50% height=100% empty max-height: 100x30 child=15
@@ -5316,7 +5316,7 @@ flex-column flex width=50% height=100% empty max-width: 40x20 child=10
 flex-column flex width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-column flex width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-column flex width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-column flex width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column flex width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-column flex width=50% height=100% tall min-height: 100x60 child=30
 flex-column flex width=50% height=100% tall min-height-large: 100x150 child=75
 flex-column flex width=50% height=100% tall max-height: 100x30 child=15
@@ -5325,7 +5325,7 @@ flex-column flex width=50% height=100% tall max-width: 40x20 child=10
 flex-column flex width=50% height=100% tall min-width-max-height: 150x30 child=15
 flex-column flex width=50% height=100% tall max-width-min-height: 40x60 child=30
 flex-column flex width=50% height=100% tall border-box-min-height: 100x60 child=25
-flex-column flex width=50% height=100% tall border-box-max-width: 40x30 child=10
+flex-column flex width=50% height=100% tall border-box-max-width: 40x20 child=5
 flex-column flex width=50% height=40px empty min-height: 100x60 child=30
 flex-column flex width=50% height=40px empty min-height-large: 100x150 child=75
 flex-column flex width=50% height=40px empty max-height: 100x30 child=15
@@ -5351,8 +5351,8 @@ flex-column grid width=auto height=auto empty min-width: 150x75 child=0
 flex-column grid width=auto height=auto empty max-width: 0x0 child=0
 flex-column grid width=auto height=auto empty min-width-max-height: 150x30 child=0
 flex-column grid width=auto height=auto empty max-width-min-height: 40x60 child=30
-flex-column grid width=auto height=auto empty border-box-min-height: 110x60 child=25
-flex-column grid width=auto height=auto empty border-box-max-width: 10x10 child=0
+flex-column grid width=auto height=auto empty border-box-min-height: 120x60 child=25
+flex-column grid width=auto height=auto empty border-box-max-width: 20x10 child=0
 flex-column grid width=auto height=auto tall min-height: 120x60 child=0
 flex-column grid width=auto height=auto tall min-height-large: 300x150 child=0
 flex-column grid width=auto height=auto tall max-height: 60x30 child=0
@@ -5360,8 +5360,8 @@ flex-column grid width=auto height=auto tall min-width: 600x300 child=0
 flex-column grid width=auto height=auto tall max-width: 40x20 child=0
 flex-column grid width=auto height=auto tall min-width-max-height: 150x30 child=0
 flex-column grid width=auto height=auto tall max-width-min-height: 40x60 child=0
-flex-column grid width=auto height=auto tall border-box-min-height: 110x60 child=0
-flex-column grid width=auto height=auto tall border-box-max-width: 40x30 child=0
+flex-column grid width=auto height=auto tall border-box-min-height: 120x60 child=0
+flex-column grid width=auto height=auto tall border-box-max-width: 40x20 child=0
 flex-column grid width=auto height=100% empty min-height: 120x60 child=30
 flex-column grid width=auto height=100% empty min-height-large: 300x150 child=75
 flex-column grid width=auto height=100% empty max-height: 0x0 child=0
@@ -5369,8 +5369,8 @@ flex-column grid width=auto height=100% empty min-width: 150x75 child=0
 flex-column grid width=auto height=100% empty max-width: 0x0 child=0
 flex-column grid width=auto height=100% empty min-width-max-height: 150x30 child=0
 flex-column grid width=auto height=100% empty max-width-min-height: 40x60 child=30
-flex-column grid width=auto height=100% empty border-box-min-height: 110x60 child=25
-flex-column grid width=auto height=100% empty border-box-max-width: 10x10 child=0
+flex-column grid width=auto height=100% empty border-box-min-height: 120x60 child=25
+flex-column grid width=auto height=100% empty border-box-max-width: 20x10 child=0
 flex-column grid width=auto height=100% tall min-height: 120x60 child=0
 flex-column grid width=auto height=100% tall min-height-large: 300x150 child=0
 flex-column grid width=auto height=100% tall max-height: 60x30 child=0
@@ -5378,8 +5378,8 @@ flex-column grid width=auto height=100% tall min-width: 600x300 child=0
 flex-column grid width=auto height=100% tall max-width: 40x20 child=0
 flex-column grid width=auto height=100% tall min-width-max-height: 150x30 child=0
 flex-column grid width=auto height=100% tall max-width-min-height: 40x60 child=0
-flex-column grid width=auto height=100% tall border-box-min-height: 110x60 child=0
-flex-column grid width=auto height=100% tall border-box-max-width: 40x30 child=0
+flex-column grid width=auto height=100% tall border-box-min-height: 120x60 child=0
+flex-column grid width=auto height=100% tall border-box-max-width: 40x20 child=0
 flex-column grid width=auto height=40px empty min-height: 120x60 child=30
 flex-column grid width=auto height=40px empty min-height-large: 300x150 child=75
 flex-column grid width=auto height=40px empty max-height: 60x30 child=15
@@ -5387,7 +5387,7 @@ flex-column grid width=auto height=40px empty min-width: 150x40 child=20
 flex-column grid width=auto height=40px empty max-width: 40x40 child=20
 flex-column grid width=auto height=40px empty min-width-max-height: 150x30 child=15
 flex-column grid width=auto height=40px empty max-width-min-height: 40x60 child=30
-flex-column grid width=auto height=40px empty border-box-min-height: 110x60 child=25
+flex-column grid width=auto height=40px empty border-box-min-height: 120x60 child=25
 flex-column grid width=auto height=40px empty border-box-max-width: 40x40 child=15
 flex-column grid width=auto height=40px tall min-height: 120x60 child=0
 flex-column grid width=auto height=40px tall min-height-large: 300x150 child=0
@@ -5396,7 +5396,7 @@ flex-column grid width=auto height=40px tall min-width: 150x40 child=0
 flex-column grid width=auto height=40px tall max-width: 40x40 child=0
 flex-column grid width=auto height=40px tall min-width-max-height: 150x30 child=0
 flex-column grid width=auto height=40px tall max-width-min-height: 40x60 child=0
-flex-column grid width=auto height=40px tall border-box-min-height: 110x60 child=0
+flex-column grid width=auto height=40px tall border-box-min-height: 120x60 child=0
 flex-column grid width=auto height=40px tall border-box-max-width: 40x40 child=0
 flex-column grid width=80px height=auto empty min-height: 80x60 child=30
 flex-column grid width=80px height=auto empty min-height-large: 80x150 child=75
@@ -5406,7 +5406,7 @@ flex-column grid width=80px height=auto empty max-width: 40x20 child=10
 flex-column grid width=80px height=auto empty min-width-max-height: 150x30 child=15
 flex-column grid width=80px height=auto empty max-width-min-height: 40x60 child=30
 flex-column grid width=80px height=auto empty border-box-min-height: 80x60 child=25
-flex-column grid width=80px height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column grid width=80px height=auto empty border-box-max-width: 40x20 child=5
 flex-column grid width=80px height=auto tall min-height: 80x60 child=0
 flex-column grid width=80px height=auto tall min-height-large: 80x150 child=0
 flex-column grid width=80px height=auto tall max-height: 80x30 child=0
@@ -5415,7 +5415,7 @@ flex-column grid width=80px height=auto tall max-width: 40x20 child=0
 flex-column grid width=80px height=auto tall min-width-max-height: 150x30 child=0
 flex-column grid width=80px height=auto tall max-width-min-height: 40x60 child=0
 flex-column grid width=80px height=auto tall border-box-min-height: 80x60 child=0
-flex-column grid width=80px height=auto tall border-box-max-width: 40x30 child=0
+flex-column grid width=80px height=auto tall border-box-max-width: 40x20 child=0
 flex-column grid width=80px height=100% empty min-height: 80x60 child=30
 flex-column grid width=80px height=100% empty min-height-large: 80x150 child=75
 flex-column grid width=80px height=100% empty max-height: 80x30 child=15
@@ -5424,7 +5424,7 @@ flex-column grid width=80px height=100% empty max-width: 40x20 child=10
 flex-column grid width=80px height=100% empty min-width-max-height: 150x30 child=15
 flex-column grid width=80px height=100% empty max-width-min-height: 40x60 child=30
 flex-column grid width=80px height=100% empty border-box-min-height: 80x60 child=25
-flex-column grid width=80px height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column grid width=80px height=100% empty border-box-max-width: 40x20 child=5
 flex-column grid width=80px height=100% tall min-height: 80x60 child=0
 flex-column grid width=80px height=100% tall min-height-large: 80x150 child=0
 flex-column grid width=80px height=100% tall max-height: 80x30 child=0
@@ -5433,7 +5433,7 @@ flex-column grid width=80px height=100% tall max-width: 40x20 child=0
 flex-column grid width=80px height=100% tall min-width-max-height: 150x30 child=0
 flex-column grid width=80px height=100% tall max-width-min-height: 40x60 child=0
 flex-column grid width=80px height=100% tall border-box-min-height: 80x60 child=0
-flex-column grid width=80px height=100% tall border-box-max-width: 40x30 child=0
+flex-column grid width=80px height=100% tall border-box-max-width: 40x20 child=0
 flex-column grid width=80px height=40px empty min-height: 80x60 child=30
 flex-column grid width=80px height=40px empty min-height-large: 80x150 child=75
 flex-column grid width=80px height=40px empty max-height: 80x30 child=15
@@ -5460,7 +5460,7 @@ flex-column grid width=50% height=auto empty max-width: 40x20 child=10
 flex-column grid width=50% height=auto empty min-width-max-height: 150x30 child=15
 flex-column grid width=50% height=auto empty max-width-min-height: 40x60 child=30
 flex-column grid width=50% height=auto empty border-box-min-height: 100x60 child=25
-flex-column grid width=50% height=auto empty border-box-max-width: 40x25 child=7.5
+flex-column grid width=50% height=auto empty border-box-max-width: 40x20 child=5
 flex-column grid width=50% height=auto tall min-height: 100x60 child=0
 flex-column grid width=50% height=auto tall min-height-large: 100x150 child=0
 flex-column grid width=50% height=auto tall max-height: 100x30 child=0
@@ -5469,7 +5469,7 @@ flex-column grid width=50% height=auto tall max-width: 40x20 child=0
 flex-column grid width=50% height=auto tall min-width-max-height: 150x30 child=0
 flex-column grid width=50% height=auto tall max-width-min-height: 40x60 child=0
 flex-column grid width=50% height=auto tall border-box-min-height: 100x60 child=0
-flex-column grid width=50% height=auto tall border-box-max-width: 40x30 child=0
+flex-column grid width=50% height=auto tall border-box-max-width: 40x20 child=0
 flex-column grid width=50% height=100% empty min-height: 100x60 child=30
 flex-column grid width=50% height=100% empty min-height-large: 100x150 child=75
 flex-column grid width=50% height=100% empty max-height: 100x30 child=15
@@ -5478,7 +5478,7 @@ flex-column grid width=50% height=100% empty max-width: 40x20 child=10
 flex-column grid width=50% height=100% empty min-width-max-height: 150x30 child=15
 flex-column grid width=50% height=100% empty max-width-min-height: 40x60 child=30
 flex-column grid width=50% height=100% empty border-box-min-height: 100x60 child=25
-flex-column grid width=50% height=100% empty border-box-max-width: 40x25 child=7.5
+flex-column grid width=50% height=100% empty border-box-max-width: 40x20 child=5
 flex-column grid width=50% height=100% tall min-height: 100x60 child=0
 flex-column grid width=50% height=100% tall min-height-large: 100x150 child=0
 flex-column grid width=50% height=100% tall max-height: 100x30 child=0
@@ -5487,7 +5487,7 @@ flex-column grid width=50% height=100% tall max-width: 40x20 child=0
 flex-column grid width=50% height=100% tall min-width-max-height: 150x30 child=0
 flex-column grid width=50% height=100% tall max-width-min-height: 40x60 child=0
 flex-column grid width=50% height=100% tall border-box-min-height: 100x60 child=0
-flex-column grid width=50% height=100% tall border-box-max-width: 40x30 child=0
+flex-column grid width=50% height=100% tall border-box-max-width: 40x20 child=0
 flex-column grid width=50% height=40px empty min-height: 100x60 child=30
 flex-column grid width=50% height=40px empty min-height-large: 100x150 child=75
 flex-column grid width=50% height=40px empty max-height: 100x30 child=15
