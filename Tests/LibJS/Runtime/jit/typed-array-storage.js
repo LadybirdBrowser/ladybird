@@ -219,6 +219,7 @@ test("keyed accesses compiled after out-of-bounds exits take the slow path once 
         storage.buffer.transfer();
         expect(read(2)).toBeUndefined();
         expect(read(0)).toBeUndefined();
-        expect(jit.exitCount(read)).toBe(0);
+        // NB: An exit forced at the bounds check comes before the out-of-bounds exit, which then goes unrecorded.
+        if (!jit.forcesExits) expect(jit.exitCount(read)).toBe(0);
     }
 });
