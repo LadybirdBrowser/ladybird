@@ -1,0 +1,13 @@
+Ladybird’s worker process receives the User-Agent string, the
+navigator compatibility mode, and the preferred languages from the
+browser process, at launch and on every change. Blink hands a worker
+its User-Agent at creation: WorkerGlobalScope stores
+GlobalScopeCreationParams::user_agent, which the parent thread fills
+from the document’s frame. WebKit does the same through
+WorkerParameters::userAgent — Worker::create() passes
+context->userAgent(), and WorkerGlobalScope keeps it as m_userAgent
+for its WorkerNavigator. Gecko’s WorkerNavigator::GetUserAgent() asks
+the main thread (GetUserAgentRunnable calls Navigator::GetUserAgent()),
+and its languages are copied into the worker’s navigator properties by
+RuntimeService::GetNavigatorProperties() from
+Navigator::GetAcceptLanguages(), refreshed when the pref changes.
