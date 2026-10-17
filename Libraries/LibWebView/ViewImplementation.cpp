@@ -722,6 +722,8 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     if (mouse_event && mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
         mouse_event->wheel_delta_x /= zoom_level();
         mouse_event->wheel_delta_y /= zoom_level();
+        mouse_event->wheel_tick_120ths_x /= zoom_level();
+        mouse_event->wheel_tick_120ths_y /= zoom_level();
     }
 
     if (key_event && !key_event->native_editing_binding_resolved && Web::is_keyboard_scroll_key(key_event->key, Web::UIEvents::Mod_None)) {

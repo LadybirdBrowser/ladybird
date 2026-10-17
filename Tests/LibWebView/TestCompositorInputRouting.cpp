@@ -49,6 +49,7 @@ void scroll_wheel_at(WebView::ViewImplementation& view, Web::DevicePixelPoint po
         .position = position,
         .screen_position = position,
         .wheel_delta_y = wheel_delta_y,
+        .wheel_tick_120ths_y = Web::wheel_tick_120ths_from_pixel_delta(wheel_delta_y, Web::WheelDeltaPrecision::Precise),
         .wheel_delta_precision = Web::WheelDeltaPrecision::Precise,
         .browser_data = nullptr,
     });

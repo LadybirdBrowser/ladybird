@@ -98,6 +98,8 @@ Web::MouseEvent ScrollFlingController::event_of_active_fling(Gfx::FloatPoint del
         .modifiers = m_active_fling->modifiers,
         .wheel_delta_x = delta.x(),
         .wheel_delta_y = delta.y(),
+        .wheel_tick_120ths_x = Web::wheel_tick_120ths_from_pixel_delta(delta.x(), Web::WheelDeltaPrecision::Precise),
+        .wheel_tick_120ths_y = Web::wheel_tick_120ths_from_pixel_delta(delta.y(), Web::WheelDeltaPrecision::Precise),
         .wheel_delta_precision = Web::WheelDeltaPrecision::Precise,
         .scroll_gesture_phase = phase,
         .click_count = 0,

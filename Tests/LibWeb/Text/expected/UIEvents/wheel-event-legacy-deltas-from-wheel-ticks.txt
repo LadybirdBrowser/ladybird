@@ -1,0 +1,4 @@
+notch counted from pixels: deltaX=0.00 deltaY=120.00 wheelDeltaX=0 wheelDeltaY=-120 wheelDelta=-120
+one accelerated line: deltaX=0.00 deltaY=40.00 wheelDeltaX=0 wheelDeltaY=-120 wheelDelta=-120
+accelerated lines down: deltaX=0.00 deltaY=146.00 wheelDeltaX=0 wheelDeltaY=-438 wheelDelta=-438
+accelerated lines left and up: deltaX=-80.00 deltaY=-600.00 wheelDeltaX=240 wheelDeltaY=1800 wheelDelta=1800

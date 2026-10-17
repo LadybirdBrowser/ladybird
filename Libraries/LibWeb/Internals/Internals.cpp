@@ -137,6 +137,14 @@ static Web::ScrollGesturePhase scroll_gesture_phase_from(Bindings::ScrollGesture
     VERIFY_NOT_REACHED();
 }
 
+static double wheel_tick_120ths_from(Optional<double> wheel_ticks, double pixel_delta, Web::WheelDeltaPrecision wheel_delta_precision)
+{
+    static constexpr double wheel_tick_120ths_per_tick = 120;
+    if (wheel_ticks.has_value())
+        return *wheel_ticks * wheel_tick_120ths_per_tick;
+    return Web::wheel_tick_120ths_from_pixel_delta(pixel_delta, wheel_delta_precision);
+}
+
 GC_DEFINE_ALLOCATOR(Internals);
 
 static GC::Ptr<HTML::LocalNavigable> local_root_of(HTML::Window const& window)
@@ -736,12 +744,14 @@ void Internals::mouse_event_through_ui_process(Bindings::MouseEventThroughUIProc
     send_mouse_events_through_ui_process(move(events), promise);
 }
 
-void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, GC::Ref<WebIDL::Promise> promise)
+void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, Bindings::WheelTicks const& ticks, GC::Ref<WebIDL::Promise> promise)
 {
     auto event = mouse_event_through_ui_process_at(Web::MouseEvent::Type::MouseWheel, x, y);
     event.wheel_delta_x = delta_x;
     event.wheel_delta_y = delta_y;
     event.wheel_delta_precision = wheel_delta_precision_from(precise);
+    event.wheel_tick_120ths_x = wheel_tick_120ths_from(ticks.x, delta_x, event.wheel_delta_precision);
+    event.wheel_tick_120ths_y = wheel_tick_120ths_from(ticks.y, delta_y, event.wheel_delta_precision);
     event.scroll_gesture_phase = scroll_gesture_phase_from(phase);
     Vector<Web::MouseEvent> events;
     events.append(move(event));
@@ -838,7 +848,7 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
 }
 
-void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase)
+void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, Bindings::WheelTicks const& ticks)
 {
     auto& page = this->page();
 
@@ -846,7 +856,9 @@ void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, doub
     auto scroll_gesture_phase = scroll_gesture_phase_from(phase);
     auto position = page.css_to_device_point({ x, y });
     Optional<AsyncScrollOperation> async_scroll_operation;
-    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, wheel_delta_precision, scroll_gesture_phase, false, &async_scroll_operation);
+    auto wheel_tick_120ths_x = wheel_tick_120ths_from(ticks.x, delta_x, wheel_delta_precision);
+    auto wheel_tick_120ths_y = wheel_tick_120ths_from(ticks.y, delta_y, wheel_delta_precision);
+    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, wheel_delta_precision, scroll_gesture_phase, false, &async_scroll_operation);
 
     if (async_scroll_operation.has_value() && async_scroll_operation->navigable) {
         async_scroll_operation->navigable->wait_for_async_scroll_operation(async_scroll_operation->operation_id, promise);
@@ -866,9 +878,9 @@ void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, doub
     WebIDL::wait_for_all(realm, scroll_promises, [resolve](auto const&) { resolve(); }, [resolve](auto) { resolve(); });
 }
 
-void Internals::wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, GC::Ref<WebIDL::Promise> promise)
+void Internals::wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, Bindings::WheelTicks const& ticks, GC::Ref<WebIDL::Promise> promise)
 {
-    wheel(promise, x, y, delta_x, delta_y, precise, phase);
+    wheel(promise, x, y, delta_x, delta_y, precise, phase, ticks);
 }
 
 static JS::Value wrapped_node_with_unique_id(HTML::Window& window, Optional<UniqueNodeID> node_id)
