@@ -3121,6 +3121,16 @@ impl<'pass> GridFormattingContext<'pass> {
                     resolved = resolve_alignment(maximum, false);
                 }
             }
+            if axis.is_column()
+                && let Some(limits) = self
+                    .sizing()
+                    .transferred_inline_size_limits(item.box_, available, constraints)
+            {
+                let limited = limits.clamp(resolved.size);
+                if limited != resolved.size {
+                    resolved = resolve_alignment(limited, false);
+                }
+            }
             let minimum = axis.select(style.min_width(), style.min_height());
             if !minimum.is_auto() {
                 let minimum = self.sizing().calculate_inner_size_for_property(
