@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<form id="form" method="post" action="">
+<input type="submit" id="submit1">
+<input type="image" id="submit2">
+<button type="submit" id="submit3">
+</form>
+<script>
+promise_test(async () => {
+  await new Promise(r => window.onload = r);
+
+  let sourceElement;
+  navigation.onnavigate = e => {
+    e.preventDefault();
+    sourceElement = e.sourceElement;
+  };
+
+  form.requestSubmit(submit1);
+  await new Promise(r => navigation.onnavigateerror = r);
+  assert_equals(sourceElement, submit1);
+
+  form.requestSubmit(submit2);
+  await new Promise(r => navigation.onnavigateerror = r);
+  assert_equals(sourceElement, submit2);
+
+  form.requestSubmit(submit3);
+  await new Promise(r => navigation.onnavigateerror = r);
+  assert_equals(sourceElement, submit3);
+
+  form.requestSubmit();
+  await new Promise(r => navigation.onnavigateerror = r);
+  assert_equals(sourceElement, form);
+}, "<form> requestSubmit() sets sourceElement");
+</script>

@@ -659,12 +659,11 @@ void Element::follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML:
 
     // 11. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to subject's
     //     hyperlink referrer policy, userInvolvement set to userInvolvement, and sourceElement set to subject.
-    // FIXME: Set sourceElement.
     auto url = url_string_with_suffix.has_value()
         ? URL::Parser::basic_parse(url_string_with_suffix->utf16_view())
         : URL::Parser::basic_parse(url_string);
     VERIFY(url.has_value());
-    MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = document(), .referrer_policy = hyperlink_referrer_policy(), .user_involvement = user_involvement }));
+    MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = document(), .referrer_policy = hyperlink_referrer_policy(), .user_involvement = user_involvement, .source_element = this }));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#hyperlink-referrer-policy

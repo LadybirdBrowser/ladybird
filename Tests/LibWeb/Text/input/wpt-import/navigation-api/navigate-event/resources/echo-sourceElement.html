@@ -1,0 +1,13 @@
+<!doctype html>
+<script>
+  navigation.onnavigate = e => {
+    if (e.destination.url.includes("#test")) {
+      window.parent.postMessage({
+        type: "result",
+        sourceElementIsNull: e.sourceElement === null,
+        sourceElementName: e.sourceElement ? e.sourceElement.tagName : "null"
+      }, "*");
+    }
+  };
+  window.parent.postMessage({ type: "ready" }, "*");
+</script>
