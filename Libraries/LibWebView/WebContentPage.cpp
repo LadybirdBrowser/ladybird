@@ -2254,7 +2254,7 @@ void WebContentPage::did_fail_download(u64 download_id, String error)
     Application::the().file_downloader().fail_download(download_id, move(error));
 }
 
-void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id)
+void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId document_id)
 {
     // NB: Only the page hosting the active document finishes loading it. A page standing in for a document the
     //     navigable lost, as the page displaying the tab after its process crashed does, finishes loading the stand-in;
@@ -2263,7 +2263,10 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
     if (!navigable.has_value() || navigable->active_document().host() != this)
         return;
 
-    if (navigation_id != navigable->tracked_load_navigation_id())
+    if (navigable->active_document().id() != document_id)
+        return;
+
+    if (navigable->tracked_load_navigation_id() != navigable->active_document_load().navigation_id)
         return;
 
     navigable->clear_active_document_load();
