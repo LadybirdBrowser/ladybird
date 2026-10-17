@@ -1888,9 +1888,7 @@ fn registered_style_query_values_are_equal(
     syntax: &SyntaxNode,
     computed_tokens: &[OwnedToken],
     query_tokens: &[OwnedToken],
-    length_resolution_context: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
-    color_resolution_input: Option<&crate::css::color_resolution::ColorResolutionInput>,
-    tree_counting: Option<(u64, u64)>,
+    resolution_context: &mut ASFResolutionContext,
 ) -> bool {
     let mut random_function_index = 0;
     let context = registry.parse_context(&mut random_function_index);
@@ -1900,7 +1898,10 @@ fn registered_style_query_values_are_equal(
     let Some(query) = parse_with_syntax(&context, &serialize_tokens(query_tokens), syntax) else {
         return false;
     };
-    let color_resolution_input = color_resolution_input.unwrap_or(&crate::css::color_resolution::EMPTY_INPUT);
+    let color_resolution_input = resolution_context
+        .style_query_color_resolution_input
+        .as_ref()
+        .unwrap_or(&crate::css::color_resolution::EMPTY_INPUT);
     let computed_color = crate::css::color_resolution::to_color(&computed, color_resolution_input);
     let query_color = crate::css::color_resolution::to_color(&query, color_resolution_input);
     if computed_color.is_some() || query_color.is_some() {
@@ -1908,8 +1909,8 @@ fn registered_style_query_values_are_equal(
     }
     // Numeric values compare computed: in their canonical unit, relative lengths resolved.
     if let (Some(computed), Some(query)) = (
-        StyleRangeValue::of(&computed, length_resolution_context, tree_counting),
-        StyleRangeValue::of(&query, length_resolution_context, tree_counting),
+        StyleRangeValue::of(&computed, resolution_context),
+        StyleRangeValue::of(&query, resolution_context),
     ) {
         return computed.kind == query.kind && computed.value == query.value;
     }
@@ -1936,12 +1937,10 @@ impl StyleRangeValue {
         SyntaxType::Resolution,
     ];
 
-    fn of(
-        value: &StyleValueData,
-        length_resolution_context: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
-        tree_counting: Option<(u64, u64)>,
-    ) -> Option<Self> {
+    fn of(value: &StyleValueData, context: &mut ASFResolutionContext) -> Option<Self> {
         use crate::css::calc::CalcNumericValue;
+        let length_resolution_context = context.style_query_length_resolution_context;
+        let tree_counting = context.style_query_tree_counting;
         let length_resolution = crate::css::calc::LengthResolution {
             context: length_resolution_context,
             fallback: None,
@@ -1979,7 +1978,7 @@ impl StyleRangeValue {
                         crate::css::calc::absolutize_calculation_value(value, context, Some(tree_counting), &[])
                     }) {
                     Some(crate::css::calc::AbsolutizedCalculation::Value(resolved)) => {
-                        return Self::of(&resolved, length_resolution_context, None);
+                        return Self::of(&resolved, context);
                     }
                     Some(crate::css::calc::AbsolutizedCalculation::Percentage(value)) => {
                         (CanonicalNumericType::Percentage, value)
@@ -2062,13 +2061,7 @@ fn evaluate_style_range_value(
     Ok(StyleRangeValue::SYNTAX_TYPES
         .iter()
         .find_map(|&syntax_type| parse_with_syntax(parse_context, &source, &SyntaxNode::Type(syntax_type)))
-        .and_then(|value| {
-            StyleRangeValue::of(
-                &value,
-                context.style_query_length_resolution_context,
-                context.style_query_tree_counting,
-            )
-        }))
+        .and_then(|value| StyleRangeValue::of(&value, context)))
 }
 
 // https://drafts.csswg.org/css-conditional-5/#style-container
@@ -2218,9 +2211,7 @@ fn evaluate_named_style_feature(
             &registration.syntax,
             computed,
             &tokenize_owned(initial),
-            context.style_query_length_resolution_context,
-            context.style_query_color_resolution_input.as_ref(),
-            context.style_query_tree_counting,
+            context,
         ));
     };
     let query = trim_whitespace(query);
@@ -2265,9 +2256,7 @@ fn evaluate_named_style_feature(
                         .unwrap_or_else(|| &registration.expect("registered property").syntax),
                     &computed,
                     &expected,
-                    context.style_query_length_resolution_context,
-                    context.style_query_color_resolution_input.as_ref(),
-                    context.style_query_tree_counting,
+                    context,
                 )
             }
             (Some(computed), Some(expected)) => trim_whitespace(&computed) == trim_whitespace(&expected),
@@ -2286,13 +2275,7 @@ fn evaluate_named_style_feature(
             .or_else(|| registration.map(|registration| &registration.syntax)),
     ) {
         return ConditionEvaluation::Match(registered_style_query_values_are_equal(
-            registry,
-            syntax,
-            &computed,
-            query,
-            context.style_query_length_resolution_context,
-            context.style_query_color_resolution_input.as_ref(),
-            context.style_query_tree_counting,
+            registry, syntax, &computed, query, context,
         ));
     }
     ConditionEvaluation::Match(serialize_tokens(trim_whitespace(&computed)) == serialize_tokens(query))
