@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const algorithm = { name: "KMAC128", length: 2 ** 32 + 128 };
+
+        await check("KmacKeyGenParams length", crypto.subtle.generateKey(algorithm, false, ["sign"]));
+        await check("KmacImportParams length", crypto.subtle.importKey("raw-secret", new Uint8Array(16), algorithm, false, ["sign"]));
+    });
+</script>
