@@ -8119,9 +8119,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
             return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
-        // 7. If usages is non-empty and the use field of jwk is present and is not "sign", then
+        // 7. If usages is non-empty and the use field of jwk is present and is not "sig", then
         //    throw a DataError.
-        if (!usages.is_empty() && jwk.use.has_value() && jwk.use != "sign"sv)
+        if (!usages.is_empty() && jwk.use.has_value() && jwk.use != "sig"sv)
             return WebIDL::DataError::create("Invalid use in JsonWebKey"_utf16);
 
         // 8. If the key_ops field of jwk is present, and is invalid according to the requirements
