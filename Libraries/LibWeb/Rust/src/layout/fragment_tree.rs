@@ -34,7 +34,8 @@ pub(crate) struct Fragment {
     pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
-    pub(crate) svg: CommittedSvgFacts,
+    /// Boxed, as only SVG boxes have any and the facts are larger than the rest of the fragment's box.
+    pub(crate) svg: Option<Box<CommittedSvgFacts>>,
     pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
     pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
     pub(crate) has_line_clamp_point: bool,
@@ -88,7 +89,7 @@ impl Fragment {
             && self.grid_layout_data.is_none()
             && self.flex_layout_data.is_none()
             && self.used_grid_tracks.is_none()
-            && self.svg == CommittedSvgFacts::default()
+            && self.svg.is_none()
             && self.computed_svg_path.is_none()
             && self.svg_text_character_cells.is_none()
             && !self.has_line_clamp_point
@@ -229,7 +230,7 @@ impl FragmentLink {
                 grid_layout_data: None,
                 flex_layout_data: None,
                 used_grid_tracks: None,
-                svg: Default::default(),
+                svg: None,
                 computed_svg_path: None,
                 svg_text_character_cells: None,
                 has_line_clamp_point: false,
@@ -461,7 +462,7 @@ fn snapshot_fragment(
         grid_layout_data,
         flex_layout_data,
         used_grid_tracks,
-        svg,
+        svg: (svg != CommittedSvgFacts::default()).then(|| Box::new(svg)),
         computed_svg_path,
         svg_text_character_cells,
         has_line_clamp_point: used.has_line_clamp_point.get(),
