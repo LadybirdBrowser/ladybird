@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 108 tests
 
-90 Pass
-18 Fail
+108 Pass
 Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, false, [deriveKey])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveKey])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveKey]) produces consistent length key
@@ -13,8 +12,8 @@ Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveBits, de
 Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, false, [deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: ECDH, namedCurve: P-256}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, false, [deriveKey])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, true, [deriveKey])
@@ -25,8 +24,8 @@ Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, true, [deriveBits, de
 Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, false, [deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, true, [deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: ECDH, namedCurve: P-384}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, false, [deriveKey])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, true, [deriveKey])
@@ -37,8 +36,8 @@ Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, true, [deriveBits, de
 Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, false, [deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, true, [deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: ECDH, namedCurve: P-521}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, false, [deriveKey])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, true, [deriveKey])
@@ -49,8 +48,8 @@ Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, true, [deriveBits, de
 Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, false, [deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, true, [deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: ecdh, namedCurve: P-256}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: ecdh, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, false, [deriveKey])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, true, [deriveKey])
@@ -61,8 +60,8 @@ Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, true, [deriveBits, de
 Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, false, [deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, true, [deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: ecdh, namedCurve: P-384}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: ecdh, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, false, [deriveKey])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, true, [deriveKey])
@@ -73,8 +72,8 @@ Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, true, [deriveBits, de
 Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, false, [deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, true, [deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: ecdh, namedCurve: P-521}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: ecdh, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: ecdh, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, false, [deriveKey])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, true, [deriveKey])
@@ -85,8 +84,8 @@ Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, true, [deriveBits, de
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, false, [deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, true, [deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: Ecdh, namedCurve: P-256}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: Ecdh, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, false, [deriveKey])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, true, [deriveKey])
@@ -97,8 +96,8 @@ Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, true, [deriveBits, de
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, false, [deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, true, [deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: Ecdh, namedCurve: P-384}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: Ecdh, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, false, [deriveKey])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, true, [deriveKey])
@@ -109,6 +108,6 @@ Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, true, [deriveBits, de
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, false, [deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, true, [deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, true, [deriveBits]) produces consistent length key
-Fail	Success: generateKey({name: Ecdh, namedCurve: P-521}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Success: generateKey({name: Ecdh, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: Ecdh, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits]) produces consistent length key

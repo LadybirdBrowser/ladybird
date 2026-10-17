@@ -879,6 +879,8 @@ private:
     AesOcb() = default;
 };
 
+Vector<KeyUsage> normalized_key_usages(ReadonlySpan<KeyUsage>);
+
 ErrorOr<Utf16String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);
 WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, Utf16String const& base64_url_string);
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, Utf16String const& base64_url_string);

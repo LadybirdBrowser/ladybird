@@ -8,7 +8,6 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/QuickSort.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -26,11 +25,6 @@
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Crypto {
-
-static void normalize_key_usages(Vector<KeyUsage>& key_usages)
-{
-    quick_sort(key_usages);
-}
 
 struct RegisteredAlgorithm {
     NonnullOwnPtr<AlgorithmMethods> (*create_methods)() = nullptr;
@@ -490,8 +484,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::import_key(JS::Realm& realm, KeyFormat fo
         result->set_extractable(extractable);
 
         // 13. Set the [[usages]] internal slot of result to the normalized value of usages.
-        normalize_key_usages(key_usages);
-        result->set_usages(key_usages);
+        result->set_usages(normalized_key_usages(key_usages));
 
         // 14. Resolve promise with result.
         resolve_crypto_key_promise(realm, promise, result);
@@ -837,8 +830,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(JS::Realm& realm, AlgorithmIde
         result->set_extractable(extractable);
 
         // 18. Set the [[usages]] internal slot of result to the normalized value of usages.
-        normalize_key_usages(key_usages);
-        result->set_usages(key_usages);
+        result->set_usages(normalized_key_usages(key_usages));
 
         // 19. Resolve promise with result.
         resolve_crypto_key_promise(realm, promise, result);
@@ -1113,8 +1105,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(JS::Realm& realm, KeyFormat fo
         result->set_extractable(extractable);
 
         // 19. Set the [[usages]] internal slot of result to the normalized value of usages.
-        normalize_key_usages(key_usages);
-        result->set_usages(key_usages);
+        result->set_usages(normalized_key_usages(key_usages));
 
         // FIXME: 20. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
         // FIXME: 21. Let result be the result of converting result to an ECMAScript Object in realm, as defined by [WebIDL].
@@ -1214,8 +1205,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(JS::Realm& realm, Algorit
         shared_key->set_extractable(extractable);
 
         // 15. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
-        normalize_key_usages(usages);
-        shared_key->set_usages(usages);
+        shared_key->set_usages(normalized_key_usages(usages));
 
         // 16. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and ciphertext set
         //     to the ciphertext field of encapsulatedBits.
@@ -1412,7 +1402,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(JS::Realm& realm, Algorit
         shared_key->set_extractable(extractable);
 
         // 16. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
-        shared_key->set_usages(usages);
+        shared_key->set_usages(normalized_key_usages(usages));
 
         // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
         HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, [&realm, promise, shared_key] {
