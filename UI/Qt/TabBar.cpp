@@ -64,7 +64,14 @@ namespace Ladybird {
 static constexpr auto LADYBIRD_TAB_MIME_TYPE = "application/x-ladybird-tab";
 static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 40;
 static constexpr int HORIZONTAL_TAB_HEIGHT = 36;
-static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 128;
+// Horizontal tabs shrink until only their favicon is left, then overflow the strip and get clipped.
+static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 40;
+// Narrower background tabs drop their close button to keep room for the title.
+static constexpr int HORIZONTAL_TAB_CLOSE_BUTTON_MIN_WIDTH = 96;
+// The active tab keeps its close button for as long as it fits next to the favicon.
+static constexpr int HORIZONTAL_ACTIVE_TAB_CLOSE_BUTTON_MIN_WIDTH = 68;
+// Below this content width, a horizontal tab shows its favicon alone.
+static constexpr int HORIZONTAL_TAB_MIN_CONTENT_WIDTH_FOR_TITLE = 48;
 static constexpr int HORIZONTAL_TAB_MAX_WIDTH = 232;
 static constexpr int VERTICAL_TAB_HEIGHT = 38;
 static constexpr int VERTICAL_TABS_COLLAPSED_WIDTH = browser_chrome_layout_policy().collapsed_sidebar_width;
@@ -549,7 +556,7 @@ void TabBar::set_tab_layout(TabLayout tab_layout)
         setMinimumSize({ 0, HORIZONTAL_TAB_HEIGHT });
         setMaximumWidth(QWIDGETSIZE_MAX);
         setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-        setUsesScrollButtons(true);
+        setUsesScrollButtons(false);
         set_vertical_scroll_offset(0);
     } else {
         setShape(vertical_tabs_are_on_right() ? QTabBar::RoundedEast : QTabBar::RoundedWest);
@@ -751,9 +758,13 @@ void TabBar::paintEvent(QPaintEvent*)
         if (auto* right_button = tabButton(index, QTabBar::RightSide); right_button && right_button->isVisible())
             contents_rect.setRight(min(contents_rect.right(), right_button->geometry().left() - 6));
 
-        if (is_vertical || contents_rect.width() > 26) {
+        if (!is_vertical && contents_rect.width() < HORIZONTAL_TAB_MIN_CONTENT_WIDTH_FOR_TITLE) {
+            // NB: A tab too narrow for its favicon next to its mute button shows the mute button alone, rather than
+            //     drawing the favicon over it.
+            if (contents_rect.width() < TAB_ICON_SIZE)
+                continue;
             QRect icon_rect {
-                contents_rect.left(),
+                contents_rect.left() + ((contents_rect.width() - TAB_ICON_SIZE) / 2),
                 contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
                 TAB_ICON_SIZE,
                 TAB_ICON_SIZE,
@@ -762,8 +773,20 @@ void TabBar::paintEvent(QPaintEvent*)
                 painter.setOpacity(is_hovered ? 0.92 : (dark ? 0.88 : 0.84));
             icon.paint(&painter, icon_rect);
             painter.setOpacity(1.0);
-            contents_rect.setLeft(icon_rect.right() + 8);
+            continue;
         }
+
+        QRect icon_rect {
+            contents_rect.left(),
+            contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
+            TAB_ICON_SIZE,
+            TAB_ICON_SIZE,
+        };
+        if (!is_selected)
+            painter.setOpacity(is_hovered ? 0.92 : (dark ? 0.88 : 0.84));
+        icon.paint(&painter, icon_rect);
+        painter.setOpacity(1.0);
+        contents_rect.setLeft(icon_rect.right() + 8);
 
         QFont tab_font = font();
         if (is_selected)
@@ -1364,7 +1387,14 @@ void TabBar::update_tab_button_geometry()
     if (tab_layout() == TabLayout::Horizontal) {
         for (int index = 0; index < count(); ++index) {
             prepare_button(tabButton(index, QTabBar::LeftSide), false);
-            prepare_button(tabButton(index, QTabBar::RightSide), false);
+            auto* close_button = tabButton(index, QTabBar::RightSide);
+            prepare_button(close_button, false);
+            if (!close_button)
+                continue;
+            auto minimum_width = index == currentIndex() ? HORIZONTAL_ACTIVE_TAB_CLOSE_BUTTON_MIN_WIDTH : HORIZONTAL_TAB_CLOSE_BUTTON_MIN_WIDTH;
+            auto show_close_button = tabRect(index).width() >= minimum_width;
+            if (close_button->isVisible() != show_close_button)
+                close_button->setVisible(show_close_button);
         }
         return;
     }
@@ -1511,7 +1541,7 @@ TabWidget::TabWidget(QWidget* parent)
     m_tab_bar->setMovable(false);
     m_tab_bar->setTabsClosable(true);
     m_tab_bar->setExpanding(false);
-    m_tab_bar->setUsesScrollButtons(true);
+    m_tab_bar->setUsesScrollButtons(false);
     m_tab_bar->setDrawBase(false);
     m_tab_bar->installEventFilter(this);
 
