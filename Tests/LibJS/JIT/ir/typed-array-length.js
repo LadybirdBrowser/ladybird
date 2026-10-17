@@ -39,3 +39,31 @@ if (polymorphicLengthOf(new Float64Array(2)) !== 2) throw new Error("wrong lengt
 // CHECK: CheckAccessorFunction
 // CHECK-NEXT: CheckTypedArray
 // CHECK-NEXT: LoadTypedArrayLength
+
+// The rare cases of the length (an empty, detached or out-of-bounds typed array) exit instead of running the slow
+// path, so a loop bounded by the length runs no code that could change it, and its checks move out of the loop.
+function countEqual(left, right) {
+    let count = 0;
+    for (let i = 0; i < left.length; ++i) {
+        if (left[i] === right[i]) ++count;
+    }
+    return count;
+}
+const left = new Uint8Array([1, 2, 3, 4]);
+const right = new Uint8Array([1, 0, 3, 0]);
+jit.prepare(countEqual);
+for (let i = 0; i < 10; ++i) countEqual(left, right);
+jit.compile(countEqual);
+if (countEqual(left, right) !== 2) throw new Error("wrong count");
+if (countEqual(new Uint8Array(0), right) !== 0) throw new Error("wrong count of an empty typed array");
+
+// CHECK-FUNCTION: countEqual
+// CHECK-PASS: graph building
+// CHECK: BranchInt32GreaterThan ({{v[0-9]+}}, #i32:0) -> {{b[0-9]+}}, [[COLD:b[0-9]+]]
+// CHECK: [[COLD]] <- {{b[0-9]+}} cold:
+// CHECK-NEXT: Exit SlowPath
+// CHECK-NOT: CallSlowPath GetLength
+// CHECK-PASS: loop invariant code motion
+// CHECK: CheckAccessorFunction
+// CHECK: loop:
+// CHECK-NOT: CheckAccessorFunction
