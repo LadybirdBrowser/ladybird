@@ -8393,16 +8393,22 @@ WebIDL::ExceptionOr<Optional<u32>> HMAC::get_key_length(JS::Realm& realm, Algori
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
 WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
-    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
+
+    // 1. If the context member of normalizedAlgorithm is present and has a length greater than 255 bytes, then throw
+    //    an OperationError.
+    if (normalized_algorithm.context.has_value() && normalized_algorithm.context->size() > 255)
+        return WebIDL::OperationError::create("Context is too long"_utf16);
+
+    // 2. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != KeyType::Private)
         return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
-    // 2. Let context be the context member of normalizedAlgorithm or the empty octet string if the
+    // 3. Let context be the context member of normalizedAlgorithm or the empty octet string if the
     //    context member of normalizedAlgorithm is not present.
-    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
     auto context = normalized_algorithm.context.value_or(ByteBuffer());
 
-    // 3. Let result be the result of performing the ML-DSA.Sign signing algorithm, as specified in
+    // 4. Let result be the result of performing the ML-DSA.Sign signing algorithm, as specified in
     //    Section 5.2 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm,
     //    using the ML-DSA private key associated with key as sk, message as M and context as ctx.
     VERIFY(key->handle().has<::Crypto::PK::MLDSAPrivateKey>());
@@ -8417,27 +8423,33 @@ WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& p
     }();
     auto const maybe_result = lattice.sign(message);
 
-    // 4. If the ML-DSA.Sign algorithm returned an error, return an OperationError.
+    // 5. If the ML-DSA.Sign algorithm returned an error, return an OperationError.
     if (maybe_result.is_error())
         return WebIDL::OperationError::create("Failed to sign message"_utf16);
 
-    // 5. Return result.
+    // 6. Return result.
     return maybe_result.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
 WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
-    // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
+
+    // 1. If the context member of normalizedAlgorithm is present and has a length greater than 255 bytes, then throw
+    //    an OperationError.
+    if (normalized_algorithm.context.has_value() && normalized_algorithm.context->size() > 255)
+        return WebIDL::OperationError::create("Context is too long"_utf16);
+
+    // 2. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
     if (key->type() != KeyType::Public)
         return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
-    // 2. Let context be the context member of normalizedAlgorithm or the empty octet string if the
+    // 3. Let context be the context member of normalizedAlgorithm or the empty octet string if the
     //    context member of normalizedAlgorithm is not present.
-    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
     auto context = normalized_algorithm.context.value_or(ByteBuffer());
 
-    // 3. Let result be the result of performing the ML-DSA.Verify verification algorithm, as specified in
+    // 4. Let result be the result of performing the ML-DSA.Verify verification algorithm, as specified in
     //    Section 5.3 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm,
     //    using the ML-DSA public key associated with key as pk, message as M, signature as σ and context as ctx.
     VERIFY(key->handle().has<::Crypto::PK::MLDSAPublicKey>());
@@ -8452,11 +8464,11 @@ WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& param
     }();
     auto const maybe_result = lattice.verify(message, signature);
 
-    // 4. If the ML-DSA.Verify algorithm returned an error, return an OperationError.
+    // 5. If the ML-DSA.Verify algorithm returned an error, return an OperationError.
     if (maybe_result.is_error())
         return WebIDL::OperationError::create("Failed to verify message"_utf16);
 
-    // 5. Return result.
+    // 6. Return result.
     return maybe_result.value();
 }
 
