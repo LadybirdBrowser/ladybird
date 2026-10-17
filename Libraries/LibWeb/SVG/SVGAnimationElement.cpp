@@ -8,6 +8,8 @@
 
 #include <AK/Math.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -121,6 +123,16 @@ Bindings::FillMode SVGAnimationElement::fill_mode() const
     // remove
     //     The animation effect is removed (no longer applied) when the active duration of the animation is over.
     return Bindings::FillMode::None;
+}
+
+Animations::BaseKeyframe SVGAnimationElement::keyframe(double offset, CSS::PropertyID property_id, CSS::StyleValue const& value)
+{
+    Animations::BaseKeyframe keyframe;
+    keyframe.offset = offset;
+    Animations::BaseKeyframe::ParsedProperties properties;
+    properties.set(CSS::PropertyNameAndID::from_id(property_id), CSS::RustStyleValueHandle::retained(value.rust_style_value_data()));
+    keyframe.properties = move(properties);
+    return keyframe;
 }
 
 void SVGAnimationElement::update_animation()
