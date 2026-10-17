@@ -32,18 +32,23 @@ pub(crate) fn containing_block_paintable(
 }
 
 pub(crate) fn absolute_rect(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> CssPixelRect {
+    let rect = rect_in_containing_block(fragment);
+    match containing_block_paintable(layout_arena, fragment) {
+        Some(block) => rect.translated_by(paintable_geometry::absolute_position(layout_arena, block)),
+        None => rect,
+    }
+}
+
+/// The fragment's rect relative to its containing block, which is the box whose line boxes hold it.
+pub(crate) fn rect_in_containing_block(fragment: &FragmentRecord) -> CssPixelRect {
     let (x, y) = fragment.offset();
     let (width, height) = fragment.size();
-    let mut rect = CssPixelRect {
+    CssPixelRect {
         x: x + fragment.relpos_delta.x,
         y: y + fragment.relpos_delta.y,
         width,
         height,
-    };
-    if let Some(block) = containing_block_paintable(layout_arena, fragment) {
-        rect = rect.translated_by(paintable_geometry::absolute_position(layout_arena, block));
     }
-    rect
 }
 
 pub(crate) fn absolute_line_box_rect(
