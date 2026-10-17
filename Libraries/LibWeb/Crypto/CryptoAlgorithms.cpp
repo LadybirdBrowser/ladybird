@@ -8589,12 +8589,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
         // 12. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-
-        // 13. Set the [[extractable]] internal slot of key to extractable.
-        key->set_extractable(extractable);
-
-        // 14. Set the [[usages]] internal slot of key to usages.
-        key->set_usages(usages);
     }
     // -> If format is "pkcs8":
     else if (key_format == KeyFormat::Pkcs8) {
@@ -8660,12 +8654,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
         // 13. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-
-        // 14. Set the [[extractable]] internal slot of key to extractable.
-        key->set_extractable(extractable);
-
-        // 15. Set the [[usages]] internal slot of key to usages.
-        key->set_usages(usages);
     }
     //    -> If format is "raw-public":
     else if (key_format == KeyFormat::RawPublic) {
@@ -9072,7 +9060,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLKEM::generate_
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat format, CryptoKey::ImportKeyData key_data, bool, Vector<KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
@@ -9134,12 +9122,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
         // 12. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-
-        // 13. Set the [[extractable]] internal slot of key to extractable.
-        key->set_extractable(extractable);
-
-        // 14. Set the [[usages]] internal slot of key to usages.
-        key->set_usages(usages);
     }
     //    -> If format is "pkcs8":
     else if (format == KeyFormat::Pkcs8) {
@@ -9530,15 +9512,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm&, Algorithm
     // 6. Set the [[type]] internal slot of key to "secret".
     key->set_type(KeyType::Secret);
 
-    // 7. Set the [[extractable]] internal slot of key to false.
-    key->set_extractable(false);
-
-    // 8. Let algorithm be a new KeyAlgorithm object.
-    // 9. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
-    // 10. Set the [[algorithm]] internal slot of key to algorithm.
+    // 7. Let algorithm be a new KeyAlgorithm object.
+    // 8. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+    // 9. Set the [[algorithm]] internal slot of key to algorithm.
     key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
 
-    // 11. Return key.
+    // 10. Return key.
     return key;
 }
 
