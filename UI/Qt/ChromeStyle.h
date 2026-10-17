@@ -15,6 +15,8 @@ class QPalette;
 
 namespace Ladybird::ChromeStyle {
 
+constexpr inline int LOCATION_EDIT_CORNER_RADIUS = 16;
+
 bool is_dark(QPalette const&);
 QColor mix(QColor const& from, QColor const& to, double amount);
 QColor chrome_text(QPalette const&);
