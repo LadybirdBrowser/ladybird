@@ -80,7 +80,7 @@ void ContentBlockingButton::paintEvent(QPaintEvent*)
     auto badge_rect = QRect(width() - badge_width - 1, 1, badge_width, badge_height);
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(88, 117, 153));
+    painter.setBrush(ChromeStyle::chrome_accent());
     painter.drawRoundedRect(badge_rect, 5, 5);
 
     painter.setPen(Qt::white);

@@ -8,6 +8,8 @@
 #include <LibWebView/TabPerformanceStats.h>
 #include <QPainter>
 #include <QPainterPath>
+#include <UI/Qt/BrandColors.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/PerformanceMonitorWidget.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -65,7 +67,8 @@ void PerformanceMonitorWidget::paintEvent(QPaintEvent*)
     auto x = text_start;
     QString accessible_text;
     auto segments = text_segments();
-    Array<QColor, 5> colors { neutral, neutral, QColor(40, 135, 220), QColor(210, 130, 35), neutral };
+    auto dark = ChromeStyle::is_dark(palette());
+    Array<QColor, 5> colors { neutral, neutral, QColor(dark ? BrandColors::SlateBlue100 : BrandColors::SlateBlue900), QColor(dark ? BrandColors::Violet50 : BrandColors::Violet900), neutral };
     for (size_t i = 0; i < s_labels.size(); ++i) {
         QString label = s_labels[i];
         auto label_width = fontMetrics().horizontalAdvance(label);

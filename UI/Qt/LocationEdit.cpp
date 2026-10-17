@@ -77,9 +77,9 @@ private:
     }
 };
 
-static QColor location_focus_glow_color(QPalette const& palette, int alpha)
+static QColor location_focus_glow_color(int alpha)
 {
-    auto color = ChromeStyle::chrome_accent(palette);
+    auto color = ChromeStyle::chrome_accent();
     color.setAlpha(alpha);
     return color;
 }
@@ -406,7 +406,7 @@ void LocationEdit::update_focus_glow(int alpha)
 {
     m_focus_glow_alpha = alpha;
     if (m_focus_glow_effect)
-        m_focus_glow_effect->setColor(location_focus_glow_color(palette(), alpha));
+        m_focus_glow_effect->setColor(location_focus_glow_color(alpha));
 }
 
 void LocationEdit::animate_focus_glow(int target_alpha)
