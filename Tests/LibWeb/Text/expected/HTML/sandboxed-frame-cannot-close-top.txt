@@ -1,0 +1,1 @@
+PASS: sandboxed frame cannot close its top-level page
