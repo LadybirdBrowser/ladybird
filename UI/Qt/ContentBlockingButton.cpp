@@ -6,8 +6,10 @@
 
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/ContentBlockingButton.h>
+#include <UI/Qt/Icon.h>
 #include <UI/Qt/StringUtils.h>
 
+#include <QEvent>
 #include <QPainter>
 #include <QStyleOptionToolButton>
 #include <QStylePainter>
@@ -22,6 +24,16 @@ ContentBlockingButton::ContentBlockingButton(QWidget* parent)
     setAutoRaise(true);
     setFixedSize(sizeHint());
     setFocusPolicy(Qt::StrongFocus);
+    m_icon = create_chrome_icon(ChromeIcon::ContentBlocking, palette());
+}
+
+void ContentBlockingButton::changeEvent(QEvent* event)
+{
+    QToolButton::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange) {
+        m_icon = create_chrome_icon(ChromeIcon::ContentBlocking, palette());
+        update();
+    }
 }
 
 void ContentBlockingButton::set_snapshot(WebView::ContentBlockingSnapshot const& snapshot)
@@ -61,8 +73,8 @@ void ContentBlockingButton::paintEvent(QPaintEvent*)
     if (!m_snapshot.enabled())
         painter.setOpacity(0.45);
 
-    auto logo_rect = QRect((width() - 20) / 2, (height() - 20) / 2, 20, 20);
-    m_logo.paint(&painter, logo_rect);
+    auto icon_rect = QRect((width() - 20) / 2, (height() - 20) / 2, 20, 20);
+    m_icon.paint(&painter, icon_rect, Qt::AlignCenter, underMouse() || isDown() ? QIcon::Active : QIcon::Normal);
     painter.restore();
 
     auto badge = badge_text();
