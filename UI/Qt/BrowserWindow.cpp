@@ -1119,6 +1119,9 @@ void BrowserWindow::exit_fullscreen()
 bool BrowserWindow::event(QEvent* event)
 {
 #if defined(AK_OS_MACOS)
+    // NB: Qt sends this right after it sets the native title, which also puts the controls back in their default place.
+    if (event->type() == QEvent::WindowTitleChange)
+        reapply_appkit_window_control_offsets(*this);
     if (event->type() == QEvent::PlatformSurface) {
         auto* platform_surface_event = static_cast<QPlatformSurfaceEvent*>(event);
         if (platform_surface_event->surfaceEventType() == QPlatformSurfaceEvent::SurfaceCreated) {

@@ -29,6 +29,9 @@ void make_appkit_window_resizable(QWidget&);
 void keep_appkit_window_visible_while_inactive(QWidget&);
 void set_appkit_window_content_aspect_ratio(QWidget&, Gfx::IntSize);
 void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
+// AppKit puts the window controls back in their default place when the window title changes; this moves them back
+// to their offset right away, before the next frame is drawn.
+void reapply_appkit_window_control_offsets(QWidget&);
 void install_appkit_event_capture();
 void make_appkit_window_first_responder(QWidget&);
 bool start_appkit_window_drag(QWidget&);

@@ -409,6 +409,8 @@ void set_appkit_window_content_aspect_ratio(QWidget& widget, Gfx::IntSize aspect
     view.window.contentAspectRatio = NSMakeSize(aspect_ratio.width(), aspect_ratio.height());
 }
 
+static char s_window_control_offset_observer_key;
+
 void offset_appkit_window_controls(QWidget& widget, int x_offset, int y_offset)
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());
@@ -419,10 +421,19 @@ void offset_appkit_window_controls(QWidget& widget, int x_offset, int y_offset)
     if (!window)
         return;
 
-    static char observer_key;
     auto* observer = [[LadybirdWindowControlOffsetObserver alloc] initWithWindow:window xOffset:x_offset yOffset:y_offset];
-    objc_setAssociatedObject(window, &observer_key, observer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(window, &s_window_control_offset_observer_key, observer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [observer release];
+}
+
+void reapply_appkit_window_control_offsets(QWidget& widget)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.internalWinId());
+    if (!view || !view.window)
+        return;
+
+    LadybirdWindowControlOffsetObserver* observer = objc_getAssociatedObject(view.window, &s_window_control_offset_observer_key);
+    [observer applyWindowControlOffsets];
 }
 
 bool start_appkit_window_drag(QWidget& widget)
