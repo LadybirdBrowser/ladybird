@@ -2372,6 +2372,16 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             }
         }
 
+        // AD-HOC: The navigable can be destroyed while the response is on its way, e.g. a popup closed right after it
+        //         was opened, with nothing to navigate left.
+        if (state_holder->navigable->has_been_destroyed() || !state_holder->navigable->active_document()) {
+            state_holder->fetch_controller->abort(realm, {});
+            auto result = realm.heap().allocate<InternalNavigationResult>();
+            result->navigation_params = LocalNavigable::NullOrError {};
+            top_level_completion_steps->function()(*result);
+            return;
+        }
+
         // 8. If request's body is null, then set entry's document state's resource to null.
         if (state_holder->request->body().has<Empty>()) {
             state_holder->resource_cleared = true;

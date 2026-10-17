@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup closed right after it was opened has no document left by the time the response to its first navigation
+    // arrives.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const url = new URL(
+            await httpServer.createEcho("GET", "/popup-closed-before-its-first-response", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>popup",
+            })
+        );
+        url.hostname = uniqueLocalhostHostname("popup-closed-before-its-first-response");
+
+        const popup = window.open(url.href, "popup");
+        popup.close();
+        println(`popup.closed: ${popup.closed}`);
+
+        // The response has arrived once a fetch of the same URL completes.
+        await fetch(url.href, { mode: "no-cors" });
+        await timeout(100);
+        println("opener survived");
+    });
+</script>
