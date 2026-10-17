@@ -430,9 +430,16 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::import_key(JS::Realm& realm, KeyFormat fo
     // 1. Let format, algorithm, extractable and usages, be the format, algorithm, extractable and keyUsages
     //    parameters passed to the importKey() method, respectively.
 
+    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "importKey".
+    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "importKey"_string);
+
+    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
+    if (normalized_algorithm.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
+
     Variant<ByteBuffer, JsonWebKey, Empty> real_key_data;
 
-    // 2. If format is equal to the string "jwk":
+    // 4. If format is equal to the string "jwk":
     if (format == KeyFormat::Jwk) {
         // 1. If the keyData parameter passed to the importKey() method is not a JsonWebKey dictionary, throw a TypeError.
         if (!key_data.has<JsonWebKey>())
@@ -451,13 +458,6 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::import_key(JS::Realm& realm, KeyFormat fo
         //    importKey() method.
         real_key_data = MUST(WebIDL::get_buffer_source_copy(key_data.downcast<WebIDL::BufferSourceVariant>()));
     }
-
-    // 3. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "importKey".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "importKey"_string);
-
-    // 4. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 5. Let realm be the relevant realm of this.
 
