@@ -6,6 +6,7 @@ set(TEST_SOURCES
     TestFont.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
+    TestPath.cpp
     TestQuad.cpp
     TestRect.cpp
     TestSharedFontProvider.cpp

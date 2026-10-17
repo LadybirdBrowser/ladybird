@@ -309,6 +309,36 @@ float PathImplSkia::length() const
     return length;
 }
 
+// The point at a distance along the path, clamped to its ends, and the unit tangent of the path there. The gaps between
+// the subpaths do not add to the distance. A path without length is only its start point, where it has no tangent.
+Optional<PointAlongPath> PathImplSkia::point_at_length(float distance) const
+{
+    SkPathMeasure path_measure(sk_path(), false, path_measure_resolution_scale);
+    Optional<PointAlongPath> end_of_path;
+    auto remaining_distance = max(distance, 0.f);
+    do {
+        auto subpath_length = path_measure.getLength();
+        if (subpath_length <= 0)
+            continue;
+        SkPoint position;
+        SkVector tangent;
+        auto distance_in_subpath = min(remaining_distance, subpath_length);
+        if (!path_measure.getPosTan(distance_in_subpath, &position, &tangent))
+            continue;
+        end_of_path = PointAlongPath { { position.x(), position.y() }, { tangent.x(), tangent.y() } };
+        if (remaining_distance <= subpath_length)
+            return end_of_path;
+        remaining_distance -= subpath_length;
+    } while (path_measure.nextContour());
+
+    if (end_of_path.has_value())
+        return end_of_path;
+    if (sk_path().countPoints() == 0)
+        return {};
+    auto start = sk_path().getPoint(0);
+    return PointAlongPath { { start.x(), start.y() }, { 0, 0 } };
+}
+
 bool PathImplSkia::contains(FloatPoint point, Gfx::WindingRule winding_rule) const
 {
     SkPath temp_path = sk_path();
