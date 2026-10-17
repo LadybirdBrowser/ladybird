@@ -27,7 +27,7 @@ displayListTest({
             name: "move the second snap area",
             mutate: () => { area1.style.marginTop = "10px"; },
             expect: `
-                damage: rows=6 moved=2 order=1 eligibility=0 all=false
+                damage: rows=6 moved=2 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -50,7 +50,7 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
-                      BlockContainer<DIV>#snap/descendants(background-and-borders) REPLAN
+                      BlockContainer<DIV>#snap/descendants(background-and-borders) ASSEMBLE
                         BlockContainer<DIV>#snap/background/hit-test COPY
                         BlockContainer<DIV>#snap/scroll-metadata RECORD
                         BlockContainer<DIV>#snap/background COPY
@@ -71,7 +71,7 @@ displayListTest({
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
-                      BlockContainer<DIV>#snap/descendants(foreground) REPLAN
+                      BlockContainer<DIV>#snap/descendants(foreground) ASSEMBLE
                         BlockContainer<DIV>#snap/foreground/hit-test COPY
                         BlockContainer<DIV>#snap/foreground COPY
                         BlockContainer<DIV>#area0.area/descendants(foreground) COPY
