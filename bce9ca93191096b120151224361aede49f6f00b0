@@ -1,0 +1,9 @@
+Ladybird hands every process hosting a frame of a tab the tab’s
+User-Agent and settings. WebKit’s WebPageProxy::setUserAgent() sends
+SetUserAgent to each of the page’s processes with
+forEachWebContentProcess(); Chromium’s WebContentsImpl::
+SyncRendererPrefs() broadcasts the RendererPreferences, the
+user_agent_override among them, to every RenderViewHost of the
+WebContents; and Gecko keeps the override in BrowsingContext’s synced
+UserAgentOverride field, which every process holding the context gets.
+All three reach a cross-site iframe’s process, as Ladybird now does.
