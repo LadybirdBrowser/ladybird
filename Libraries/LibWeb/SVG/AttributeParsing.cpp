@@ -158,4 +158,12 @@ Optional<ViewBox> parse_viewbox(Utf16View input)
     return ViewBox { min_x, min_y, width, height };
 }
 
+Optional<double> parse_clock_value_in_milliseconds(Utf16View input)
+{
+    double value;
+    if (!RustFFI::rust_parse_svg_clock_value_in_milliseconds(ffi_svg_input(input), &value))
+        return {};
+    return value;
+}
+
 }

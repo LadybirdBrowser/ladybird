@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <rect width="10" height="10">
+        <set data-label="clock value" attributeName="fill" to="green" dur="01:02.5"/>
+        <set data-label="milliseconds" attributeName="fill" to="green" dur="250ms"/>
+        <set data-label="no dur" attributeName="fill" to="green"/>
+        <set data-label="indefinite" attributeName="fill" to="green" dur="indefinite"/>
+        <set data-label="zero" attributeName="fill" to="green" dur="0s"/>
+        <set data-label="invalid" attributeName="fill" to="green" dur="1 s"/>
+    </rect>
+</svg>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll("set")) {
+            try {
+                println(`${element.getAttribute("data-label")}: ${element.getSimpleDuration()}`);
+            } catch (error) {
+                println(`${element.getAttribute("data-label")}: ${error.name}`);
+            }
+        }
+    });
+</script>

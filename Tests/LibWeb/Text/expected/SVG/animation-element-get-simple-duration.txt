@@ -1,0 +1,6 @@
+clock value: 62.5
+milliseconds: 0.25
+no dur: NotSupportedError
+indefinite: NotSupportedError
+zero: NotSupportedError
+invalid: NotSupportedError

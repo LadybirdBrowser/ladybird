@@ -10,10 +10,13 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SMILAnimation.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::SVG {
 
@@ -49,7 +52,7 @@ void SVGAnimationElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node
 void SVGAnimationElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
-    if (name == AttributeNames::attributeName && !namespace_.has_value())
+    if (first_is_one_of(name, AttributeNames::attributeName, AttributeNames::dur, AttributeNames::fill) && !namespace_.has_value())
         update_animation();
 }
 
@@ -82,6 +85,37 @@ Optional<CSS::PropertyID> SVGAnimationElement::target_property() const
     return property_id;
 }
 
+// https://svgwg.org/specs/animations/#DurAttribute
+double SVGAnimationElement::simple_duration() const
+{
+    // If the animation does not have a ‘dur’ attribute, the simple duration is indefinite.
+    auto dur = get_attribute(AttributeNames::dur);
+    if (!dur.has_value())
+        return AK::Infinity<double>;
+
+    // Clock-value
+    //     Specifies the length of the simple duration in presentation time. Value must be greater than 0.
+    if (auto duration = parse_clock_value_in_milliseconds(*dur); duration.has_value() && *duration > 0)
+        return *duration;
+
+    // NB: An "indefinite" value specifies an indefinite simple duration, SVG ignores a "media" value, and SMIL
+    //     Animation ignores a value with any error in its syntax. Each leaves the simple duration indefinite.
+    return AK::Infinity<double>;
+}
+
+// https://svgwg.org/specs/animations/#FillAttribute
+Bindings::FillMode SVGAnimationElement::fill_mode() const
+{
+    // freeze
+    //     The animation effect F(t) is defined to freeze the effect value at the last value of the active duration.
+    if (auto fill = get_attribute(AttributeNames::fill); fill.has_value() && *fill == "freeze"sv)
+        return Bindings::FillMode::Forwards;
+
+    // remove
+    //     The animation effect is removed (no longer applied) when the active duration of the animation is over.
+    return Bindings::FillMode::None;
+}
+
 void SVGAnimationElement::update_animation()
 {
     if (m_animation) {
@@ -101,13 +135,15 @@ void SVGAnimationElement::update_animation()
     if (keyframes.is_empty())
         return;
 
-    // FIXME: Resolve the interval to play from the begin, dur and end attributes, and the other timing attributes.
+    // FIXME: Resolve the interval to play from the begin and end attributes, and the other timing attributes.
     // FIXME: A running animation requests a rendering update on every frame, even when its output cannot change, as
-    //        with this indefinite one. This keeps the rendering loop running for as long as the element is connected.
-    auto effect = MUST(Animations::KeyframeEffect::create_from_processed_keyframes(target, move(keyframes), AK::Infinity<double>));
+    //        with an indefinite one. This keeps the rendering loop running for as long as such an animation is active.
+    auto effect = MUST(Animations::KeyframeEffect::create_from_processed_keyframes(target, move(keyframes), simple_duration()));
+    effect->set_fill_mode(fill_mode());
 
-    // AD-HOC: Animations begin once their element is connected, on the document's default timeline. They should
-    //         begin at the document begin of their SVG document fragment, which is the time of its load event.
+    // AD-HOC: Animations begin once their element is connected, and begin again whenever an attribute they depend on
+    //         changes, on the document's default timeline. They should begin at the document begin of their SVG
+    //         document fragment, which is the time of its load event.
     auto animation = SMILAnimation::create(*this);
     animation->set_timeline(document().timeline());
     animation->set_effect(effect);
@@ -150,6 +186,18 @@ void SVGAnimationElement::set_onrepeat(GC::Ptr<WebIDL::CallbackType> value)
 GC::Ptr<WebIDL::CallbackType> SVGAnimationElement::onrepeat()
 {
     return event_handler_attribute(HTML::EventNames::repeatEvent);
+}
+
+// https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__getSimpleDuration
+WebIDL::ExceptionOr<float> SVGAnimationElement::get_simple_duration()
+{
+    // Returns the number of seconds for the simple duration for this animation. If the simple duration is undefined
+    // (e.g., the end time is indefinite), then an exception is raised.
+    // NB: The exception is a DOMException with code NOT_SUPPORTED_ERR.
+    auto duration = simple_duration();
+    if (isinf(duration))
+        return WebIDL::NotSupportedError::create(HTML::relevant_realm(*this), "The simple duration is indefinite"_utf16);
+    return static_cast<float>(duration / 1000.);
 }
 
 }
