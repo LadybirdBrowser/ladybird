@@ -48,6 +48,9 @@ struct FlexItem<'pass> {
     used_flex_basis_is_definite: bool,
     main_size_was_resolved_from_aspect_ratio: bool,
     cross_size_was_resolved_from_aspect_ratio: bool,
+    // The cross size transferred through the aspect ratio before the automatic minimum size grew it to fit the
+    // content. The content resolves percentages against it.
+    cross_size_transferred_through_aspect_ratio: Option<CssPixels>,
     flex_base_size: CssPixels,
     hypothetical_main_size: CssPixels,
     hypothetical_cross_size: CssPixels,
@@ -80,6 +83,7 @@ impl FlexItem<'_> {
             used_flex_basis_is_definite: false,
             main_size_was_resolved_from_aspect_ratio: false,
             cross_size_was_resolved_from_aspect_ratio: false,
+            cross_size_transferred_through_aspect_ratio: None,
             flex_base_size: CssPixels::default(),
             hypothetical_main_size: CssPixels::default(),
             hypothetical_cross_size: CssPixels::default(),
@@ -1715,18 +1719,20 @@ impl<'pass> FlexFormattingContext<'pass> {
             let main_size = self.flex_items[index].main_size.unwrap();
             let transferred_cross_size = self.cross_size_from_main_size_and_aspect_ratio(node, main_size);
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
-            let clamp_min = self
-                .sizing()
-                .automatic_minimum_size_from_aspect_ratio(
-                    node,
-                    self.cross_sizing_axis(),
-                    main_size,
-                    transferred_cross_size,
-                    self.available_space_for_items.unwrap().space,
-                    self.item_containing_block_constraints(),
-                    None,
-                )
-                .unwrap_or(clamp_min);
+            let automatic_minimum = self.sizing().automatic_minimum_size_from_aspect_ratio(
+                node,
+                self.cross_sizing_axis(),
+                main_size,
+                transferred_cross_size,
+                self.available_space_for_items.unwrap().space,
+                self.item_containing_block_constraints(),
+                None,
+            );
+            let transferred = css_clamp(transferred_cross_size, clamp_min, clamp_max);
+            self.flex_items[index].cross_size_transferred_through_aspect_ratio = automatic_minimum
+                .filter(|&minimum| minimum > transferred)
+                .map(|_| transferred);
+            let clamp_min = automatic_minimum.unwrap_or(clamp_min);
             self.flex_items[index].hypothetical_cross_size = css_clamp(transferred_cross_size, clamp_min, clamp_max);
             self.flex_items[index].cross_size_was_resolved_from_aspect_ratio = self.has_definite_main_size(index);
             return;
@@ -1912,7 +1918,16 @@ impl<'pass> FlexFormattingContext<'pass> {
                     // The axis in which the preferred size calculation depends on this aspect ratio is called the
                     // ratio-dependent axis, and the resulting size is definite if its input sizes are also definite.
                     if self.flex_items[index].cross_size_was_resolved_from_aspect_ratio {
-                        self.set_cross_size(index, size);
+                        // NB: When the automatic minimum size grew the transferred size to fit the content, the content
+                        //     is laid out against the transferred size, and the item takes its grown size afterwards.
+                        let percentage_basis = if self.cross_axis_is_horizontal() {
+                            size
+                        } else {
+                            self.flex_items[index]
+                                .cross_size_transferred_through_aspect_ratio
+                                .unwrap_or(size)
+                        };
+                        self.set_cross_size(index, percentage_basis);
                         self.set_has_definite_cross_size(index);
                     }
                 }
@@ -2429,7 +2444,18 @@ impl<'pass> FlexFormattingContext<'pass> {
                 used.border_bottom.set(style.border_bottom_width());
             }
             self.set_main_size(index, self.flex_items[index].main_size.unwrap());
-            self.set_cross_size(index, self.flex_items[index].cross_size.unwrap());
+            // NB: An item whose transferred cross size grows to fit its content lays out that content against the
+            //     transferred size, and grows to the used cross size in its own layout.
+            let cross_size = if self.flex_items[index].cross_size_was_resolved_from_aspect_ratio
+                && !self.cross_axis_is_horizontal()
+            {
+                self.flex_items[index]
+                    .cross_size_transferred_through_aspect_ratio
+                    .unwrap_or(self.flex_items[index].cross_size.unwrap())
+            } else {
+                self.flex_items[index].cross_size.unwrap()
+            };
+            self.set_cross_size(index, cross_size);
         }
     }
 
@@ -2478,6 +2504,15 @@ impl<'pass> FlexFormattingContext<'pass> {
             let stretched_table_box_block_size = self.flex_items[index].cross_size.unwrap() - captions_block_size;
             input.sizing.forced_min_border_box_block_size =
                 Some(stretched_table_box_block_size.max(sizes.table_box_border_box_block_size));
+        }
+
+        if self.flex_items[index].cross_size_was_resolved_from_aspect_ratio
+            && !self.cross_axis_is_horizontal()
+            && self.flex_items[index]
+                .cross_size_transferred_through_aspect_ratio
+                .is_some()
+        {
+            input.sizing.content_block_size_after_inside_layout = self.flex_items[index].cross_size;
         }
 
         self.flex_items[index].content_baselines =

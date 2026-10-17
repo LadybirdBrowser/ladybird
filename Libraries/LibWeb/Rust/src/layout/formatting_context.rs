@@ -1901,6 +1901,9 @@ fn execute_formatting_context_run(
                         let used = run.records.used_values(run.box_);
                         used.set_content_block_size(result.automatic_content_block_size);
                     }
+                    if let Some(block_size) = input.sizing.content_block_size_after_inside_layout {
+                        run.records.used_values(run.box_).set_content_block_size(block_size);
+                    }
                 }
                 ParticipationInParentFormattingContext::Root => {}
             }

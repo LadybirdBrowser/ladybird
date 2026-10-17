@@ -132,6 +132,9 @@ pub(crate) struct RootSizingDirectives {
     // wrapper) can be placed in wrapper coordinates.
     pub(crate) table_box_content_block_offset_in_wrapper: Option<CssPixels>,
     pub(crate) adopt_automatic_content_block_size: bool,
+    // Input-only: a flex item lays out its content against the block size transferred through its aspect ratio, then
+    // takes this block size, which the automatic minimum size grew to fit the content.
+    pub(crate) content_block_size_after_inside_layout: Option<CssPixels>,
     pub(crate) flex_self_block_size_resolution_space: Option<AvailableSpace>,
     pub(crate) float_avoidance_inline_size: Option<CssPixels>,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
