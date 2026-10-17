@@ -1742,6 +1742,15 @@ impl AbsposEngine<'_> {
         let used = self.used(node);
         used.set_content_block_size(block_size);
         if style.height().is_auto() && pass == BlockSizePass::BeforeInsideLayout {
+            // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+            // A block size transferred through the preferred aspect ratio from a definite inline size is definite, so
+            // the content resolves percentages against it.
+            if !self
+                .sizing()
+                .should_treat_block_size_as_auto(node, available_space, constraints)
+            {
+                used.has_definite_block_size.set(true);
+            }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
