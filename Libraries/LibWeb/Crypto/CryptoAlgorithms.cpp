@@ -94,6 +94,28 @@ Vector<KeyUsage> normalized_key_usages(ReadonlySpan<KeyUsage> usages)
     return usage_intersection(usages, { { KeyUsage::Encrypt, KeyUsage::Decrypt, KeyUsage::Sign, KeyUsage::Verify, KeyUsage::DeriveKey, KeyUsage::DeriveBits, KeyUsage::WrapKey, KeyUsage::UnwrapKey, KeyUsage::EncapsulateKey, KeyUsage::EncapsulateBits, KeyUsage::DecapsulateKey, KeyUsage::DecapsulateBits } });
 }
 
+// https://w3c.github.io/webcrypto/#dfn-validate-rsa-key-generation-parameters
+static WebIDL::ExceptionOr<void> validate_rsa_key_generation_parameters(RsaKeyGenParams const& normalized_algorithm)
+{
+    // 1. Let modulusLength be the modulusLength member of normalizedAlgorithm.
+    auto modulus_length = normalized_algorithm.modulus_length;
+
+    // 2. Let publicExponent be the result of converting the publicExponent member of normalizedAlgorithm to a
+    //    non-negative integer.
+    auto const& public_exponent = normalized_algorithm.public_exponent;
+
+    // 3. If modulusLength is less than 4, or if publicExponent is less than 3, is even, or is greater than or equal to
+    //    2^modulusLength - 1, then throw an OperationError.
+    // NOTE: publicExponent + 1 has more than modulusLength bits exactly when publicExponent >= 2^modulusLength - 1.
+    if (modulus_length < 4
+        || public_exponent < ::Crypto::UnsignedBigInteger { 3 }
+        || !public_exponent.is_odd()
+        || public_exponent.plus(1).one_based_index_of_highest_set_bit() > modulus_length)
+        return WebIDL::OperationError::create("Invalid RSA key generation parameters"_utf16);
+
+    return {};
+}
+
 static StringView key_usage_to_string(KeyUsage usage)
 {
     switch (usage) {
@@ -930,10 +952,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAOAEP::generat
         }
     }
 
-    // 2. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
-    //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
-    // 3. If performing the operation results in an error, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
+
+    // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+    TRY(validate_rsa_key_generation_parameters(normalized_algorithm));
+
+    // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
+    //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
+    // 4. If performing the operation results in an error, then throw an OperationError.
     auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
     if (maybe_key_pair.is_error())
         return WebIDL::OperationError::create("Failed generating RSA key pair"_utf16);
@@ -943,53 +969,53 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAOAEP::generat
     auto public_exponent = TRY(export_public_exponent(realm.vm(), normalized_algorithm.public_exponent));
     auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
 
-    // 9. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+    // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
 
-    // 10. Set the [[type]] internal slot of publicKey to "public"
+    // 11. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(KeyType::Public);
 
-    // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
-    // 5. Set the name attribute of algorithm to "RSA-OAEP".
-    // 6. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
-    // 7. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
-    // 8. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
-    // 11. Set the [[algorithm]] internal slot of publicKey to algorithm.
+    // 5. Let algorithm be a new RsaHashedKeyAlgorithm object.
+    // 6. Set the name attribute of algorithm to "RSA-OAEP".
+    // 7. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
+    // 8. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+    // 9. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
+    // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
     public_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
         "RSA-OAEP"_utf16,
         normalized_algorithm.modulus_length,
         TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(public_exponent)),
         hash_name });
 
-    // 12. Set the [[extractable]] internal slot of publicKey to true.
+    // 13. Set the [[extractable]] internal slot of publicKey to true.
     public_key->set_extractable(true);
 
-    // 13. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encrypt", "wrapKey" ].
+    // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encrypt", "wrapKey" ].
     public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Encrypt, KeyUsage::WrapKey } }));
 
-    // 14. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+    // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.private_key });
 
-    // 15. Set the [[type]] internal slot of privateKey to "private"
+    // 16. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(KeyType::Private);
 
-    // 16. Set the [[algorithm]] internal slot of privateKey to algorithm.
+    // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
         "RSA-OAEP"_utf16,
         normalized_algorithm.modulus_length,
         move(public_exponent),
         move(hash_name) });
 
-    // 17. Set the [[extractable]] internal slot of privateKey to extractable.
+    // 18. Set the [[extractable]] internal slot of privateKey to extractable.
     private_key->set_extractable(extractable);
 
-    // 18. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decrypt", "unwrapKey" ].
+    // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decrypt", "unwrapKey" ].
     private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Decrypt, KeyUsage::UnwrapKey } }));
 
-    // 19. Let result be a new CryptoKeyPair dictionary.
-    // 20. Set the publicKey attribute of result to be publicKey.
-    // 21. Set the privateKey attribute of result to be privateKey.
-    // 22. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+    // 20. Let result be a new CryptoKeyPair dictionary.
+    // 21. Set the publicKey attribute of result to be publicKey.
+    // 22. Set the privateKey attribute of result to be privateKey.
+    // 23. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
     return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
@@ -1427,10 +1453,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAPSS::generate
         }
     }
 
-    // 2. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
-    //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
-    // 3. If performing the operation results in an error, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
+
+    // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+    TRY(validate_rsa_key_generation_parameters(normalized_algorithm));
+
+    // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
+    //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
+    // 4. If performing the operation results in an error, then throw an OperationError.
     auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
     if (maybe_key_pair.is_error())
         return WebIDL::OperationError::create("Failed to generate RSA key pair"_utf16);
@@ -1440,53 +1470,53 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAPSS::generate
     auto public_exponent = TRY(export_public_exponent(realm.vm(), normalized_algorithm.public_exponent));
     auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
 
-    // 9. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+    // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
 
-    // 10. Set the [[type]] internal slot of publicKey to "public"
+    // 11. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(KeyType::Public);
 
-    // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
-    // 5. Set the name attribute of algorithm to "RSA-PSS".
-    // 6. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
-    // 7. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
-    // 8. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
-    // 11. Set the [[algorithm]] internal slot of publicKey to algorithm.
+    // 5. Let algorithm be a new RsaHashedKeyAlgorithm object.
+    // 6. Set the name attribute of algorithm to "RSA-PSS".
+    // 7. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
+    // 8. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+    // 9. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
+    // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
     public_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
         "RSA-PSS"_utf16,
         normalized_algorithm.modulus_length,
         TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(public_exponent)),
         hash_name });
 
-    // 12. Set the [[extractable]] internal slot of publicKey to true.
+    // 13. Set the [[extractable]] internal slot of publicKey to true.
     public_key->set_extractable(true);
 
-    // 13. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+    // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
     public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Verify } }));
 
-    // 14. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+    // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.private_key });
 
-    // 15. Set the [[type]] internal slot of privateKey to "private"
+    // 16. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(KeyType::Private);
 
-    // 16. Set the [[algorithm]] internal slot of privateKey to algorithm.
+    // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
         "RSA-PSS"_utf16,
         normalized_algorithm.modulus_length,
         move(public_exponent),
         move(hash_name) });
 
-    // 17. Set the [[extractable]] internal slot of privateKey to extractable.
+    // 18. Set the [[extractable]] internal slot of privateKey to extractable.
     private_key->set_extractable(extractable);
 
-    // 18. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+    // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
     private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Sign } }));
 
-    // 19. Let result be a new CryptoKeyPair dictionary.
-    // 20. Set the publicKey attribute of result to be publicKey.
-    // 21. Set the privateKey attribute of result to be privateKey.
-    // 22. Return result.
+    // 20. Let result be a new CryptoKeyPair dictionary.
+    // 21. Set the publicKey attribute of result to be publicKey.
+    // 22. Set the privateKey attribute of result to be privateKey.
+    // 23. Return result.
     return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
@@ -2004,10 +2034,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSASSAPKCS1::gen
         }
     }
 
-    // 2. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
-    //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
-    // 3. If performing the operation results in an error, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
+
+    // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+    TRY(validate_rsa_key_generation_parameters(normalized_algorithm));
+
+    // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
+    //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
+    // 4. If performing the operation results in an error, then throw an OperationError.
     auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
     if (maybe_key_pair.is_error())
         return WebIDL::OperationError::create("Failed to generate RSA key pair"_utf16);
@@ -2017,53 +2051,53 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSASSAPKCS1::gen
     auto public_exponent = TRY(export_public_exponent(realm.vm(), normalized_algorithm.public_exponent));
     auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
 
-    // 9. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+    // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
 
-    // 10. Set the [[type]] internal slot of publicKey to "public"
+    // 11. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(KeyType::Public);
 
-    // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
-    // 5. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5".
-    // 6. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
-    // 7. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
-    // 8. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
-    // 11. Set the [[algorithm]] internal slot of publicKey to algorithm.
+    // 5. Let algorithm be a new RsaHashedKeyAlgorithm object.
+    // 6. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5".
+    // 7. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
+    // 8. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+    // 9. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
+    // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
     public_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
         "RSASSA-PKCS1-v1_5"_utf16,
         normalized_algorithm.modulus_length,
         TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(public_exponent)),
         hash_name });
 
-    // 12. Set the [[extractable]] internal slot of publicKey to true.
+    // 13. Set the [[extractable]] internal slot of publicKey to true.
     public_key->set_extractable(true);
 
-    // 13. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+    // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
     public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Verify } }));
 
-    // 14. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+    // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.private_key });
 
-    // 15. Set the [[type]] internal slot of privateKey to "private"
+    // 16. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(KeyType::Private);
 
-    // 16. Set the [[algorithm]] internal slot of privateKey to algorithm.
+    // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
         "RSASSA-PKCS1-v1_5"_utf16,
         normalized_algorithm.modulus_length,
         move(public_exponent),
         move(hash_name) });
 
-    // 17. Set the [[extractable]] internal slot of privateKey to extractable.
+    // 18. Set the [[extractable]] internal slot of privateKey to extractable.
     private_key->set_extractable(extractable);
 
-    // 18. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+    // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
     private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Sign } }));
 
-    // 19. Let result be a new CryptoKeyPair dictionary.
-    // 20. Set the publicKey attribute of result to be publicKey.
-    // 21. Set the privateKey attribute of result to be privateKey.
-    // 22. Return result.
+    // 20. Let result be a new CryptoKeyPair dictionary.
+    // 21. Set the publicKey attribute of result to be publicKey.
+    // 22. Set the privateKey attribute of result to be privateKey.
+    // 23. Return result.
     return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
