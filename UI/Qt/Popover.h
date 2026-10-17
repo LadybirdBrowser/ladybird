@@ -13,6 +13,7 @@
 
 class QFrame;
 class QHideEvent;
+class QShowEvent;
 
 namespace Ladybird {
 
@@ -22,8 +23,13 @@ public:
 
     QFrame& card() { return *m_card; }
 
+    Function<void(bool)> on_visibility_change;
+
 protected:
     explicit Popover(QWidget* parent);
+
+    virtual void showEvent(QShowEvent*) override;
+    virtual void hideEvent(QHideEvent*) override;
 
 private:
     QFrame* m_card { nullptr };
