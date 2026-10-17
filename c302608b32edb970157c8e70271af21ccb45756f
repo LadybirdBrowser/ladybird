@@ -1,0 +1,9 @@
+Ladybird seeds a new profile’s languages from the platform’s
+preferred-languages list, keeping the first entry and its language
+subtag. Chrome’s default for its intl.accept_languages pref is the
+localized IDS_ACCEPT_LANGUAGES string, "en-US,en" for an English UI
+(components/language/core/browser/language_prefs.cc). Firefox sets
+intl.accept_languages to "und" in all.js and replaces it with the
+locale’s intl.properties value, "en-US, en" for en-US. WebKit’s
+NavigatorBase::languages() returns WTF’s userPreferredLanguages(),
+the system’s own list.
