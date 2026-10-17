@@ -17,6 +17,7 @@ use super::byte_ranges::{
     upload_range, upload_range_of_2d_texture,
 };
 use super::canvas::{is_valid_2d_pixel_unpack_state, required_2d_texture_data_size};
+use super::pixel_unpacking::ImageUnpackConversion;
 use super::proxy::recorder::{PlainNumber, bytes_of};
 use super::state::ContextState;
 use super::types::Float32List;
@@ -83,6 +84,24 @@ impl SourceBytes {
         unsafe { with_bytes_of_buffer(&self.buffer, self.range.bytes_in_buffer(), function) }
             .expect("nothing has run since the bytes were found")
     }
+
+    fn copy(&self) -> Vec<u8> {
+        copy_of_bytes_of_buffer(&self.buffer, self.range.bytes_in_buffer())
+            .expect("nothing has run since the bytes were found")
+    }
+}
+
+/// The pixels that texImage2D or texSubImage2D upload from an ArrayBufferView.
+pub(crate) struct TextureData {
+    bytes: SourceBytes,
+    /// `None` when GL takes the pixels as they are.
+    conversion: Option<ImageUnpackConversion>,
+}
+
+impl TextureData {
+    pub(crate) fn gl_size(&self) -> i32 {
+        self.bytes.gl_size()
+    }
 }
 
 impl ContextState {
@@ -122,7 +141,7 @@ impl ContextState {
         height: i32,
         format: u32,
         r#type: u32,
-    ) -> Result<SourceBytes, OutOfRange> {
+    ) -> Result<TextureData, OutOfRange> {
         let unpack_state = self.unpack_state.get();
         if !is_valid_2d_pixel_unpack_state(width, &unpack_state) {
             return Err(OutOfRange);
@@ -130,7 +149,43 @@ impl ContextState {
         let size_that_the_image_takes = required_2d_texture_data_size(width, height, format, r#type, &unpack_state);
         let (buffer, extent) = buffer_and_extent_of(&BufferSource::from(source));
         let range = upload_range_of_2d_texture(&extent, src_offset, size_that_the_image_takes)?;
-        Ok(SourceBytes { buffer, range })
+
+        let flip_y = self.unpack_flip_y.get();
+        let premultiply_alpha = self.unpack_premultiply_alpha.get();
+        let conversion = (flip_y || premultiply_alpha).then_some(ImageUnpackConversion {
+            width,
+            height,
+            format,
+            r#type,
+            unpack_state,
+            flip_y,
+            premultiply_alpha,
+        });
+        Ok(TextureData {
+            bytes: SourceBytes { buffer, range },
+            conversion,
+        })
+    }
+
+    /// `record` gets `None` when the source has no bytes from the offset of the upload on, and otherwise the pixels,
+    /// flipped and premultiplied as UNPACK_FLIP_Y_WEBGL and UNPACK_PREMULTIPLY_ALPHA_WEBGL ask. Converted pixels are
+    /// a copy, which leaves the memory of script as it is.
+    ///
+    /// # Safety
+    ///
+    /// As for upload().
+    pub(crate) unsafe fn upload_texture_data<R>(
+        &self,
+        texture_data: &TextureData,
+        record: impl FnOnce(Option<&[u8]>) -> R,
+    ) -> R {
+        let Some(conversion) = texture_data.conversion else {
+            // SAFETY: The caller keeps `record` from running script and from allocating.
+            return unsafe { self.upload_through_nullable_pointer(&texture_data.bytes, record) };
+        };
+        let mut pixels = texture_data.bytes.copy();
+        conversion.convert(&mut pixels);
+        record(texture_data.bytes.range.source_has_bytes().then_some(&pixels))
     }
 }
 

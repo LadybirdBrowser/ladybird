@@ -1,0 +1,30 @@
+RGBA/UNSIGNED_BYTE, texImage2D, no flags: NO_ERROR, texture rows: 200,100,50,51 | 255,255,255,0
+RGBA/UNSIGNED_BYTE, texImage2D, flipY: NO_ERROR, texture rows: 255,255,255,0 | 200,100,50,51
+RGBA/UNSIGNED_BYTE, texImage2D, premultiplyAlpha: NO_ERROR, texture rows: 40,20,10,51 | 0,0,0,0
+RGBA/UNSIGNED_BYTE, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,0 | 40,20,10,51
+RGBA/UNSIGNED_BYTE, texSubImage2D, no flags: NO_ERROR, texture rows: 200,100,50,51 | 255,255,255,0
+RGBA/UNSIGNED_BYTE, texSubImage2D, flipY: NO_ERROR, texture rows: 255,255,255,0 | 200,100,50,51
+RGBA/UNSIGNED_BYTE, texSubImage2D, premultiplyAlpha: NO_ERROR, texture rows: 40,20,10,51 | 0,0,0,0
+RGBA/UNSIGNED_BYTE, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,0 | 40,20,10,51
+RGB/UNSIGNED_BYTE, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 70,80,90,255 100,110,120,255 | 10,20,30,255 40,50,60,255
+RGB/UNSIGNED_BYTE, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 70,80,90,255 100,110,120,255 | 10,20,30,255 40,50,60,255
+LUMINANCE_ALPHA/UNSIGNED_BYTE, texImage2D, premultiplyAlpha: NO_ERROR, texture rows: 40,40,40,51 | 100,100,100,255
+LUMINANCE_ALPHA/UNSIGNED_BYTE, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 100,100,100,255 | 40,40,40,51
+LUMINANCE_ALPHA/UNSIGNED_BYTE, texSubImage2D, premultiplyAlpha: NO_ERROR, texture rows: 40,40,40,51 | 100,100,100,255
+LUMINANCE_ALPHA/UNSIGNED_BYTE, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 100,100,100,255 | 40,40,40,51
+ALPHA/UNSIGNED_BYTE, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,255 | 0,0,0,51
+ALPHA/UNSIGNED_BYTE, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,255 | 0,0,0,51
+LUMINANCE/UNSIGNED_BYTE, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 255,255,255,255 | 51,51,51,255
+LUMINANCE/UNSIGNED_BYTE, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 255,255,255,255 | 51,51,51,255
+RGBA/UNSIGNED_SHORT_4_4_4_4, texImage2D, premultiplyAlpha: NO_ERROR, texture rows: 102,68,34,102 | 0,0,0,0
+RGBA/UNSIGNED_SHORT_4_4_4_4, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,0 | 102,68,34,102
+RGBA/UNSIGNED_SHORT_4_4_4_4, texSubImage2D, premultiplyAlpha: NO_ERROR, texture rows: 102,68,34,102 | 0,0,0,0
+RGBA/UNSIGNED_SHORT_4_4_4_4, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,0 | 102,68,34,102
+RGBA/UNSIGNED_SHORT_5_5_5_1, texImage2D, premultiplyAlpha: NO_ERROR, texture rows: 255,132,0,255 | 0,0,0,0
+RGBA/UNSIGNED_SHORT_5_5_5_1, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,0 | 255,132,0,255
+RGBA/UNSIGNED_SHORT_5_5_5_1, texSubImage2D, premultiplyAlpha: NO_ERROR, texture rows: 255,132,0,255 | 0,0,0,0
+RGBA/UNSIGNED_SHORT_5_5_5_1, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,0,0,0 | 255,132,0,255
+RGB/UNSIGNED_SHORT_5_6_5, texImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,255,255,255 | 255,0,0,255
+RGB/UNSIGNED_SHORT_5_6_5, texSubImage2D, flipY+premultiplyAlpha: NO_ERROR, texture rows: 0,255,255,255 | 255,0,0,255
+too short source, texImage2D, flipY+premultiplyAlpha: INVALID_OPERATION
+too short source, texSubImage2D, flipY+premultiplyAlpha: INVALID_OPERATION

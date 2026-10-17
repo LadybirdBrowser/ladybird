@@ -14,28 +14,8 @@ use core::ptr::NonNull;
 use libjs_rust::api::{Gc, Object, Realm};
 
 use super::host::Frame;
+use super::pixel_unpacking::PixelUnpackState;
 use crate::bindings::conversions::CppInterface;
-
-/// Mirrors `Compositing::WebGL::PixelUnpackState`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
-pub(crate) struct PixelUnpackState {
-    pub(crate) alignment: usize,
-    pub(crate) row_length: usize,
-    pub(crate) skip_pixels: usize,
-    pub(crate) skip_rows: usize,
-}
-
-impl Default for PixelUnpackState {
-    fn default() -> Self {
-        Self {
-            alignment: 4,
-            row_length: 0,
-            skip_pixels: 0,
-            skip_rows: 0,
-        }
-    }
-}
 
 /// In the order of the C++ enum of the same name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

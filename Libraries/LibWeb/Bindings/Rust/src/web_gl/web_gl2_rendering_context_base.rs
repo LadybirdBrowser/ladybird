@@ -332,6 +332,9 @@ impl RenderingContext<WebGL2> {
             return Ok(());
         };
 
+        if !self.unpack_flags_allow_3d_upload_from_array_buffer_view() {
+            return Ok(());
+        }
         let Ok(bytes) = source_bytes(src_data.into(), 0, 0) else {
             self.set_error(GL_INVALID_OPERATION);
             return Ok(());
@@ -373,6 +376,9 @@ impl RenderingContext<WebGL2> {
         src_data: ArrayBufferView,
         src_offset: u64,
     ) -> WebIdlResult<()> {
+        if !self.unpack_flags_allow_3d_upload_from_array_buffer_view() {
+            return Ok(());
+        }
         let Ok(bytes) = source_bytes(src_data.into(), src_offset, 0) else {
             self.set_error(GL_INVALID_OPERATION);
             return Ok(());
@@ -447,6 +453,9 @@ impl RenderingContext<WebGL2> {
             return Ok(());
         };
 
+        if !self.unpack_flags_allow_3d_upload_from_array_buffer_view() {
+            return Ok(());
+        }
         let Ok(bytes) = source_bytes(src_data.into(), src_offset, 0) else {
             self.set_error(GL_INVALID_OPERATION);
             return Ok(());

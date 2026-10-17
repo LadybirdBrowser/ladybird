@@ -10,6 +10,7 @@
 pub(crate) mod buffer_kind;
 pub(crate) mod byte_ranges;
 pub(crate) mod constants;
+pub(crate) mod pixel_unpacking;
 pub(crate) mod proxy;
 
 // What follows runs on the JS runtime, which the tests of the crate do not link.
