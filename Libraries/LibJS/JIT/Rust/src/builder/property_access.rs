@@ -297,7 +297,8 @@ impl GraphBuilder<'_> {
     /// `%TypedArray%.prototype.length` on the same prototype: the length the
     /// typed array caches, after checking the getter and that the object is
     /// a typed array. Typed arrays without a cached length (empty, detached
-    /// or viewing a resizable buffer) take the instruction's slow path.
+    /// or viewing a resizable buffer) exit, or take the instruction's slow
+    /// path where that happened before.
     pub(super) fn try_build_typed_array_length(
         &mut self,
         dst: Operand,
@@ -345,6 +346,9 @@ impl GraphBuilder<'_> {
             return Ok(false);
         }
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        // NB: Exiting instead of running the slow path keeps loops bounded by the length free of code that may
+        //     change what they read.
+        self.exit_instead_of_slow_path(&mut slow_paths);
         let (object, checked_getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
         debug_assert!(checked_getter.is_none(), "all entries have the same checked getter");
         let typed_array = self.emit_checked(Op::CheckTypedArray, vec![object], Some(Repr::Tagged));

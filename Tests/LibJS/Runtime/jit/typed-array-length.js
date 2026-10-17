@@ -17,8 +17,12 @@ test("typed arrays of several kinds read their length", () => {
     expect(jit.exitCount(lengthOf)).toBe(0);
 });
 
-test("typed arrays without a cached length take the slow path", () => {
+test("typed arrays without a cached length exit, then take the slow path", () => {
     const lengthOf = compileLength();
+    expect(lengthOf(new Uint8Array(0))).toBe(0);
+    if (jit.enabled && !jit.forcesExits) expect(jit.exitCount(lengthOf)).toBe(1);
+    jit.discard(lengthOf);
+    expect(jit.compile(lengthOf)).toBe(jit.enabled);
     expect(lengthOf(new Uint8Array(0))).toBe(0);
 
     const detached = new Uint8Array(new ArrayBuffer(8));
@@ -33,7 +37,8 @@ test("typed arrays without a cached length take the slow path", () => {
     const fixed = new Uint8Array(buffer, 8, 4);
     buffer.resize(10);
     expect(lengthOf(fixed)).toBe(0);
-    expect(jit.exitCount(lengthOf)).toBe(0);
+    // NB: An exit forced before the one of the empty typed array leaves the site unrecorded, so the code exits again.
+    if (!jit.forcesExits) expect(jit.exitCount(lengthOf)).toBe(0);
 });
 
 test("objects that inherit from a typed array prototype call the getter", () => {
