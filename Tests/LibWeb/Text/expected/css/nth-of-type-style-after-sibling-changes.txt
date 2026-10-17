@@ -1,0 +1,7 @@
+initial: PASS
+span inserted at the start: PASS
+p appended: PASS
+span and p inserted in one update: PASS
+first span removed: PASS
+last two elements removed: PASS
+other type inserted at the start: PASS
