@@ -2666,7 +2666,11 @@ impl<'pass> SizingContext<'pass> {
         // https://www.w3.org/TR/css-sizing-3/#min-content-block-size
         let facts = self.facts(node);
         // For block containers, tables, and inline boxes, this is equivalent to the max-content block size.
-        if facts.is_block_container() || facts.is_table_box() {
+        // NB: So it is for a non-replaced box with a preferred aspect ratio, whose block size follows from its inline size.
+        if facts.is_block_container()
+            || facts.is_table_box()
+            || (!facts.is_replaced_box() && facts.has_preferred_aspect_ratio())
+        {
             return self.calculate_max_content_block_size(node, inline_size, constraints);
         }
         let auto_size = self.auto_content_size(node);
