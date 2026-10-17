@@ -130,6 +130,7 @@ public:
     Optional<Utf16String> encoding_parse_and_serialize_url(Utf16View);
 
     JS::Realm& realm();
+    JS::Realm const& realm() const;
     JS::Object& global_object();
     JS::Object const& global_object() const { return const_cast<EnvironmentSettingsObject*>(this)->global_object(); }
     EventLoop& responsible_event_loop();

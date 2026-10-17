@@ -147,6 +147,11 @@ JS::Realm& EnvironmentSettingsObject::realm()
     return *realm_execution_context().realm;
 }
 
+JS::Realm const& EnvironmentSettingsObject::realm() const
+{
+    return *realm_execution_context().realm;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-global
 JS::Object& EnvironmentSettingsObject::global_object()
 {

@@ -225,7 +225,7 @@ enum class InterfaceName : u16 {
     out.write(
         """};
 
-bool is_exposed(InterfaceName, JS::Realm&);
+bool is_exposed(InterfaceName, JS::Realm const&);
 """
     )
     write_ensure_web_prototype_declaration(out)
@@ -280,7 +280,7 @@ namespace Web::Bindings {
     out.write(
         """
 // An interface, callback interface, namespace, or member construct is exposed in a given realm realm if the following steps return true:
-bool is_exposed(InterfaceName name, JS::Realm& realm)
+bool is_exposed(InterfaceName name, JS::Realm const& realm)
 {
     auto const& global_object = realm.global_object();
 
