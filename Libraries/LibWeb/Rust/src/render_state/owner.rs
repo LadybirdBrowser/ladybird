@@ -93,6 +93,15 @@ static SLOT: LazyLock<Slot> = LazyLock::new(|| Slot {
 thread_local! {
     /// How many holds of the slot the calling thread is in, which a host callback of a job takes again.
     static HOLDS: Cell<u32> = const { Cell::new(0) };
+    /// What the calling thread let go of while it held the slot, which it drops once it no longer holds it.
+    static DROPPED_AFTER_HOLD: RefCell<Vec<Box<dyn std::any::Any>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Drops `value`, which the calling thread let go of while it holds the slot, once its outermost hold ends: a value
+/// that takes long to drop, such as a fork of a whole render state, does not keep the threads waiting for the slot.
+pub(super) fn drop_after_hold(value: impl std::any::Any) {
+    debug_assert!(is_held_here(), "only a thread holding the slot defers a drop past it");
+    DROPPED_AFTER_HOLD.with_borrow_mut(|values| values.push(Box::new(value)));
 }
 
 /// Whether the calling thread holds the slot: it runs a job on the render states, or a host callback of one.
@@ -107,8 +116,19 @@ pub(super) fn hold<R>(job: impl FnOnce() -> R) -> R {
     impl Drop for Holding {
         fn drop(&mut self) {
             HOLDS.set(HOLDS.get() - 1);
-            if self.0.is_some() {
-                crate::stage_thread::tsan::release(&SLOT.tsan_key);
+            let Some(guard) = self.0.take() else {
+                return;
+            };
+            crate::stage_thread::tsan::release(&SLOT.tsan_key);
+            drop(guard);
+            // NB: Taken out before dropping them, since a drop may hold the slot again.
+            let dropped = DROPPED_AFTER_HOLD.take();
+            // A lane's drop resumes the panic of the recording it waits for, which a thread that is already unwinding
+            // cannot survive: such a thread leaks what it let go of instead.
+            if std::thread::panicking() {
+                std::mem::forget(dropped);
+            } else {
+                drop(dropped);
             }
         }
     }
@@ -190,7 +210,7 @@ pub(super) fn retire(document: DocumentId) {
     hold(|| {
         if let Some(entry) = with_states(|states| states.remove(&document)) {
             let DocumentEntry { state, lanes } = *entry;
-            drop(lanes);
+            super::clock::retire_slot(lanes.into_inner());
             state.into_inner().retire();
         }
     });
