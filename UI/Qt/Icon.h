@@ -37,6 +37,7 @@ enum class ChromeIcon {
     VolumeMuted,
     ChevronUp,
     ChevronDown,
+    ContentBlocking,
     VerticalTabBarCollapse,
     VerticalTabBarCollapseRight,
     VerticalTabBarExpand,

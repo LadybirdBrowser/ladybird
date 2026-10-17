@@ -26,10 +26,11 @@ public:
     QString badge_text() const;
 
 private:
+    virtual void changeEvent(QEvent*) override;
     virtual void paintEvent(QPaintEvent*) override;
     virtual QSize sizeHint() const override { return { 34, 34 }; }
 
-    QIcon m_logo { ":/Icons/ladybird.png" };
+    QIcon m_icon;
     WebView::ContentBlockingSnapshot m_snapshot;
     bool m_show_count_badge { false };
 };

@@ -18,6 +18,7 @@
 #include <QPointF>
 #include <QRectF>
 #include <QTransform>
+#include <QtMath>
 
 namespace Ladybird {
 
@@ -124,6 +125,30 @@ static void draw_star_icon(QPainter& painter, QColor const& color, bool filled)
     else
         painter.setBrush(Qt::NoBrush);
     painter.drawPath(path);
+}
+
+// A stop sign: an octagon outline with a bar across its middle.
+static void draw_content_blocking_icon(QPainter& painter, QColor const& color)
+{
+    static constexpr qreal center = 10.0;
+    static constexpr qreal radius = 7.6;
+
+    QPainterPath octagon;
+    for (int corner = 0; corner < 8; ++corner) {
+        auto angle = qDegreesToRadians(22.5 + (45.0 * corner));
+        QPointF point { center + (radius * qCos(angle)), center + (radius * qSin(angle)) };
+        if (corner == 0)
+            octagon.moveTo(point);
+        else
+            octagon.lineTo(point);
+    }
+    octagon.closeSubpath();
+
+    // Same stroke as the hamburger icon next to it.
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(chrome_icon_pen(color, 1.55));
+    painter.drawPath(octagon);
+    painter.drawLine(QPointF(7.4, center), QPointF(12.6, center));
 }
 
 static QPainterPath horizontally_flipped_path(QPainterPath const& path)
@@ -318,6 +343,9 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         painter.drawLine(QPointF(5.0, 12.5), QPointF(10.0, 7.5));
         painter.drawLine(QPointF(10.0, 7.5), QPointF(15.0, 12.5));
         break;
+    case ChromeIcon::ContentBlocking:
+        draw_content_blocking_icon(painter, color);
+        break;
     case ChromeIcon::ChevronDown:
         painter.setPen(chrome_icon_pen(color, 1.85));
         painter.drawLine(QPointF(5.0, 7.5), QPointF(10.0, 12.5));
@@ -370,7 +398,7 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
         normal_alpha = 172;
     else if (icon == ChromeIcon::Star)
         normal_alpha = 204;
-    else if (icon == ChromeIcon::Globe || icon == ChromeIcon::Search || icon == ChromeIcon::Menu)
+    else if (icon == ChromeIcon::Globe || icon == ChromeIcon::Search || icon == ChromeIcon::Menu || icon == ChromeIcon::ContentBlocking)
         normal_alpha = 188;
     normal.setAlpha(normal_alpha);
 
