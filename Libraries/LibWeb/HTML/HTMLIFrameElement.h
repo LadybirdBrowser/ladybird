@@ -35,6 +35,8 @@ public:
 
     void set_current_navigation_was_lazy_loaded(bool value);
 
+    void stop_lazy_loading();
+
     Optional<HighResolutionTime::DOMHighResTimeStamp> const& pending_resource_start_time() const { return m_pending_resource_start_time; }
     void set_pending_resource_start_time(Optional<HighResolutionTime::DOMHighResTimeStamp> time) { m_pending_resource_start_time = time; }
 

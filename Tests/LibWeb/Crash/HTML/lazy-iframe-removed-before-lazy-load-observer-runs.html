@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- The page's intersection observer runs before the lazy load intersection observer, and removes the lazy iframe
+     the latter goes on to navigate. -->
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.loading = "lazy";
+    iframe.src = "data:text/html,hi";
+    new IntersectionObserver(() => {
+        iframe.remove();
+        requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("test-wait")));
+    }).observe(iframe);
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>
