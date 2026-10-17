@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScreen>
+#include <QShowEvent>
 #include <QVBoxLayout>
 
 namespace Ladybird {
@@ -47,6 +48,20 @@ Popover::Popover(QWidget* parent)
     shadow->setOffset(0, 4);
     shadow->setColor(QColor(0, 0, 0, 72));
     m_card->setGraphicsEffect(shadow);
+}
+
+void Popover::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    if (on_visibility_change)
+        on_visibility_change(true);
+}
+
+void Popover::hideEvent(QHideEvent* event)
+{
+    QWidget::hideEvent(event);
+    if (on_visibility_change)
+        on_visibility_change(false);
 }
 
 // A message that asks whether to act on it. Leaving the popover in any other way than accepting it, such as by clicking

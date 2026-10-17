@@ -1579,6 +1579,10 @@ void Tab::show_downloads_popover()
 
     if (!m_downloads_popover) {
         m_downloads_popover = new DownloadsPopover(this);
+        m_downloads_popover->on_visibility_change = [button = QPointer(m_downloads_button)](bool visible) {
+            if (button)
+                button->setDown(visible);
+        };
         m_downloads_popover->on_cancel_download = [this](u64 id) {
             auto& file_downloader = WebView::Application::the().file_downloader();
             if (auto download = file_downloader.download(id); download.has_value() && WebView::FileDownloader::status_is_active(download->status))
@@ -1683,6 +1687,10 @@ void Tab::show_content_blocking_popover()
 
     if (!m_content_blocking_popover) {
         m_content_blocking_popover = new ContentBlockingPopover(this);
+        m_content_blocking_popover->on_visibility_change = [button = QPointer(m_content_blocking_button)](bool visible) {
+            if (button)
+                button->setDown(visible);
+        };
         m_content_blocking_popover->on_keyboard_dismiss = [button = QPointer(m_content_blocking_button)] {
             if (button && button->isVisible())
                 button->setFocus(Qt::PopupFocusReason);
