@@ -1,0 +1,6 @@
+removed: rgb(0, 128, 0)
+frozen: rgb(0, 128, 0)
+active: rgb(0, 128, 0)
+zero: rgb(0, 128, 0)
+invalid: rgb(0, 128, 0)
+indefinite: rgb(0, 128, 0)

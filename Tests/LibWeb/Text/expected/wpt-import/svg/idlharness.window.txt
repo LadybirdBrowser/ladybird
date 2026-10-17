@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1126 Pass
-654 Fail
+1128 Pass
+652 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1649,7 +1649,7 @@ Pass	SVGAnimationElement interface: attribute onend
 Pass	SVGAnimationElement interface: attribute onrepeat
 Fail	SVGAnimationElement interface: operation getStartTime()
 Fail	SVGAnimationElement interface: operation getCurrentTime()
-Fail	SVGAnimationElement interface: operation getSimpleDuration()
+Pass	SVGAnimationElement interface: operation getSimpleDuration()
 Fail	SVGAnimationElement interface: operation beginElement()
 Fail	SVGAnimationElement interface: operation beginElementAt(float)
 Fail	SVGAnimationElement interface: operation endElement()
@@ -1698,7 +1698,7 @@ Pass	SVGAnimationElement interface: objects.set must inherit property "onend" wi
 Pass	SVGAnimationElement interface: objects.set must inherit property "onrepeat" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "getStartTime()" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "getCurrentTime()" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "getSimpleDuration()" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "getSimpleDuration()" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "beginElement()" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "beginElementAt(float)" with the proper type
 Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.set with too few arguments must throw TypeError

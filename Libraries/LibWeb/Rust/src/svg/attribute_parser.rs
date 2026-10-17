@@ -249,6 +249,89 @@ fn parse_view_box(input: Input<'_>) -> Option<[f64; 4]> {
     parser.done().then_some(values)
 }
 
+fn is_digits(value: &str) -> bool {
+    !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+// https://svgwg.org/specs/animations/#ClockValueSyntax
+// Timecount ::= DIGIT+
+// Fraction ::= DIGIT+
+// NB: This parses a Timecount ("." Fraction)?, which also matches a Seconds ("." Fraction)?.
+fn parse_digits_with_optional_fraction(value: &str) -> Option<f64> {
+    let (integer, fraction) = value.split_once('.').unwrap_or((value, "0"));
+    if !is_digits(integer) || !is_digits(fraction) {
+        return None;
+    }
+    value.parse().ok()
+}
+
+// https://svgwg.org/specs/animations/#ClockValueSyntax
+// Minutes ::= 2DIGIT; range from 00 to 59
+// Seconds ::= 2DIGIT; range from 00 to 59
+fn parse_minutes_or_seconds(value: &str) -> Option<f64> {
+    if value.len() != 2 || !is_digits(value) {
+        return None;
+    }
+    let value = value.parse().ok()?;
+    (value < 60.0).then_some(value)
+}
+
+// https://svgwg.org/specs/animations/#ClockValueSyntax
+// Seconds ("." Fraction)?
+fn parse_seconds_with_optional_fraction(value: &str) -> Option<f64> {
+    let (seconds, _) = value.split_once('.').unwrap_or((value, ""));
+    parse_minutes_or_seconds(seconds)?;
+    parse_digits_with_optional_fraction(value)
+}
+
+// https://svgwg.org/specs/animations/#ClockValueSyntax
+fn parse_clock_value_in_milliseconds(input: Input<'_>) -> Option<f64> {
+    // No embedded white space is allowed in clock values, although leading and trailing white space characters will
+    // be ignored.
+    let mut parser = Parser::new(input);
+    parser.parse_whitespace();
+    let clock_value = String::from_utf16(&token(&mut parser)).ok()?;
+    parser.parse_whitespace();
+    if !parser.done() {
+        return None;
+    }
+
+    let fields = clock_value.split(':').collect::<Vec<_>>();
+    let seconds = match fields.as_slice() {
+        // Full-clock-val ::= Hours ":" Minutes ":" Seconds ("." Fraction)?
+        // Hours ::= DIGIT+; any positive number
+        [hours, minutes, seconds] => {
+            if !is_digits(hours) {
+                return None;
+            }
+            hours.parse::<f64>().ok()? * 3600.0
+                + parse_minutes_or_seconds(minutes)? * 60.0
+                + parse_seconds_with_optional_fraction(seconds)?
+        }
+        // Partial-clock-val ::= Minutes ":" Seconds ("." Fraction)?
+        [minutes, seconds] => {
+            parse_minutes_or_seconds(minutes)? * 60.0 + parse_seconds_with_optional_fraction(seconds)?
+        }
+        // Timecount-val ::= Timecount ("." Fraction)? (Metric)?
+        // Metric ::= "h" | "min" | "s" | "ms"
+        // For Timecount values, the default metric suffix is "s" (for seconds).
+        [timecount] => {
+            let (timecount, milliseconds_per_unit) =
+                [("h", 3_600_000.0), ("min", 60_000.0), ("ms", 1.0), ("s", 1000.0)]
+                    .into_iter()
+                    .find_map(|(metric, milliseconds_per_unit)| {
+                        timecount
+                            .strip_suffix(metric)
+                            .map(|timecount| (timecount, milliseconds_per_unit))
+                    })
+                    .unwrap_or((timecount, 1000.0));
+            return Some(parse_digits_with_optional_fraction(timecount)? * milliseconds_per_unit);
+        }
+        _ => return None,
+    };
+    Some(seconds * 1000.0)
+}
+
 fn is_whitespace(unit: u16) -> bool {
     matches!(unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20)
 }
@@ -419,6 +502,17 @@ pub unsafe extern "C" fn rust_parse_svg_view_box(
     true
 }
 
+/// # Safety
+/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_svg_clock_value_in_milliseconds(input: FfiSvgInput, value: *mut f64) -> bool {
+    let Some(parsed_value) = with_input(input, parse_clock_value_in_milliseconds).flatten() else {
+        return false;
+    };
+    unsafe { value.write(parsed_value) };
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -477,6 +571,35 @@ mod tests {
         assert_eq!(transforms[2].values[..3], [4.0, 5.0, 6.0]);
         assert_eq!(transforms[5].values, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         assert_eq!(parse_transform(input("translate()")), None);
+    }
+
+    #[test]
+    fn parses_clock_values() {
+        let milliseconds = |source| parse_clock_value_in_milliseconds(input(source));
+        assert_eq!(milliseconds("02:30:03"), Some(9_003_000.0));
+        assert_eq!(milliseconds("50:00:10.25"), Some(180_010_250.0));
+        assert_eq!(milliseconds("02:33"), Some(153_000.0));
+        assert_eq!(milliseconds("00:10.5"), Some(10_500.0));
+        assert_eq!(milliseconds("3.2h"), Some(11_520_000.0));
+        assert_eq!(milliseconds("45min"), Some(2_700_000.0));
+        assert_eq!(milliseconds("30s"), Some(30_000.0));
+        assert_eq!(milliseconds("5ms"), Some(5.0));
+        assert_eq!(milliseconds("12.467"), Some(12_467.0));
+        assert_eq!(milliseconds("00.5s"), Some(500.0));
+        assert_eq!(milliseconds("00:00.005"), Some(5.0));
+        assert_eq!(milliseconds(" 2s\t"), Some(2000.0));
+
+        assert_eq!(milliseconds(""), None);
+        assert_eq!(milliseconds("2 s"), None);
+        assert_eq!(milliseconds(".5s"), None);
+        assert_eq!(milliseconds("1."), None);
+        assert_eq!(milliseconds("-1s"), None);
+        assert_eq!(milliseconds("1sec"), None);
+        assert_eq!(milliseconds("indefinite"), None);
+        assert_eq!(milliseconds("2:30"), None);
+        assert_eq!(milliseconds("00:60"), None);
+        assert_eq!(milliseconds("1:60:00"), None);
+        assert_eq!(milliseconds("00:00:005"), None);
     }
 
     #[test]

@@ -27,6 +27,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(cy, "cy")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(d, "d")                                                   \
     __ENUMERATE_SVG_ATTRIBUTE(diffuseConstant, "diffuseConstant")                       \
+    __ENUMERATE_SVG_ATTRIBUTE(dur, "dur")                                               \
     __ENUMERATE_SVG_ATTRIBUTE(dx, "dx")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(dy, "dy")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(edgeMode, "edgeMode")                                     \

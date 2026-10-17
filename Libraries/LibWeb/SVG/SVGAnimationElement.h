@@ -29,6 +29,8 @@ public:
     void set_onrepeat(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onrepeat();
 
+    WebIDL::ExceptionOr<float> get_simple_duration();
+
 protected:
     SVGAnimationElement(DOM::Document&, DOM::QualifiedName);
 
@@ -44,6 +46,8 @@ protected:
 
 private:
     Optional<CSS::PropertyID> target_property() const;
+    double simple_duration() const;
+    Bindings::FillMode fill_mode() const;
 
     GC::Ptr<SMILAnimation> m_animation;
 };

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <rect id="removed" width="10" height="10" fill="green">
+        <set attributeName="fill" to="red" dur="1ms"/>
+    </rect>
+    <rect id="frozen" width="10" height="10" fill="red">
+        <set attributeName="fill" to="green" dur="1ms" fill="freeze"/>
+    </rect>
+    <rect id="active" width="10" height="10" fill="red">
+        <set attributeName="fill" to="green" dur="01:00:00"/>
+    </rect>
+    <rect id="zero" width="10" height="10" fill="red">
+        <set attributeName="fill" to="green" dur="0s"/>
+    </rect>
+    <rect id="invalid" width="10" height="10" fill="red">
+        <set attributeName="fill" to="green" dur="1 s"/>
+    </rect>
+    <rect id="indefinite" width="10" height="10" fill="red">
+        <set attributeName="fill" to="green" dur="indefinite"/>
+    </rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        await nextFrame();
+        await new Promise(resolve => setTimeout(resolve, 20));
+        await nextFrame();
+        await nextFrame();
+        for (const id of ["removed", "frozen", "active", "zero", "invalid", "indefinite"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).fill}`);
+        done();
+    });
+</script>

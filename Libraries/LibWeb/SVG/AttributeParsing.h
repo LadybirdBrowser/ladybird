@@ -130,5 +130,6 @@ WEB_API Optional<SVGUnits> parse_units(Utf16View);
 WEB_API Vector<float> parse_table_values(Utf16View);
 WEB_API Optional<SpreadMethod> parse_spread_method(Utf16View);
 WEB_API Optional<ViewBox> parse_viewbox(Utf16View);
+WEB_API Optional<double> parse_clock_value_in_milliseconds(Utf16View);
 
 }
