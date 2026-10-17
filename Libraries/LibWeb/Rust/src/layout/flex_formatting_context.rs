@@ -1150,15 +1150,18 @@ impl<'pass> FlexFormattingContext<'pass> {
         //           intrinsic size and no cross size to resolve the ratio against.
         //         - in response to cross size min/max constraints.
         let facts = self.facts(node);
-        if facts.has_auto_content_aspect_ratio() {
-            if !basis_is_definite
-                && !facts.has_auto_content_width()
-                && !facts.has_auto_content_height()
-                && !self.has_definite_cross_size(index)
-                && self.has_definite_main_size_used(self.container_used())
-            {
-                flex_base_size = self.inner_main_size_used(self.container_used());
-            }
+        if facts.has_auto_content_aspect_ratio()
+            && !basis_is_definite
+            && !facts.has_auto_content_width()
+            && !facts.has_auto_content_height()
+            && !self.has_definite_cross_size(index)
+            && self.has_definite_main_size_used(self.container_used())
+        {
+            flex_base_size = self.inner_main_size_used(self.container_used());
+        }
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
+        // NB: Cross axis limits transfer to an indefinite main size.
+        if facts.has_auto_content_aspect_ratio() || (facts.has_preferred_aspect_ratio() && !basis_is_definite) {
             let (min_cross, _) = self.computed_cross_min_size(node);
             let (max_cross, _) = self.computed_cross_max_size(node);
             flex_base_size = self.adjust_main_size_through_aspect_ratio(node, flex_base_size, min_cross, max_cross);
