@@ -600,6 +600,9 @@ bool Animation::is_replaceable() const
     //   element, nor a CSS transition with an owning element.
     if ((is_css_animation() || is_css_transition()) && owning_element().has_value())
         return false;
+    // AD-HOC: Like a CSS animation with an owning element, an SVG animation element prescribes its animation in markup.
+    if (is_smil_animation())
+        return false;
 
     // - The animation's play state is finished.
     if (play_state() != AnimationPlayState::Finished)

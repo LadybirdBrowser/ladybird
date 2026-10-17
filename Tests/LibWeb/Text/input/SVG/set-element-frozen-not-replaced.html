@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <rect id="rect" width="100" height="100" fill="red">
+        <set attributeName="fill" to="green" dur="1ms" fill="freeze"/>
+    </rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        await nextFrame();
+        await new Promise(resolve => setTimeout(resolve, 20));
+        await nextFrame();
+        println(`frozen set: ${getComputedStyle(rect).fill}`);
+
+        const animation = rect.animate({ fill: "blue" }, { duration: 1, fill: "forwards" });
+        await animation.finished;
+        await nextFrame();
+        await nextFrame();
+        println(`finished script animation: ${getComputedStyle(rect).fill}`);
+
+        animation.cancel();
+        await nextFrame();
+        println(`cancelled script animation: ${getComputedStyle(rect).fill}`);
+        done();
+    });
+</script>

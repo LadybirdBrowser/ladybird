@@ -1,0 +1,3 @@
+frozen set: rgb(0, 128, 0)
+finished script animation: rgb(0, 0, 255)
+cancelled script animation: rgb(0, 128, 0)
