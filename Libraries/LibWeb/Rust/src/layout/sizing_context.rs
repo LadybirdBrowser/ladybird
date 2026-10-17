@@ -36,6 +36,21 @@ impl AtomicInlineContribution {
     }
 }
 
+/// Inline size limits transferred from the block axis through a preferred aspect ratio.
+#[derive(Clone, Copy)]
+pub(crate) struct TransferredInlineSizeLimits {
+    pub(crate) minimum: CssPixels,
+    pub(crate) maximum: Option<CssPixels>,
+}
+
+impl TransferredInlineSizeLimits {
+    pub(crate) fn clamp(&self, inline_size: CssPixels) -> CssPixels {
+        self.maximum
+            .map_or(inline_size, |maximum| inline_size.min(maximum))
+            .max(self.minimum)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct TableWrapperBlockSizes {
     pub(crate) table_box_border_box_block_size: CssPixels,
@@ -1120,6 +1135,66 @@ impl<'pass> SizingContext<'pass> {
         false
     }
 
+    // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
+    /// The limits that the block axis min/max sizes of a box with a preferred aspect ratio and an automatic inline size
+    /// transfer to its inline size. Apply them after `max-width` and before `min-width`, so that the explicit limits win.
+    pub(crate) fn transferred_inline_size_limits(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<TransferredInlineSizeLimits> {
+        let facts = self.facts(node);
+        // NB: Replaced boxes transfer their limits as part of replaced element sizing.
+        if facts.is_replaced_box() || !self.should_treat_inline_size_as_auto(node, available_space) {
+            return None;
+        }
+        let ratio = facts.preferred_aspect_ratio()?;
+        let style = self.style(node);
+        let definite_block_size = |size: &ComputedSize| -> Option<CssPixels> {
+            if !size.is_length_percentage()
+                || (size.contains_percentage() && constraints.percentage_basis_block_size.is_none())
+            {
+                return None;
+            }
+            Some(self.calculate_inner_block_size(node, available_space, size, constraints))
+        };
+        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
+        let to_inline_size = |block_size: CssPixels| {
+            formatting_context::content_inline_size_from_aspect_ratio_values(
+                block_size,
+                ratio,
+                style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX,
+                style.border_left_width() + style.padding_left().to_px(containing_block_inline_size),
+                style.border_right_width() + style.padding_right().to_px(containing_block_inline_size),
+                style.border_top_width() + style.padding_top().to_px(containing_block_inline_size),
+                style.border_bottom_width() + style.padding_bottom().to_px(containing_block_inline_size),
+            )
+        };
+
+        // First, any definite minimum size is converted and transferred from the origin to destination axis. This
+        // transferred minimum is capped by any definite preferred or maximum size in the destination axis.
+        let mut minimum = to_inline_size(definite_block_size(style.min_height()).unwrap_or_default());
+        if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
+            minimum = minimum.min(self.calculate_inner_inline_size(
+                node,
+                available_space.inline_size,
+                style.max_width(),
+                constraints,
+            ));
+        }
+        // Then, any definite maximum size is converted and transferred from origin to destination. This transferred
+        // maximum is floored by any definite preferred or minimum size in the destination axis as well as by the
+        // transferred minimum, if any.
+        // NB: The explicit minimum is applied after these limits, so it floors the transferred maximum there.
+        let maximum = if self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints) {
+            None
+        } else {
+            definite_block_size(style.max_height()).map(|maximum| to_inline_size(maximum).max(minimum))
+        };
+        Some(TransferredInlineSizeLimits { minimum, maximum })
+    }
+
     pub(crate) fn should_treat_max_inline_size_as_none(
         &self,
         node: Node,
@@ -1743,6 +1818,9 @@ impl<'pass> SizingContext<'pass> {
                 style.max_width(),
                 constraints,
             ));
+        }
+        if let Some(limits) = self.transferred_inline_size_limits(node, available_space, constraints) {
+            inline_size = limits.clamp(inline_size);
         }
         if !style.min_width().is_auto() {
             inline_size = inline_size.max(self.calculate_inner_inline_size(

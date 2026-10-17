@@ -764,6 +764,22 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
+        if !sized_as_replaced
+            && let Some(value) = used_inline_size
+            && let Some(limits) = sizing.transferred_inline_size_limits(node, available_space, constraints)
+        {
+            let limited = limits.clamp(value);
+            if limited != value {
+                used_inline_size = compute(
+                    Some(limited),
+                    &mut margin_left,
+                    &mut margin_right,
+                    &mut margin_left_is_auto,
+                    &mut margin_right_is_auto,
+                );
+            }
+        }
+
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
         //    but this time using the value of 'min-width' as the computed value for 'width'.
         let min_width = style.min_width();
@@ -873,6 +889,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 sizing.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints);
             if inline_size > maximum {
                 inline_size = compute(Some(maximum));
+            }
+        }
+        if let Some(limits) = sizing.transferred_inline_size_limits(node, available_space, constraints) {
+            let limited = limits.clamp(inline_size);
+            if limited != inline_size {
+                inline_size = compute(Some(limited));
             }
         }
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
@@ -2472,6 +2494,13 @@ impl<'pass> BlockFormattingContext<'pass> {
                         style.max_width(),
                         input.containing_block_constraints,
                     ));
+                }
+                if let Some(limits) = sizing.transferred_inline_size_limits(
+                    block_container,
+                    available_space,
+                    input.containing_block_constraints,
+                ) {
+                    inline_size = limits.clamp(inline_size);
                 }
                 if !style.min_width().is_auto() {
                     inline_size = inline_size.max(sizing.calculate_inner_inline_size(
