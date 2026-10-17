@@ -188,6 +188,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | OpenArrayIteration | `GetIterator` in fast array mode, through a runtime call that preserves every register: the iterable, if it is an array that iterates with `%Array.prototype.values%` and whose array iterators have the builtin `next`, or the empty value. The iteration then keeps the index of the next element in the iterator operand and the array in the next operand, and makes no iterator. | | Any | | |
 | LoadArrayIteratorArray, LoadArrayIteratorIndex | The iterated array (`undefined` once done) and the low 32 bits of the next index of an array iterator (a `Repr::Pointer` that `BranchCondition::ArrayIterator` established is one). | | Iterators | | |
 | StoreArrayIteratorIndex, FinishArrayIterator | Sets the next index of an array iterator, or makes it done. | | | Iterators | |
+| LoadGeneratorCompletionType, LoadGeneratorCompletionValue | The type (as an int32) and the value of the completion a generator object (which a branch on `GeneratorObject` established it is) resumed with. | | Iterators | | |
 | LoadGlobalBinding | A binding of the global declarative environment; exits while uninitialized. | E | Global | | cse |
 | StoreGlobalBinding | Stores a mutable global binding; exits while uninitialized. | E | Global | Global | |
 | **Allocation** | | | | | |
@@ -284,8 +285,9 @@ continuation's block, which nothing else in compiled code reaches. Both kinds of
 `Graph::osr_entries` by pc, since both continue a frame whose memory holds every value at that pc.
 `GeneratorObject::execute()` runs the generator from its continuation through `run_executable()`,
 which enters compiled code at the resume entry if the executable has code with one there, and
-interprets it otherwise. The function's start (its `Enter` and the initial `Yield`) is compiled
-like any function's. Async functions, whose `Await` suspends them, are not compiled yet.
+interprets it otherwise. A continuation starts by reading the completion the generator resumed
+with (`GetCompletionFields`), which compiled code loads from the generator object. The function's
+start (its `Enter` and the initial `Yield`) is compiled like any function's. Async functions, whose `Await` suspends them, are not compiled yet.
 
 ## 5. Dependencies and invalidation
 

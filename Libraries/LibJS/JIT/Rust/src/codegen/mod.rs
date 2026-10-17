@@ -1713,6 +1713,16 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::OpenArrayIteration => self.emit_open_array_iteration(node_id),
             Op::LoadArrayIteratorArray => self.emit_load_array_iterator_array(node_id),
             Op::LoadArrayIteratorIndex => self.emit_load_array_iterator_index(node_id),
+            Op::LoadGeneratorCompletionType => {
+                let (generator, output) = (self.input(node_id, 0), self.output(node_id));
+                let offset = self.runtime.layout.generator_object_pending_completion_type;
+                self.masm.load32(output, &Address::new(generator, offset as i32));
+            }
+            Op::LoadGeneratorCompletionValue => {
+                let (generator, output) = (self.input(node_id, 0), self.output(node_id));
+                let offset = self.runtime.layout.generator_object_pending_completion_value;
+                self.masm.load64(output, &Address::new(generator, offset as i32));
+            }
             Op::StoreArrayIteratorIndex => self.emit_store_array_iterator_index(node_id),
             Op::FinishArrayIterator => self.emit_finish_array_iterator(node_id),
             Op::SlowPathOutput { index } => self.emit_slow_path_output(node_id, *index)?,
@@ -2183,6 +2193,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             BranchCondition::Shape(_) => unreachable!("only refinements of shape switch cases test one shape"),
             BranchCondition::Float64(_) => unreachable!("float64 comparisons branch above"),
             BranchCondition::ArrayIterator => self.emit_branch_on_array_iterator(input, target, invert),
+            BranchCondition::GeneratorObject => {
+                // NB: Cells start with the pointer to their class.
+                self.masm.load64(scratch, &Address::new(input, 0));
+                let class = self.runtime.layout.generator_object_class as i64;
+                self.masm.branch64_imm(when(Condition::Equal), scratch, class, target);
+            }
             BranchCondition::PlainArrayPrototypeChain => {
                 self.emit_branch_on_plain_array_prototype_chain(node, input, target, invert);
             }

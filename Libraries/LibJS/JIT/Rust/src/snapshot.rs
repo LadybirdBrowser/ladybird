@@ -1654,6 +1654,14 @@ pub struct RuntimeLayout {
     pub array_iterator_kind: u32,
     /// The `[[ArrayLikeIterationKind]]` of iterators over values.
     pub array_iterator_kind_value: u8,
+    /// The class (pointer) of `GeneratorObject`s, which starts their cells.
+    pub generator_object_class: u64,
+    /// `GeneratorObject::pending_completion_value` (value): the value of
+    /// the completion a generator resumes with.
+    pub generator_object_pending_completion_value: u32,
+    /// `GeneratorObject::pending_completion_type` (u32): the type of that
+    /// completion, as `GetCompletionFields` writes it.
+    pub generator_object_pending_completion_type: u32,
     /// `DeclarativeEnvironment::binding_values.size` (u64).
     pub declarative_environment_binding_values_size: u32,
     /// The capacity (u64) of `DeclarativeEnvironment::binding_values`.

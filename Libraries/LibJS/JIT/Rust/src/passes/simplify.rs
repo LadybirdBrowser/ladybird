@@ -278,6 +278,7 @@ fn constant_condition(graph: &Graph, condition: BranchCondition, input: NodeId, 
         | BranchCondition::Extensible
         | BranchCondition::HoleFillableArray
         | BranchCondition::ArrayIterator
+        | BranchCondition::GeneratorObject
         | BranchCondition::PlainArrayPrototypeChain
         | BranchCondition::Shape(_) => None,
     }

@@ -76,6 +76,7 @@ fn condition_text(condition: BranchCondition) -> String {
         BranchCondition::Extensible => "Extensible".to_string(),
         BranchCondition::HoleFillableArray => "HoleFillableArray".to_string(),
         BranchCondition::ArrayIterator => "ArrayIterator".to_string(),
+        BranchCondition::GeneratorObject => "GeneratorObject".to_string(),
         BranchCondition::PlainArrayPrototypeChain => "PlainArrayPrototypeChain".to_string(),
         BranchCondition::Shape(shape) => format!("Shape {}", shapes_text(std::iter::once(&shape))),
         BranchCondition::NonNegativeInt32 => "NonNegativeInt32".to_string(),
@@ -308,6 +309,8 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::LoadArrayIteratorIndex
         | Op::StoreArrayIteratorIndex
         | Op::FinishArrayIterator
+        | Op::LoadGeneratorCompletionType
+        | Op::LoadGeneratorCompletionValue
         | Op::LoadPropertyIteratorKeyCount
         | Op::LoadPropertyIteratorKey => with_inputs(op.name()),
         Op::CheckBounds

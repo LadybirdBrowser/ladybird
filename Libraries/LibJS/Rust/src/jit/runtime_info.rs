@@ -62,6 +62,7 @@ use crate::runtime::array_iterator::ArrayIterator;
 use crate::runtime::function_environment::{
     FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET,
 };
+use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::module_environment::ModuleEnvironment;
 use crate::runtime::object::{ObjectMethods, PropertyKind};
 
@@ -234,6 +235,9 @@ fn runtime_layout() -> RuntimeLayout {
         array_iterator_index: offset(offset_of!(ArrayIterator, index)),
         array_iterator_kind: offset(offset_of!(ArrayIterator, iteration_kind)),
         array_iterator_kind_value: PropertyKind::Value as u8,
+        generator_object_class: core::ptr::from_ref(GeneratorObject::CLASS) as u64,
+        generator_object_pending_completion_value: offset(offset_of!(GeneratorObject, pending_completion_value)),
+        generator_object_pending_completion_type: offset(offset_of!(GeneratorObject, pending_completion_type)),
         declarative_environment_binding_values_size: offset(offset_of!(DeclarativeEnvironment, binding_values.size)),
         declarative_environment_binding_values_capacity: offset(offset_of!(
             DeclarativeEnvironment,

@@ -291,6 +291,10 @@ pub fn handling(opcode: OpCode) -> Handling {
         // Iteration over arrays.
         O::GetIterator | O::IteratorNextUnpack => EXPANDED,
 
+        // The completion a generator resumed with, which the generator
+        // object holds.
+        O::GetCompletionFields => EXPANDED,
+
         // Closing an iterator, which does nothing if the cache of the site
         // has no return method for it.
         O::IteratorClose => EXPANDED,
@@ -358,7 +362,6 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::DeleteById
         | O::DeleteByValue
         | O::DeleteVariable
-        | O::GetCompletionFields
         | O::SetCompletionType
         | O::GetTemplateObject
         | O::GetPrivateById
