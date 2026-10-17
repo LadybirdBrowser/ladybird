@@ -1309,6 +1309,21 @@ impl AbsposEngine<'_> {
                 );
             }
         }
+        if let Some(limits) = sizing.transferred_inline_size_limits(node, available_space, constraints) {
+            let value = auto_px_value(used_inline_size);
+            let limited = limits.clamp(value);
+            if limited != value {
+                (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
+                    node,
+                    containing_block_inline_size,
+                    available_space,
+                    constraints,
+                    static_position_rect,
+                    Some(limited),
+                    resolved_anchor_insets,
+                );
+            }
+        }
         if !style.min_width().is_auto() {
             let min_inline_size =
                 sizing.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
