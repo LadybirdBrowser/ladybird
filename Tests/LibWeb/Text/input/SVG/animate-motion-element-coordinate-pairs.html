@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="400" height="200">
+    <rect id="comma" width="10" height="10"><animateMotion from="10,20" to="30,40" dur="2s"/></rect>
+    <rect id="whitespace" width="10" height="10"><animateMotion from=" 10 20 " to="30   40" dur="2s"/></rect>
+    <rect id="comma-and-whitespace" width="10" height="10"><animateMotion from="10 , 20" to="30,&#9;40" dur="2s"/></rect>
+    <rect id="units" width="10" height="10"><animateMotion from="0in,0" to="2in,0" dur="2s"/></rect>
+    <rect id="to-only" width="10" height="10"><animateMotion to="40,0" dur="2s"/></rect>
+    <rect id="two-commas" width="10" height="10"><animateMotion to="10,,20" dur="2s"/></rect>
+    <rect id="three-coordinates" width="10" height="10"><animateMotion to="10 20 30" dur="2s"/></rect>
+    <rect id="one-coordinate" width="10" height="10"><animateMotion to="10" dur="2s"/></rect>
+    <rect id="invalid-from" width="10" height="10"><animateMotion from="10;20" to="30,40" dur="2s"/></rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+        svg.pauseAnimations();
+        svg.setCurrentTime(1);
+        const origin = svg.getBoundingClientRect();
+        for (const rect of document.querySelectorAll("rect")) {
+            const box = rect.getBoundingClientRect();
+            println(`${rect.id}: ${box.left - origin.left}, ${box.top - origin.top}`);
+        }
+        done();
+    });
+</script>

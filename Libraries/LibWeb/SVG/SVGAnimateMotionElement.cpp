@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGAnimateMotionElement.h>
 
 namespace Web::SVG {
@@ -15,11 +18,71 @@ SVGAnimateMotionElement::SVGAnimateMotionElement(DOM::Document& document, DOM::Q
 {
 }
 
-// https://svgwg.org/specs/animations/#AnimateMotionElement
-Vector<Animations::BaseKeyframe> SVGAnimateMotionElement::keyframes(SVGElement const&, CSS::PropertyID) const
+void SVGAnimateMotionElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
-    // FIXME: The ‘animateMotion’ element causes a referenced element to move along a motion path.
-    return {};
+    Base::attribute_changed(name, old_value, value, namespace_);
+    if (first_is_one_of(name, AttributeNames::from, AttributeNames::to) && !namespace_.has_value())
+        update_animation();
+}
+
+// https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute
+Optional<CSS::PropertyID> SVGAnimateMotionElement::target_property() const
+{
+    // The effect of a motion path animation is to add a supplemental transformation matrix onto the CTM for the
+    // referenced object which causes a translation along the x- and y-axes of the current user coordinate system by the
+    // computed X and Y values computed over time.
+    // AD-HOC: Animate the translate property instead, which translates the target in the coordinate system of its
+    //         parent, outside of its own transform, like the supplemental transformation matrix does. Unlike that
+    //         matrix, it replaces any translate property of the target.
+    return CSS::PropertyID::Translate;
+}
+
+// https://svgwg.org/specs/animations/#AnimateMotionElement
+static RefPtr<CSS::StyleValue const> parse_coordinate_pair_as_translation(SVGElement const& target, Utf16View coordinate_pair)
+{
+    // For ‘animateMotion’, the specified values for ‘from’, ‘by’, ‘to’ and ‘values’ consists of x, y coordinate pairs,
+    // with a single comma and/or white space separating the x coordinate from the y coordinate.
+    auto is_separator = [](char16_t code_unit) { return code_unit == ',' || is_ascii_space(code_unit); };
+    coordinate_pair = coordinate_pair.trim_ascii_whitespace();
+    size_t x_length = 0;
+    while (x_length < coordinate_pair.length_in_code_units() && !is_separator(coordinate_pair.code_unit_at(x_length)))
+        ++x_length;
+    auto x = coordinate_pair.substring_view(0, x_length);
+    auto y = coordinate_pair.substring_view(x_length).trim_ascii_whitespace(TrimMode::Left);
+    if (!y.is_empty() && y.code_unit_at(0) == ',')
+        y = y.substring_view(1).trim_ascii_whitespace(TrimMode::Left);
+    if (x.is_empty() || y.is_empty())
+        return {};
+    for (size_t i = 0; i < y.length_in_code_units(); ++i) {
+        if (is_separator(y.code_unit_at(i)))
+            return {};
+    }
+
+    // Each coordinate represents a <length>.
+    // NB: Parse the coordinates as a translate value the way a presentation attribute is parsed, which takes a number
+    //     as a length in user units.
+    return target.parse_presentation_attribute(CSS::PropertyID::Translate, Utf16String::formatted("{} {}", x, y));
+}
+
+// https://svgwg.org/specs/animations/#AnimateMotionElement
+Vector<Animations::BaseKeyframe> SVGAnimateMotionElement::keyframes(SVGElement const& target, CSS::PropertyID property_id) const
+{
+    // FIXME: Take the motion path from the by and values attributes, the path attribute or an mpath child element too.
+    // FIXME: Apply the keyPoints and rotate attributes.
+    auto to = get_attribute(AttributeNames::to);
+    auto to_translation = to.has_value() ? parse_coordinate_pair_as_translation(target, *to) : nullptr;
+    if (!to_translation)
+        return {};
+
+    // NB: Without a from value, this is a to animation, which animates from the underlying value. The keyframe effect
+    //     takes its missing start keyframe from that value.
+    auto from = get_attribute(AttributeNames::from);
+    if (!from.has_value())
+        return { keyframe(1, property_id, *to_translation) };
+    auto from_translation = parse_coordinate_pair_as_translation(target, *from);
+    if (!from_translation)
+        return {};
+    return { keyframe(0, property_id, *from_translation), keyframe(1, property_id, *to_translation) };
 }
 
 }
