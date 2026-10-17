@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<div style="display: grid; grid-template-rows: 100px 100px; row-gap: 20px; width: 400px; justify-items: start">
+    <div id="spanning" style="grid-row: 1 / 3; aspect-ratio: 1 / 1; height: 100%"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rect = document.getElementById("spanning").getBoundingClientRect();
+        println(`spanning: ${rect.width}x${rect.height}`);
+    });
+</script>
