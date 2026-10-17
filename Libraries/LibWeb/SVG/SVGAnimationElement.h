@@ -42,12 +42,13 @@ protected:
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
+    virtual Optional<CSS::PropertyID> target_property() const;
     virtual Vector<Animations::BaseKeyframe> keyframes(SVGElement const& target, CSS::PropertyID) const = 0;
+    static Animations::BaseKeyframe keyframe(double offset, CSS::PropertyID, CSS::StyleValue const&);
 
     void update_animation();
 
 private:
-    Optional<CSS::PropertyID> target_property() const;
     GC::Ptr<SMILTimeContainer> time_container();
     double simple_duration() const;
     Bindings::FillMode fill_mode() const;

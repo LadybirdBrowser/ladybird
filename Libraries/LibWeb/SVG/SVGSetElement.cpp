@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGSetElement.h>
@@ -38,16 +37,7 @@ Vector<Animations::BaseKeyframe> SVGSetElement::keyframes(SVGElement const& targ
         return {};
 
     // NB: The value holds for the entire duration, so the effect starts and ends on it.
-    Vector<Animations::BaseKeyframe> keyframes;
-    for (auto offset : { 0.0, 1.0 }) {
-        Animations::BaseKeyframe keyframe;
-        keyframe.offset = offset;
-        Animations::BaseKeyframe::ParsedProperties properties;
-        properties.set(CSS::PropertyNameAndID::from_id(property_id), CSS::RustStyleValueHandle::retained(value->rust_style_value_data()));
-        keyframe.properties = move(properties);
-        keyframes.append(move(keyframe));
-    }
-    return keyframes;
+    return { keyframe(0, property_id, *value), keyframe(1, property_id, *value) };
 }
 
 }
