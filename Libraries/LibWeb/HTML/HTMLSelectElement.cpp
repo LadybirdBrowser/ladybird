@@ -203,7 +203,6 @@ void HTMLSelectElement::update_cached_list_of_options() const
 {
     // 1. Let options be « ».
     m_cached_list_of_options.clear();
-    m_cached_number_of_selected_options = 0;
 
     // Check if node is an optgroup element and node has an ancestor optgroup in between itself and this select
     auto is_nested_optgroup = [this](DOM::Node const& node) {
@@ -223,11 +222,8 @@ void HTMLSelectElement::update_cached_list_of_options() const
     // 3. While node is not null:
     for_each_in_subtree([&](auto& node) {
         // 1. If node is an option element, then append node to options.
-        if (auto maybe_option = as_if<HTMLOptionElement>(node)) {
-            if (maybe_option->selected())
-                ++m_cached_number_of_selected_options;
+        if (auto maybe_option = as_if<HTMLOptionElement>(node))
             m_cached_list_of_options.append(const_cast<HTMLOptionElement&>(*maybe_option));
-        }
 
         // 2. If any of the following conditions are true:
         //    - node is a select element;
@@ -354,10 +350,10 @@ bool HTMLSelectElement::can_skip_selectedness_update_for_inserted_option(HTMLOpt
     if (option.selected())
         return false;
 
-    if (m_cached_number_of_selected_options >= 2)
+    if (m_number_of_selected_options >= 2)
         return false;
 
-    if (display_size() == 1 && m_cached_number_of_selected_options == 0)
+    if (display_size() == 1 && m_number_of_selected_options == 0)
         return false;
 
     return true;
@@ -770,7 +766,7 @@ void HTMLSelectElement::update_selectedness()
 
     // 2. If element 's multiple attribute is absent, and element's display size is 1,
     //    and no option elements in the element's list of options have their selectedness set to true, then
-    if (!has_attribute(AttributeNames::multiple) && display_size() == 1 && m_cached_number_of_selected_options == 0) {
+    if (!has_attribute(AttributeNames::multiple) && display_size() == 1 && m_number_of_selected_options == 0) {
         // 1. Set the selectedness of the first option element in the list of options in tree order
         //    that is not disabled, if any, to true.
         for (auto const& option_element : m_cached_list_of_options) {
@@ -785,7 +781,7 @@ void HTMLSelectElement::update_selectedness()
     }
     // Otherwise, if element's multiple attribute is absent,
     // and two or more option elements in element's list of options have their selectedness set to true, then:
-    else if (!has_attribute(AttributeNames::multiple) && m_cached_number_of_selected_options >= 2) {
+    else if (!has_attribute(AttributeNames::multiple) && m_number_of_selected_options >= 2) {
         // 1. Set the selectedness of all but the last option element with its selectedness set to true
         //    in the list of options in tree order to false.
         GC::Ptr<HTML::HTMLOptionElement> last_selected_option;

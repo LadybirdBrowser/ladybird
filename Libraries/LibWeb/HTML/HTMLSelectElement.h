@@ -129,6 +129,8 @@ public:
     virtual bool is_mutable() const override;
 
 private:
+    friend class HTMLOptionElement;
+
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -150,7 +152,7 @@ private:
     u32 display_size() const;
 
     mutable Vector<GC::Ref<HTMLOptionElement>> m_cached_list_of_options;
-    mutable size_t m_cached_number_of_selected_options { 0 };
+    size_t m_number_of_selected_options { 0 };
 
     mutable GC::Ptr<HTMLOptionsCollection> m_options;
     GC::Ptr<DOM::HTMLCollection> m_selected_options;
