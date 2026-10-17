@@ -330,6 +330,8 @@ private:
     void invoke_idle_callbacks();
     void invoke_idle_callback_timeout(u32 handle);
 
+    bool cannot_show_simple_dialogs() const;
+
     struct [[nodiscard]] NamedObjects {
         Vector<GC::Ref<Navigable>> navigables;
         Vector<GC::Ref<DOM::Element>> elements;

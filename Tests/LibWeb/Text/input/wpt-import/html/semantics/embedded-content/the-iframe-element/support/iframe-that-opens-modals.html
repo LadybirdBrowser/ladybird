@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script>
+function openModal(name) {
+    switch (name) {
+    case "alert":
+        return alert("MESSAGE");
+    break;
+    case "confirm":
+        return confirm("MESSAGE?");
+    break;
+    case "prompt":
+        return prompt("MESSAGE:", "DEFAULT VALUE");
+    break;
+    case "print":
+        return print();
+    break;
+  }
+}
+
+onmessage = function(e) {
+    parent.postMessage(openModal(e.data), "*");
+}
+</script>
