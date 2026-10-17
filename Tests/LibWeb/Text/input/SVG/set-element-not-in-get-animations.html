@@ -8,6 +8,7 @@
 <script>
     asyncTest(async done => {
         const nextFrame = () => new Promise(requestAnimationFrame);
+        await new Promise(resolve => window.addEventListener("load", resolve));
         await nextFrame();
         await nextFrame();
         println(`fill: ${getComputedStyle(rect).fill}`);

@@ -612,6 +612,16 @@ GC::Ptr<SVGSVGElement> SVGElement::owner_svg_element()
     return nullptr;
 }
 
+// https://svgwg.org/svg2-draft/struct.html#TermOutermostSVGElement
+GC::Ptr<SVGSVGElement> SVGElement::outermost_svg_element()
+{
+    // The furthest ‘svg’ ancestor element that remains in the current SVG document fragment.
+    GC::Ptr<SVGSVGElement> outermost_svg_element = as_if<SVGSVGElement>(*this);
+    for (auto ancestor = owner_svg_element(); ancestor; ancestor = ancestor->owner_svg_element())
+        outermost_svg_element = ancestor;
+    return outermost_svg_element;
+}
+
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__viewportElement
 GC::Ptr<SVGElement> SVGElement::viewport_element()
 {

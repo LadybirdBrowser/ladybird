@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container"></div>
+<svg>
+    <svg id="nested">
+        <rect id="rect" width="10" height="10" fill="red"><set attributeName="fill" to="green" dur="10s"/></rect>
+    </svg>
+</svg>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+        const nested = document.getElementById("nested");
+        document.getElementById("container").moveBefore(nested, null);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        println(`fill: ${getComputedStyle(document.getElementById("rect")).fill}`);
+        println(`time advances: ${nested.getCurrentTime() > 0}`);
+        nested.pauseAnimations();
+        println(`paused: ${nested.animationsPaused()}`);
+        done();
+    });
+</script>

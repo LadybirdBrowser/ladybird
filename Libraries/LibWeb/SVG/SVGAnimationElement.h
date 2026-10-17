@@ -29,6 +29,8 @@ public:
     void set_onrepeat(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onrepeat();
 
+    WebIDL::ExceptionOr<float> get_start_time();
+    float get_current_time();
     WebIDL::ExceptionOr<float> get_simple_duration();
 
 protected:
@@ -46,6 +48,7 @@ protected:
 
 private:
     Optional<CSS::PropertyID> target_property() const;
+    GC::Ptr<SMILTimeContainer> time_container();
     double simple_duration() const;
     Bindings::FillMode fill_mode() const;
 

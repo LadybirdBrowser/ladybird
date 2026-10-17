@@ -7,6 +7,7 @@
 <script>
     asyncTest(async done => {
         const nextFrame = () => new Promise(requestAnimationFrame);
+        await new Promise(resolve => window.addEventListener("load", resolve));
         const createSet = to => {
             const set = document.createElementNS("http://www.w3.org/2000/svg", "set");
             set.setAttribute("attributeName", "fill");

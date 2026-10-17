@@ -236,6 +236,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
+#include <LibWeb/SVG/SMILTimeContainer.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
@@ -994,6 +995,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
         resource.value->visit_edges(visitor);
 
     visitor.visit(m_associated_animation_timelines);
+    visitor.visit(m_smil_time_containers_to_begin);
     visitor.visit(m_list_of_available_images);
     for (auto& it : m_map_of_preloaded_resources)
         visitor.visit(it.value);
@@ -5148,6 +5150,18 @@ void Document::queue_navigation_timing_entry()
     HTML::relevant_window_or_worker_global_scope(*this).queue_performance_entry(*m_navigation_timing_entry);
 }
 
+void Document::begin_smil_time_container_once_loaded(SVG::SMILTimeContainer& time_container)
+{
+    // The timeline of an SVG document fragment should begin when the load event for its outermost svg element is
+    // triggered, but that event is not fired. Like Blink, begin the timeline once the document has completely loaded
+    // instead, or right away for a fragment that is inserted after that.
+    if (is_completely_loaded()) {
+        time_container.begin();
+        return;
+    }
+    m_smil_time_containers_to_begin.append(time_container);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
@@ -5161,6 +5175,9 @@ void Document::completely_finish_loading()
     //         notification steps.
     if (!m_completely_loaded_time.has_value())
         m_completely_loaded_time = AK::UnixDateTime::now();
+
+    for (auto& time_container : exchange(m_smil_time_containers_to_begin, {}))
+        time_container->begin();
 
     auto navigable = this->navigable();
     if (!navigable) {

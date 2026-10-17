@@ -1,0 +1,13 @@
+time before the timeline begins: 0, animation 0
+animation start time before the timeline begins: 0
+paused before the timeline begins: true
+time once the timeline begins: 0.5, animation 0.5
+fills once the timeline begins: removed rgb(0, 128, 0), frozen rgb(0, 128, 0)
+fills after seeking past the end: removed rgb(255, 0, 0), frozen rgb(0, 128, 0)
+fills after seeking back: removed rgb(0, 128, 0), frozen rgb(0, 128, 0)
+nested svg reports the timeline: paused true, time 0.25
+nested svg leaves the timeline alone: paused true, time 0.25
+time after seeking to a negative time: 0
+detached animation: time 0, start time InvalidStateError
+paused after unpausing: false
+time advances after unpausing: true

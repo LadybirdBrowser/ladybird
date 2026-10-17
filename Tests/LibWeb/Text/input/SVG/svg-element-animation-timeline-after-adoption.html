@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        const otherDocument = document.implementation.createHTMLDocument();
+        otherDocument.body.innerHTML = `<svg><rect width="10" height="10" fill="red"><set attributeName="fill" to="green" dur="10s"/></rect></svg>`;
+        const svg = otherDocument.querySelector("svg");
+        document.body.append(svg);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        println(`fill: ${getComputedStyle(svg.querySelector("rect")).fill}`);
+        println(`time advances: ${svg.getCurrentTime() > 0}`);
+        done();
+    });
+</script>

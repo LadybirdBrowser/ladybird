@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1141 Pass
-639 Fail
+1158 Pass
+622 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -430,11 +430,11 @@ Pass	SVGSVGElement interface: operation suspendRedraw(unsigned long)
 Pass	SVGSVGElement interface: operation unsuspendRedraw(unsigned long)
 Pass	SVGSVGElement interface: operation unsuspendRedrawAll()
 Pass	SVGSVGElement interface: operation forceRedraw()
-Fail	SVGSVGElement interface: operation pauseAnimations()
-Fail	SVGSVGElement interface: operation unpauseAnimations()
-Fail	SVGSVGElement interface: operation animationsPaused()
-Fail	SVGSVGElement interface: operation getCurrentTime()
-Fail	SVGSVGElement interface: operation setCurrentTime(float)
+Pass	SVGSVGElement interface: operation pauseAnimations()
+Pass	SVGSVGElement interface: operation unpauseAnimations()
+Pass	SVGSVGElement interface: operation animationsPaused()
+Pass	SVGSVGElement interface: operation getCurrentTime()
+Pass	SVGSVGElement interface: operation setCurrentTime(float)
 Pass	SVGSVGElement interface: attribute viewBox
 Fail	SVGSVGElement interface: attribute preserveAspectRatio
 Pass	SVGSVGElement must be primary interface of objects.svg
@@ -471,12 +471,12 @@ Pass	SVGSVGElement interface: objects.svg must inherit property "unsuspendRedraw
 Pass	SVGSVGElement interface: calling unsuspendRedraw(unsigned long) on objects.svg with too few arguments must throw TypeError
 Pass	SVGSVGElement interface: objects.svg must inherit property "unsuspendRedrawAll()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "forceRedraw()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "pauseAnimations()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "unpauseAnimations()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "animationsPaused()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "getCurrentTime()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "setCurrentTime(float)" with the proper type
-Fail	SVGSVGElement interface: calling setCurrentTime(float) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "pauseAnimations()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "unpauseAnimations()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "animationsPaused()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "getCurrentTime()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "setCurrentTime(float)" with the proper type
+Pass	SVGSVGElement interface: calling setCurrentTime(float) on objects.svg with too few arguments must throw TypeError
 Pass	SVGSVGElement interface: objects.svg must inherit property "viewBox" with the proper type
 Fail	SVGSVGElement interface: objects.svg must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGGraphicsElement interface: objects.svg must inherit property "transform" with the proper type
@@ -1647,8 +1647,8 @@ Pass	SVGAnimationElement interface: attribute targetElement
 Pass	SVGAnimationElement interface: attribute onbegin
 Pass	SVGAnimationElement interface: attribute onend
 Pass	SVGAnimationElement interface: attribute onrepeat
-Fail	SVGAnimationElement interface: operation getStartTime()
-Fail	SVGAnimationElement interface: operation getCurrentTime()
+Pass	SVGAnimationElement interface: operation getStartTime()
+Pass	SVGAnimationElement interface: operation getCurrentTime()
 Pass	SVGAnimationElement interface: operation getSimpleDuration()
 Fail	SVGAnimationElement interface: operation beginElement()
 Fail	SVGAnimationElement interface: operation beginElementAt(float)
@@ -1696,8 +1696,8 @@ Pass	SVGAnimationElement interface: objects.set must inherit property "targetEle
 Pass	SVGAnimationElement interface: objects.set must inherit property "onbegin" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "onend" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "onrepeat" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "getStartTime()" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "getCurrentTime()" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "getStartTime()" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "getCurrentTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "getSimpleDuration()" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "beginElement()" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "beginElementAt(float)" with the proper type
@@ -1724,8 +1724,8 @@ Pass	SVGAnimationElement interface: objects.animateMotion must inherit property 
 Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "onbegin" with the proper type
 Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "onend" with the proper type
 Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "onrepeat" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getStartTime()" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getCurrentTime()" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "getStartTime()" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "getCurrentTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "getSimpleDuration()" with the proper type
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElement()" with the proper type
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElementAt(float)" with the proper type
