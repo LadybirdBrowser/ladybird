@@ -475,18 +475,39 @@ static Web::UIEvents::KeyModifier get_modifiers_from_qt_key_event(QKeyEvent cons
     return modifiers;
 }
 
+static constexpr double wheel_scroll_line_size = 40;
+
 static QPointF wheel_delta_from_angle_delta(QPoint angle_delta)
 {
     static constexpr double wheel_delta_units_per_step = static_cast<double>(QWheelEvent::DefaultDeltasPerStep);
     double delta_x = -static_cast<double>(angle_delta.x()) / wheel_delta_units_per_step;
     double delta_y = static_cast<double>(angle_delta.y()) / wheel_delta_units_per_step;
 
-    static constexpr double scroll_step_size = 40;
     auto step_x = delta_x * static_cast<double>(QApplication::wheelScrollLines());
     auto step_y = delta_y * static_cast<double>(QApplication::wheelScrollLines());
 
-    return { step_x * scroll_step_size, step_y * scroll_step_size };
+    return { step_x * wheel_scroll_line_size, step_y * wheel_scroll_line_size };
 }
+
+#if defined(AK_OS_MACOS)
+// NB: Qt reports every macOS mouse-wheel event as exactly one notch of angle delta, which drops the scroll
+//     acceleration that macOS applies to fast wheel spins. The accelerated line count survives in the pixel delta,
+//     which Qt computes by multiplying it with an estimated line height.
+static constexpr double qt_macos_mouse_wheel_pixel_delta_per_line = 20;
+
+static QPointF mouse_wheel_delta_with_macos_scroll_acceleration(QPointF notch_delta, QPoint qt_pixel_delta)
+{
+    // A slow click is accelerated to only a tenth of a line, so a click scrolls at least one line.
+    auto accelerated_step = [](double notch_step, int qt_pixel_step) -> double {
+        if (notch_step == 0)
+            return 0;
+        auto accelerated_line_count = max(AK::abs(qt_pixel_step) / qt_macos_mouse_wheel_pixel_delta_per_line, 1.0);
+        auto step_size = accelerated_line_count * wheel_scroll_line_size;
+        return notch_step < 0 ? -step_size : step_size;
+    };
+    return { accelerated_step(notch_delta.x(), qt_pixel_delta.x()), accelerated_step(notch_delta.y(), qt_pixel_delta.y()) };
+}
+#endif
 
 struct WheelDelta {
     QPointF delta;
@@ -540,8 +561,13 @@ static WheelDelta wheel_delta_from_qt_event(QWheelEvent const& wheel_event)
         return { pixel_delta, Web::WheelDeltaPrecision::Precise };
 
     auto angle_delta = -wheel_event.angleDelta();
-    if (!angle_delta.isNull())
-        return { wheel_delta_from_angle_delta(angle_delta), Web::WheelDeltaPrecision::Discrete };
+    if (!angle_delta.isNull()) {
+        auto wheel_delta = wheel_delta_from_angle_delta(angle_delta);
+#if defined(AK_OS_MACOS)
+        wheel_delta = mouse_wheel_delta_with_macos_scroll_acceleration(wheel_delta, wheel_event.pixelDelta());
+#endif
+        return { wheel_delta, Web::WheelDeltaPrecision::Discrete };
+    }
 
     return { pixel_delta, Web::WheelDeltaPrecision::Precise };
 }
