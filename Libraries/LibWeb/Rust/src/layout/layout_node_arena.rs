@@ -101,11 +101,47 @@ pub(crate) trait IntrinsicMeasurement: Copy {
     fn dependencies(&self) -> IntrinsicMeasurementDependencies;
 }
 
+/// The measurements of one intrinsic size of one box. A box is usually measured under one key, so they are kept inline
+/// and searched in order, which reads one cache line where a hash map reads several. As a cache it may forget: past
+/// a few keys, the oldest goes.
+struct IntrinsicMeasurements<V> {
+    entries: smallvec::SmallVec<[(IntrinsicSizeCacheKey, V); 1]>,
+}
+
+impl<V> Default for IntrinsicMeasurements<V> {
+    fn default() -> Self {
+        Self {
+            entries: smallvec::SmallVec::new(),
+        }
+    }
+}
+
+impl<V> IntrinsicMeasurements<V> {
+    const MAXIMUM_ENTRIES: usize = 8;
+
+    fn get(&self, key: &IntrinsicSizeCacheKey) -> Option<&V> {
+        self.entries
+            .iter()
+            .find_map(|(entry_key, value)| (entry_key == key).then_some(value))
+    }
+
+    fn insert(&mut self, key: IntrinsicSizeCacheKey, value: V) {
+        if let Some(entry) = self.entries.iter_mut().find(|(entry_key, _)| *entry_key == key) {
+            entry.1 = value;
+            return;
+        }
+        if self.entries.len() == Self::MAXIMUM_ENTRIES {
+            self.entries.remove(0);
+        }
+        self.entries.push((key, value));
+    }
+}
+
 // Measurements are stored under their key with every basis they never observed masked out. A
 // probe that had to mask a basis must skip entries that observed it: a measurement made without
 // that basis shares the masked key's shape.
 fn intrinsic_cache_lookup<V: IntrinsicMeasurement>(
-    map: &HashMap<IntrinsicSizeCacheKey, V>,
+    map: &IntrinsicMeasurements<V>,
     key: IntrinsicSizeCacheKey,
 ) -> Option<V> {
     if let Some(value) = map.get(&key) {
@@ -137,31 +173,11 @@ fn intrinsic_cache_lookup<V: IntrinsicMeasurement>(
 }
 
 fn intrinsic_cache_store<V: IntrinsicMeasurement>(
-    map: &mut HashMap<IntrinsicSizeCacheKey, V>,
+    map: &mut IntrinsicMeasurements<V>,
     key: IntrinsicSizeCacheKey,
     value: V,
 ) {
     map.insert(key.masked_for(value.dependencies()), value);
-}
-
-impl Hash for IntrinsicSizeCacheKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        fn hash_optional<H: Hasher>(value: Option<CssPixels>, state: &mut H) {
-            match value {
-                Some(value) => {
-                    true.hash(state);
-                    value.raw_value().hash(state);
-                }
-                None => false.hash(state),
-            }
-        }
-
-        hash_optional(self.measured_at_inline_size, state);
-        hash_optional(self.measured_at_block_size, state);
-        hash_optional(self.percentage_basis_inline_size, state);
-        hash_optional(self.percentage_basis_block_size, state);
-        hash_optional(self.quirks_mode_percentage_basis_block_size, state);
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -274,10 +290,10 @@ impl IntrinsicMeasurement for IntrinsicBlockSizeMeasurement {
 struct IntrinsicSizeMaps {
     // This is a subtree fact and shares the intrinsic cache's epoch so descendant changes invalidate it.
     inline_size_depends_on_block_size: Option<bool>,
-    min_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
-    max_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
-    min_content_block_size: HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>,
-    max_content_block_size: HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>,
+    min_content_inline_size: IntrinsicMeasurements<IntrinsicInlineSizeMeasurement>,
+    max_content_inline_size: IntrinsicMeasurements<IntrinsicInlineSizeMeasurement>,
+    min_content_block_size: IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>,
+    max_content_block_size: IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>,
     table_cell_measurements: HashMap<TableCellMeasurementKey, TableCellMeasurement>,
 }
 
@@ -285,7 +301,7 @@ impl IntrinsicSizeMaps {
     fn block_sizes(
         &self,
         kind: IntrinsicSizeCacheKind,
-    ) -> Option<&HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>> {
+    ) -> Option<&IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
             IntrinsicSizeCacheKind::MinContentBlock => Some(&self.min_content_block_size),
@@ -296,7 +312,7 @@ impl IntrinsicSizeMaps {
     fn block_sizes_mut(
         &mut self,
         kind: IntrinsicSizeCacheKind,
-    ) -> Option<&mut HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>> {
+    ) -> Option<&mut IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
             IntrinsicSizeCacheKind::MinContentBlock => Some(&mut self.min_content_block_size),
@@ -307,7 +323,7 @@ impl IntrinsicSizeMaps {
     fn inline_measurements(
         &self,
         kind: IntrinsicSizeCacheKind,
-    ) -> Option<&HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>> {
+    ) -> Option<&IntrinsicMeasurements<IntrinsicInlineSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline => Some(&self.min_content_inline_size),
             IntrinsicSizeCacheKind::MaxContentInline => Some(&self.max_content_inline_size),
@@ -318,7 +334,7 @@ impl IntrinsicSizeMaps {
     fn inline_measurements_mut(
         &mut self,
         kind: IntrinsicSizeCacheKind,
-    ) -> Option<&mut HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>> {
+    ) -> Option<&mut IntrinsicMeasurements<IntrinsicInlineSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline => Some(&mut self.min_content_inline_size),
             IntrinsicSizeCacheKind::MaxContentInline => Some(&mut self.max_content_inline_size),
