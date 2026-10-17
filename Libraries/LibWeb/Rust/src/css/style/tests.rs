@@ -9297,7 +9297,7 @@ fn the_same_type_arriving_routes_an_of_type_position() {
 
     let mut planned = Vec::new();
     assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
-    assert_eq!(planned, vec![nodes[3].raw(), inserted.raw()]);
+    assert_eq!(planned, vec![inserted.raw(), nodes[3].raw()]);
 }
 
 #[test]
@@ -9355,7 +9355,7 @@ fn an_arrival_with_no_type_facts_keeps_of_type_routing_conservative() {
 
     let mut planned = Vec::new();
     assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
-    assert_eq!(planned, vec![nodes[3].raw(), inserted.raw()]);
+    assert_eq!(planned, vec![inserted.raw(), nodes[3].raw()]);
 }
 
 fn nth_target_document() -> (StyleEngine, Vec<StyleNodeID>) {
@@ -9397,7 +9397,7 @@ fn an_arrival_routes_only_an_plus_b_positions_that_can_flip() {
 
     let mut planned = Vec::new();
     assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
-    assert_eq!(planned, vec![nodes[2].raw(), nodes[3].raw(), inserted.raw()]);
+    assert_eq!(planned, vec![inserted.raw(), nodes[2].raw(), nodes[3].raw()]);
 }
 
 #[test]

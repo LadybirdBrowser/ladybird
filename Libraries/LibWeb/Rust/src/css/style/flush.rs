@@ -649,20 +649,21 @@ impl StyleEngine {
             return false;
         }
 
-        // A normalized transaction this wide will ask enough tree-shaped questions to amortize one
-        // preorder pass. Keep the coordinates in Tier-4 scratch and let smaller updates continue to
-        // walk the mandatory relation columns directly.
-        const TRANSACTION_TOPOLOGY_MINIMUM_INPUTS: usize = 32;
-        let mut regions = if transaction.inputs.len() >= TRANSACTION_TOPOLOGY_MINIMUM_INPUTS {
-            let regions = ImpactRegions::with_topology(&self.retained.tree, root);
-            let bytes = regions.topology_capacity_bytes();
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, bytes);
-            regions
-        } else {
-            ImpactRegions::new()
-        };
+        // A preorder pass takes a step per element of the document, where a tree-shaped question
+        // walks the mandatory relation columns along a node's ancestors, and a transaction asks a
+        // few of them per input. A transaction this wide against its document amortizes the pass.
+        // Keep the coordinates in Tier-4 scratch and let narrower updates walk the columns.
+        let mut regions =
+            if transaction.inputs.len().saturating_mul(16) >= self.retained.tree.connected_element_count() as usize {
+                let regions = ImpactRegions::with_topology(&self.retained.tree, root);
+                let bytes = regions.topology_capacity_bytes();
+                self.retained
+                    .memory
+                    .reserve_required(MemoryCategory::BatchScratch, bytes);
+                regions
+            } else {
+                ImpactRegions::new()
+            };
         let topology_bytes = regions.topology_capacity_bytes();
         let mut arriving_nodes: Vec<StyleNodeID> = if !transaction.has_coarsened_markers() {
             transaction
