@@ -1530,6 +1530,23 @@ GC::Ref<Speech::SpeechSynthesis> Window::speech_synthesis()
     return *m_speech_synthesis;
 }
 
+// https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#cannot-show-simple-dialogs
+bool Window::cannot_show_simple_dialogs() const
+{
+    // 1. If the active sandboxing flag set of window's associated Document has the sandboxed modals flag set, then
+    //    return true.
+    if (has_flag(associated_document().active_sandboxing_flag_set(), SandboxingFlagSet::SandboxedModals))
+        return true;
+
+    // 2. If window's relevant agent's event loop's termination nesting level is nonzero, then optionally return true.
+    if (main_thread_event_loop().termination_nesting_level() != 0)
+        return true;
+
+    // 3. Optionally, return true.
+    // 4. Return false.
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-alert
 void Window::alert(Utf16String const& message)
 {
@@ -1537,14 +1554,23 @@ void Window::alert(Utf16String const& message)
     // Note: This method is defined using two overloads, instead of using an optional argument,
     //       for historical reasons. The practical impact of this is that alert(undefined) is
     //       treated as alert("undefined"), but alert() is treated as alert("").
-    // FIXME: Make this fully spec compliant.
+
+    // 1. If we cannot show simple dialogs for this, then return.
+    if (cannot_show_simple_dialogs())
+        return;
+
+    // FIXME: Make the remaining steps fully spec compliant.
     page().did_request_alert(message);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-confirm
 bool Window::confirm(Optional<Utf16String> const& message)
 {
-    // FIXME: Make this fully spec compliant.
+    // 1. If we cannot show simple dialogs for this, then return false.
+    if (cannot_show_simple_dialogs())
+        return false;
+
+    // FIXME: Make the remaining steps fully spec compliant.
     // NOTE: `message` has an IDL-provided default value and is never empty.
     return page().did_request_confirm(*message);
 }
@@ -1552,7 +1578,11 @@ bool Window::confirm(Optional<Utf16String> const& message)
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-prompt
 Optional<Utf16String> Window::prompt(Optional<Utf16String> const& message, Optional<Utf16String> const& default_)
 {
-    // FIXME: Make this fully spec compliant.
+    // 1. If we cannot show simple dialogs for this, then return null.
+    if (cannot_show_simple_dialogs())
+        return {};
+
+    // FIXME: Make the remaining steps fully spec compliant.
     auto result = page().did_request_prompt(*message, *default_);
     if (!result.has_value())
         return {};
