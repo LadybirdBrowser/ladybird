@@ -501,7 +501,7 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
     }
     let compiled_executable = executable_of(frame_of(root));
     assert!(core::ptr::eq(
-        compiled_executable.jit_code().expect("the code is attached"),
+        compiled_executable.jit_code(vm).expect("the code is attached"),
         code
     ));
 
@@ -667,7 +667,7 @@ pub(super) fn materialize_call_site_frames(
     callee: Option<NonNull<ExecutionContext>>,
 ) -> NonNull<ExecutionContext> {
     let compiled_executable = executable_of(frame_of(root));
-    let code = compiled_executable.jit_code().expect("the code is attached");
+    let code = compiled_executable.jit_code(vm).expect("the code is attached");
     let site = code.site(index);
     assert_eq!(site.kind, SiteKind::Call);
     assert!(site.frames.len() >= 2);
@@ -739,10 +739,10 @@ pub fn frame_pointer_from_low_half(low_half: u32) -> u64 {
 
 /// View translation: the frames of the inlined calls that a call at the call site `index` of the code running `frame`
 /// is in, innermost first, while it runs without them, with the JIT frame at `frame_pointer`.
-pub fn call_site_frames(frame: &ExecutionContext, index: u32, frame_pointer: u64) -> Vec<CallSiteFrame> {
+pub fn call_site_frames(vm: &Vm, frame: &ExecutionContext, index: u32, frame_pointer: u64) -> Vec<CallSiteFrame> {
     let compiled_executable = executable_of(frame);
     let code = compiled_executable
-        .jit_code()
+        .jit_code(vm)
         .expect("a frame at a call site in an inlined callee runs its JIT code");
     let site = code.site(index);
     assert_eq!(site.kind, SiteKind::Call);
@@ -797,7 +797,7 @@ pub fn call_site_frame_arguments(
 ) -> Vec<Value> {
     let compiled_executable = executable_of(frame);
     let code = compiled_executable
-        .jit_code()
+        .jit_code(vm)
         .expect("a frame at a call site in an inlined callee runs its JIT code");
     let site = code.site(index);
     let caller_frame_state = &site.frames[frame_state + 1];

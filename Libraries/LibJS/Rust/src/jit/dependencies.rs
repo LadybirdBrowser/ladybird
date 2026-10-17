@@ -222,7 +222,7 @@ pub fn invalidate_dependents(vm: &Vm, dependency: Dependency) {
             continue;
         };
         // NB: The executable may have dropped the code since, or have other code by now.
-        let Some(code) = executable.jit_code().filter(|code| code.id() == id) else {
+        let Some(code) = executable.jit_code(vm).filter(|code| code.id() == id) else {
             continue;
         };
         if vm.jit.options.log_exits {

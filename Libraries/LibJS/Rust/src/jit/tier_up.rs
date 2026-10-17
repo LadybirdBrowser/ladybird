@@ -326,7 +326,7 @@ fn install(
     //     queued (from the tier-up check of another executable, like a callee's), or because they exited from the
     //     code before. Those frames keep counting, so that they continue in the code at its on-stack replacement
     //     entry rather than run in the interpreter until they return.
-    executable.install_jit_code(Box::new(code), compile_wait_budget(&vm.jit.options));
+    executable.install_jit_code(vm, Box::new(code), compile_wait_budget(&vm.jit.options));
 }
 
 type SnapshotExecutables = Vec<SnapshotExecutable>;

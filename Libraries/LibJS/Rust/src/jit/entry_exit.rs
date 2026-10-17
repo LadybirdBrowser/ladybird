@@ -69,7 +69,7 @@ pub fn enter_jit_code(vm: &Vm, frame: NonNull<ExecutionContext>) -> JitResult {
     let executable = executable_of(frame_ref);
     // NB: The executable keeps its code attached while JIT code may run frames of it, even if it is discarded
     //     meanwhile (see Executable::detach_discarded_jit_code_if_unused()).
-    let entry = executable.jit_code().expect("the executable has JIT code").entry();
+    let entry = executable.jit_code(vm).expect("the executable has JIT code").entry();
     enter_from_native_code(vm, frame, entry)
 }
 
@@ -82,7 +82,7 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
     if !can_enter_jit_code(vm, &executable) || !frame_ref.frame_initialized.get() {
         return None;
     }
-    let code = executable.jit_code().expect("the executable has JIT code");
+    let code = executable.jit_code(vm).expect("the executable has JIT code");
     let Some(entry) = code.osr_entry(pc) else {
         // NB: A fixed budget can keep expiring at the same back edge in nested loops, missing the code's OSR entry
         //     forever. Try the next back edge when the code has an entry at a loop this one is in. Frames in other
@@ -113,7 +113,7 @@ pub fn enter_jit_code_at_continuation(vm: &Vm, frame: NonNull<ExecutionContext>,
         return None;
     }
     let entry = executable
-        .jit_code()
+        .jit_code(vm)
         .expect("the executable has JIT code")
         .osr_entry(pc)?;
     vm.jit.count_coverage("resume-entry");
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn libjs_jit_exit(
     let root = NonNull::new(frame).expect("JIT code passes its frame");
     // NB: The frame's executable keeps the code attached while JIT code runs the frame, also after it was discarded.
     let executable = executable_of(frame_of(root));
-    let code = executable.jit_code().expect("the code is attached");
+    let code = executable.jit_code(vm).expect("the code is attached");
     match code.site(site).kind {
         SiteKind::Exit(_) => translate::exit(vm, root, code, site, dump),
         SiteKind::Leave => translate::leave(vm, root, code, site, dump),
@@ -220,7 +220,7 @@ pub unsafe extern "C" fn libjs_jit_finish_inlined_direct_call(
     let callee = call_site_callee_frame(vm_ref, root);
     let innermost = translate::materialize_call_site_frames(vm_ref, root, site, frame_pointer, Some(callee));
     let pc = executable_of(frame_of(root))
-        .jit_code()
+        .jit_code(vm_ref)
         .expect("the code is attached")
         .site(site)
         .frames[0]

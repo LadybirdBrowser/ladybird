@@ -1336,7 +1336,7 @@ impl Vm {
             let caller = unsafe { &*caller };
             let site = return_pc & !INLINED_CALL_SITE_BIT;
             let frame_pointer = crate::jit::translate::frame_pointer_from_low_half(context.caller_dst_raw.get());
-            for frame in crate::jit::translate::call_site_frames(caller, site, frame_pointer) {
+            for frame in crate::jit::translate::call_site_frames(self, caller, site, frame_pointer) {
                 callback(StackFrame {
                     execution_context: caller,
                     function: Some(frame.function),
