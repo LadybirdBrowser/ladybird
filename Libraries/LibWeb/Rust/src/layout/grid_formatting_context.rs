@@ -3446,9 +3446,25 @@ impl<'pass> GridFormattingContext<'pass> {
                 used.set_content_inline_size(resolved.size);
             }
             {
+                // https://drafts.csswg.org/css-grid-2/#grid-item-sizing
+                // NB: The grid area is definite, but an item that is neither stretched nor sized by its preferred
+                //     block size or aspect ratio takes its block size from its content, which is indefinite for the
+                //     content's percentages, as in other engines. Replaced boxes and buttons size their content
+                //     against their used block size.
+                let facts = self.facts(item.box_);
+                let block_size_follows_from_content = {
+                    let preferred = self.item_preferred_size(item, Axis::Row);
+                    (preferred.is_auto() || preferred.is_intrinsic_sizing_constraint())
+                        && !self.item_is_stretched(item, Axis::Row)
+                        && !facts.has_preferred_aspect_ratio()
+                        && !facts.is_replaced_box()
+                        && !facts.uses_button_layout()
+                        && !(self.style(item.box_).display().is_grid_inside()
+                            && self.grid_style(item.box_).template_rows.is_subgrid)
+                };
                 let used = self.used(item);
                 used.has_definite_inline_size.set(true);
-                used.has_definite_block_size.set(true);
+                used.has_definite_block_size.set(!block_size_follows_from_content);
             }
             let mut sizing = RootSizingDirectives::default();
             if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
