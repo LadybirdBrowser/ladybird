@@ -52,7 +52,8 @@ pub(crate) struct FragmentLink {
     pub(crate) inset_top: CssPixels,
     pub(crate) inset_bottom: CssPixels,
     pub(crate) containing_line_box_index: Option<usize>,
-    pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
+    /// Boxed, as few links place an absolutely positioned box and the inputs are larger than the rest of the link.
+    pub(crate) abspos_layout_inputs: Option<Box<abspos_inputs::AbsposLayoutInputs>>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
 }
 
@@ -501,7 +502,7 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
         inset_top: placement.inset_top,
         inset_bottom: placement.inset_bottom,
         containing_line_box_index: placement.containing_line_box_index,
-        abspos_layout_inputs: placement.abspos_layout_inputs,
+        abspos_layout_inputs: placement.abspos_layout_inputs.map(Box::new),
         containing_block: placement.containing_block,
     }
 }
