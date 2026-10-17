@@ -279,24 +279,11 @@ public:
         char fill = ' ',
         SignMode sign_mode = SignMode::OnlyIfNeeded);
 
-    ErrorOr<void> put_f80(
-        long double value,
-        u8 base = 10,
-        bool upper_case = false,
-        bool use_separator = false,
-        Align align = Align::Right,
-        size_t min_width = 0,
-        size_t precision = 6,
-        char fill = ' ',
-        SignMode sign_mode = SignMode::OnlyIfNeeded,
-        RealNumberDisplayMode = RealNumberDisplayMode::Default);
-
-    template<OneOf<f32, f64> T>
-    ErrorOr<void> put_f32_or_f64(
+    template<OneOf<float, double, long double> T>
+    ErrorOr<void> put_floating_point(
         T value,
         u8 base = 10,
         bool upper_case = false,
-        bool zero_pad = false,
         bool use_separator = false,
         Align align = Align::Right,
         size_t min_width = 0,
@@ -328,19 +315,6 @@ private:
 
     StringBuilder* m_string_builder { nullptr };
     Utf16StringBuilder* m_utf16_builder { nullptr };
-
-    ErrorOr<void> put_f64_with_precision(
-        double value,
-        u8 base,
-        bool upper_case,
-        bool zero_pad,
-        bool use_separator,
-        Align align,
-        size_t min_width,
-        size_t precision,
-        char fill,
-        SignMode sign_mode,
-        RealNumberDisplayMode);
 };
 
 class TypeErasedFormatParams {
