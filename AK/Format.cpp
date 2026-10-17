@@ -5,6 +5,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Error.h>
@@ -15,7 +16,6 @@
 #include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
-#include <AK/StringConversions.h>
 #include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <AK/Utf16String.h>
@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+
+#include <zmij-to-chars.h>
 
 #if defined(AK_OS_SERENITY)
 #    include <serenity.h>
@@ -494,95 +496,11 @@ ErrorOr<void> FormatBuilder::put_fixed_point(
     return {};
 }
 
-static bool round_up_digits(Span<char> digits)
-{
-    for (auto index = digits.size(); index > 0; --index) {
-        auto& digit = digits[index - 1];
-        if (digit != '9') {
-            ++digit;
-            return false;
-        }
-        digit = '0';
-    }
-    return true;
-}
-
-ErrorOr<void> FormatBuilder::put_f64_with_precision(
-    double value,
-    u8 base,
-    bool upper_case,
-    bool zero_pad,
-    bool use_separator,
-    Align align,
-    size_t min_width,
-    size_t precision,
-    char fill,
-    SignMode sign_mode,
-    RealNumberDisplayMode display_mode)
-{
-    StringBuilder string_builder;
-    FormatBuilder format_builder { string_builder };
-
-    bool is_negative = value < 0.0;
-    if (is_negative)
-        value = -value;
-
-    auto integer_value = static_cast<u64>(value);
-    value -= static_cast<i64>(value);
-
-    Vector<char, 32> fraction_digits;
-
-    if (precision > 0) {
-        // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
-        // place to start would be the following video from CppCon 2019:
-        // https://youtu.be/4P_kbF0EbZM (Stephan T. Lavavej “Floating-Point <charconv>: Making Your Code 10x Faster With C++17's Final Boss”)
-        double epsilon = 0.5;
-        if (!zero_pad && display_mode != RealNumberDisplayMode::FixedPoint) {
-            for (size_t i = 0; i < precision; ++i)
-                epsilon /= 10.0;
-        }
-
-        for (size_t digit = 0; digit < precision; ++digit) {
-            if (!zero_pad && display_mode != RealNumberDisplayMode::FixedPoint && value - static_cast<i64>(value) < epsilon)
-                break;
-
-            value *= 10.0;
-            epsilon *= 10.0;
-
-            if (value > NumericLimits<u32>::max())
-                value -= static_cast<u64>(value) - (static_cast<u64>(value) % 10);
-
-            TRY(fraction_digits.try_append('0' + (static_cast<u32>(value) % 10)));
-        }
-    }
-
-    // Round up if the following decimal is 5 or higher
-    if (static_cast<u64>(value * 10.0) % 10 >= 5) {
-        if (round_up_digits(fraction_digits.span()))
-            ++integer_value;
-    }
-
-    if (display_mode == RealNumberDisplayMode::Default) {
-        while (!fraction_digits.is_empty() && fraction_digits.last() == '0')
-            fraction_digits.take_last();
-    }
-
-    TRY(format_builder.put_u64(integer_value, base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
-
-    if (!fraction_digits.is_empty()) {
-        TRY(string_builder.try_append('.'));
-        TRY(string_builder.try_append(StringView { fraction_digits.data(), fraction_digits.size() }));
-    }
-
-    return put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
-}
-
-template<OneOf<f32, f64> T>
-ErrorOr<void> FormatBuilder::put_f32_or_f64(
+template<OneOf<float, double, long double> T>
+ErrorOr<void> FormatBuilder::put_floating_point(
     T value,
     u8 base,
     bool upper_case,
-    bool zero_pad,
     bool use_separator,
     Align align,
     size_t min_width,
@@ -591,226 +509,176 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
     SignMode sign_mode,
     RealNumberDisplayMode display_mode)
 {
-    // Special cases: NaN, inf, -inf, 0 and -0.
-    auto const is_nan = isnan(value);
-    auto const is_inf = isinf(value);
-
-    if (is_nan || is_inf) {
-        StringBuilder special_case_builder;
-
-        if (value < 0)
-            TRY(special_case_builder.try_append('-'));
-        else if (sign_mode == SignMode::Always)
-            TRY(special_case_builder.try_append('+'));
-        else if (sign_mode == SignMode::Reserved)
-            TRY(special_case_builder.try_append(' '));
-
-        if (is_nan)
-            TRY(special_case_builder.try_append(upper_case ? "NAN"sv : "nan"sv));
-        else if (is_inf)
-            TRY(special_case_builder.try_append(upper_case ? "INF"sv : "inf"sv));
-
-        return put_string(special_case_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
-    }
-
-    auto const [sign, mantissa, exponent] = convert_to_decimal_exponential_form(value);
-
-    auto convert_to_decimal_digits_array = [](auto x, auto& digits) -> size_t {
-        size_t length = 0;
-        for (; x; x /= 10)
-            digits[length++] = x % 10 | '0';
-        for (size_t i = 0; 2 * i + 1 < length; ++i)
-            swap(digits[i], digits[length - i - 1]);
-        return length;
-    };
-
-    Array<u8, 20> mantissa_digits;
-    auto mantissa_length = convert_to_decimal_digits_array(mantissa, mantissa_digits);
-
-    auto const n = exponent + static_cast<i32>(mantissa_length);
-    auto mantissa_text = StringView { mantissa_digits.span().slice(0, mantissa_length) };
-
-    // NOTE: Range from ECMA262, seems like an okay default.
-    if (n < -5 || n > 21) {
-        StringBuilder scientific_notation_builder;
-
-        if (sign)
-            TRY(scientific_notation_builder.try_append('-'));
-        else if (sign_mode == SignMode::Always)
-            TRY(scientific_notation_builder.try_append('+'));
-        else if (sign_mode == SignMode::Reserved)
-            TRY(scientific_notation_builder.try_append(' '));
-
-        auto const exponent_sign = n < 0 ? '-' : '+';
-        Array<u8, 5> exponent_digits;
-        auto const exponent_length = convert_to_decimal_digits_array(abs(n - 1), exponent_digits);
-        auto const exponent_text = StringView { exponent_digits.span().slice(0, exponent_length) };
-
-        if (precision.has_value())
-            mantissa_text = mantissa_text.substring_view(0, min(*precision + 1, mantissa_text.length())).trim("0"sv, TrimMode::Right);
-
-        if (mantissa_text.length() == 1) {
-            // <mantissa>e<exponent>
-            TRY(scientific_notation_builder.try_append(mantissa_text));
-            TRY(scientific_notation_builder.try_append('e'));
-            TRY(scientific_notation_builder.try_append(exponent_sign));
-            TRY(scientific_notation_builder.try_append(exponent_text));
-        } else {
-            // <mantissa>.<mantissa[1..]>e<exponent>
-            TRY(scientific_notation_builder.try_append(mantissa_text.substring_view(0, 1)));
-            TRY(scientific_notation_builder.try_append('.'));
-            TRY(scientific_notation_builder.try_append(mantissa_text.substring_view(1)));
-            TRY(scientific_notation_builder.try_append('e'));
-            TRY(scientific_notation_builder.try_append(exponent_sign));
-            TRY(scientific_notation_builder.try_append(exponent_text));
-        }
-
-        return put_string(scientific_notation_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
-    }
-
-    if (precision.has_value() || base != 10)
-        return put_f64_with_precision(value, base, upper_case, zero_pad, use_separator, align, min_width, precision.value_or(6), fill, sign_mode, display_mode);
-
-    if (value == static_cast<T>(0.0)) {
-        StringBuilder zero_builder;
-
-        if (value < 0)
-            TRY(zero_builder.try_append('-'));
-        else if (sign_mode == SignMode::Always)
-            TRY(zero_builder.try_append('+'));
-        else if (sign_mode == SignMode::Reserved)
-            TRY(zero_builder.try_append(' '));
-
-        TRY(zero_builder.try_append('0'));
-
-        return put_string(zero_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
-    }
-
-    // No precision specified, so pick the best precision with roundtrip guarantees.
     StringBuilder builder;
-
-    if (sign)
+    if (value < 0)
         TRY(builder.try_append('-'));
     else if (sign_mode == SignMode::Always)
         TRY(builder.try_append('+'));
     else if (sign_mode == SignMode::Reserved)
         TRY(builder.try_append(' '));
 
-    size_t integral_part_end = 0;
+    // AK formats negative zero as zero and does not print NaN's sign bit.
+    auto magnitude = value < 0 ? -value : value;
+    if (value == 0)
+        magnitude = 0;
+    else if (isnan(value))
+        magnitude = static_cast<T>(NAN);
 
-    if (exponent >= 0) {
-        TRY(builder.try_append(mantissa_text));
-        TRY(builder.try_append_repeated('0', exponent));
-        integral_part_end = builder.length();
-    } else if (n > 0) {
-        TRY(builder.try_append(mantissa_text.substring_view(0, n)));
-        integral_part_end = builder.length();
-        TRY(builder.try_append('.'));
-        TRY(builder.try_append(mantissa_text.substring_view(n)));
+    auto const is_finite = isfinite(value);
+
+    Array<char, zmij::buffer_sizes<T>::shortest> shortest_buffer;
+    StringView shortest;
+
+    if (!is_finite || (base == 10 && display_mode != RealNumberDisplayMode::FixedPoint)) {
+        auto* shortest_end = zmij::write(shortest_buffer.data(), shortest_buffer.size(), magnitude);
+        if (shortest_end == shortest_buffer.data())
+            return Error::from_errno(ENOMEM);
+        shortest = { shortest_buffer.data(), static_cast<size_t>(shortest_end - shortest_buffer.data()) };
+    }
+
+    auto append_with_precision = [&](zmij::chars_format format, Optional<size_t> precision) -> ErrorOr<void> {
+        if (precision.value_or(0) > static_cast<size_t>(NumericLimits<int>::max()))
+            return Error::from_errno(EOVERFLOW);
+
+        Array<char, zmij::buffer_sizes<double>::fixed> buffer;
+        ByteBuffer allocated_buffer;
+
+        auto* begin = buffer.data();
+        auto size = buffer.size();
+
+        auto write = [&] {
+            if (precision.has_value())
+                return zmij::to_chars(begin, begin + size, magnitude, format, static_cast<int>(*precision));
+            return zmij::to_chars(begin, begin + size, magnitude, format);
+        };
+
+        auto result = write();
+
+        if (result.ec == std::errc::value_too_large) {
+            // Include space for the largest integral part, a rounding carry, and the decimal point.
+            size = NumericLimits<T>::max_exponent10() + precision.value_or(0) + 3;
+
+            allocated_buffer = TRY(ByteBuffer::create_uninitialized(size));
+            begin = reinterpret_cast<char*>(allocated_buffer.data());
+
+            result = write();
+        }
+
+        if (result.ec == std::errc::not_enough_memory || result.ptr == begin)
+            return Error::from_errno(ENOMEM);
+        if (result.ec != std::errc {})
+            return Error::from_errno(EOVERFLOW);
+
+        StringView text { begin, static_cast<size_t>(result.ptr - begin) };
+        if (format == zmij::chars_format::fixed && display_mode != RealNumberDisplayMode::FixedPoint && text.contains('.'))
+            text = text.trim("0"sv, TrimMode::Right).trim("."sv, TrimMode::Right);
+        if (format == zmij::chars_format::hex)
+            TRY(builder.try_append("0x"sv));
+
+        return builder.try_append(text);
+    };
+
+    auto const first_digit = builder.length();
+
+    if (!is_finite) {
+        TRY(builder.try_append(shortest));
+    } else if (base == 16) {
+        TRY(append_with_precision(zmij::chars_format::hex, precision));
+    } else if (display_mode == RealNumberDisplayMode::FixedPoint) {
+        TRY(append_with_precision(zmij::chars_format::fixed, precision.value_or(6)));
     } else {
-        TRY(builder.try_append("0."sv));
-        TRY(builder.try_append_repeated('0', -n));
-        TRY(builder.try_append(mantissa_text));
-        integral_part_end = 1;
-    }
+        auto exponent_index = shortest.find('e');
+        auto mantissa = exponent_index.has_value() ? shortest.substring_view(0, *exponent_index) : shortest;
+        auto decimal_exponent = exponent_index.has_value()
+            ? shortest.substring_view(*exponent_index + 1).to_number<int>().value()
+            : static_cast<int>(mantissa.find('.').value_or(mantissa.length())) - 1;
 
-    if (use_separator && integral_part_end > 3) {
-        // Go backwards from the end of the integral part, inserting commas every 3 consecutive digits.
-        StringBuilder separated_builder;
-        auto const string_view = builder.string_view();
-        for (size_t i = 0; i < integral_part_end; ++i) {
-            auto const index_from_end = integral_part_end - i - 1;
-            if (index_from_end > 0 && index_from_end != integral_part_end - 1 && index_from_end % 3 == 2)
-                TRY(separated_builder.try_append(','));
-            TRY(separated_builder.try_append(string_view[i]));
+        // Keep AK's ECMA-262 notation thresholds, rather than zmij's printf-style defaults.
+        if (decimal_exponent < -6 || decimal_exponent > 20) {
+            Array<char, zmij::long_double_buffer_size> mantissa_buffer;
+            if (!exponent_index.has_value()) {
+                size_t length = 0;
+                for (auto digit : mantissa) {
+                    if (digit != '.')
+                        mantissa_buffer[length++] = digit;
+                }
+                auto digits = StringView { mantissa_buffer.data(), length }.trim("0"sv, TrimMode::Right);
+                // Make room for the decimal point after the leading digit.
+                for (size_t i = digits.length(); i > 1; --i)
+                    mantissa_buffer[i] = mantissa_buffer[i - 1];
+                if (digits.length() > 1)
+                    mantissa_buffer[1] = '.';
+                mantissa = StringView { mantissa_buffer.data(), digits.length() + (digits.length() > 1) };
+            }
+            if (precision.has_value() && mantissa.contains('.')) {
+                // AK's general precision truncates the shortest scientific mantissa.
+                mantissa = mantissa.substring_view(0, 2 + min(*precision, mantissa.length() - 2));
+                mantissa = mantissa.trim("0"sv, TrimMode::Right).trim("."sv, TrimMode::Right);
+            }
+            TRY(builder.try_append(mantissa));
+            TRY(builder.try_append('e'));
+            if (exponent_index.has_value()) {
+                auto exponent = shortest.substring_view(*exponent_index + 1);
+                TRY(builder.try_append(exponent[0]));
+                TRY(builder.try_append(exponent.substring_view(1).trim("0"sv, TrimMode::Left)));
+            } else {
+                FormatBuilder exponent_builder { builder };
+                TRY(exponent_builder.put_i64(decimal_exponent, 10, false, false, false, false, Align::Right, 0, ' ', SignMode::Always));
+            }
+        } else if (precision.has_value()) {
+            // General formatting removes fractional zeroes. A shortest integer within the exact
+            // integer range already has the requested representation, regardless of precision.
+            constexpr auto max_exact_integer = static_cast<T>(1ULL << min(std::numeric_limits<T>::digits, 53));
+            if (!exponent_index.has_value() && !mantissa.contains('.') && magnitude <= max_exact_integer)
+                TRY(builder.try_append(shortest));
+            else
+                TRY(append_with_precision(zmij::chars_format::fixed, precision));
+        } else if (!exponent_index.has_value()) {
+            if (first_digit == 0 && !upper_case && !use_separator)
+                return put_string(shortest, align, min_width, NumericLimits<size_t>::max(), fill);
+            TRY(builder.try_append(shortest));
+        } else {
+            // Expand a shortest scientific representation into AK's fixed notation range.
+            Array<char, zmij::long_double_buffer_size> digits_buffer;
+            size_t length = 0;
+            for (auto digit : mantissa) {
+                if (digit != '.')
+                    digits_buffer[length++] = digit;
+            }
+            StringView digits { digits_buffer.data(), length };
+            auto point = decimal_exponent + 1;
+            if (point <= 0) {
+                TRY(builder.try_append("0."sv));
+                TRY(builder.try_append_repeated('0', -point));
+                TRY(builder.try_append(digits));
+            } else if (static_cast<size_t>(point) >= digits.length()) {
+                TRY(builder.try_append(digits));
+                TRY(builder.try_append_repeated('0', point - digits.length()));
+            } else {
+                TRY(builder.try_append(digits.substring_view(0, point)));
+                TRY(builder.try_append('.'));
+                TRY(builder.try_append(digits.substring_view(point)));
+            }
         }
-        TRY(separated_builder.try_append(string_view.substring_view(integral_part_end)));
-        builder = move(separated_builder);
     }
 
-    return put_string(builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
+    if (!upper_case && !use_separator)
+        return put_string(builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
+
+    StringBuilder decorated_builder;
+    auto text = builder.string_view();
+    auto integral_end = text.find('.').value_or(text.find('e').value_or(text.find('p').value_or(text.length())));
+    for (size_t i = 0; i < text.length(); ++i) {
+        if (use_separator && base == 10 && i > first_digit && i < integral_end && (integral_end - i) % 3 == 0)
+            TRY(decorated_builder.try_append(','));
+        TRY(decorated_builder.try_append(upper_case ? to_ascii_uppercase(text[i]) : text[i]));
+    }
+    return put_string(decorated_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
 }
 
-ErrorOr<void> FormatBuilder::put_f80(
-    long double value,
-    u8 base,
-    bool upper_case,
-    bool use_separator,
-    Align align,
-    size_t min_width,
-    size_t precision,
-    char fill,
-    SignMode sign_mode,
-    RealNumberDisplayMode display_mode)
-{
-    StringBuilder string_builder;
-    FormatBuilder format_builder { string_builder };
-
-    if (isnan(value) || isinf(value)) [[unlikely]] {
-        if (value < 0.0l)
-            TRY(string_builder.try_append('-'));
-        else if (sign_mode == SignMode::Always)
-            TRY(string_builder.try_append('+'));
-        else if (sign_mode == SignMode::Reserved)
-            TRY(string_builder.try_append(' '));
-
-        if (isnan(value))
-            TRY(string_builder.try_append(upper_case ? "NAN"sv : "nan"sv));
-        else
-            TRY(string_builder.try_append(upper_case ? "INF"sv : "inf"sv));
-        TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
-        return {};
-    }
-
-    bool is_negative = value < 0.0l;
-    if (is_negative)
-        value = -value;
-
-    auto integer_value = static_cast<u64>(value);
-    value -= static_cast<i64>(value);
-
-    Vector<char, 32> fraction_digits;
-
-    if (precision > 0) {
-        // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
-        // place to start would be the following video from CppCon 2019:
-        // https://youtu.be/4P_kbF0EbZM (Stephan T. Lavavej “Floating-Point <charconv>: Making Your Code 10x Faster With C++17's Final Boss”)
-        long double epsilon = 0.5l;
-        if (display_mode != RealNumberDisplayMode::FixedPoint) {
-            for (size_t i = 0; i < precision; ++i)
-                epsilon /= 10.0l;
-        }
-
-        for (size_t digit = 0; digit < precision; ++digit) {
-            if (display_mode != RealNumberDisplayMode::FixedPoint && value - static_cast<i64>(value) < epsilon)
-                break;
-
-            value *= 10.0l;
-            epsilon *= 10.0l;
-
-            if (value > NumericLimits<u32>::max())
-                value -= static_cast<u64>(value) - (static_cast<u64>(value) % 10);
-
-            TRY(fraction_digits.try_append('0' + (static_cast<u32>(value) % 10)));
-        }
-    }
-
-    // Round up if the following decimal is 5 or higher
-    if (static_cast<u64>(value * 10.0l) % 10 >= 5) {
-        if (round_up_digits(fraction_digits.span()))
-            ++integer_value;
-    }
-
-    TRY(format_builder.put_u64(integer_value, base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
-
-    if (!fraction_digits.is_empty()) {
-        TRY(string_builder.try_append('.'));
-        TRY(string_builder.try_append(StringView { fraction_digits.data(), fraction_digits.size() }));
-    }
-
-    TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
-    return {};
-}
+template ErrorOr<void> FormatBuilder::put_floating_point<float>(float, u8, bool, bool, Align, size_t, Optional<size_t>, char, SignMode, RealNumberDisplayMode);
+template ErrorOr<void> FormatBuilder::put_floating_point<double>(double, u8, bool, bool, Align, size_t, Optional<size_t>, char, SignMode, RealNumberDisplayMode);
+template ErrorOr<void> FormatBuilder::put_floating_point<long double>(long double, u8, bool, bool, Align, size_t, Optional<size_t>, char, SignMode, RealNumberDisplayMode);
 
 ErrorOr<void> FormatBuilder::put_hexdump(ReadonlyBytes bytes, size_t width, char fill)
 {
@@ -1086,30 +954,35 @@ ErrorOr<void> Formatter<bool>::format(FormatBuilder& builder, bool value)
     }
 }
 
-ErrorOr<void> Formatter<long double>::format(FormatBuilder& builder, long double value)
+template<OneOf<float, double, long double> T>
+static ErrorOr<void> format_floating_point(FormatBuilder& builder, StandardFormatter const& formatter, T value)
 {
-    u8 base;
-    bool upper_case;
-    FormatBuilder::RealNumberDisplayMode real_number_display_mode = FormatBuilder::RealNumberDisplayMode::General;
-    if (m_mode == Mode::Default || m_mode == Mode::FixedPoint) {
+    u8 base = 0;
+    bool upper_case = false;
+    auto display_mode = FormatBuilder::RealNumberDisplayMode::General;
+
+    if (formatter.m_mode == StandardFormatter::Mode::Default || formatter.m_mode == StandardFormatter::Mode::FixedPoint) {
         base = 10;
         upper_case = false;
-        if (m_mode == Mode::FixedPoint)
-            real_number_display_mode = FormatBuilder::RealNumberDisplayMode::FixedPoint;
-    } else if (m_mode == Mode::Hexfloat) {
+        if (formatter.m_mode == StandardFormatter::Mode::FixedPoint)
+            display_mode = FormatBuilder::RealNumberDisplayMode::FixedPoint;
+    } else if (formatter.m_mode == StandardFormatter::Mode::Hexfloat || formatter.m_mode == StandardFormatter::Mode::HexfloatUppercase) {
         base = 16;
-        upper_case = false;
-    } else if (m_mode == Mode::HexfloatUppercase) {
-        base = 16;
-        upper_case = true;
+        upper_case = formatter.m_mode == StandardFormatter::Mode::HexfloatUppercase;
     } else {
         VERIFY_NOT_REACHED();
     }
 
-    m_width = m_width.value_or(0);
-    m_precision = m_precision.value_or(6);
+    auto precision = formatter.m_precision;
+    if constexpr (IsSame<T, long double>)
+        precision = precision.value_or(6);
 
-    return builder.put_f80(value, base, upper_case, m_use_separator, m_align, m_width.value(), m_precision.value(), m_fill, m_sign_mode, real_number_display_mode);
+    return builder.put_floating_point(value, base, upper_case, formatter.m_use_separator, formatter.m_align, formatter.m_width.value_or(0), precision, formatter.m_fill, formatter.m_sign_mode, display_mode);
+}
+
+ErrorOr<void> Formatter<long double>::format(FormatBuilder& builder, long double value)
+{
+    return format_floating_point(builder, *this, value);
 }
 
 ErrorOr<void> Formatter<f16>::format(FormatBuilder& builder, f16 value)
@@ -1121,56 +994,13 @@ ErrorOr<void> Formatter<f16>::format(FormatBuilder& builder, f16 value)
 
 ErrorOr<void> Formatter<double>::format(FormatBuilder& builder, double value)
 {
-    u8 base;
-    bool upper_case;
-    FormatBuilder::RealNumberDisplayMode real_number_display_mode = FormatBuilder::RealNumberDisplayMode::General;
-    if (m_mode == Mode::Default || m_mode == Mode::FixedPoint) {
-        base = 10;
-        upper_case = false;
-        if (m_mode == Mode::FixedPoint)
-            real_number_display_mode = FormatBuilder::RealNumberDisplayMode::FixedPoint;
-    } else if (m_mode == Mode::Hexfloat) {
-        base = 16;
-        upper_case = false;
-    } else if (m_mode == Mode::HexfloatUppercase) {
-        base = 16;
-        upper_case = true;
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    m_width = m_width.value_or(0);
-
-    return builder.put_f32_or_f64(value, base, upper_case, m_zero_pad, m_use_separator, m_align, m_width.value(), m_precision, m_fill, m_sign_mode, real_number_display_mode);
+    return format_floating_point(builder, *this, value);
 }
 
 ErrorOr<void> Formatter<float>::format(FormatBuilder& builder, float value)
 {
-    u8 base;
-    bool upper_case;
-    FormatBuilder::RealNumberDisplayMode real_number_display_mode = FormatBuilder::RealNumberDisplayMode::General;
-    if (m_mode == Mode::Default || m_mode == Mode::FixedPoint) {
-        base = 10;
-        upper_case = false;
-        if (m_mode == Mode::FixedPoint)
-            real_number_display_mode = FormatBuilder::RealNumberDisplayMode::FixedPoint;
-    } else if (m_mode == Mode::Hexfloat) {
-        base = 16;
-        upper_case = false;
-    } else if (m_mode == Mode::HexfloatUppercase) {
-        base = 16;
-        upper_case = true;
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    m_width = m_width.value_or(0);
-
-    return builder.put_f32_or_f64(value, base, upper_case, m_zero_pad, m_use_separator, m_align, m_width.value(), m_precision, m_fill, m_sign_mode, real_number_display_mode);
+    return format_floating_point(builder, *this, value);
 }
-
-template ErrorOr<void> FormatBuilder::put_f32_or_f64<float>(float, u8, bool, bool, bool, Align, size_t, Optional<size_t>, char, SignMode, RealNumberDisplayMode);
-template ErrorOr<void> FormatBuilder::put_f32_or_f64<double>(double, u8, bool, bool, bool, Align, size_t, Optional<size_t>, char, SignMode, RealNumberDisplayMode);
 
 void vout(FILE* file, StringView fmtstr, TypeErasedFormatParams& params, bool newline)
 {

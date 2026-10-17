@@ -6,9 +6,11 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 
 #ifdef AK_OS_WINDOWS
@@ -341,6 +343,105 @@ TEST_CASE(magnitude_less_than_zero)
 {
     EXPECT_EQ(ByteString::formatted("{}", -0.654), "-0.654");
     EXPECT_EQ(ByteString::formatted("{}", 0.654), "0.654");
+}
+
+TEST_CASE(floating_point_notation_boundaries)
+{
+    EXPECT_EQ(ByteString::formatted("{}", 1e-6), "0.000001");
+    EXPECT_EQ(ByteString::formatted("{}", 1e-7), "1e-7");
+    EXPECT_EQ(ByteString::formatted("{}", -1e-7), "-1e-7");
+    EXPECT_EQ(ByteString::formatted("{}", 1e20), "100000000000000000000");
+    EXPECT_EQ(ByteString::formatted("{}", 1e21), "1e+21");
+    EXPECT_EQ(ByteString::formatted("{}", 1e100), "1e+100");
+    EXPECT_EQ(ByteString::formatted("{}", 1e-6f), "0.000001");
+    EXPECT_EQ(ByteString::formatted("{}", 1e-7f), "1e-7");
+    EXPECT_EQ(ByteString::formatted("{:.0}", 1.99e30), "1e+30");
+    EXPECT_EQ(ByteString::formatted("{:.{}}", 1.234e30, NumericLimits<size_t>::max()), "1.234e+30");
+    EXPECT_EQ(ByteString::formatted("{:'.1f}", -1e20), "-100,000,000,000,000,000,000.0");
+    EXPECT_EQ(ByteString::formatted("{:.8f}", 1e-7), "0.00000010");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", 1e21), "1000000000000000000000.0");
+}
+
+TEST_CASE(floating_point_rounding)
+{
+    // Round exact halfway values to even, including a carry into the integral part.
+    EXPECT_EQ(ByteString::formatted("{:.0f}", 2.5), "2");
+    EXPECT_EQ(ByteString::formatted("{:.0f}", 3.5), "4");
+    EXPECT_EQ(ByteString::formatted("{:.0f}", -2.5), "-2");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", 1.25), "1.2");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", 1.75), "1.8");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", 9.75), "9.8");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", 1.25f), "1.2");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", 1.25L), "1.2");
+    EXPECT_EQ(ByteString::formatted("{}", -0.0), "0");
+    EXPECT_EQ(ByteString::formatted("{:+.2f}", -0.0), "+0.00");
+    EXPECT_EQ(ByteString::formatted("{:f}", 1.5), "1.500000");
+    EXPECT_EQ(ByteString::formatted("{:x>8.1f}", 1.25), "xxxxx1.2");
+    EXPECT_EQ(Utf16String::formatted("{:'.1f}", -9999.99), Utf16String::from_utf8("-10,000.0"sv));
+}
+
+TEST_CASE(floating_point_precision_preserves_binary_value)
+{
+    // Format the actual binary value, rounded to the requested number of decimal places.
+    EXPECT_EQ(ByteString::formatted("{:.20f}", 0.1), "0.10000000000000000555");
+    EXPECT_EQ(ByteString::formatted("{:.20f}", -0.3), "-0.29999999999999998890");
+    EXPECT_EQ(ByteString::formatted("{:.20f}", 1.0 / 3.0), "0.33333333333333331483");
+    EXPECT_EQ(ByteString::formatted("{:.30f}", 0.001f), "0.001000000047497451305389404297");
+    EXPECT_EQ(ByteString::formatted("{:.30f}", 0.0001f), "0.000099999997473787516355514526");
+    EXPECT_EQ(ByteString::formatted("{:.20}", 0.1), "0.10000000000000000555");
+    EXPECT_EQ(ByteString::formatted("{:.30}", 0.001f), "0.001000000047497451305389404297");
+
+    // Widen the double so the expected value is independent of long double's precision.
+    EXPECT_EQ(ByteString::formatted("{:.55f}", static_cast<long double>(0.1)), "0.1000000000000000055511151231257827021181583404541015625");
+}
+
+TEST_CASE(floating_point_precision_rounding_below_halfway)
+{
+    // These binary values are just below decimal halfway points, so rounding should select the value closer to zero.
+    EXPECT_EQ(ByteString::formatted("{:.2f}", 0.045), "0.04");
+    EXPECT_EQ(ByteString::formatted("{:.2f}", -0.045), "-0.04");
+    EXPECT_EQ(ByteString::formatted("{:.2f}", 0.575), "0.57");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", 0.15), "0.1");
+    EXPECT_EQ(ByteString::formatted("{:.1f}", -0.15), "-0.1");
+}
+
+TEST_CASE(floating_point_precision_exact_dyadic_fraction)
+{
+    // 1 + 2^-52 is exactly representable, and its decimal expansion ends after 52 places. Preserve all 52 decimal
+    // places and pad the remaining requested places with zeroes.
+    static constexpr auto expected = "1.0000000000000002220446049250313080847263336181640625000"sv;
+    EXPECT_EQ(ByteString::formatted("{:.55f}", 0x1.0000000000001p+0), expected);
+    EXPECT_EQ(ByteString::formatted("{:.55f}", 0x1.0000000000001p+0L), expected);
+}
+
+TEST_CASE(floating_point_large_precision)
+{
+    StringBuilder expected;
+    expected.append("1.5"sv);
+    expected.append_repeated('0', 399);
+    EXPECT_EQ(ByteString::formatted("{:.400f}", 1.5), expected.string_view());
+    EXPECT_EQ(ByteString::formatted("{:.400f}", 1.5L), expected.string_view());
+
+    auto maximum = ByteString::formatted("{:.1f}", NumericLimits<double>::max());
+    EXPECT_EQ(maximum.length(), 311u);
+    EXPECT(maximum.ends_with(".0"sv));
+    EXPECT_EQ(maximum.to_number<double>().value(), NumericLimits<double>::max());
+
+    StringBuilder builder;
+    auto result = builder.try_appendff("{:.{}f}", 1.0, NumericLimits<size_t>::max());
+    EXPECT(result.is_error());
+}
+
+TEST_CASE(hexadecimal_floating_point)
+{
+    EXPECT_EQ(ByteString::formatted("{:a}", 1.5), "0x1.8p+0");
+    EXPECT_EQ(ByteString::formatted("{:A}", 3.25), "0X1.AP+1");
+    EXPECT_EQ(ByteString::formatted("{:.3a}", -1.5), "-0x1.800p+0");
+    EXPECT_EQ(ByteString::formatted("{:a}", 1.5f), "0x1.8p+0");
+    EXPECT_EQ(ByteString::formatted("{:.3a}", 1.5L), "0x1.800p+0");
+    EXPECT_EQ(ByteString::formatted("{:a}", 0.0), "0x0p+0");
+    EXPECT_EQ(ByteString::formatted("{:+A}", INFINITY), "+INF");
+    EXPECT_EQ(ByteString::formatted("{: A}", NAN), " NAN");
 }
 
 TEST_CASE(format_nullptr)
