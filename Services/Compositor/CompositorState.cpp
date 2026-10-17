@@ -169,7 +169,13 @@ void CompositorState::set_parent_context(Web::CompositorContextId context_id, Op
     if (parent_context_id.has_value()) {
         VERIFY(!context->presents_to_client());
         VERIFY(*parent_context_id != context_id);
-        VERIFY(context_if_present(*parent_context_id));
+        // The parent's context belongs to the process hosting the parent, which can destroy it before this context's
+        // process hears that the parent is gone. The context is left without a parent then, as destroying the parent
+        // would have left it.
+        // NB: The UI process creates a context here before it hands the context's ID out, so a parent this doesn't know
+        //     has been destroyed.
+        if (!context_if_present(*parent_context_id))
+            parent_context_id = {};
     }
 
     auto current_parent_context_id = context->parent_context_id();

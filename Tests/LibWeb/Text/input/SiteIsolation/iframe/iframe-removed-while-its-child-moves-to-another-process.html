@@ -1,0 +1,60 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    // Each iframe's child navigates to a site another process hosts, and the iframe is removed while the child's
+    // process attaches its compositor context to the iframe's. The iframe's context can be gone by then.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const FRAME_COUNT = 6;
+
+        const grandchildBody = "<!DOCTYPE html>grandchild";
+        const sameSiteGrandchildUrl = await httpServer.createEcho("GET", "/stale-parent-context-grandchild", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: grandchildBody,
+        });
+        const crossSiteGrandchildUrl = new URL(sameSiteGrandchildUrl);
+        crossSiteGrandchildUrl.hostname = uniqueLocalhostHostname("stale-parent-context-grandchild");
+
+        const middleUrl = await httpServer.createEcho("GET", "/stale-parent-context-middle", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><body><script>
+                const id = +location.hash.slice(1);
+                const child = document.createElement("iframe");
+                child.src = ${JSON.stringify(sameSiteGrandchildUrl)};
+                child.onload = () => {
+                    child.onload = null;
+                    child.src = ${JSON.stringify(crossSiteGrandchildUrl.href)};
+                    setTimeout(() => parent.postMessage(id, "*"), id);
+                };
+                document.body.appendChild(child);
+            <\/script>`,
+        });
+
+        const frames = [];
+        let removedCount = 0;
+        const allRemoved = new Promise(resolve => {
+            addEventListener("message", event => {
+                frames[event.data].remove();
+                if (++removedCount === FRAME_COUNT)
+                    resolve();
+            });
+        });
+        for (let i = 0; i < FRAME_COUNT; ++i) {
+            const frame = document.createElement("iframe");
+            frame.src = `${middleUrl}#${i}`;
+            frames.push(frame);
+            document.body.appendChild(frame);
+        }
+        await allRemoved;
+
+        if (!(await waitForCondition(() => remoteFrameCount() === 0))) {
+            println("frame tree still has remote frames");
+            return;
+        }
+        await animationFrame();
+        await animationFrame();
+        println("all iframes removed");
+    });
+</script>
