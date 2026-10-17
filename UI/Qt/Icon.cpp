@@ -364,7 +364,7 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
     auto normal = ChromeStyle::chrome_button_text(palette);
     auto normal_alpha = 216;
     if (icon == ChromeIcon::DownloadActive) {
-        normal = ChromeStyle::chrome_accent(palette);
+        normal = ChromeStyle::chrome_accent();
         normal_alpha = 244;
     } else if (icon == ChromeIcon::Close || icon == ChromeIcon::TabClose)
         normal_alpha = 172;

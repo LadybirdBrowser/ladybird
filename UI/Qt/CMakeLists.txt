@@ -202,6 +202,7 @@ if (BUILD_TESTING)
 
     add_executable(TestPerformanceMonitorWidget
         ${LADYBIRD_SOURCE_DIR}/Tests/LibWebView/TestPerformanceMonitorWidget.cpp
+        ChromeStyle.cpp
         PerformanceMonitorWidget.cpp
         StringUtils.cpp
     )

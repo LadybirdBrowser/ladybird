@@ -5,6 +5,7 @@
  */
 
 #include <LibWebView/Profile.h>
+#include <UI/Qt/BrandColors.h>
 
 #import <Cocoa/Cocoa.h>
 #import <UI/Qt/ApplicationIcon.h>
@@ -27,31 +28,19 @@ void set_profile_application_icon(WebView::Profile const& profile)
     if (!application_icon)
         return;
 
+    auto ns_color = [](QRgb color) {
+        return [NSColor colorWithSRGBRed:qRed(color) / 255.0
+                                   green:qGreen(color) / 255.0
+                                    blue:qBlue(color) / 255.0
+                                   alpha:1];
+    };
     NSArray<NSColor*>* badge_colors = @[
-        [NSColor colorWithSRGBRed:0.38
-                            green:0.52
-                             blue:0.96
-                            alpha:1],
-        [NSColor colorWithSRGBRed:0.49
-                            green:0.43
-                             blue:0.91
-                            alpha:1],
-        [NSColor colorWithSRGBRed:0.63
-                            green:0.39
-                             blue:0.88
-                            alpha:1],
-        [NSColor colorWithSRGBRed:0.82
-                            green:0.36
-                             blue:0.65
-                            alpha:1],
-        [NSColor colorWithSRGBRed:0.16
-                            green:0.57
-                             blue:0.65
-                            alpha:1],
-        [NSColor colorWithSRGBRed:0.30
-                            green:0.36
-                             blue:0.72
-                            alpha:1],
+        ns_color(BrandColors::SlateBlue500),
+        ns_color(BrandColors::Indigo30),
+        ns_color(BrandColors::Violet100),
+        ns_color(BrandColors::Violet900),
+        ns_color(BrandColors::SlateBlue900),
+        ns_color(BrandColors::Indigo60),
     ];
     auto* badge_color = badge_colors[profile.paths().identity.hash() % [badge_colors count]];
 

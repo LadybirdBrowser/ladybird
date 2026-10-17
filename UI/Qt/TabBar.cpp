@@ -796,7 +796,7 @@ void TabBar::paintEvent(QPaintEvent*)
     }
 
     if (m_drop_indicator_index >= 0 && count() > 0) {
-        auto indicator_color = ChromeStyle::chrome_accent(palette());
+        auto indicator_color = ChromeStyle::chrome_accent();
         indicator_color.setAlpha(220);
         painter.setPen(QPen(indicator_color, 3, Qt::SolidLine, Qt::RoundCap));
 
