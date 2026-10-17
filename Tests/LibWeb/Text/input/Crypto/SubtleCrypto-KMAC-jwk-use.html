@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const jwk = use => ({ kty: "oct", k: "AAAAAAAAAAAAAAAAAAAAAA", alg: "K128", use });
+
+        await check('use "sig"', crypto.subtle.importKey("jwk", jwk("sig"), "KMAC128", false, ["sign"]));
+        await check('use "sign"', crypto.subtle.importKey("jwk", jwk("sign"), "KMAC128", false, ["sign"]));
+    });
+</script>
