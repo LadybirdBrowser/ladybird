@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>Test for animation freeze when repeatDur is not a multiple of dur</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/SVGAnimationTestCase-testharness.js"></script>
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <rect width="50" height="50" x="0" y="0" fill="green">
+    <animateMotion id="anim" to="100,0" begin="0s" dur="4s" fill="freeze" />
+  </rect>
+</svg>
+
+<script>
+var rootSVGElement = document.querySelector("svg");
+var epsilon = 1.0;
+
+// Setup animation test
+function sample1() {
+    assert_approx_equals(rootSVGElement.getBBox().x, 0, epsilon);
+}
+
+function sample2() {
+    assert_approx_equals(rootSVGElement.getBBox().x, 50, epsilon);
+}
+
+function sample3() {
+    assert_approx_equals(rootSVGElement.getBBox().x, 100, epsilon);
+}
+
+function sample4() {
+    assert_approx_equals(rootSVGElement.getBBox().x, 100, epsilon);
+}
+
+smil_async_test((t) => {
+    var rects = rootSVGElement.ownerDocument.getElementsByTagName("rect");
+    rect1 = rects[0];
+
+    const expectedValues = [
+        // [animationId, time, sampleCallback]
+        ["anim", 0.0,   sample1],
+        ["anim", 2.0,   sample2],
+        ["anim", 4.0,   sample3],
+        ["anim", 6.0,   sample4]
+    ];
+
+    runAnimationTest(t, expectedValues);
+});
+
+window.animationStartsImmediately = true;
+
+</script>

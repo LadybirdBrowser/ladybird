@@ -35,6 +35,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(exponent, "exponent")                                     \
     __ENUMERATE_SVG_ATTRIBUTE(filterUnits, "filterUnits")                               \
     __ENUMERATE_SVG_ATTRIBUTE(fr, "fr")                                                 \
+    __ENUMERATE_SVG_ATTRIBUTE(from, "from")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(fx, "fx")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(fy, "fy")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(glyphRef, "glyphRef")                                     \
