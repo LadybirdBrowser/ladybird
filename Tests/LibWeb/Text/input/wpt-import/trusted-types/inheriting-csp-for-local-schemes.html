@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://w3c.github.io/webappsec-csp/#security-inherit-csp">
+<!--
+    The following policies from inheriting-csp-for-local-schemes.html.headers
+    should be inherited by the subframes using local schemes:
+    - Content-Security-Policy: trusted-types allowedPolicy passThrough
+    - Content-Security-Policy: require-trusted-types-for 'script'
+  -->
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+   const passThroughPolicy = trustedTypes.createPolicy("passThrough", {
+     createHTML: s => s
+   });
+
+  function postMessageAndWaitReplyFromIframe(iframe, data) {
+    return new Promise(resolve => {
+      window.addEventListener("message", e => resolve(e.data), {once: true});
+      iframe.contentWindow.postMessage(data, '*');
+    });
+  }
+  const subframeHTML = `<!DOCTYPE html>
+<script>onmessage = (event) => {
+  try {
+    switch(event.data.fn) {
+      case 'setInnerHTML':
+        document.createElement("div").innerHTML = event.data.arg;
+      break;
+      case 'createPolicy':
+        trustedTypes.createPolicy(event.data.arg);
+      break;
+    }
+    parent.postMessage(null, '*');
+  } catch(e) {
+    parent.postMessage(e, '*');
+  }
+}\u003C/script>`
+
+  let iframes = [];
+
+  let iframe1 = document.createElement("iframe");
+  iframe1.dataset.urlType = "srcdoc";
+  iframe1.dataset.inherits = true;
+  iframe1.srcdoc = passThroughPolicy.createHTML(`<p>srcdoc</p>${subframeHTML}`);
+  iframes.push(iframe1);
+
+  let iframe2 = document.createElement("iframe");
+  iframe2.dataset.urlType = "data";
+  iframe2.dataset.inherits = true;
+  iframe2.src = `data:text/html,<p>data</p>${subframeHTML}`;
+  iframes.push(iframe2);
+
+  let iframe3 = document.createElement("iframe");
+  iframe3.dataset.urlType = "blob";
+  iframe3.dataset.inherits = true;
+  iframe3.src = URL.createObjectURL(new Blob([`<p>blob</p>${subframeHTML}`],
+                                             {type: 'text/html'}));
+  iframes.push(iframe3);
+
+  let iframe4 = document.createElement("iframe");
+  iframe4.dataset.urlType = "about:blank";
+  iframe4.dataset.inherits = true;
+  iframe4.src = "about:blank";
+  iframe4.onload = _ => {
+    let iframeDocument = iframe4.contentWindow.document;
+    iframeDocument.open();
+    iframeDocument.write(passThroughPolicy.createHTML(
+      `<p>overwritten about:blank</p>${subframeHTML}`));
+    iframeDocument.close();
+  }
+  iframes.push(iframe4);
+
+  let iframe5 = document.createElement("iframe");
+  iframe5.dataset.urlType = "blank.html";
+  iframe5.dataset.inherits = false;
+  iframe5.src = "../common/blank.html";
+  iframe5.onload = _ => {
+    let iframeDocument = iframe5.contentWindow.document;
+    iframeDocument.open();
+    iframeDocument.write(passThroughPolicy.createHTML(
+      `<p>overwritten blank.html</p>${subframeHTML}`));
+    iframeDocument.close();
+  }
+  iframes.push(iframe5);
+
+  document.addEventListener("DOMContentLoaded", _ =>
+    iframes.forEach(iframe => document.body.appendChild(iframe))
+  );
+
+  promise_setup(_ => new Promise(resolve =>
+    window.addEventListener("load", resolve)));
+
+  iframes.forEach(iframe => {
+    const inherits = iframe.dataset.inherits === "true";
+    const whetherItIsInherited = `${inherits ? "should" : "should not"} be inherited`;
+
+    promise_test(async _ => {
+      let exception = await postMessageAndWaitReplyFromIframe(iframe, {
+        fn: "setInnerHTML", arg: "unsafe"});
+      if (inherits) {
+        assert_not_equals(exception, null);
+        assert_true(exception instanceof TypeError);
+      } else {
+        assert_equals(exception, null);
+      }
+    }, `require-trusted-types-for directive ${whetherItIsInherited} in local ${iframe.dataset.urlType} frames`);
+
+    promise_test(async _ => {
+      let exception1 = await postMessageAndWaitReplyFromIframe(iframe, {
+        fn: "createPolicy", arg: "allowedPolicy",
+      });
+      assert_equals(exception1, null);
+
+      let exception2 = await postMessageAndWaitReplyFromIframe(iframe, {
+        fn: "createPolicy", arg: "forbiddenPolicy",
+      });
+      if (inherits) {
+        assert_not_equals(exception2, null);
+        assert_true(exception2 instanceof TypeError);
+      } else {
+        assert_equals(exception2, null);
+      }
+    }, `trusted-types directive ${whetherItIsInherited} in local ${iframe.dataset.urlType} frames`);
+  });
+</script>

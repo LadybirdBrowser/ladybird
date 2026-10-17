@@ -1,0 +1,2 @@
+Content-Security-Policy: trusted-types allowedPolicy passThrough
+Content-Security-Policy: require-trusted-types-for 'script'

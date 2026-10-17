@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	require-trusted-types-for directive should be inherited in local srcdoc frames
+Pass	trusted-types directive should be inherited in local srcdoc frames
+Pass	require-trusted-types-for directive should be inherited in local data frames
+Pass	trusted-types directive should be inherited in local data frames
+Pass	require-trusted-types-for directive should be inherited in local blob frames
+Pass	trusted-types directive should be inherited in local blob frames
+Pass	require-trusted-types-for directive should be inherited in local about:blank frames
+Pass	trusted-types directive should be inherited in local about:blank frames
+Pass	require-trusted-types-for directive should not be inherited in local blank.html frames
+Pass	trusted-types directive should not be inherited in local blank.html frames

@@ -241,8 +241,15 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
         }
     }
 
-    // FIXME: 2. Let childDocument be element's content navigable's active document.
-    // FIXME: 3. If childDocument has its mute iframe load flag set, then return.
+    // 2. Let childDocument be element's content navigable's active document.
+    // NB: A document hosted by another process can't be opened from this one, so it is never muted.
+    GC::Ptr<DOM::Document> child_document;
+    if (auto* local_navigable = as_if<LocalNavigable>(*element.content_navigable()))
+        child_document = local_navigable->active_document();
+
+    // 3. If childDocument has its mute iframe load flag set, then return.
+    if (child_document && child_document->mute_iframe_load())
+        return;
 
     // 4. If element's pending resource-timing start time is not null:
     if (element.pending_resource_start_time().has_value()) {
@@ -278,12 +285,18 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
         element.set_pending_resource_timing_url({});
     }
 
-    // 5. Fire an event named load at element.
+    // 5. Set childDocument's iframe load in progress flag.
+    if (child_document)
+        child_document->set_iframe_load_in_progress(true);
+
+    // 6. Fire an event named load at element.
     element.dispatch_event(DOM::Event::create(
         HTML::EventNames::load,
         HighResolutionTime::current_high_resolution_time(relevant_global_object(element))));
 
-    // FIXME: 7. Unset childDocument's iframe load in progress flag.
+    // 7. Unset childDocument's iframe load in progress flag.
+    if (child_document)
+        child_document->set_iframe_load_in_progress(false);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex

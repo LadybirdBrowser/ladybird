@@ -1430,7 +1430,10 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
     // 13. Set document's is initial about:blank to false.
     set_is_initial_about_blank(false);
 
-    // FIXME: 14. If document's iframe load in progress flag is set, then set document's mute iframe load flag.
+    // 14. If document's iframe load in progress flag is set, then set document's mute iframe load flag.
+    // AD-HOC: Other engines only skip the load of a document opened during its iframe load, so opening it again
+    //         later unmutes it. See https://github.com/whatwg/html/issues/4292
+    set_mute_iframe_load(iframe_load_in_progress());
 
     // 15. Set document to no-quirks mode.
     set_quirks_mode(QuirksMode::No);

@@ -1010,6 +1010,12 @@ public:
     bool is_initial_about_blank() const { return m_is_initial_about_blank; }
     void set_is_initial_about_blank(bool b) { m_is_initial_about_blank = b; }
 
+    bool iframe_load_in_progress() const { return m_iframe_load_in_progress; }
+    void set_iframe_load_in_progress(bool value) { m_iframe_load_in_progress = value; }
+
+    bool mute_iframe_load() const { return m_mute_iframe_load; }
+    void set_mute_iframe_load(bool value) { m_mute_iframe_load = value; }
+
     HTML::CrossProcessId id() const { return m_id.value(); }
     void set_id(HTML::CrossProcessId);
 
@@ -2005,6 +2011,13 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool m_is_initial_about_blank { false };
+
+    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#iframe-load-in-progress
+    bool m_iframe_load_in_progress { false };
+
+    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#mute-iframe-load
+    bool m_mute_iframe_load { false };
+
     Optional<HTML::CrossProcessId> m_id;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-about-base-url
