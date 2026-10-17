@@ -80,11 +80,17 @@ static Vector<KeyUsage> usage_intersection(ReadonlySpan<KeyUsage> a, ReadonlySpa
 {
     Vector<KeyUsage> result;
     for (auto const& usage : a) {
-        if (b.contains_slow(usage))
+        if (b.contains_slow(usage) && !result.contains_slow(usage))
             result.append(usage);
     }
     quick_sort(result);
     return result;
+}
+
+// https://w3c.github.io/webcrypto/#concept-normalized-usages
+Vector<KeyUsage> normalized_key_usages(ReadonlySpan<KeyUsage> usages)
+{
+    return usage_intersection(usages, { { KeyUsage::Encrypt, KeyUsage::Decrypt, KeyUsage::Sign, KeyUsage::Verify, KeyUsage::DeriveKey, KeyUsage::DeriveBits, KeyUsage::WrapKey, KeyUsage::UnwrapKey, KeyUsage::EncapsulateKey, KeyUsage::EncapsulateBits, KeyUsage::DecapsulateKey, KeyUsage::DecapsulateBits } });
 }
 
 static StringView key_usage_to_string(KeyUsage usage)
@@ -2750,8 +2756,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCbc::generate
     // 11. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 12. Set the [[usages]] internal slot of key to be usages.
-    key->set_usages(key_usages);
+    // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(key_usages));
 
     // 13. Return key.
     return { key };
@@ -3075,8 +3081,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCtr::generate
     // 11. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 12. Set the [[usages]] internal slot of key to be usages.
-    key->set_usages(key_usages);
+    // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(key_usages));
 
     // 13. Return key.
     return { key };
@@ -3484,8 +3490,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesGcm::generate
     // 11. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 12. Set the [[usages]] internal slot of key to be usages.
-    key->set_usages(key_usages);
+    // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(key_usages));
 
     // 13. Return key.
     return { key };
@@ -3723,8 +3729,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesKw::generate_
     // 11. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 12. Set the [[usages]] internal slot of key to be usages.
-    key->set_usages(key_usages);
+    // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(key_usages));
 
     // 13. Return key.
     return { key };
@@ -8020,8 +8026,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_k
     // 14. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 15. Set the [[usages]] internal slot of key to be usages.
-    key->set_usages(usages);
+    // 15. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(usages));
 
     // 16. Return key.
     return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { key };
@@ -9710,8 +9716,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ChaCha20Poly1305
     // 9. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 10. Set the [[usages]] internal slot of key to be usages.
-    key->set_usages(key_usages);
+    // 10. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(key_usages));
 
     // 11. Return key.
     return { key };
@@ -10004,8 +10010,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesOcb::generate
     // 11. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 12. Set the [[usages]] internal slot of key to be usages.
-    key->set_usages(key_usages);
+    // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(key_usages));
 
     // 13. Return key.
     return { key };
@@ -10343,8 +10349,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> KMAC::generate_k
     // 11. Set the [[extractable]] internal slot of key to extractable.
     key->set_extractable(extractable);
 
-    // 12. Set the [[usages]] internal slot of key to usages.
-    key->set_usages(usages);
+    // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+    key->set_usages(normalized_key_usages(usages));
 
     // 13. Return key.
     return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { key };
