@@ -694,7 +694,16 @@ impl<'pass> SizingContext<'pass> {
         // 1. The tentative used height is calculated (without 'min-height' and 'max-height')
         let mut used =
             self.tentative_block_size_for_replaced_element(node, computed_block, available_space, constraints);
-        if computed_inline.is_auto() && computed_block.is_auto() && self.facts(node).has_preferred_aspect_ratio() {
+        let facts = self.facts(node);
+        // NB: A non-replaced box sized through its aspect ratio already has its used inline size, which transfers
+        //     through the ratio before its min/max block sizes apply on their own.
+        //     https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+        let inline_size_is_already_used = !facts.is_replaced_box() && self.used(node).has_definite_inline_size();
+        if computed_inline.is_auto()
+            && computed_block.is_auto()
+            && facts.has_preferred_aspect_ratio()
+            && !inline_size_is_already_used
+        {
             // However, for replaced elements with both 'width' and 'height' computed as 'auto',
             // use the algorithm under 'Minimum and maximum widths'
             // https://www.w3.org/TR/CSS22/visudet.html#min-max-widths
