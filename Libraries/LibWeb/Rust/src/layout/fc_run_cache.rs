@@ -72,6 +72,14 @@ impl FcRunCacheKey {
         }
     }
 
+    pub(super) fn fc_type(&self) -> formatting_context::FormattingContextType {
+        self.fc_type
+    }
+
+    pub(super) fn has_no_table_cell_intrinsic_block_padding(&self) -> bool {
+        self.input.sizing.table_cell_intrinsic_block_padding.is_none()
+    }
+
     /// The key with the intrinsic block padding a table hands its cell taken out of the root's block paddings.
     fn without_table_cell_intrinsic_block_padding(&self) -> Self {
         let mut key = *self;

@@ -42,60 +42,9 @@ displayListTest({
                 equal(partial.getBoundingClientRect().width, 100, "canvas width");
             },
             expect: `
-                damage: rows=4 moved=0 order=1 eligibility=0 all=false
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport ASSEMBLE
-                  @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
-                  @viewport/scroll-metadata COPY
-                  @viewport/background COPY
-                  @viewport/border COPY
-                  BlockContainer<HTML>/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
-                  @viewport/foreground COPY
-                  BlockContainer<HTML>/descendants(foreground) ASSEMBLE
-                  BlockContainer<HTML> ASSEMBLE
-                    BlockContainer<HTML>/preamble COPY
-                    BlockContainer<HTML>/background/hit-test COPY
-                    BlockContainer<HTML>/scroll-metadata COPY
-                    BlockContainer<HTML>/background COPY
-                    BlockContainer<HTML>/border COPY
-                    BlockContainer<BODY>/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>/background/hit-test COPY
-                      BlockContainer<BODY>/scroll-metadata COPY
-                      BlockContainer<BODY>/background COPY
-                      BlockContainer<BODY>/border COPY
-                      CanvasBox<CANVAS>#full/descendants(background-and-borders) COPY
-                      BlockContainer<DIV>#boundary/descendants(background-and-borders) REPLAN
-                    BlockContainer<BODY>/descendants(inline-background-and-borders) ASSEMBLE
-                      CanvasBox<CANVAS>#full/descendants(inline-background-and-borders) COPY
-                      BlockContainer<DIV>#boundary/descendants(inline-background-and-borders) REPLAN
-                    BlockContainer<HTML>/foreground/hit-test COPY
-                    BlockContainer<HTML>/foreground COPY
-                    BlockContainer<BODY>/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>/foreground/hit-test COPY
-                      BlockContainer<BODY>/foreground COPY
-                      CanvasBox<CANVAS>#full/descendants(foreground) COPY
-                      BlockContainer<DIV>#boundary/descendants(foreground) REPLAN
-                      BlockContainer<BODY>/outline COPY
-                      BlockContainer<BODY>/overlay/hit-test COPY
-                      BlockContainer<BODY>/overlay COPY
-                    BlockContainer<DIV>#boundary REPLAN
-                      BlockContainer<DIV>#boundary/background/hit-test COPY
-                      BlockContainer<DIV>#boundary/scroll-metadata COPY
-                      BlockContainer<DIV>#boundary/background COPY
-                      BlockContainer<DIV>#boundary/border COPY
-                      CanvasBox<CANVAS>#partial/descendants(background-and-borders) COPY
-                      CanvasBox<CANVAS>#partial/descendants(floats) COPY
-                      CanvasBox<CANVAS>#partial/descendants(inline-background-and-borders) COPY
-                      BlockContainer<DIV>#boundary/foreground/hit-test COPY
-                      BlockContainer<DIV>#boundary/foreground COPY
-                      CanvasBox<CANVAS>#partial/descendants(foreground) COPY
-                      BlockContainer<DIV>#boundary/outline COPY
-                      BlockContainer<DIV>#boundary/overlay/hit-test COPY
-                      BlockContainer<DIV>#boundary/overlay COPY
-                    BlockContainer<HTML>/outline COPY
-                  @viewport/outline COPY
+                @viewport COPY
             `,
         },
     ],

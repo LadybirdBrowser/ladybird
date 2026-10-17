@@ -348,6 +348,24 @@ pub(crate) fn place_child_in_containing_block(
     let used = records.used_values(node);
     set_placement(used, containing_block, offset);
     let fragments = run.fragments.as_deref()?;
+    if let Some(fragment) = fragments.take_reused_committed_fragment(node) {
+        fragments.attach_reused_subtree(
+            node,
+            fragment.clone(),
+            (!containing_block.is_invalid()).then_some(containing_block),
+            used,
+            containing_block_is_sealed(records, containing_block),
+            resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
+            point_add(
+                offset,
+                committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
+            ),
+        );
+        return Some(fragment_tree::PlacedFragment {
+            fragment,
+            exports_payloads: false,
+        });
+    }
     fragments.normalize_arrivals_for_placement(node, callbacks);
     loop {
         let batch = fragments.take_drainable_abspos(node, records, callbacks);
@@ -407,6 +425,7 @@ pub(crate) fn place_reused_child(
         (!containing_block.is_invalid()).then_some(containing_block),
         used,
         containing_block_is_sealed(records, containing_block),
+        None,
         point_add(
             offset,
             committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
@@ -1627,6 +1646,17 @@ pub(super) fn run_formatting_context(
     ) {
         Ok(attempt) => attempt,
         Err(entry) => {
+            if let Some(result) = reuse_committed_subtree_as_it_is(
+                purpose,
+                parent_fragments,
+                parent_used,
+                box_,
+                &callbacks,
+                &cache_key,
+                &entry,
+            ) {
+                return result;
+            }
             let reuses_committed_subtree = entry.can_reuse_committed_subtree();
             let _trace = callbacks
                 .arena()
@@ -1671,6 +1701,48 @@ pub(super) fn run_formatting_context(
     );
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
+}
+
+/// Takes a committing run of `box_` from the cache entry `entry` with nothing replayed: its root record gets what the
+/// stored run left, and the run's placement attaches the box's committed fragment as it is. That is exact where the
+/// committed fragment is the one the stored run produced, which a plain box shows by holding the record's metrics and
+/// the very line data the run left, and where nothing from the stored run reaches past its root.
+fn reuse_committed_subtree_as_it_is(
+    purpose: LayoutPurpose,
+    parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
+    root_used: &UsedValues,
+    box_: Node,
+    callbacks: &LayoutPass<'_>,
+    cache_key: &fc_run_cache::FcRunCacheKey,
+    entry: &fc_run_cache::FcRunCacheEntry,
+) -> Option<ChildLayoutResult> {
+    let fragments = parent_fragments?;
+    if purpose != LayoutPurpose::Commit
+        || !entry.can_reuse_committed_subtree()
+        || entry.is_uncommitted()
+        || !cache_key.has_no_table_cell_intrinsic_block_padding()
+        || entry.outputs.root.as_ref().is_some_and(|root| !root.carries_nothing())
+        || NodeFacts::new(callbacks, box_).has_anchor_names()
+    {
+        return None;
+    }
+    let fragment = callbacks
+        .arena()
+        .with_current_committed_fragment(box_, |fragment| fragment.is_plain_box().then(|| fragment.clone()))
+        .flatten()?;
+    entry.outputs.root_outcome.clone().apply_to_record(root_used);
+    if !root_used.shows_box_of_fragment(&fragment) {
+        return None;
+    }
+    let _trace = callbacks.arena().layout_trace.run(
+        box_,
+        cache_key.fc_type(),
+        purpose,
+        LayoutMode::Normal,
+        || "REUSE SUBTREE",
+    );
+    fragments.hold_reused_committed_fragment(box_, fragment);
+    Some(entry.outputs.result)
 }
 
 #[expect(clippy::too_many_arguments)]
