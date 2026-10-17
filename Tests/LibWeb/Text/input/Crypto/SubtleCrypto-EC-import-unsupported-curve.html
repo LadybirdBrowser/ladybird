@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        for (const [name, usages] of [["ECDSA", ["verify"]], ["ECDH", []]]) {
+            const algorithm = { name, namedCurve: "P-999" };
+            await check(`${name} raw`, crypto.subtle.importKey("raw", new Uint8Array(65), algorithm, true, usages));
+            await check(`${name} spki`, crypto.subtle.importKey("spki", new Uint8Array(91), algorithm, true, usages));
+            await check(`${name} jwk`, crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x: "AA", y: "AA" }, algorithm, true, usages));
+            await check(`${name} invalid usages`, crypto.subtle.importKey("raw", new Uint8Array(65), algorithm, true, ["encrypt"]));
+        }
+    });
+</script>
