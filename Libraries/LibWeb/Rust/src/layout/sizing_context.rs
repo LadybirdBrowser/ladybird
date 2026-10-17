@@ -1600,23 +1600,26 @@ impl<'pass> SizingContext<'pass> {
         used.resolve_box_model(&style, containing_inline_size);
     }
 
+    /// Sizes an empty atomic block. Where a committing layout takes its metrics from its committed fragment as they
+    /// are, returns that fragment.
     pub(crate) fn dimension_empty_atomic_root(
         &self,
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         layout_mode: LayoutMode,
-    ) {
+    ) -> Option<std::sync::Arc<fragment_tree::Fragment>> {
         if layout_mode == LayoutMode::Normal
             && !self.purpose.is_measurement()
-            && self.try_reuse_empty_atomic_root_metrics(node)
+            && let Some(fragment) = self.try_reuse_empty_atomic_root_metrics(node)
         {
-            return;
+            return Some(fragment);
         }
         self.dimension_empty_atomic_root_fresh(node, available_space, constraints, layout_mode);
+        None
     }
 
-    fn try_reuse_empty_atomic_root_metrics(&self, node: Node) -> bool {
+    fn try_reuse_empty_atomic_root_metrics(&self, node: Node) -> Option<std::sync::Arc<fragment_tree::Fragment>> {
         let facts = self.facts(node);
         debug_assert!(
             formatting_context::formatting_context_type_created_by_box(facts)
@@ -1630,7 +1633,7 @@ impl<'pass> SizingContext<'pass> {
             || facts.is_scroll_container()
             || !self.block_root_inline_size_follows_from_style(node)
         {
-            return false;
+            return None;
         }
         let style = self.style(node);
         if !(style.width().is_auto() || style.width().is_length())
@@ -1641,18 +1644,20 @@ impl<'pass> SizingContext<'pass> {
             || !(style.max_height().is_none() || style.max_height().is_length())
             || Self::box_edges_contain_percentage(style)
         {
-            return false;
+            return None;
         }
         let used = self.used(node);
         if used.inline_size_constraint.get() != SizeConstraint::None
             || used.block_size_constraint.get() != SizeConstraint::None
         {
-            return false;
+            return None;
         }
         self.callbacks
             .arena()
-            .with_current_committed_fragment(node, |fragment| used.set_box_metrics_from_fragment(fragment))
-            .is_some()
+            .with_current_committed_fragment(node, |fragment| {
+                used.set_box_metrics_from_fragment(fragment);
+                fragment.clone()
+            })
     }
 
     fn dimension_empty_atomic_root_fresh(

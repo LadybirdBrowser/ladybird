@@ -348,10 +348,11 @@ pub(crate) fn place_child_in_containing_block(
     let used = records.used_values(node);
     set_placement(used, containing_block, offset);
     let fragments = run.fragments.as_deref()?;
-    if let Some(fragment) = fragments.take_reused_committed_fragment(node) {
-        fragments.attach_reused_subtree(
+    if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(node) {
+        fragments.attach_committed_fragment(
             node,
             fragment.clone(),
+            reuses_subtree,
             (!containing_block.is_invalid()).then_some(containing_block),
             used,
             containing_block_is_sealed(records, containing_block),
@@ -419,9 +420,10 @@ pub(crate) fn place_reused_child(
         .fragments
         .as_deref()
         .expect("a reused subtree is placed by a run that builds fragments");
-    fragments.attach_reused_subtree(
+    fragments.attach_committed_fragment(
         node,
         fragment,
+        true,
         (!containing_block.is_invalid()).then_some(containing_block),
         used,
         containing_block_is_sealed(records, containing_block),
@@ -2169,12 +2171,23 @@ pub(crate) fn layout_inside_child(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
-        run.sizing().dimension_empty_atomic_root(
+        let committed_fragment = run.sizing().dimension_empty_atomic_root(
             child,
             input.available_space,
             input.containing_block_constraints,
             layout_mode,
         );
+        // OPTIMIZATION: A box that took its metrics from its committed fragment is placed with that fragment, where
+        // it shows the box as the record holds it.
+        if let Some(fragment) = committed_fragment
+            && run.purpose == LayoutPurpose::Commit
+            && let Some(fragments) = run.fragments.as_deref()
+            && fragment.is_plain_box()
+            && used.shows_box_of_fragment(&fragment)
+            && !facts.has_anchor_names()
+        {
+            fragments.hold_committed_fragment_of_empty_box(child, fragment);
+        }
         store_derived_baselines(used, DerivedBaselines::default());
         note_skipped_child_dependency();
         return ChildLayoutOutcome::Skipped;
