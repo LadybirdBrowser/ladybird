@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    // Navigating a local iframe to a site another process hosts unloads its document first. The document's pagehide
+    // handler removing the iframe destroys the navigable before this process would stop hosting it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", "/pagehide-removes-frame-first", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>onpagehide = () => frameElement.remove();<\/script>`,
+            })
+        );
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", "/pagehide-removes-frame-second", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>second`,
+            })
+        );
+        secondUrl.hostname = uniqueLocalhostHostname("pagehide-removes-frame-second");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = firstUrl;
+        await new Promise(resolve => {
+            iframe.onload = resolve;
+            document.body.appendChild(iframe);
+        });
+
+        iframe.src = secondUrl;
+        if (!(await waitForCondition(() => !iframe.isConnected))) {
+            println("pagehide did not remove the iframe");
+            return;
+        }
+        // The removed iframe's navigable leaves the frame tree once the UI process has unloaded it.
+        if (!(await waitForCondition(() => !internals.dumpSiteIsolationProcessTree().includes("iframe")))) {
+            println("frame tree still has the iframe");
+            return;
+        }
+        await animationFrame();
+        println("iframe removed");
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
