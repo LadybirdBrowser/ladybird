@@ -6099,22 +6099,20 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
             }
         }
 
-        // 2. Let data be keyData.
-        auto data = move(key_data.get<ByteBuffer>());
-
-        // 3. If the length in bits of data is not 256 then throw a DataError.
+        // 2. If the length in bits of keyData is not 256 then throw a DataError.
+        auto& data = key_data.get<ByteBuffer>();
         if (data.size() * 8 != 256)
             return WebIDL::DataError::create("Invalid key length"_utf16);
 
-        // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+        // 5. Let key be a new CryptoKey representing the key data provided in keyData.
         key = CryptoKey::create(CryptoKey::InternalKeyData { OKPPublicKey { move(data) } });
 
-        // 7. Set the [[type]] internal slot of key to "public"
+        // 6. Set the [[type]] internal slot of key to "public"
         key->set_type(KeyType::Public);
 
-        // 4. Let algorithm be a new KeyAlgorithm object.
-        // 5. Set the name attribute of algorithm to "Ed25519".
-        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        // 3. Let algorithm be a new KeyAlgorithm object.
+        // 4. Set the name attribute of algorithm to "Ed25519".
+        // 7. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(CryptoKey::KeyAlgorithmData { "Ed25519"_utf16 });
     }
 
@@ -7286,22 +7284,20 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
         if (!usages.is_empty())
             return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
-        // 2. Let data be keyData.
-        auto data = move(key_data.get<ByteBuffer>());
-
-        // 3. If the length in bits of data is not 256 then throw a DataError.
+        // 2. If the length in bits of keyData is not 256 then throw a DataError.
+        auto& data = key_data.get<ByteBuffer>();
         if (data.size() * 8 != 256)
             return WebIDL::DataError::create("Invalid key length"_utf16);
 
-        // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+        // 5. Let key be a new CryptoKey representing the key data provided in keyData.
         key = CryptoKey::create(CryptoKey::InternalKeyData { OKPPublicKey { move(data) } });
 
-        // 7. Set the [[type]] internal slot of key to "public"
+        // 6. Set the [[type]] internal slot of key to "public"
         key->set_type(KeyType::Public);
 
-        // 4. Let algorithm be a new KeyAlgorithm object.
-        // 5. Set the name attribute of algorithm to "X25519".
-        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        // 3. Let algorithm be a new KeyAlgorithm object.
+        // 4. Set the name attribute of algorithm to "X25519".
+        // 7. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(CryptoKey::KeyAlgorithmData { "X25519"_utf16 });
     }
 
