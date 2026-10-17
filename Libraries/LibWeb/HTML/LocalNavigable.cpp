@@ -1545,7 +1545,8 @@ void LocalNavigable::report_opener_browsing_context()
 // A container in another process reads what it asks of its content navigable from the replicated state.
 void LocalNavigable::report_state_to_remote_container()
 {
-    if (is_local_root() && parent())
+    // A navigable destroyed while its navigation was in flight has no document left to report the state of.
+    if (is_local_root() && parent() && m_active_document)
         report_hosted_state();
 }
 
