@@ -42,6 +42,8 @@ namespace Ladybird {
 class TabPreviewPopup;
 class TabWidget;
 
+static constexpr int TAB_ICON_SIZE = 16;
+
 enum class TabLayout : u8 {
     Horizontal,
     VerticalCollapsed,
@@ -63,6 +65,7 @@ public:
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void refresh_tab_layout();
     void recreate_icons();
+    int pinned_tab_count() const;
 
 private:
     virtual QSize sizeHint() const override;
@@ -98,6 +101,17 @@ private:
     void show_tab_preview();
     void hide_tab_preview();
     QPoint tab_preview_position_for(int index, QSize const& popup_size) const;
+
+    // Where the pinned tabs sit in vertical tabs: a grid of tiles when expanded, one icon column when collapsed, and a
+    // separator below. Its height is 0 when there's no pinned tab.
+    struct PinnedRegion {
+        int count { 0 };
+        int columns { 1 };
+        int tile_width { 0 };
+        int height { 0 };
+    };
+    PinnedRegion pinned_region() const;
+    int vertical_bar_width() const;
 
     QRect visual_tab_rect(int index) const;
     int tab_index_at(QPoint const&) const;
@@ -173,6 +187,7 @@ public:
     void set_vertical_tabs_expand_on_hover(bool);
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void update_tab_button_visibility();
+    void update_tab_layout();
 
 signals:
     void current_tab_changed(int index);
@@ -213,7 +228,6 @@ private:
     QRect vertical_tabs_chrome_rect() const;
     int vertical_tabs_tab_width() const;
     void update_vertical_tabs_button_layout();
-    void update_tab_layout();
     void update_tab_chrome_visibility();
     void recreate_icons();
     void update_chrome_style();

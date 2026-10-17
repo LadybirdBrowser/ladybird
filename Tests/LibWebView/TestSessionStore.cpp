@@ -67,6 +67,35 @@ static i64 count_entry_rows(Database::Database& database, i64 tab_id)
     return select_i64(database, MUST(String::formatted("SELECT COUNT(*) FROM SessionEntries INNER JOIN SessionHistories ON SessionEntries.history_id = SessionHistories.id WHERE SessionHistories.tab_id = {};", tab_id)));
 }
 
+static SessionTabId open_tab(SessionStore& store, SessionWindowId window, StringView url)
+{
+    return MUST(store.tab_opened({ .window_id = window, .initial_url = parse_url(url), .insertion_index = {}, .is_active = SessionStore::IsActive::No }));
+}
+
+// Takes the schema back to SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION, so every migration after it runs again.
+static void rewind_sessions_schema_to_version_4(Database::Database& database)
+{
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN maximized;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN height;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN width;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN y;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN x;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN restore_at_launch;"sv));
+    MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN activation_sequence;"sv));
+    MUST(database.execute_raw("DROP TABLE SessionLifecycle;"sv));
+    MUST(database.execute_raw("ALTER TABLE SessionTabs DROP COLUMN pinned;"sv));
+    MUST(database.execute_raw("UPDATE SchemaVersions SET version = 4 WHERE store = 'Sessions';"sv));
+}
+
+// What the frontend does at Quit: Every window closes in quitting mode, and the run then ends normally.
+static void quit_cleanly(SessionStore& store, Vector<SessionWindowId> const& windows)
+{
+    store.application_quitting();
+    for (auto window : windows)
+        MUST(store.window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+    store.mark_clean_exit();
+}
+
 TEST_CASE(fresh_database_migrates_to_the_latest_schema)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed({ .foreign_keys = Database::Database::ForeignKeys::Yes }));
@@ -75,7 +104,7 @@ TEST_CASE(fresh_database_migrates_to_the_latest_schema)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 4u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 8u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -112,6 +141,20 @@ TEST_CASE(newer_sessions_schema_reports_database_too_new)
 
     EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
     EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
+}
+
+TEST_CASE(version_4_database_migrates_to_the_latest_schema)
+{
+    auto database = create_session_database();
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO Sessions (id, kind, closed_time, active_tab_index) VALUES (1, 0, 0, 0);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SessionTabs (id, session_id, tab_ordinal, active_url, current_used_step_index) VALUES (2, 1, 0, 'https://a.example/', 0);"sv));
+    rewind_sessions_schema_to_version_4(*database);
+
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 8u });
+    EXPECT_EQ(select_i64(*database, "SELECT pinned FROM SessionTabs WHERE id = 2;"_string), 0);
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Sessions WHERE id = 1 AND width IS NULL;"_string), 1);
+    EXPECT_EQ(select_i64(*database, "SELECT maximized FROM Sessions WHERE id = 1;"_string), 0);
 }
 
 TEST_CASE(pushed_tab_state_flushes_to_rows)
@@ -280,6 +323,99 @@ TEST_CASE(closing_a_tab_demotes_it)
 
     EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Sessions WHERE kind = 1;"_string), 0);
     EXPECT_EQ(count_entry_rows(*database, first), 0);
+}
+
+TEST_CASE(a_pin_writes_through_and_survives_restart)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://a.example/"sv);
+        (void)open_tab(*store, window, "https://b.example/"sv);
+
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+
+        // No flush: The pin itself must already be in the row.
+        EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT pinned FROM SessionTabs WHERE id = {};", pinned))), 1);
+    }
+
+    auto reopened_store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto unit = TRY_OR_FAIL(reopened_store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT_EQ(unit->tabs.size(), 2uz);
+    EXPECT(unit->tabs[0].pinned);
+    EXPECT(!unit->tabs[1].pinned);
+}
+
+TEST_CASE(a_flush_keeps_the_pin)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, window, "about:blank"sv);
+
+    TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+    store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://a.example/"sv }), .url = parse_url("https://a.example/"sv) });
+    store->flush_dirty_state();
+
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT pinned FROM SessionTabs WHERE id = {};", tab))), 1);
+}
+
+TEST_CASE(a_moved_tab_keeps_its_pin)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto first_window = TRY_OR_FAIL(store->window_opened());
+    auto second_window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, first_window, "https://a.example/"sv);
+
+    TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+    store->tab_moved({ .tab_id = tab, .new_window_id = second_window, .ordinal = 0 });
+
+    // A pushed state makes the flush rewrite the moved tab's row.
+    store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://b.example/"sv }), .url = parse_url("https://b.example/"sv) });
+    store->flush_dirty_state();
+
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT pinned FROM SessionTabs WHERE id = {};", tab))), 1);
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT session_id FROM SessionTabs WHERE id = {};", tab))), second_window);
+}
+
+TEST_CASE(closed_tabs_and_windows_keep_their_pins)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto first = open_tab(*store, window, "https://a.example/"sv);
+    auto second = open_tab(*store, window, "https://b.example/"sv);
+    (void)open_tab(*store, window, "https://c.example/"sv);
+    TRY_OR_FAIL(store->tab_pinned_changed(first, true));
+    TRY_OR_FAIL(store->tab_pinned_changed(second, true));
+
+    TRY_OR_FAIL(store->tab_closed({ .tab_id = second, .closed_at = UnixDateTime::now() }));
+    auto tab_unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(tab_unit.has_value());
+    EXPECT(tab_unit->tabs[0].pinned);
+
+    TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+    auto window_unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(window_unit.has_value());
+    EXPECT_EQ(window_unit->tabs.size(), 2uz);
+    EXPECT(window_unit->tabs[0].pinned);
+    EXPECT(!window_unit->tabs[1].pinned);
+}
+
+TEST_CASE(transient_closed_tabs_keep_their_pins)
+{
+    auto store = SessionStore::create();
+    auto window = TRY_OR_FAIL(store->window_opened());
+    auto tab = open_tab(*store, window, "https://a.example/"sv);
+    TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+
+    TRY_OR_FAIL(store->tab_closed({ .tab_id = tab, .closed_at = UnixDateTime::now() }));
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT(unit->tabs[0].pinned);
 }
 
 TEST_CASE(closed_tab_placement_survives_restart)
@@ -1091,6 +1227,580 @@ TEST_CASE(aborted_quit_resumes_demotion)
     TRY_OR_FAIL(store->tab_closed({ .tab_id = tab, .closed_at = UnixDateTime::now() }));
 
     EXPECT(store->has_closed_units());
+}
+
+TEST_CASE(a_first_run_counts_as_following_a_clean_exit)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    EXPECT_EQ(store->consecutive_unclean_exits(), 0u);
+}
+
+TEST_CASE(a_corrupt_lifecycle_row_counts_as_following_a_clean_exit)
+{
+    auto database = create_session_database();
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SessionLifecycle (id, clean_exit, consecutive_unclean_exits) VALUES (1, 0, -1);"sv));
+
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 0u);
+
+    // The run start rewrote the row, so the next run counts the one before it as unclean.
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 1u);
+}
+
+TEST_CASE(unclean_exits_count_up_until_a_clean_exit)
+{
+    auto database = create_session_database();
+
+    // A store destroyed without mark_clean_exit() is what a crash leaves behind.
+    (void)TRY_OR_FAIL(SessionStore::create(*database));
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 1u);
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        EXPECT_EQ(store->consecutive_unclean_exits(), 2u);
+        store->mark_clean_exit();
+    }
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::create(*database))->consecutive_unclean_exits(), 0u);
+}
+
+TEST_CASE(the_default_policy_keeps_leftover_windows_for_reopening)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        quit_cleanly(*store, { window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    EXPECT(store->take_launch_plan().is_empty());
+    EXPECT(store->has_closed_units());
+}
+
+TEST_CASE(everything_re_adopts_leftover_windows_in_place)
+{
+    auto database = create_session_database();
+    SessionWindowId first_window = 0;
+    SessionWindowId second_window = 0;
+    SessionTabId a = 0;
+    SessionTabId b = 0;
+    SessionTabId c = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        first_window = TRY_OR_FAIL(store->window_opened());
+        second_window = TRY_OR_FAIL(store->window_opened());
+        a = open_tab(*store, first_window, "https://a.example/"sv);
+        b = open_tab(*store, first_window, "https://b.example/"sv);
+        c = open_tab(*store, second_window, "https://c.example/"sv);
+        store->active_tab_changed(b);
+        // The first window ends up frontmost.
+        store->window_activated(second_window);
+        store->window_activated(first_window);
+        quit_cleanly(*store, { first_window, second_window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 2uz);
+    EXPECT_EQ(plan[0].window_id, second_window);
+    EXPECT_EQ(plan[0].tabs.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs[0].tab_id, c);
+    EXPECT_EQ(plan[1].window_id, first_window);
+    EXPECT_EQ(plan[1].tabs.size(), 2uz);
+    EXPECT_EQ(plan[1].tabs[0].tab_id, a);
+    EXPECT_EQ(plan[1].tabs[1].tab_id, b);
+    EXPECT_EQ(plan[1].tabs[1].url.serialize(), "https://b.example/"sv);
+    EXPECT_EQ(plan[1].active_tab_index, 1);
+    EXPECT(!store->has_closed_units());
+
+    // The plan is handed over once.
+    EXPECT(store->take_launch_plan().is_empty());
+}
+
+TEST_CASE(a_never_selected_tab_keeps_its_history_across_relaunches)
+{
+    auto database = create_session_database();
+    SessionWindowId window = 0;
+    SessionTabId tab = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        window = TRY_OR_FAIL(store->window_opened());
+        tab = open_tab(*store, window, "about:blank"sv);
+        store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://a.example/"sv, "https://b.example/"sv }), .url = parse_url("https://b.example/"sv) });
+        quit_cleanly(*store, { window });
+    }
+
+    // Relaunches that never select the tab never read or rewrite its rows.
+    for (int relaunch = 0; relaunch < 2; ++relaunch) {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+        EXPECT_EQ(store->take_launch_plan().size(), 1uz);
+        quit_cleanly(*store, { window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    EXPECT_EQ(store->take_launch_plan().size(), 1uz);
+    auto history = store->load_tab_history(tab);
+    EXPECT(history.has_value());
+    EXPECT_EQ(history->entries.size(), 2uz);
+    EXPECT_EQ(history->current_used_step_index, 1uz);
+}
+
+TEST_CASE(pinned_only_splits_pinned_tabs_from_the_rest)
+{
+    auto database = create_session_database();
+    SessionWindowId window = 0;
+    SessionTabId first_pinned = 0;
+    SessionTabId second_pinned = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        window = TRY_OR_FAIL(store->window_opened());
+        first_pinned = open_tab(*store, window, "https://a.example/"sv);
+        second_pinned = open_tab(*store, window, "https://b.example/"sv);
+        auto unpinned = open_tab(*store, window, "https://c.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(first_pinned, true));
+        TRY_OR_FAIL(store->tab_pinned_changed(second_pinned, true));
+        store->active_tab_changed(unpinned);
+        quit_cleanly(*store, { window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT(plan[0].window_id != window);
+    EXPECT_EQ(plan[0].tabs.size(), 2uz);
+    EXPECT_EQ(plan[0].tabs[0].tab_id, first_pinned);
+    EXPECT_EQ(plan[0].tabs[1].tab_id, second_pinned);
+    EXPECT(plan[0].tabs[0].pinned);
+    EXPECT(plan[0].tabs[1].pinned);
+
+    // The unpinned remainder stays on the Reopen Closed Window stack, as the same unit.
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT kind FROM Sessions WHERE id = {};", window))), 2);
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT(unit->was_window);
+    EXPECT_EQ(unit->origin, ClosedSessionUnit::Origin::StartupRecovery);
+    EXPECT_EQ(unit->tabs.size(), 1uz);
+    EXPECT_EQ(unit->tabs[0].active_url.serialize(), "https://c.example/"sv);
+}
+
+TEST_CASE(pinned_only_leaves_no_unit_for_a_window_with_only_pinned_tabs)
+{
+    auto database = create_session_database();
+    SessionWindowId window = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        window = TRY_OR_FAIL(store->window_opened());
+        auto first = open_tab(*store, window, "https://a.example/"sv);
+        auto second = open_tab(*store, window, "https://b.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(first, true));
+        TRY_OR_FAIL(store->tab_pinned_changed(second, true));
+        quit_cleanly(*store, { window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    EXPECT_EQ(store->take_launch_plan().size(), 1uz);
+    EXPECT(!store->has_closed_units());
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT COUNT(*) FROM Sessions WHERE id = {};", window))), 0);
+}
+
+TEST_CASE(pinned_only_keeps_a_window_without_pins_for_reopening)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        quit_cleanly(*store, { window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    EXPECT(store->take_launch_plan().is_empty());
+    EXPECT(store->has_closed_units());
+}
+
+TEST_CASE(closing_the_last_window_restores_it_at_launch)
+{
+    auto database = create_session_database();
+    SessionWindowId window = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        (void)open_tab(*store, window, "https://b.example/"sv);
+        TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 1, .closed_at = UnixDateTime::now() }));
+        store->mark_clean_exit();
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].window_id, window);
+    EXPECT_EQ(plan[0].tabs.size(), 2uz);
+    EXPECT_EQ(plan[0].active_tab_index, 1);
+    EXPECT(!store->has_closed_units());
+}
+
+TEST_CASE(pinned_only_restores_the_last_windows_pins)
+{
+    auto database = create_session_database();
+    SessionWindowId window = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://a.example/"sv);
+        (void)open_tab(*store, window, "https://b.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+        TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+        store->mark_clean_exit();
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs.size(), 1uz);
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT_EQ(unit->tabs.size(), 1uz);
+    EXPECT_EQ(unit->tabs[0].active_url.serialize(), "https://b.example/"sv);
+}
+
+TEST_CASE(closing_one_of_two_windows_doesnt_restore_it_at_launch)
+{
+    auto database = create_session_database();
+    SessionWindowId second_window = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto first_window = TRY_OR_FAIL(store->window_opened());
+        second_window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, first_window, "https://a.example/"sv);
+        (void)open_tab(*store, second_window, "https://b.example/"sv);
+        TRY_OR_FAIL(store->window_closing({ .window_id = first_window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+        quit_cleanly(*store, { second_window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].window_id, second_window);
+    EXPECT(store->has_closed_units());
+}
+
+TEST_CASE(opening_a_window_cancels_the_last_windows_restore)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+        // A window that's still empty at the quit is discarded at the next launch, so only the flag's fate matters.
+        (void)TRY_OR_FAIL(store->window_opened());
+        store->mark_clean_exit();
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    EXPECT(store->take_launch_plan().is_empty());
+    EXPECT(store->has_closed_units());
+}
+
+TEST_CASE(reopening_the_last_window_cancels_its_restore)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+        EXPECT(TRY_OR_FAIL(store->take_most_recently_closed()).has_value());
+        store->mark_clean_exit();
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    EXPECT(store->take_launch_plan().is_empty());
+}
+
+TEST_CASE(clearing_history_cancels_the_last_windows_restore)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+        TRY_OR_FAIL(store->remove_entries_accessed_since(UnixDateTime::epoch()));
+        store->mark_clean_exit();
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    EXPECT(store->take_launch_plan().is_empty());
+    EXPECT(!store->has_closed_units());
+}
+
+TEST_CASE(a_second_unclean_exit_in_a_row_stops_launch_restore)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        // Destroyed without mark_clean_exit(): a crash.
+    }
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+        EXPECT_EQ(store->take_launch_plan().size(), 1uz);
+        // And a second crash.
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    EXPECT(store->take_launch_plan().is_empty());
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT_EQ(unit->origin, ClosedSessionUnit::Origin::StartupRecovery);
+}
+
+TEST_CASE(a_clean_exit_resumes_launch_restore)
+{
+    auto database = create_session_database();
+    // Two crashes in a row.
+    for (int run = 0; run < 2; ++run) {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+    }
+    SessionWindowId window = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+        EXPECT(store->take_launch_plan().is_empty());
+        window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://b.example/"sv);
+        quit_cleanly(*store, { window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].window_id, window);
+}
+
+TEST_CASE(a_corrupt_tab_row_drops_only_that_tab_from_the_launch_plan)
+{
+    auto database = create_session_database();
+    SessionTabId a = 0;
+    SessionTabId b = 0;
+    SessionTabId c = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        a = open_tab(*store, window, "https://a.example/"sv);
+        b = open_tab(*store, window, "https://b.example/"sv);
+        c = open_tab(*store, window, "https://c.example/"sv);
+        quit_cleanly(*store, { window });
+    }
+    TRY_OR_FAIL(database->execute_raw(MUST(String::formatted("UPDATE SessionTabs SET active_url = 'not a url' WHERE id = {};", b)).to_byte_string()));
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs.size(), 2uz);
+    EXPECT_EQ(plan[0].tabs[0].tab_id, a);
+    EXPECT_EQ(plan[0].tabs[1].tab_id, c);
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT COUNT(*) FROM SessionTabs WHERE id = {};", b))), 0);
+}
+
+TEST_CASE(pinned_only_with_a_corrupt_row_in_a_window_without_pins_drops_only_that_tab)
+{
+    auto database = create_session_database();
+    SessionTabId a = 0;
+    SessionTabId b = 0;
+    SessionTabId c = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        a = open_tab(*store, window, "https://a.example/"sv);
+        b = open_tab(*store, window, "https://b.example/"sv);
+        c = open_tab(*store, window, "https://c.example/"sv);
+        quit_cleanly(*store, { window });
+    }
+    TRY_OR_FAIL(database->execute_raw(MUST(String::formatted("UPDATE SessionTabs SET active_url = 'not a url' WHERE id = {};", b)).to_byte_string()));
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    EXPECT(store->take_launch_plan().is_empty());
+    EXPECT(store->has_closed_units());
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT_EQ(unit->tabs.size(), 2uz);
+    EXPECT_EQ(unit->tabs[0].active_url.serialize(), "https://a.example/"sv);
+    EXPECT_EQ(unit->tabs[1].active_url.serialize(), "https://c.example/"sv);
+    (void)a;
+    (void)c;
+}
+
+TEST_CASE(pinned_only_maps_the_active_tab_into_the_pinned_window_and_the_remainder)
+{
+    auto database = create_session_database();
+    SessionTabId p1 = 0;
+    SessionTabId p2 = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        p1 = open_tab(*store, window, "https://p1.example/"sv);
+        (void)open_tab(*store, window, "https://u1.example/"sv);
+        p2 = open_tab(*store, window, "https://p2.example/"sv);
+        (void)open_tab(*store, window, "https://u2.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(p1, true));
+        TRY_OR_FAIL(store->tab_pinned_changed(p2, true));
+        store->active_tab_changed(p2);
+        quit_cleanly(*store, { window });
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs.size(), 2uz);
+    EXPECT_EQ(plan[0].tabs[0].tab_id, p1);
+    EXPECT_EQ(plan[0].tabs[1].tab_id, p2);
+    EXPECT_EQ(plan[0].active_tab_index, 1);
+
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT_EQ(unit->tabs.size(), 2uz);
+    EXPECT_EQ(unit->tabs[0].active_url.serialize(), "https://u1.example/"sv);
+    EXPECT_EQ(unit->tabs[1].active_url.serialize(), "https://u2.example/"sv);
+}
+
+TEST_CASE(a_transient_store_has_no_launch_plan)
+{
+    auto store = SessionStore::create();
+    EXPECT(store->take_launch_plan().is_empty());
+    EXPECT(!store->load_tab_history(1).has_value());
+}
+
+static constexpr SessionWindowGeometry test_geometry { .x = 10, .y = 20, .width = 800, .height = 600, .maximized = true };
+
+TEST_CASE(window_geometry_waits_for_a_flush)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    (void)open_tab(*store, window, "https://a.example/"sv);
+
+    store->window_geometry_changed(window, { .x = 10, .y = 20, .width = 800, .height = 600, .maximized = false });
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT COUNT(*) FROM Sessions WHERE id = {} AND width IS NULL;", window))), 1);
+
+    store->flush_dirty_state();
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT width FROM Sessions WHERE id = {};", window))), 800);
+    EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT maximized FROM Sessions WHERE id = {};", window))), 0);
+}
+
+TEST_CASE(a_closed_window_keeps_its_geometry)
+{
+    auto database = create_session_database();
+    SessionWindowId first_window = 0;
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        first_window = TRY_OR_FAIL(store->window_opened());
+        auto second_window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, first_window, "https://a.example/"sv);
+        (void)open_tab(*store, second_window, "https://b.example/"sv);
+        store->window_geometry_changed(first_window, test_geometry);
+        TRY_OR_FAIL(store->window_closing({ .window_id = first_window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+        quit_cleanly(*store, { second_window });
+    }
+
+    // After a relaunch, the unit's geometry comes from its row.
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    Optional<ClosedSessionUnit> first_window_unit;
+    for (;;) {
+        auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+        if (!unit.has_value())
+            break;
+        if (unit->tabs[0].active_url.serialize() == "https://a.example/"sv)
+            first_window_unit = unit.release_value();
+    }
+    EXPECT(first_window_unit.has_value());
+    EXPECT(first_window_unit->geometry.has_value());
+    EXPECT(*first_window_unit->geometry == test_geometry);
+}
+
+TEST_CASE(transient_closed_windows_keep_their_geometry)
+{
+    auto store = SessionStore::create();
+    auto window = TRY_OR_FAIL(store->window_opened());
+    (void)open_tab(*store, window, "https://a.example/"sv);
+    store->window_geometry_changed(window, test_geometry);
+    TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
+
+    auto unit = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT(unit.has_value());
+    EXPECT(unit->geometry.has_value());
+    EXPECT(*unit->geometry == test_geometry);
+}
+
+TEST_CASE(launch_plans_keep_window_geometry)
+{
+    for (auto policy : { SessionLaunchPolicy::Everything, SessionLaunchPolicy::PinnedOnly }) {
+        auto database = create_session_database();
+        {
+            auto store = TRY_OR_FAIL(SessionStore::create(*database));
+            auto window = TRY_OR_FAIL(store->window_opened());
+            auto tab = open_tab(*store, window, "https://a.example/"sv);
+            TRY_OR_FAIL(store->tab_pinned_changed(tab, true));
+            store->window_geometry_changed(window, test_geometry);
+            quit_cleanly(*store, { window });
+        }
+
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, policy));
+        auto plan = store->take_launch_plan();
+        EXPECT_EQ(plan.size(), 1uz);
+        EXPECT(plan[0].geometry.has_value());
+        EXPECT(*plan[0].geometry == test_geometry);
+
+        // The window the plan keeps has its row hold the geometry too.
+        EXPECT_EQ(select_i64(*database, MUST(String::formatted("SELECT COUNT(*) FROM Sessions WHERE id = {} AND x = 10 AND y = 20 AND width = 800 AND height = 600 AND maximized = 1;", plan[0].window_id))), 1);
+    }
+}
+
+TEST_CASE(a_corrupt_saved_geometry_is_dropped_instead_of_failing_recovery)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        store->window_geometry_changed(window, test_geometry);
+        store->flush_dirty_state();
+        TRY_OR_FAIL(database->execute_raw("UPDATE Sessions SET width = 'wide' WHERE kind = 0;"sv));
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::Everything));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT(!plan[0].geometry.has_value());
+}
+
+TEST_CASE(a_pending_tab_close_in_a_closing_window_leaves_the_saved_geometry)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto window = TRY_OR_FAIL(store->window_opened());
+    (void)open_tab(*store, window, "https://a.example/"sv);
+    auto second = open_tab(*store, window, "https://b.example/"sv);
+    store->window_geometry_changed(window, test_geometry);
+    store->flush_dirty_state();
+
+    // The tab close fails and the window close stays pending, so the tab's close is retried against a window that's
+    // already closing.
+    TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedTabFailure BEFORE INSERT ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+    TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedKindFailure BEFORE UPDATE OF kind ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+    EXPECT(store->tab_closed({ .tab_id = second, .closed_at = UnixDateTime::from_seconds_since_epoch(100) }).is_error());
+    (void)store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::from_seconds_since_epoch(101) });
+
+    // The row's width is changed behind the store's back, so a retry that rewrote the window's geometry would show.
+    TRY_OR_FAIL(database->execute_raw("UPDATE Sessions SET width = 999;"sv));
+    TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedTabFailure;"sv));
+    store->flush_dirty_state();
+
+    EXPECT_EQ(select_i64(*database, "SELECT width FROM Sessions WHERE kind = 0;"_string), 999);
 }
 
 TEST_CASE(retention_keeps_the_newest_closed_units)

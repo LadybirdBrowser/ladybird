@@ -22,6 +22,7 @@ private:
     void complete_first_run(JsonValue const&);
 
     void set_new_tab_page_url(JsonValue const&);
+    void set_restore_previous_session(JsonValue const&);
     void set_languages(JsonValue const&);
     void set_appearance(JsonValue const&);
     void set_content_settings(JsonValue const&);

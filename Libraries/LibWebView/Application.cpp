@@ -209,6 +209,12 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+#if !defined(AK_OS_WINDOWS)
+    // No event loop runs the handlers during teardown, so a signal from here on takes its default action again.
+    for (auto handler : m_session_signal_handlers)
+        Core::EventLoop::unregister_signal(handler);
+#endif
+
 #if defined(AK_OS_MACOS)
     // NB: Stop bootstrap callbacks before destroying the state they use.
     m_mach_port_server.clear();
@@ -250,7 +256,18 @@ Application::~Application()
     m_process_manager = nullptr;
     m_browser_process = nullptr;
 
+    // Only a normal exit gets this far, and only after every teardown step above, so a crash never records a clean one.
+    if (m_default_session && m_default_session->session_store) {
+        m_default_session->session_store->flush_dirty_state();
+        m_default_session->session_store->mark_clean_exit();
+    }
+
     s_the = nullptr;
+}
+
+SessionLaunchPolicy Application::launch_restore_policy() const
+{
+    return SessionLaunchPolicy::None;
 }
 
 bool Application::claim_cpu_profiler(ProcessType process_type)
@@ -1680,10 +1697,16 @@ ErrorOr<void> Application::launch_services()
 
         // Fall back without modifying the existing Sessions database.
         auto session_store = [&]() -> ErrorOr<NonnullOwnPtr<SessionStore>> {
+            // A headless run shows no windows and never takes the launch plan, yet startup recovery would still rewrite
+            // the saved session, reset the unclean-exit count, and demote the open windows of a browser running on this
+            // profile. So it gets a transient store instead, leaving the Sessions database as the last run left it.
+            if (m_browser_options.headless_mode.has_value())
+                return SessionStore::create();
+
             auto session_database = TRY(Database::Database::create(database_path, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
             if (TRY(SessionStore::migrate_schema(session_database)) != Database::MigrationOutcome::Success)
                 return Error::from_string_literal("Sessions database was created by a newer Ladybird version");
-            return SessionStore::create(session_database);
+            return SessionStore::create(session_database, launch_restore_policy());
         }();
         if (session_store.is_error()) {
             dbgln("Sessions will not be persisted this session: {}", session_store.error());
@@ -1717,6 +1740,19 @@ ErrorOr<void> Application::launch_services()
     m_default_session->session_store->on_closed_units_changed = [this] {
         on_recently_closed_entries_changed();
     };
+
+#if !defined(AK_OS_WINDOWS)
+    // A run stopped by SIGINT or SIGTERM ends like a quit, rather than like a crash: It saves the session, leaves its
+    // windows for the next launch to recover, and records a clean exit.
+    if (m_default_session->session_store->is_persistent()) {
+        for (auto signal_number : { SIGINT, SIGTERM }) {
+            m_session_signal_handlers.append(Core::EventLoop::register_signal(signal_number, [this](int) {
+                m_default_session->session_store->application_quitting();
+                m_event_loop->quit(0);
+            }));
+        }
+    }
+#endif
 
     VERIFY(m_event_loop);
     m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));

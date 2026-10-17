@@ -26,9 +26,21 @@ using SessionWindowId = i64;
 using SessionTabId = i64;
 using SessionCloseSequence = i64;
 
+// A window's normal (not maximized) geometry, plus whether it's maximized.
+struct SessionWindowGeometry {
+    i32 x { 0 };
+    i32 y { 0 };
+    i32 width { 0 };
+    i32 height { 0 };
+    bool maximized { false };
+
+    bool operator==(SessionWindowGeometry const&) const = default;
+};
+
 struct ClosedSessionTab {
     URL::URL active_url;
     Optional<SessionHistorySnapshot> history;
+    bool pinned { false };
 };
 
 struct ClosedSessionUnit {
@@ -43,10 +55,36 @@ struct ClosedSessionUnit {
     Optional<SessionWindowId> source_window_id;
     Optional<i64> source_tab_index;
     Origin origin { Origin::CloseAction };
+    Optional<SessionWindowGeometry> geometry;
 };
 
-// Persists live windows and tabs plus a bounded recently-closed stack. State updates coalesce;
-// lifecycle mutations write through. Startup recovers leftover open windows.
+// What startup recovery does with the windows the last run left open.
+enum class SessionLaunchPolicy : u8 {
+    // Every leftover window becomes a closed unit on the Reopen Closed Window stack.
+    None,
+    // Each leftover window's pinned tabs come back in a window of their own, and the rest becomes a closed unit.
+    PinnedOnly,
+    // Every leftover window comes back whole.
+    Everything,
+};
+
+struct RestoredSessionTab {
+    SessionTabId tab_id { 0 };
+    URL::URL url;
+    bool pinned { false };
+};
+
+// A window that startup recovery kept open for the frontend to show, with its tabs in order.
+struct RestoredSessionWindow {
+    SessionWindowId window_id { 0 };
+    Vector<RestoredSessionTab> tabs;
+    i64 active_tab_index { 0 };
+    Optional<SessionWindowGeometry> geometry;
+};
+
+// Persists live windows and tabs plus a bounded recently-closed stack. State updates coalesce; lifecycle mutations
+// write through. At startup, recovery hands the windows the last run left open to the frontend, or to the closed stack,
+// as its launch policy says.
 class WEBVIEW_API SessionStore {
     AK_MAKE_NONCOPYABLE(SessionStore);
     AK_MAKE_NONMOVABLE(SessionStore);
@@ -96,7 +134,7 @@ public:
 
     static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
 
-    static ErrorOr<NonnullOwnPtr<SessionStore>> create(Database::Database&);
+    static ErrorOr<NonnullOwnPtr<SessionStore>> create(Database::Database&, SessionLaunchPolicy = SessionLaunchPolicy::None);
     static NonnullOwnPtr<SessionStore> create();
 
     ~SessionStore();
@@ -104,19 +142,39 @@ public:
     ErrorOr<SessionWindowId> window_opened();
     ErrorOr<void> window_closing(WindowClosing);
     void window_detached(SessionWindowId);
+    void window_activated(SessionWindowId);
+    void window_geometry_changed(SessionWindowId, SessionWindowGeometry);
     ErrorOr<SessionTabId> tab_opened(TabOpened);
     void update_tab_state(TabStateUpdate);
     ErrorOr<void> tab_closed(TabClosed);
     void tab_detached(SessionTabId);
     void tab_moved(TabMoved);
     void tab_order_changed(TabOrderChanged);
+
+    // A pin writes through at once, since launch restore depends on it. And every later flush of the tab's row rewrites
+    // the flag, so a write that fails is repaired by the next one.
+    ErrorOr<void> tab_pinned_changed(SessionTabId, bool pinned);
     void active_tab_changed(SessionTabId);
     void application_quitting();
     void application_quit_aborted();
 
+    // How many runs in a row, ending with the one before this, ended without mark_clean_exit().
+    u32 consecutive_unclean_exits() const { return m_consecutive_unclean_exits; }
+
+    // Records that this run is ending normally. Only a normal teardown calls it, so a crash never records one.
+    void mark_clean_exit();
+
+    bool is_persistent() const { return m_persisted_storage.has_value(); }
+
     bool has_closed_units() const;
     ErrorOr<Optional<ClosedSessionUnit>> take_most_recently_closed();
     ErrorOr<void> remove_entries_accessed_since(UnixDateTime);
+
+    // The windows startup recovery kept open, in activation order with the frontmost last. It's handed over once.
+    Vector<RestoredSessionWindow> take_launch_plan();
+
+    // A tab's history: the store's own copy if it holds a newer one than the tab's rows, and otherwise the rows'.
+    Optional<SessionHistorySnapshot> load_tab_history(SessionTabId);
 
     void flush_dirty_state();
 
@@ -148,6 +206,7 @@ private:
         IdAllocator session_ids;
         IdAllocator tab_ids;
         IdAllocator close_sequences;
+        IdAllocator activation_sequences;
     };
 
     struct Statements {
@@ -155,20 +214,28 @@ private:
         Database::StatementID insert_tab;
         Database::StatementID insert_tab_if_missing;
         Database::StatementID update_tab_row;
+        Database::StatementID update_tab_pinned;
         Database::StatementID update_tab_parent;
         Database::StatementID update_session_closed;
-        Database::StatementID update_session_active_tab_index;
+        Database::StatementID update_session_metadata;
+        Database::StatementID update_session_geometry;
         Database::StatementID delete_session;
         Database::StatementID delete_tab;
         Database::StatementID prune_closed;
         Database::StatementID select_max_session_id;
         Database::StatementID select_max_tab_id;
         Database::StatementID select_max_close_sequence;
+        Database::StatementID select_max_activation_sequence;
         Database::StatementID select_closed_sessions;
         Database::StatementID select_session_tabs;
         Database::StatementID select_open_sessions;
+        Database::StatementID select_restore_at_launch_session;
+        Database::StatementID clear_restore_at_launch;
+        Database::StatementID reopen_closed_session;
         Database::StatementID recover_open_session;
         Database::StatementID delete_empty_open_sessions;
+        Database::StatementID select_lifecycle;
+        Database::StatementID write_lifecycle;
         SessionHistorySnapshotStatements snapshot_statements;
     };
 
@@ -186,12 +253,15 @@ private:
         // transient mode.
         Optional<SessionHistorySnapshot> history;
         bool dirty { false };
+        bool pinned { false };
     };
 
     struct OpenWindow {
         Vector<SessionTabId> tabs;
         SessionTabId active_tab { 0 };
         bool metadata_dirty { false };
+        i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
     };
 
     struct ClosedTab {
@@ -200,6 +270,7 @@ private:
         size_t current_used_step_index { 0 };
         // Transient mode captures the snapshot at demotion; persisted mode loads it on reopen.
         Optional<SessionHistorySnapshot> history;
+        bool pinned { false };
     };
 
     struct ClosedUnit {
@@ -212,6 +283,7 @@ private:
         Optional<i64> source_tab_index;
         ClosedSessionUnit::Origin origin { ClosedSessionUnit::Origin::CloseAction };
         Vector<ClosedTab> tabs;
+        Optional<SessionWindowGeometry> geometry;
     };
 
     enum class SnapshotDisposition {
@@ -228,6 +300,7 @@ private:
         i64 current_used_step_index { 0 };
         SnapshotDisposition snapshot_disposition { SnapshotDisposition::Preserve };
         SessionHistorySnapshot const* snapshot { nullptr };
+        bool pinned { false };
     };
 
     // Always the complete live-plus-pending order, so persisted units stay contiguous while failed
@@ -236,6 +309,8 @@ private:
         SessionWindowId id { 0 };
         Vector<SessionTabId> tabs_in_order;
         i64 active_tab_index { 0 };
+        i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
     };
 
     struct OpenTabWrite {
@@ -252,6 +327,7 @@ private:
         Optional<i64> source_tab_index;
         ClosedSessionUnit::Origin origin { ClosedSessionUnit::Origin::CloseAction };
         i64 active_tab_index { 0 };
+        bool restore_at_launch { false };
     };
 
     struct ClosedTabWrite {
@@ -290,6 +366,28 @@ private:
         UnixDateTime recovered_at;
         u32 closed_tab_limit { 0 };
         u32 closed_window_limit { 0 };
+        SessionLaunchPolicy policy { SessionLaunchPolicy::None };
+    };
+
+    struct RecoveredTab {
+        SessionTabId id { 0 };
+        i64 ordinal { 0 };
+        URL::URL url;
+        size_t current_used_step_index { 0 };
+        bool pinned { false };
+    };
+
+    struct RecoveredWindow {
+        SessionWindowId id { 0 };
+        Vector<RecoveredTab> tabs;
+        i64 active_tab_index { 0 };
+        i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
+    };
+
+    struct RecoveryResult {
+        u32 consecutive_unclean_exits { 0 };
+        Vector<RecoveredWindow> windows;
     };
 
     // Applies mutations atomically while preserving persisted row invariants.
@@ -300,14 +398,17 @@ private:
         ErrorOr<void> insert_open_window(SessionWindowId);
         ErrorOr<void> open_tab(OpenTabWrite const&);
         ErrorOr<void> flush_tab(TabWrite const&);
+        ErrorOr<void> set_tab_pinned(SessionTabId, bool pinned);
         ErrorOr<void> write_windows_metadata(Vector<WindowMetadataWrite> const&);
         ErrorOr<void> close_tab(ClosedTabWrite const&);
         ErrorOr<void> close_window(ClosedWindowWrite const&);
         ErrorOr<void> discard_tab(DiscardTabWrite const&);
         ErrorOr<void> clear_closed_units(ClearClosedUnitsWrite const&);
-        ErrorOr<void> recover_open_windows(RecoveryWrite const&, IdAllocator& close_sequence_allocator);
+        ErrorOr<RecoveryResult> recover_open_windows(RecoveryWrite const&, IdAllocator& session_id_allocator, IdAllocator& close_sequence_allocator);
+        ErrorOr<void> clear_restore_at_launch();
         ErrorOr<void> delete_session_rows(SessionWindowId);
         ErrorOr<void> prune_closed_units(UnitKind, u32 max_units);
+        ErrorOr<void> write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits);
 
         ErrorOr<IdAllocators> create_id_allocators();
         ErrorOr<SessionHistorySnapshot> load_tab_snapshot(SessionTabId, size_t current_used_step_index);
@@ -318,10 +419,17 @@ private:
         Statements statements;
 
     private:
+        ErrorOr<u32> record_run_start();
         ErrorOr<void> apply_tab_row_write(TabWrite const&);
         ErrorOr<void> apply_window_metadata(WindowMetadataWrite const&);
         ErrorOr<void> insert_closed_unit_row(ClosedUnitWrite const&);
         ErrorOr<void> delete_tab_rows(SessionTabId);
+        ErrorOr<Vector<RecoveredTab>> read_recovered_tabs(SessionWindowId);
+        ErrorOr<void> reparent_tabs(SessionWindowId, Vector<RecoveredTab> const&);
+        ErrorOr<void> write_session_metadata(SessionWindowId, i64 active_tab_index, i64 activation_sequence);
+        ErrorOr<void> write_session_geometry(SessionWindowId, SessionWindowGeometry const&);
+        ErrorOr<void> demote_to_startup_recovery_unit(SessionWindowId, UnixDateTime recovered_at, IdAllocator& close_sequence_allocator);
+        ErrorOr<void> reopen_session(SessionWindowId);
     };
 
     // A close whose database write failed; the frontend tab or window is already gone, so the
@@ -343,6 +451,9 @@ private:
         UnixDateTime closed_at;
         SessionCloseSequence close_sequence { 0 };
         bool discard { false };
+        bool restore_at_launch { false };
+        i64 activation_sequence { 0 };
+        Optional<SessionWindowGeometry> geometry;
     };
 
     // Owns in-memory membership, ordering, and dirty state.
@@ -353,11 +464,15 @@ private:
         OpenTab const* find_tab(SessionTabId) const;
         OpenWindow const* find_window(SessionWindowId) const;
         Optional<size_t> tab_index(SessionTabId) const;
+        size_t window_count() const { return m_windows.size(); }
 
         void set_tab_state(SessionTabId, Optional<SessionHistorySnapshot>, URL::URL, bool dirty);
+        bool set_tab_pinned(SessionTabId, bool pinned);
         void mark_tab_flushed(SessionTabId, size_t current_used_step_index);
         Optional<SessionHistorySnapshot> take_tab_history(SessionTabId);
         void set_active_tab(SessionTabId);
+        void set_activation_sequence(SessionWindowId, i64);
+        void set_geometry(SessionWindowId, SessionWindowGeometry);
         void set_tab_order(SessionWindowId, Vector<SessionTabId> const&);
         Optional<SessionWindowId> move_tab(SessionTabId, SessionWindowId, size_t ordinal);
         void remove_tab(SessionTabId);
@@ -398,7 +513,7 @@ private:
 
     explicit SessionStore(Optional<PersistedStorage>);
 
-    ErrorOr<void> run_startup_recovery(UnixDateTime recovered_at);
+    ErrorOr<void> run_startup_recovery(UnixDateTime recovered_at, SessionLaunchPolicy);
     ErrorOr<void> flush_tab(SessionTabId, OpenTab const&);
     ErrorOr<void> drain_window_metadata();
     WindowMetadataWrite window_metadata_write(SessionWindowId, OpenWindow const&) const;
@@ -422,10 +537,13 @@ private:
     Optional<PendingClearClosedUnits> m_pending_clear_closed_units;
     Vector<WindowMetadataWrite> m_retired_window_metadata;
     bool m_quitting { false };
+    u32 m_consecutive_unclean_exits { 0 };
+    Vector<RestoredSessionWindow> m_launch_plan;
 
     IdAllocator m_session_id_allocator;
     IdAllocator m_tab_id_allocator;
     IdAllocator m_close_sequence_allocator;
+    IdAllocator m_activation_sequence_allocator;
 };
 
 }

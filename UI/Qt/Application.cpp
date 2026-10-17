@@ -44,6 +44,7 @@
 #include <QMimeDatabase>
 #include <QPointer>
 #include <QSaveFile>
+#include <QScreen>
 #include <QShortcut>
 #include <QStandardPaths>
 #include <QTimer>
@@ -318,8 +319,18 @@ public:
         m_close_current_tab_action = make_action("&Close Current Tab");
         m_close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
         QObject::connect(m_close_current_tab_action, &QAction::triggered, this, []() {
-            if (auto* tab = Application::the().active_tab())
-                tab->request_close();
+            auto* tab = Application::the().active_tab();
+            if (!tab)
+                return;
+
+            // The keyboard shortcut never closes a pinned tab: It selects the first unpinned tab instead. Choosing the
+            // menu item still closes the tab.
+            auto from_keyboard = QGuiApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::MetaModifier);
+            if (tab->is_pinned() && from_keyboard) {
+                Application::the().active_window_if_any()->activate_first_unpinned_tab();
+                return;
+            }
+            tab->request_close();
         });
 
         m_open_next_tab_action = make_action("Open &Next Tab");
@@ -630,11 +641,6 @@ Optional<String> Application::system_font_family() const
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, traversable);
-    set_active_window(*window);
-    QObject::connect(window, &QObject::destroyed, m_application.ptr(), [this, window] {
-        if (m_active_window == window)
-            m_active_window = nullptr;
-    });
 
     auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == WebView::Application::settings().new_tab_page_url();
     if (should_focus_location_editor) {
@@ -642,16 +648,7 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
             tab->set_url_is_hidden(true);
     }
 
-    window->set_window_rect(configuration.x, configuration.y, configuration.width, configuration.height);
-    if (show_window == ShowWindow::Yes) {
-        if (configuration.maximized == true)
-            window->showMaximized();
-        else
-            window->show();
-
-        window->activateWindow();
-        window->raise();
-    }
+    present_window(*window, configuration, show_window);
 
     size_t initial_url_index = 0;
     window->for_each_tab([&](Tab& tab) {
@@ -670,6 +667,96 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
         });
     }
     return *window;
+}
+
+void Application::present_window(BrowserWindow& window, WindowConfiguration const& configuration, ShowWindow show_window)
+{
+    set_active_window(window);
+    QObject::connect(&window, &QObject::destroyed, m_application.ptr(), [this, window = &window] {
+        if (m_active_window == window)
+            m_active_window = nullptr;
+    });
+
+    window.set_window_rect(configuration.x, configuration.y, configuration.width, configuration.height);
+    if (show_window == ShowWindow::Yes) {
+        if (configuration.maximized == true)
+            window.showMaximized();
+        else
+            window.show();
+
+        window.activateWindow();
+        window.raise();
+    }
+}
+
+WebView::SessionLaunchPolicy Application::launch_restore_policy() const
+{
+    // A browser that WebDriver drives starts from a clean slate.
+    if (WebView::Application::browser_options().webdriver_browser_endpoint.has_value())
+        return WebView::SessionLaunchPolicy::None;
+    // Without the setting, only pinned tabs come back; with it, every window and tab does.
+    if (WebView::Application::settings().restore_previous_session())
+        return WebView::SessionLaunchPolicy::Everything;
+    return WebView::SessionLaunchPolicy::PinnedOnly;
+}
+
+static WindowConfiguration window_configuration_for(WebView::SessionWindowGeometry const& geometry)
+{
+    QRect rect { geometry.x, geometry.y, geometry.width, geometry.height };
+
+    // The display a window was on may be gone since the last run, so the window comes back on a screen that's there.
+    auto* screen = QGuiApplication::screenAt(rect.center());
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    if (screen) {
+        auto available = screen->availableGeometry();
+        rect.setSize(rect.size().boundedTo(available.size()));
+        rect.moveLeft(clamp(rect.left(), available.left(), available.right() - rect.width() + 1));
+        rect.moveTop(clamp(rect.top(), available.top(), available.bottom() - rect.height() + 1));
+    }
+
+    return {
+        .x = Web::DevicePixels { rect.x() },
+        .y = Web::DevicePixels { rect.y() },
+        .width = Web::DevicePixels { rect.width() },
+        .height = Web::DevicePixels { rect.height() },
+        .maximized = geometry.maximized,
+    };
+}
+
+BrowserWindow* Application::restore_previous_session(WindowConfiguration const& frontmost_window_configuration)
+{
+    auto plan = WebView::Application::default_session().session_store->take_launch_plan();
+
+    BrowserWindow* frontmost_window = nullptr;
+    for (size_t i = 0; i < plan.size(); ++i) {
+        auto const& restored = plan[i];
+        // The plan lists the frontmost window last, and opening the windows in that order leaves it on top.
+        auto configuration = restored.geometry.has_value()
+            ? window_configuration_for(*restored.geometry)
+            : (i == plan.size() - 1 ? frontmost_window_configuration : configuration_for_new_window());
+
+        auto* window = new BrowserWindow({}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, {}, restored.window_id);
+        window->restore_tabs(restored.tabs, restored.active_tab_index);
+        present_window(*window, configuration, ShowWindow::Yes);
+        frontmost_window = window;
+    }
+    return frontmost_window;
+}
+
+void Application::open_startup_tabs(BrowserWindow& window, Vector<URL::URL> const& urls)
+{
+    auto const& new_tab_page_url = WebView::Application::settings().new_tab_page_url();
+    for (size_t i = 0; i < urls.size(); ++i) {
+        auto& tab = window.new_tab_from_url(urls[i], i == 0 ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, BrowserWindow::TabLocation::end());
+        if (urls.size() == 1 && urls[i] == new_tab_page_url) {
+            tab.set_url_is_hidden(true);
+            QTimer::singleShot(0, &window, [tab = QPointer<Tab>(&tab)] {
+                if (tab)
+                    tab->focus_location_editor();
+            });
+        }
+    }
 }
 
 BrowserWindow* Application::non_private_window_if_any() const
@@ -778,14 +865,16 @@ void Application::reopen_recently_closed_tab()
             break;
         }
     }
-    if (unit.was_window || !window)
-        window = &new_window({}, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
+    if (unit.was_window || !window) {
+        auto configuration = unit.geometry.has_value() ? window_configuration_for(*unit.geometry) : configuration_for_new_window();
+        window = &new_window({}, configuration, BrowserWindow::IsPopupWindow::No, is_private);
+    }
 
     Optional<int> next_insertion_index;
     if (restoring_to_source_window && unit.source_tab_index.has_value())
         next_insertion_index = static_cast<int>(clamp(*unit.source_tab_index, 0, static_cast<i64>(window->tab_count())));
 
-    Optional<int> tab_index_to_activate;
+    QPointer<Tab> tab_to_activate;
     i64 restored_tab_index = 0;
     for (auto& closed_tab : unit.tabs) {
         auto location = next_insertion_index.has_value() ? BrowserWindow::TabLocation::at_index(*next_insertion_index) : BrowserWindow::TabLocation::end();
@@ -794,15 +883,26 @@ void Application::reopen_recently_closed_tab()
             ++*next_insertion_index;
 
         if (restored_tab_index == unit.active_tab_index)
-            tab_index_to_activate = window->tab_index(&tab);
+            tab_to_activate = &tab;
 
         if (!closed_tab.history.has_value() || tab.view().restore_session_history_from_snapshot(closed_tab.history.release_value()).is_error())
             tab.navigate(closed_tab.active_url);
+
+        if (closed_tab.pinned) {
+            // Back in its own window, a pinned tab goes back to its place in the pinned group.
+            Optional<int> pinned_index;
+            if (restoring_to_source_window && unit.source_tab_index.has_value())
+                pinned_index = static_cast<int>(*unit.source_tab_index);
+            window->pin_tab(tab, pinned_index);
+        }
         ++restored_tab_index;
     }
 
-    if (tab_index_to_activate.has_value())
-        window->activate_tab(*tab_index_to_activate);
+    // Pinning a reopened tab can move it, so its index is resolved only now.
+    if (tab_to_activate) {
+        if (auto index = window->tab_index(tab_to_activate); index >= 0)
+            window->activate_tab(index);
+    }
 
     update_reopen_recently_closed_actions();
 }
@@ -940,6 +1040,11 @@ void Application::cancel_quit()
         if (auto* window = as_if<BrowserWindow>(widget))
             window->cancel_window_close_preflight();
     }
+
+    // No activation was reported during the quit, and the window the quit left active gets no new WindowActivate while
+    // it stays active, so it's reported here as the most recent window.
+    if (m_active_window && m_active_window->isActiveWindow())
+        m_active_window->report_activation_to_session_store();
 }
 
 bool Application::confirm_stop_active_downloads(QWidget* parent)
@@ -981,15 +1086,37 @@ Optional<WebView::ViewImplementation&> Application::active_web_view() const
     return {};
 }
 
-Vector<WebView::ViewImplementation&> Application::active_window_web_views() const
+Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_window() const
 {
     if (!m_active_window)
         return {};
 
-    Vector<WebView::ViewImplementation&> web_views;
-    m_active_window->for_each_tab([&](Tab& tab) { web_views.append(tab.view()); });
+    // Every tab gets a bookmark, so this walks the tabs directly: for_each_tab() skips the ones that haven't loaded.
+    Vector<WebView::BookmarkItem::Bookmark> bookmarks;
+    for (int i = 0; i < m_active_window->tab_count(); ++i) {
+        auto& tab = *m_active_window->tab_at(i);
+        if (tab.is_loaded()) {
+            auto const& view = tab.view();
+            bookmarks.append(WebView::BookmarkItem::Bookmark {
+                .url = view.url(),
+                .title = view.title().is_empty() ? Optional<String> {} : view.title().to_utf8(),
+                .favicon_hash = view.favicon_hash(),
+            });
+            continue;
+        }
 
-    return web_views;
+        // A tab that hasn't loaded shows the title browsing history has for its page, or else its URL, which isn't a
+        // title worth keeping. The bookmark store fills in the favicon on a later visit.
+        auto url = tab.url();
+        auto title = tab.title();
+        auto has_title = !title.isEmpty() && title != qstring_from_ak_string(url.serialize());
+        bookmarks.append(WebView::BookmarkItem::Bookmark {
+            .url = url,
+            .title = has_title ? ak_string_from_qstring(title) : Optional<String> {},
+            .favicon_hash = {},
+        });
+    }
+    return bookmarks;
 }
 
 bool Application::activate_tab_with_url(URL::URL const& url) const

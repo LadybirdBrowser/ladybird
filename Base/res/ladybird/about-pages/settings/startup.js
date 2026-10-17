@@ -1,10 +1,17 @@
+const restorePreviousSession = document.querySelector("#restore-previous-session");
 const newTabPageURL = document.querySelector("#new-tab-page-url");
 const newTabPageURLReset = document.querySelector("#new-tab-page-url-reset");
 
 const loadSettings = settings => {
+    restorePreviousSession.checked = settings.restorePreviousSession === true;
+
     newTabPageURL.classList.remove("error");
     newTabPageURL.value = settings.newTabPageURL;
 };
+
+restorePreviousSession.addEventListener("change", () => {
+    ladybird.sendMessage("setRestorePreviousSession", restorePreviousSession.checked);
+});
 
 newTabPageURL.addEventListener("change", () => {
     newTabPageURL.classList.remove("success");

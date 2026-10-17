@@ -131,8 +131,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             app->new_window(urls, app->configuration_for_new_window());
         };
 
-        auto& window = app->new_window(browser_options.urls, app->configuration_for_new_window());
-        window.setWindowTitle("Ladybird");
+        auto configuration = app->configuration_for_new_window();
+        if (auto* restored_window = app->restore_previous_session(configuration)) {
+            // A whole restored session replaces the usual startup tab, so only the URLs the user passed open with it.
+            // With only pinned tabs restored, the usual startup tabs open after them.
+            auto restored_everything = app->launch_restore_policy() == WebView::SessionLaunchPolicy::Everything;
+            if (!restored_everything || !browser_options.raw_urls.is_empty())
+                app->open_startup_tabs(*restored_window, browser_options.urls);
+        } else {
+            auto& window = app->new_window(browser_options.urls, configuration);
+            window.setWindowTitle("Ladybird");
+        }
 
         app->offer_newest_pending_crash_report();
     }

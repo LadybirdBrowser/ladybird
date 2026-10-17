@@ -18,6 +18,7 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebView/FileDownloader.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
@@ -69,6 +70,14 @@ signals:
     void mouse_entered(QEnterEvent*);
 };
 
+// What a restored tab shows until it's selected: It has no view, and so no WebContent process, until then.
+struct DeferredTab {
+    WebView::SessionTabId session_tab_id { 0 };
+    URL::URL url;
+    QString title;
+    QIcon favicon;
+};
+
 class Tab final
     : public QWidget
     , public WebView::FileDownloaderObserver
@@ -79,10 +88,29 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> traversable = {});
+    Tab(BrowserWindow* window, DeferredTab);
     virtual ~Tab() override;
 
-    WebContentView& view() { return *m_view; }
-    WebContentView const& view() const { return *m_view; }
+    WebContentView& view()
+    {
+        VERIFY(m_view);
+        return *m_view;
+    }
+    WebContentView const& view() const
+    {
+        VERIFY(m_view);
+        return *m_view;
+    }
+
+    bool is_loaded() const { return m_view != nullptr; }
+    // Builds the tab's view and toolbar, and restores its history, if it hasn't loaded yet.
+    void ensure_loaded();
+
+    URL::URL url() const;
+
+    Optional<WebView::SessionTabId> session_tab_id() const;
+    void set_session_tab_id(WebView::SessionTabId);
+    void clear_session_tab_id();
 
     void navigate(URL::URL const&);
     void load_html(StringView);
@@ -119,6 +147,10 @@ public:
 
     void set_tab_to_activate_on_close(Tab& tab) { m_tab_to_activate_on_close = &tab; }
 
+    bool is_pinned() const { return m_is_pinned; }
+    // BrowserWindow pins and unpins tabs, since it keeps each window's pinned tabs at the start of its strip.
+    void set_pinned(bool);
+
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
 
@@ -129,8 +161,13 @@ signals:
     void title_changed(int id, QString const&);
     void favicon_changed(int id, QIcon const&);
     void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
+    void loaded();
 
 private:
+    void create_tab_shell();
+    void create_tab_context_menu();
+    void initialize(Optional<WebView::CanonicalTraversable&>);
+
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void hideEvent(QHideEvent*) override;
@@ -211,6 +248,7 @@ private:
     QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };
     QAction* m_open_downloads_page_action { nullptr };
+    QAction* m_pin_tab_action { nullptr };
     Optional<ChromeIcon> m_downloads_button_icon;
     QString m_downloads_button_tooltip;
 
@@ -230,6 +268,11 @@ private:
     bool m_already_requested_close { false };
     bool m_preserve_close_retry_state_on_dialog_dismissal { false };
     bool m_window_is_closing { false };
+    bool m_is_pinned { false };
+
+    bool m_toolbar_window_controls_visible { false };
+    Optional<WebView::SessionTabId> m_session_tab_id;
+    Optional<DeferredTab> m_deferred_tab;
 };
 
 }

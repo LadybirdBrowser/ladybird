@@ -159,6 +159,10 @@ public:
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
 
+    // Read only at launch, so a change applies at the next launch.
+    bool restore_previous_session() const { return m_restore_previous_session; }
+    void set_restore_previous_session(bool);
+
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
     void set_languages(Vector<String>);
@@ -269,6 +273,7 @@ private:
     WindowSettings m_window_settings;
 
     URL::URL m_new_tab_page_url;
+    bool m_restore_previous_session { false };
     Vector<String> m_languages;
 
     Appearance m_appearance;

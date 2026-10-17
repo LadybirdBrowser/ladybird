@@ -13,6 +13,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
@@ -190,7 +191,7 @@ static QIcon const& app_icon()
     return icon;
 }
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, Optional<WebView::SessionWindowId> restored_session_window_id)
     : m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
     , m_tabs_container(new TabWidget(this))
@@ -198,7 +199,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 {
     auto const& browser_options = WebView::Application::browser_options();
 
-    register_window_with_session_store();
+    // A restored window keeps the session row the store re-adopted for it.
+    if (restored_session_window_id.has_value())
+        m_session_window_id = restored_session_window_id;
+    else
+        register_window_with_session_store();
 
 #if defined(AK_OS_MACOS)
     setWindowFlag(Qt::ExpandedClientAreaHint);
@@ -466,12 +471,67 @@ Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab
 
 void BrowserWindow::duplicate_tab(Tab& source_tab)
 {
-    auto history = source_tab.view().session_history_snapshot();
-    auto source_url = source_tab.view().url();
-    auto& duplicate = create_new_tab(Web::HTML::ActivateTab::Yes, TabLocation::after_tab(source_tab));
+    // A tab that hasn't loaded keeps its history in the session store.
+    Optional<WebView::SessionHistorySnapshot> history;
+    if (source_tab.is_loaded())
+        history = source_tab.view().session_history_snapshot();
+    else if (auto session_tab_id = source_tab.session_tab_id(); session_tab_id.has_value())
+        history = m_session->session_store->load_tab_history(*session_tab_id);
+    auto source_url = source_tab.url();
 
-    if (duplicate.view().restore_session_history_from_snapshot(AK::move(history)).is_error())
+    auto& duplicate = create_new_tab(Web::HTML::ActivateTab::Yes, TabLocation::after_tab(source_tab));
+    if (!history.has_value() || duplicate.view().restore_session_history_from_snapshot(history.release_value()).is_error())
         duplicate.navigate(source_url);
+}
+
+void BrowserWindow::restore_tabs(Vector<WebView::RestoredSessionTab> const& tabs, i64 active_tab_index)
+{
+    if (tabs.is_empty())
+        return;
+
+    // The first tab a strip gets becomes its current tab, so the active tab goes in first, at what's then index 0, and
+    // every other tab goes in around it at its own index.
+    auto active_index = static_cast<size_t>(clamp<i64>(active_tab_index, 0, static_cast<i64>(tabs.size()) - 1));
+    create_restored_tab(tabs[active_index], 0, false);
+    for (size_t i = 0; i < tabs.size(); ++i) {
+        if (i != active_index)
+            create_restored_tab(tabs[i], static_cast<int>(i), !tabs[i].pinned);
+    }
+}
+
+Tab& BrowserWindow::create_restored_tab(WebView::RestoredSessionTab const& restored, int index, bool defer)
+{
+    if (defer) {
+        // Until the tab loads, it shows what browsing history knows about its page.
+        auto entry = m_session->history_store->entry_for_url(restored.url);
+        DeferredTab deferred_tab {
+            .session_tab_id = restored.tab_id,
+            .url = restored.url,
+            .title = entry.has_value() && entry->title.has_value() ? qstring_from_ak_string(*entry->title) : qstring_from_ak_string(restored.url.serialize()),
+            .favicon = entry.has_value() && entry->favicon_png.has_value() ? icon_from_png(entry->favicon_png->bytes(), TAB_ICON_SIZE) : QIcon {},
+        };
+        auto* tab = new Tab(this, AK::move(deferred_tab));
+        tab->set_pinned(restored.pinned);
+        m_tabs_container->insert_tab(index, tab, tab->title());
+        initialize_tab(tab);
+        tab_title_changed(m_tabs_container->index_of(tab), tab->title());
+        return *tab;
+    }
+
+    auto* tab = new Tab(this);
+    // The tab already has a row, so initialize_tab() doesn't register a new one.
+    tab->set_session_tab_id(restored.tab_id);
+    tab->set_pinned(restored.pinned);
+
+    if (!m_current_tab)
+        set_current_tab(tab);
+    m_tabs_container->insert_tab(index, tab, "New Tab");
+    initialize_tab(tab);
+
+    auto history = m_session->session_store->load_tab_history(restored.tab_id);
+    if (!history.has_value() || tab->view().restore_session_history_from_snapshot(history.release_value()).is_error())
+        tab->navigate(restored.url);
+    return *tab;
 }
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<WebView::CanonicalTraversable&> traversable)
@@ -520,27 +580,25 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocat
         set_current_tab(tab);
     }
 
+    auto insertion_index = m_tabs_container->count();
     switch (location.kind()) {
     case TabLocation::Kind::End:
-        m_tabs_container->add_tab(tab, "New Tab");
         break;
     case TabLocation::Kind::AfterCurrentTab:
-        m_tabs_container->insert_tab(m_tabs_container->current_index() + 1, tab, "New Tab");
+        insertion_index = m_tabs_container->current_index() + 1;
         break;
-    case TabLocation::Kind::AfterTab: {
-        auto insertion_index = m_tabs_container->count();
+    case TabLocation::Kind::AfterTab:
         if (auto* source_tab = location.tab(); source_tab) {
-            auto source_tab_index = tab_index(source_tab);
-            if (source_tab_index != -1)
+            if (auto source_tab_index = tab_index(source_tab); source_tab_index != -1)
                 insertion_index = source_tab_index + 1;
         }
-        m_tabs_container->insert_tab(insertion_index, tab, "New Tab");
         break;
-    }
     case TabLocation::Kind::AtIndex:
-        m_tabs_container->insert_tab(clamp(location.index(), 0, m_tabs_container->count()), tab, "New Tab");
+        insertion_index = location.index();
         break;
     }
+    // A new tab is unpinned, so it never lands inside the pinned group.
+    m_tabs_container->insert_tab(constrain_insertion_index(insertion_index, false), tab, "New Tab");
 
     if (activate_tab == Web::HTML::ActivateTab::Yes)
         m_tabs_container->set_current_tab(tab);
@@ -552,7 +610,7 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocat
 
 void BrowserWindow::initialize_tab(Tab* tab)
 {
-    if (m_session_window_id.has_value() && !tab->view().session_tab_id().has_value()) {
+    if (m_session_window_id.has_value() && !tab->session_tab_id().has_value()) {
         auto insertion_index = tab_index(tab);
         WebView::SessionStore::TabOpened opened {
             .window_id = m_session_window_id,
@@ -564,13 +622,23 @@ void BrowserWindow::initialize_tab(Tab* tab)
         if (session_tab_id.is_error())
             dbgln("Unable to register the new tab with the session store: {}", session_tab_id.error());
         else
-            tab->view().set_session_tab_id(session_tab_id.value());
+            tab->set_session_tab_id(session_tab_id.value());
     }
 
     QObject::connect(tab, &Tab::title_changed, this, &BrowserWindow::tab_title_changed);
     QObject::connect(tab, &Tab::favicon_changed, this, &BrowserWindow::tab_favicon_changed);
     QObject::connect(tab, &Tab::audio_play_state_changed, this, &BrowserWindow::tab_audio_play_state_changed);
 
+    if (tab->is_loaded())
+        initialize_tab_view(tab);
+    else
+        QObject::connect(tab, &Tab::loaded, this, [this, tab] { initialize_tab_view(tab); }, Qt::SingleShotConnection);
+
+    initialize_tab_buttons(tab);
+}
+
+void BrowserWindow::initialize_tab_view(Tab* tab)
+{
     QObject::connect(&tab->view(), &WebContentView::urls_dropped, this, [this](auto& urls) {
         VERIFY(urls.size());
         m_current_tab->view().load_from_user_input(ak_url_from_qurl(urls[0]));
@@ -599,28 +667,29 @@ void BrowserWindow::initialize_tab(Tab* tab)
         auto& new_tab = create_new_tab(activate_tab, traversable);
         return new_tab.view().handle();
     };
-
-    initialize_tab_buttons(tab);
 }
 
 void BrowserWindow::uninitialize_tab(Tab* tab)
 {
     QObject::disconnect(tab, nullptr, this, nullptr);
-    QObject::disconnect(&tab->view(), nullptr, this, nullptr);
+    if (tab->is_loaded())
+        QObject::disconnect(&tab->view(), nullptr, this, nullptr);
 }
 
 void BrowserWindow::adopt_tab(Tab& tab, int index)
 {
     cancel_window_close_preflight();
 
-    index = clamp(index, 0, m_tabs_container->count());
+    // A tab keeps its pin in its new window, inside that window's matching group.
+    index = constrain_insertion_index(index, tab.is_pinned());
 
     tab.set_window(*this);
     m_tabs_container->insert_tab(index, &tab, "New Tab");
-    tab.view().finish_window_move();
+    if (tab.is_loaded())
+        tab.view().finish_window_move();
     if (!m_session_window_id.has_value())
         register_window_with_session_store();
-    auto moved_tab_id = tab.view().session_tab_id();
+    auto moved_tab_id = tab.session_tab_id();
     initialize_tab(&tab);
     tab_title_changed(index, tab.title());
 
@@ -637,12 +706,14 @@ void BrowserWindow::adopt_tab(Tab& tab, int index)
             // The source window's reported order no longer includes this tab; it must leave
             // tracking rather than stay mapped there.
             m_session->session_store->tab_detached(*moved_tab_id);
-            tab.view().clear_session_tab_id();
+            tab.clear_session_tab_id();
         }
     }
 
-    tab.view().set_device_pixel_ratio(m_screen_observer->device_pixel_ratio());
-    tab.view().set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate());
+    if (tab.is_loaded()) {
+        tab.view().set_device_pixel_ratio(m_screen_observer->device_pixel_ratio());
+        tab.view().set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate());
+    }
 
     m_tabs_container->set_current_tab(&tab);
 }
@@ -666,7 +737,8 @@ void BrowserWindow::move_tab_to_window(int index, BrowserWindow& target_window, 
     cancel_window_close_preflight();
 
     auto* tab = m_tabs_container->tab(index);
-    tab->view().prepare_for_window_move();
+    if (tab->is_loaded())
+        tab->view().prepare_for_window_move();
     uninitialize_tab(tab);
     m_tabs_container->take_tab(index);
     if (m_current_tab == tab)
@@ -709,6 +781,10 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (tab == m_current_tab)
         return;
 
+    // A restored tab loads only once it's selected.
+    if (tab)
+        tab->ensure_loaded();
+
     if (m_current_tab)
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
 
@@ -717,7 +793,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (m_current_tab) {
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
-        if (auto session_tab_id = m_current_tab->view().session_tab_id(); session_tab_id.has_value())
+        if (auto session_tab_id = m_current_tab->session_tab_id(); session_tab_id.has_value())
             m_session->session_store->active_tab_changed(*session_tab_id);
     }
 
@@ -734,7 +810,7 @@ bool BrowserWindow::activate_tab_with_url(URL::URL const& url)
 {
     for (int index = 0; index < m_tabs_container->count(); ++index) {
         auto* tab = m_tabs_container->tab(index);
-        if (tab && tab->view().url() == url) {
+        if (tab && tab->url() == url) {
             m_tabs_container->set_current_index(index);
             return true;
         }
@@ -753,7 +829,7 @@ bool BrowserWindow::definitely_close_tab(int index)
 
     auto* tab = m_tabs_container->tab(index);
     m_tabs_container->remove_tab(index);
-    if (auto session_tab_id = tab->view().session_tab_id(); session_tab_id.has_value()) {
+    if (auto session_tab_id = tab->session_tab_id(); session_tab_id.has_value()) {
         WebView::SessionStore::TabClosed closed {
             .tab_id = *session_tab_id,
             .closed_at = UnixDateTime::now(),
@@ -772,7 +848,74 @@ bool BrowserWindow::definitely_close_tab(int index)
 
 void BrowserWindow::move_tab(int old_index, int new_index)
 {
-    m_tabs_container->tab_bar()->moveTab(old_index, new_index);
+    auto* tab = m_tabs_container->tab(old_index);
+    if (!tab)
+        return;
+
+    auto pinned_count = pinned_tab_count();
+    if (tab->is_pinned())
+        new_index = clamp(new_index, 0, pinned_count - 1);
+    else
+        new_index = clamp(new_index, pinned_count, m_tabs_container->count() - 1);
+    if (new_index != old_index)
+        m_tabs_container->tab_bar()->moveTab(old_index, new_index);
+}
+
+int BrowserWindow::pinned_tab_count() const
+{
+    return m_tabs_container->tab_bar()->pinned_tab_count();
+}
+
+int BrowserWindow::constrain_insertion_index(int index, bool pinned) const
+{
+    auto pinned_count = pinned_tab_count();
+    if (pinned)
+        return clamp(index, 0, pinned_count);
+    return clamp(index, pinned_count, m_tabs_container->count());
+}
+
+void BrowserWindow::pin_tab(Tab& tab, Optional<int> pinned_index)
+{
+    auto index = tab_index(&tab);
+    if (index < 0 || tab.is_pinned())
+        return;
+
+    auto pinned_count = pinned_tab_count();
+    auto destination = clamp(pinned_index.value_or(pinned_count), 0, pinned_count);
+    tab.set_pinned(true);
+    if (index != destination)
+        m_tabs_container->tab_bar()->moveTab(index, destination);
+    pinned_state_changed(tab);
+}
+
+void BrowserWindow::unpin_tab(Tab& tab)
+{
+    auto index = tab_index(&tab);
+    if (index < 0 || !tab.is_pinned())
+        return;
+
+    auto destination = pinned_tab_count() - 1;
+    tab.set_pinned(false);
+    if (index != destination)
+        m_tabs_container->tab_bar()->moveTab(index, destination);
+    pinned_state_changed(tab);
+}
+
+void BrowserWindow::pinned_state_changed(Tab& tab)
+{
+    // A move already reported the new order, through the tab bar's tabMoved signal.
+    if (auto session_tab_id = tab.session_tab_id(); session_tab_id.has_value()) {
+        if (auto result = m_session->session_store->tab_pinned_changed(*session_tab_id, tab.is_pinned()); result.is_error())
+            dbgln("Unable to record the tab's pin in the session store: {}", result.error());
+    }
+    update_tab_close_button(tab);
+    m_tabs_container->update_tab_layout();
+}
+
+void BrowserWindow::activate_first_unpinned_tab()
+{
+    if (auto first_unpinned = pinned_tab_count(); first_unpinned < m_tabs_container->count())
+        activate_tab(first_unpinned);
 }
 
 void BrowserWindow::register_window_with_session_store()
@@ -791,7 +934,7 @@ void BrowserWindow::sync_session_tab_order()
     Vector<WebView::SessionTabId> tab_order;
     tab_order.ensure_capacity(m_tabs_container->count());
     for (int i = 0; i < m_tabs_container->count(); ++i) {
-        if (auto session_tab_id = m_tabs_container->tab(i)->view().session_tab_id(); session_tab_id.has_value())
+        if (auto session_tab_id = m_tabs_container->tab(i)->session_tab_id(); session_tab_id.has_value())
             tab_order.append(*session_tab_id);
     }
 
@@ -853,21 +996,41 @@ void BrowserWindow::update_chrome_style()
     m_hamburger_menu->setStyleSheet(ChromeStyle::hamburger_style_sheet(palette()));
 }
 
+TabBarButton* BrowserWindow::create_tab_close_button(Tab& tab)
+{
+    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::TabClose, palette()));
+    close_button->setToolTip("Close Tab");
+    connect(close_button, &QPushButton::clicked, this, [this, tab = &tab]() {
+        request_to_close_tab(m_tabs_container->index_of(tab));
+    });
+    return close_button;
+}
+
 void BrowserWindow::initialize_tab_buttons(Tab* tab)
 {
     auto index = m_tabs_container->index_of(tab);
     m_tabs_container->set_tab_icon(index, tab->tab_icon());
 
-    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::TabClose, palette()));
-    close_button->setToolTip("Close Tab");
-
-    connect(close_button, &QPushButton::clicked, this, [this, tab]() {
-        auto index = m_tabs_container->index_of(tab);
-        request_to_close_tab(index);
-    });
-
     m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
-    m_tabs_container->tab_bar()->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, close_button);
+    // A pinned tab has no close button.
+    m_tabs_container->tab_bar()->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, tab->is_pinned() ? nullptr : create_tab_close_button(*tab));
+    m_tabs_container->update_tab_button_visibility();
+}
+
+void BrowserWindow::update_tab_close_button(Tab& tab)
+{
+    auto index = m_tabs_container->index_of(&tab);
+    if (index < 0)
+        return;
+
+    auto* tab_bar = m_tabs_container->tab_bar();
+    auto* close_button = tab_bar->tabButton(index, TAB_CLOSE_BUTTON_POSITION);
+    if (tab.is_pinned() && close_button) {
+        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, nullptr);
+        close_button->deleteLater();
+    } else if (!tab.is_pinned() && !close_button) {
+        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, create_tab_close_button(tab));
+    }
     m_tabs_container->update_tab_button_visibility();
 }
 
@@ -1132,6 +1295,9 @@ bool BrowserWindow::event(QEvent* event)
 
     if (event->type() == QEvent::WindowActivate) {
         Application::the().set_active_window(*this);
+        // A quit raises and closes windows in its own order, so the restore order keeps how they were used before it.
+        if (!Application::the().is_quit_in_progress())
+            report_activation_to_session_store();
         QTimer::singleShot(0, this, [this] {
             refresh_resize_cursor_at_current_position(true);
             Application::the().crash_report_notifier().show_pending();
@@ -1372,6 +1538,8 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ width(), height() });
     });
+
+    report_session_window_geometry();
 }
 
 void BrowserWindow::changeEvent(QEvent* event)
@@ -1384,6 +1552,7 @@ void BrowserWindow::changeEvent(QEvent* event)
         update_menu_bar_window_control_icons();
         m_tabs_container->update_window_button_icons();
         update_window_border();
+        report_session_window_geometry();
 
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
         bool was_fullscreen = stateChangeEvent->oldState() & Qt::WindowFullScreen;
@@ -1450,6 +1619,8 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_position({ x(), y() });
     });
+
+    report_session_window_geometry();
 }
 
 void BrowserWindow::wheelEvent(QWheelEvent* event)
@@ -1553,6 +1724,34 @@ void BrowserWindow::raise_for_quit_prompt()
         setWindowState(windowState() & ~Qt::WindowMinimized);
     raise();
     activateWindow();
+}
+
+void BrowserWindow::report_activation_to_session_store()
+{
+    if (m_session_window_id.has_value())
+        m_session->session_store->window_activated(*m_session_window_id);
+}
+
+void BrowserWindow::report_session_window_geometry()
+{
+    if (!m_session_window_id.has_value())
+        return;
+
+    // Entering full screen clears the maximized state, and the window then fills the screen — so the last report from
+    // before it, with its normal rect and maximized flag, stands as the window's saved geometry.
+    if (isFullScreen())
+        return;
+
+    // A maximized window keeps the geometry it had before, for when it's restored.
+    auto rect = isMaximized() ? normalGeometry() : geometry();
+    WebView::SessionWindowGeometry window_geometry {
+        .x = rect.x(),
+        .y = rect.y(),
+        .width = rect.width(),
+        .height = rect.height(),
+        .maximized = isMaximized(),
+    };
+    m_session->session_store->window_geometry_changed(*m_session_window_id, window_geometry);
 }
 
 void BrowserWindow::begin_window_close_preflight(Function<void(bool approved)> on_complete)

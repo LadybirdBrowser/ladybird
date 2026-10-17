@@ -34,6 +34,7 @@ class QWindow;
 namespace Ladybird {
 
 class Tab;
+class TabBarButton;
 class WebContentView;
 class BrowserWindow;
 class DevToolsBanner;
@@ -137,7 +138,7 @@ public:
         int m_index { 0 };
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<WebView::CanonicalTraversable&> traversable = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<WebView::CanonicalTraversable&> traversable = {}, Optional<WebView::SessionWindowId> restored_session_window_id = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
@@ -147,9 +148,20 @@ public:
 
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
+    Tab* tab_at(int index) const { return m_tabs_container->tab(index); }
+
+    // Pinned tabs always fill the start of the strip: indices [0, pinned_tab_count()).
+    int pinned_tab_count() const;
+    // The tab joins the end of the pinned group, or the place in it that pinned_index gives.
+    void pin_tab(Tab&, Optional<int> pinned_index = {});
+    // The tab joins the start of the unpinned group.
+    void unpin_tab(Tab&);
+    void activate_first_unpinned_tab();
 
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
     void duplicate_tab(Tab&);
+    // Opens a window's restored tabs, keeping the session rows the store re-adopted for them.
+    void restore_tabs(Vector<WebView::RestoredSessionTab> const&, i64 active_tab_index);
     Tab* current_tab() const { return m_current_tab; }
     bool activate_tab_with_url(URL::URL const&);
     // Asks every tab's page if the window may close, without closing it, and reports the answer. Once the pages agree,
@@ -158,6 +170,7 @@ public:
     // Brings the window forward for a page's beforeunload prompt, when the prompt is part of a quit's check.
     void raise_for_quit_prompt();
     bool is_window_close_approved() const { return m_window_close_approved; }
+    void report_activation_to_session_store();
     void cancel_window_close_preflight();
     void on_tab_load_start(Tab&);
     FullscreenMode& fullscreen_mode();
@@ -168,8 +181,12 @@ public:
     template<typename Callback>
     void for_each_tab(Callback&& callback)
     {
-        for (int i = 0; i < m_tabs_container->count(); ++i)
-            callback(*m_tabs_container->tab(i));
+        for (int i = 0; i < m_tabs_container->count(); ++i) {
+            // A tab that hasn't loaded has no view or toolbar to update, and it picks up the window's toolbar and
+            // tab-bar state when it loads.
+            if (auto* tab = m_tabs_container->tab(i); tab->is_loaded())
+                callback(*tab);
+        }
     }
 
     void update_tabs_display();
@@ -218,7 +235,9 @@ private:
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     Tab& create_new_tab(Web::HTML::ActivateTab, Optional<WebView::CanonicalTraversable&>);
+    Tab& create_restored_tab(WebView::RestoredSessionTab const&, int index, bool defer);
     void initialize_tab(Tab*);
+    void initialize_tab_view(Tab*);
     void uninitialize_tab(Tab*);
     void update_window_title(QString const&);
     void register_window_with_session_store();
@@ -234,6 +253,7 @@ private:
     void clear_resize_cursor();
     bool should_draw_window_border() const;
     void update_window_border();
+    void report_session_window_geometry();
 
     void initialize_application_actions();
     void initialize_application_menu();
@@ -243,6 +263,11 @@ private:
     void update_hamburger_zoom_label();
 
     void update_chrome_style();
+
+    int constrain_insertion_index(int index, bool pinned) const;
+    void pinned_state_changed(Tab&);
+    TabBarButton* create_tab_close_button(Tab&);
+    void update_tab_close_button(Tab&);
 
     void initialize_tab_buttons(Tab*);
     void create_menu_bar_window_controls();
