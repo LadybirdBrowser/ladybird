@@ -563,44 +563,46 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
     auto detach_key = buffer.detach_key();
     if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_utf16_fly_string)) {
         // 3. For each memaddr → mem in all Memory object caches,
-        bool seen = false;
+        GC::Ptr<Memory> memory;
         for (auto* cache : live_caches()) {
             auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {
-                auto memory = entry.value;
                 // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
-                if (memory_has_buffer_object(*memory, buffer)) {
+                if (memory_has_buffer_object(*entry.value, buffer)) {
                     // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
-                    VERIFY(!seen);
-                    seen = true;
-
-                    // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
-                    VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
-
-                    // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
-                    auto length_delta = new_length - buffer.byte_length();
-
-                    // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
-                    if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
-                        // 1. Throw a RangeError exception.
-                        return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
-                    }
-
-                    // 4. Let delta be lengthDelta ÷ 65536.
-                    auto delta = length_delta / Wasm::Constants::page_size;
-
-                    // 5. Grow the memory buffer associated with memaddr by delta.
-                    // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                    TRY(WebIDL::throw_dom_exception_if_needed(vm, buffer.shape().realm(), [&] {
-                        return memory->grow(delta);
-                    }));
+                    VERIFY(!memory);
+                    memory = entry.value;
                 }
             }
         }
 
         // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
-        VERIFY(seen);
+        VERIFY(memory);
+
+        // NB: We perform the following steps for mem after the loop above, because growing mem can collect garbage, and
+        //     that removes finalized Memory objects from the caches we iterate.
+
+        // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
+        VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
+
+        // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
+        auto length_delta = new_length - buffer.byte_length();
+
+        // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
+        if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
+            // 1. Throw a RangeError exception.
+            return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+        }
+
+        // 4. Let delta be lengthDelta ÷ 65536.
+        auto delta = length_delta / Wasm::Constants::page_size;
+
+        // 5. Grow the memory buffer associated with memaddr by delta.
+        // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
+        TRY(WebIDL::throw_dom_exception_if_needed(vm, buffer.shape().realm(), [&] {
+            return memory->grow(delta);
+        }));
 
         // 4. Return handled.
         return JS::HandledByHost::Handled;
@@ -619,44 +621,46 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
         auto current_byte_length = buffer.byte_length();
 
         // 3. For each memaddr → mem in all Memory object caches,
-        bool seen = false;
+        GC::Ptr<Memory> memory;
         for (auto* cache : live_caches()) {
             auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {
-                auto memory = entry.value;
                 // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
-                if (memory_has_buffer_object(*memory, buffer)) {
+                if (memory_has_buffer_object(*entry.value, buffer)) {
                     // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
-                    VERIFY(!seen);
-                    seen = true;
-
-                    // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
-                    VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
-
-                    // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
-                    auto length_delta = new_length - buffer.byte_length();
-
-                    // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
-                    if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
-                        // 1. Throw a RangeError exception.
-                        return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
-                    }
-
-                    // 4. Let delta be lengthDelta ÷ 65536.
-                    auto delta = length_delta / Wasm::Constants::page_size;
-
-                    // 5. Grow the memory buffer associated with memaddr by delta.
-                    // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                    TRY(WebIDL::throw_dom_exception_if_needed(vm, buffer.shape().realm(), [&] {
-                        return memory->grow(delta);
-                    }));
+                    VERIFY(!memory);
+                    memory = entry.value;
                 }
             }
         }
 
         // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
-        VERIFY(seen);
+        VERIFY(memory);
+
+        // NB: We perform the following steps for mem after the loop above, because growing mem can collect garbage, and
+        //     that removes finalized Memory objects from the caches we iterate.
+
+        // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
+        VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
+
+        // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
+        auto length_delta = new_length - buffer.byte_length();
+
+        // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
+        if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
+            // 1. Throw a RangeError exception.
+            return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+        }
+
+        // 4. Let delta be lengthDelta ÷ 65536.
+        auto delta = length_delta / Wasm::Constants::page_size;
+
+        // 5. Grow the memory buffer associated with memaddr by delta.
+        // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
+        TRY(WebIDL::throw_dom_exception_if_needed(vm, buffer.shape().realm(), [&] {
+            return memory->grow(delta);
+        }));
 
         // 4. If newLength < buffer.[[ArrayBufferByteLength]] or newLength > buffer.[[ArrayBufferMaxByteLength]], throw a RangeError exception.
         if (new_length < current_byte_length)

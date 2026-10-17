@@ -54,6 +54,7 @@ private:
     Memory(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::MemoryAddress, Shared shared);
 
     virtual void visit_edges(Visitor&) override;
+    virtual void finalize() override;
 
     NonnullRefPtr<Detail::WebAssemblyCache> m_cache;
     Wasm::MemoryAddress m_address;
