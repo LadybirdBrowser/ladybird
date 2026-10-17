@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="theFrame" name="theFrame" src="http://{{domains[www1]}}:{{ports[http][0]}}/navigation-api/navigate-event/resources/echo-sourceElement.html"></iframe>
+<script>
+async_test(t => {
+  window.addEventListener("message", t.step_func(e => {
+    if (e.data.type === "ready") {
+      const a = document.createElement("a");
+      a.href = document.getElementById("theFrame").src + "#test";
+      a.target = "theFrame";
+      document.body.appendChild(a);
+      a.click();
+    } else if (e.data.type === "result") {
+      assert_true(e.data.sourceElementIsNull, "sourceElement must be null for cross-origin initiators (it was " + e.data.sourceElementName + ")");
+      t.done();
+    }
+  }));
+}, "NavigateEvent.sourceElement should be null for cross-origin same-document initiators");
+</script>

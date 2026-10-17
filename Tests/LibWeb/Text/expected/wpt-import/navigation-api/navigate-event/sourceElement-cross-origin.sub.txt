@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	NavigateEvent.sourceElement should be null for cross-origin same-document initiators

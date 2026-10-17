@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	<form> submission with GET method and submitter passed into requestSubmit
+Pass	<form> submission with GET method and submitter is clicked

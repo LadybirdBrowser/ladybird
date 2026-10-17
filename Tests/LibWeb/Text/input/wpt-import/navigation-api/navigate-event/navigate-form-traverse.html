@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="iframe" name="i" src="../../common/blank.html"></iframe>
+<form id="form" action="../../common/blank.html?1" method="post" target="i"></form>
+<script>
+async_test(t => {
+  window.onload = t.step_func(() => {
+    navigation.onnavigate = t.step_func_done(() => {
+      assert_unreached("onnavigate should not have fired in source window");
+    });
+    iframe.contentWindow.navigation.onnavigate = t.step_func(e => {
+      assert_equals(e.navigationType, "push");
+      assert_not_equals(e.formData, null);
+      assert_equals(e.sourceElement, form);
+
+      iframe.onload = t.step_func(() => {
+        // Avoid the replace behavior that occurs if you navigate during the load handler
+        t.step_timeout(() => {
+          iframe.contentWindow.navigation.onnavigate = t.step_func(e => {
+            assert_equals(e.navigationType, "push");
+            assert_equals(e.formData, null);
+          });
+
+          iframe.contentWindow.onhashchange = t.step_func(() => {
+            iframe.contentWindow.navigation.onnavigate = t.step_func_done(e => {
+              assert_equals(e.navigationType, "traverse");
+              assert_equals(e.formData, null);
+            });
+
+            // 3: go back
+            iframe.contentWindow.history.back();
+          });
+
+          // 2: navigate from ../../common/blank.html?1-with-form-data to ../../common/blank.html?1#1-with-form-data
+          iframe.contentWindow.location.hash = "#1";
+        }, 0);
+      });
+    });
+
+    // 1: submit the form, navigating from ../../common/blank.html to ../../common/blank.html?1-with-form-data
+    form.submit();
+  });
+}, "reloading a page created from form submission results in formData of null, not the original form data");
+</script>

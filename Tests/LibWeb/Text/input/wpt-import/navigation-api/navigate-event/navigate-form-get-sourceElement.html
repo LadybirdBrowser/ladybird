@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test that sourceElement is set correctly for forms with method=GET</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2042943">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<form id="form">
+  <input id="submitter" type="submit">
+</form>
+<script>
+"use strict";
+
+promise_setup(() => new Promise(r => onload = r));
+
+promise_test(async () => {
+  let {promise: waitForSuccess, resolve} = Promise.withResolvers();
+  navigation.onnavigatesuccess = resolve;
+  let sourceElement;
+  navigation.onnavigate = e => {
+    e.intercept();
+    sourceElement = e.sourceElement;
+  };
+  form.requestSubmit(submitter);
+  await waitForSuccess;
+  assert_equals(sourceElement, submitter, "NavigateEvent.sourceElement should be set to the submitter passed into requestSubmit.");
+}, "<form> submission with GET method and submitter passed into requestSubmit");
+
+promise_test(async () => {
+  let {promise: waitForSuccess, resolve} = Promise.withResolvers();
+  navigation.onnavigatesuccess = resolve;
+  let sourceElement;
+  navigation.onnavigate = e => {
+    e.intercept();
+    sourceElement = e.sourceElement;
+  };
+  submitter.click();
+  await waitForSuccess;
+  assert_equals(sourceElement, submitter, "NavigateEvent.sourceElement should be set to the submitter that was clicked.");
+}, "<form> submission with GET method and submitter is clicked");
+
+</script>
