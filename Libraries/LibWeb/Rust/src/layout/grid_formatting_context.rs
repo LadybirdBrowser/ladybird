@@ -987,6 +987,9 @@ pub(crate) struct GridFormattingContext<'pass> {
     automatic_content_block_size: CssPixels,
     row_alignment_container_size: CssPixels,
     use_row_alignment_container_size: bool,
+    // Set once the rows are sized, so that the columns can be resolved again with percentage heights resolved against
+    // them.
+    use_row_sizes_for_column_percentages: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1081,6 +1084,7 @@ impl<'pass> GridFormattingContext<'pass> {
             automatic_content_block_size: CssPixels::default(),
             row_alignment_container_size: CssPixels::default(),
             use_row_alignment_container_size: false,
+            use_row_sizes_for_column_percentages: false,
         }
     }
 
@@ -1107,6 +1111,7 @@ impl<'pass> GridFormattingContext<'pass> {
         self.automatic_content_block_size = CssPixels::default();
         self.row_alignment_container_size = CssPixels::default();
         self.use_row_alignment_container_size = false;
+        self.use_row_sizes_for_column_percentages = false;
     }
 
     fn subgrid_block_size_memo(&self) -> &SubgridBlockSizeMemo {
@@ -1987,9 +1992,90 @@ impl<'pass> GridFormattingContext<'pass> {
         mut constraints: ContainingBlockConstraints,
     ) -> ContainingBlockConstraints {
         if constraints.percentage_basis_block_size.is_none() {
-            constraints.percentage_basis_block_size = self.fixed_track_span_size(item, Axis::Row);
+            constraints.percentage_basis_block_size = if self.use_row_sizes_for_column_percentages {
+                Some(self.containing_block_size(item, Axis::Row))
+            } else {
+                self.fixed_track_span_size(item, Axis::Row)
+            };
         }
         constraints
+    }
+
+    // The items whose column contributions can change once the rows are sized: a percentage block size of a box with a
+    // preferred aspect ratio transfers to its inline size.
+    fn items_with_column_contributions_depending_on_row_sizes(&self) -> Vec<usize> {
+        (0..self.items.len())
+            .filter(|&index| {
+                let item = self.items[index];
+                if !self.facts(item.box_).has_preferred_aspect_ratio() {
+                    return false;
+                }
+                let style = self.style(item.box_);
+                (style.height().contains_percentage()
+                    || style.min_height().contains_percentage()
+                    || style.max_height().contains_percentage())
+                    && self.fixed_track_span_size(item, Axis::Row).is_none()
+            })
+            .collect()
+    }
+
+    // https://drafts.csswg.org/css-grid-2/#algo-overview
+    // 3. If the min-content contribution of any grid item has changed based on the row sizes and alignment calculated
+    //    in step 2, re-resolve the sizes of the grid columns with the new min-content and max-content contributions
+    //    (once only).
+    // NB: The items are then sized again within the rows, which are not resolved again, as in other engines.
+    fn re_resolve_columns_with_row_sizes(&mut self) {
+        let candidates = self.items_with_column_contributions_depending_on_row_sizes();
+        if candidates.is_empty() {
+            return;
+        }
+        // NB: The contributions are taken as in the first column pass, before the items have their used sizes.
+        let item_sizes_were_definite: Vec<(bool, bool)> = self
+            .items
+            .iter()
+            .map(|&item| {
+                let used = self.used(item);
+                (used.has_definite_inline_size(), used.has_definite_block_size())
+            })
+            .collect();
+        for &item in &self.items {
+            let used = self.used(item);
+            used.has_definite_inline_size.set(false);
+            used.has_definite_block_size.set(false);
+        }
+        // NB: Both contributions feed the column sizing, so either changing counts.
+        let contributions = |context: &Self| -> Vec<(CssPixels, CssPixels)> {
+            candidates
+                .iter()
+                .map(|&index| {
+                    let item = context.items[index];
+                    (
+                        context.min_content_contribution(item, Axis::Column),
+                        context.max_content_contribution(item, Axis::Column),
+                    )
+                })
+                .collect()
+        };
+        let before = contributions(self);
+        self.use_row_sizes_for_column_percentages = true;
+        if contributions(self) == before {
+            self.use_row_sizes_for_column_percentages = false;
+            for (&item, &(inline, block)) in self.items.iter().zip(&item_sizes_were_definite) {
+                let used = self.used(item);
+                used.has_definite_inline_size.set(inline);
+                used.has_definite_block_size.set(block);
+            }
+            return;
+        }
+        self.run_track_sizing(Axis::Column);
+        self.resolve_item_metrics(Axis::Column);
+        self.resolve_item_sizes(Axis::Column);
+        self.resolve_item_metrics(Axis::Row);
+        self.resolve_item_sizes(Axis::Row);
+        // NB: Sizing the columns again marks the inline sizes definite, but leaves the block sizes as they were made.
+        for (&item, &(_, block)) in self.items.iter().zip(&item_sizes_were_definite) {
+            self.used(item).has_definite_block_size.set(block);
+        }
     }
 
     fn intrinsic_contribution_constraints(&self, item: GridItem, axis: Axis) -> ContainingBlockConstraints {
@@ -3775,6 +3861,7 @@ impl<'pass> GridFormattingContext<'pass> {
             self.row_alignment_container_size = block_size;
             self.use_row_alignment_container_size = true;
         }
+        self.re_resolve_columns_with_row_sizes();
         self.resolve_track_spacing(Axis::Column);
         self.resolve_track_spacing(Axis::Row);
 
