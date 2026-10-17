@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    .cb {
+        width: 200px;
+    }
+    .ratio {
+        height: 100%;
+        aspect-ratio: 2 / 1;
+    }
+    .tall {
+        width: 10px;
+        height: 300px;
+    }
+</style>
+<div class="cb"><div id="empty" class="ratio"></div></div>
+<div class="cb"><div style="height: 100%"><div id="nested" class="ratio"></div></div></div>
+<div class="cb"><div id="tall" class="ratio"><div class="tall"></div></div></div>
+<div class="cb"><div id="tall-overflow-hidden" class="ratio" style="overflow: hidden"><div class="tall"></div></div></div>
+<div class="cb"><div id="percentage-width" class="ratio" style="width: 50%"></div></div>
+<div class="cb"><div id="float" class="ratio" style="float: left; width: 100px"></div></div>
+<div class="cb" style="clear: both"><div id="inline-block" class="ratio" style="display: inline-block; width: 100px"></div></div>
+<div class="cb"><div id="auto-height-tall" style="aspect-ratio: 2 / 1"><div class="tall"></div></div></div>
+<div class="cb">
+    <div id="image-container" class="ratio" style="overflow: hidden">
+        <img id="image" style="display: block; width: 100%; height: 100%" width="100" height="100">
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["empty", "nested", "tall", "tall-overflow-hidden", "percentage-width", "float", "inline-block", "auto-height-tall", "image-container", "image"]) {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: ${rect.width}x${rect.height}`);
+        }
+    });
+</script>
