@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	An about:blank document inherits the initiator base URL
+Pass	Deep clone of an about:blank document
+Pass	Shallow clone of an about:blank document
+Pass	Clone of an about:blank document after detaching the source
+Pass	Clone of an about:blank document with a <base>

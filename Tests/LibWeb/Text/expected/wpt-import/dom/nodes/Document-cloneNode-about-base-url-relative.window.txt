@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	A relative <base> in an about:blank document resolves against the inherited base URL
+Pass	Clone of an about:blank document with a relative <base>
+Pass	A relative <base> inserted into a shallow clone of an about:blank document resolves against the inherited base URL
+Pass	A data: <base> in an about:blank document and its clone falls back to the inherited base URL

@@ -382,8 +382,15 @@ size_t Node::external_memory_size() const
 // https://dom.spec.whatwg.org/#dom-node-baseuri
 Utf16String Node::base_uri() const
 {
-    // Return this’s node document’s document base URL, serialized.
-    return utf16_string_from_url_ascii(document().base_url().to_string());
+    // 1. Let baseURL be the result of running this’s node document’s get the base URL algorithm.
+    auto base_url = document().get_the_base_url();
+
+    // 2. If baseURL is null, then set baseURL to this’s node document’s URL.
+    if (!base_url.has_value())
+        base_url = document().url();
+
+    // 3. Return baseURL, serialized.
+    return utf16_string_from_url_ascii(base_url->serialize());
 }
 
 HTML::HTMLHyperlinkElementUtils const* Node::enclosing_link_element() const
@@ -2282,7 +2289,10 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
             document_copy->set_quirks_mode(document_.mode());
             document_copy->set_allow_declarative_shadow_roots(document_.allow_declarative_shadow_roots());
 
-            // 2. If node’s custom element registry’s is scoped is true, then set copy’s custom element registry to
+            // 2. Set copy’s base URL override to the result of running node’s get the base URL.
+            document_copy->set_base_url_override(document_.get_the_base_url());
+
+            // 3. If node’s custom element registry’s is scoped is true, then set copy’s custom element registry to
             //    node’s custom element registry.
             if (auto registry = document_.custom_element_registry(); registry && registry->is_scoped())
                 document_copy->set_custom_element_registry(registry);

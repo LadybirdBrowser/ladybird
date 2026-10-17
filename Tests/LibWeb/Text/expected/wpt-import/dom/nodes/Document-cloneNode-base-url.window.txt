@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Deep clone of a document with a <base>
+Pass	Shallow clone of a document with a <base>
+Pass	Clone of a document without a <base>
+Pass	Clone of a createHTMLDocument() document without a <base>
+Pass	Clone of a createHTMLDocument() document with a <base>
+Pass	Deep clone of a document with a relative <base>
+Pass	Shallow clone of a document with a relative <base>
+Pass	Shallow clone is unaffected by later mutation of the source
+Pass	Shallow clone's base URL survives later mutation of the clone
+Pass	Inserting a <base> into a shallow clone overrides the copied base URL
+Pass	Clone of a blob: URL document

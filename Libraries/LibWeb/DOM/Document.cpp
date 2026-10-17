@@ -1593,6 +1593,17 @@ bool Document::is_child_allowed(Node const& node) const
     }
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#the-document-object:concept-node-clone-ext
+WebIDL::ExceptionOr<void> Document::cloned(Node& copy, bool subtree) const
+{
+    TRY(Base::cloned(copy, subtree));
+
+    // The cloning steps for Document nodes given node, copy, and subtree are to set copy's about base URL to node's
+    // about base URL.
+    as<Document>(copy).set_about_base_url(m_about_base_url);
+    return {};
+}
+
 Element* Document::document_element()
 {
     return first_child_of_type<Element>();
@@ -2048,37 +2059,37 @@ void Document::set_url(URL::URL const& url)
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#fallback-base-url
 URL::URL Document::fallback_base_url() const
 {
-    // 1. If document is an iframe srcdoc document, then:
-    if (HTML::url_matches_about_srcdoc(m_url)) {
-        // 1. Assert: document's about base URL is non-null.
-        // AD-HOC: Documents created by DOMParser or by cloning can have a URL that matches about:srcdoc
-        //         without an about base URL being set. Returning the document's URL in this case matches
-        //         the behavior of other engines.
-        if (!m_about_base_url.has_value())
-            return m_url;
-
-        // 2. Return document's about base URL.
-        return m_about_base_url.value();
-    }
-
-    // 2. If document's URL matches about:blank and document's about base URL is non-null, then return document's about base URL.
-    if (HTML::url_matches_about_blank(m_url) && m_about_base_url.has_value())
+    // 1. If document's URL matches about:blank or matches about:srcdoc, and document's about base URL is non-null,
+    //    then return document's about base URL.
+    if ((HTML::url_matches_about_blank(m_url) || HTML::url_matches_about_srcdoc(m_url)) && m_about_base_url.has_value())
         return m_about_base_url.value();
 
-    // 3. Return document's URL.
+    // 2. Return document's URL.
     return m_url;
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#document-base-url
 URL::URL Document::base_url() const
 {
-    // 1. If document has no descendant base element that has an href attribute, then return document's fallback base URL.
-    auto base_element = first_base_element_with_href_in_tree_order();
-    if (!base_element)
-        return fallback_base_url();
+    // 1. If document has a descendant base element that has an href attribute, then return the frozen base URL of the
+    //    first such base element in tree order.
+    if (auto base_element = first_base_element_with_href_in_tree_order())
+        return base_element->frozen_base_url();
 
-    // 2. Otherwise, return the frozen base URL of the first base element in document that has an href attribute, in tree order.
-    return base_element->frozen_base_url();
+    // 2. If document's base URL override is non-null, then return document's base URL override.
+    if (m_base_url_override.has_value())
+        return m_base_url_override.value();
+
+    // 3. Return document's fallback base URL.
+    return fallback_base_url();
+}
+
+// https://dom.spec.whatwg.org/#get-the-base-url
+Optional<URL::URL> Document::get_the_base_url() const
+{
+    // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#get-the-base-url
+    // A Document document's get the base URL algorithm returns document's document base URL.
+    return base_url();
 }
 
 String const& Document::serialized_url() const
