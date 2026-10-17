@@ -212,7 +212,8 @@ private:
     }
 
     // Marking makes every block pending sweep again, which local free lists
-    // must never be in, so every collection starts with this.
+    // must never be in, so every collection does this once it has finished the
+    // pending sweep, whose destructors may take new local free lists.
     void give_back_local_free_lists();
 
     void will_allocate(size_t, TriggersCollection = TriggersCollection::Yes);
