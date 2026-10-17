@@ -3348,17 +3348,13 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::encrypt(JS::Realm& realm, AlgorithmParam
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
 
-    // 1. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
-    if (plaintext.size() > (1ULL << 39) - 256)
-        return WebIDL::OperationError::create("Invalid plaintext length"_utf16);
-
-    // 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // 1. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
     // NOTE: This is not possible
 
-    // 3. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // 2. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
     // NOTE: This is not possible
 
-    // 4. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
+    // 3. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
     auto tag_length = 0;
     auto constexpr valid_tag_lengths = Array { 32, 64, 96, 104, 112, 120, 128 };
     if (!normalized_algorithm.tag_length.has_value())
@@ -3371,6 +3367,10 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::encrypt(JS::Realm& realm, AlgorithmParam
     // Otherwise: throw an OperationError.
     else
         return WebIDL::OperationError::create("Invalid tag length"_utf16);
+
+    // 4. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
+    if (plaintext.size() > (1ULL << 39) - 256)
+        return WebIDL::OperationError::create("Invalid plaintext length"_utf16);
 
     // 5. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -3415,15 +3415,15 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::decrypt(JS::Realm& realm, AlgorithmParam
     else
         return WebIDL::OperationError::create("Invalid tag length"_utf16);
 
-    // 2. If ciphertext has a length less than tagLength bits, then throw an OperationError.
+    // 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // NOTE: This is not possible
+
+    // 3. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // NOTE: This is not possible
+
+    // 4. If ciphertext has a length in bits less than tagLength, then throw an OperationError.
     if (ciphertext.size() < tag_length / 8)
         return WebIDL::OperationError::create("Invalid ciphertext length"_utf16);
-
-    // 3. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
-    // NOTE: This is not possible
-
-    // 4. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
-    // NOTE: This is not possible
 
     // 5. Let tag be the last tagLength bits of ciphertext.
     auto tag_bytes = tag_length / 8;
