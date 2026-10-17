@@ -233,7 +233,8 @@ impl<'a> PaintableCommit<'a> {
             old_link.map_or((0, used_values::FfiCssPixelSize::default()), |old_link| {
                 let previous = &old_link.fragment;
                 if reuses_committed_subtree || previous.identity == fragment.identity {
-                    root_box_unchanged = fragment.has_same_box_properties(previous);
+                    root_box_unchanged =
+                        std::sync::Arc::ptr_eq(fragment, previous) || fragment.has_same_box_properties(previous);
                     own_paint_unchanged = root_box_unchanged;
                     child_placements_unchanged = true;
                     inline_content_unchanged = true;

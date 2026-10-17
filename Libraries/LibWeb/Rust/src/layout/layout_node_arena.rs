@@ -4340,6 +4340,11 @@ impl LayoutNodeArena {
             self.remove_layout_update_flag_node(id);
         }
         data.set_flags(updated);
+        // A box that becomes a flex or grid item can lay out to the fragment it committed before, but orders its
+        // painting differently, so its committed geometry no longer lets its commit be skipped.
+        if matches!(flag, NodeFlag::IsFlexItem | NodeFlag::IsGridItem) && updated != previous {
+            self.paintable_rows.invalidate_committed_geometry(id.slot_index());
+        }
         // Retaining compositor-animated content decides whether a non-invertible transform
         // still records its stacking context.
         if flag == NodeFlag::HasAnimatedOpacityOrTransform && updated != previous {
