@@ -61,12 +61,10 @@ static CSS::StyleRecordID declared_only_style_record(Layout::BegunRead const& re
         inline_style ? inline_style->declaration_block().handle() : nullptr) };
 }
 
-// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength
-WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
+// The geometry of the element in user units, which the geometry queries such as getTotalLength() measure. It is empty
+// for an element without style.
+Gfx::Path SVGGeometryElement::computed_path()
 {
-    // When getTotalLength() is called, the user agent's computed value for the total length of the path, in user units,
-    // is returned.
-
     // NB: Update layout so that the viewport size is resolved correctly
     Layout::ForcedReadScope read { document() };
     document().update_layout(DOM::UpdateLayoutReason::SVGPathLength);
@@ -81,7 +79,7 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     //        this reads the get_path() implementations, which duplicate it. Answer from the Rust builders instead, so
     //        a fix to one copy cannot miss the other.
     if (auto computed_values = computed_style())
-        return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values).length();
+        return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values);
 
     // NB: An element with no style is either in a subtree that is not rendered, which the style engine answers
     //     without installing anything, or outside the document, where no rule reaches it. The engine of the window's
@@ -101,8 +99,16 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     };
     auto view = style_computer.computed_style_record_view(style_read, record);
     if (!view)
-        return 0;
-    return get_path({ viewport_size.width(), viewport_size.height() }, *view).length();
+        return {};
+    return get_path({ viewport_size.width(), viewport_size.height() }, *view);
+}
+
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength
+WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
+{
+    // When getTotalLength() is called, the user agent's computed value for the total length of the path, in user units,
+    // is returned.
+    return computed_path().length();
 }
 
 GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distance)
