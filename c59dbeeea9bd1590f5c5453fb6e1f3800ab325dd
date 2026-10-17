@@ -1,0 +1,18 @@
+Ladybird masks VENDOR, RENDERER, VERSION, and SHADING_LANGUAGE_VERSION
+per navigator compatibility mode and shapes the unmasked pair likewise.
+Blink’s WebGLRenderingContextBase::getParameter() answers “WebKit”,
+“WebKit WebGL”, “WebGL 1.0 (” + the driver’s version + “)”, and
+“WebGL GLSL ES 1.0 (” + the driver’s GLSL version + “)”, with the
+WebGL 2 context substituting 2.0 and 3.00; through the command buffer
+the driver strings read “OpenGL ES 2.0 Chromium” and
+“OpenGL ES GLSL ES 1.0 Chromium”. WebKit’s answers are “WebKit”,
+“WebKit WebGL”, “WebGL 1.0”, and “WebGL GLSL ES 1.0 (1.0)” (3.00 for
+WebGL 2), and on Apple platforms its unmasked pair is “Apple Inc.” and
+“Apple GPU”. Gecko’s ClientWebGLContext::GetParameter() answers
+“Mozilla” for VENDOR and the sanitized renderer for RENDERER;
+webgl::SanitizeRenderer() maps any Apple GPU to “Apple M1” and appends
+“, or similar”, and SanitizeVendor() reduces the vendor to its bare
+name (“Apple”, “NVIDIA Corporation”, “Intel”, “AMD”). Ladybird copies
+the Apple rule and the vendor table; other GPUs keep their own
+renderer string with the “, or similar” marker, where Gecko has a
+table of representative devices.
