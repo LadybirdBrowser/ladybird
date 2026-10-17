@@ -412,7 +412,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCtrParams::from_value(J
     auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
 
     auto length_value = TRY(object.get("length"_utf16_fly_string));
-    auto length = TRY(length_value.to_u8(vm));
+    auto length = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     return adopt_own<AlgorithmParams>(*new AesCtrParams { iv, length });
 }
@@ -440,7 +440,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(J
     auto maybe_tag_length = Optional<u8> {};
     if (MUST(object.has_property("tagLength"_utf16_fly_string))) {
         auto tag_length_value = TRY(object.get("tagLength"_utf16_fly_string));
-        maybe_tag_length = TRY(tag_length_value.to_u8(vm));
+        maybe_tag_length = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, tag_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
 
     return adopt_own<AlgorithmParams>(*new AesGcmParams { iv, maybe_additional_data, maybe_tag_length });
@@ -484,7 +484,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> PBKDF2Params::from_value(J
     auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
 
     auto iterations_value = TRY(object.get("iterations"_utf16_fly_string));
-    auto iterations = TRY(iterations_value.to_u32(vm));
+    auto iterations = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, iterations_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     auto hash_value = TRY(object.get("hash"_utf16_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(realm, hash_value));
@@ -500,7 +500,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaKeyGenParams::from_valu
     auto& object = value.as_object();
 
     auto modulus_length_value = TRY(object.get("modulusLength"_utf16_fly_string));
-    auto modulus_length = TRY(modulus_length_value.to_u32(vm));
+    auto modulus_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, modulus_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     auto public_exponent_value = TRY(object.get("publicExponent"_utf16_fly_string));
     GC::Ptr<JS::Uint8Array> public_exponent;
@@ -521,7 +521,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::fro
     auto& object = value.as_object();
 
     auto modulus_length_value = TRY(object.get("modulusLength"_utf16_fly_string));
-    auto modulus_length = TRY(modulus_length_value.to_u32(vm));
+    auto modulus_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, modulus_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     auto public_exponent_value = TRY(object.get("publicExponent"_utf16_fly_string));
     GC::Ptr<JS::Uint8Array> public_exponent;
@@ -578,7 +578,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaPssParams::from_value(J
     auto& object = value.as_object();
 
     auto salt_length_value = TRY(object.get("saltLength"_utf16_fly_string));
-    auto salt_length = TRY(salt_length_value.to_u32(vm));
+    auto salt_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, salt_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     return adopt_own<AlgorithmParams>(*new RsaPssParams { salt_length });
 }
@@ -616,7 +616,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesKeyGenParams::from_valu
     auto& object = value.as_object();
 
     auto length_value = TRY(object.get("length"_utf16_fly_string));
-    auto length = TRY(length_value.to_u16(vm));
+    auto length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedShort>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     return adopt_own<AlgorithmParams>(*new AesKeyGenParams { length });
 }
@@ -629,7 +629,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesDerivedKeyParams::from_
     auto& object = value.as_object();
 
     auto length_value = TRY(object.get("length"_utf16_fly_string));
-    auto length = TRY(length_value.to_u16(vm));
+    auto length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedShort>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { length });
 }
@@ -672,7 +672,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_val
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
     if (MUST(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
+        maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
 
     return adopt_own<AlgorithmParams>(*new HmacImportParams { hash, maybe_length });
@@ -691,7 +691,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacKeyGenParams::from_val
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
     if (MUST(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
+        maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
 
     return adopt_own<AlgorithmParams>(*new HmacKeyGenParams { hash, maybe_length });

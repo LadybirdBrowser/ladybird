@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const data = new Uint8Array(16);
+
+        const aesCtrKey = await crypto.subtle.importKey("raw", data, "AES-CTR", false, ["encrypt"]);
+        await check("AesCtrParams length", crypto.subtle.encrypt({ name: "AES-CTR", counter: new Uint8Array(16), length: 2 ** 8 + 64 }, aesCtrKey, data));
+
+        const aesGcmKey = await crypto.subtle.importKey("raw", data, "AES-GCM", false, ["encrypt"]);
+        await check("AesGcmParams tagLength", crypto.subtle.encrypt({ name: "AES-GCM", iv: new Uint8Array(12), tagLength: 2 ** 8 + 128 }, aesGcmKey, data));
+
+        const pbkdf2Key = await crypto.subtle.importKey("raw", data, "PBKDF2", false, ["deriveBits", "deriveKey"]);
+        await check("Pbkdf2Params iterations", crypto.subtle.deriveBits({ name: "PBKDF2", salt: data, iterations: 2 ** 32 + 1, hash: "SHA-256" }, pbkdf2Key, 256));
+        await check("AesDerivedKeyParams length", crypto.subtle.deriveKey({ name: "PBKDF2", salt: data, iterations: 1, hash: "SHA-256" }, pbkdf2Key, { name: "AES-GCM", length: 2 ** 16 + 128 }, false, ["encrypt"]));
+
+        await check("HmacImportParams length", crypto.subtle.importKey("raw", data, { name: "HMAC", hash: "SHA-256", length: 2 ** 32 + 128 }, false, ["sign"]));
+
+        const rsaPssKey = await crypto.subtle.generateKey({ name: "RSA-PSS", modulusLength: 1024, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, false, ["sign"]);
+        await check("RsaPssParams saltLength", crypto.subtle.sign({ name: "RSA-PSS", saltLength: 2 ** 32 + 32 }, rsaPssKey.privateKey, data));
+    });
+</script>
