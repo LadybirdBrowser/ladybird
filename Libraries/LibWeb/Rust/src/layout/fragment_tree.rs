@@ -572,7 +572,21 @@ impl CompletedPassFragments {
                 }
             }
         }
-        let mut links_by_slot = HashMap::default();
+        fn count_links(links: &[FragmentLink], reused_subtree_roots: &HashSet<u32>) -> usize {
+            links
+                .iter()
+                .map(|link| {
+                    let slot = link.fragment.node.slot_index();
+                    1 + if reused_subtree_roots.contains(&slot) {
+                        0
+                    } else {
+                        count_links(&link.fragment.children, reused_subtree_roots)
+                    }
+                })
+                .sum()
+        }
+        let mut links_by_slot =
+            HashMap::with_capacity_and_hasher(count_links(&self.roots, &self.reused_subtree_roots), Default::default());
         insert_links(&self.roots, &self.reused_subtree_roots, &mut links_by_slot);
         links_by_slot
     }
