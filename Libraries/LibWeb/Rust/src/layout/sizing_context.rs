@@ -2615,8 +2615,39 @@ impl<'pass> SizingContext<'pass> {
         inline_size: CssPixels,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
-        if let Some(ratio) = self.facts(node).preferred_aspect_ratio() {
-            return ratio.divide(inline_size);
+        if self.facts(node).has_preferred_aspect_ratio() {
+            // OPTIMIZATION: The automatic minimum size measures the content, so the result is cached.
+            let kind = IntrinsicSizeCacheKind::MaxContentBlock;
+            let key = formatting_context::cache_key(Some(inline_size), None, constraints);
+            if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
+                return cached.size;
+            }
+            let block_size = self.content_block_size_from_aspect_ratio(node, inline_size);
+            // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+            let minimum = self.automatic_minimum_size_from_aspect_ratio(
+                node,
+                SizingAxis::Block,
+                inline_size,
+                block_size,
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(inline_size),
+                    block_size: AvailableSize::Indefinite,
+                },
+                constraints,
+                None,
+            );
+            let size = minimum.map_or(block_size, |minimum| block_size.max(minimum));
+            self.intrinsic_block_cache_put(
+                node,
+                kind,
+                key,
+                IntrinsicBlockSizeMeasurement {
+                    size,
+                    depends_on_percentage_block_size: self.own_style_depends_on_percentage_block_size(node),
+                    depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
+                },
+            );
+            return size;
         }
         let auto_size = self.auto_content_size(node);
         if let Some(height) = auto_size.height {
