@@ -12,17 +12,19 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{call_function_object, length_of_array_like};
+use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
-use crate::runtime::iterator::{get_iterator_from_method_impl, iterator_to_list};
 use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
 use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::typed_array::typed_array_create;
+use crate::runtime::typed_array::{
+    iterable_to_list, set_elements_to_numbers_if_unobservable, typed_array_create, typed_array_set_element,
+};
 
 /// %TypedArray%.
 #[repr(C)]
@@ -150,7 +152,7 @@ impl TypedArrayConstructor {
         // 6. If usingIterator is not undefined, then
         if let Some(using_iterator) = using_iterator {
             // a. Let values be ? IteratorToList(? GetIteratorFromMethod(source, usingIterator)).
-            let values = iterator_to_list(vm, &get_iterator_from_method_impl(vm, source, using_iterator)?)?;
+            let values = iterable_to_list(vm, source, using_iterator)?;
 
             // b. Let len be the number of elements in values.
             let length = values.len();
@@ -158,11 +160,18 @@ impl TypedArrayConstructor {
             // c. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
             let target_object = typed_array_create(vm, constructor.as_function(), &[Value::from_f64(length as f64)])?;
 
+            if map_fn.is_none()
+                && values.with_values(|values| set_elements_to_numbers_if_unobservable(&target_object, values))
+            {
+                return Ok(Value::from_object(target_object));
+            }
+
             // d. Let k be 0.
             // e. Repeat, while k < len,
             for k in 0..length {
                 // i. Let Pk be ! ToString(𝔽(k)).
-                let property_key = PropertyKey::from_number(k as u64);
+                // NB: TypedArrayCreate made targetObj at least len elements long, which fits an index.
+                let index = CanonicalIndex::new(CanonicalIndexType::Index, k as u32);
 
                 // ii. Let kValue be the first element of values.
                 // iii. Remove the first element from values.
@@ -179,7 +188,9 @@ impl TypedArrayConstructor {
                 };
 
                 // vi. Perform ? Set(targetObj, Pk, mappedValue, true).
-                target_object.set(vm, &property_key, mapped_value, ShouldThrowExceptions::Yes)?;
+                // NB: [[Set]] of a typed array with an index key and the typed array as the receiver is
+                //     TypedArraySetElement.
+                typed_array_set_element(vm, &target_object, index, mapped_value)?;
 
                 // vii. Set k to k + 1.
             }
@@ -221,7 +232,9 @@ impl TypedArrayConstructor {
             };
 
             // e. Perform ? Set(targetObj, Pk, mappedValue, true).
-            target_object.set(vm, &property_key, mapped_value, ShouldThrowExceptions::Yes)?;
+            // NB: See step 6.e.vi; len fits an index too.
+            let index = CanonicalIndex::new(CanonicalIndexType::Index, k as u32);
+            typed_array_set_element(vm, &target_object, index, mapped_value)?;
 
             // f. Set k to k + 1.
         }

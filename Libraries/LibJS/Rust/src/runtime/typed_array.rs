@@ -21,9 +21,10 @@ use crate::runtime::abstract_operations::{
     CanonicalIndexMode, IntrinsicDefaultPrototype, call_function_object, canonical_numeric_index_string, construct,
     get_prototype_from_constructor, length_of_array_like,
 };
+use crate::runtime::array::Array;
 use crate::runtime::array_buffer::{
     ArrayBuffer, ElementType, INVALID_DATA_OFFSET, Order, ReadWriteModifyOperation, allocate_array_buffer,
-    array_buffer_byte_length, clone_array_buffer,
+    array_buffer_byte_length, clone_array_buffer, f64_to_binary16_bits,
 };
 use crate::runtime::byte_length::{ByteLength, ByteLengthSlot};
 use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
@@ -36,15 +37,17 @@ use crate::runtime::iterator::{get_iterator_from_method_impl, iterator_to_list};
 use crate::runtime::native_function::{NativeFunction, define_native_function_class};
 use crate::runtime::object::{
     CacheableGetPropertyMetadata, CacheableSetPropertyMetadata, MayInterfereWithIndexedPropertyAccess,
-    ORDINARY_OBJECT_METHODS, ObjectMethods, PropertyLookupPhase, ShouldThrowExceptions, define_object_class,
+    ORDINARY_OBJECT_METHODS, ObjectMethods, PropertyLookupPhase, define_object_class,
 };
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::uint8_array::{Uint8ArrayConstructorHelpers, Uint8ArrayPrototypeHelpers};
 use crate::runtime::value::same_value;
+use crate::runtime::value_conversions;
 
 pub use crate::layout::object::TypedArrayBase;
 
@@ -1330,6 +1333,80 @@ fn allocate_typed_array_buffer(vm: &Vm, typed_array: &TypedArrayBase, length: us
     Ok(())
 }
 
+/// ? IteratorToList(? GetIteratorFromMethod(source, usingIterator)), as the typed array constructors and
+/// %TypedArray%.from ( ) take the values of an iterable.
+pub(crate) fn iterable_to_list(
+    vm: &Vm,
+    source: Value,
+    using_iterator: Gc<FunctionObject>,
+) -> ThrowCompletionOr<MarkedVec<'_, Value>> {
+    // OPTIMIZATION: Iterating a packed array with the original array iterator cannot be observed, and produces its
+    //               elements.
+    let realm = vm.current_realm().expect("iterables are iterated in a realm");
+    if source.is_object()
+        && let Some(array) = source.as_object().downcast::<Array>()
+        && using_iterator == realm.array_prototype_values_function()
+        && array.is_simple_packed_array()
+        && realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
+    {
+        return Ok(array.indexed_packed_elements(vm));
+    }
+    iterator_to_list(vm, &get_iterator_from_method_impl(vm, source, using_iterator)?)
+}
+
+/// OPTIMIZATION: Performs TypedArraySetElement(typedArray, 𝔽(k), values[k]) for every k at once, if that cannot be
+/// observed: the values are numbers, whose conversion runs no code, for a typed array of numbers whose elements at
+/// those indices are valid, in a buffer that is not shared. Returns whether it did.
+pub(crate) fn set_elements_to_numbers_if_unobservable(typed_array: &TypedArrayBase, values: &[Value]) -> bool {
+    if values.is_empty()
+        || typed_array.content_type() != ContentType::Number
+        || !values.iter().all(|value| value.is_number())
+    {
+        return false;
+    }
+    let Ok(last_index) = u32::try_from(values.len() - 1) else {
+        return false;
+    };
+    // NB: Valid integer indices are those below the length of a typed array whose buffer is not detached.
+    let buffer = typed_array.viewed_array_buffer();
+    if !is_valid_integer_index(typed_array, CanonicalIndex::new(CanonicalIndexType::Index, last_index))
+        || buffer.is_shared_array_buffer()
+    {
+        return false;
+    }
+    let bytes = match typed_array.kind().element_type() {
+        ElementType::Int8 | ElementType::Uint8 => encode_numbers(values, |value| [number_to_i32(value) as u8]),
+        ElementType::Uint8Clamped => encode_numbers(values, |value| [value_conversions::to_u8_clamp(value.as_f64())]),
+        ElementType::Int16 | ElementType::Uint16 => {
+            encode_numbers(values, |value| (number_to_i32(value) as u16).to_le_bytes())
+        }
+        ElementType::Int32 | ElementType::Uint32 => encode_numbers(values, |value| number_to_i32(value).to_le_bytes()),
+        ElementType::Float16 => encode_numbers(values, |value| f64_to_binary16_bits(value.as_f64()).to_le_bytes()),
+        ElementType::Float32 => encode_numbers(values, |value| (value.as_f64() as f32).to_bits().to_le_bytes()),
+        ElementType::Float64 => encode_numbers(values, |value| value.as_f64().to_bits().to_le_bytes()),
+        ElementType::BigInt64 | ElementType::BigUint64 => unreachable!("the typed array holds numbers"),
+    };
+    buffer.overwrite(typed_array.byte_offset() as usize, &bytes);
+    true
+}
+
+/// The little-endian bytes of the elements that `encode` makes of each of the numbers `values`.
+fn encode_numbers<const SIZE: usize>(values: &[Value], encode: impl Fn(Value) -> [u8; SIZE]) -> Vec<u8> {
+    let mut bytes = vec![0; values.len() * SIZE];
+    for (element, value) in bytes.as_chunks_mut::<SIZE>().0.iter_mut().zip(values) {
+        *element = encode(*value);
+    }
+    bytes
+}
+
+/// ToInt32 of the number `value`.
+fn number_to_i32(value: Value) -> i32 {
+    if value.is_int32() {
+        return value.as_i32();
+    }
+    value_conversions::to_i32(value.as_f64())
+}
+
 // 23.2.5.1.5 InitializeTypedArrayFromArrayLike, https://tc39.es/ecma262/#sec-initializetypedarrayfromarraylike
 fn initialize_typed_array_from_array_like(
     vm: &Vm,
@@ -1350,7 +1427,14 @@ fn initialize_typed_array_from_array_like(
         let k_value = array_like.get(vm, &PropertyKey::from_number(k))?;
 
         // c. Perform ? Set(O, Pk, kValue, true).
-        typed_array.set(vm, &PropertyKey::from_number(k), k_value, ShouldThrowExceptions::Yes)?;
+        // NB: [[Set]] of a typed array with an index key and the typed array as the receiver is
+        //     TypedArraySetElement.
+        typed_array_set_element(
+            vm,
+            typed_array,
+            CanonicalIndex::new(CanonicalIndexType::Index, k as u32),
+            k_value,
+        )?;
 
         // d. Set k to k + 1.
     }
@@ -1371,6 +1455,10 @@ fn initialize_typed_array_from_list(
     // 2. Perform ? AllocateTypedArrayBuffer(O, len).
     allocate_typed_array_buffer(vm, typed_array, length)?;
 
+    if list.with_values(|values| set_elements_to_numbers_if_unobservable(typed_array, values)) {
+        return Ok(());
+    }
+
     // 3. Let k be 0.
     // 4. Repeat, while k < len,
     for k in 0..length {
@@ -1379,11 +1467,12 @@ fn initialize_typed_array_from_list(
         let value = list.get(k).expect("the index is in bounds");
 
         // c. Perform ? Set(O, Pk, kValue, true).
-        typed_array.set(
+        // NB: See initialize_typed_array_from_array_like().
+        typed_array_set_element(
             vm,
-            &PropertyKey::from_number(k as u64),
+            typed_array,
+            CanonicalIndex::new(CanonicalIndexType::Index, k as u32),
             value,
-            ShouldThrowExceptions::Yes,
         )?;
 
         // d. Set k to k + 1.
@@ -1828,7 +1917,7 @@ fn construct_typed_array(vm: &Vm, kind: Kind, new_target: Gc<FunctionObject>) ->
         } else if let Some(iterator) =
             first_argument.get_method(vm, &PropertyKey::from(vm.well_known_symbols().iterator))?
         {
-            let values = iterator_to_list(vm, &get_iterator_from_method_impl(vm, first_argument, iterator)?)?;
+            let values = iterable_to_list(vm, first_argument, iterator)?;
             initialize_typed_array_from_list(vm, &typed_array, &values)?;
         } else {
             initialize_typed_array_from_array_like(vm, &typed_array, &first_object)?;

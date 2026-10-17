@@ -116,6 +116,10 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
         self.rooted_values().borrow_mut().push(value);
     }
 
+    pub fn extend_from_slice(&self, values: &[T]) {
+        self.rooted_values().borrow_mut().extend_from_slice(values);
+    }
+
     pub fn insert(&self, index: usize, value: T) {
         self.rooted_values().borrow_mut().insert(index, value);
     }
