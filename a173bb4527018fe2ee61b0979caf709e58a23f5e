@@ -1,0 +1,10 @@
+Ladybird defines engine-specific interfaces and members only while the
+navigator claims that engine. Blink implements navigator.deviceMemory
+in NavigatorDeviceMemory and exposes WebGLObject through its WebIDL;
+neither WebKit nor Gecko has either. Gecko’s Navigator::GetBuildID()
+returns the fixed “20181001000000” (LEGACY_BUILD_ID in nsContentUtils)
+for web content, its Navigator::GetOscpu() the platform token
+(nsHttpHandler’s mOscpu, “Intel Mac OS X 10.15” on macOS), and
+Navigator::TaintEnabled() false; Blink and WebKit have none of the
+three. Ladybird derives oscpu from the User-Agent string’s platform
+tokens so a spoofed Firefox User-Agent and oscpu agree.
