@@ -348,7 +348,7 @@ pub(crate) fn place_child_in_containing_block(
     let used = records.used_values(node);
     set_placement(used, containing_block, offset);
     let fragments = run.fragments.as_deref()?;
-    if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(node) {
+    if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(used) {
         fragments.attach_committed_fragment(
             node,
             fragment.clone(),
@@ -1679,7 +1679,7 @@ pub(super) fn run_formatting_context(
     };
     if let Some(parent_fragments) = parent_fragments {
         // A later fresh run for this root supersedes a hit recorded earlier in the same pass.
-        parent_fragments.clear_reused_subtree_root(box_);
+        parent_fragments.clear_reused_subtree_root(box_, parent_used);
     }
     let _trace = callbacks
         .arena()
@@ -1743,7 +1743,7 @@ fn reuse_committed_subtree_as_it_is(
         LayoutMode::Normal,
         || "REUSE SUBTREE",
     );
-    fragments.hold_reused_committed_fragment(box_, fragment);
+    fragments.hold_reused_committed_fragment(box_, root_used, fragment);
     Some(entry.outputs.result)
 }
 
@@ -2186,7 +2186,7 @@ pub(crate) fn layout_inside_child(
             && used.shows_box_of_fragment(&fragment)
             && !facts.has_anchor_names()
         {
-            fragments.hold_committed_fragment_of_empty_box(child, fragment);
+            fragments.hold_committed_fragment_of_empty_box(used, fragment);
         }
         store_derived_baselines(used, DerivedBaselines::default());
         note_skipped_child_dependency();

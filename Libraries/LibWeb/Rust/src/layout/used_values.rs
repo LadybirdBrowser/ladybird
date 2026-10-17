@@ -369,6 +369,7 @@ pub(crate) struct UsedValues {
 
     pub(crate) line_data: RefCell<LineDataState>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
+    pub(crate) held_committed_fragment: fragment_tree::HeldCommittedFragmentCell,
 }
 
 impl Default for UsedValues {
@@ -417,6 +418,7 @@ impl Default for UsedValues {
             has_descendant_that_depends_on_percentage_block_size: Cell::new(false),
             line_data: RefCell::new(LineDataState::Empty),
             rare_data: LazyRefCell::new(),
+            held_committed_fragment: fragment_tree::HeldCommittedFragmentCell::default(),
         }
     }
 }
