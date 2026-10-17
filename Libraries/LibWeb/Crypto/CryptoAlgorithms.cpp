@@ -6990,23 +6990,32 @@ WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmP
 {
     auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
-    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != KeyType::Private)
-        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
-
-    // 2. Let publicKey be the public member of normalizedAlgorithm.
+    // 1. Let publicKey be the public member of normalizedAlgorithm.
     auto& public_key = normalized_algorithm.public_key;
 
-    // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+    // 2. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
     if (public_key->type() != KeyType::Public)
         return WebIDL::InvalidAccessError::create("Public key is not a public key"_utf16);
 
-    // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+    // 3. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to the name member of
+    //    normalizedAlgorithm, then throw an InvalidAccessError.
+    if (public_key->algorithm_name() != normalized_algorithm.name)
+        return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
+
+    // 4. If length is not null and is greater than 256, then throw an OperationError.
+    if (length_optional.has_value() && *length_optional > 256)
+        return WebIDL::OperationError::create("Length is too large"_utf16);
+
+    // 5. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
+
+    // 6. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
     if (key->algorithm_name() != public_key->algorithm_name())
         return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
 
-    // 5. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
+    // 7. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
     //    key as the X25519 private key k and
     //    the X25519 public key represented by the [[handle]] internal slot of publicKey as the X25519 public key u.
     auto const& private_key = key->handle().get<OKPPrivateKey>().bytes;
@@ -7019,7 +7028,7 @@ WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmP
 
     auto secret = maybe_secret.release_value();
 
-    // 6. If secret is the all-zero value, then throw a OperationError.
+    // 8. If secret is the all-zero value, then throw a OperationError.
     //    This check must be performed in constant-time, as per [RFC7748] Section 6.1.
     // NOTE: The check may be performed by ORing all the bytes together and checking whether the result is zero,
     //       as this eliminates standard side-channels in software implementations.
@@ -7031,7 +7040,7 @@ WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmP
     if (or_bytes == 0)
         return WebIDL::OperationError::create("Secret is the all-zero value"_utf16);
 
-    // 7. If length is null: Return secret.
+    // 9. If length is null: Return secret.
     if (!length_optional.has_value()) {
         auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(secret));
         return result;
