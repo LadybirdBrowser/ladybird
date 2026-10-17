@@ -37,13 +37,13 @@ void SVGAnimationElement::set_onend(GC::Ptr<WebIDL::CallbackType> value)
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onend
 GC::Ptr<WebIDL::CallbackType> SVGAnimationElement::onend()
 {
-    return event_handler_attribute(HTML::EventNames::error);
+    return event_handler_attribute(HTML::EventNames::end);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onrepeat
 void SVGAnimationElement::set_onrepeat(GC::Ptr<WebIDL::CallbackType> value)
 {
-    set_event_handler_attribute(HTML::EventNames::end, value);
+    set_event_handler_attribute(HTML::EventNames::repeat, value);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onrepeat

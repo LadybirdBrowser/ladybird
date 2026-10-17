@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const set = document.createElementNS("http://www.w3.org/2000/svg", "set");
+        const calls = [];
+        const handlers = {};
+        for (const name of ["onbegin", "onend", "onrepeat"]) {
+            handlers[name] = event => calls.push(`${name} called for ${event.type}`);
+            set[name] = handlers[name];
+        }
+        for (const name of ["onbegin", "onend", "onrepeat"])
+            println(`${name} returns its handler: ${set[name] === handlers[name]}`);
+        for (const type of ["begin", "beginEvent", "end", "endEvent", "repeat", "repeatEvent"])
+            set.dispatchEvent(new Event(type));
+        for (const call of calls)
+            println(call);
+    });
+</script>
