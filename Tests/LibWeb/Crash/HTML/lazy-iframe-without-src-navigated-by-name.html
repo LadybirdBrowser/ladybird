@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<!-- A lazy iframe without a src is never intersection-observed, so the document has no lazy load intersection observer
+     when the iframe is navigated. -->
+<html class="test-wait">
+<body>
+<iframe name="target" loading="lazy"></iframe>
+<script>
+    window.open("data:text/html,hi", "target");
+    requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("test-wait")));
+</script>
+</body>
+</html>
