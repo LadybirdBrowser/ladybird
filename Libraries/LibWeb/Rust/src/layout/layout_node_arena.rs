@@ -4725,7 +4725,7 @@ impl LayoutNodeArena {
         let (index, metadata) = self.slot_for_data(data);
         self.paintable_rows
             .with_committed_fragment_link(index, metadata.generation, |link| {
-                link.and_then(|link| link.abspos_layout_inputs)
+                link.and_then(|link| link.abspos_layout_inputs.as_deref().copied())
             })
             .or_else(|| {
                 self.confined_abspos_layout_inputs
@@ -6949,7 +6949,7 @@ mod tests {
         let allocation = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(allocation.slot);
-        link.abspos_layout_inputs = Some(inputs);
+        link.abspos_layout_inputs = Some(Box::new(inputs));
         arena.set_committed_fragment_link(allocation.slot, link, None);
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
         assert_eq!(
@@ -6978,7 +6978,7 @@ mod tests {
         let new = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(old.slot);
-        link.abspos_layout_inputs = Some(inputs);
+        link.abspos_layout_inputs = Some(Box::new(inputs));
         let retained_fragment = link.fragment.clone();
         arena.set_committed_fragment_link(old.slot, link, None);
 
