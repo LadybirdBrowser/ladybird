@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="outer">
+    <rect id="removed" width="10" height="10" fill="red">
+        <set attributeName="fill" to="green" dur="1s"/>
+    </rect>
+    <rect id="frozen" width="10" height="10" fill="red">
+        <set attributeName="fill" to="green" dur="1s" fill="freeze"/>
+    </rect>
+    <svg id="inner"></svg>
+</svg>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        const fills = () => `removed ${getComputedStyle(removed).fill}, frozen ${getComputedStyle(frozen).fill}`;
+        const animation = removed.firstElementChild;
+        const detached = document.createElementNS("http://www.w3.org/2000/svg", "set");
+        const startTime = element => {
+            try {
+                return element.getStartTime();
+            } catch (error) {
+                return error.name;
+            }
+        };
+
+        println(`time before the timeline begins: ${outer.getCurrentTime()}, animation ${animation.getCurrentTime()}`);
+        println(`animation start time before the timeline begins: ${startTime(animation)}`);
+        outer.pauseAnimations();
+        outer.setCurrentTime(0.5);
+        println(`paused before the timeline begins: ${outer.animationsPaused()}`);
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await nextFrame();
+        println(`time once the timeline begins: ${outer.getCurrentTime()}, animation ${animation.getCurrentTime()}`);
+        println(`fills once the timeline begins: ${fills()}`);
+
+        outer.setCurrentTime(1.5);
+        println(`fills after seeking past the end: ${fills()}`);
+        outer.setCurrentTime(0.25);
+        println(`fills after seeking back: ${fills()}`);
+
+        println(`nested svg reports the timeline: paused ${inner.animationsPaused()}, time ${inner.getCurrentTime()}`);
+        inner.unpauseAnimations();
+        inner.setCurrentTime(5);
+        println(`nested svg leaves the timeline alone: paused ${outer.animationsPaused()}, time ${outer.getCurrentTime()}`);
+
+        outer.setCurrentTime(-1);
+        println(`time after seeking to a negative time: ${outer.getCurrentTime()}`);
+        println(`detached animation: time ${detached.getCurrentTime()}, start time ${startTime(detached)}`);
+
+        outer.unpauseAnimations();
+        println(`paused after unpausing: ${outer.animationsPaused()}`);
+        await nextFrame();
+        await nextFrame();
+        println(`time advances after unpausing: ${outer.getCurrentTime() > 0}`);
+        done();
+    });
+</script>

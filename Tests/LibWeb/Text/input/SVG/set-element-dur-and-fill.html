@@ -23,6 +23,7 @@
 <script>
     asyncTest(async done => {
         const nextFrame = () => new Promise(requestAnimationFrame);
+        await new Promise(resolve => window.addEventListener("load", resolve));
         await nextFrame();
         await new Promise(resolve => setTimeout(resolve, 20));
         await nextFrame();

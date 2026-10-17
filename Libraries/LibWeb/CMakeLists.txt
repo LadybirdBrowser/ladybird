@@ -882,6 +882,7 @@ set(SOURCES
     SVG/AttributeParsing.cpp
     SVG/Path.cpp
     SVG/SMILAnimation.cpp
+    SVG/SMILTimeContainer.cpp
     SVG/SVGAElement.cpp
     SVG/SVGAnimatedEnumeration.cpp
     SVG/SVGAnimatedInteger.cpp

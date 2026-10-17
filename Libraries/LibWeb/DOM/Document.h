@@ -1207,6 +1207,7 @@ public:
 
     WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
     HashTable<GC::Ref<Animations::AnimationTimeline>> const& associated_animation_timelines() const { return m_associated_animation_timelines; }
+    void begin_smil_time_container_once_loaded(SVG::SMILTimeContainer&);
 
     bool ready_to_run_scripts() const { return m_ready_to_run_scripts; }
     void set_ready_to_run_scripts();
@@ -2165,6 +2166,7 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     HashTable<GC::Ref<Animations::AnimationTimeline>> m_associated_animation_timelines;
+    Vector<GC::Ref<SVG::SMILTimeContainer>> m_smil_time_containers_to_begin;
 
     // NB: Weak so the document does not unnecessarily keep animations alive. Note that this also includes animations
     //     associated with elements in shadow trees so differs from getAnimations()

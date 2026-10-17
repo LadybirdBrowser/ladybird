@@ -6,22 +6,30 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/SMILAnimation.h>
+#include <LibWeb/SVG/SMILTimeContainer.h>
 #include <LibWeb/SVG/SVGAnimationElement.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SMILAnimation);
 
-GC::Ref<SMILAnimation> SMILAnimation::create(SVGAnimationElement& animation_element)
+GC::Ref<SMILAnimation> SMILAnimation::create(SVGAnimationElement& animation_element, SMILTimeContainer& time_container)
 {
     auto& environment = animation_element.document().relevant_settings_object();
-    return GC::Heap::the().allocate<SMILAnimation>(environment, animation_element);
+    return GC::Heap::the().allocate<SMILAnimation>(environment, animation_element, time_container);
 }
 
-SMILAnimation::SMILAnimation(HTML::EnvironmentSettingsObject& environment, SVGAnimationElement& animation_element)
+SMILAnimation::SMILAnimation(HTML::EnvironmentSettingsObject& environment, SVGAnimationElement& animation_element, SMILTimeContainer& time_container)
     : Animations::Animation(environment)
     , m_animation_element(animation_element)
+    , m_time_container(time_container)
 {
+}
+
+void SMILAnimation::cancel(ShouldInvalidate should_invalidate)
+{
+    m_time_container->remove_animation(*this);
+    Base::cancel(should_invalidate);
 }
 
 // https://www.w3.org/TR/smil-animation/#AnimationSandwichModel
@@ -44,6 +52,7 @@ void SMILAnimation::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_animation_element);
+    visitor.visit(m_time_container);
 }
 
 }

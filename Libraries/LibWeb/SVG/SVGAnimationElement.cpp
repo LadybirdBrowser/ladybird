@@ -11,11 +11,12 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SMILAnimation.h>
+#include <LibWeb/SVG/SMILTimeContainer.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::SVG {
@@ -54,6 +55,12 @@ void SVGAnimationElement::attribute_changed(Utf16FlyString const& name, Optional
     Base::attribute_changed(name, old_value, value, namespace_);
     if (first_is_one_of(name, AttributeNames::attributeName, AttributeNames::dur, AttributeNames::fill) && !namespace_.has_value())
         update_animation();
+}
+
+GC::Ptr<SMILTimeContainer> SVGAnimationElement::time_container()
+{
+    auto outermost_svg_element = this->outermost_svg_element();
+    return outermost_svg_element ? outermost_svg_element->time_container() : nullptr;
 }
 
 // https://svgwg.org/specs/animations/#HrefAttribute
@@ -125,6 +132,9 @@ void SVGAnimationElement::update_animation()
 
     if (!is_connected())
         return;
+    auto time_container = this->time_container();
+    if (!time_container)
+        return;
     auto target = target_element();
     if (!target)
         return;
@@ -141,14 +151,10 @@ void SVGAnimationElement::update_animation()
     auto effect = MUST(Animations::KeyframeEffect::create_from_processed_keyframes(target, move(keyframes), simple_duration()));
     effect->set_fill_mode(fill_mode());
 
-    // AD-HOC: Animations begin once their element is connected, and begin again whenever an attribute they depend on
-    //         changes, on the document's default timeline. They should begin at the document begin of their SVG
-    //         document fragment, which is the time of its load event.
-    auto animation = SMILAnimation::create(*this);
+    auto animation = SMILAnimation::create(*this, *time_container);
     animation->set_timeline(document().timeline());
     animation->set_effect(effect);
-    HTML::TemporaryExecutionContext execution_context { document().relevant_settings_object() };
-    MUST(animation->play());
+    time_container->add_animation(animation);
     m_animation = animation;
 }
 
@@ -186,6 +192,32 @@ void SVGAnimationElement::set_onrepeat(GC::Ptr<WebIDL::CallbackType> value)
 GC::Ptr<WebIDL::CallbackType> SVGAnimationElement::onrepeat()
 {
     return event_handler_attribute(HTML::EventNames::repeatEvent);
+}
+
+// https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__getStartTime
+WebIDL::ExceptionOr<float> SVGAnimationElement::get_start_time()
+{
+    // Returns the begin time, in seconds, for this animation element's current interval, if it exists, regardless of
+    // whether the interval has begun yet. If there is no current interval, then a DOMException with code
+    // INVALID_STATE_ERR is thrown.
+    // NB: An animation element in an SVG document fragment has one interval, which begins when the timeline of the
+    //     fragment begins.
+    // FIXME: Resolve the begin times of intervals from the begin attribute.
+    if (!is_connected() || !time_container())
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The animation element has no current interval"_utf16);
+    return 0;
+}
+
+// https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__getCurrentTime
+float SVGAnimationElement::get_current_time()
+{
+    // Returns the current time in seconds relative to time zero for the given time container.
+    // NB: Like SVGSVGElement.getCurrentTime(), return 0 until the timeline has begun, and for an animation element
+    //     outside of an SVG document fragment.
+    auto time_container = is_connected() ? this->time_container() : nullptr;
+    if (!time_container || !time_container->has_begun())
+        return 0;
+    return static_cast<float>(time_container->current_time_in_milliseconds() / 1000.);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__getSimpleDuration

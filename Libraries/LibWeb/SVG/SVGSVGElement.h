@@ -84,6 +84,14 @@ public:
     void unsuspend_redraw_all() const { }
     void force_redraw() const { }
 
+    void pause_animations();
+    void unpause_animations();
+    bool animations_paused();
+    float get_current_time();
+    void set_current_time(float seconds);
+
+    GC::Ptr<SMILTimeContainer> time_container() const { return m_time_container; }
+
     // The width/height attributes parsed as the CSS width/height properties, when that yields a
     // plain <length> - the only case the natural size negotiation can use.
     [[nodiscard]] Optional<CSS::Length> width_attribute_length() const;
@@ -98,6 +106,9 @@ private:
 
     virtual void initialize_element() override;
     virtual void visit_edges(Visitor&) override;
+    virtual void inserted() override;
+    virtual void adopted_from(DOM::Document&) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 
     virtual bool is_svg_svg_element() const override { return true; }
 
@@ -107,6 +118,7 @@ private:
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 
     void update_fallback_view_box_for_svg_as_image();
+    void create_time_container_if_outermost();
 
     Optional<ViewBox> m_fallback_view_box_for_svg_as_image;
 
@@ -114,6 +126,8 @@ private:
     mutable Optional<Optional<CSS::Length>> m_cached_height_attribute_length;
 
     GC::Ptr<SVGViewElement> m_active_view_element;
+
+    GC::Ptr<SMILTimeContainer> m_time_container;
 };
 
 }

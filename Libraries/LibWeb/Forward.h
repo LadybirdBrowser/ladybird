@@ -1133,6 +1133,7 @@ namespace Web::SVG {
 
 class Path;
 class SMILAnimation;
+class SMILTimeContainer;
 class SVGAnimatedEnumeration;
 class SVGAnimatedInteger;
 class SVGAnimatedLength;

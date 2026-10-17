@@ -36,3 +36,12 @@ interface SVGSVGElement : SVGGraphicsElement {
 };
 
 SVGSVGElement includes SVGFitToViewBox;
+
+// https://svgwg.org/specs/animations/#InterfaceSVGSVGElement
+partial interface SVGSVGElement {
+    undefined pauseAnimations();
+    undefined unpauseAnimations();
+    boolean animationsPaused();
+    float getCurrentTime();
+    undefined setCurrentTime(float seconds);
+};

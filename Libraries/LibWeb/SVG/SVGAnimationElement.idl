@@ -8,8 +8,8 @@ interface SVGAnimationElement : SVGElement {
     attribute EventHandler onend;
     attribute EventHandler onrepeat;
 
-    [FIXME] float getStartTime();
-    [FIXME] float getCurrentTime();
+    float getStartTime();
+    float getCurrentTime();
     float getSimpleDuration();
 
     [FIXME] undefined beginElement();
