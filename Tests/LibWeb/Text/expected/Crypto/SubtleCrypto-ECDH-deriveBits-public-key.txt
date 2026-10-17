@@ -1,0 +1,2 @@
+X25519 public key: InvalidAccessError
+length over the public key's curve: OperationError

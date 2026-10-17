@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const p256 = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, false, ["deriveBits"]);
+        const p384 = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-384" }, false, ["deriveBits"]);
+        const x25519 = await crypto.subtle.generateKey("X25519", false, ["deriveBits"]);
+
+        await check("X25519 public key", crypto.subtle.deriveBits({ name: "ECDH", public: x25519.publicKey }, p256.privateKey, 256));
+        await check("length over the public key's curve", crypto.subtle.deriveBits({ name: "ECDH", public: p256.publicKey }, p384.privateKey, 384));
+    });
+</script>

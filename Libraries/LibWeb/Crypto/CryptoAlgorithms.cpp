@@ -5031,18 +5031,31 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
 {
     auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
-    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != KeyType::Private)
-        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
-
-    // 2. Let publicKey be the public member of normalizedAlgorithm.
+    // 1. Let publicKey be the public member of normalizedAlgorithm.
     auto& public_key = normalized_algorithm.public_key;
 
-    // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+    // 2. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
     if (public_key->type() != KeyType::Public)
         return WebIDL::InvalidAccessError::create("Public key is not a public key"_utf16);
 
-    // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+    // 3. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to the name member of
+    //    normalizedAlgorithm, then throw an InvalidAccessError.
+    if (public_key->algorithm_name() != normalized_algorithm.name)
+        return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
+
+    // 4. Let maximumLength be the length in bits of the output of the field element to octet string conversion
+    //    defined in Section 6.2 of [RFC6090] for the EC domain parameters associated with publicKey.
+    auto maximum_length = public_key->handle().get<::Crypto::PK::ECPublicKey>().scalar_size() * 8;
+
+    // 5. If length is not null and is greater than maximumLength, then throw an OperationError.
+    if (length_optional.has_value() && *length_optional > maximum_length)
+        return WebIDL::OperationError::create("Length is too large"_utf16);
+
+    // 6. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
+
+    // 7. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
     auto& internal_algorithm = key->ec_algorithm();
     auto& public_internal_algorithm = public_key->ec_algorithm();
@@ -5050,15 +5063,15 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
         return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
     }
 
-    // 5. If the namedCurve attribute of the [[algorithm]] internal slot of publicKey is not equal to
+    // 8. If the namedCurve attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the namedCurve property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
     if (internal_algorithm.named_curve() != public_internal_algorithm.named_curve())
         return WebIDL::InvalidAccessError::create("Curve mismatch"_utf16);
 
     ByteBuffer secret;
 
-    // 6. If the namedCurve property of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-    // 7. If performing the operation results in an error, then throw a OperationError.
+    // 9. If the namedCurve property of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+    // 10. If performing the operation results in an error, then throw a OperationError.
     if (internal_algorithm.named_curve().is_one_of("P-256"_utf16, "P-384"_utf16, "P-521"_utf16)) {
         // 1. Perform the ECDH primitive specified in [RFC6090] Section 4
         //    with key as the EC private key d and the EC public key represented
@@ -5105,7 +5118,7 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
         return WebIDL::DataError::create("Invalid algorithm"_utf16);
     }
 
-    // 8. If length is null: Return secret.
+    // 11. If length is null: Return secret.
     if (!length_optional.has_value()) {
         return secret;
     }
