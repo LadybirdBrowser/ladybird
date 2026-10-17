@@ -179,6 +179,7 @@ private:
     QToolButton* m_hamburger_button { nullptr };
     ContentBlockingButton* m_content_blocking_button { nullptr };
     QPointer<ContentBlockingPopover> m_content_blocking_popover;
+    Optional<String> m_content_blocking_popover_reload_site;
     QToolButton* m_downloads_button { nullptr };
     QPointer<DownloadsPopover> m_downloads_popover;
     QPointer<MessagePopover> m_private_session_popover;

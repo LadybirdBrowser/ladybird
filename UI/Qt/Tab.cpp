@@ -759,11 +759,13 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     };
 
     view().on_loading_state_change = [this](bool is_loading) {
+        if (!is_loading)
+            m_content_blocking_popover_reload_site.clear();
         set_loading(is_loading);
     };
     view().on_load_start = [this] {
         m_window->on_tab_load_start(*this);
-        if (m_content_blocking_popover)
+        if (m_content_blocking_popover && !m_content_blocking_popover_reload_site.has_value())
             m_content_blocking_popover->close();
     };
     set_loading(view().is_loading());
@@ -773,8 +775,15 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     };
 
     view().on_top_level_navigation_commit = [this] {
-        if (m_content_blocking_popover)
-            m_content_blocking_popover->close();
+        if (m_content_blocking_popover) {
+            auto snapshot = view().content_blocking_snapshot();
+            if (!m_content_blocking_popover_reload_site.has_value() || snapshot.site != m_content_blocking_popover_reload_site) {
+                m_content_blocking_popover->close();
+            } else {
+                m_content_blocking_popover_reload_site.clear();
+                update_content_blocking_controls(snapshot);
+            }
+        }
         m_suppress_javascript_dialogs_until_navigation = false;
     };
 
@@ -1664,7 +1673,8 @@ void Tab::update_content_blocking_controls(WebView::ContentBlockingSnapshot cons
     if (!m_content_blocking_popover || !m_content_blocking_popover->isVisible())
         return;
 
-    if (snapshot.state == WebView::ContentBlockingState::Unavailable) {
+    if (snapshot.state == WebView::ContentBlockingState::Unavailable
+        || (m_content_blocking_popover_reload_site.has_value() && snapshot.site != m_content_blocking_popover_reload_site)) {
         m_content_blocking_popover->close();
         return;
     }
@@ -1687,9 +1697,11 @@ void Tab::show_content_blocking_popover()
 
     if (!m_content_blocking_popover) {
         m_content_blocking_popover = new ContentBlockingPopover(this);
-        m_content_blocking_popover->on_visibility_change = [button = QPointer(m_content_blocking_button)](bool visible) {
+        m_content_blocking_popover->on_visibility_change = [this, button = QPointer(m_content_blocking_button)](bool visible) {
             if (button)
                 button->setDown(visible);
+            if (!visible)
+                m_content_blocking_popover_reload_site.clear();
         };
         m_content_blocking_popover->on_keyboard_dismiss = [button = QPointer(m_content_blocking_button)] {
             if (button && button->isVisible())
@@ -1711,7 +1723,7 @@ void Tab::show_content_blocking_popover()
             return;
         }
 
-        m_content_blocking_popover->close();
+        m_content_blocking_popover_reload_site = site;
         view().reload();
     };
 
