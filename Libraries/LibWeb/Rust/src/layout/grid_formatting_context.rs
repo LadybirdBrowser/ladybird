@@ -2011,8 +2011,18 @@ impl<'pass> GridFormattingContext<'pass> {
         // When a non-replaced grid item's percentage preferred size contributes to
         // sizing tracks in the same axis, the percentage is cyclic and behaves as
         // the property's initial value for intrinsic contribution calculations.
-        behaves_as_auto
-            || (!self.facts(item.box_).is_replaced_box() && self.preferred_size(item, axis).contains_percentage())
+        let preferred_size = self.preferred_size(item, axis);
+        if behaves_as_auto || (!self.facts(item.box_).is_replaced_box() && preferred_size.contains_percentage()) {
+            return true;
+        }
+        // NB: A percentage block size that is treated as auto is reported as not auto when the item's inline size
+        //     transfers through its aspect ratio, but it must not be resolved as a percentage here.
+        !axis.is_column()
+            && preferred_size.contains_percentage()
+            && self
+                .sizing()
+                .preferred_block_size(item.box_, self.track_sizing_constraints())
+                .is_auto()
     }
 
     fn min_content_size(&self, item: GridItem, axis: Axis) -> CssPixels {

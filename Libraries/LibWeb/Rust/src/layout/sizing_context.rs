@@ -360,7 +360,7 @@ impl<'pass> SizingContext<'pass> {
         let computed_block_size = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
             auto_computed_size()
         } else {
-            style.height()
+            self.preferred_block_size(node, constraints)
         };
         let used_inline_size = if computed_inline_size.is_auto() {
             computed_inline_size.to_px(available_space.inline_size.to_px_or_zero())
@@ -605,7 +605,7 @@ impl<'pass> SizingContext<'pass> {
         let block = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
             auto_computed_size()
         } else {
-            style.height()
+            self.preferred_block_size(node, constraints)
         };
         (inline, block)
     }
@@ -1039,6 +1039,40 @@ impl<'pass> SizingContext<'pass> {
         false
     }
 
+    // The computed `height`, or `auto` where a percentage of it is treated as `auto`.
+    pub(crate) fn preferred_block_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> &'pass ComputedSize {
+        let size = self.style(node).height();
+        if !size.contains_percentage() {
+            return size;
+        }
+        let facts = self.facts(node);
+        // https://www.w3.org/TR/CSS22/visudet.html#the-height-property
+        // If the height of the containing block is not specified explicitly (i.e., it depends on
+        // content height), and this element is not absolutely positioned, the percentage value
+        // is treated as 'auto'.
+        // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
+        // In quirks mode, percentage heights can resolve even without explicit containing block
+        // height. The quirk applies to DOM elements only (not anonymous boxes), and excludes
+        // table-related display types.
+        if !facts.is_absolutely_positioned() {
+            // Flex/grid items resolve percentage heights against their container, not via quirk.
+            // The quirk should not apply inside user agent shadow trees.
+            let quirk_applies = facts.document_in_quirks_mode()
+                && !facts.is_anonymous()
+                && !facts.is_table_box()
+                && !facts.parent_is_flex_or_grid_container()
+                && !facts.is_in_user_agent_shadow_tree();
+            if !quirk_applies && constraints.percentage_basis_block_size.is_none() {
+                return auto_computed_size();
+            }
+        }
+        size
+    }
+
     pub(crate) fn should_treat_block_size_as_auto(
         &self,
         node: Node,
@@ -1048,12 +1082,6 @@ impl<'pass> SizingContext<'pass> {
         let style = self.style(node);
         let size = style.height();
         let facts = self.facts(node);
-        if size.is_auto() {
-            if self.used(node).has_definite_inline_size() && facts.has_preferred_aspect_ratio() {
-                return false;
-            }
-            return true;
-        }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         if size.contains_percentage() {
             match formatting_context::cyclic_percentage_intrinsic_contribution(
@@ -1070,26 +1098,12 @@ impl<'pass> SizingContext<'pass> {
                 }
                 formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {}
             }
-            // https://www.w3.org/TR/CSS22/visudet.html#the-height-property
-            // If the height of the containing block is not specified explicitly (i.e., it depends on
-            // content height), and this element is not absolutely positioned, the percentage value
-            // is treated as 'auto'.
-            // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
-            // In quirks mode, percentage heights can resolve even without explicit containing block
-            // height. The quirk applies to DOM elements only (not anonymous boxes), and excludes
-            // table-related display types.
-            if !facts.is_absolutely_positioned() {
-                // Flex/grid items resolve percentage heights against their container, not via quirk.
-                // The quirk should not apply inside user agent shadow trees.
-                let quirk_applies = facts.document_in_quirks_mode()
-                    && !facts.is_anonymous()
-                    && !facts.is_table_box()
-                    && !facts.parent_is_flex_or_grid_container()
-                    && !facts.is_in_user_agent_shadow_tree();
-                if !quirk_applies && constraints.percentage_basis_block_size.is_none() {
-                    return true;
-                }
+        }
+        if self.preferred_block_size(node, constraints).is_auto() {
+            if self.used(node).has_definite_inline_size() && facts.has_preferred_aspect_ratio() {
+                return false;
             }
+            return true;
         }
         // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for height...
         if facts.has_preferred_aspect_ratio() && size.is_intrinsic_sizing_constraint() {
@@ -1389,7 +1403,12 @@ impl<'pass> SizingContext<'pass> {
             return;
         }
         let style = self.style(node);
-        let block_size = self.calculate_inner_block_size(node, available_space, style.height(), constraints);
+        let block_size = self.calculate_inner_block_size(
+            node,
+            available_space,
+            self.preferred_block_size(node, constraints),
+            constraints,
+        );
         let block_size = self.clamp_block_size_to_min_max(node, block_size, available_space, constraints);
         let used = self.used(node);
         used.set_content_block_size(block_size);
@@ -1587,8 +1606,8 @@ impl<'pass> SizingContext<'pass> {
                         && !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
                         && block_size < facts.auto_content_height()));
 
-            let block_size_is_automatic =
-                style.height().is_auto() || self.should_treat_block_size_as_auto(node, available_space, constraints);
+            let block_size_is_automatic = self.preferred_block_size(node, constraints).is_auto()
+                || self.should_treat_block_size_as_auto(node, available_space, constraints);
             let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
                 && facts.has_preferred_aspect_ratio()
                 && block_size_is_automatic;
@@ -2600,7 +2619,12 @@ impl<'pass> SizingContext<'pass> {
         let mut used_block_size = if block_size_is_automatic {
             natural
         } else {
-            self.calculate_inner_block_size(node, available_space, style.height(), constraints)
+            self.calculate_inner_block_size(
+                node,
+                available_space,
+                self.preferred_block_size(node, constraints),
+                constraints,
+            )
         };
         if !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
             && !style.max_height().is_auto()
