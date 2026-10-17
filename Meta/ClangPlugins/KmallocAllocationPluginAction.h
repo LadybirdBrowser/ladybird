@@ -32,7 +32,7 @@ public:
     bool TraverseCXXNoexceptExpr(clang::CXXNoexceptExpr*);
     bool TraverseUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr*);
     bool TraverseTypeTraitExpr(clang::TypeTraitExpr*);
-    bool TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc);
+    bool TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc, bool traverse_qualifier);
     bool VisitCXXNewExpr(clang::CXXNewExpr*);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr*);
     bool VisitCXXUnresolvedConstructExpr(clang::CXXUnresolvedConstructExpr*);

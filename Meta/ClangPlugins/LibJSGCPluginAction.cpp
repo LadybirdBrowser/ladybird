@@ -179,19 +179,14 @@ static ContainsGCPtrResult record_contains_gc_ptr(clang::CXXRecordDecl const* re
 
 static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std::set<clang::CXXRecordDecl const*>& visited)
 {
-    // Handle elaborated types
-    clang::QualType actual_type = type;
-    if (auto const* elaborated = llvm::dyn_cast<clang::ElaboratedType>(type.getTypePtr()))
-        actual_type = elaborated->desugar();
-
     // Check for JS::Value directly
-    if (auto const* record = actual_type->getAsCXXRecordDecl()) {
+    if (auto const* record = type->getAsCXXRecordDecl()) {
         if (record->getQualifiedNameAsString() == "JS::Value")
             return ContainsGCPtrResult::Yes;
     }
 
     // Check for raw pointers to Cell types (these should use GC::Ptr instead)
-    if (auto const* pointer_type = actual_type->getAs<clang::PointerType>()) {
+    if (auto const* pointer_type = type->getAs<clang::PointerType>()) {
         if (auto const* pointee = pointer_type->getPointeeCXXRecordDecl()) {
             if (pointee->hasDefinition() && record_inherits_from_cell(*pointee))
                 return ContainsGCPtrResult::Yes;
@@ -199,7 +194,7 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
     }
 
     // Check for raw references to Cell types (these should use GC::Ref instead)
-    if (auto const* reference_type = actual_type->getAs<clang::ReferenceType>()) {
+    if (auto const* reference_type = type->getAs<clang::ReferenceType>()) {
         if (auto const* pointee = reference_type->getPointeeCXXRecordDecl()) {
             if (pointee->hasDefinition() && record_inherits_from_cell(*pointee))
                 return ContainsGCPtrResult::Yes;
@@ -207,7 +202,7 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
     }
 
     // Check for template specializations (GC::Ptr, GC::Ref, Vector, HashMap, etc.)
-    if (auto const* specialization = actual_type->getAs<clang::TemplateSpecializationType>()) {
+    if (auto const* specialization = type->getAs<clang::TemplateSpecializationType>()) {
         auto template_name = specialization->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString();
 
         // Direct GC pointer types
@@ -233,7 +228,7 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
     }
 
     // Check for record types (structs/classes) that might contain GC pointers
-    if (auto const* record = actual_type->getAsCXXRecordDecl()) {
+    if (auto const* record = type->getAsCXXRecordDecl()) {
         return record_contains_gc_ptr(record, visited);
     }
 
@@ -348,11 +343,7 @@ static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType con
 
 static std::optional<QualTypeGCInfo> validate_field_qualified_type(clang::FieldDecl const* field_decl)
 {
-    auto type = field_decl->getType();
-    if (auto const* elaborated_type = llvm::dyn_cast<clang::ElaboratedType>(type.getTypePtr()))
-        type = elaborated_type->desugar();
-
-    for (auto const& qualified_type : get_all_qualified_types(type)) {
+    for (auto const& qualified_type : get_all_qualified_types(field_decl->getType())) {
         if (auto error = validate_qualified_type(qualified_type))
             return error;
     }
@@ -612,8 +603,6 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         if (!fields_that_are_visited.contains(field->getNameAsString())) {
             // Check if the substruct type has a visit_edges method
             auto field_type = field->getType();
-            if (auto const* elaborated = llvm::dyn_cast<clang::ElaboratedType>(field_type.getTypePtr()))
-                field_type = elaborated->desugar();
 
             // For smart pointer types (OwnPtr, RefPtr, etc.), check the pointed-to type
             clang::CXXRecordDecl const* type_to_check = nullptr;
@@ -724,15 +713,7 @@ bool LibJSGCVisitor::VisitCXXMethodDecl(clang::CXXMethodDecl* method)
             continue;
 
         // Get the record decl that the qualifier refers to
-        auto const* qualifier = member_expr->getQualifier();
-        if (!qualifier)
-            continue;
-
-        auto const* qualifier_type = qualifier->getAsType();
-        if (!qualifier_type)
-            continue;
-
-        auto const* qualifier_record = qualifier_type->getAsCXXRecordDecl();
+        auto const* qualifier_record = member_expr->getQualifier().getAsRecordDecl();
         if (!qualifier_record)
             continue;
 
