@@ -827,7 +827,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacKeyGenParams::from_val
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
     if (MUST(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
+        maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
 
     return adopt_own<AlgorithmParams>(*new KmacKeyGenParams { maybe_length });
@@ -846,7 +846,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacImportParams::from_val
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
     if (MUST(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
+        maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
 
     return adopt_own<AlgorithmParams>(*new KmacImportParams { maybe_length });
