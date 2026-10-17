@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        // 2^512 + 1
+        const publicExponent = new Uint8Array(65);
+        publicExponent[0] = 1;
+        publicExponent[64] = 1;
+
+        for (const [name, usages] of [["RSA-OAEP", ["decrypt"]], ["RSA-PSS", ["sign"]], ["RSASSA-PKCS1-v1_5", ["sign"]]])
+            await check(name, crypto.subtle.generateKey({ name, modulusLength: 512, publicExponent, hash: "SHA-256" }, false, usages));
+    });
+</script>

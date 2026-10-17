@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const jwk = use => ({ kty: "oct", k: "AAAAAAAAAAAAAAAAAAAAAA", alg: "HS256", use });
+        const algorithm = { name: "HMAC", hash: "SHA-256" };
+
+        await check('use "sig"', crypto.subtle.importKey("jwk", jwk("sig"), algorithm, false, ["sign"]));
+        await check('use "sign"', crypto.subtle.importKey("jwk", jwk("sign"), algorithm, false, ["sign"]));
+    });
+</script>

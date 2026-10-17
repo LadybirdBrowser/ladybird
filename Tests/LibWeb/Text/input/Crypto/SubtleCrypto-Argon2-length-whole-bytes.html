@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const key = await crypto.subtle.importKey("raw-secret", new Uint8Array(16), "Argon2id", false, ["deriveBits"]);
+        const algorithm = { name: "Argon2id", nonce: new Uint8Array(16), parallelism: 1, memory: 8, passes: 1 };
+
+        await check("length 36", crypto.subtle.deriveBits(algorithm, key, 36));
+        await check("length 40", crypto.subtle.deriveBits(algorithm, key, 40));
+    });
+</script>

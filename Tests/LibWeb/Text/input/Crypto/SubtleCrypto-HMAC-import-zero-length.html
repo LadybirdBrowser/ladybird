@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const algorithm = { name: "HMAC", hash: "SHA-256", length: 0 };
+
+        await check("invalid usages", crypto.subtle.importKey("raw", new Uint8Array(16), algorithm, false, ["encrypt"]));
+        await check("spki", crypto.subtle.importKey("spki", new Uint8Array(16), algorithm, false, ["sign"]));
+    });
+</script>

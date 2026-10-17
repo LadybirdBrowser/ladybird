@@ -1,0 +1,2 @@
+KmacKeyGenParams length: TypeError
+KmacImportParams length: TypeError

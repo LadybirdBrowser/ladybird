@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function check(label, promise) {
+            try {
+                await promise;
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        await check("generateKey", crypto.subtle.generateKey({ name: "KMAC128", length: 0 }, false, ["sign"]));
+        await check("importKey", crypto.subtle.importKey("raw-secret", new Uint8Array(0), { name: "KMAC128", length: 0 }, false, ["sign"]));
+    });
+</script>
