@@ -93,15 +93,18 @@ impl RegisterClass {
 
 /// Whether the lowering of `op` calls out of line keeping only the general
 /// purpose registers (register-saving `CallSlowPath`s, the growth of arrays and named storage, the runtime's
-/// cache probes, and allocations that call the runtime): it clobbers every
-/// floating point register.
+/// cache probes, and allocations that call the runtime), or stores constants
+/// through a floating point register (frame initialization for such nodes
+/// and calls): it clobbers every floating point register.
 pub fn saves_only_gprs(op: &Op) -> bool {
     matches!(
         op,
         Op::CallSlowPath {
             saves_registers: true,
             ..
-        } | Op::CallArrayPush
+        } | Op::InitializeFrame { clobbers_floats: true }
+            | Op::EnsureFrameInitialized { clobbers_floats: true }
+            | Op::CallArrayPush
             | Op::OpenArrayIteration
             | Op::AddNamed { .. }
             | Op::ProbeKeyedStore { .. }
@@ -359,7 +362,7 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
         Op::ConcatenateStrings => constraints.temps = 3,
         Op::StringsEqual => constraints.temps = 1,
         // A value and a cursor for filling the registers and locals.
-        Op::InitializeFrame | Op::EnsureFrameInitialized => constraints.temps = 2,
+        Op::InitializeFrame { .. } | Op::EnsureFrameInitialized { .. } => constraints.temps = 2,
         // The object's property storage.
         Op::StoreNamed { .. } | Op::AddNamed { .. } | Op::CheckAccessorFunction { .. } => constraints.temps = 1,
         // The object whose prototype comes next.

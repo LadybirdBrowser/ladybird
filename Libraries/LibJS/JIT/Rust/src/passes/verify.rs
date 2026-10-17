@@ -85,8 +85,10 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
             let reader = nodes[position + 1..].iter().find(|next| {
                 let op = &graph.node(**next).op;
                 let properties = op.properties();
-                let initializes_frame =
-                    matches!(op, Op::InitializeFrame | Op::EnsureFrameInitialized | Op::PublishFrame);
+                let initializes_frame = matches!(
+                    op,
+                    Op::InitializeFrame { .. } | Op::EnsureFrameInitialized { .. } | Op::PublishFrame
+                );
                 !matches!(op, Op::StoreSlot { .. })
                     && !(is_argument && initializes_frame)
                     && (properties.reads != Locations::NONE || properties.writes != Locations::NONE)

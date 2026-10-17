@@ -1273,8 +1273,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm.load64(self.output(node_id), &address);
             }
             Op::StoreSlot { slot } => self.emit_store_slot(node_id, *slot)?,
-            Op::InitializeFrame => self.emit_initialize_frame(node_id)?,
-            Op::EnsureFrameInitialized => self.emit_ensure_frame_initialized(node_id)?,
+            Op::InitializeFrame { clobbers_floats } => self.emit_initialize_frame(node_id, *clobbers_floats)?,
+            Op::EnsureFrameInitialized { clobbers_floats } => {
+                self.emit_ensure_frame_initialized(node_id, *clobbers_floats)?;
+            }
             Op::PublishFrame => self.emit_publish_frame(),
             Op::LoadOuterEnvironment => {
                 let (output, input) = (self.output(node_id), self.input(node_id, 0));
@@ -2044,19 +2046,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// The `Enter` bytecode: empty registers and locals, constants copied
     /// into the frame, and the frame marked initialized (and published).
-    fn emit_initialize_frame(&mut self, node: NodeId) -> Result<(), CompileFailure> {
+    fn emit_initialize_frame(&mut self, node: NodeId, clobbers_floats: bool) -> Result<(), CompileFailure> {
         let temps = &self.allocation.node(node).temps;
         let (value, cursor) = (Gpr(temps[0]), Gpr(temps[1]));
-        self.emit_frame_initialization(value, cursor)
+        self.emit_frame_initialization(value, cursor, clobbers_floats.then_some(M::ARGUMENT_FPRS[0]))
     }
 
     /// `EnsureFrameInitialized`: initializes the frame unless it is.
-    fn emit_ensure_frame_initialized(&mut self, node: NodeId) -> Result<(), CompileFailure> {
+    fn emit_ensure_frame_initialized(&mut self, node: NodeId, clobbers_floats: bool) -> Result<(), CompileFailure> {
         let temps = &self.allocation.node(node).temps;
         let (value, cursor) = (Gpr(temps[0]), Gpr(temps[1]));
         let done = self.masm.new_label();
         self.branch_if_frame_initialized(done);
-        self.emit_frame_initialization(value, cursor)?;
+        self.emit_frame_initialization(value, cursor, clobbers_floats.then_some(M::ARGUMENT_FPRS[0]))?;
         self.masm.bind(done);
         Ok(())
     }
@@ -2077,17 +2079,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// Publishes the frame and initializes it like `Enter`, with `value` for
     /// the stored values, and with a loop using `cursor` for large frames.
-    /// Clobbers the scratch register.
-    fn emit_frame_initialization(&mut self, value: Gpr, cursor: Gpr) -> Result<(), CompileFailure> {
+    /// With a `vector` register, which it clobbers, it stores two slots at
+    /// a time. Clobbers the scratch register.
+    fn emit_frame_initialization(
+        &mut self,
+        value: Gpr,
+        cursor: Gpr,
+        vector: Option<Fpr>,
+    ) -> Result<(), CompileFailure> {
         self.emit_publish_frame();
         // Up to this many registers and locals are emptied with one store
-        // each, more in a loop.
-        const UNROLLED_SLOTS: u32 = 32;
+        // each (or per two slots through a vector register), more in a loop.
+        let unrolled_slots: u32 = if vector.is_some() { 64 } else { 32 };
         let layout = self.executables[0].layout;
         let slots = self.runtime.offsets.execution_context_slots;
         let first = crate::bytecode::RESERVED_REGISTER_COUNT;
         let mut fields: Vec<call::ConstantField> = Vec::new();
-        let unrolled = layout.registers_and_locals_count.saturating_sub(first) <= UNROLLED_SLOTS;
+        let unrolled = layout.registers_and_locals_count.saturating_sub(first) <= unrolled_slots;
         if !unrolled {
             self.masm.move_imm64(value, value::EMPTY);
             let start = self.slot_address(first)?;
@@ -2108,19 +2116,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             fields.push((slots + 8 * (layout.constants_base() + index), 8, *constant));
         }
         fields.push((self.runtime.offsets.execution_context_frame_initialized, 1, 1));
-        self.emit_constant_fields(self.pinned.frame, value, &mut fields)
+        self.emit_constant_fields_with_vector(self.pinned.frame, value, &mut fields, vector, &[])
     }
 
-    /// Initializes the frame for slow paths, whose caller-saved registers
-    /// are saved already. Uses two argument registers and the scratch
-    /// register, and does not call out or use the native frame's locals.
+    /// Initializes the frame for slow paths, whose caller-saved general
+    /// purpose registers are saved already, and which clobber the floating
+    /// point registers. Uses two argument registers, the scratch register
+    /// and the first floating point argument register, and does not call out
+    /// or use the native frame's locals.
     fn emit_frame_initialization_stub(&mut self) -> Result<(), CompileFailure> {
         let Some(label) = self.frame_initialization_stub else {
             return Ok(());
         };
         self.annotate(CodeAnnotation::Tail("frame initialization (shared by slow paths)"));
         self.masm.bind(label);
-        self.emit_frame_initialization(M::ARGUMENT_GPRS[0], M::ARGUMENT_GPRS[1])?;
+        self.emit_frame_initialization(M::ARGUMENT_GPRS[0], M::ARGUMENT_GPRS[1], Some(M::ARGUMENT_FPRS[0]))?;
         self.masm.ret();
         Ok(())
     }
