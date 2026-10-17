@@ -12,6 +12,7 @@ use super::Graph;
 use super::NodeId;
 use super::Op;
 use super::ShapeCheck;
+use super::SuspendKind;
 use super::value;
 use crate::bytecode::FrameLayout;
 use crate::bytecode::Operand;
@@ -112,17 +113,14 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::InitializeFrame => with_inputs("InitializeFrame"),
         Op::EnsureFrameInitialized => with_inputs("EnsureFrameInitialized"),
         Op::PublishFrame => with_inputs("PublishFrame"),
-        Op::Suspend {
-            continuation,
-            value_is_iterator_result,
-        } => {
+        Op::Suspend { continuation, kind } => {
             let continuation = continuation.map_or("completed".to_string(), |pc| format!("pc {pc}"));
-            let result = if *value_is_iterator_result {
-                " iterator-result"
-            } else {
-                ""
+            let kind = match kind {
+                SuspendKind::Yield => "",
+                SuspendKind::YieldIteratorResult => " iterator-result",
+                SuspendKind::Await => " await",
             };
-            with_inputs(&format!("Suspend {continuation}{result}"))
+            with_inputs(&format!("Suspend {continuation}{kind}"))
         }
         Op::BoxCell => with_inputs("BoxCell"),
         Op::LoadOuterEnvironment => with_inputs("LoadOuterEnvironment"),

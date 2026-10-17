@@ -92,6 +92,7 @@ use crate::ir::Locations;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::ir::SuspendKind;
 use crate::ir::value;
 use crate::snapshot::CallFeedbackSnapshot;
 use crate::snapshot::CellId;
@@ -1507,11 +1508,27 @@ impl<'a> GraphBuilder<'a> {
             Instruction::Yield {
                 continuation_label,
                 value,
-            } => return self.build_suspend(continuation_label, value, false).map(Some),
+            } => {
+                return self
+                    .build_suspend(continuation_label, value, SuspendKind::Yield)
+                    .map(Some);
+            }
             Instruction::YieldIteratorResult {
                 continuation_label,
                 value,
-            } => return self.build_suspend(Some(continuation_label), value, true).map(Some),
+            } => {
+                return self
+                    .build_suspend(Some(continuation_label), value, SuspendKind::YieldIteratorResult)
+                    .map(Some);
+            }
+            Instruction::Await {
+                continuation_label,
+                argument,
+            } => {
+                return self
+                    .build_suspend(Some(continuation_label), argument, SuspendKind::Await)
+                    .map(Some);
+            }
             Instruction::GetLexicalEnvironment { dst } => {
                 let address = self.frame_field(FrameField::LexicalEnvironment)?;
                 let environment = self.emit(Op::BoxCell, vec![address], Some(Repr::Tagged));
@@ -1745,22 +1762,22 @@ impl<'a> GraphBuilder<'a> {
         Ok(Some(Flow::Continue))
     }
 
-    /// Builds a `Yield` (or a `YieldIteratorResult`), which suspends the
-    /// generator running the compiled function and returns `value` to the
-    /// code resuming it: puts the slots live at the continuation in frame
-    /// memory, where the resume entry of the continuation (see `osr`) finds
-    /// them, and records the continuation in the frame like the
-    /// interpreter's `Yield`.
+    /// Builds a `Yield`, `YieldIteratorResult` or `Await`, which suspends
+    /// the generator or async function running the compiled function and
+    /// returns `value` to the code resuming it: puts the slots live at the
+    /// continuation in frame memory, where the resume entry of the
+    /// continuation (see `osr`) finds them, and records the continuation in
+    /// the frame like the interpreter's instruction.
     fn build_suspend(
         &mut self,
         continuation: Option<Label>,
         value: Operand,
-        value_is_iterator_result: bool,
+        kind: SuspendKind,
     ) -> Result<Flow, CompileFailure> {
         if self.function.is_virtual() {
             return Err(CompileFailure::InvalidBytecode {
                 pc: self.function.pc,
-                reason: "yield in an inlined callee",
+                reason: "suspension in an inlined callee",
             });
         }
         let value = self.read(value)?;
@@ -1775,7 +1792,8 @@ impl<'a> GraphBuilder<'a> {
                 }
             }
         }
-        // NB: Like the interpreter's Yield, an empty value yields `undefined`.
+        // NB: Like the interpreter's Yield and Await, an empty value yields
+        //     `undefined`.
         let layout = self.function.layout;
         let arguments = layout.arguments_base()..layout.arguments_base() + layout.number_of_arguments;
         let value = if self.graph.is_known_non_empty(value, arguments) {
@@ -1786,7 +1804,7 @@ impl<'a> GraphBuilder<'a> {
         self.emit(
             Op::Suspend {
                 continuation: continuation.map(|label| label.0),
-                value_is_iterator_result,
+                kind,
             },
             Vec::new(),
             None,
@@ -1796,10 +1814,10 @@ impl<'a> GraphBuilder<'a> {
     }
 
     /// Builds `GetCompletionFields` (`Handling::Expanded`), which a
-    /// resumed generator starts with: the type and the value of the
-    /// completion it resumed with, which the generator object it finds in
-    /// its accumulator holds, and the slow path for other completion
-    /// sources (async generators).
+    /// resumed generator or async function starts with: the type and the
+    /// value of the completion it resumed with, which the generator object
+    /// it finds in its accumulator holds, and the slow path for other
+    /// completion sources (async generators).
     pub(super) fn build_get_completion_fields(
         &mut self,
         type_dst: Operand,

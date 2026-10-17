@@ -14,10 +14,10 @@ LibJS has two tiers: the bytecode interpreter, whose instructions keep per-site 
 feedback, and this optimizing JIT. An executable that uses up its tier-up budget (calls and loop
 iterations) is snapshotted and compiled on one of the compile threads. The interpreter keeps running
 it meanwhile; the main thread installs the code when the job finishes. Loops that run long enough
-enter compiled code at their back edges (on-stack replacement), and generators enter it where they
-resume (section 4.1). A call from compiled code into a function the interpreter runs counts as
-several invocations of it (`callee-boost`): code hot enough to be compiled calls it, so it is likely
-to be hot as well, and there is no baseline tier to run it in meanwhile.
+enter compiled code at their back edges (on-stack replacement), and generators and async functions
+enter it where they resume (section 4.1). A call from compiled code into a function the interpreter
+runs counts as several invocations of it (`callee-boost`): code hot enough to be compiled calls it,
+so it is likely to be hot as well, and there is no baseline tier to run it in meanwhile.
 
 There is no baseline tier. The interpreter's caches are the baseline: the JIT translates what they
 saw into speculation, and leaves to the interpreter wherever a speculation fails.
@@ -203,7 +203,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | **Frames and environments** | | | | | |
 | InitializeFrame, EnsureFrameInitialized | The `Enter` bytecode: publishes the frame, empties the registers and locals, copies the constants (the second only if the frame is not initialized yet). | | | Frame | |
 | PublishFrame | Makes the frame the running execution context, which direct calls leave to their callee's code. | | | Frame | |
-| Suspend | Records where the frame's generator resumes (a continuation, or none once it completes) and whether the value it yields is an iterator result, right before the `Return` of a `Yield` (section 4.1). | | Frame | Frame | |
+| Suspend | Records where the frame's generator or async function resumes (a continuation, or none once it completes) and what the value it returns is (yielded, an iterator result, or awaited), right before the `Return` of a `Yield`, `YieldIteratorResult` or `Await` (section 4.1). | | Frame | Frame | |
 | LoadFrameField | A field of the running execution context (an environment, the realm, the executable) as a pointer. The builder loads each once per path, until an instruction may replace it. | | Frame | | |
 | SetLexicalEnvironment | Makes a cell value the frame's lexical environment; its value is the environment's pointer. | | Frame | Frame | |
 | LeavePrivateEnvironment | Makes the private environment's outer one the frame's. | | Frame | Frame | |
@@ -275,13 +275,18 @@ collect garbage or exit lazily before that. Eager exits publish the frame in the
 the prologue's resumption in the interpreter publishes it inline.
 
 
-### 4.1 Generators
+### 4.1 Generators and async functions
 
 A generator runs in its own frame, which it keeps while it is suspended. Compiled code suspends it
 like the interpreter's `Yield` and `YieldIteratorResult` do: `StoreSlot`s put every slot live at
 the continuation in frame memory, `Suspend` records the continuation in the frame, and `Return`
 returns the yielded value to the runtime. So a suspended generator's frame is the frame the
 interpreter would have left, whichever of the two ran it.
+
+Async functions and async generators are generators to the runtime: `AsyncFunctionDriverWrapper`
+and `AsyncGenerator` resume them the same way, and their `Await` suspends them like a `Yield`, except
+that `Suspend` marks the value as awaited (`yield_is_await`), which tells an async generator to
+await it rather than yield it.
 
 Each continuation then gets a resume entry (`builder/osr.rs`), like an on-stack replacement entry:
 a block without predecessors that loads the slots live there from the frame and jumps to the
@@ -290,8 +295,9 @@ continuation's block, which nothing else in compiled code reaches. Both kinds of
 `GeneratorObject::execute()` runs the generator from its continuation through `run_executable()`,
 which enters compiled code at the resume entry if the executable has code with one there, and
 interprets it otherwise. A continuation starts by reading the completion the generator resumed
-with (`GetCompletionFields`), which compiled code loads from the generator object. The function's
-start (its `Enter` and the initial `Yield`) is compiled like any function's. Async functions, whose `Await` suspends them, are not compiled yet.
+with (`GetCompletionFields`), which compiled code loads from the generator object; an async
+generator's completion comes from its `AsyncGenerator` through the slow path. The function's start
+(its `Enter` and the initial `Yield`) is compiled like any function's.
 
 ## 5. Dependencies and invalidation
 
