@@ -114,6 +114,18 @@ fn commit_subtree(
     let reuses_committed_subtree = pass_fragments.subtree_was_reused(slot_index)
         || entry.is_some_and(|link| keeps_committed_childless_box(paintables.arena(), node, link));
     debug_assert!(!reuses_committed_subtree || entry.is_some());
+    // A reused subtree whose root committed this very link already, in geometry that is still current, has nothing left
+    // to commit. A box placing an absolutely positioned box, or a navigable's viewport, notes itself on every commit, and
+    // a link without a containing block leaves the commit to find it among ancestors that may have changed.
+    if reuses_committed_subtree
+        && let Some(link) = entry
+        && link.abspos_layout_inputs.is_none()
+        && !link.containing_block.is_invalid()
+        && paintables.arena().data(node).kind.get() != NodeKind::NavigableContainerViewport
+        && paintables.arena().holds_current_committed_fragment_link(node, link)
+    {
+        return;
+    }
     if !reuses_committed_subtree {
         paintables.arena().forget_committed_out_of_flow_facts(node);
     }
