@@ -26,6 +26,7 @@ use crate::runtime::array_buffer::{
     ArrayBuffer, ElementType, INVALID_DATA_OFFSET, Order, ReadWriteModifyOperation, allocate_array_buffer,
     array_buffer_byte_length, clone_array_buffer, f64_to_binary16_bits,
 };
+use crate::runtime::array_iterator::packed_array_iteration_is_unobservable;
 use crate::runtime::byte_length::{ByteLength, ByteLengthSlot};
 use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
 use crate::runtime::completion::ThrowCompletionOr;
@@ -44,7 +45,6 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::realm_watchpoints;
 use crate::runtime::uint8_array::{Uint8ArrayConstructorHelpers, Uint8ArrayPrototypeHelpers};
 use crate::runtime::value::same_value;
 use crate::runtime::value_conversions;
@@ -1345,9 +1345,7 @@ pub(crate) fn iterable_to_list(
     let realm = vm.current_realm().expect("iterables are iterated in a realm");
     if source.is_object()
         && let Some(array) = source.as_object().downcast::<Array>()
-        && using_iterator == realm.array_prototype_values_function()
-        && array.is_simple_packed_array()
-        && realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
+        && packed_array_iteration_is_unobservable(vm, realm, &array, using_iterator)
     {
         return Ok(array.indexed_packed_elements(vm));
     }

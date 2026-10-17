@@ -17,6 +17,7 @@ use crate::runtime::abstract_operations::{
     call_function_object, construct, get_prototype_from_constructor, length_of_array_like,
 };
 use crate::runtime::array::Array;
+use crate::runtime::array_iterator::packed_array_iteration_is_unobservable;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -32,7 +33,6 @@ use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::realm_watchpoints;
 use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::set::Set;
 use crate::runtime::set_iterator::set_iteration_is_unobservable;
@@ -49,10 +49,7 @@ fn array_from_array_set_or_map(
     using_iterator: Gc<FunctionObject>,
 ) -> Option<Gc<Array>> {
     if let Some(source) = items.downcast::<Array>() {
-        if using_iterator != realm.array_prototype_values_function()
-            || !source.is_simple_packed_array()
-            || !realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
-        {
+        if !packed_array_iteration_is_unobservable(vm, realm, &source, using_iterator) {
             return None;
         }
 

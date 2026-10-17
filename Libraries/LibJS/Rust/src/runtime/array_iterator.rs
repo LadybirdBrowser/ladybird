@@ -19,18 +19,34 @@ use crate::runtime::array_buffer::Order;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::iterator::{BuiltinIteratorNext, BuiltinIteratorStep};
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, PropertyKind, define_object_class,
 };
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::typed_array::{
     is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record, typed_array_length,
     typed_array_of_object,
 };
 
 /// An Array Iterator instance, the iterator CreateArrayIterator creates.
+/// Returns true if iterating `array` with `iterator_method` cannot be observed: `iterator_method` is this realm's
+/// original Array.prototype.values, array iterators of the realm have the builtin next method, and the array is a
+/// simple packed array. Its packed elements are then what the iterator protocol produces.
+pub fn packed_array_iteration_is_unobservable(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    array: &Array,
+    iterator_method: Gc<FunctionObject>,
+) -> bool {
+    iterator_method == realm.array_prototype_values_function()
+        && array.is_simple_packed_array()
+        && realm_watchpoints::array_iterators_have_builtin_next(vm, realm)
+}
+
 #[repr(C)]
 #[derive(Trace)]
 pub struct ArrayIterator {
