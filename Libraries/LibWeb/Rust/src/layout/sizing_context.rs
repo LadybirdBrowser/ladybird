@@ -1347,11 +1347,13 @@ impl<'pass> SizingContext<'pass> {
         content_size: Option<CssPixels>,
     ) -> Option<CssPixels> {
         let style = self.style(node);
-        let min_size = match axis {
-            SizingAxis::Inline => style.min_width(),
-            SizingAxis::Block => style.min_height(),
+        let (preferred_size, min_size) = match axis {
+            SizingAxis::Inline => (style.width(), style.min_width()),
+            SizingAxis::Block => (style.height(), style.min_height()),
         };
-        if !self.has_automatic_minimum_size_from_aspect_ratio(node, min_size) {
+        // INTEROP: Other engines only apply this minimum when the preferred size is auto, not when it is a percentage
+        //          that is treated as auto.
+        if !preferred_size.is_auto() || !self.has_automatic_minimum_size_from_aspect_ratio(node, min_size) {
             return None;
         }
         let minimum = content_size.unwrap_or_else(|| {
