@@ -1428,9 +1428,10 @@ QString content_blocking_popover_style_sheet(QPalette const& palette)
     auto text = style_sheet_color(chrome_text(palette));
     auto surface = style_sheet_color(chrome_surface(palette));
     auto border = style_sheet_color(chrome_border(palette));
-    auto muted_text = style_sheet_color(chrome_muted_text(palette));
+    auto footer_surface_color = chrome_background(palette);
+    auto muted_text = style_sheet_color(mix(chrome_text(palette), footer_surface_color, 0.4));
     auto recessed_surface = style_sheet_color(chrome_surface_recessed(palette));
-    auto footer_surface = style_sheet_color(chrome_background(palette));
+    auto footer_surface = style_sheet_color(footer_surface_color);
 
     return qformatted(R"(
 QFrame#LadybirdContentBlockingPopover {{
