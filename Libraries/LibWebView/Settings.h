@@ -124,6 +124,7 @@ public:
 
     virtual void new_tab_page_url_changed() { }
     virtual void languages_changed() { }
+    virtual void sites_presented_as_webkit_changed() { }
     virtual void appearance_changed() { }
     virtual void content_settings_changed() { }
     virtual void tab_settings_changed() { }
@@ -162,6 +163,9 @@ public:
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
     void set_languages(Vector<String>);
+
+    Vector<String> const& sites_presented_as_webkit() const { return m_sites_presented_as_webkit; }
+    void add_site_presented_as_webkit(String);
 
     static Appearance parse_appearance(JsonValue const&);
     Appearance const& appearance() const { return m_appearance; }
@@ -270,6 +274,7 @@ private:
 
     URL::URL m_new_tab_page_url;
     Vector<String> m_languages;
+    Vector<String> m_sites_presented_as_webkit;
 
     Appearance m_appearance;
     ContentSettings m_content_settings;

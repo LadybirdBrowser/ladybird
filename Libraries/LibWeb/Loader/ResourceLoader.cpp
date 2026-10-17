@@ -75,16 +75,26 @@ ResourceLoader& ResourceLoader::the()
 ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
     : m_heap(heap)
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
+    , m_configured_user_agent(m_user_agent)
     , m_platform(MUST(String::from_utf8(default_platform)))
     , m_preferred_languages(default_preferred_languages())
 {
     set_client(move(request_client));
 }
 
+NavigatorCompatibilityMode ResourceLoader::s_configured_navigator_compatibility_mode = default_navigator_compatibility_mode;
 NavigatorCompatibilityMode ResourceLoader::s_navigator_compatibility_mode = default_navigator_compatibility_mode;
+Optional<BrowserIdentity> ResourceLoader::s_browser_identity;
 
 void ResourceLoader::set_navigator_compatibility_mode(NavigatorCompatibilityMode mode)
 {
+    s_configured_navigator_compatibility_mode = mode;
+    update_navigator_compatibility_mode();
+}
+
+void ResourceLoader::update_navigator_compatibility_mode()
+{
+    auto mode = s_browser_identity.has_value() ? NavigatorCompatibilityMode::WebKit : s_configured_navigator_compatibility_mode;
     s_navigator_compatibility_mode = mode;
 
     // A script reads two strings to tell engines apart that no navigator attribute covers: the frames of an error's
@@ -94,6 +104,20 @@ void ResourceLoader::set_navigator_compatibility_mode(NavigatorCompatibilityMode
         vm.set_source_text_syntaxes(JS::VM::StackFrameSyntax::Indented, JS::VM::NativeFunctionSourceSyntax::SingleLine);
     else
         vm.set_source_text_syntaxes(JS::VM::StackFrameSyntax::AtSign, JS::VM::NativeFunctionSourceSyntax::MultiLine);
+}
+
+void ResourceLoader::set_user_agent(String user_agent)
+{
+    m_configured_user_agent = move(user_agent);
+    if (!s_browser_identity.has_value())
+        m_user_agent = m_configured_user_agent;
+}
+
+void ResourceLoader::set_browser_identity(Optional<BrowserIdentity> identity)
+{
+    s_browser_identity = identity;
+    m_user_agent = identity.has_value() ? MUST(String::from_utf8(webkit_identity_user_agent)) : m_configured_user_agent;
+    update_navigator_compatibility_mode();
 }
 
 void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_client)
@@ -155,6 +179,15 @@ static ByteString sanitized_url_for_logging(URL::URL const& url)
 }
 
 // https://www.rfc-editor.org/rfc/rfc6797#section-8.2
+Optional<String> ResourceLoader::site_for_url(URL::URL const& url)
+{
+    if (!url.host().has_value())
+        return {};
+    if (auto registrable_domain = url.host()->registrable_domain(); registrable_domain.has_value())
+        return registrable_domain;
+    return url.host()->serialize();
+}
+
 bool ResourceLoader::is_known_hsts_host(Page& page, String const& host)
 {
     if (HTTP::HSTSPreloadData::the().is_known_preloaded_hsts_host(host.to_ascii_lowercase()))

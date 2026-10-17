@@ -279,6 +279,16 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
     });
 }
 
+void ViewImplementation::set_browser_identity(Optional<Web::BrowserIdentity> identity)
+{
+    if (m_browser_identity == identity)
+        return;
+    m_browser_identity = identity;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.client().async_set_browser_identity(identity);
+    });
+}
+
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
     if (traversable().system_visibility_state() == visibility_state)
@@ -2877,6 +2887,7 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     Application::the().apply_view_options({}, *this, page);
+    page.client().async_set_browser_identity(m_browser_identity);
     send_force_dark(page);
     send_preferences_to_page(page);
 }

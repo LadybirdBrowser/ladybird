@@ -324,6 +324,11 @@ if (BUILD_TESTING AND NOT WIN32)
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-bytecode-cache-blob-is-file-backed.py $<TARGET_FILE:WebDriver>
         )
         set_tests_properties(TestBytecodeCacheBlobIsFileBacked PROPERTIES TIMEOUT 120)
+        add_test(
+            NAME TestDataDomeSitePresentsWebKit
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-datadome-site-presents-webkit.py $<TARGET_FILE:ladybird>
+        )
+        set_tests_properties(TestDataDomeSitePresentsWebKit PROPERTIES TIMEOUT 180)
     endif()
 
     add_test(

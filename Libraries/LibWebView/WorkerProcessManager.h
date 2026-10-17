@@ -135,6 +135,8 @@ private:
         IsPrivate is_private { IsPrivate::No };
         Optional<URL::Origin> top_level_origin;
         Optional<SharedWorkerKey> shared_worker_key;
+        // The browser identity of the tab the worker was started for, which its own workers inherit in turn.
+        Optional<Web::BrowserIdentity> browser_identity;
         Vector<Owner> owners;
         NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
         bool may_read_local_files { false };

@@ -187,7 +187,7 @@ static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructur
 // AD-HOC: Set the appropriate Accept-header value based on what compat mode the user has set. Only WebKit sends the
 //         Accept value the spec requires; Blink and Gecko don't. Some bot-blocking services are known to check Accept
 //         against what's expected for the browser given in the UA value, and will block us if those don't match.
-static StringView document_accept_header_value_for_navigator_compatibility_mode()
+StringView document_accept_header_value_for_navigator_compatibility_mode()
 {
     switch (ResourceLoader::navigator_compatibility_mode()) {
     case NavigatorCompatibilityMode::Chrome:

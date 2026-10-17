@@ -188,6 +188,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     // AD-HOC: For DedicatedWorker there is no shared worker manager step; we always launch a fresh
     //         worker process here.
     auto agent_id = ++m_next_agent_id;
+    Optional<Web::BrowserIdentity> browser_identity;
     auto client_or_error = [&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
         auto client = TRY(launch_web_worker_process(request.agent_type, is_private, agent_id));
 
@@ -233,6 +234,24 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         client->async_set_user_agent(Application::the().user_agent_string());
         client->async_set_navigator_compatibility_mode(Application::the().navigator_compatibility_mode());
         client->async_set_preferred_languages(Application::settings().languages());
+        // And the browser identity the page's tab presents, which overrides both; a worker's own workers get the
+        // identity it was started with.
+        browser_identity = owner.client.visit(
+            [&](WebContentOwner const& web_content_owner) -> Optional<Web::BrowserIdentity> {
+                if (!web_content_owner.client)
+                    return {};
+                if (auto* page = web_content_owner.client->page(web_content_owner.page_id))
+                    return page->view().browser_identity();
+                return {};
+            },
+            [&](WebWorkerOwner const& web_worker_owner) -> Optional<Web::BrowserIdentity> {
+                for (auto const& agent : m_agents) {
+                    if (agent.value.client.ptr() == web_worker_owner.client.ptr())
+                        return agent.value.browser_identity;
+                }
+                return {};
+            });
+        client->async_set_browser_identity(browser_identity);
         connect_to_image_decoder(*client, move(image_decoder));
 #if defined(HAVE_WASM_COMPILER_SERVICE)
         client->async_connect_to_wasm_compiler(wasm_compiler_handle);
@@ -297,6 +316,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         .is_private = is_private,
         .top_level_origin = top_level_origin,
         .shared_worker_key = {},
+        .browser_identity = browser_identity,
         .owners = move(owners),
         .inside_settings = move(inside_settings),
         .may_read_local_files = may_read_local_files,

@@ -103,6 +103,11 @@ void ConnectionFromClient::set_navigator_compatibility_mode(Web::NavigatorCompat
     Web::ResourceLoader::the().set_navigator_compatibility_mode(mode);
 }
 
+void ConnectionFromClient::set_browser_identity(Optional<Web::BrowserIdentity> identity)
+{
+    Web::ResourceLoader::the().set_browser_identity(identity);
+}
+
 void ConnectionFromClient::set_preferred_languages(Vector<String> preferred_languages)
 {
     Web::ResourceLoader::the().set_preferred_languages(move(preferred_languages));

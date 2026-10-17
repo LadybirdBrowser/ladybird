@@ -141,6 +141,8 @@ public:
 
     void spoof_current_url(Utf16String const& url);
     void set_navigator_compatibility_mode(Bindings::InternalsNavigatorCompatibilityMode);
+    void set_browser_identity(Optional<Bindings::InternalsBrowserIdentity>);
+    Optional<Bindings::InternalsBrowserIdentity> browser_identity() const;
     void load_url(Utf16String const& url);
 
     GC::Ref<InternalAnimationTimeline> create_internal_animation_timeline();

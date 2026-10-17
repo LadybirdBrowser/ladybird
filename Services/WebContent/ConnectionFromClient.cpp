@@ -508,6 +508,11 @@ void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
     Web::ResourceLoader::the().set_site_compatibility_data(parsed_data.release_value());
 }
 
+void ConnectionFromClient::set_browser_identity(Optional<Web::BrowserIdentity> identity)
+{
+    Web::ResourceLoader::the().set_browser_identity(identity);
+}
+
 void ConnectionFromClient::update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect> rects, Vector<Web::DevicePixelRect> available_rects, u32 main_screen)
 {
     if (auto page = this->page(page_id); page.has_value())

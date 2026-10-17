@@ -93,6 +93,34 @@ TEST_CASE(hide_ladybird_only_removes_ladybird_products)
     EXPECT_EQ(rule.apply_user_agent_transformations("Mozilla/5.0 MyLadybird/1.0"sv), "Mozilla/5.0 MyLadybird/1.0"_string);
 }
 
+TEST_CASE(rule_parses_an_identity)
+{
+    auto rule = MUST(Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
+        {
+            "matches": ["https://example.com:*/*", "https://*.example.com:*/*"],
+            "identity": "webkit"
+        }
+    )"sv))));
+    EXPECT(rule.identity() == Web::BrowserIdentity::WebKit);
+    EXPECT(rule.user_agent_transformations().is_empty());
+
+    // A rule may carry an identity alone, and only the one identity there is.
+    EXPECT(Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"({ "matches": ["https://example.com/*"], "identity": "gecko" })"sv))).is_error());
+    EXPECT(Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"({ "matches": ["https://example.com/*"], "identity": 1 })"sv))).is_error());
+}
+
+TEST_CASE(data_answers_the_identity_of_the_last_matching_rule)
+{
+    auto data = MUST(Web::SiteCompatibilityData::from_json(MUST(JsonValue::from_string(R"(
+        [
+            { "matches": ["https://example.com/*"], "user_agent": ["hide_Ladybird"] },
+            { "matches": ["https://example.com/*"], "identity": "webkit" }
+        ]
+    )"sv))));
+    EXPECT(data.identity_for_url(url("https://example.com/article"sv)) == Web::BrowserIdentity::WebKit);
+    EXPECT(!data.identity_for_url(url("https://elsewhere.example/"sv)).has_value());
+}
+
 TEST_CASE(data_parses_rule_array)
 {
     auto data = MUST(Web::SiteCompatibilityData::from_json(MUST(JsonValue::from_string(R"(

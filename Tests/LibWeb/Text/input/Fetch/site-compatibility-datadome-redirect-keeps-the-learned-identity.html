@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A top-level navigation that gets a DataDome-marked response sends its request again as WebKit's browser, and
+    // a redirect within the site it just learned keeps that identity for the redirected request — in test mode, the
+    // learned rule never reaches the process at all, so the navigation's own memory of the site is what keeps it.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const site = uniqueLocalhostHostname("datadome-redirect");
+        const onSite = url => {
+            const result = new URL(url);
+            result.hostname = site;
+            return result.href;
+        };
+        const probe = `<!doctype html><script>opener.postMessage(JSON.stringify({ userAgent: navigator.userAgent, identity: internals.browserIdentity() }), "*")<` + `/script>`;
+        const pageURL = onSite(
+            await server.createEcho("GET", "/datadome-protected-page", {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Cache-Control": "no-store", "x-datadome": "protected" },
+                body: probe,
+            })
+        );
+        const entryURL = onSite(
+            await server.createEcho("GET", "/datadome-protected-entry", {
+                status: 302,
+                headers: { Location: pageURL, "Cache-Control": "no-store", "x-datadome": "protected" },
+            })
+        );
+        const isWebKit = userAgent => userAgent.includes("Safari/605.1.15") && !userAgent.includes("Ladybird/");
+
+        let popup;
+        try {
+            const reported = new Promise(resolve => addEventListener("message", event => resolve(JSON.parse(event.data)), { once: true }));
+            popup = window.open(entryURL);
+            const report = await reported;
+
+            const recordedFor = async url => (await (await fetch(server.recordedRequestHeadersURL(url))).json());
+            const entry = await recordedFor(entryURL);
+            println(`the entry was requested again as WebKit's browser: ${isWebKit(entry["User-Agent"][0]) ? "PASS" : "FAIL"}`);
+            println(`with the WebKit mode's Accept header: ${entry["Accept"][0] === "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" ? "PASS" : "FAIL"}`);
+            const page = await recordedFor(pageURL);
+            println(`the redirect within the learned site kept that identity: ${isWebKit(page["User-Agent"][0]) ? "PASS" : "FAIL"}`);
+            println(`and the page says so: ${isWebKit(report.userAgent) && report.identity === "webkit" ? "PASS" : "FAIL"}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            popup?.close();
+            internals.setBrowserIdentity(null);
+        }
+    });
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The browser identity is the tab's, decided by the site the user is visiting: a DataDome-marked response to a
+    // frame that some other page embeds leaves that page, the frame, and the request as they were. (The top-level
+    // case, where the tab takes on WebKit's browser, is Tests/LibWebView/test-datadome-site-presents-webkit.py.)
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const probe = `<!doctype html><script>parent.postMessage(JSON.stringify({ userAgent: navigator.userAgent, hasDeviceMemory: "deviceMemory" in navigator, identity: internals.browserIdentity() }), "*")<` + `/script>`;
+        const url = await server.createEcho("GET", "/datadome-protected-frame", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "x-datadome": "protected" },
+            body: probe,
+        });
+
+        try {
+            const reported = new Promise(resolve => addEventListener("message", event => resolve(JSON.parse(event.data)), { once: true }));
+            const iframe = document.createElement("iframe");
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            const report = await reported;
+
+            const recorded = (await (await fetch(server.recordedRequestHeadersURL(url))).json())["User-Agent"][0];
+            println(`the frame was requested under our own name: ${recorded.includes("Ladybird/") ? "PASS" : "FAIL"}`);
+            println(`the frame keeps the page's identity: ${report.userAgent.includes("Ladybird/") && report.hasDeviceMemory && report.identity === null ? "PASS" : "FAIL"}`);
+            println(`and so does the page: ${navigator.userAgent.includes("Ladybird/") && "deviceMemory" in navigator && internals.browserIdentity() === null ? "PASS" : "FAIL"}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            internals.setBrowserIdentity(null);
+        }
+    });
+</script>

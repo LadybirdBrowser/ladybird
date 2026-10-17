@@ -29,6 +29,7 @@ static constexpr auto FIRST_RUN_COMPLETE_KEY = "firstRunComplete"sv;
 static constexpr auto NEW_TAB_PAGE_URL_KEY = "newTabPageURL"sv;
 
 static constexpr auto LANGUAGES_KEY = "languages"sv;
+static constexpr auto SITES_PRESENTED_AS_WEBKIT_KEY = "sitesPresentedAsWebKit"sv;
 
 static constexpr auto APPEARANCE_KEY = "appearance"sv;
 static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
@@ -308,6 +309,13 @@ Settings Settings::create(ByteString settings_path, Vector<String> platform_lang
     if (auto languages = settings_json.value().get(LANGUAGES_KEY); languages.has_value())
         settings.m_languages = parse_json_languages(*languages);
 
+    if (auto sites = settings_json.value().get_array(SITES_PRESENTED_AS_WEBKIT_KEY); sites.has_value()) {
+        sites->for_each([&](JsonValue const& site) {
+            if (site.is_string() && !site.as_string().is_empty())
+                settings.m_sites_presented_as_webkit.append(site.as_string());
+        });
+    }
+
     if (auto appearance = settings_json.value().get(APPEARANCE_KEY); appearance.has_value())
         settings.m_appearance = parse_appearance(*appearance);
 
@@ -536,6 +544,12 @@ JsonValue Settings::serialize_json() const
     for (auto const& language : m_languages)
         languages.must_append(language);
     settings.set(LANGUAGES_KEY, move(languages));
+
+    JsonArray sites_presented_as_webkit;
+    sites_presented_as_webkit.ensure_capacity(m_sites_presented_as_webkit.size());
+    for (auto const& site : m_sites_presented_as_webkit)
+        sites_presented_as_webkit.must_append(site);
+    settings.set(SITES_PRESENTED_AS_WEBKIT_KEY, move(sites_presented_as_webkit));
 
     JsonObject appearance;
     appearance.set(SHOW_MENU_BAR_KEY, m_appearance.show_menu_bar);
@@ -790,6 +804,18 @@ void Settings::set_languages(Vector<String> languages)
 
     for (auto& observer : m_observers)
         observer.languages_changed();
+}
+
+void Settings::add_site_presented_as_webkit(String site)
+{
+    if (m_sites_presented_as_webkit.contains_slow(site))
+        return;
+
+    m_sites_presented_as_webkit.append(move(site));
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.sites_presented_as_webkit_changed();
 }
 
 Appearance Settings::parse_appearance(JsonValue const& settings)

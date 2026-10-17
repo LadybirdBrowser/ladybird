@@ -1,0 +1,4 @@
+the entry was requested again as WebKit's browser: PASS
+with the WebKit mode's Accept header: PASS
+the redirect within the learned site kept that identity: PASS
+and the page says so: PASS

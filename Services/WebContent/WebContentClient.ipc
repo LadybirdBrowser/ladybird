@@ -47,6 +47,7 @@
 #include <LibWebCommon/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 #include <LibWebCommon/HTML/WebViewHints.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
@@ -190,6 +191,8 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL url) =|
 
     did_is_known_hsts_host(String domain) => (bool result)
+    did_set_browser_identity(Web::PageId page_id, Optional<Web::BrowserIdentity> identity) =|
+    did_learn_site_for_browser_identity(String site, Web::BrowserIdentity identity) =|
 
     did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)

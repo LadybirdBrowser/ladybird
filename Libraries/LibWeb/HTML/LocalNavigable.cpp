@@ -81,6 +81,7 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
@@ -105,6 +106,7 @@
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>
@@ -163,6 +165,9 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC::Ref<Fetch::Infrastructure::Request> request;
     GC::Ptr<LocalNavigable> navigable;
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
+
+    Optional<String> site_retried_as_webkit;
+
     Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
     TargetSnapshotParams target_snapshot_params;
     Optional<Utf16String> navigation_id;
@@ -2241,6 +2246,34 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         user_involvement);
 }
 
+// A site behind DataDome marks every response of its, the pages it serves and the challenges it puts up alike, with
+// an x-datadome header.
+// AD-HOC: A top-level navigation decides which browser the process presents, before its request to a URL goes out: the
+//         identity a site-compatibility rule names for the URL, or none. The page reports it either way, so that the
+//         tab's other processes (the frames the page embeds, and its workers) present the same browser. A redirect
+//         decides again for its destination — and a site the navigation itself learned keeps WebKit on a redirect
+//         within it, since the rule for that site reaches the process from the UI process later, if ever. Returns
+//         whether the process's identity changed — a redirect then replaces the request's Accept header with the new
+//         identity's, since the redirect continues the fetch that added the header under the identity of the time.
+static bool present_browser_identity_for_navigation(LocalNavigable& navigable, URL::URL const& url, Optional<String> const& site_retried_as_webkit)
+{
+    if (!navigable.is_top_level_traversable())
+        return false;
+    auto identity = ResourceLoader::the().site_compatibility_identity_for_url(url);
+    if (!identity.has_value() && site_retried_as_webkit.has_value() && ResourceLoader::site_for_url(url) == site_retried_as_webkit)
+        identity = BrowserIdentity::WebKit;
+    auto changed = identity != ResourceLoader::browser_identity();
+    if (changed)
+        ResourceLoader::the().set_browser_identity(identity);
+    navigable.page().client().page_did_set_browser_identity(identity);
+    return changed;
+}
+
+static bool is_datadome_response(Fetch::Infrastructure::Response const& response)
+{
+    return !response.is_network_error() && response.header_list()->contains("x-datadome"sv);
+}
+
 static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<NavigationParamsFetchStateHolder> state_holder, GC::Ref<GC::Function<void(GC::Ref<InternalNavigationResult>)>> top_level_completion_steps, GC::Ref<GC::Function<void()>> fetch_completion_steps)
 {
     // 21. While true:
@@ -2369,6 +2402,23 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             }
         }
 
+        // AD-HOC: DataDome doesn't block us if we spoof as WebKit. So, we spoof as WebKit for DataDome-protected sites.
+        if (!state_holder->site_retried_as_webkit.has_value() && state_holder->navigable->is_top_level_traversable() && state_holder->request->method() == "GET"sv && is_datadome_response(*state_holder->response) && ResourceLoader::browser_identity() != BrowserIdentity::WebKit) {
+            if (auto site = ResourceLoader::site_for_url(state_holder->current_url); site.has_value()) {
+                state_holder->site_retried_as_webkit = site;
+                ResourceLoader::the().set_browser_identity(BrowserIdentity::WebKit);
+                state_holder->navigable->page().client().page_did_set_browser_identity(BrowserIdentity::WebKit);
+                state_holder->navigable->page().client().page_did_learn_site_for_browser_identity(*site, BrowserIdentity::WebKit);
+                // Fetch added the Accept header to the request itself, for the identity of the time; the retry gets the
+                // new identity's.
+                state_holder->request->header_list()->delete_("Accept"sv);
+                state_holder->fetch_controller->stop_fetch();
+                state_holder->fetch_controller = nullptr;
+                perform_navigation_params_fetch(realm, state_holder, top_level_completion_steps, fetch_completion_steps);
+                return;
+            }
+        }
+
         // 8. If request's body is null, then set entry's document state's resource to null.
         if (state_holder->request->body().has<Empty>()) {
             state_holder->resource_cleared = true;
@@ -2470,6 +2520,8 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
 
         // 21. Set currentURL to locationURL.
         state_holder->current_url = state_holder->location_url.value().value();
+        if (present_browser_identity_for_navigation(*state_holder->navigable, state_holder->current_url, state_holder->site_retried_as_webkit))
+            state_holder->request->header_list()->set({ "Accept"sv, Fetch::Fetching::document_accept_header_value_for_navigator_compatibility_mode() });
 
         // 22. Set entry's URL to currentURL.
         state_holder->redirected_url = state_holder->current_url;
@@ -2502,6 +2554,8 @@ static void create_navigation_params_by_fetching(
     // 2. Let documentResource be entry's document state's resource.
     auto const& document_state = entry.document_state;
     auto const& document_resource = document_state.resource;
+
+    present_browser_identity_for_navigation(*navigable, entry.url, {});
 
     // 3. Let request be a new request, with
     //    url: entry's URL

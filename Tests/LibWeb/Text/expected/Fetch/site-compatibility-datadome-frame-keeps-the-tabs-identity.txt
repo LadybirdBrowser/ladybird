@@ -1,0 +1,3 @@
+the frame was requested under our own name: PASS
+the frame keeps the page's identity: PASS
+and so does the page: PASS

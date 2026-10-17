@@ -1075,6 +1075,18 @@ void Internals::set_navigator_compatibility_mode(Bindings::InternalsNavigatorCom
     }
 }
 
+void Internals::set_browser_identity(Optional<Bindings::InternalsBrowserIdentity> identity)
+{
+    ResourceLoader::the().set_browser_identity(identity.has_value() ? Optional<BrowserIdentity> { BrowserIdentity::WebKit } : Optional<BrowserIdentity> {});
+}
+
+Optional<Bindings::InternalsBrowserIdentity> Internals::browser_identity() const
+{
+    if (ResourceLoader::browser_identity() == BrowserIdentity::WebKit)
+        return Bindings::InternalsBrowserIdentity::Webkit;
+    return {};
+}
+
 void Internals::spoof_current_url(Utf16String const& url_string)
 {
     auto url = DOMURL::parse(url_string.utf16_view());

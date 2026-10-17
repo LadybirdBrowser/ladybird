@@ -55,7 +55,16 @@ public:
     String const& user_agent() const { return m_user_agent; }
     String user_agent_for_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_url(url, m_user_agent); }
     String user_agent_for_websocket_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_websocket_url(url, m_user_agent); }
-    void set_user_agent(String user_agent) { m_user_agent = move(user_agent); }
+    void set_user_agent(String user_agent);
+
+    // The browser identity the process presents, when a site's bot detection calls for one: it overrides the User-Agent
+    // and the navigator compatibility mode the UI configured, for every request and realm of the process.
+    static Optional<BrowserIdentity> browser_identity() { return s_browser_identity; }
+    void set_browser_identity(Optional<BrowserIdentity>);
+    Optional<BrowserIdentity> site_compatibility_identity_for_url(URL::URL const& url) const { return m_site_compatibility_data.identity_for_url(url); }
+
+    // The registrable domain of a URL's host, or the host itself for one that has none (an IP address, "localhost").
+    static Optional<String> site_for_url(URL::URL const&);
     void set_site_compatibility_data(SiteCompatibilityData data) { m_site_compatibility_data = move(data); }
     bool site_compatibility_exposes_experimental_interface(URL::URL const& url, StringView name) const { return m_site_compatibility_data.exposes_experimental_interface(url, name); }
 
@@ -100,10 +109,16 @@ private:
     HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
 
     String m_user_agent;
+    String m_configured_user_agent;
     SiteCompatibilityData m_site_compatibility_data;
     String m_platform;
     Vector<String> m_preferred_languages = { "en"_string };
+    static void update_navigator_compatibility_mode();
+
+    // What the UI configured, and what the process presents once the browser identity is applied on top.
+    static NavigatorCompatibilityMode s_configured_navigator_compatibility_mode;
     static NavigatorCompatibilityMode s_navigator_compatibility_mode;
+    static Optional<BrowserIdentity> s_browser_identity;
     bool m_enable_global_privacy_control { false };
 };
 

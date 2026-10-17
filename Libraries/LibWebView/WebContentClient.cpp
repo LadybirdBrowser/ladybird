@@ -761,6 +761,21 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
     return m_session->hsts_store->is_known_hsts_host(domain);
 }
 
+void WebContentClient::did_set_browser_identity(Web::PageId page_id, Optional<Web::BrowserIdentity> identity)
+{
+    if (auto* page = this->page(page_id))
+        page->did_set_browser_identity(identity);
+}
+
+void WebContentClient::did_learn_site_for_browser_identity(String site, Web::BrowserIdentity identity)
+{
+    // A private session's process keeps what it learned to itself: the profile's settings outlive the session, and
+    // would otherwise tell every later visit which sites the user reached in private.
+    if (m_is_private == IsPrivate::Yes)
+        return;
+    Application::the().learn_site_for_browser_identity(move(site), identity);
+}
+
 Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
 {
     // The replacement client is on the RequestServer the process was using.

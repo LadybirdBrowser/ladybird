@@ -193,6 +193,8 @@ private:
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
+    virtual void did_set_browser_identity(Web::PageId, Optional<Web::BrowserIdentity>) override;
+    virtual void did_learn_site_for_browser_identity(String, Web::BrowserIdentity) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
     virtual Messages::WebContentClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
     virtual Messages::WebContentClient::RequestAudioServerConnectionResponse request_audio_server_connection() override;

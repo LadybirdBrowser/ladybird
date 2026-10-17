@@ -2596,6 +2596,11 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), move(environment_id), document_id, browsing_context_group_id, traversable.system_visibility_state(), move(window_handle) };
 }
 
+void WebContentPage::did_set_browser_identity(Optional<Web::BrowserIdentity> identity)
+{
+    view().set_browser_identity(identity);
+}
+
 void WebContentPage::did_close_browsing_context()
 {
     traversable().remove_page(*this);

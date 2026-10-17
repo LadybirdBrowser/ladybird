@@ -141,6 +141,11 @@ public:
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
+
+    // The browser the tab presents, decided by its top-level page: the identity reaches every page the tab's navigables
+    // are hosted by, and every worker they start, so a site's bot detection sees one browser throughout.
+    Optional<Web::BrowserIdentity> browser_identity() const { return m_browser_identity; }
+    void set_browser_identity(Optional<Web::BrowserIdentity>);
     void set_system_visibility_state(Web::HTML::VisibilityState);
     void set_has_system_focus(bool);
 
@@ -891,6 +896,7 @@ protected:
     // outerHeight, screenX and screenY like the pages before it.
     Optional<Gfx::IntPoint> m_window_position;
     Optional<Gfx::IntSize> m_window_size;
+    Optional<Web::BrowserIdentity> m_browser_identity;
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::Auto };
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::Auto };
     Optional<String> m_user_style_sheet;

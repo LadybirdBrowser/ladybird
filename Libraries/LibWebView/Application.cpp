@@ -40,6 +40,7 @@
 #include <LibWebCommon/CSS/PropertyList.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebCommon/Loader/SiteCompatibility.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
@@ -586,6 +587,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     // Test results must not depend on the languages of the machine running the tests.
     auto platform_languages = enable_test_mode ? Vector<String> {} : platform_preferred_languages();
     m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string(), move(platform_languages)));
+    // Test mode ignores the sites a profile learned, as it ignores its other spoofing choices.
+    if (!enable_test_mode && !m_settings->sites_presented_as_webkit().is_empty()) {
+        if (auto result = reload_site_compatibility_data(); result.is_error())
+            warnln("\033[31;1mUnable to load site compatibility data:\033[0m {}", result.error());
+    }
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
 
     if (!dns_server_port.has_value())
@@ -1137,6 +1143,32 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 ErrorOr<void> Application::reload_site_compatibility_data()
 {
     auto data = TRY(load_site_compatibility_data());
+
+    // A site the profile learned to present the WebKit identity to gets a rule after the shipped ones — for the site
+    // and (when it's a domain) its subdomains, on either scheme and any port.
+    if (m_settings) {
+        auto matches_for_site = [](String const& site) -> ErrorOr<JsonArray> {
+            auto host = URL::Parser::parse_host(site);
+            bool is_domain = host.has_value() && host->is_domain();
+
+            JsonArray matches;
+            for (auto scheme : { "http"sv, "https"sv }) {
+                matches.must_append(TRY(String::formatted("{}://{}:*/*", scheme, site)));
+                if (is_domain)
+                    matches.must_append(TRY(String::formatted("{}://*.{}:*/*", scheme, site)));
+            }
+            return matches;
+        };
+
+        for (auto const& site : m_settings->sites_presented_as_webkit()) {
+            JsonObject rule;
+            rule.set("matches"sv, TRY(matches_for_site(site)));
+            rule.set("identity"sv, "webkit"_string);
+            data.as_array().must_append(move(rule));
+        }
+        TRY(Web::SiteCompatibilityData::from_json(data));
+    }
+
     m_site_compatibility_data = move(data);
 
     WebContentClient::for_each_client([&](auto& client) {
@@ -1145,6 +1177,17 @@ ErrorOr<void> Application::reload_site_compatibility_data()
     });
     WorkerProcessManager::the().update_site_compatibility_data(m_site_compatibility_data);
     return {};
+}
+
+void Application::learn_site_for_browser_identity(String site, Web::BrowserIdentity identity)
+{
+    VERIFY(identity == Web::BrowserIdentity::WebKit);
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->sites_presented_as_webkit().contains_slow(site))
+        return;
+
+    m_settings->add_site_presented_as_webkit(move(site));
+    if (auto result = reload_site_compatibility_data(); result.is_error())
+        warnln("\033[31;1mUnable to load site compatibility data:\033[0m {}", result.error());
 }
 
 Web::PageId Application::allocate_page_id()

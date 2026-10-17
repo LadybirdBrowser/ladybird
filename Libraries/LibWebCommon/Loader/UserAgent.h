@@ -86,6 +86,15 @@ namespace Web {
 #endif
 
 constexpr auto default_user_agent = "Mozilla/5.0 (" UA_PLATFORM_STRING ") " BROWSER_NAME "/" BROWSER_VERSION " " SAD_COMPATIBILITY_HACK ""sv;
+
+// The User-Agent of the WebKit engine's browser on this platform, for a page that takes on that identity: Safari's on
+// macOS, and elsewhere the GTK port's, whose Version token is the far-future one that port chose on purpose.
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+#    define WEBKIT_IDENTITY_VERSION "27.2"
+#else
+#    define WEBKIT_IDENTITY_VERSION "60.5"
+#endif
+constexpr auto webkit_identity_user_agent = "Mozilla/5.0 (" UA_PLATFORM_STRING ") AppleWebKit/605.1.15 (KHTML, like Gecko) Version/" WEBKIT_IDENTITY_VERSION " Safari/605.1.15"sv;
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-platform
 // "Must return either the empty string or a string representing the platform on which the browser is executing, e.g.
 // "MacIntel", "Win32", "Linux x86_64", "Linux armv81"."

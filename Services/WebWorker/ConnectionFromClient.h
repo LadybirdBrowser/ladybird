@@ -65,6 +65,7 @@ private:
     virtual void set_site_compatibility_data(JsonValue data) override;
     virtual void set_user_agent(String user_agent) override;
     virtual void set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) override;
+    virtual void set_browser_identity(Optional<Web::BrowserIdentity> identity) override;
     virtual void set_preferred_languages(Vector<String> preferred_languages) override;
     virtual void set_system_font_family(String family) override;
     virtual void start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::HTML::AgentType, URL::Origin origin, Web::HTML::EnvironmentId environment_id) override;

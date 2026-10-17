@@ -21,6 +21,7 @@ endpoint WebWorkerServer {
     set_site_compatibility_data(JsonValue data) =|
     set_user_agent(String user_agent) =|
     set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) =|
+    set_browser_identity(Optional<Web::BrowserIdentity> identity) =|
     set_preferred_languages(Vector<String> preferred_languages) =|
 
     set_system_font_family(String family) =|

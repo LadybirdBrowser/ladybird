@@ -77,6 +77,19 @@ static ErrorOr<Vector<String>> parse_exposed_interfaces(JsonObject const& object
     return result;
 }
 
+static ErrorOr<Optional<BrowserIdentity>> parse_identity(JsonObject const& object)
+{
+    if (!object.has("identity"sv))
+        return Optional<BrowserIdentity> {};
+
+    auto identity = object.get_string("identity"sv);
+    if (!identity.has_value())
+        return Error::from_string_literal("Site-compatibility rule 'identity' must be a string");
+    if (*identity == "webkit"sv)
+        return BrowserIdentity::WebKit;
+    return Error::from_string_literal("Site-compatibility rule 'identity' must be \"webkit\"");
+}
+
 ErrorOr<SiteCompatibilityRule> SiteCompatibilityRule::from_json(JsonValue const& value)
 {
     if (!value.is_object())
@@ -85,13 +98,14 @@ ErrorOr<SiteCompatibilityRule> SiteCompatibilityRule::from_json(JsonValue const&
     auto const& object = value.as_object();
     auto transformations = TRY(parse_user_agent_transformations(object));
     auto exposed_interfaces = TRY(parse_exposed_interfaces(object));
-    if (transformations.is_empty() && exposed_interfaces.is_empty())
-        return Error::from_string_literal("Site-compatibility rule must contain a 'user_agent' or an 'expose_experimental_interfaces' array");
+    auto identity = TRY(parse_identity(object));
+    if (transformations.is_empty() && exposed_interfaces.is_empty() && !identity.has_value())
+        return Error::from_string_literal("Site-compatibility rule must contain a 'user_agent' or an 'expose_experimental_interfaces' array, or an 'identity'");
 
-    return create(TRY(parse_patterns(object)), move(transformations), move(exposed_interfaces));
+    return create(TRY(parse_patterns(object)), move(transformations), move(exposed_interfaces), identity);
 }
 
-ErrorOr<SiteCompatibilityRule> SiteCompatibilityRule::create(Vector<String> patterns, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces)
+ErrorOr<SiteCompatibilityRule> SiteCompatibilityRule::create(Vector<String> patterns, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces, Optional<BrowserIdentity> identity)
 {
     Vector<URL::RustIntegration::URLPattern> compiled_patterns;
     TRY(compiled_patterns.try_ensure_capacity(patterns.size()));
@@ -103,14 +117,15 @@ ErrorOr<SiteCompatibilityRule> SiteCompatibilityRule::create(Vector<String> patt
         TRY(compiled_patterns.try_append(compiled_pattern.release_value()));
     }
 
-    return SiteCompatibilityRule { move(patterns), move(compiled_patterns), move(transformations), move(exposed_interfaces) };
+    return SiteCompatibilityRule { move(patterns), move(compiled_patterns), move(transformations), move(exposed_interfaces), identity };
 }
 
-SiteCompatibilityRule::SiteCompatibilityRule(Vector<String> patterns, Vector<URL::RustIntegration::URLPattern> compiled_patterns, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces)
+SiteCompatibilityRule::SiteCompatibilityRule(Vector<String> patterns, Vector<URL::RustIntegration::URLPattern> compiled_patterns, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces, Optional<BrowserIdentity> identity)
     : m_patterns(move(patterns))
     , m_compiled_patterns(move(compiled_patterns))
     , m_user_agent_transformations(move(transformations))
     , m_exposed_interfaces(move(exposed_interfaces))
+    , m_identity(identity)
 {
 }
 
@@ -176,6 +191,16 @@ String SiteCompatibilityData::user_agent_for_websocket_url(URL::URL const& url, 
     else if (http_url.scheme() == "wss"sv)
         http_url.set_scheme("https"sv);
     return user_agent_for_url(http_url, default_user_agent);
+}
+
+Optional<BrowserIdentity> SiteCompatibilityData::identity_for_url(URL::URL const& url) const
+{
+    Optional<BrowserIdentity> identity;
+    for (auto const& rule : m_rules) {
+        if (rule.identity().has_value() && rule.matches(url))
+            identity = rule.identity();
+    }
+    return identity;
 }
 
 bool SiteCompatibilityData::exposes_experimental_interface(URL::URL const& url, StringView name) const

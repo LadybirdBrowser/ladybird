@@ -111,6 +111,7 @@ public:
     JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
     bool blocks_pop_ups() const;
     ErrorOr<void> reload_site_compatibility_data();
+    void learn_site_for_browser_identity(String site, Web::BrowserIdentity);
 
     bool claim_cpu_profiler(ProcessType);
     void set_cpu_profiler_process(Core::Process, OwnPtr<Core::File> control_socket);

@@ -14,4 +14,8 @@ enum class NavigatorCompatibilityMode {
     WebKit
 };
 
+enum class BrowserIdentity : u8 {
+    WebKit,
+};
+
 }

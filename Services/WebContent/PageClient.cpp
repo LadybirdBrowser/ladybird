@@ -1516,6 +1516,16 @@ void PageClient::page_did_store_hsts_policy_for_testing(String const& domain, HT
         test_connection->did_store_hsts_policy_for_testing(domain, policy);
 }
 
+void PageClient::page_did_set_browser_identity(Optional<Web::BrowserIdentity> identity)
+{
+    client().async_did_set_browser_identity(m_id, identity);
+}
+
+void PageClient::page_did_learn_site_for_browser_identity(String const& site, Web::BrowserIdentity identity)
+{
+    client().async_did_learn_site_for_browser_identity(site, identity);
+}
+
 bool PageClient::page_did_is_known_hsts_host(String const& domain)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidIsKnownHstsHost>(domain);
