@@ -8051,24 +8051,28 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
     auto& vm = realm.vm();
     auto const& normalized_algorithm = static_cast<HmacImportParams const&>(params);
 
-    // 1. Let keyData be the key data to be imported.
-    // 2. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
+    // 1. If the length member of normalizedAlgorithm is present and is zero, then throw a DataError.
+    if (normalized_algorithm.length.has_value() && *normalized_algorithm.length == 0)
+        return WebIDL::DataError::create("Invalid key length"_utf16);
+
+    // 2. Let keyData be the key data to be imported.
+    // 3. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
         if (usage != KeyUsage::Sign && usage != KeyUsage::Verify)
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
     }
 
-    // 3. Let hash be a new KeyAlgorithm.
+    // 4. Let hash be a new KeyAlgorithm.
     Utf16String hash_name;
 
-    // 4. If format is "raw":
+    // 5. If format is "raw":
     AK::ByteBuffer data;
     if (key_format == KeyFormat::Raw
         || key_format == KeyFormat::RawSecret) {
-        // 4.1. Let data be the octet string contained in keyData.
+        // 5.1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
-        // 4.2. Set hash to equal the hash member of normalizedAlgorithm.
+        // 5.2. Set hash to equal the hash member of normalizedAlgorithm.
         hash_name = TRY(normalized_algorithm.hash.name(vm));
     }
 
@@ -8151,14 +8155,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
         return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
-    // 5. Let length be equivalent to the length, in octets, of data, multiplied by 8.
+    // 6. Let length be equivalent to the length, in octets, of data, multiplied by 8.
     auto length = data.size() * 8;
 
-    // 6. If length is zero then throw a DataError.
+    // 7. If length is zero then throw a DataError.
     if (length == 0)
         return WebIDL::DataError::create("No data provided"_utf16);
 
-    // 7. If the length member of normalizedAlgorithm is present:
+    // 8. If the length member of normalizedAlgorithm is present:
     if (normalized_algorithm.length.has_value()) {
         // If the length member of normalizedAlgorithm is greater than length:
         auto normalized_algorithm_length = normalized_algorithm.length.value();
@@ -8178,23 +8182,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
         length = normalized_algorithm_length;
     }
 
-    // 8. Let key be a new CryptoKey object representing an HMAC key with the first length bits of data.
+    // 9. Let key be a new CryptoKey object representing an HMAC key with the first length bits of data.
     auto length_in_bytes = length / 8;
     if (data.size() > length_in_bytes)
         data = MUST(data.slice(0, length_in_bytes));
     auto key = CryptoKey::create(move(data));
 
-    // 9. Set the [[type]] internal slot of key to "secret".
+    // 10. Set the [[type]] internal slot of key to "secret".
     key->set_type(KeyType::Secret);
 
-    // 10. Let algorithm be a new HmacKeyAlgorithm.
-    // 11. Set the name attribute of algorithm to "HMAC".
-    // 12. Set the length attribute of algorithm to length.
-    // 13. Set the hash attribute of algorithm to hash.
-    // 14. Set the [[algorithm]] internal slot of key to algorithm.
+    // 11. Let algorithm be a new HmacKeyAlgorithm.
+    // 12. Set the name attribute of algorithm to "HMAC".
+    // 13. Set the length attribute of algorithm to length.
+    // 14. Set the hash attribute of algorithm to hash.
+    // 15. Set the [[algorithm]] internal slot of key to algorithm.
     key->set_algorithm(CryptoKey::HmacKeyAlgorithmData { "HMAC"_utf16, move(hash_name), static_cast<WebIDL::UnsignedLong>(length) });
 
-    // 15. Return key.
+    // 16. Return key.
     return key;
 }
 
