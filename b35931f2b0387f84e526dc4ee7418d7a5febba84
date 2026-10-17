@@ -1,0 +1,13 @@
+Ladybird’s VM writes error stacks and built-in function text in one of
+two syntaxes the embedder picks. V8’s ErrorUtils::ToString and its
+stack trace formatting (messages.cc) produce “Error: message” followed
+by “    at f (url:line:col)” frames, and its
+Function.prototype.toString writes “function f() { [native code] }”.
+JSC’s Interpreter::getStackTrace() frames serialize as
+“f@url:line:col” (StackFrame::toString()), with no header line, and
+JSC’s functionProtoFuncToString() writes
+“function f() {\n    [native code]\n}”. SpiderMonkey’s SavedFrame
+stacks format the same “f@url:line:col” frames (BuildStackString),
+and its FunctionToString writes the same three-line native body.
+Ladybird’s at-sign syntax follows JSC and SpiderMonkey, and names a
+frame without a location “[native code]” as JSC does.
