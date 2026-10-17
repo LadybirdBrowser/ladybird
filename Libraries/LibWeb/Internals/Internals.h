@@ -309,7 +309,6 @@ public:
     void set_media_element_seeking(HTML::HTMLMediaElement&, bool seeking);
     void disconnect_media_server();
     void set_page_muted(bool muted);
-    WebIDL::UnsignedLongLong active_image_style_value_animation_count();
     String viewport_overflow_x();
 
 private:

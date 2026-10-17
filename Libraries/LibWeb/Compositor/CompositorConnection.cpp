@@ -265,12 +265,6 @@ struct FrameSinkFFI {
     }
 };
 
-void CompositorConnection::submit_frame_for_testing(CompositorFrame&& frame)
-{
-    if (!m_frame_sink->submit(move(frame)))
-        did_lose_compositor();
-}
-
 void CompositorConnection::hand_frame_sink_to_paint_thread()
 {
     NonnullRefPtr<CompositorFrameSink> sink = m_frame_sink;

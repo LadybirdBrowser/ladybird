@@ -123,7 +123,6 @@ public:
     void did_execute_js_console_input(JsonValue const&);
     void run_javascript(StringView js_source);
     void did_output_js_console_message(WebView::ConsoleOutput);
-    void console_peer_did_misbehave(char const* reason);
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
     Vector<Web::HTML::ScriptRegistry::Description> list_devtools_sources() const;
