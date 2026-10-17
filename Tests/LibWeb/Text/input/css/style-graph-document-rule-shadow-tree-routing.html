@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    :checked ~ div > * { color: green }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<div><input type="checkbox"><label id="label"></label><button id="button"></button></div>`;
+        document.body.offsetWidth;
+        internals.styleEngineTransactionReactions();
+
+        // A document rule never matches inside a shadow tree, so checking a box there restyles
+        // nothing through it.
+        shadowRoot.querySelector("input").checked = true;
+        const reactions = internals.styleEngineTransactionReactions();
+        println(`reactions: wholeDocument=${reactions.wholeDocument} elements=${reactions.elements.join(",")}`);
+    });
+</script>
