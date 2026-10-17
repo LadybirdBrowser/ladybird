@@ -66,15 +66,6 @@ namespace Web::Bindings {
 
 WEB_API JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_algorithm_dictionary(JS::Realm&, Utf16String const& name);
 
-WEB_API JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> import_key(
-    JS::Realm&,
-    Crypto::SubtleCrypto&,
-    KeyFormat,
-    Crypto::KeyDataType,
-    Crypto::AlgorithmIdentifier,
-    bool extractable,
-    Vector<KeyUsage>);
-
 WEB_API GC::Ref<WebIDL::Promise> generate_key(JS::Realm&, Crypto::SubtleCrypto&, Crypto::AlgorithmIdentifier, bool extractable, Vector<KeyUsage>);
 WEB_API GC::Ref<WebIDL::Promise> derive_key(JS::Realm&, Crypto::SubtleCrypto&, Crypto::AlgorithmIdentifier, GC::Ref<Crypto::CryptoKey>, Crypto::AlgorithmIdentifier, bool extractable, Vector<KeyUsage>);
 WEB_API GC::Ref<WebIDL::Promise> export_key(JS::Realm&, Crypto::SubtleCrypto&, KeyFormat, GC::Ref<Crypto::CryptoKey>);
