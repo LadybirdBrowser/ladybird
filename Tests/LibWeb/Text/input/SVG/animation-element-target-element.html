@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <rect id="rect" width="10" height="10"><set id="set" attributeName="fill" to="green"/></rect>
+</svg>
+<div id="div"></div>
+<script>
+    test(() => {
+        println(`in a rect: ${document.getElementById("set").targetElement.id}`);
+        const detached = document.createElementNS("http://www.w3.org/2000/svg", "set");
+        println(`detached: ${detached.targetElement}`);
+        document.getElementById("div").append(detached);
+        println(`in a div: ${detached.targetElement}`);
+    });
+</script>

@@ -19,6 +19,7 @@ namespace Web::Animations {
 // Sorted by composite order:
 // https://www.w3.org/TR/css-animations-2/#animation-composite-order
 enum class AnimationClass {
+    SMILAnimation,
     CSSAnimationWithOwningElement,
     CSSTransition,
     CSSAnimationWithoutOwningElement,
@@ -137,6 +138,7 @@ public:
 
     virtual bool is_css_animation() const { return false; }
     virtual bool is_css_transition() const { return false; }
+    virtual bool is_smil_animation() const { return false; }
 
     Optional<DOM::AbstractElement> owning_element() const { return m_owning_element; }
     void set_owning_element(Optional<DOM::AbstractElement>&& value) { m_owning_element = move(value); }

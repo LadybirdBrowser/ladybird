@@ -1,0 +1,3 @@
+fill: rgb(0, 128, 0)
+element animations: 0
+document animations: 0

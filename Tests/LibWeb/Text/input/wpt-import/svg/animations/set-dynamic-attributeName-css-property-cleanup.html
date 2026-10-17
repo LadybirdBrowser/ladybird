@@ -1,0 +1,33 @@
+<!doctype html>
+<title>Changing attributeName on set element clears old animated CSS property</title>
+<link rel="help" href="https://w3c.github.io/svgwg/specs/animations/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg>
+  <rect id="rect" x="0" y="0" width="100" height="100" fill="green">
+    <set id="set" attributeType="CSS" attributeName="opacity" to="0.5"/>
+  </rect>
+</svg>
+<script>
+  async_test(t => {
+    let svg = document.querySelector('svg');
+    let rect = document.getElementById('rect');
+    let set = document.getElementById('set');
+
+    window.onload = t.step_func(() => {
+      window.requestAnimationFrame(t.step_func(() => {
+        assert_equals(getComputedStyle(rect).opacity, '0.5',
+          'opacity should be 0.5 while set animates opacity');
+
+        // Change attributeName from "opacity" to "x".
+        // The old animated CSS property (opacity) should be cleared.
+        set.setAttribute('attributeName', 'x');
+
+        window.requestAnimationFrame(t.step_func_done(() => {
+          assert_equals(getComputedStyle(rect).opacity, '1',
+            'opacity should revert to 1 after attributeName changed away from opacity');
+        }));
+      }));
+    });
+  });
+</script>

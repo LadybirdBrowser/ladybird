@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <rect id="scripted" width="100" height="100" fill="red"></rect>
+    <rect id="ordered" width="100" height="100" fill="red"></rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        const createSet = to => {
+            const set = document.createElementNS("http://www.w3.org/2000/svg", "set");
+            set.setAttribute("attributeName", "fill");
+            set.setAttribute("to", to);
+            return set;
+        };
+
+        scripted.animate([{ fill: "blue" }, { fill: "blue" }], { duration: Infinity });
+        scripted.appendChild(createSet("green"));
+
+        const lastSet = createSet("green");
+        ordered.appendChild(lastSet);
+        ordered.insertBefore(createSet("blue"), lastSet);
+
+        await nextFrame();
+        await nextFrame();
+        println(`script animation over a newer set: ${getComputedStyle(scripted).fill}`);
+        println(`set later in document order over a newer one: ${getComputedStyle(ordered).fill}`);
+        done();
+    });
+</script>

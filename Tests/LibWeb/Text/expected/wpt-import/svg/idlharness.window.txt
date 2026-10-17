@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1124 Pass
-656 Fail
+1126 Pass
+654 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1643,7 +1643,7 @@ Pass	SVGAnimationElement interface object name
 Pass	SVGAnimationElement interface: existence and properties of interface prototype object
 Pass	SVGAnimationElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGAnimationElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimationElement interface: attribute targetElement
+Pass	SVGAnimationElement interface: attribute targetElement
 Pass	SVGAnimationElement interface: attribute onbegin
 Pass	SVGAnimationElement interface: attribute onend
 Pass	SVGAnimationElement interface: attribute onrepeat
@@ -1692,7 +1692,7 @@ Pass	SVGSetElement interface: existence and properties of interface prototype ob
 Pass	SVGSetElement interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGSetElement must be primary interface of objects.set
 Pass	Stringification of objects.set
-Fail	SVGAnimationElement interface: objects.set must inherit property "targetElement" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "targetElement" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "onbegin" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "onend" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "onrepeat" with the proper type

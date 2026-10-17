@@ -130,7 +130,9 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
     if (m_impl) {
         auto& associated_animations = m_impl->associated_animations;
         for (auto const& animation : associated_animations) {
-            if (animation->is_relevant())
+            // AD-HOC: SVG animation elements drive their animations with their own timing model, which script must not
+            //         be able to play, pause or cancel. Like other engines, do not expose them.
+            if (animation->is_relevant() && !animation->is_smil_animation())
                 relevant_animations.append(*animation);
         }
     }
