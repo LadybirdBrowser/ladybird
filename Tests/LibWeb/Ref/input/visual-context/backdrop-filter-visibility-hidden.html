@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/visual-context/backdrop-filter-visibility-hidden-ref.html">
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 400px;
+    height: 200px;
+    background: rgb(0, 255, 0);
+}
+.filtered {
+    position: absolute;
+    top: 50px;
+    width: 100px;
+    height: 100px;
+    backdrop-filter: invert(1);
+}
+.hidden {
+    visibility: hidden;
+}
+.masked {
+    width: 20px;
+    height: 20px;
+    mask-image: linear-gradient(black, black);
+}
+#a { left: 0; }
+#b { left: 150px; }
+#c { left: 300px; }
+</style>
+<!-- A box that is not visible paints no filtered backdrop, even when its descendants record mask
+     content inside its effect: #a starts hidden, #b becomes hidden after the first frames, and #c
+     becomes visible, so only #c inverts the green behind it. -->
+<div class="backdrop"></div>
+<div id="a" class="filtered hidden"><div class="masked"></div></div>
+<div id="b" class="filtered"><div class="masked"></div></div>
+<div id="c" class="filtered hidden"><div class="masked"></div></div>
+<script>
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.getElementById("b").classList.add("hidden");
+        document.getElementById("c").classList.remove("hidden");
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (window.internals)
+                internals.signalTestIsDone("PASS");
+            else
+                document.documentElement.classList.remove("reftest-wait");
+        }));
+    }));
+</script>
+</html>
