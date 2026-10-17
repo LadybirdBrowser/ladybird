@@ -2122,11 +2122,13 @@ void CanonicalTraversable::traverse_the_history_by_a_delta_at_queue_position(His
     auto all_steps = m_session_history.used_steps();
 
     // 2. Let currentStepIndex be the index of traversable's current session history step within allSteps.
-    auto current_step_index = all_steps.find_first_index(m_session_history.current_step());
-    VERIFY(current_step_index.has_value());
+    // AD-HOC: The nested history of a destroyed navigable is removed when its destruction is admitted, but the current
+    //         step is only moved off the steps that removal left unused once the update for the destruction reaches its
+    //         position on the queue. A traversal that was queued ahead of the update goes from the used step instead.
+    auto current_step_index = m_session_history.current_used_step_index();
 
     // 3. Let targetStepIndex be currentStepIndex plus delta.
-    auto target_step_index = static_cast<i64>(*current_step_index) + static_cast<i64>(request.delta);
+    auto target_step_index = static_cast<i64>(current_step_index) + static_cast<i64>(request.delta);
 
     // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
     if (target_step_index < 0 || static_cast<size_t>(target_step_index) >= all_steps.size()) {
