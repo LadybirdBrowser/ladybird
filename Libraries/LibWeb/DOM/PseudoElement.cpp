@@ -86,11 +86,14 @@ void SyntheticPseudoElement::replace_style_record(CSS::StyleRecordID style_recor
     Layout::ForcedReadScope read { m_originating_element->document() };
     if (m_installed_style.record() == style_record_identity)
         return;
-    m_installed_style = m_originating_element->document().style_computer().install_style(read, style_record_identity);
-    // Only an element holds the record it installed before in the engine, so a pseudo-element's layout node reads the
-    // one it moves from itself.
+    auto& style_computer = m_originating_element->document().style_computer();
+    auto held_before = exchange(m_installed_style, style_computer.install_style(read, style_record_identity));
+    // The pseudo-element holds the record it installed before until the engine takes the new one in, so the layout node
+    // reads what it moves from before the pseudo-element lets go of it.
     if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(m_installed_style, {});
+        layout_node->set_style_record_identity(m_installed_style, held_before);
+    if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0)
+        CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), style_record_identity.value());
 }
 
 void SyntheticPseudoElement::set_computed_style(CSS::StyleRecordID style_record_identity)
@@ -112,6 +115,8 @@ void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues con
             else
                 layout_node->pin_style_record_for_detachment();
         }
+        if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0 && !!m_installed_style.record())
+            CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(m_originating_element->document().style_computer().style_engine().host(), style_node_id, to_underlying(type()), 0);
     }
     m_installed_style = {};
 }

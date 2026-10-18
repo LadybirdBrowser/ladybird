@@ -893,6 +893,9 @@ pub struct RetainedState {
     /// The style record each element holds, for the elements that hold one, as the host reports
     /// every record it installs or clears.
     held_style_records: crate::fork::ForkShared<HashMap<StyleNodeID, u64>>,
+    /// The style record each pseudo-element holds, by its kind, for the elements whose pseudo-elements
+    /// hold one, as the host reports every record it installs or clears.
+    held_pseudo_style_records: crate::fork::ForkShared<HashMap<StyleNodeID, Vec<(u8, u64)>>>,
     /// The records a clock frame shows in place of the ones the host installed, which it lends the published reads
     /// for as long as it runs.
     tick_shown: engine_sample::TickShownRecords,
