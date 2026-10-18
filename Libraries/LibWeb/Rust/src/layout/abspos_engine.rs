@@ -1870,8 +1870,13 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
 
-        self.sizing()
-            .make_button_content_box_definite(node, LayoutMode::Normal, available_space, constraints, None);
+        self.sizing().make_form_control_content_box_definite(
+            node,
+            LayoutMode::Normal,
+            available_space,
+            constraints,
+            None,
+        );
     }
 
     pub(crate) fn finalize_out_of_flow_root_after_inside_layout(

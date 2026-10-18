@@ -1067,6 +1067,16 @@ impl<'pass> NodeFacts<'pass> {
         has_flag(self.data(), NodeFlag::IsHtmlInputElement)
     }
 
+    /// A text entry input with `appearance: none`, which lays out its text control content as an ordinary box.
+    pub(crate) fn is_primitive_text_input(&self) -> bool {
+        self.is_html_input_element() && self.has_default_preferred_height()
+    }
+
+    /// A text entry input, with or without its native appearance.
+    pub(crate) fn is_text_input(&self) -> bool {
+        self.data().kind.get() == NodeKind::TextInputBox || self.is_primitive_text_input()
+    }
+
     pub(crate) fn is_fieldset_box(&self) -> bool {
         self.data().kind.get() == NodeKind::FieldSetBox
     }
