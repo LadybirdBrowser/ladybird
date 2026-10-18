@@ -254,7 +254,14 @@ static StyleNodeID identity_of_arrived_next_sibling(GC::Ptr<DOM::Element> elemen
     return no_style_node;
 }
 
-static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine, TreeScopeID tree_scope)
+// A subtree leaves in tree order, so below its root every previous sibling has already departed and
+// none is left to name. Scanning past them would make removing a wide subtree quadratic.
+enum class PreviousSiblings {
+    Arrived,
+    Departed,
+};
+
+static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine, TreeScopeID tree_scope, PreviousSiblings previous_siblings = PreviousSiblings::Arrived)
 {
     auto assigned_slot = no_style_node;
     if (auto slot = element.assigned_slot_internal())
@@ -262,7 +269,9 @@ static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, Styl
 
     return StyleEngineFFI::FfiTreeRelations {
         .parent = style_tree_parent_of(element, style_engine).value(),
-        .previous_element_sibling = identity_of_arrived_previous_sibling(element.previous_element_sibling()).value(),
+        .previous_element_sibling = previous_siblings == PreviousSiblings::Departed
+            ? no_style_node.value()
+            : identity_of_arrived_previous_sibling(element.previous_element_sibling()).value(),
         .next_element_sibling = identity_of_arrived_next_sibling(element.next_element_sibling()).value(),
         .tree_scope = tree_scope.value(),
         .assigned_slot = assigned_slot.value(),
@@ -1335,7 +1344,7 @@ static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>> nodes)
         record_slot_assignment_changed(slot);
 }
 
-static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree_scope)
+static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree_scope, PreviousSiblings previous_siblings)
 {
     auto* style_engine = style_engine_for_identified(element);
     if (!style_engine)
@@ -1365,7 +1374,7 @@ static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree
         .node = node.value(),
         .old_connected = true,
         .new_connected = false,
-        .old_relations = relations_of(element, *style_engine, tree_scope),
+        .old_relations = relations_of(element, *style_engine, tree_scope, previous_siblings),
         .new_relations = detached_relations(),
     });
 
@@ -1862,7 +1871,7 @@ void record_subtree_disconnecting(DOM::Node& root)
     Vector<StyleNodeID, 64> departing_texts;
     auto disconnect_element = [&](DOM::Node& node, TreeScopeID tree_scope) {
         if (auto* element = as_if<DOM::Element>(node)) {
-            record_element_disconnecting(*element, tree_scope);
+            record_element_disconnecting(*element, tree_scope, &node == &root ? PreviousSiblings::Arrived : PreviousSiblings::Departed);
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node)) {
             shadow_roots.append(*shadow_root);
         } else if (auto* text = as_if<DOM::Text>(node); text && style_engine && text->style_node_id() != no_style_node) {
