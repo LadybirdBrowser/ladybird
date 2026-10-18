@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	The initiator type for <source> in a <picture> must be 'img'
+Pass	The initiator type for <img> in a <picture> must be 'img'
+Pass	The initiator type for <img srcset> in a <picture> must be 'img'
+Pass	The initiator type for <img src> in a <picture> must be 'img'
