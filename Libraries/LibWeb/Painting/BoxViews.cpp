@@ -631,32 +631,34 @@ CSSPixelRect transform_reference_box(Layout::Node const& node)
     return rect;
 }
 
+// NB: Taking the document's visual context tree brings it up to date, which can compact it and move a box's visual
+//     context to other nodes. The functions below read a box's visual context only once they have the tree.
 CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
 {
-    auto row = committed_row(node);
-    if (!row.has_value())
+    if (!has_committed_box(node))
         return {};
     auto const& document = node.document();
     if (!document.has_committed_viewport_box())
         return rect;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto result = document.visual_context_tree().transform_rect_to_viewport(
-        row->accumulated_visual_context.spatial, rect.to_type<float>() * pixel_ratio,
+    auto visual_context_tree = document.visual_context_tree();
+    auto result = visual_context_tree.transform_rect_to_viewport(
+        accumulated_visual_context(node).spatial, rect.to_type<float>() * pixel_ratio,
         document.scroll_state_snapshot(), include_visual_viewport_transform);
     return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
 }
 
 static Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPixelPoint position)
 {
-    auto row = committed_row(node);
-    if (!row.has_value())
+    if (!has_committed_box(node))
         return {};
     auto const& document = node.document();
     if (!document.has_committed_viewport_box())
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto result = document.visual_context_tree().transform_point_for_hit_test(
-        row->accumulated_visual_context, position.to_type<float>() * pixel_ratio,
+    auto visual_context_tree = document.visual_context_tree();
+    auto result = visual_context_tree.transform_point_for_hit_test(
+        accumulated_visual_context(node), position.to_type<float>() * pixel_ratio,
         document.scroll_state_snapshot());
     if (!result.has_value())
         return {};
@@ -665,14 +667,14 @@ static Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node
 
 CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint position)
 {
-    auto row = committed_row(node);
-    if (!row.has_value())
+    if (!has_committed_box(node))
         return {};
     auto const& document = node.document();
     if (!document.has_committed_viewport_box())
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto result = document.visual_context_tree().inverse_transform_point(row->accumulated_visual_context.spatial, position.to_type<float>() * pixel_ratio);
+    auto visual_context_tree = document.visual_context_tree();
+    auto result = visual_context_tree.inverse_transform_point(accumulated_visual_context(node).spatial, position.to_type<float>() * pixel_ratio);
     return (result / pixel_ratio).to_type<CSSPixels>();
 }
 
@@ -837,14 +839,16 @@ CSSPixelRect bounding_client_rect(Layout::Node const& node, Layout::RustFFI::Ffi
 
 CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)
 {
-    auto index = enclosing_scroll_node_index(node);
-    if (index == Compositing::VISUAL_VIEWPORT_NODE_INDEX)
-        return {};
     auto const& document = node.document();
     if (!document.has_committed_viewport_box())
         return {};
+    // NB: Taking the tree first brings the box's scroll node up to date with it, as for the visual contexts above.
+    auto visual_context_tree = document.visual_context_tree();
+    auto index = enclosing_scroll_node_index(node);
+    if (index == Compositing::VISUAL_VIEWPORT_NODE_INDEX)
+        return {};
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto device_offset = document.visual_context_tree().cumulative_scroll_chain_offset(index, document.scroll_state_snapshot());
+    auto device_offset = visual_context_tree.cumulative_scroll_chain_offset(index, document.scroll_state_snapshot());
     return { CSSPixels::nearest_value_for(device_offset.x() / pixel_ratio), CSSPixels::nearest_value_for(device_offset.y() / pixel_ratio) };
 }
 
