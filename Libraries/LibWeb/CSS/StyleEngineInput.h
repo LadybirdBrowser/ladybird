@@ -57,7 +57,27 @@ WEB_API void record_text_connected(DOM::Text&);
 
 // Gives every node waiting to arrive its style node identity and records its arrival, in tree
 // order. Whatever reads the style engine, or a connected node's identity, calls this first.
-WEB_API void take_in_pending_style_arrivals(DOM::Document&);
+//
+// The children of an element in a display:none subtree have no boxes, and their styles serve only a
+// read of them or the subtree's reveal. Where nothing outside the subtree can observe them either,
+// the element may arrive alone and leave its children waiting, until the subtree is revealed, a
+// `:has()` argument could reach them, or the caller is one that names them.
+enum class HiddenChildArrivals {
+    TakeIn,
+    MayWait,
+};
+WEB_API void take_in_pending_style_arrivals(DOM::Document&, HiddenChildArrivals = HiddenChildArrivals::TakeIn);
+
+// Called once an element whose children, or some descendant's, wait to arrive in a display:none
+// subtree takes a style that is not display:none, or an animation, either of which may reveal them.
+WEB_API void record_waiting_children_may_be_revealed(DOM::Element&);
+
+// Called once an element is associated with an animation, which can hold a display:none element visible and keeps the
+// style of an element even while it is hidden.
+WEB_API void record_element_associated_with_animation(DOM::Element&);
+
+// Called once the classes of a connected element without a style node identity change.
+WEB_API void record_waiting_element_classes_changed(DOM::Element&);
 
 // Called whenever a text node's data is replaced. The mirror carries the characters, which the layout tree build
 // renders, and whether they are nothing but ASCII whitespace.

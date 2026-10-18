@@ -1539,7 +1539,7 @@ impl FeatureKey {
         }
     }
 
-    fn atom(self) -> Option<StyleAtomID> {
+    pub(crate) fn atom(self) -> Option<StyleAtomID> {
         match self {
             Self::Part(atom)
             | Self::CustomState(atom)

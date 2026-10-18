@@ -5377,6 +5377,11 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
         layout_node->set_style_record_identity(m_installed_style, held_before);
     if (style_node_id() != 0)
         CSS::StyleEngineFFI::style_engine_set_held_style_record(document().style_computer().style_engine().host(), style_node_id(), style_record_identity.value());
+    // Children that wait to arrive in a display:none subtree may be revealed as the subtree's root, or an element
+    // between it and them, stops being display:none.
+    if ((child_style_arrivals_wait() || descendant_style_arrival_pending()) && m_installed_style && !m_installed_style.display_is_none()
+        && (!held_before || held_before.display_is_none()))
+        CSS::record_waiting_children_may_be_revealed(*this);
     // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
     if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)
@@ -6436,6 +6441,8 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
 
         if (old_style_engine_classes.has_value())
             CSS::record_element_class_list_changed(*this, *old_style_engine_classes, m_classes);
+        else if (is_connected())
+            CSS::record_waiting_element_classes_changed(*this);
     } else if (local_name == HTML::AttributeNames::style) {
         // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
         if (m_inline_style && m_inline_style->is_updating())

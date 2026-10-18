@@ -20,6 +20,7 @@
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/ParkedRandomBaseValues.h>
+#include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
@@ -325,6 +326,32 @@ public:
     // next submitted.
     void note_pending_arrivals(size_t count);
     void forget_pending_arrivals() { m_pending_arrival_count = 0; }
+    [[nodiscard]] bool has_pending_arrivals() const { return m_pending_arrival_count > 0; }
+    // Children that wait to arrive in a display:none subtree may have to arrive now. Nothing is recorded until the
+    // input is next submitted, so this can be noted while a style update applies its reactions.
+    void note_waiting_arrivals_may_arrive();
+
+    // What an element's arrival has to carry to reach the anchor of a `:has()` argument: one of `names` as the raw
+    // identity of its tag, ID, class or attribute name, or the state of one of `state_pseudo_classes`.
+    struct RelationalArrivalKeys {
+        u64 version { 0 };
+        bool reached_by_any_arrival { false };
+        HashTable<FlatPtr> names;
+        Vector<PseudoClass> state_pseudo_classes;
+    };
+    RelationalArrivalKeys const& relational_arrival_keys(Layout::BegunRead const&);
+    // The keys as the engine last said, which may have moved since.
+    RelationalArrivalKeys const& last_relational_arrival_keys() const { return m_relational_arrival_keys; }
+    // The keys the children waiting in display:none subtrees were last found to carry none of.
+    Optional<u64> waiting_children_checked_against_keys_version() const { return m_waiting_children_checked_against_keys_version; }
+    void set_waiting_children_checked_against_keys_version(u64 version) { m_waiting_children_checked_against_keys_version = version; }
+    // Whether children waited in a display:none subtree as of the last take-in that looked at them, or were released
+    // since.
+    bool may_have_waiting_children() const { return m_may_have_waiting_children; }
+    void set_may_have_waiting_children(bool value) { m_may_have_waiting_children = value; }
+    // A rule a style update compiled can move the keys the waiting children were looked at against, and the
+    // children have to be looked at again before the update ends.
+    void note_waiting_arrivals_if_keys_moved(Layout::BegunRead const&);
     [[nodiscard]] bool has_pending_transaction(Layout::BegunRead const& read) const;
     [[nodiscard]] bool has_deferred_geometry_transaction(Layout::BegunRead const& read) const;
     // Whether a geometry read deferred a transaction that has_deferred_geometry_transaction() may still find, which the
@@ -444,6 +471,9 @@ private:
     HashTable<StyleNodeID> m_style_nodes_with_animations_changed_beside_flown_transaction;
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;
     size_t m_pending_arrival_count { 0 };
+    RelationalArrivalKeys m_relational_arrival_keys;
+    Optional<u64> m_waiting_children_checked_against_keys_version;
+    bool m_may_have_waiting_children { false };
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };
     StyleAtomID m_html_element_namespace;

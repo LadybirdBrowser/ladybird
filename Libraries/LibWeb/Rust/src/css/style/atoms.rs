@@ -411,6 +411,24 @@ impl DocumentAtoms {
         reclaimable
     }
 
+    /// The raw identity of the name each of `atoms` was interned from, a qualified atom's being its name's, or none
+    /// where one was interned from text rather than from a name.
+    pub(super) fn raw_identities_of(&self, atoms: impl IntoIterator<Item = StyleAtomID>) -> Option<Vec<usize>> {
+        let mut wanted: HashSet<StyleAtomID> = atoms.into_iter().collect();
+        for (&(_, name), atom) in &self.qualified {
+            if wanted.remove(atom) {
+                wanted.insert(StyleAtomID(name));
+            }
+        }
+        let mut raws = Vec::with_capacity(wanted.len());
+        for (&raw, atom) in &self.raw {
+            if raw < TEXT_KEY_FLOOR && wanted.remove(atom) {
+                raws.push(raw);
+            }
+        }
+        wanted.is_empty().then_some(raws)
+    }
+
     /// A sweep marks everything live whatever it reclaims, so the next one waits until the table has doubled: its cost
     /// spreads over as many new atoms as this one left live.
     fn schedule_next_sweep(&mut self) {

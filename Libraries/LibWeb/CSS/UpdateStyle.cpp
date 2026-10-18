@@ -256,7 +256,9 @@ StyleEngineFFI::FfiTakenStyleTransaction StyleEngineFFI::web_css_take_style_tran
 
 bool StyleEngineFFI::web_css_has_pending_style_transaction(StyleReactionApplication* application)
 {
-    return application->document->style_computer().style_engine().has_pending_transaction(application->read);
+    auto& style_engine = application->document->style_computer().style_engine();
+    style_engine.note_waiting_arrivals_if_keys_moved(application->read);
+    return style_engine.has_pending_transaction(application->read);
 }
 
 void StyleEngineFFI::web_css_note_style_update_has_reactions(StyleReactionApplication* application)
@@ -703,7 +705,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     // since the last update under the identities they take here.
     // NB: What connected beside the transaction that flew is the next transaction's.
     if constexpr (!drains_flown_transaction)
-        take_in_pending_style_arrivals(document);
+        take_in_pending_style_arrivals(document, HiddenChildArrivals::MayWait);
     StyleUpdateScope style_update_scope { document.style_computer() };
 
     document.begin_style_stabilization_epoch();
@@ -884,6 +886,7 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
     //               chain has style throughout, or a display:none element stops the read above every element without.
     if (mode != StyleUpdateMode::Normal
         && !abstract_element.pseudo_element().has_value()
+        && abstract_element.element().style_node_id() != 0
         && document_has_no_pending_style_work(read, document)
         && embedding_document_chain_has_no_pending_style_or_layout_work(document)) {
         StyleReactionApplication application { read, document };
@@ -892,7 +895,11 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
             return answer_style_read(abstract_element, answer);
     }
 
-    take_in_pending_style_arrivals(document);
+    // A read of an element in a display:none subtree may be answered by the children waiting to arrive there.
+    auto const& read_element = abstract_element.element();
+    auto read_may_need_waiting_children = document.descendant_style_arrival_pending()
+        && read_element.has_inclusive_ancestor_with_display_none_ignoring_animations();
+    take_in_pending_style_arrivals(document, read_may_need_waiting_children ? HiddenChildArrivals::TakeIn : HiddenChildArrivals::MayWait);
     StyleUpdateScope style_update_scope { document.style_computer() };
     // Refresh computed properties for an abstract element. An ordinary read first consumes the complete exact
     // reaction batch. A reentrant layout read leaves that transaction untouched and walks the flat-tree inheritance

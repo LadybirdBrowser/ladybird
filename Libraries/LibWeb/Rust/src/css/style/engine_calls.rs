@@ -1196,6 +1196,44 @@ pub extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read
     }
 }
 
+/// What an element's arrival has to carry to reach the anchor of a `:has()` argument, and where that is: the raw
+/// identities of the tags, IDs, classes and attribute names, and the states, any of which reaches one. The spans hold
+/// until the host next asks.
+#[repr(C)]
+pub struct FfiRelationalArrivalKeys {
+    pub version: u64,
+    pub reached_by_any_arrival: bool,
+    pub names: *const usize,
+    pub name_count: usize,
+    pub states: *const u8,
+    pub state_count: usize,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_relational_arrival_keys(
+    host: &DocumentHost,
+    read: &BegunRead,
+) -> FfiRelationalArrivalKeys {
+    let (version, keys) = host.known_relational_arrival_keys().unwrap_or_else(|| {
+        with_engine(read, host, |engine| {
+            engine.resolve_relational_arrival_keys();
+            (
+                engine.relational_arrival_keys_version(),
+                Arc::clone(engine.relational_arrival_keys()),
+            )
+        })
+    });
+    let keys = host.lend_relational_arrival_keys(keys);
+    FfiRelationalArrivalKeys {
+        version,
+        reached_by_any_arrival: keys.reached_by_any_arrival,
+        names: keys.names.as_ptr(),
+        name_count: keys.names.len(),
+        states: keys.states.as_ptr(),
+        state_count: keys.states.len(),
+    }
+}
+
 /// Whether the engine defers any element style input, which the host knows without asking where it wrote nothing since
 /// its last job.
 #[unsafe(no_mangle)]

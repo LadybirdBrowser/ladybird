@@ -93,6 +93,7 @@ impl StyleEngine {
         };
         self.add_style_rule_with(sheet, before, |engine, previous_program| {
             engine.note_selector_attribute_names(program.program());
+            engine.note_relational_arrival_keys(program.program());
             let id = engine.retained.programs.add_process_program(&program);
             engine.retained.selector_programs_need_sweep |= previous_program.is_some();
             engine.retained.programs.settle_memory(&mut engine.retained.memory);

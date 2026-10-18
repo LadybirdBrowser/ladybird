@@ -2253,6 +2253,19 @@ impl StyleEngine {
         if self.retained.tested_attribute_names.iter().any(is_reclaimed) {
             Arc::make_mut(&mut self.retained.tested_attribute_names).retain(|atom| !is_reclaimed(atom));
         }
+        let relational_arrival_key_is_reclaimed = |key: &RoutingKey| key.atom().is_some_and(|atom| is_reclaimed(&atom));
+        if self
+            .retained
+            .relational_arrival_keys
+            .keys
+            .iter()
+            .any(relational_arrival_key_is_reclaimed)
+        {
+            let mut keys = self.retained.relational_arrival_keys.keys.clone();
+            keys.extend(self.retained.unresolved_relational_arrival_keys.drain());
+            keys.retain(|key| !relational_arrival_key_is_reclaimed(key));
+            self.retained.replace_relational_arrival_keys(keys);
+        }
         if self.retained.attribute_value_text_names.iter().any(is_reclaimed) {
             Arc::make_mut(&mut self.retained.attribute_value_text_names).retain(|atom| !is_reclaimed(atom));
             self.retained.attribute_value_text_requirements_version += 1;
