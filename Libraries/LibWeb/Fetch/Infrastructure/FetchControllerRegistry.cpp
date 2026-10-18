@@ -5,6 +5,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -34,6 +35,15 @@ GC::Ptr<FetchController> FetchControllerRegistry::find(FetchControllerToken toke
 {
     VERIFY(token.m_registry_id == m_id);
     return m_controllers.get(token.m_serial).value_or(nullptr);
+}
+
+Vector<GC::Root<FetchController>> FetchControllerRegistry::controllers() const
+{
+    Vector<GC::Root<FetchController>> controllers;
+    controllers.ensure_capacity(m_controllers.size());
+    for (auto const& entry : m_controllers)
+        controllers.unchecked_append(GC::make_root(*entry.value));
+    return controllers;
 }
 
 }

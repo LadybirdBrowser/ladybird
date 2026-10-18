@@ -1,0 +1,7 @@
+classic, stopped before the script's headers: TypeError
+classic, stopped while the script's body arrives: TypeError
+module, stopped before the script's headers: TypeError
+module, stopped while the script's body arrives: TypeError
+module, stopped while it imports a module: TypeError
+classic, served as plain text: SecurityError
+classic, after them: InternalError

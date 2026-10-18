@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Runs on a hostname of its own, in a process apart from the test page.
+    async function checkObjectDataFetchesStopWithTheirDocument(cases) {
+        const output = [];
+        const println = line => output.push(line);
+
+        const countCells = className => {
+            let count = 0;
+            for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
+                if (cell.class_name === className)
+                    ++count;
+            }
+            return count;
+        };
+
+        const waitUntil = async condition => {
+            while (!(await condition()))
+                await new Promise(resolve => setTimeout(resolve, 10));
+        };
+
+        // The test's requests to the server go through the parent page, and add no cells to this process.
+        let questionCount = 0;
+        const askParent = question =>
+            new Promise(resolve => {
+                const id = ++questionCount;
+                addEventListener("message", function receive(event) {
+                    if (event.data?.answered !== id)
+                        return;
+                    removeEventListener("message", receive);
+                    resolve();
+                });
+                parent.postMessage({ question: { ...question, id } }, "*");
+            });
+        const waitForRequestAtServer = url => askParent({ waitForRequest: url });
+        const unblock = url => askParent({ unblock: url });
+
+        // One collection may not free a cell that nothing holds.
+        const waitForPumps = async count => {
+            const deadline = performance.now() + 20000;
+            let pumps;
+            do {
+                await internals.gcAsync();
+                pumps = countCells("NetworkBodyPump");
+                if (pumps === count)
+                    return "released";
+                await new Promise(resolve => setTimeout(resolve, 10));
+            } while (performance.now() < deadline);
+            return `left ${pumps - count} pumps`;
+        };
+
+        await internals.gcAsync();
+        const initialPumps = countCells("NetworkBodyPump");
+        const initialPullSources = countCells("BodyStreamPullSource");
+
+        for (const held of cases) {
+            const frame = document.createElement("iframe");
+            frame.src = held.page;
+            document.body.append(frame);
+
+            // The server has the object's request, and holds its response.
+            await waitForRequestAtServer(held.recorded);
+            await waitUntil(() => countCells("NetworkBodyPump") > initialPumps);
+            if (held.midBody)
+                await waitUntil(() => countCells("BodyStreamPullSource") > initialPullSources);
+
+            await new Promise(resolve => {
+                frame.onload = resolve;
+                frame.src = "about:blank";
+            });
+            println(`object data held ${held.name}, after its document went away: ${await waitForPumps(initialPumps)}`);
+            frame.remove();
+            await unblock(held.unblock);
+        }
+
+        return output;
+    }
+
+    promiseTest(async () => {
+        const hostname = uniqueLocalhostHostname("object-data-fetch");
+        const server = httpTestServer();
+        const onHostname = url => {
+            const result = new URL(url);
+            result.hostname = hostname;
+            return result;
+        };
+
+        const cases = [];
+        for (const midBody of [false, true]) {
+            const token = `object-data-${crypto.randomUUID()}`;
+            const data = onHostname(await server.createEcho("GET", `/object-data-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: { "Cache-Control": "no-store", "Content-Type": "application/octet-stream" },
+                body: "x".repeat(64 * 1024),
+                ...(midBody ? {} : { wait_for_unblock: token }),
+            }));
+            const recorded = new URL(server.recordedRequestHeadersURL(data.href));
+            recorded.hostname = hostname;
+            if (midBody) {
+                data.search = `?chunks=1500&chunk_unblock_tokens=${token}`;
+                recorded.search = data.search;
+            }
+            const page = onHostname(await server.createEcho("GET", `/object-data-page-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><object data="${data.href}"></object>`,
+            }));
+            cases.push({
+                name: midBody ? "mid-body" : "before its headers",
+                midBody,
+                page: page.href,
+                recorded: recorded.href,
+                unblock: new URL(`/unblock/${token}`, data).href,
+            });
+        }
+
+        const checker = onHostname(await server.createEcho("GET", `/object-data-checker-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><body><script>
+                (${checkObjectDataFetchesStopWithTheirDocument.toString()})(${JSON.stringify(cases)}).then(
+                    output => parent.postMessage({ output }, "*"),
+                    error => parent.postMessage({ error: String(error) }, "*"));
+            <\/script>`,
+        }));
+
+        const frame = document.createElement("iframe");
+        window.addEventListener("message", async event => {
+            const question = event.data?.question;
+            if (event.source !== frame.contentWindow || !question)
+                return;
+            if (question.waitForRequest) {
+                while ((await fetch(question.waitForRequest).catch(() => null))?.ok !== true)
+                    await new Promise(resolve => setTimeout(resolve, 10));
+            } else {
+                await fetch(question.unblock);
+            }
+            frame.contentWindow.postMessage({ answered: question.id }, "*");
+        });
+        const result = new Promise(resolve => {
+            window.addEventListener("message", function receive(event) {
+                if (event.source !== frame.contentWindow || event.data?.question)
+                    return;
+                window.removeEventListener("message", receive);
+                resolve(event.data);
+            });
+        });
+        frame.src = checker;
+        document.body.append(frame);
+        try {
+            const { output, error } = await result;
+            if (error)
+                throw new Error(error);
+            for (const line of output)
+                println(line);
+        } finally {
+            frame.remove();
+        }
+    });
+</script>

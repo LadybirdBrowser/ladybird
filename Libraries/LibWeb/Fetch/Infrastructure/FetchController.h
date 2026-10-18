@@ -77,6 +77,9 @@ public:
     [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
     void set_task_destination(TaskDestination task_destination) { m_task_destination = move(task_destination); }
 
+    [[nodiscard]] bool is_keepalive() const { return m_is_keepalive; }
+    void set_keepalive(bool is_keepalive) { m_is_keepalive = is_keepalive; }
+
     // AD-HOC: Whether this fetch's response has arrived: as headers from the network, or at main fetch. From then on,
     //         its body delivery is queued as event-loop tasks, and its response processing captures its task
     //         destination as it was then — so re-targeting the fetch no longer reaches either.
@@ -169,6 +172,7 @@ private:
     // task destination (default null)
     //     Null, a global object, or a parallel queue.
     TaskDestination m_task_destination;
+    bool m_is_keepalive { false };
 
     bool m_response_arrived { false };
     // NB: Assumes one waiting consumer for a pending preloaded response.

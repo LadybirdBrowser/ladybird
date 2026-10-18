@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Stopping the document whose registration is fetching its script settles the registration and finishes its job,
+    // whether the script's headers or body are still to come, so the next registration for the scope still runs.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const runId = uniqueID();
+        const directory = `/service-worker-register-stopped-${runId}`;
+
+        const javascript = { "Content-Type": "text/javascript", "Cache-Control": "no-store" };
+        const script = async (name, options) => server.createEcho("GET", `${directory}/${name}`, { status: 200, headers: javascript, body: "", ...options });
+        const heldUntil = token => ({ wait_for_unblock: token });
+        const bodyHeldUntil = token => `?chunks=1&chunk_unblock_tokens=${token}`;
+        const unblock = token => fetch(`${server.baseURL}/unblock/${token}`);
+
+        const frameUrl = await server.createEcho("GET", `${directory}/frame.html`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                addEventListener("message", async event => {
+                    if (event.data === "stop") {
+                        stop();
+                        return;
+                    }
+                    try {
+                        await navigator.serviceWorker.register(event.data.url, { type: event.data.type });
+                        parent.postMessage("resolved", "*");
+                    } catch (error) {
+                        parent.postMessage(error.name, "*");
+                    }
+                });
+            <\/script>`,
+        });
+        const frame = document.createElement("iframe");
+        document.body.appendChild(frame);
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            frame.src = frameUrl;
+        });
+
+        const register = (url, type) => {
+            const settled = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+            frame.contentWindow.postMessage({ url, type }, "*");
+            return settled;
+        };
+        const stopFrame = () => frame.contentWindow.postMessage("stop", "*");
+
+        for (const type of ["classic", "module"]) {
+            const headersToken = `${runId}-${type}-headers`;
+            const headersHeld = await script(`${type}-headers-held.js`, heldUntil(headersToken));
+            let settled = register(headersHeld, type);
+            await server.waitForRequest(headersHeld);
+            stopFrame();
+            println(`${type}, stopped before the script's headers: ${await settled}`);
+            await unblock(headersToken);
+
+            const bodyToken = `${runId}-${type}-body`;
+            const bodyHeld = (await script(`${type}-body-held.js`, { body: "// held" })) + bodyHeldUntil(bodyToken);
+            settled = register(bodyHeld, type);
+            await server.waitForRequest(bodyHeld);
+            await timeout(200);
+            stopFrame();
+            println(`${type}, stopped while the script's body arrives: ${await settled}`);
+            await unblock(bodyToken);
+        }
+
+        const dependencyToken = `${runId}-dependency`;
+        const dependency = await script("dependency-held.js", heldUntil(dependencyToken));
+        const importer = await script("importer.js", { body: `import ${JSON.stringify(dependency)};` });
+        let settled = register(importer, "module");
+        await server.waitForRequest(dependency);
+        stopFrame();
+        println(`module, stopped while it imports a module: ${await settled}`);
+        await unblock(dependencyToken);
+
+        const plainText = await script("plain-text.js", { headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" } });
+        println(`classic, served as plain text: ${await register(plainText, "classic")}`);
+
+        const valid = await script("valid.js", {});
+        println(`classic, after them: ${await register(valid, "classic")}`);
+    });
+</script>

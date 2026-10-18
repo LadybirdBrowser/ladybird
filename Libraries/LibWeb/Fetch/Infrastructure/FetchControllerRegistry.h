@@ -9,8 +9,10 @@
 #include <AK/Badge.h>
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
+#include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerToken.h>
 #include <LibWeb/Forward.h>
@@ -29,6 +31,8 @@ public:
     void remove(Badge<FetchController>, FetchControllerToken);
 
     [[nodiscard]] GC::Ptr<FetchController> find(FetchControllerToken) const;
+
+    [[nodiscard]] Vector<GC::Root<FetchController>> controllers() const;
 
 private:
     u64 m_id { 0 };

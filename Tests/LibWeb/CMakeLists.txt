@@ -31,6 +31,7 @@ set(TEST_SOURCES
     TestFetchBodyStream.cpp
     TestFetchByteChannel.cpp
     TestFetchControllerRegistry.cpp
+    TestFetchTaskDestination.cpp
     TestFetchEngineMessages.cpp
     TestFetchExecutor.cpp
     TestFetchResponse.cpp
@@ -99,6 +100,7 @@ target_link_libraries(TestFetchBodyDeliveryGate PRIVATE LibCore LibThreading)
 target_link_libraries(TestFetchBodyStream PRIVATE LibCore LibGC LibJS)
 target_link_libraries(TestFetchByteChannel PRIVATE LibThreading)
 target_link_libraries(TestFetchControllerRegistry PRIVATE LibGC)
+target_link_libraries(TestFetchTaskDestination PRIVATE LibCore LibGC LibJS LibURL)
 target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)

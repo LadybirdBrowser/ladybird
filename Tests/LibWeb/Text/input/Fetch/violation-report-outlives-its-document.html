@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Runs on a hostname of its own, in a process apart from the test page.
+    async function checkViolationReportOutlivesItsDocument(urls) {
+        const output = [];
+        const println = line => output.push(line);
+
+        const countPumps = () => {
+            let count = 0;
+            for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
+                if (cell.class_name === "NetworkBodyPump")
+                    ++count;
+            }
+            return count;
+        };
+
+        const waitUntil = async condition => {
+            while (!(await condition()))
+                await new Promise(resolve => setTimeout(resolve, 10));
+        };
+
+        // The test's requests to the server go through the parent page, and add no cells to this process.
+        let questionCount = 0;
+        const askParent = question =>
+            new Promise(resolve => {
+                const id = ++questionCount;
+                addEventListener("message", function receive(event) {
+                    if (event.data?.answered !== id)
+                        return;
+                    removeEventListener("message", receive);
+                    resolve();
+                });
+                parent.postMessage({ question: { ...question, id } }, "*");
+            });
+        const waitForRequestAtServer = url => askParent({ waitForRequest: url });
+        const unblock = url => askParent({ unblock: url });
+
+        // One collection may not free a cell that nothing holds.
+        const collectGarbage = async () => {
+            for (let round = 0; round < 5; ++round)
+                await internals.gcAsync();
+        };
+
+        await collectGarbage();
+        const initialPumps = countPumps();
+
+        const frame = document.createElement("iframe");
+        frame.src = urls.page;
+        document.body.append(frame);
+
+        // The server has the report's request, and holds its response.
+        await waitForRequestAtServer(urls.recorded);
+        await waitUntil(() => countPumps() > initialPumps);
+
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            frame.src = "about:blank";
+        });
+        await collectGarbage();
+        println(`report still running after its document went away: ${countPumps() > initialPumps}`);
+
+        await unblock(urls.unblock);
+        await waitUntil(async () => {
+            await internals.gcAsync();
+            return countPumps() === initialPumps;
+        });
+        println("report finished once its response arrived");
+        frame.remove();
+
+        return output;
+    }
+
+    promiseTest(async () => {
+        const hostname = uniqueLocalhostHostname("violation-report");
+        const server = httpTestServer();
+        const onHostname = url => {
+            const result = new URL(url);
+            result.hostname = hostname;
+            return result;
+        };
+
+        const token = `violation-report-${crypto.randomUUID()}`;
+        const report = onHostname(await server.createEcho("POST", `/violation-report-${crypto.randomUUID()}`, {
+            status: 204,
+            headers: { "Cache-Control": "no-store" },
+            wait_for_unblock: token,
+        }));
+        const recorded = onHostname(server.recordedRequestHeadersURL(report.href));
+        const page = onHostname(await server.createEcho("GET", `/violation-report-page-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Cache-Control": "no-store",
+                "Content-Type": "text/html",
+                "Content-Security-Policy": `img-src 'none'; report-uri ${report.href}`,
+            },
+            body: `<!DOCTYPE html><img src="blocked.png">`,
+        }));
+        const urls = {
+            page: page.href,
+            recorded: recorded.href,
+            unblock: new URL(`/unblock/${token}`, report).href,
+        };
+
+        const checker = onHostname(await server.createEcho("GET", `/violation-report-checker-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><body><script>
+                (${checkViolationReportOutlivesItsDocument.toString()})(${JSON.stringify(urls)}).then(
+                    output => parent.postMessage({ output }, "*"),
+                    error => parent.postMessage({ error: String(error) }, "*"));
+            <\/script>`,
+        }));
+
+        const frame = document.createElement("iframe");
+        window.addEventListener("message", async event => {
+            const question = event.data?.question;
+            if (event.source !== frame.contentWindow || !question)
+                return;
+            if (question.waitForRequest) {
+                while ((await fetch(question.waitForRequest).catch(() => null))?.ok !== true)
+                    await new Promise(resolve => setTimeout(resolve, 10));
+            } else {
+                await fetch(question.unblock);
+            }
+            frame.contentWindow.postMessage({ answered: question.id }, "*");
+        });
+        const result = new Promise(resolve => {
+            window.addEventListener("message", function receive(event) {
+                if (event.source !== frame.contentWindow || event.data?.question)
+                    return;
+                window.removeEventListener("message", receive);
+                resolve(event.data);
+            });
+        });
+        frame.src = checker;
+        document.body.append(frame);
+        try {
+            const { output, error } = await result;
+            if (error)
+                throw new Error(error);
+            for (const line of output)
+                println(line);
+        } finally {
+            frame.remove();
+        }
+    });
+</script>
