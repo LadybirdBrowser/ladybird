@@ -80,7 +80,7 @@ void PlayingStateHandler::update_unticked_end_of_stream_timer()
     }
 
     auto delay_seconds = (latest_verified_end_time - now).to_seconds_f64() / playback_rate;
-    m_unticked_end_of_stream_timer->restart(AK::Duration::from_milliseconds(max(1, AK::clamp_to<int>(AK::ceil(delay_seconds * 1'000.0)))));
+    m_unticked_end_of_stream_timer->restart(AK::Duration::from_seconds_f64(delay_seconds));
 }
 
 }

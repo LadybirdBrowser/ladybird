@@ -62,8 +62,7 @@ void CaretBlinkTimer::schedule_next_blink()
         ? now_ns - *m_blink_cycle_start_time_ns
         : 0;
     auto delay_ns = Compositing::caret_blink_interval_ns - elapsed_ns % Compositing::caret_blink_interval_ns;
-    auto delay_ms = max(static_cast<int>((delay_ns + 999'999) / 1'000'000), 1);
-    m_timer->restart(AK::Duration::from_milliseconds(delay_ms));
+    m_timer->restart(AK::Duration::from_nanoseconds(delay_ns));
 }
 
 }

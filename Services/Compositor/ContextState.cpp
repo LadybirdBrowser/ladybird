@@ -1593,9 +1593,7 @@ void ContextState::schedule_end_of_scroll_step_gestures(MonotonicTime now)
             end_scroll_step_gestures_whose_input_ran_out(MonotonicTime::now());
         });
     }
-    // The gesture has run out of input once the clock reads past the deadline.
-    auto delay = max(*deadline - now, AK::Duration::zero()).to_milliseconds() + 1;
-    m_scroll_step_gesture_input_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(delay)));
+    m_scroll_step_gesture_input_timer->restart(max(*deadline - now, AK::Duration::zero()));
 }
 
 void ContextState::end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now)
