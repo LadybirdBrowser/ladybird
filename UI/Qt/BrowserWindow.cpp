@@ -1127,6 +1127,11 @@ void BrowserWindow::exit_fullscreen()
 bool BrowserWindow::event(QEvent* event)
 {
 #if defined(AK_OS_MACOS)
+    // NB: Qt sends the show event before the native window appears, so it never shows with its controls unmoved.
+    if (event->type() == QEvent::Show) {
+        hide_appkit_window_title(*this);
+        offset_appkit_window_controls(*this, NATIVE_WINDOW_CONTROL_X_OFFSET, NATIVE_WINDOW_CONTROL_Y_OFFSET);
+    }
     // NB: Qt sends this right after it sets the native title, which also puts the controls back in their default place.
     if (event->type() == QEvent::WindowTitleChange)
         reapply_appkit_window_control_offsets(*this);

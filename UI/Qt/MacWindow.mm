@@ -33,6 +33,7 @@
 
 - (instancetype)initWithWindow:(NSWindow*)window xOffset:(int)x_offset yOffset:(int)y_offset;
 - (void)applyWindowControlOffsets;
+- (void)updateTargetOriginForButton:(NSButton*)button;
 - (void)scheduleWindowControlOffsetUpdate:(NSButton*)button;
 - (void)windowControlFrameDidChange:(NSNotification*)notification;
 - (void)windowDidResize:(NSNotification*)notification;
@@ -52,14 +53,19 @@
 
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(windowDidResize:) name:NSWindowDidResizeNotification object:window];
 
+    // NB: Lay out the title bar now, so the controls are in their default place to offset them from, and move them
+    //     right away. Before a window is first shown, this keeps it from ever appearing with its controls unmoved.
+    [window.contentView.superview layoutSubtreeIfNeeded];
+
     constexpr NSWindowButton button_types[] = { NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton };
     for (size_t i = 0; i < std::size(button_types); ++i) {
         auto* button = [window standardWindowButton:button_types[i]];
         m_buttons[i] = [button retain];
         button.postsFrameChangedNotifications = YES;
         [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(windowControlFrameDidChange:) name:NSViewFrameDidChangeNotification object:button];
-        [self scheduleWindowControlOffsetUpdate:button];
+        [self updateTargetOriginForButton:button];
     }
+    [self applyWindowControlOffsets];
 
     return self;
 }
@@ -82,7 +88,7 @@
     m_update_scheduled = false;
 }
 
-- (void)scheduleWindowControlOffsetUpdate:(NSButton*)button
+- (void)updateTargetOriginForButton:(NSButton*)button
 {
     for (size_t i = 0; i < std::size(m_buttons); ++i) {
         if (m_buttons[i] != button)
@@ -94,6 +100,11 @@
         m_target_origins[i] = origin;
         break;
     }
+}
+
+- (void)scheduleWindowControlOffsetUpdate:(NSButton*)button
+{
+    [self updateTargetOriginForButton:button];
 
     if (m_update_scheduled)
         return;
@@ -419,6 +430,8 @@ void offset_appkit_window_controls(QWidget& widget, int x_offset, int y_offset)
 
     auto* window = view.window;
     if (!window)
+        return;
+    if (objc_getAssociatedObject(window, &s_window_control_offset_observer_key))
         return;
 
     auto* observer = [[LadybirdWindowControlOffsetObserver alloc] initWithWindow:window xOffset:x_offset yOffset:y_offset];
