@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:rbuis@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-contain/#content-visibility">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+body {
+  margin: 0;
+  padding: 0;
+}
+div {
+  content-visibility:hidden;
+}
+path {
+  stroke-width: 5px;
+  stroke:green;
+}
+</style>
+
+<div>
+  <svg xmlns="http://www.w3.org/2000/svg">
+    <path id="path" d="M5 5 L 10 5 L 10 10 L 5 10 Z"/>
+  </svg>
+</div>
+
+<script>
+  test(() => {
+    const pathElement = document.getElementById('path');
+    const length = pathElement.getTotalLength();
+    assert_greater_than(length, 0, 'length');
+  }, `getTotalLength() should return nonzero value in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    const point = pathElement.getPointAtLength(0);
+    assert_greater_than(point.x, 0, 'point.x');
+    assert_greater_than(point.y, 0, 'point.y');
+  }, `getPointAtLength() should return nonzero values in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    const inFill = pathElement.isPointInFill({ x: 7, y: 7});
+    assert_true(inFill, 'fill');
+  }, `isPointInFill() should return true in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    const inStroke = pathElement.isPointInStroke({ x: 7, y: 7});
+    assert_true(inStroke, 'stroke');
+  }, `isPointInStroke() should return true in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    var rect = pathElement.ownerSVGElement.createSVGRect();
+    rect.x = 10;
+    rect.y = 10;
+    rect.width = 50;
+    rect.height = 50;
+    const intersection = pathElement.ownerSVGElement.checkIntersection(pathElement, rect);
+    assert_true(intersection, 'intersection');
+  }, `checkIntersection() should return true in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    var rect = pathElement.ownerSVGElement.createSVGRect();
+    rect.width = 50;
+    rect.height = 50;
+    const enclosed = pathElement.ownerSVGElement.checkEnclosure(pathElement, rect);
+    assert_true(enclosed, 'enclosure');
+  }, `checkEnclosure() should return true in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    var rect = pathElement.ownerSVGElement.createSVGRect();
+    rect.x = 10;
+    rect.y = 10;
+    rect.width = 50;
+    rect.height = 50;
+    const intersectionList = pathElement.ownerSVGElement.getIntersectionList(rect, null);
+    assert_greater_than(intersectionList.length, 0, 'intersection');
+  }, `getIntersectionList() should return items in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    var rect = pathElement.ownerSVGElement.createSVGRect();
+    rect.width = 50;
+    rect.height = 50;
+    const enclusureList = pathElement.ownerSVGElement.getEnclosureList(rect, null);
+    assert_greater_than(enclusureList.length, 0, 'intersection');
+  }, `getEnclosureList() should return items in a c-v:hidden subtree.`);
+
+  test(() => {
+    const pathElement = document.getElementById('path');
+    const bbox = pathElement.getBBox();
+    assert_not_equals(bbox.x, 0, 'x');
+    assert_not_equals(bbox.y, 0, 'y');
+    assert_not_equals(bbox.width, 0, 'width');
+    assert_not_equals(bbox.height, 0, 'height');
+  }, `path getBBox() should return nonzero values in a c-v:hidden subtree.`);
+</script>

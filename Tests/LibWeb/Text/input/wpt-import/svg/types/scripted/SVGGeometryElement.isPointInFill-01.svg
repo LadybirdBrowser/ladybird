@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVGGeometryElement.prototype.isPointInFill</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGGeometryElement"/>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__isPointInFill"/>
+  </metadata>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+
+  <g id="container">
+    <circle id="circle-at-origin" r="10" fill="blue"/>
+    <ellipse id="ellipse" cx="150" cy="150" rx="200" ry="100"
+             fill="blue" fill-opacity="0.1"
+             stroke-width="100" stroke="green" stroke-opacity="0.2"/>
+    <rect id="basic-rectangle" x="90" y="200" width="100" height="100" fill="lightblue"/>
+    <path id="rectangular-outline-evenodd" d="M200,200h100v100h-100z m20,20h60v60h-60z"
+          fill="lightblue" fill-rule="evenodd"/>
+    <path id="rectangular-outline-nonzero" d="M310,200h100v100h-100z m20,20h60v60h-60z"
+          fill="lightblue"/>
+    <clipPath>
+      <path id="rectangular-outline-nonzero-in-clip" d="M200,200h100v100h-100z m20,20h60v60h-60z"
+            fill="lightblue" clip-rule="evenodd"/>
+    </clipPath>
+  </g>
+
+  <script><![CDATA[
+    'use strict';
+
+    const pointsToTest = [
+      { x: 150, y: 150 },
+      { x: 275, y: 150 },
+      { x: 250, y: 225 },
+      { x: 0, y: 0 },
+      { x: 275, y: 250 },
+    ];
+    function testPoints(element) {
+      const expected = [true, true, true, false, false];
+      pointsToTest.forEach(function(point, index) {
+        assert_equals(element.isPointInFill(point),
+                      expected[index], "point at " + point.x + ", " + point.y);
+      });
+    }
+    function testResultVector(element) {
+      return pointsToTest.map(function(point) {
+        return element.isPointInFill(point);
+      });
+    }
+
+    test(function() {
+      let circleAtOrigin = document.getElementById("circle-at-origin");
+      assert_true(circleAtOrigin.isPointInFill());
+      let ellipse = document.getElementById("ellipse");
+      assert_false(ellipse.isPointInFill());
+    }, document.title + ", no arguments.");
+
+    test(function() {
+      let circleAtOrigin = document.getElementById("circle-at-origin");
+      assert_true(circleAtOrigin.isPointInFill(null));
+      assert_true(circleAtOrigin.isPointInFill(undefined));
+      let ellipse = document.getElementById("ellipse");
+      assert_false(ellipse.isPointInFill(null));
+      assert_false(ellipse.isPointInFill(undefined));
+    }, document.title + ", null/undefined.");
+
+    test(function() {
+      let circleAtOrigin = document.getElementById("circle-at-origin");
+      assert_false(circleAtOrigin.isPointInFill({ x: NaN, y: 0 }), "x is NaN");
+      assert_false(circleAtOrigin.isPointInFill({ x: Infinity, y: 0 }), "x is Infinity");
+      assert_false(circleAtOrigin.isPointInFill({ x: -Infinity, y: 0 }), "x is -Infinity");
+      assert_false(circleAtOrigin.isPointInFill({ x: 0, y: NaN }), "y is NaN");
+      assert_false(circleAtOrigin.isPointInFill({ x: 0, y: Infinity }), "y is Infinity");
+      assert_false(circleAtOrigin.isPointInFill({ x: 0, y: -Infinity }), "y is -Infinity");
+    }, document.title + ", non-finite argument.");
+
+    test(function() {
+      testPoints(document.getElementById("ellipse"));
+    }, document.title + ", functional test.");
+
+    test(function() {
+      const container = document.getElementById("container");
+      try {
+        container.style.zoom = 3;
+        testPoints(document.getElementById("ellipse"));
+      } finally {
+        container.style.zoom = 1;
+      }
+    }, document.title + ", functional test with zoom.");
+
+    test(function() {
+      const circleAtOrigin = document.getElementById("circle-at-origin");
+      assert_true(circleAtOrigin.isPointInFill({ x: 10, y: 0 }), "circle edge 3 o'clock");
+      assert_true(circleAtOrigin.isPointInFill({ x: 0, y: 10 }), "circle edge 6 o'clock");
+      const evenOdd = document.getElementById("rectangular-outline-evenodd");
+      assert_true(evenOdd.isPointInFill({ x: 200, y: 250 }),
+                  "rectangular path left outside edge");
+      assert_true(evenOdd.isPointInFill({ x: 220, y: 250 }),
+                  "rectangular path left inside edge");
+      assert_true(evenOdd.isPointInFill({ x: 250, y: 300 }),
+                  "rectangular path bottom outside edge");
+      assert_true(evenOdd.isPointInFill({ x: 250, y: 280 }),
+                  "rectangular path bottom inside edge");
+      const rectangle = document.getElementById("basic-rectangle");
+      assert_true(rectangle.isPointInFill({ x: 140, y: 200 }), "rect top edge");
+      assert_true(rectangle.isPointInFill({ x: 190, y: 250 }), "rect right edge");
+      assert_true(rectangle.isPointInFill({ x: 140, y: 300 }), "rect bottom edge");
+      assert_true(rectangle.isPointInFill({ x: 90, y: 250 }), "rect left edge");
+    }, document.title + ", points on the shape boundary are inside.");
+
+    test(function() {
+      let evenOdd = document.getElementById("rectangular-outline-evenodd");
+      assert_false(evenOdd.isPointInFill({ x: 250, y: 250 }));
+      let nonZeroWinding = document.getElementById("rectangular-outline-nonzero");
+      assert_true(nonZeroWinding.isPointInFill({ x: 360, y: 250 }));
+    }, document.title + ", 'fill-rule'.");
+
+    test(function() {
+      let ellipse = document.getElementById("ellipse");
+      // Results for 'pointer-events: visiblePainted' and 'visibility: visible'.
+      let expectedResults = testResultVector(ellipse);
+
+      const pointerEventValues = [ "bounding-box", "visibleFill",
+                                   "visibleStroke", "visiblePainted", "fill",
+                                   "stroke", "painted", "visible", "all",
+                                   "none" ];
+
+      ellipse.setAttribute("visibility", "visible");
+      for (let pointerEventValue of pointerEventValues) {
+        ellipse.setAttribute("pointer-events", pointerEventValue);
+        assert_array_equals(expectedResults, testResultVector(ellipse));
+      }
+
+      ellipse.setAttribute("visibility", "hidden");
+      for (let pointerEventValue of pointerEventValues) {
+        ellipse.setAttribute("pointer-events", pointerEventValue);
+        assert_array_equals(expectedResults, testResultVector(ellipse));
+      }
+    }, document.title + ", 'visibility' and 'pointer-events' have no effect.");
+
+    test(function() {
+      let nonZeroWinding = document.getElementById("rectangular-outline-nonzero-in-clip");
+      assert_true(nonZeroWinding.isPointInFill({ x: 250, y: 250 }));
+    }, document.title + ", 'clip-rule' never overrides 'fill-rule'.");
+    ]]></script>
+</svg>

@@ -23,6 +23,7 @@ public:
     virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) = 0;
     Gfx::Path computed_path();
 
+    WebIDL::ExceptionOr<bool> is_point_in_fill(Bindings::DOMPointInit const&);
     WebIDL::ExceptionOr<float> get_total_length();
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> get_point_at_length(float distance);
 
@@ -33,6 +34,8 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    bool with_computed_values(Function<void(CSSPixelSize viewport_size, CSS::ComputedValues const&)> const&);
+
     GC::Ptr<SVGAnimatedNumber> m_path_length;
 };
 
