@@ -2,6 +2,8 @@ reader in an element a slot takes: 90deg
 deep reader below non-readers: 90deg
 deep reader after a step: 180deg
 reader below the reset: 0deg
-restyle stops at the reset: false
+restyle stops at the reset: true
 reader declaring its own below a registered declaration: 90deg
 that reader after a step: 180deg
+readers when the element's declarations move too: 90deg, 90deg
+those readers after a step: 180deg, 180deg

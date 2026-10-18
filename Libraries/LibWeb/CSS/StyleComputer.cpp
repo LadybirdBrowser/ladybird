@@ -575,7 +575,7 @@ void StyleComputer::collect_animations_into(Layout::BegunRead const& read, DOM::
 {
     if (refresh == AnimationRefresh::No) {
         collect_animation_effects_into(read, abstract_element, effects, computed_properties, {});
-        publish_animated_custom_properties(computed_properties, abstract_element);
+        publish_animated_custom_properties(read, computed_properties, abstract_element);
         return;
     }
     m_keyframes_inherited_non_inherited_style_groups = 0;
@@ -610,7 +610,7 @@ void StyleComputer::refresh_animations_into_each(Layout::BegunRead const& read, 
 
 void StyleComputer::finish_animation_refresh(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& computed_properties) const
 {
-    publish_animated_custom_properties(computed_properties, abstract_element);
+    publish_animated_custom_properties(read, computed_properties, abstract_element);
     // An animation-only overlay update resolves keyframe values just like a full style computation does, so a
     // keyframe-borne `inherit` on a non-inherited property discovered here must leave the same invalidation
     // mark behind, or a later change to the parent's value never reaches this element's animated style.
@@ -852,7 +852,7 @@ void StyleComputer::finish_animation_sample(AnimationSample& sample, ComputedVal
     computed_properties.finish_animated_overlay_rust_mutation(Badge<StyleComputer> {});
 }
 
-void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element) const
+void StyleComputer::publish_animated_custom_properties(Layout::BegunRead const& read, ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element) const
 {
     auto data = abstract_element.custom_property_data();
     RefPtr<CustomPropertyData const> base = data;
@@ -863,7 +863,7 @@ void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet& 
     if (animated_values.is_empty()) {
         if (base.ptr() != data.ptr()) {
             abstract_element.replace_custom_property_data(Badge<StyleComputer> {}, base);
-            invalidate_animated_custom_property_readers(abstract_element, animated_values);
+            invalidate_animated_custom_property_readers(read, abstract_element, animated_values, move(data));
         }
         return;
     }
@@ -891,10 +891,10 @@ void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet& 
             });
     }
     abstract_element.replace_custom_property_data(Badge<StyleComputer> {}, CustomPropertyData::create_animation_overlay(move(overlay_values), move(base), abstract_element));
-    invalidate_animated_custom_property_readers(abstract_element, animated_values);
+    invalidate_animated_custom_property_readers(read, abstract_element, animated_values, move(data));
 }
 
-void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractElement abstract_element, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const
+void StyleComputer::invalidate_animated_custom_property_readers(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values, RefPtr<CustomPropertyData const> old_data) const
 {
     auto& element = abstract_element.element();
     // Which custom properties the element's own declarations read is not recorded: an element
@@ -912,12 +912,10 @@ void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractEle
         }
         return false;
     };
-    if (!abstract_element.pseudo_element().has_value() && any_animated_custom_property_inherits()) {
-        style_engine.record_flat_tree_descendant_style_input_changes(
-            element.style_node_id(),
-            StyleEngine::InheritedStyle,
-            RequiredInvalidationAfterStyleChange::all_inherited_style_groups);
-    }
+    // What the element hands down moved too. Its descendants take the moved environment as they take one a style
+    // reaction moved: only those that read a name whose value moved compute again.
+    if (!abstract_element.pseudo_element().has_value() && any_animated_custom_property_inherits())
+        move_custom_property_environment_below_animated_element(read, element, move(old_data));
 }
 
 // The host's form of one animation definition a style computation decided.

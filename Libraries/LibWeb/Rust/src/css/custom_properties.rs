@@ -606,6 +606,11 @@ impl CustomPropertyStore {
         self.parent.as_ref()
     }
 
+    /// The store this one was built over, whichever of its values it took in.
+    pub(crate) fn inheritance_parent(&self) -> Option<&Arc<CustomPropertyStore>> {
+        self.inheritance_parent.as_ref()
+    }
+
     pub(crate) fn get(&self, name_raw: usize) -> Option<&CustomPropertyEntry> {
         self.own_values
             .get(&name_raw)
