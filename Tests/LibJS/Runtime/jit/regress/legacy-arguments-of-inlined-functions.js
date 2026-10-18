@@ -67,9 +67,8 @@ test("a function called by an inlined function adds a property to an object in i
     const failures = compareCompiledWithInterpreter(
         () => {
             function addProperty(add) {
-                // A for-in loop keeps this function from being inlined.
-                for (const key in {}) {
-                }
+                // A debugger statement keeps this function from being inlined.
+                debugger;
                 if (add) middle.arguments[0].z = 3;
             }
             function middle(object, add) {
@@ -91,9 +90,8 @@ test("a function called by an inlined function changes a property of an object i
     const failures = compareCompiledWithInterpreter(
         () => {
             function changeProperty(change) {
-                // A for-in loop keeps this function from being inlined.
-                for (const key in {}) {
-                }
+                // A debugger statement keeps this function from being inlined.
+                debugger;
                 if (change) middle.arguments[0].x = 2;
             }
             function middle(object, change) {
@@ -114,9 +112,8 @@ test("a function called by an inlined function reads its legacy arguments after 
     const failures = compareCompiledWithInterpreter(
         () => {
             function readArguments(read) {
-                // A for-in loop keeps this function from being inlined.
-                for (const key in {}) {
-                }
+                // A debugger statement keeps this function from being inlined.
+                debugger;
                 if (read) return [...middle.arguments];
             }
             function middle(value, flag, read) {
@@ -136,9 +133,8 @@ test("functions called by the compiled function read a parameter it reassigned f
     const failures = compareCompiledWithInterpreter(
         () => {
             function readArgument(read) {
-                // A for-in loop keeps this function from being inlined.
-                for (const key in {}) {
-                }
+                // A debugger statement keeps this function from being inlined.
+                debugger;
                 if (read) return outer.arguments[0].x;
             }
             function middle(read) {

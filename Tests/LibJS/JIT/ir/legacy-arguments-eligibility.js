@@ -1,9 +1,8 @@
 // Only functions with legacy arguments properties expose their inlined arguments to calls.
 
 function opaque() {
-    // A for-in loop keeps this function from being inlined.
-    for (const key in {}) {
-    }
+    // A debugger statement keeps this function from being inlined.
+    debugger;
 }
 const arrow = object => {
     opaque();
