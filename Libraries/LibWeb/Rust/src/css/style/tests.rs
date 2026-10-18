@@ -10962,6 +10962,41 @@ fn detachment_routing_rebuild_excludes_retired_rules() {
 }
 
 #[test]
+fn a_sheet_kept_for_reattachment_keeps_its_routes_while_detached() {
+    let mut engine = StyleEngine::new();
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let program = engine
+        .programs
+        .add(test_selector_program(".target", &[("target", StyleAtomID(1))]));
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    engine.replace_rule_version(rule, version);
+    discard_transaction(&mut engine);
+
+    engine.detach_sheet(sheet, TreeScopeID::DOCUMENT);
+    engine.set_sheet_kept_for_reattachment(sheet, true);
+    discard_transaction(&mut engine);
+    assert_eq!(engine.routing.len(), 1);
+    assert!(!engine.program.rule_can_decide(rule));
+
+    let routing_before_reattachment = Arc::clone(&engine.routing);
+    engine.set_sheet_kept_for_reattachment(sheet, false);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    discard_transaction(&mut engine);
+    assert!(Arc::ptr_eq(&routing_before_reattachment, &engine.routing));
+
+    engine.detach_sheet(sheet, TreeScopeID::DOCUMENT);
+    engine.set_sheet_kept_for_reattachment(sheet, true);
+    discard_transaction(&mut engine);
+    engine.set_sheet_kept_for_reattachment(sheet, false);
+    discard_transaction(&mut engine);
+    assert_eq!(engine.routing.len(), 0);
+}
+
+#[test]
 fn a_declaration_edit_journals_only_the_declaration_field() {
     let (mut engine, _, rule) = authoring_engine();
     let mut contents = engine.program().rule_version(rule);

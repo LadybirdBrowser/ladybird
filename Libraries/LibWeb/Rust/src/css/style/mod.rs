@@ -791,6 +791,9 @@ pub struct RetainedState {
     /// sheet's rules decide nothing, so routing every input past their entry points is pure cost
     /// that grows with every sheet that ever came and went.
     sheets_excluded_from_routing: BitColumn,
+    /// Detached sheets the host keeps compiled because it expects them back. Their routes stay registered, since
+    /// shedding them would only have reattachment derive them all again.
+    sheets_kept_for_reattachment: BitColumn,
     /// Whether a sheet detached since the last routing shed, so the registry may hold entry
     /// points for rules that can no longer decide.
     routing_needs_detachment_sweep: bool,

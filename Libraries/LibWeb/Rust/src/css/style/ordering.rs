@@ -1961,7 +1961,7 @@ impl RetainedState {
         self.facts.apply_staged(&mut self.memory);
     }
 
-    /// Drop routing entry points for rules whose sheet is attached nowhere.
+    /// Drop routing entry points for rules whose sheet is attached nowhere and not kept for reattachment.
     ///
     /// The router already skips such rules one route at a time, but enumerating their entry points
     /// is itself a cost that grows with every sheet that ever came and went: a page that repeatedly
@@ -1976,7 +1976,7 @@ impl RetainedState {
         let mut excluded_sheets = BitColumn::default();
         let mut attached_sheets = Vec::new();
         for (sheet, attached) in self.program.sheets_with_attachment_state() {
-            if attached {
+            if attached || self.sheets_kept_for_reattachment.contains(sheet.0 as usize) {
                 attached_sheets.push(sheet);
             } else {
                 excluded_sheets.set(sheet.0 as usize, true);
@@ -2034,7 +2034,7 @@ impl RetainedState {
             // A detached sheet's rules keep no routing entry points; see
             // `shed_routing_for_detached_sheets`.
             let sheet = self.program.rule_sheet(rule);
-            if !self.program.sheet_is_attached_somewhere(sheet) {
+            if !self.sheet_keeps_routing(sheet) {
                 excluded_sheets.set(sheet.0 as usize, true);
                 continue;
             }
