@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-try_return$e987f71f try-catch-terminated.js:5:5
+try_return$f1d3ca4f try-catch-terminated.js:5:5
   Registers: 6
   Blocks:    3
   Locals:    e~0
@@ -20,17 +20,15 @@ try_return$e987f71f try-catch-terminated.js:5:5
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Jump target:block2
+  [   8] Jump target:block2
 
 block1:
-  [  18] Catch value_feedback:0, dst:reg5
-  [  20] SetLexicalEnvironment environment:reg4
-  [  28] Mov dst:e~0, src:reg5
-  [  38] Return value:e~0
+  [  10] Catch value_feedback:0, dst:reg5
+  [  18] Mov dst:e~0, src:reg5
+  [  28] Return value:e~0
 
 block2:
-  [  40] Throw src:Int32(1)
+  [  30] Throw src:Int32(1)
 
 Exception handlers:
-  [  40 ..   48] => handler block1
+  [  30 ..   38] => handler block1

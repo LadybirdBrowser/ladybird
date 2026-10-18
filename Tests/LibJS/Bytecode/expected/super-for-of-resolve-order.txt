@@ -17,7 +17,7 @@ block0:
   [  a0] End value:reg6
 
 
-C$98034246 super-for-of-resolve-order.js:3:28
+C$a04f1576 super-for-of-resolve-order.js:3:28
   Registers: 13
   Blocks:    9
   Constants:
@@ -28,43 +28,41 @@ C$98034246 super-for-of-resolve-order.js:3:28
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] NewPrimitiveArray dst:reg5, elements:[1, 2]
-  [  30] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
-  [  50] Jump target:block2
+  [   8] NewPrimitiveArray dst:reg5, elements:[1, 2]
+  [  28] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [  48] Jump target:block2
 
 block1:
-  [  58] End value:Undefined
+  [  50] End value:Undefined
 
 block2:
-  [  60] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  78] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
+  [  58] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  70] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
 
 block3:
-  [  88] Catch value_feedback:0, dst:reg9
-  [  90] SetLexicalEnvironment environment:reg4
-  [  98] Mov dst:reg5, src:Int32(1)
-  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:1, true_target:block5, false_target:block6
+  [  80] Catch value_feedback:0, dst:reg9
+  [  88] Mov dst:reg5, src:Int32(1)
+  [  98] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:1, true_target:block5, false_target:block6
 
 block4:
-  [  c0] ResolveThisBinding
-  [  c8] ResolveSuperBase dst:reg12
-  [  d0] PutByIdWithThis base:reg12, this_value:this, `prop`, src:reg10, kind:Normal
-  [  f0] JumpLoop target:block2
+  [  b0] ResolveThisBinding
+  [  b8] ResolveSuperBase dst:reg12
+  [  c0] PutByIdWithThis base:reg12, this_value:this, `prop`, src:reg10, kind:Normal
+  [  e0] JumpLoop target:block2
 
 block5:
-  [  f8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-  [ 118] Throw src:reg9
+  [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [ 108] Throw src:reg9
 
 block6:
-  [ 120] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 140] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 110] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 130] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [ 158] Return value:reg9
+  [ 148] Return value:reg9
 
 block8:
-  [ 160] Throw src:reg9
+  [ 150] Throw src:reg9
 
 Exception handlers:
-  [  c0 ..   f8] => handler block3
+  [  b0 ..   e8] => handler block3

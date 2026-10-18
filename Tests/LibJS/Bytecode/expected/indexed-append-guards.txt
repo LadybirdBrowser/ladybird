@@ -76,7 +76,7 @@ block6:
   [ 3d8] End value:reg5
 
 
-expect_type_error$f9cd6888 indexed-append-guards.js:4:5
+expect_type_error$fc915998 indexed-append-guards.js:4:5
   Registers: 9
   Blocks:    8
   Locals:    error~0, did_throw~1
@@ -88,43 +88,41 @@ expect_type_error$f9cd6888 indexed-append-guards.js:4:5
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:did_throw~1, src:Bool(false)
-  [  20] Jump target:block5
+  [   8] Mov dst:did_throw~1, src:Bool(false)
+  [  18] Jump target:block5
 
 block1:
-  [  28] Catch value_feedback:0, dst:reg5
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Mov dst:error~0, src:reg5
-  [  48] GetGlobal value_feedback:1, dst:reg7, `TypeError`
-  [  58] InstanceOf dst:reg8, lhs:error~0, rhs:reg7
-  [  68] Not dst:reg6, src:reg8
-  [  78] JumpFalse condition:reg6, target:block3
+  [  20] Catch value_feedback:0, dst:reg5
+  [  28] Mov dst:error~0, src:reg5
+  [  38] GetGlobal value_feedback:1, dst:reg7, `TypeError`
+  [  48] InstanceOf dst:reg8, lhs:error~0, rhs:reg7
+  [  58] Not dst:reg6, src:reg8
+  [  68] JumpFalse condition:reg6, target:block3
 
 block2:
-  [  88] Throw src:error~0
+  [  78] Throw src:error~0
 
 block3:
-  [  90] Mov dst:did_throw~1, src:Bool(true)
+  [  80] Mov dst:did_throw~1, src:Bool(true)
 
 block4:
-  [  a0] Not dst:reg5, src:did_throw~1
-  [  b0] JumpIf condition:reg5, true_target:block6, false_target:block7
+  [  90] Not dst:reg5, src:did_throw~1
+  [  a0] JumpIf condition:reg5, true_target:block6, false_target:block7
 
 block5:
-  [  c0] Call value_feedback:2, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined, callback
-  [  e0] JumpLoop target:block4
+  [  b0] Call value_feedback:2, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined, callback
+  [  d0] JumpLoop target:block4
 
 block6:
-  [  e8] GetGlobal value_feedback:3, dst:reg8, `Error`
-  [  f8] CallConstruct value_feedback:4, call_feedback:1, dst:reg6, callee:reg8, Error, arguments:[String("Expected TypeError")]
-  [ 120] Throw src:reg6
+  [  d8] GetGlobal value_feedback:3, dst:reg8, `Error`
+  [  e8] CallConstruct value_feedback:4, call_feedback:1, dst:reg6, callee:reg8, Error, arguments:[String("Expected TypeError")]
+  [ 110] Throw src:reg6
 
 block7:
-  [ 128] End value:Undefined
+  [ 118] End value:Undefined
 
 Exception handlers:
-  [  c0 ..   e8] => handler block1
+  [  b0 ..   d8] => handler block1
 
 
 $e425a642 indexed-append-guards.js:18:5
