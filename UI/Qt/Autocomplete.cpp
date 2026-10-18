@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/Platform.h>
 #include <AK/kmalloc.h>
 #include <LibWebView/Autocomplete.h>
@@ -46,7 +47,6 @@ static constexpr int CELL_ICON_TEXT_SPACING = 10;
 static constexpr int CELL_LABEL_VERTICAL_SPACING = 4;
 static constexpr int MINIMUM_POPUP_WIDTH = 100;
 static constexpr size_t MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 6;
-static constexpr u32 WAYLAND_POPUP_CONSTRAINT_ADJUSTMENT_NONE = 0;
 
 enum AutocompleteRole {
     TitleRole = Qt::UserRole + 1,
@@ -257,9 +257,9 @@ public:
             return {};
         QFontMetrics primary_fm(autocomplete_primary_font());
         if (index.data(TitleRole).toString().isEmpty())
-            return QSize(0, std::max(CELL_ICON_SIZE, primary_fm.height()) + CELL_VERTICAL_PADDING * 2);
+            return QSize(0, max(CELL_ICON_SIZE, primary_fm.height()) + CELL_VERTICAL_PADDING * 2);
         QFontMetrics secondary_fm(autocomplete_secondary_font());
-        int content_height = std::max(CELL_ICON_SIZE,
+        int content_height = max(CELL_ICON_SIZE,
             primary_fm.height() + CELL_LABEL_VERTICAL_SPACING + secondary_fm.height());
         return QSize(0, content_height + CELL_VERTICAL_PADDING * 2);
     }
@@ -360,8 +360,8 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
 
 void Autocomplete::create_popup()
 {
-    // Use a non-activating top-level window so it can stack above native web
-    // content windows without moving keyboard focus away from the address bar.
+    // Use a non-activating top-level widget for its own translucent backing store. Its native window is embedded in the
+    // browser window in position_popup().
     m_popup = new AutocompletePopup(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     connect(m_popup, &QObject::destroyed, this, [this] {
         // The popup dies with its parent window, which can go away while this object lives on (for
@@ -514,6 +514,13 @@ bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_popup && (type == QEvent::Show || type == QEvent::Hide))
         set_anchor_popup_open(type == QEvent::Show);
 
+    // Qt still considers the embedded popup a top-level widget. Close it before application shutdown attempts to close
+    // its native child window directly.
+    if ((watched == m_anchor->window() && first_is_one_of(type, QEvent::Hide, QEvent::Resize)) || (watched == qApp && type == QEvent::Quit)) {
+        if (close())
+            emit dismissed();
+    }
+
     if (is_visible() && (watched == m_anchor || watched == m_anchor->window())
         && (type == QEvent::Move || type == QEvent::Resize))
         position_popup();
@@ -537,7 +544,7 @@ bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
 
 void Autocomplete::position_popup()
 {
-    int visible_count = static_cast<int>(std::min(m_model->visible_suggestion_count(), MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS));
+    int visible_count = static_cast<int>(min(m_model->visible_suggestion_count(), MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS));
     if (visible_count == 0)
         return;
 
@@ -564,21 +571,23 @@ void Autocomplete::position_popup()
         m_popup->setAttribute(Qt::WA_X11DoNotAcceptFocus);
     }
 
-    if (QGuiApplication::platformName() == "wayland") {
-        // FIXME: Replace this with a public popup positioning API once Qt provides one.
-        (void)m_popup->winId();
-        m_popup->windowHandle()->setProperty("_q_waylandPopupConstraintAdjustment", WAYLAND_POPUP_CONSTRAINT_ADJUSTMENT_NONE);
-    }
+    // Embed the native window so it stacks above native web content without being animated independently of the
+    // location field by the window system.
+    (void)m_popup->winId();
+    m_popup->windowHandle()->setParent(top_window->windowHandle());
 
-    int width = std::max(m_anchor->width(), MINIMUM_POPUP_WIDTH);
+    int width = max(m_anchor->width(), MINIMUM_POPUP_WIDTH);
     int frame_overhead = m_popup->frameWidth() * 2;
-    int popup_height = total_height + POPUP_PADDING + ChromeStyle::LOCATION_EDIT_CORNER_RADIUS + frame_overhead;
+    auto popup_position = m_anchor->mapTo(top_window, QPoint(0, m_anchor->height()));
+    int popup_padding = POPUP_PADDING + ChromeStyle::LOCATION_EDIT_CORNER_RADIUS + frame_overhead;
+    int available_height = max(0, top_window->height() - popup_position.y() - popup_padding);
+    int list_height = min(total_height, available_height);
+    int popup_height = list_height + popup_padding;
 
-    m_list_view->setFixedHeight(total_height);
+    m_list_view->setFixedHeight(list_height);
     m_popup->setFixedSize(width, popup_height);
 
-    auto popup_position = m_anchor->mapToGlobal(QPoint(0, m_anchor->height()));
-    m_popup->move(popup_position);
+    m_popup->setGeometry(QRect(popup_position, m_popup->size()));
     m_popup->raise();
 }
 
