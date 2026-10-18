@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>CSS aspect-ratio: grid track size should respect aspect-ratio when using
+  intrinsic size keywords in grid items</title>
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#algo-track-sizing">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div id="reference-overlapped-red"></div>
+<div style="display: grid; grid-template-columns: auto; width: min-content; background: green;">
+  <div style="height: 50px; width: min-content; aspect-ratio: 2/1;"></div>
+  <div style="height: 50px; width: 1%; min-width: min-content; aspect-ratio: 2/1;"></div>
+</div>

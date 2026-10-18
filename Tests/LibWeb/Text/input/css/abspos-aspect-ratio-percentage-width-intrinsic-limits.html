@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        position: relative;
+        height: 500px;
+    }
+    .definite {
+        width: 1000px;
+    }
+    .shrink {
+        display: inline-block;
+    }
+    .target {
+        position: absolute;
+        height: 100px;
+        aspect-ratio: 1;
+    }
+</style>
+<div class="container definite">
+    <div id="max-min-content" class="target" style="width: 90%; max-width: min-content"></div>
+</div>
+<div class="container definite">
+    <div id="max-max-content" class="target" style="width: calc(50% + 10px); max-width: max-content"></div>
+</div>
+<div class="container definite">
+    <div id="min-min-content" class="target" style="width: 5%; min-width: min-content"></div>
+</div>
+<div class="container shrink">
+    <div id="min-fit-content" class="target" style="width: 90%; min-width: fit-content"></div>
+</div>
+<script>
+    test(() => {
+        for (const id of ["max-min-content", "max-max-content", "min-min-content", "min-fit-content"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().width}`);
+    });
+</script>
