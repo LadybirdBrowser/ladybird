@@ -992,7 +992,7 @@ ErrorOr<Vector<ClosedSessionTab>> SessionStore::PersistedStorage::take_closed_un
 static UnixDateTime canonicalized_to_milliseconds(UnixDateTime time)
 {
     // Match persisted millisecond precision when ordering closes.
-    return UnixDateTime::from_milliseconds_since_epoch(time.offset_to_epoch().to_milliseconds());
+    return UnixDateTime::from_milliseconds_since_epoch(time.milliseconds_since_epoch());
 }
 
 static bool is_storable(Optional<SessionHistorySnapshot> const& history)
