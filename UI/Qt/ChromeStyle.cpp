@@ -1325,7 +1325,7 @@ QFrame#LadybirdAutocompletePopup {{
 
 QListView#LadybirdAutocompleteList {{
     color: {2};
-    background: transparent;
+    background: {0};
     border: 0;
     outline: 0;
 }}
