@@ -1215,6 +1215,11 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
 
 Tab::~Tab() = default;
 
+void Tab::park_location_editing()
+{
+    m_location_edit->park_editing_session();
+}
+
 void Tab::focus_location_editor()
 {
 #if defined(AK_OS_MACOS)

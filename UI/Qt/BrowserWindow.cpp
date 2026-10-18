@@ -244,7 +244,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         set_current_tab(tab);
         if (tab) {
             QWidget* focus_widget = &tab->view();
-            if (auto* tab_focus_widget = tab->focusWidget(); tab_focus_widget && tab->isAncestorOf(tab_focus_widget))
+            if (auto* location_edit = tab->location_edit_with_parked_editing())
+                focus_widget = location_edit;
+            else if (auto* tab_focus_widget = tab->focusWidget(); tab_focus_widget && tab->isAncestorOf(tab_focus_widget))
                 focus_widget = tab_focus_widget;
 #if defined(AK_OS_MACOS)
             make_appkit_window_first_responder(*focus_widget);

@@ -378,8 +378,48 @@ void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
     delete menu;
 }
 
+// Leaving a tab parks its omnibox's editing session: the suggestion popup closes, but everything else is kept,
+// including an inline completion and the suggestions, and the session picks up where it left off when the omnibox
+// gets focus again.
+void LocationEdit::park_editing_session()
+{
+    if (!hasFocus() || m_parked_editing_session.has_value())
+        return;
+
+    // NB: Only the popup's window closes. Dismissing the popup would end the omnibox's popup session, which drops an
+    //     inline completion from the text.
+    m_autocomplete->close();
+    m_omnibox.set_suspended(true);
+
+    m_parked_editing_session = ParkedEditingSession {
+        .cursor_position = cursorPosition(),
+        .selection_start = selectionStart(),
+        .selection_length = static_cast<int>(selectedText().length()),
+    };
+}
+
 void LocationEdit::focusInEvent(QFocusEvent* event)
 {
+    if (auto parked = m_parked_editing_session; parked.has_value()) {
+        m_parked_editing_session.clear();
+        NativeTextEditingLineEdit::focusInEvent(event);
+        m_omnibox.set_suspended(false);
+
+        // Restore the selection with the cursor at the end it was on.
+        if (parked->selection_length > 0) {
+            if (parked->cursor_position == parked->selection_start)
+                setSelection(parked->selection_start + parked->selection_length, -parked->selection_length);
+            else
+                setSelection(parked->selection_start, parked->selection_length);
+        } else {
+            setCursorPosition(parked->cursor_position);
+        }
+        if (m_omnibox.is_popup_visible())
+            m_autocomplete->show_with_suggestions(m_omnibox.suggestions(), m_omnibox.selected_suggestion());
+        animate_focus_glow(58);
+        return;
+    }
+
     if (event->reason() == Qt::PopupFocusReason) {
         NativeTextEditingLineEdit::focusInEvent(event);
         m_omnibox.set_suspended(false);
@@ -413,6 +453,9 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
 void LocationEdit::focusOutEvent(QFocusEvent* event)
 {
     QLineEdit::focusOutEvent(event);
+
+    if (m_parked_editing_session.has_value())
+        return;
 
     // A popup (for example the context menu) borrows focus without ending the editing session; late
     // suggestion deliveries must not rewrite the text or raise the suggestion popup while it is open.
@@ -803,6 +846,9 @@ void LocationEdit::highlight_location()
 void LocationEdit::set_text_and_restart_editing(QString const& text)
 {
     setText(text);
+    // The parked cursor and selection belonged to the text that was just replaced.
+    if (m_parked_editing_session.has_value())
+        m_parked_editing_session = ParkedEditingSession {};
     if (!m_omnibox.is_editing())
         return;
 
@@ -821,7 +867,9 @@ void LocationEdit::set_url(Optional<URL::URL> url)
         if (!m_has_user_edited_hidden_url)
             set_text_and_restart_editing({});
     } else if (m_url.has_value()) {
-        set_text_and_restart_editing(hasFocus() ? serialized_url() : display_url());
+        // NB: A parked editing session still owns the omnibox, so it gets the text a focused omnibox would.
+        auto is_editing = hasFocus() || m_parked_editing_session.has_value();
+        set_text_and_restart_editing(is_editing ? serialized_url() : display_url());
         setCursorPosition(0);
     }
 

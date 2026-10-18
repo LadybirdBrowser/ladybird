@@ -1800,11 +1800,15 @@ TabWidget::TabWidget(QWidget* parent)
     update_chrome_style();
 
     connect(m_tab_bar, &QTabBar::currentChanged, this, [this](int index) {
+        // The tab being left keeps its omnibox's editing session for when it is shown again.
+        if (auto* previous_tab = qobject_cast<Tab*>(m_stacked_widget->currentWidget()); previous_tab && m_stacked_widget->indexOf(previous_tab) != index)
+            previous_tab->park_location_editing();
+
         if (index >= 0 && index < m_stacked_widget->count())
             m_stacked_widget->setCurrentIndex(index);
 
-        emit current_tab_changed(index);
         m_toolbar_container->setCurrentIndex(index);
+        emit current_tab_changed(index);
         update_vertical_tabs_overlay_geometry();
         update_vertical_tabs_resize_handle();
         update_vertical_tabs_content_overlay();
