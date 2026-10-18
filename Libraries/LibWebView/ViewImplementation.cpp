@@ -243,9 +243,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received presented bitmap {} for page {} size={}x{} did_swap={} front={}",
         bitmap_id, page().id(), size.width(), size.height(), did_swap_bitmap, m_front_bitmap.id);
 
-    auto bitmap_to_release = did_swap_bitmap ? previous_front_bitmap_id : bitmap_id;
-    if (!defer_backing_store_release(bitmap_to_release))
-        release_backing_store(bitmap_to_release);
+    release_backing_store(did_swap_bitmap ? previous_front_bitmap_id : bitmap_id);
 
     if (did_swap_bitmap)
         did_accept_presented_backing_store(bitmap_id, damage_rect);
