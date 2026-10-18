@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	UTF-8 BOM should be stripped when decoding text module script
+Pass	UTF-16BE with BOM should be parsed as UTF-8
+Pass	UTF-16LE with BOM should be parsed as UTF-8

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>Module scripts should ignore BOMs and always use UTF-8</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script>
+setup({allow_uncaught_exception: true});
+</script>
+<script type="module" src="../serve-with-content-type.py?fn=resources/bom-utf-8.js&ct=text/javascript"></script>
+<script type="module" src="../serve-with-content-type.py?fn=resources/bom-utf-16be.js&ct=text/javascript"></script>
+<script type="module" src="../serve-with-content-type.py?fn=resources/bom-utf-16le.js&ct=text/javascript"></script>
+<script type="module">
+test(function() {
+  assert_equals(window.executed_utf8_bom, '\u4e09\u6751\u304b\u306a\u5b50',
+                'Should be decoded as UTF-8');
+}, 'UTF-8 module script with UTF-8 BOM');
+
+test(function() {
+  assert_equals(window.executed_utf16be_bom, undefined,
+                'Should result in compile error because of UTF-16BE BOM');
+}, 'UTF-16 module script with UTF-16BE BOM');
+
+test(function() {
+  assert_equals(window.executed_utf16le_bom, undefined,
+                'Should result in compile error because of UTF-16LE BOM');
+}, 'UTF-16 module script with UTF-16LE BOM');
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	UTF-8 module script with UTF-8 BOM
+Pass	UTF-16 module script with UTF-16BE BOM
+Pass	UTF-16 module script with UTF-16LE BOM

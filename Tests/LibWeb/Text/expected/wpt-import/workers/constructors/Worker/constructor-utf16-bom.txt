@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Worker with UTF-16BE BOM
+Pass	Worker with UTF-16LE BOM
