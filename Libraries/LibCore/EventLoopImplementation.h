@@ -26,7 +26,7 @@ public:
 
     virtual NonnullOwnPtr<EventLoopImplementation> make_implementation() = 0;
 
-    virtual intptr_t register_timer(EventReceiver&, int milliseconds, bool should_reload) = 0;
+    virtual intptr_t register_timer(EventReceiver&, AK::Duration interval, bool should_reload) = 0;
     virtual void unregister_timer(intptr_t timer_id) = 0;
 
     virtual void register_notifier(Notifier&) = 0;

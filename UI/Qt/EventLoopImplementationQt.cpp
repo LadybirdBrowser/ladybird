@@ -6,11 +6,13 @@
 
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
+#include <AK/Math.h>
 #include <AK/Mutex.h>
 #include <AK/MutexProtected.h>
 #include <AK/RWLock.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Time.h>
 #include <AK/kmalloc.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventReceiver.h>
@@ -387,11 +389,11 @@ static void qt_timer_fired(Core::EventReceiver& object)
     object.dispatch_event(event);
 }
 
-intptr_t EventLoopManagerQt::register_timer(Core::EventReceiver& object, int milliseconds, bool should_reload)
+intptr_t EventLoopManagerQt::register_timer(Core::EventReceiver& object, AK::Duration interval, bool should_reload)
 {
     auto timer = new QTimer;
     timer->setTimerType(Qt::PreciseTimer);
-    timer->setInterval(milliseconds);
+    timer->setInterval(AK::clamp_to<int>(interval.to_milliseconds()));
     timer->setSingleShot(!should_reload);
     auto weak_object = object.make_weak_ptr();
     QObject::connect(timer, &QTimer::timeout, [weak_object = move(weak_object)] {

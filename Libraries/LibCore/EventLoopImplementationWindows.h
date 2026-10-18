@@ -20,7 +20,7 @@ public:
 
     virtual NonnullOwnPtr<EventLoopImplementation> make_implementation() override;
 
-    virtual intptr_t register_timer(EventReceiver&, int milliseconds, bool should_reload) override;
+    virtual intptr_t register_timer(EventReceiver&, AK::Duration interval, bool should_reload) override;
     virtual void unregister_timer(intptr_t timer_id) override;
 
     virtual void register_notifier(Notifier&) override;

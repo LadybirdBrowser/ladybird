@@ -742,15 +742,15 @@ void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
         unregister_socket_notifier(*thread_data, notifier, **socket);
 }
 
-intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int milliseconds, bool should_reload)
+intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, AK::Duration interval, bool should_reload)
 {
-    VERIFY(milliseconds >= 0);
+    VERIFY(!interval.is_negative());
     auto* thread_data = ThreadData::the();
     VERIFY(thread_data);
 
     auto timer = make<EventLoopTimer>();
     timer->owner = object.make_weak_ptr();
-    timer->interval = AK::Duration::from_milliseconds(milliseconds);
+    timer->interval = interval;
     timer->should_reload = should_reload;
     timer->reload(MonotonicTime::now());
     thread_data->timeouts.schedule_absolute(timer.ptr());

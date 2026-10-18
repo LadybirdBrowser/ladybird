@@ -9,6 +9,7 @@
 #include <AK/Assertions.h>
 #include <AK/Badge.h>
 #include <AK/Platform.h>
+#include <AK/Time.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
@@ -105,9 +106,9 @@ void EventLoop::unregister_signal(int handler_id)
     EventLoopManager::the().unregister_signal(handler_id);
 }
 
-intptr_t EventLoop::register_timer(EventReceiver& object, int milliseconds, bool should_reload)
+intptr_t EventLoop::register_timer(EventReceiver& object, AK::Duration interval, bool should_reload)
 {
-    return EventLoopManager::the().register_timer(object, milliseconds, should_reload);
+    return EventLoopManager::the().register_timer(object, interval, should_reload);
 }
 
 void EventLoop::unregister_timer(intptr_t timer_id)
