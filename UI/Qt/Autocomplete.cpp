@@ -86,11 +86,18 @@ static QFont autocomplete_primary_font()
     return font;
 }
 
-static void draw_autocomplete_text(QPainter& painter, QRect const& rect, QString const& text, QString const& highlight_input, QFont font, QColor color, QColor match_color, bool emphasize_origin = false)
+static void draw_autocomplete_text(QPainter& painter, QRect const& rect, QString const& text, QString const& highlight_input, QFont font, QColor color, bool emphasize_origin = false)
 {
     QFontMetrics font_metrics(font);
-    auto elided_text = font_metrics.elidedText(text, Qt::ElideRight, rect.width());
     auto input = ak_string_from_qstring(highlight_input);
+    // NB: Most of a matching suggestion is drawn in demibold, and an emphasized origin in medium. Elide at the heavier
+    //     weight, or the end of the text and its ellipsis would not fit in the rect.
+    auto elision_font = font;
+    if (!WebView::autocomplete_match_ranges(input, ak_string_from_qstring(text)).is_empty())
+        elision_font.setWeight(QFont::DemiBold);
+    else if (emphasize_origin)
+        elision_font.setWeight(QFont::Medium);
+    auto elided_text = QFontMetrics(elision_font).elidedText(text, Qt::ElideRight, rect.width());
     auto displayed_text = ak_string_from_qstring(elided_text);
 
     QList<QTextLayout::FormatRange> formats;
@@ -100,13 +107,19 @@ static void draw_autocomplete_text(QPainter& painter, QRect const& rect, QString
         format.setFontWeight(QFont::Medium);
         formats.append({ 0, static_cast<int>(slash < 0 ? elided_text.length() : slash), move(format) });
     }
-    for (auto const& range : WebView::autocomplete_match_ranges(input, displayed_text)) {
+    // The text you typed is drawn at the regular weight, and the rest of the suggestion stands out in demibold.
+    auto match_ranges = WebView::autocomplete_match_ranges(input, displayed_text);
+    if (!match_ranges.is_empty()) {
+        QTextCharFormat format;
+        format.setFontWeight(QFont::DemiBold);
+        formats.append({ 0, static_cast<int>(elided_text.length()), move(format) });
+    }
+    for (auto const& range : match_ranges) {
         auto bytes = displayed_text.bytes_as_string_view();
         auto prefix = qstring_from_ak_string(MUST(String::from_utf8(bytes.substring_view(0, range.start))));
         auto match = qstring_from_ak_string(MUST(String::from_utf8(bytes.substring_view(range.start, range.length))));
         QTextCharFormat format;
-        format.setFontWeight(QFont::Bold);
-        format.setForeground(match_color);
+        format.setFontWeight(QFont::Normal);
         formats.append({ static_cast<int>(prefix.length()), static_cast<int>(match.length()), move(format) });
     }
 
@@ -322,7 +335,7 @@ public:
             int block_y = option.rect.top() + (option.rect.height() - block_height) / 2;
 
             auto primary_color = ChromeStyle::chrome_text(option.palette);
-            draw_autocomplete_text(*painter, QRect(text_x, block_y, text_width, primary_fm.height()), title_text, highlight_input, autocomplete_primary_font(), primary_color, primary_color);
+            draw_autocomplete_text(*painter, QRect(text_x, block_y, text_width, primary_fm.height()), title_text, highlight_input, autocomplete_primary_font(), primary_color);
 
             painter->setFont(autocomplete_secondary_font());
             auto secondary_color = ChromeStyle::chrome_muted_text(option.palette);
@@ -330,13 +343,11 @@ public:
             painter->setPen(secondary_color);
             draw_autocomplete_text(*painter,
                 QRect(text_x, block_y + primary_fm.height() + CELL_LABEL_VERTICAL_SPACING, text_width, secondary_fm.height()),
-                secondary_text, highlight_input, autocomplete_secondary_font(), secondary_color, ChromeStyle::chrome_text(option.palette), emphasize_origin);
+                secondary_text, highlight_input, autocomplete_secondary_font(), secondary_color, emphasize_origin);
         } else {
             painter->setFont(QApplication::font());
-            auto text_color = source == WebView::AutocompleteSuggestionSource::Search
-                ? ChromeStyle::chrome_muted_text(option.palette)
-                : ChromeStyle::chrome_text(option.palette);
-            draw_autocomplete_text(*painter, QRect(text_x, option.rect.top(), text_width, option.rect.height()), url_text, highlight_input, autocomplete_primary_font(), text_color, ChromeStyle::chrome_text(option.palette), emphasize_origin);
+            auto text_color = ChromeStyle::chrome_text(option.palette);
+            draw_autocomplete_text(*painter, QRect(text_x, option.rect.top(), text_width, option.rect.height()), url_text, highlight_input, autocomplete_primary_font(), text_color, emphasize_origin);
         }
 
         painter->restore();
