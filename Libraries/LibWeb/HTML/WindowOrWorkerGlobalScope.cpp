@@ -36,9 +36,6 @@
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
-#include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
-#include <LibWeb/HTML/ErrorEvent.h>
-#include <LibWeb/HTML/ErrorInformation.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -1607,88 +1604,7 @@ GC::Ref<IndexedDB::IDBFactory> WindowOrWorkerGlobalScopeMixin::indexed_db()
 void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
 {
     // The reportError(e) method steps are to report an exception e for this.
-    report_an_exception(e);
-}
-
-// https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
-void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, OmitError omit_error)
-{
-    auto& target = static_cast<DOM::EventTarget&>(this_impl());
-    auto& realm = relevant_realm(*this);
-    auto& vm = realm.vm();
-
-    // 1. Let notHandled be true.
-    bool not_handled = true;
-
-    // 2. Let errorInfo be the result of extracting error information from exception.
-    auto error_info = extract_error_information(vm, exception);
-
-    // 3. Let script be a script found in an implementation-defined way, or null. This should usually be the
-    //    running script (most notably during run a classic script).
-    auto script_or_module = vm.get_active_script_or_module();
-
-    // 4. If script is a classic script and script's muted errors is true, then set errorInfo[error] to null,
-    //    errorInfo[message] to "Script error.", errorInfo[filename] to the empty string, errorInfo[lineno] to
-    //    0, and errorInfo[colno] to 0.
-    script_or_module.visit(
-        [&](GC::Ref<JS::Script> const& js_script) {
-            if (as<ClassicScript>(script_from_host_defined(js_script->host_defined()))->muted_errors() == ClassicScript::MutedErrors::Yes) {
-                error_info.error = JS::js_null();
-                error_info.message = "Script error."_utf16;
-                error_info.filename = Utf16String {};
-                error_info.lineno = 0;
-                error_info.colno = 0;
-            }
-        },
-        [](auto const&) { });
-
-    // 5. If omitError is true, then set errorInfo[error] to null.
-    if (omit_error == OmitError::Yes)
-        error_info.error = JS::js_null();
-
-    // 6. If global is not in error reporting mode, then:
-    if (!m_error_reporting_mode) {
-        // 1. Set global's in error reporting mode to true.
-        m_error_reporting_mode = true;
-
-        // 2. If global implements EventTarget, then set notHandled to the result of firing an event named
-        //    error at global, using ErrorEvent, with the cancelable attribute initialized to true, and
-        //    additional attributes initialized according to errorInfo.
-        ErrorEventInit event_init = {};
-        event_init.cancelable = true;
-        event_init.message = error_info.message;
-        event_init.filename = error_info.filename;
-        event_init.lineno = error_info.lineno;
-        event_init.colno = error_info.colno;
-        event_init.error = error_info.error;
-
-        not_handled = target.dispatch_event(ErrorEvent::create(EventNames::error, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object())));
-
-        // 3. Set global's in error reporting mode to false.
-        m_error_reporting_mode = false;
-    }
-
-    // 7. If notHandled is true, then:
-    if (not_handled) {
-        // 1. Set errorInfo[error] to null.
-        error_info.error = JS::js_null();
-
-        // 2. If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation
-        //    task source with the global's associated Worker's relevant global object to run these steps:
-        if (auto* dedicated_worker_global_scope = as_if<DedicatedWorkerGlobalScope>(target)) {
-            if (auto* page = dedicated_worker_global_scope->page()) {
-                page->client().page_did_report_worker_exception(
-                    error_info.message,
-                    error_info.filename,
-                    error_info.lineno,
-                    error_info.colno);
-            }
-        }
-        // 3. Otherwise, the user agent may report exception to a developer console.
-        else {
-            report_exception_to_console(exception, realm, ErrorInPromise::No);
-        }
-    }
+    report_an_exception(relevant_global_object(*this), e);
 }
 
 // https://w3c.github.io/webcrypto/#dom-windoworworkerglobalscope-crypto

@@ -87,7 +87,7 @@
 #include <LibWeb/HTML/HTMLUnknownElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/MathML/MathMLAnchorElement.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/MathMLMiElement.h>
@@ -700,8 +700,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, Utf16Fl
             if (upgrade_result.is_throw_completion()) {
                 // 1. Report exception for definition’s constructor’s corresponding JavaScript object’s associated
                 //    realm’s global object.
-                auto& window_or_worker = HTML::relevant_window_or_worker_global_scope(definition->constructor().callback);
-                window_or_worker.report_an_exception(upgrade_result.error_value());
+                HTML::report_an_exception(HTML::relevant_global_object(definition->constructor().callback), upgrade_result.error_value());
 
                 // 2. Set result’s custom element state to "failed".
                 result->set_custom_element_state(CustomElementState::Failed);
@@ -730,8 +729,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, Utf16Fl
             if (constructed_element.is_throw_completion()) {
                 // 1. Report exception for definition’s constructor’s corresponding JavaScript object’s associated
                 //    realm’s global object.
-                auto& window_or_worker = HTML::relevant_window_or_worker_global_scope(definition->constructor().callback);
-                window_or_worker.report_an_exception(constructed_element.error_value());
+                HTML::report_an_exception(HTML::relevant_global_object(definition->constructor().callback), constructed_element.error_value());
 
                 // 2. Set result to the result of creating an element internal given document, HTMLUnknownElement,
                 //    localName, the HTML namespace, prefix, "failed", null, and registry.

@@ -21,7 +21,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -387,9 +387,7 @@ JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_
             // FIXME: 1. Assert: callable’s return type is undefined or any.
 
             // 2. Report an exception completion.[[Value]] for relevant realm’s global object.
-            auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(relevant_realm.global_object());
-            VERIFY(window_or_worker);
-            window_or_worker->report_an_exception(completion.release_value());
+            HTML::report_an_exception(relevant_realm.global_object(), completion.release_value());
 
             // 3. Return the unique undefined IDL value.
             return JS::js_undefined();
