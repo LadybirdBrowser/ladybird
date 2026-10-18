@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --turn {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0deg;
+    }
+    @property --double-turn {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0deg;
+    }
+    @keyframes turn {
+        from { --turn: 0deg; }
+        to { --turn: 360deg; }
+    }
+    #target {
+        animation: turn 1s linear infinite paused;
+        --gradient: linear-gradient(var(--turn), red, blue);
+        --rotation: rotate(var(--turn));
+        --rotations: var(--rotation) var(--rotation);
+        --double-turn: calc(var(--turn) * 2);
+        --unrelated: 1px;
+        background-image: var(--gradient);
+    }
+    #target::before {
+        content: "";
+        rotate: var(--turn);
+        background-image: var(--gradient);
+    }
+    #child {
+        background-image: var(--gradient);
+    }
+</style>
+<div id="target"><div id="child"></div></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const child = document.getElementById("child");
+        const animation = target.getAnimations()[0];
+        const print = label => {
+            const style = getComputedStyle(target);
+            println(`${label}:`);
+            println(`  --gradient: ${style.getPropertyValue("--gradient")}`);
+            println(`  --rotations: ${style.getPropertyValue("--rotations")}`);
+            println(`  --double-turn: ${style.getPropertyValue("--double-turn")}`);
+            println(`  --unrelated: ${style.getPropertyValue("--unrelated")}`);
+            println(`  background-image: ${style.backgroundImage}`);
+            const before = getComputedStyle(target, "::before");
+            println(`  ::before rotate: ${before.rotate}`);
+            println(`  ::before background-image: ${before.backgroundImage}`);
+            println(`  child background-image: ${getComputedStyle(child).backgroundImage}`);
+            println(`  child --rotations: ${getComputedStyle(child).getPropertyValue("--rotations")}`);
+        };
+
+        animation.currentTime = 125;
+        print("an eighth of a turn");
+        animation.currentTime = 375;
+        print("three eighths of a turn");
+        animation.cancel();
+        print("cancelled");
+    });
+</script>
