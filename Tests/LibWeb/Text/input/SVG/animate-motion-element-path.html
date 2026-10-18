@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="400" height="400">
+    <rect id="lines" width="10" height="10"><animateMotion path="M0,0 L100,0 L100,100" dur="2s"/></rect>
+    <rect id="relative-lines" width="10" height="10"><animateMotion path="m10,10 h100 v100" dur="2s"/></rect>
+    <rect id="curve" width="10" height="10"><animateMotion path="M0,0 Q50,0 100,0" dur="2s"/></rect>
+    <rect id="arc" width="10" height="10"><animateMotion path="M100,0 A100,100 0 0 1 -100,0" dur="2s"/></rect>
+    <rect id="subpaths" width="10" height="10"><animateMotion path="M0,0 L100,0 M0,200 L100,200" dur="2s"/></rect>
+    <rect id="zero-length" width="10" height="10"><animateMotion path="M30,40 L30,40" dur="2s"/></rect>
+    <rect id="move-only" width="10" height="10"><animateMotion path="M30,40" dur="2s"/></rect>
+    <rect id="empty" width="10" height="10"><animateMotion path="" dur="2s"/></rect>
+    <rect id="overrides-from-and-to" width="10" height="10"><animateMotion path="M0,0 L200,0" from="0,0" to="0,200" dur="2s"/></rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+        svg.pauseAnimations();
+        const origin = svg.getBoundingClientRect();
+        for (const time of [0, 0.5, 1, 1.5]) {
+            svg.setCurrentTime(time);
+            println(`t=${time}`);
+            for (const rect of document.querySelectorAll("rect")) {
+                const box = rect.getBoundingClientRect();
+                println(`  ${rect.id}: ${(box.left - origin.left).toFixed(1)}, ${(box.top - origin.top).toFixed(1)}`);
+            }
+        }
+        done();
+    });
+</script>
