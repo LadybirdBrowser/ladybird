@@ -15,22 +15,27 @@
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
+#include <LibWeb/Fetch/Infrastructure/PortBlocking.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CloseEvent.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -170,8 +175,33 @@ HTML::WindowOrWorkerGlobalScopeMixin& WebSocket::relevant_global_scope() const
 
 ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_record, Vector<Utf16String> const& protocols, HTML::EnvironmentSettingsObject& client)
 {
-    // FIXME: Integrate properly with FETCH as per https://fetch.spec.whatwg.org/#websocket-opening-handshake
-    //        That means following https://websockets.spec.whatwg.org/#concept-websocket-establish
+    // 1. Let requestURL be a copy of url, with its scheme set to "http", if url's scheme is "ws"; otherwise to "https".
+    auto request_url = url_record;
+    request_url.set_scheme(url_record.scheme() == "ws"sv ? "http"sv : "https"sv);
+
+    // 2. Let request be a new request, whose URL is requestURL, client is client, service-workers mode is "none",
+    //    referrer is "no-referrer", mode is "websocket", credentials mode is "include", cache mode is "no-store", and
+    //    redirect mode is "error".
+    auto request = Fetch::Infrastructure::Request::create(client.vm());
+    request->set_url(move(request_url));
+    request->set_client(&client);
+    request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);
+    request->set_referrer(Fetch::Infrastructure::Request::Referrer::NoReferrer);
+    request->set_mode(Fetch::Infrastructure::Request::Mode::WebSocket);
+    request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
+    request->set_cache_mode(HTTP::CacheMode::NoStore);
+    request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Error);
+
+    // FIXME: Fetch request as per the remaining steps of https://websockets.spec.whatwg.org/#concept-websocket-establish
+    // AD-HOC: Until the opening handshake goes through fetch, run the blocking checks of main fetch here.
+    request->set_policy_container(client.policy_container()->clone(client.heap()));
+    auto& realm = client.realm();
+    ContentSecurityPolicy::report_content_security_policy_violations_for_request(realm, request);
+    if (Fetch::Infrastructure::block_bad_port(request) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked
+        || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked
+        || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        return Error::from_string_literal("WebSocket connection was blocked");
+    }
 
     if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
         return Error::from_string_literal("The WebSocket was closed before it connected");
