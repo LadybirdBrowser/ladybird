@@ -629,10 +629,10 @@ impl CustomPropertyStore {
     /// What a child inherits of this store: the store without the entries a registration keeps
     /// from inheriting, over the same chain; `None` when every entry inherits.
     pub(crate) fn inheritable(&self, registry: &CustomPropertyRegistry) -> Option<Arc<CustomPropertyStore>> {
-        let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry.name);
-        if self.own_values.values().all(inherits) {
+        if self.hands_down_every_value(registry) {
             return None;
         }
+        let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry.name);
         let own_values: HashMap<usize, CustomPropertyEntry> = self
             .own_values
             .iter()
@@ -655,6 +655,33 @@ impl CustomPropertyStore {
             inheritance_parent: self.inheritance_parent.clone(),
             ancestor_count: self.ancestor_count,
         }))
+    }
+
+    /// Whether the store holds the same values as `other`, built over the same store and chained to
+    /// the same parent.
+    pub(crate) fn holds_same_values_as(&self, other: &Self) -> bool {
+        let same = |first: &Option<Arc<Self>>, second: &Option<Arc<Self>>| match (first, second) {
+            (None, None) => true,
+            (Some(first), Some(second)) => Arc::ptr_eq(first, second),
+            _ => false,
+        };
+        same(&self.parent, &other.parent)
+            && same(&self.inheritance_parent, &other.inheritance_parent)
+            && self.declared_names == other.declared_names
+            && self.own_values.len() == other.own_values.len()
+            && self.own_values.iter().all(|(name_raw, entry)| {
+                other.own_values.get(name_raw).is_some_and(|other_entry| {
+                    other_entry.important == entry.important
+                        && crate::css::style_value::retained_style_values_equal(&other_entry.value, &entry.value)
+                })
+            })
+    }
+
+    /// Whether a child inherits every entry of this store.
+    pub(crate) fn hands_down_every_value(&self, registry: &CustomPropertyRegistry) -> bool {
+        self.own_values
+            .values()
+            .all(|entry| registry.name_inherits(&entry.name))
     }
 
     pub(crate) fn value_matches(&self, name_raw: usize, value: &StyleValueData) -> bool {
