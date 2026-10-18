@@ -74,8 +74,8 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> Module::imports(GC
         // 3.2. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
         Bindings::ModuleImportDescriptor descriptor {
             .kind = kind,
-            .module = Utf16String::from_utf8_with_replacement_character(import.module()),
-            .name = Utf16String::from_utf8_with_replacement_character(import.name()),
+            .module = Utf16String::from_utf8(import.module()),
+            .name = Utf16String::from_utf8(import.name()),
         };
 
         // 3.3. Append obj to imports.
@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(GC
         // 3.2. Let obj be «[ "name" → name, "kind" → kind ]».
         Bindings::ModuleExportDescriptor descriptor {
             .kind = kind,
-            .name = Utf16String::from_utf8_with_replacement_character(entry.name()),
+            .name = Utf16String::from_utf8(entry.name()),
         };
         // 3.3. Append obj to exports.
         export_objects.append(move(descriptor));
@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<Vector<ByteBuffer>> Module::custom_sections(GC::Ref<Module> 
 
     auto& custom_sections = module_object->m_compiled_module->module->custom_sections();
     for (auto& section : custom_sections) {
-        auto name = Utf16String::from_utf8_with_replacement_character(section.name());
+        auto name = Utf16String::from_utf8(section.name());
         if (section_name == name)
             matching_sections.append(MUST(ByteBuffer::copy(section.contents())));
     }
