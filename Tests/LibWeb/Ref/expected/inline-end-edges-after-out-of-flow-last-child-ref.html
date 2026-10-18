@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+    div {
+        margin: 10px;
+    }
+    .inline {
+        padding: 0 30px 0 20px;
+    }
+    .box {
+        display: inline-block;
+        width: 50px;
+        height: 10px;
+        background: blue;
+    }
+    .out-of-flow {
+        width: 10px;
+        height: 10px;
+        background: green;
+    }
+    .absolute {
+        position: absolute;
+    }
+    .float {
+        float: left;
+    }
+</style>
+<!-- A zero-width space after each out-of-flow box ends the inline boxes with in-flow content. -->
+<div><span class="inline"><span class="box"></span><span class="out-of-flow absolute"></span>&#8203;</span><span class="box"></span></div>
+<div><span class="inline"><span class="box"></span><span class="out-of-flow float"></span>&#8203;</span><span class="box"></span></div>
+<div><span class="inline"><span class="box"></span><span class="out-of-flow float"></span>&#8203;</span><span class="box"></span></div>

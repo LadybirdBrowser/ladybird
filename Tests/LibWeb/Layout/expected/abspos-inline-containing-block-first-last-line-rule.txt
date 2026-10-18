@@ -42,7 +42,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.frame> at [8,164] [8+0+0 300 0+0+492] [8+0+0 20 0+0+8] children: inline
         frag 0 from TextNode start: 5, length: 3, rect: [8,166 26.6875x16] baseline: 12.796875
             "aa "
-        frag 1 from TextNode start: 0, length: 3, rect: [83.40625,166 23.71875x16] baseline: 12.796875
+        frag 1 from TextNode start: 0, length: 3, rect: [91.40625,166 23.71875x16] baseline: 12.796875
             " dd"
         TextNode <#text> (not painted)
         InlineNode <span.rel> at [38.6875,166] [0+4+0 44.71875 0+8+0] [0+0+0 16 0+0+0]
@@ -57,7 +57,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.frame> at [8,192] [8+0+0 300 0+0+492] [8+0+0 20 0+0+8] children: inline
         frag 0 from TextNode start: 5, length: 3, rect: [200.875,194 26.6875x16] baseline: 12.796875
             "aa "
-        frag 1 from TextNode start: 0, length: 3, rect: [276.28125,194 23.71875x16] baseline: 12.796875
+        frag 1 from TextNode start: 0, length: 3, rect: [284.28125,194 23.71875x16] baseline: 12.796875
             " dd"
         TextNode <#text> (not painted)
         InlineNode <span.rel> at [231.5625,194] [0+4+0 44.71875 0+8+0] [0+0+0 16 0+0+0]

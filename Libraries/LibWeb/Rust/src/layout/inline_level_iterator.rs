@@ -569,6 +569,18 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             .unwrap_or(line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT)
     }
 
+    /// The end edges of inline boxes that end right after an out-of-flow box are pending when the iterator reaches
+    /// that box. It takes no edges itself, so they precede the next item rather than follow its content.
+    fn carry_trailing_metrics_past_out_of_flow_box(&mut self) {
+        let Some(trailing) = self.extra_trailing_metrics.take() else {
+            return;
+        };
+        let leading = self.extra_leading_metrics.get_or_insert_default();
+        leading.margin += trailing.margin;
+        leading.border += trailing.border;
+        leading.padding += trailing.padding;
+    }
+
     fn add_extra_box_model_metrics_to_item(
         &mut self,
         item: &mut Item,
@@ -738,12 +750,14 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                         || extra.border != CssPixels::default()
                         || extra.padding != CssPixels::default()
                 });
+                self.carry_trailing_metrics_past_out_of_flow_box();
                 self.skip_to_next();
                 let mut item = Item::new(ItemType::AbsolutelyPositionedElement, node);
                 item.preceded_by_unattached_inline_start_edges = preceded;
                 return Some(item);
             }
             if facts.is_floating() {
+                self.carry_trailing_metrics_past_out_of_flow_box();
                 self.skip_to_next();
                 return Some(Item::new(ItemType::FloatingElement, node));
             }
