@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Transferring streams to an AudioWorkletProcessor</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+'use strict';
+
+async function createProcessorPort(t) {
+  const context = new AudioContext();
+  t.add_cleanup(() => context.close());
+  await context.audioWorklet.addModule('resources/audioworklet-stream-processor.js');
+  return new AudioWorkletNode(context, 'stream-processor').port;
+}
+
+async function transfer(t, kind, stream) {
+  const port = await createProcessorPort(t);
+  const response = new Promise(resolve => port.onmessage = e => resolve(e.data));
+  port.postMessage({ kind, stream }, [stream]);
+  assert_true(kind === 'transform' ? stream.readable.locked : stream.locked, 'the original stream is locked');
+  const data = await response;
+  assert_equals(data.error, undefined, 'no error in the worklet');
+  return data.result;
+}
+
+promise_test(async t => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue('chunk to the worklet');
+    }
+  });
+  assert_equals(await transfer(t, 'readable', stream), 'chunk to the worklet');
+}, 'A ReadableStream can be transferred to an AudioWorkletProcessor');
+
+promise_test(async t => {
+  const chunks = [];
+  let closed;
+  const sinkClosed = new Promise(resolve => closed = resolve);
+  const stream = new WritableStream({
+    write(chunk) {
+      chunks.push(chunk);
+    },
+    close() {
+      closed();
+    }
+  });
+  assert_equals(await transfer(t, 'writable', stream), 'written');
+  await sinkClosed;
+  assert_array_equals(chunks, ['chunk from the worklet']);
+}, 'A WritableStream can be transferred to an AudioWorkletProcessor');
+
+promise_test(async t => {
+  assert_equals(await transfer(t, 'transform', new TransformStream()), 'chunk through the worklet');
+}, 'A TransformStream can be transferred to an AudioWorkletProcessor');
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	A ReadableStream can be transferred to an AudioWorkletProcessor
+Pass	A WritableStream can be transferred to an AudioWorkletProcessor
+Pass	A TransformStream can be transferred to an AudioWorkletProcessor
