@@ -1,0 +1,50 @@
+t=0.25
+  unspecified: 25.0
+  two: 25.0
+  fraction-frozen: 25.0
+  indefinite: 25.0
+  zero: 25.0
+  negative: 25.0
+  percentage: 25.0
+  too-large: 25.0
+  changed: 25.0
+t=1.25
+  unspecified: 0.0
+  two: 25.0
+  fraction-frozen: 25.0
+  indefinite: 25.0
+  zero: 0.0
+  negative: 0.0
+  percentage: 0.0
+  too-large: 0.0
+  changed: 25.0
+t=2.25
+  unspecified: 0.0
+  two: 0.0
+  fraction-frozen: 25.0
+  indefinite: 25.0
+  zero: 0.0
+  negative: 0.0
+  percentage: 0.0
+  too-large: 0.0
+  changed: 25.0
+t=2.75
+  unspecified: 0.0
+  two: 0.0
+  fraction-frozen: 50.0
+  indefinite: 75.0
+  zero: 0.0
+  negative: 0.0
+  percentage: 0.0
+  too-large: 0.0
+  changed: 75.0
+t=10.25
+  unspecified: 0.0
+  two: 0.0
+  fraction-frozen: 50.0
+  indefinite: 25.0
+  zero: 0.0
+  negative: 0.0
+  percentage: 0.0
+  too-large: 0.0
+  changed: 0.0

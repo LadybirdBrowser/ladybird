@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="400" height="400">
+    <rect id="unspecified" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s"/></rect>
+    <rect id="two" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="2"/></rect>
+    <rect id="fraction-frozen" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="2.5" fill="freeze"/></rect>
+    <rect id="indefinite" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="indefinite"/></rect>
+    <rect id="zero" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="0"/></rect>
+    <rect id="negative" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="-2"/></rect>
+    <rect id="percentage" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="200%"/></rect>
+    <rect id="too-large" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="1e+309"/></rect>
+    <rect id="changed" width="10" height="10"><animateMotion from="0,0" to="100,0" dur="1s" repeatCount="indefinite"/></rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+        svg.pauseAnimations();
+        document.querySelector("#changed animateMotion").setAttribute("repeatCount", "3");
+        const origin = svg.getBoundingClientRect();
+        for (const time of [0.25, 1.25, 2.25, 2.75, 10.25]) {
+            svg.setCurrentTime(time);
+            println(`t=${time}`);
+            for (const rect of document.querySelectorAll("rect")) {
+                const box = rect.getBoundingClientRect();
+                println(`  ${rect.id}: ${(box.left - origin.left).toFixed(1)}`);
+            }
+        }
+        done();
+    });
+</script>

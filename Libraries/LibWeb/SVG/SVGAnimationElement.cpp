@@ -55,7 +55,7 @@ void SVGAnimationElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node
 void SVGAnimationElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
-    if (first_is_one_of(name, AttributeNames::attributeName, AttributeNames::dur, AttributeNames::fill) && !namespace_.has_value())
+    if (first_is_one_of(name, AttributeNames::attributeName, AttributeNames::dur, AttributeNames::fill, AttributeNames::repeatCount) && !namespace_.has_value())
         update_animation();
 }
 
@@ -112,6 +112,32 @@ double SVGAnimationElement::simple_duration() const
     return AK::Infinity<double>;
 }
 
+// https://svgwg.org/specs/animations/#RepeatCountAttribute
+double SVGAnimationElement::repeat_count() const
+{
+    // Specifies the number of iterations of the animation function. It can have the following attribute values:
+    auto repeat_count = get_attribute(AttributeNames::repeatCount);
+    if (!repeat_count.has_value())
+        return 1;
+
+    // <number>
+    //     This is a (base 10) "floating point" numeric value that specifies the number of iterations. It can include
+    //     partial iterations expressed as fraction values. A fractional value describes a portion of the simple
+    //     duration. Values must be greater than 0.
+    if (auto count = parse_number_percentage(*repeat_count); count.has_value() && !count->is_percentage()
+        && count->value() > 0 && isfinite(count->value())) {
+        return count->value();
+    }
+
+    // indefinite
+    //     The animation is defined to repeat indefinitely (i.e. until the document ends).
+    if (*repeat_count == "indefinite"sv)
+        return AK::Infinity<double>;
+
+    // NB: SMIL Animation ignores a value with any error in its syntax, which leaves a single iteration.
+    return 1;
+}
+
 // https://svgwg.org/specs/animations/#FillAttribute
 Bindings::FillMode SVGAnimationElement::fill_mode() const
 {
@@ -161,6 +187,7 @@ void SVGAnimationElement::update_animation()
     // FIXME: A running animation requests a rendering update on every frame, even when its output cannot change, as
     //        with an indefinite one. This keeps the rendering loop running for as long as such an animation is active.
     auto effect = MUST(Animations::KeyframeEffect::create_from_processed_keyframes(target, move(keyframes), simple_duration()));
+    effect->set_iteration_count(repeat_count());
     effect->set_fill_mode(fill_mode());
 
     auto animation = SMILAnimation::create(*this, *time_container);
