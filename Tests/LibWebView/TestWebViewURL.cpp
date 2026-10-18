@@ -360,6 +360,8 @@ TEST_CASE(location_looks_like_url)
     expect_location_does_not_look_like_url("example.org hello"sv);
     expect_location_does_not_look_like_url("example.def"sv);
     expect_location_does_not_look_like_url("javascript://alert"sv);
+    expect_location_does_not_look_like_url("f"sv);
+    expect_location_does_not_look_like_url("cafe"sv);
 
     expect_location_looks_like_url("example"sv, WebView::AppendTLD::Yes);
 }

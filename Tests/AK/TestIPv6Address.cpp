@@ -93,6 +93,18 @@ TEST_CASE(should_not_make_ipv6_address_from_string)
     EXPECT_EQ(IPv6Address::from_string("[::304:506:708:90a:b0c:d0e:f10]]"sv), OptionalNone {});
     EXPECT_EQ(IPv6Address::from_string("[[::304:506:708:90a:b0c:d0e:f10]"sv), OptionalNone {});
     EXPECT_EQ(IPv6Address::from_string("[[::304:506:708:90a:b0c:d0e:f10]]"sv), OptionalNone {});
+    EXPECT(!IPv6Address::from_string("f"sv).has_value());
+    EXPECT(!IPv6Address::from_string("[f]"sv).has_value());
+    EXPECT(!IPv6Address::from_string("cafe"sv).has_value());
+    EXPECT(!IPv6Address::from_string("1:2"sv).has_value());
+    EXPECT(!IPv6Address::from_string("1:2:3:4:5:6:7"sv).has_value());
+    EXPECT(!IPv6Address::from_string("1:2:3:4:5:6:7:8:9"sv).has_value());
+    EXPECT(!IPv6Address::from_string(":1:2:3:4:5:6:7"sv).has_value());
+    EXPECT(!IPv6Address::from_string("1:2:3:4:5:6:7:"sv).has_value());
+    EXPECT(!IPv6Address::from_string("1:2:3:4::5:6:7:8"sv).has_value());
+    EXPECT(!IPv6Address::from_string(""sv).has_value());
+    EXPECT(!IPv6Address::from_string(":"sv).has_value());
+    EXPECT(!IPv6Address::from_string(":::"sv).has_value());
 }
 
 TEST_CASE(ipv4_mapped_ipv6)
