@@ -109,8 +109,7 @@ pub(super) struct CallbackTarget {
 
 /// Whether the callee can be built as an inlined call: its frame must not be
 /// needed in memory outside generic nodes, its environments must stay those
-/// of its function object, it must be fully compilable, and it must not step
-/// for-in loops.
+/// of its function object, and it must be fully compilable.
 fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
     if !callee.written_constants.is_empty() {
         return false;
@@ -135,10 +134,7 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
                 | OpCode::CallDirectEvalWithArgumentArray
                 | OpCode::Debugger
         );
-        // NB: Building for-in loops leaves slots in frame memory, which
-        //     inlined frames do not have.
-        let steps_for_in = opcode == OpCode::ObjectPropertyIteratorNext;
-        !reads_frame_fields && !steps_for_in && !matches!(handling(opcode), Handling::Unsupported(_))
+        !reads_frame_fields && !matches!(handling(opcode), Handling::Unsupported(_))
     })
 }
 

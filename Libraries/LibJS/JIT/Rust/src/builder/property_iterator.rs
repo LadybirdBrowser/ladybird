@@ -8,6 +8,7 @@
 
 use super::Flow;
 use super::GraphBuilder;
+use super::SlotState;
 use crate::CompileFailure;
 use crate::bytecode::Operand;
 use crate::code::Repr;
@@ -34,8 +35,14 @@ impl GraphBuilder<'_> {
         let receiver = self.read(receiver)?;
         let keys = self.read(keys)?;
         let cursor_value = self.read(cursor)?;
-        // NB: Once there are no more keys, the value stays what it was.
-        let old_value = self.read(dst_value)?;
+        // NB: Once there are no more keys, the value stays what it was. It is
+        //     dead before the instruction, which writes it, and inlined frames
+        //     drop dead slots at merges: there it becomes undefined, as the
+        //     slow path writes it once done.
+        let old_value = match self.peek(dst_value) {
+            SlotState::InMemory if self.function.is_virtual() => self.constant(value::UNDEFINED),
+            _ => self.read(dst_value)?,
+        };
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
         let receiver = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, vec![receiver], true);
         self.branch_to_slow_path(

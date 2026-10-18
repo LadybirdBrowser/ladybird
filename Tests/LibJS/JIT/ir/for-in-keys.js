@@ -29,3 +29,25 @@ jit.compile(keys);
 // CHECK-NEXT: SlowPathOutput 2 ([[CALL]])
 
 console.log(keys({ x: 1, y: 2 }));
+
+// Callees with for-in loops are inlined, and their loops are built the same way.
+
+function countKeys(o) {
+    let n = 0;
+    for (const k in o) ++n;
+    return n;
+}
+function countKeysOfBoth(a, b) {
+    return countKeys(a) + countKeys(b);
+}
+jit.prepare(countKeys);
+jit.prepare(countKeysOfBoth);
+for (let i = 0; i < 10; ++i) countKeysOfBoth({ a: 1 }, { b: 2, c: 3 });
+jit.compile(countKeysOfBoth);
+
+// CHECK-FUNCTION: countKeysOfBoth
+// CHECK-PASS: frame initialization
+// CHECK-NOT: CallDirect
+// CHECK-COUNT-2: LoadPropertyIteratorKeyCount
+
+console.log(countKeysOfBoth({ x: 1 }, { y: 2, z: 3 }));
