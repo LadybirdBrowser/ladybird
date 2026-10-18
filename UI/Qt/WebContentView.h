@@ -230,7 +230,6 @@ private:
 #endif
 
     friend void install_accessibility(WebContentView*);
-    friend void update_accessibility_tree(WebContentView*);
     friend void post_accessibility_focus_changed(WebContentView*, i64);
 
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
