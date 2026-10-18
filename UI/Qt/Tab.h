@@ -129,6 +129,7 @@ signals:
     void title_changed(int id, QString const&);
     void favicon_changed(int id, QIcon const&);
     void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
+    void loading_finished();
 
 private:
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);

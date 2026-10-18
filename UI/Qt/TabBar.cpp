@@ -95,6 +95,8 @@ static constexpr int TAB_PREVIEW_SHADOW_MARGIN = 12;
 static constexpr int TAB_PREVIEW_CARD_GAP = 6;
 static constexpr int TAB_BUTTON_SIZE = 22;
 static constexpr int TAB_BUTTON_ICON_SIZE = 14;
+static constexpr qreal LOAD_SHEEN_FADE_PROGRESS = 0.15;
+static constexpr int LOAD_SHEEN_DURATION_MS = 400;
 static constexpr int TAB_ICON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_BUTTON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_ICON_SIZE = 12;
@@ -203,6 +205,31 @@ static QRectF horizontal_new_tab_button_shape_rect(QRectF const& rect)
 static QRect tab_card_shape_rect(QRect const& rect)
 {
     return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
+}
+
+// When a tab finishes loading, a soft band of light sweeps across its pill from left to right.
+static void paint_load_sheen(QPainter& painter, QPalette const& palette, QPainterPath const& tab_path, QRectF const& shape_rect, qreal progress)
+{
+    // The bright middle of the band travels from the left edge of the tab to its right edge, so the sweep is seen to
+    // start at the very left. It fades out at the right edge rather than leaving the tab.
+    auto band_width = shape_rect.height() * 2.5;
+    auto center_x = shape_rect.left() + (shape_rect.width() * progress);
+    auto strength = min(1.0, (1.0 - progress) / LOAD_SHEEN_FADE_PROGRESS);
+
+    // NB: The gradient runs from the top left to the bottom right of the band, which slants the band like "/".
+    QLinearGradient sheen(QPointF(center_x - (band_width / 2.0), shape_rect.top()), QPointF(center_x + (band_width / 2.0), shape_rect.bottom()));
+    auto peak = ChromeStyle::is_dark(palette) ? QColor(255, 255, 255, 46) : QColor(0, 0, 0, 14);
+    peak.setAlphaF(peak.alphaF() * strength);
+    auto clear = peak;
+    clear.setAlpha(0);
+    sheen.setColorAt(0.0, clear);
+    sheen.setColorAt(0.5, peak);
+    sheen.setColorAt(1.0, clear);
+
+    painter.save();
+    painter.setClipPath(tab_path);
+    painter.fillRect(shape_rect, sheen);
+    painter.restore();
 }
 
 static QColor tab_hover_surface(QPalette const& palette, qreal hover_progress)
@@ -735,6 +762,9 @@ void TabBar::paintEvent(QPaintEvent*)
             painter.drawPath(tab_path);
         }
 
+        if (auto progress = load_sheen_progress(index); progress.has_value())
+            paint_load_sheen(painter, palette(), tab_path, shape_rect, *progress);
+
         auto icon = tabIcon(index);
         if (icon.isNull())
             icon = m_fallback_tab_icon;
@@ -1160,6 +1190,45 @@ void TabBar::start_hover_animation(int tab_index, qreal target_progress)
     m_hover_animation->setStartValue(start_progress);
     m_hover_animation->setEndValue(target_progress);
     m_hover_animation->start();
+}
+
+void TabBar::play_load_sheen(Tab& tab)
+{
+    m_load_sheens.remove_all_matching([&](auto const& sheen) {
+        if (sheen.tab != &tab)
+            return false;
+        sheen.animation->deleteLater();
+        return true;
+    });
+
+    auto* animation = new QVariantAnimation(this);
+    animation->setDuration(LOAD_SHEEN_DURATION_MS);
+    animation->setEasingCurve(QEasingCurve::InOutSine);
+    animation->setStartValue(0.0);
+    animation->setEndValue(1.0);
+    connect(animation, &QVariantAnimation::valueChanged, this, [this] { update(); });
+    connect(animation, &QVariantAnimation::finished, this, [this, animation] {
+        m_load_sheens.remove_first_matching([&](auto const& sheen) { return sheen.animation == animation; });
+        animation->deleteLater();
+        update();
+    });
+    m_load_sheens.append({ &tab, animation });
+    animation->start();
+}
+
+Optional<qreal> TabBar::load_sheen_progress(int index) const
+{
+    if (m_load_sheens.is_empty() || !m_tab_widget)
+        return {};
+    // NB: A sheen whose tab was closed has a null tab, which must not match a missing one here.
+    auto* tab = m_tab_widget->tab(index);
+    if (!tab)
+        return {};
+    for (auto const& sheen : m_load_sheens) {
+        if (sheen.tab == tab)
+            return sheen.animation->currentValue().toReal();
+    }
+    return {};
 }
 
 void TabBar::schedule_tab_preview(int index)
