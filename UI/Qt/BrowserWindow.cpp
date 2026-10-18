@@ -570,6 +570,9 @@ void BrowserWindow::initialize_tab(Tab* tab)
     QObject::connect(tab, &Tab::title_changed, this, &BrowserWindow::tab_title_changed);
     QObject::connect(tab, &Tab::favicon_changed, this, &BrowserWindow::tab_favicon_changed);
     QObject::connect(tab, &Tab::audio_play_state_changed, this, &BrowserWindow::tab_audio_play_state_changed);
+    QObject::connect(tab, &Tab::loading_changed, this, [this] {
+        m_tabs_container->tab_bar()->update_loading_swirl_animation();
+    });
     QObject::connect(tab, &Tab::loading_finished, this, [this, tab] {
         m_tabs_container->tab_bar()->play_load_sheen(*tab);
     });

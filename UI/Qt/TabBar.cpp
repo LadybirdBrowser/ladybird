@@ -546,6 +546,25 @@ TabBar::TabBar(TabWidget* tab_widget)
 
     m_tab_preview_popup = new TabPreviewPopup(this);
 
+    m_loading_swirl_animation = new QVariantAnimation(this);
+    m_loading_swirl_animation->setDuration(ChromeStyle::LOADING_SWIRL_PERIOD_MS);
+    m_loading_swirl_animation->setStartValue(0.0);
+    m_loading_swirl_animation->setEndValue(1.0);
+    m_loading_swirl_animation->setLoopCount(-1);
+    // NB: Each frame repaints only the loading tabs, and checks again, so the swirl also stops when the last loading tab
+    //     is closed.
+    connect(m_loading_swirl_animation, &QVariantAnimation::valueChanged, this, [this] {
+        auto any_tab_loading = false;
+        for (int index = 0; index < count(); ++index) {
+            if (!is_tab_loading(index))
+                continue;
+            any_tab_loading = true;
+            update(visual_tab_rect(index));
+        }
+        if (!any_tab_loading || !isVisible())
+            update_loading_swirl_animation();
+    });
+
     m_hover_animation = new QVariantAnimation(this);
     m_hover_animation->setDuration(120);
     m_hover_animation->setEasingCurve(QEasingCurve::OutCubic);
@@ -692,6 +711,10 @@ void TabBar::tabLayoutChange()
 
 bool TabBar::event(QEvent* event)
 {
+    // The swirl stops while the tab bar is hidden, so it has to start again for tabs still loading when it is shown.
+    if (event->type() == QEvent::Show)
+        update_loading_swirl_animation();
+
     if (event->type() == QEvent::ToolTip) {
         auto* help_event = static_cast<QHelpEvent*>(event);
         auto hovered_tab = tab_index_at(help_event->pos());
@@ -762,6 +785,8 @@ void TabBar::paintEvent(QPaintEvent*)
             painter.drawPath(tab_path);
         }
 
+        if (is_tab_loading(index))
+            ChromeStyle::paint_loading_swirl(painter, tab_path);
         if (auto progress = load_sheen_progress(index); progress.has_value())
             paint_load_sheen(painter, palette(), tab_path, shape_rect, *progress);
 
@@ -1214,6 +1239,29 @@ void TabBar::play_load_sheen(Tab& tab)
     });
     m_load_sheens.append({ &tab, animation });
     animation->start();
+}
+
+bool TabBar::is_tab_loading(int index) const
+{
+    if (!m_tab_widget || index < 0 || index >= count())
+        return false;
+    auto* tab = m_tab_widget->tab(index);
+    return tab && tab->is_loading();
+}
+
+// The swirl only needs repainting while a tab is loading and the tab bar can be seen.
+void TabBar::update_loading_swirl_animation()
+{
+    auto any_tab_loading = false;
+    for (int index = 0; index < count() && !any_tab_loading; ++index)
+        any_tab_loading = is_tab_loading(index);
+
+    auto should_run = any_tab_loading && isVisible();
+    if (should_run && m_loading_swirl_animation->state() != QAbstractAnimation::Running)
+        m_loading_swirl_animation->start();
+    else if (!should_run && m_loading_swirl_animation->state() != QAbstractAnimation::Stopped)
+        m_loading_swirl_animation->stop();
+    update();
 }
 
 Optional<qreal> TabBar::load_sheen_progress(int index) const
@@ -1801,6 +1849,9 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
     update_toolbar_placement();
     update_tab_layout();
     update_tab_button_visibility();
+
+    // A tab moved here from another window can already be loading.
+    m_tab_bar->update_loading_swirl_animation();
 }
 
 void TabWidget::remove_tab(int index)

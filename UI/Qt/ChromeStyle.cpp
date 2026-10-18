@@ -10,9 +10,11 @@
 #include <UI/Qt/StringUtils.h>
 
 #include <QAbstractButton>
+#include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QImage>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPalette>
 #include <QStyleHints>
 
@@ -1586,6 +1588,45 @@ void paint_circular_control_frame(QPainter& painter, QAbstractButton const& butt
     }
 
     paint_circular_control_frame(painter, button.rect(), button.devicePixelRatioF(), background, border);
+}
+
+// A purple gradient with two soft bright spots that moves steadily along a border, to show that something is loading.
+// Every swirl follows the same clock, so the swirls on screen move in step.
+void paint_loading_swirl(QPainter& painter, QPainterPath const& border)
+{
+    static QElapsedTimer clock;
+    if (!clock.isValid())
+        clock.start();
+    auto phase = static_cast<qreal>(clock.elapsed() % LOADING_SWIRL_PERIOD_MS) / LOADING_SWIRL_PERIOD_MS;
+
+    // The border is drawn in short segments, each colored by where it sits along the border.
+    static constexpr qreal segment_length = 2.0;
+    static constexpr qreal bright_spots = 2.0;
+    // NB: Without caching, every pointAtPercent() call below measures the whole path again.
+    auto path = border;
+    path.setCachingEnabled(true);
+    auto segments = max(1, static_cast<int>(ceil(path.length() / segment_length)));
+    auto color = chrome_accent();
+
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setBrush(Qt::NoBrush);
+
+    // NB: pointAtPercent() measures along the path's length, so the swirl moves just as fast around the curves of a
+    //     border as along its straight edges.
+    auto from_point = path.pointAtPercent(0);
+    for (int segment = 0; segment < segments; ++segment) {
+        auto from = static_cast<qreal>(segment) / segments;
+        auto to = static_cast<qreal>(segment + 1) / segments;
+        auto to_point = path.pointAtPercent(to);
+        auto wave = 0.5 + (0.5 * cos(2.0 * M_PI * bright_spots * (((from + to) / 2.0) - phase)));
+        color.setAlphaF(0.2 + (0.8 * wave * wave));
+        painter.setPen(QPen(color, 1.5, Qt::SolidLine, Qt::FlatCap));
+        painter.drawLine(from_point, to_point);
+        from_point = to_point;
+    }
+
+    painter.restore();
 }
 
 }
