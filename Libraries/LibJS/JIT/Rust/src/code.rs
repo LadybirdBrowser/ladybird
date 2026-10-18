@@ -202,6 +202,10 @@ pub enum SiteKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VirtualObjectDescriptor {
     pub shape: CellId,
+    /// The node index of the allocation the object stands for, which is the
+    /// same at every site of the code: the runtime may have created the
+    /// object at another site of the same frame already, and then uses that.
+    pub allocation: u32,
     pub properties: Vec<ValueLocation>,
 }
 

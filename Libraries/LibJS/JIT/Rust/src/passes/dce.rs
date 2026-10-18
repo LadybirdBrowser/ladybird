@@ -82,7 +82,7 @@ fn remove_dead_nodes(graph: &mut Graph) {
 mod tests {
     use super::*;
     use crate::code::{Repr, ResumeMode};
-    use crate::ir::{BinaryOp, Block, FrameState};
+    use crate::ir::{BinaryOp, Block, FrameState, NodeId};
     use crate::snapshot::CellId;
 
     #[test]
@@ -122,7 +122,10 @@ mod tests {
             0,
         ));
         let object = graph.add_node(crate::ir::Node::new(
-            Op::VirtualObject { shape: CellId(1) },
+            Op::VirtualObject {
+                shape: CellId(1),
+                allocation: NodeId(0),
+            },
             vec![boxed],
             Some(Repr::Tagged),
             0,
