@@ -2107,26 +2107,39 @@ pub(crate) mod inlining {
             &creates_environment,
             function(true, false)
         )));
+    }
 
-        // A for-in loop, which leaves slots in frame memory.
-        let for_in = assemble(|_| {
+    #[test]
+    fn for_in_loops_are_inlined() {
+        // function f(o) { for (k in o) {} return k; }
+        let callee = assemble(|label| {
             vec![
                 Instruction::Enter,
+                Instruction::GetObjectPropertyIterator {
+                    dst_keys: r(5),
+                    dst_receiver: r(6),
+                    object: a(0),
+                    cache: 0,
+                },
+                Instruction::Mov { dst: r(7), src: c(0) },
                 Instruction::ObjectPropertyIteratorNext {
-                    dst_value: r(5),
-                    dst_done: r(6),
-                    receiver: a(0),
-                    keys: a(0),
+                    dst_value: l(0),
+                    dst_done: l(1),
+                    receiver: r(6),
+                    keys: r(5),
                     cursor: r(7),
                 },
-                Instruction::Return { value: r(5) },
+                Instruction::JumpIf {
+                    condition: l(1),
+                    true_target: label(5),
+                    false_target: label(3),
+                },
+                Instruction::Return { value: l(0) },
             ]
         });
-        assert!(!is_inlined(&snapshot_with_callee(
-            &caller(),
-            &for_in,
-            function(true, false)
-        )));
+        let dump = dump_inlined(&caller(), &callee, function(true, false));
+        assert!(!dump.contains("CallSlowPath Call"), "{dump}");
+        assert!(dump.contains("LoadPropertyIteratorKey"), "{dump}");
     }
 
     #[test]
