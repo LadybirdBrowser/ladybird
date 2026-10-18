@@ -686,7 +686,8 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
 /// it, and the slow path did not continue in compiled code. Writes the frame state of the leave into the compiled
 /// function's frame `root`, and into the frames compiled code pushed for a slow path in an inlined callee, as far as
 /// they are still on the stack: an exception may have unwound inner ones (and maybe the compiled function's, which then
-/// needs nothing), and the slow path may have pushed a callee for the interpreter above them.
+/// needs nothing), and the slow path may have pushed a callee for the interpreter above them. Counts an exception that
+/// a handler of an inlined callee caught like an exit.
 pub(super) fn leave(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, index: u32, dump: &RegisterDump) {
     let site = code.site(index);
     assert_eq!(site.kind, SiteKind::Leave);
@@ -713,6 +714,22 @@ pub(super) fn leave(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, in
         write(frame_of(frame), &frame_states[frame_states.len() - 2 - index]);
     }
     code.forget_materialized_objects(root.as_ptr());
+
+    // NB: A handler of an inlined callee that caught an exception left the callee's frame running at its Catch. The
+    //     code was compiled before that handler caught anything. Such catches count like exits, so that the executable
+    //     is compiled again once they keep happening, and then calls the callee.
+    let handler_of_inlined_callee_caught = pushed == frames.len()
+        && frames.first().is_some_and(|running| {
+            let running = frame_of(*running);
+            executable_of(running).bytecode()[running.program_counter.get() as usize] == OpCode::Catch as u8
+        });
+    if handler_of_inlined_callee_caught
+        && code.count_exit() >= EXIT_COUNT_BEFORE_DISCARD
+        && executable_of(frame_of(root)).jit_compile_state() == CompileState::Installed
+    {
+        vm.jit.count_coverage("discard-from-inlined-catch");
+        executable_of(frame_of(root)).discard_jit_code(vm);
+    }
 }
 
 /// Header translation for a slow path or call in an inlined callee, which takes its operands as values (see

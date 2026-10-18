@@ -197,7 +197,8 @@ pub enum SiteKind {
     /// A slow path did not continue in compiled code: the runtime writes the
     /// frame state into the compiled function's frame and the frames
     /// compiled code pushed for a slow path in an inlined callee, as far as
-    /// they are still on the stack. No exit: nothing is counted or recorded.
+    /// they are still on the stack. No exit: nothing is recorded, and only
+    /// an exception that a handler of an inlined callee caught is counted.
     Leave,
     /// A slow path or call in an inlined callee, which runs in the frames of
     /// the inlined calls with its operands as values: the runtime pushes

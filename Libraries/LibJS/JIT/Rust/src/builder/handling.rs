@@ -123,7 +123,8 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::GetArgumentCount => Handling::Native,
 
         // NB: The interpreter runs it, and compiled code is entered after it
-        //     (see `build_catch_entries()`).
+        //     (see `build_catch_entries()`). Handlers of inlined callees run
+        //     in the interpreter to their end (see `can_inline()`).
         O::Catch => Handling::Unsupported("starts an exception handler, which the interpreter runs"),
 
         // Calls.

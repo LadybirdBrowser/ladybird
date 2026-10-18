@@ -346,6 +346,13 @@ after the `Catch`, so a frame never enters and exits at the same pc. A catch whe
 entry counts like an exit, so that code compiled before the handler first caught is discarded and
 compiled again with the entry once catches keep happening there.
 
+Callees with handlers are inlined only if none of their handlers caught an exception before the
+compile, and their handlers get no blocks at all. An exception that one of them catches unwinds into
+the callee's materialized frame, the leave writes the frames, and the interpreter runs the handler.
+Inlined frames do not list their exception register in frame states, so the leave keeps the
+exception the unwinder put there. The leave counts such a catch like an exit, so that the code is
+compiled again once catches keep happening there, and the recompile calls the callee instead.
+
 ## 5. Dependencies and invalidation
 
 Compiled code may assume facts that hold until a rare runtime event (`code::Dependency`): a

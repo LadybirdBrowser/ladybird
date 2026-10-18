@@ -15,7 +15,9 @@
 //! their operands as values and run in the frames of the inlined calls,
 //! which the runtime publishes from their frame state (see
 //! `SiteKind::Publish`) and compiled code pops again; calls that can, run
-//! without them (see `Op::CallDirect`).
+//! without them (see `Op::CallDirect`). The handlers of an inlined callee
+//! are not built: an exception one of them catches leaves compiled code,
+//! and the interpreter runs the handler in the callee's materialized frame.
 //!
 //! Returns jump to a continuation block in the caller, where the call's
 //! result is the phi of the returned values.
@@ -109,7 +111,8 @@ pub(super) struct CallbackTarget {
 
 /// Whether the callee can be built as an inlined call: its frame must not be
 /// needed in memory outside generic nodes, its environments must stay those
-/// of its function object, and it must be fully compilable.
+/// of its function object, it must be fully compilable, and its exception
+/// handlers must never have caught anything.
 fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
     if !callee.written_constants.is_empty() {
         return false;
@@ -119,6 +122,12 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
         // NB: An arguments object the callee never creates reads no frame (see `arguments`).
         if virtual_arguments && arguments::can_create_virtual_arguments(callee, &instruction.instruction) {
             return true;
+        }
+        // NB: Handlers of inlined callees are never built. An exception they catch leaves compiled code, and the
+        //     interpreter runs the handler in the callee's materialized frame (see `translate::leave()` in the
+        //     runtime). A handler that caught before would make the code leave again and again.
+        if opcode == OpCode::Catch {
+            return !super::has_run(callee.executable, instruction.pc);
         }
         let reads_frame_fields = matches!(
             opcode,
@@ -305,13 +314,20 @@ impl GraphBuilder<'_> {
 
     /// The values a frame state of the function being walked lists for the
     /// slots in `live`: those frame memory does not hold, or every one for
-    /// virtual frames. Inlined callees that are not strict list all their
-    /// passed arguments too, since their legacy `arguments` shows them in
-    /// the frames exits and slow paths materialize.
+    /// virtual frames but their exception register. Inlined callees that are
+    /// not strict list all their passed arguments too, since their legacy
+    /// `arguments` shows them in the frames exits and slow paths materialize.
     fn frame_state_values(&self, live: &BitSet) -> Vec<(u32, NodeId)> {
         let is_virtual = self.function.is_virtual();
+        // NB: Materialized frames start with an empty exception register, and only the runtime writes it: when a
+        //     handler of the frame catches an exception, before a leave writes the rest of the frame.
+        let exception_register = self
+            .function
+            .layout
+            .tracked_index(Operand::from_raw(crate::bytecode::EXCEPTION_REGISTER));
         let mut values = live
             .iter()
+            .filter(|slot| !is_virtual || Some(*slot) != exception_register)
             .filter_map(|slot| match self.frame.slots[slot] {
                 SlotState::Value { node, in_sync } if is_virtual || !in_sync => {
                     Some((self.function.layout.operand_for_tracked_index(slot).raw(), node))
