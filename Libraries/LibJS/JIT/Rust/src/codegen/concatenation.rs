@@ -61,7 +61,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let (integer, string) = (self.input(node, 0), self.output(node));
         let scratch = self.pinned.scratch;
         let layout = self.runtime.layout;
-        let (missing, done) = (self.masm.new_label(), self.masm.new_label());
+        let (large, found, missing, done) = (
+            self.masm.new_label(),
+            self.masm.new_label(),
+            self.masm.new_label(),
+            self.masm.new_label(),
+        );
         if layout.numeric_string_cache == 0 {
             self.masm.jump(missing);
         }
@@ -71,11 +76,40 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Condition::AboveOrEqual,
             scratch,
             layout.numeric_string_cache_size as i32,
-            missing,
+            large,
         );
         self.masm.move_imm64(string, layout.numeric_string_cache);
         self.masm
             .load64(string, &Address::indexed(string, scratch, Scale::Eight, 0));
+        self.masm.jump(found);
+
+        // Larger integers have an entry of the cache of their strings, which
+        // has the string of the integer it names.
+        self.masm.bind(large);
+        let entry_size = layout.large_numeric_string_cache_entry_size;
+        if layout.large_numeric_string_cache == 0 || !entry_size.is_power_of_two() {
+            self.masm.jump(missing);
+        }
+        // NB: The scratch register keeps the integer, zero-extended, for the
+        //     comparison with the entry's.
+        self.masm.branch32_imm(Condition::LessThan, scratch, 0, missing);
+        self.masm
+            .and32_imm(string, scratch, layout.large_numeric_string_cache_mask);
+        self.masm.shl64_imm(string, string, entry_size.trailing_zeros() as u8);
+        self.masm
+            .add64_imm(string, string, layout.large_numeric_string_cache as i64);
+        self.masm.branch64_memory(
+            Condition::NotEqual,
+            &Address::new(string, layout.large_numeric_string_cache_number as i32),
+            scratch,
+            missing,
+        );
+        self.masm.load64(
+            string,
+            &Address::new(string, layout.large_numeric_string_cache_string as i32),
+        );
+
+        self.masm.bind(found);
         self.masm.branch_test64(Condition::Zero, string, u64::MAX, missing);
         self.box_cell_with_tag(string, string, value::STRING_TAG);
         self.masm.jump(done);

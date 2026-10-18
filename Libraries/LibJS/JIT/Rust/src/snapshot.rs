@@ -1679,6 +1679,18 @@ pub struct RuntimeLayout {
     /// none yet), or 0 for code without them.
     pub numeric_string_cache: u64,
     pub numeric_string_cache_size: u32,
+    /// The address of the VM's cache of the strings of larger integers, or
+    /// 0 for code without one: the entry of the integer `n` is at index
+    /// `n & large_numeric_string_cache_mask`, entries are
+    /// `large_numeric_string_cache_entry_size` bytes, and an entry has the
+    /// string (cell pointer, or null) at
+    /// `large_numeric_string_cache_string` if the integer (u64) at
+    /// `large_numeric_string_cache_number` is `n`.
+    pub large_numeric_string_cache: u64,
+    pub large_numeric_string_cache_mask: u32,
+    pub large_numeric_string_cache_entry_size: u32,
+    pub large_numeric_string_cache_number: u32,
+    pub large_numeric_string_cache_string: u32,
     /// `Environment::outer` (cell pointer).
     pub environment_outer: u32,
     /// `Environment::declarative` (bool): whether the environment is a

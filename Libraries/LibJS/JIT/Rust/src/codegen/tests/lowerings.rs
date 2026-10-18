@@ -1235,6 +1235,11 @@ fn fake_object_layout() -> RuntimeLayout {
         fly_string_cache_mask: 0,
         numeric_string_cache: 0,
         numeric_string_cache_size: 0,
+        large_numeric_string_cache: 0,
+        large_numeric_string_cache_mask: 0,
+        large_numeric_string_cache_entry_size: 0,
+        large_numeric_string_cache_number: 0,
+        large_numeric_string_cache_string: 0,
         environment_outer: 16,
         environment_declarative: 13,
         module_environment_class: MODULE_ENVIRONMENT_CLASS,
@@ -3675,6 +3680,17 @@ fn short_string_concatenations_through_the_fly_string_cache() {
     let numbers: &'static mut [u64; 10] = Box::leak(Box::new([0; 10]));
     numbers[7] = fake_string_of_length(1, short_string_word(b"7")) & ((1 << 48) - 1);
     let numbers_address = numbers.as_ptr() as u64;
+    // The VM's cache of the strings of larger integers, entries of the
+    // integer and its string: only 1000 has one, in the entry of 1004 too.
+    let a1000 = short_string_word(b"a1000");
+    let cached_a1000 = fake_string_of_length(5, a1000);
+    cache[(murmur3_finalizer(a1000) & 1023) as usize] = cached_a1000 & ((1 << 48) - 1);
+    let large_numbers: &'static mut [[u64; 2]; 4] = Box::leak(Box::new([[0; 2]; 4]));
+    large_numbers[0] = [
+        1000,
+        fake_string_of_length(4, short_string_word(b"1000")) & ((1 << 48) - 1),
+    ];
+    let large_numbers_address = large_numbers.as_ptr() as u64;
     let concatenate = |lhs: u64, rhs: u64| {
         let program = assemble(|_| {
             vec![
@@ -3706,6 +3722,11 @@ fn short_string_concatenations_through_the_fly_string_cache() {
                 snapshot.runtime.layout.fly_string_cache_mask = 1023;
                 snapshot.runtime.layout.numeric_string_cache = numbers_address;
                 snapshot.runtime.layout.numeric_string_cache_size = 10;
+                snapshot.runtime.layout.large_numeric_string_cache = large_numbers_address;
+                snapshot.runtime.layout.large_numeric_string_cache_mask = 3;
+                snapshot.runtime.layout.large_numeric_string_cache_entry_size = 16;
+                snapshot.runtime.layout.large_numeric_string_cache_number = 0;
+                snapshot.runtime.layout.large_numeric_string_cache_string = 8;
                 // ArithFeedback::String and ArithFeedback::Int32.
                 snapshot.executables[0].feedback.arith = vec![1 << 3 | 1];
             },
@@ -3728,6 +3749,9 @@ fn short_string_concatenations_through_the_fly_string_cache() {
     assert_eq!(concatenate(short(b"a"), value::int32(6)), MARKER);
     assert_eq!(concatenate(short(b"a"), value::int32(-7)), MARKER);
     assert_eq!(concatenate(short(b"a"), value::int32(10)), MARKER);
+    assert_eq!(concatenate(short(b"a"), value::int32(1000)), cached_a1000);
+    assert_eq!(concatenate(short(b"a"), value::int32(1004)), MARKER);
+    assert_eq!(concatenate(short(b"a"), value::int32(1001)), MARKER);
 }
 
 #[test]
