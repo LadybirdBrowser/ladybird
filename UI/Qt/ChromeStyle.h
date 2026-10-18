@@ -40,7 +40,7 @@ QString toolbar_container_style_sheet(QPalette const&);
 QString menu_bar_style_sheet(QPalette const&);
 QString hamburger_style_sheet(QPalette const&);
 QString location_edit_style_sheet(QPalette const&);
-QString bookmarks_bar_style_sheet(QPalette const&);
+QString bookmarks_bar_style_sheet(QPalette const&, int corner_radius);
 QString find_in_page_style_sheet(QPalette const&);
 QString javascript_dialog_style_sheet(QPalette const&);
 QString bookmark_dialog_style_sheet(QPalette const&);
