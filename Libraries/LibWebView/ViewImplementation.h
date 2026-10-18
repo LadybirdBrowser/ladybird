@@ -160,6 +160,8 @@ public:
     void reload();
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
+    // Whether the most recent load ran to completion, rather than being stopped or canceled.
+    bool last_load_finished() const { return m_last_load_finished; }
 
     bool crash_overlay_active() const { return m_crash_state.has_value(); }
     String crash_overlay_failed_url() const;
@@ -901,6 +903,7 @@ protected:
     bool m_can_undo { false };
     bool m_can_redo { false };
     bool m_is_loading { false };
+    bool m_last_load_finished { false };
     // WebDriver's observation of the top-level navigation completion state. The navigation itself is the
     // canonical traversable's ongoing navigation record.
     struct WebDriverNavigationObservation {

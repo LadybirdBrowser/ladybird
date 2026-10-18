@@ -2777,6 +2777,7 @@ void ViewImplementation::did_cancel_loading(Badge<CanonicalNavigable>, bool canc
 
 void ViewImplementation::did_finish_navigation()
 {
+    m_last_load_finished = true;
     set_loading_state(false);
 
     if (!m_webdriver_navigation_observation.has_value())
@@ -2798,6 +2799,8 @@ void ViewImplementation::did_finish_navigation()
 
 void ViewImplementation::set_loading_state(bool is_loading)
 {
+    if (is_loading)
+        m_last_load_finished = false;
     if (m_is_loading == is_loading)
         return;
     m_is_loading = is_loading;
