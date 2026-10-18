@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Prefetch should fire the load event
+Pass	Cross-origin prefetch should fire the load event
+Pass	Prefetch should fire the load event for 404
+Pass	Prefetch should fire the load event for 404 (cross-origin)
+Pass	Prefetch should fire the load event for 500
+Pass	Cross-origin prefetch should fire the load event for 500
+Pass	Prefetch should fire the error event for network errors
+Pass	Prefetch should do nothing with an empty href
+Pass	Prefetch should do nothing with an invalid href

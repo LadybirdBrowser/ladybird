@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../common/utils.js"></script>
+<link rel="prefetch" href="/xhr/resources/delay.py?ms=100000">
+<body>
+<script>
+
+promise_test(() => new Promise(resolve => window.addEventListener("load", resolve)),
+    "Prefetch should not block the load event");
+
+</script>
+</body>
