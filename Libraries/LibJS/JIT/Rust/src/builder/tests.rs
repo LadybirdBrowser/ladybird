@@ -1775,7 +1775,7 @@ pub(crate) mod inlining {
             frame states:
               [[FS0]]: pc 8 at {} frame [a0]
               [[FS1]]: pc 8 after -> r5 {}
-              [[FS2]]: e1 pc 8 after -> r5 {r0=#empty, r1=#empty, r2=#empty, r3=#empty, r4=#empty, r5=#empty} in [[FS1]]
+              [[FS2]]: e1 pc 8 after -> r5 {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r5=#empty} in [[FS1]]
             ",
         );
 
@@ -1923,9 +1923,9 @@ pub(crate) mod inlining {
             frame states:
               [[FS0]]: pc 8 at {} frame [a0]
               [[FS1]]: pc 8 after -> r5 {}
-              [[FS2]]: e1 pc 32 at {r0=#empty, r1=#empty, r2=#empty, r3=#empty, r4=#empty, r5=[[V11]]} in [[FS1]]
-              [[FS3]]: e1 pc 48 after -> r7 {r0=#empty, r1=#empty, r2=#empty, r3=#empty, r4=#empty, r7=#empty} in [[FS1]]
-              [[FS4]]: e1 pc 64 at {r0=#empty, r1=#empty, r2=#empty, r3=#empty, r4=#empty, r7=[[V21]]} in [[FS1]]
+              [[FS2]]: e1 pc 32 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r5=[[V11]]} in [[FS1]]
+              [[FS3]]: e1 pc 48 after -> r7 {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=#empty} in [[FS1]]
+              [[FS4]]: e1 pc 64 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=[[V21]]} in [[FS1]]
             ",
         );
     }
@@ -1977,7 +1977,7 @@ pub(crate) mod inlining {
             frame states:
               [[FS0]]: pc 24 at {r6=#0} frame [a0]
               [[FS1]]: pc 24 after -> r5 {r6=#0}
-              [[FS2]]: e1 pc 24 at {r0=#empty, r1=#empty, r2=#empty, r3=#empty, r4=#empty, l0=#10} in [[FS1]]
+              [[FS2]]: e1 pc 24 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, l0=#10} in [[FS1]]
             ",
         );
     }
