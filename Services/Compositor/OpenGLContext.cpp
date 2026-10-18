@@ -330,6 +330,20 @@ void OpenGLContext::clear_buffer_to_default_values()
 #endif
 }
 
+#ifdef ENABLE_WEBGL
+// The drawing buffer is also allocated when the canvas is resized, between the page's commands, so setting it up must
+// leave the page's texture binding alone.
+template<typename Callback>
+static void with_texture_bound(GLenum target, GLuint texture, Callback callback)
+{
+    GLint original_texture = 0;
+    glGetIntegerv(target == GL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_BINDING_RECTANGLE_ANGLE : GL_TEXTURE_BINDING_2D, &original_texture);
+    glBindTexture(target, texture);
+    callback();
+    glBindTexture(target, original_texture);
+}
+#endif
+
 #ifdef AK_OS_MACOS
 void OpenGLContext::allocate_iosurface_painting_surface()
 {
@@ -359,9 +373,10 @@ void OpenGLContext::allocate_iosurface_painting_surface()
     eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 
     glGenTextures(1, &m_impl->color_buffer);
-    glBindTexture(m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer);
-    auto result = eglBindTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
-    VERIFY(result == EGL_TRUE);
+    with_texture_bound(m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer, [&] {
+        auto result = eglBindTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
+        VERIFY(result == EGL_TRUE);
+    });
 
     glViewport(0, 0, m_size.width(), m_size.height());
 }
@@ -438,8 +453,9 @@ bool OpenGLContext::allocate_vkimage_painting_surface()
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
 
     glGenTextures(1, &m_impl->color_buffer);
-    glBindTexture(GL_TEXTURE_2D, m_impl->color_buffer);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, m_impl->egl_image);
+    with_texture_bound(GL_TEXTURE_2D, m_impl->color_buffer, [&] {
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, m_impl->egl_image);
+    });
 
     glViewport(0, 0, m_size.width(), m_size.height());
 
@@ -459,20 +475,21 @@ void OpenGLContext::allocate_cpu_painting_surface()
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
 
     glGenTextures(1, &m_impl->color_buffer);
-    glBindTexture(GL_TEXTURE_2D, m_impl->color_buffer);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    with_texture_bound(GL_TEXTURE_2D, m_impl->color_buffer, [&] {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    GLint original_pixel_unpack_buffer = 0;
-    if (m_webgl_version == WebGLVersion::WebGL2) {
-        glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &original_pixel_unpack_buffer);
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-    }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_size.width(), m_size.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    if (m_webgl_version == WebGLVersion::WebGL2)
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, original_pixel_unpack_buffer);
+        GLint original_pixel_unpack_buffer = 0;
+        if (m_webgl_version == WebGLVersion::WebGL2) {
+            glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &original_pixel_unpack_buffer);
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        }
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_size.width(), m_size.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        if (m_webgl_version == WebGLVersion::WebGL2)
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, original_pixel_unpack_buffer);
+    });
 
     glViewport(0, 0, m_size.width(), m_size.height());
 }

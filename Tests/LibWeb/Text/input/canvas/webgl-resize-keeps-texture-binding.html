@@ -1,0 +1,50 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="webgl-helpers.js"></script>
+<script>
+    function drawWithBoundTextureAcrossResize(contextType) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 4;
+        canvas.height = 4;
+        const gl = canvas.getContext(contextType);
+
+        const compile = (type, source) => {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        };
+        const program = gl.createProgram();
+        gl.attachShader(program, compile(gl.VERTEX_SHADER, "attribute vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }"));
+        gl.attachShader(program, compile(gl.FRAGMENT_SHADER, "precision mediump float; uniform sampler2D sampler; void main() { gl_FragColor = texture2D(sampler, vec2(0.5)); }"));
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        const position = gl.getAttribLocation(program, "position");
+        gl.enableVertexAttribArray(position);
+        gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 0, 255, 255]));
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        // Resizing gives the canvas a new drawing buffer, and the texture bound above must still be what draws sample.
+        canvas.width = 8;
+        canvas.height = 8;
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        const pixel = new Uint8Array(4);
+        gl.readPixels(4, 4, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        println(`${contextType}: pixel after resize: ${pixel}`);
+        printError(`${contextType}: error`, gl);
+    }
+
+    test(() => {
+        drawWithBoundTextureAcrossResize("webgl");
+        drawWithBoundTextureAcrossResize("webgl2");
+    });
+</script>
