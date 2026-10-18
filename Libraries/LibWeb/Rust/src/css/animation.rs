@@ -6627,25 +6627,48 @@ fn evaluate_animation_value(
     // https://drafts.csswg.org/web-animations-1/#the-effect-value-of-a-keyframe-animation-effect
     // 10. Let interval endpoints be an empty sequence of keyframes.
     // 11. Populate interval endpoints by following the steps from the first matching condition from below:
-    // Otherwise,
-    // 1. Append to interval endpoints the last keyframe in property-specific keyframes whose computed keyframe offset is less than or equal
-    //    to iteration progress and less than 1. If there is no such keyframe (because, for example, the iteration progress is negative),
-    //    add the last keyframe whose computed keyframe offset is 0.
-    // 2. Append to interval endpoints the next keyframe in property-specific keyframes after the one added in the previous step.
+    // NB: The first and the last property-specific keyframes are at the computed keyframe offsets 0 and 1.
+    let last_index = keyframes.len() - 1;
     let mut start_index = 0;
     let mut end_index = 1;
-    for next_index in 2..keyframes.len() {
-        if input.current_key < plan(end_index).key as f64 {
-            break;
+    if input.current_key < plan(0).key as f64 && plan(1).key == plan(0).key {
+        // If iteration progress < 0 and there is more than one keyframe in property-specific keyframes with a computed
+        // keyframe offset of 0,
+        //     Add the first keyframe in property-specific keyframes to interval endpoints.
+        end_index = start_index;
+    } else if input.current_key >= plan(last_index).key as f64 && plan(last_index - 1).key == plan(last_index).key {
+        // If iteration progress ≥ 1 and there is more than one keyframe in property-specific keyframes with a computed
+        // keyframe offset of 1,
+        //     Add the last keyframe in property-specific keyframes to interval endpoints.
+        start_index = last_index;
+        end_index = last_index;
+    } else {
+        // Otherwise,
+        // 1. Append to interval endpoints the last keyframe in property-specific keyframes whose computed keyframe offset is less than or equal
+        //    to iteration progress and less than 1. If there is no such keyframe (because, for example, the iteration progress is negative),
+        //    add the last keyframe whose computed keyframe offset is 0.
+        // 2. Append to interval endpoints the next keyframe in property-specific keyframes after the one added in the previous step.
+        for next_index in 2..keyframes.len() {
+            if input.current_key < plan(end_index).key as f64 {
+                break;
+            }
+            start_index = end_index;
+            end_index = next_index;
         }
-        start_index = end_index;
-        end_index = next_index;
     }
     let start_keyframe = &keyframes[start_index];
     let end_keyframe = &keyframes[end_index];
     let (start_plan, end_plan) = (plan(start_index), plan(end_index));
-    let interval_progress = (input.current_key - start_plan.key as f64) / (end_plan.key - start_plan.key) as f64;
-    let progress = start_plan.easing.evaluate_at(interval_progress, false) as f32;
+
+    // 13. If there is only one keyframe in interval endpoints return the property value of target property on that
+    //     keyframe.
+    // NB: Interpolating from that keyframe to itself returns its value, as step 12 composites it.
+    let progress = if start_index == end_index {
+        0.0
+    } else {
+        let interval_progress = (input.current_key - start_plan.key as f64) / (end_plan.key - start_plan.key) as f64;
+        start_plan.easing.evaluate_at(interval_progress, false) as f32
+    };
     let Some(end) = end_keyframe.value.optional_data() else {
         if start_keyframe.value.optional_data().is_none() {
             return AnimatedProperty {
@@ -7684,6 +7707,48 @@ mod tests {
         assert_eq!(result.end_index, 2);
         let value = result.value.unwrap().into_arc();
         assert!(matches!(&*value, StyleValueData::Number { value } if *value == 9.0));
+    }
+
+    #[test]
+    fn evaluates_overlapping_keyframes_at_the_ends() {
+        let underlying = StyleValueData::Number { value: 0.0 };
+        let plans = [0, 0, 100, 100].map(|key| AnimationKeyframePlan {
+            key,
+            easing: Easing::default(),
+            composite: FfiCompositeOperation::Replace,
+        });
+        let keyframes = [1.0, 2.0, 3.0, 4.0]
+            .into_iter()
+            .enumerate()
+            .map(|(keyframe, value)| AnimationKeyframeValue {
+                keyframe,
+                value: RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value })),
+            })
+            .collect::<Vec<_>>();
+        let evaluate = |current_key| {
+            let input = AnimationValueInput {
+                property_id: crate::css::property_metadata::property_id::FLEX_GROW,
+                custom_name_id: 0,
+                result_of_transition: false,
+                underlying: Some(&underlying),
+                initial: Some(&underlying),
+                current_key,
+                keyframes: &keyframes,
+                keyframe_plans: &plans,
+            };
+            let result = evaluate_animation_value(&animation_context(true), &input, None);
+            assert!(result.apply);
+            match &*result.value.unwrap().into_arc() {
+                StyleValueData::Number { value } => *value,
+                _ => panic!("expected a number"),
+            }
+        };
+
+        assert_eq!(evaluate(-10.0), 1.0);
+        assert_eq!(evaluate(0.0), 2.0);
+        assert_eq!(evaluate(50.0), 2.5);
+        assert_eq!(evaluate(100.0), 4.0);
+        assert_eq!(evaluate(110.0), 4.0);
     }
 
     #[test]
