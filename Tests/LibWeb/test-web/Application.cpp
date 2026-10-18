@@ -13,7 +13,9 @@
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibWebCommon/Loader/DownloadFilename.h>
 #include <LibWebView/TestSpellChecker.h>
+#include <errno.h>
 
 namespace TestWeb {
 
@@ -125,6 +127,13 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
         // Force all tests to run in serial if we are interested in the GC graph.
         test_concurrency = 1;
     }
+}
+
+ErrorOr<LexicalPath> Application::default_path_for_downloaded_file(ByteString const& file) const
+{
+    if (!downloads_directory.has_value())
+        return Error::from_errno(ECANCELED);
+    return LexicalPath::join(*downloads_directory, Web::sanitize_suggested_download_filename(file));
 }
 
 ErrorOr<void> Application::launch_test_fixtures()

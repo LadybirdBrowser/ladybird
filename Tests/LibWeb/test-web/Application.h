@@ -12,7 +12,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWebView/Application.h>
-#include <errno.h>
 
 namespace TestWeb {
 
@@ -31,7 +30,7 @@ public:
     // Tests cover elastic overscroll on every platform, whichever of them the browser enables it on.
     virtual bool platform_scrolls_elastically() const override { return true; }
 
-    virtual ErrorOr<LexicalPath> default_path_for_downloaded_file(ByteString const&) const override { return Error::from_errno(ECANCELED); }
+    virtual ErrorOr<LexicalPath> default_path_for_downloaded_file(ByteString const&) const override;
 
     ErrorOr<void> launch_test_fixtures();
 
@@ -42,6 +41,7 @@ public:
 
     ByteString test_root_path;
     ByteString results_directory { "test-dumps/results"sv };
+    Optional<ByteString> downloads_directory;
     size_t test_concurrency { 1 };
     Vector<ByteString> test_globs;
 
