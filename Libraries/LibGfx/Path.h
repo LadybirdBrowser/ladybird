@@ -27,6 +27,12 @@ struct PointAlongPath {
     FloatVector2 tangent;
 };
 
+struct PathVertex {
+    FloatPoint point;
+    float distance;
+    FloatVector2 direction;
+};
+
 class PathImpl {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -55,6 +61,7 @@ public:
     virtual Gfx::FloatRect bounding_box() const = 0;
     virtual float length() const = 0;
     virtual Optional<PointAlongPath> point_at_length(float distance) const = 0;
+    virtual Vector<PathVertex> vertices() const = 0;
     virtual void set_fill_type(Gfx::WindingRule winding_rule) = 0;
     virtual bool contains(FloatPoint point, Gfx::WindingRule) const = 0;
 
@@ -123,6 +130,7 @@ public:
     Gfx::FloatRect bounding_box() const { return impl().bounding_box(); }
     float length() const { return impl().length(); }
     Optional<PointAlongPath> point_at_length(float distance) const { return impl().point_at_length(distance); }
+    Vector<PathVertex> vertices() const { return impl().vertices(); }
     bool contains(FloatPoint point, Gfx::WindingRule winding_rule) const { return impl().contains(point, winding_rule); }
     void set_fill_type(Gfx::WindingRule winding_rule) { impl().set_fill_type(winding_rule); }
 
