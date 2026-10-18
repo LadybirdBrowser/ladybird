@@ -257,6 +257,11 @@ QString style_sheet_color(QColor const& color)
     return qformatted("rgb({}, {}, {})", color.red(), color.green(), color.blue());
 }
 
+static QString style_sheet_color_with_alpha(QColor const& color)
+{
+    return qformatted("rgba({}, {}, {}, {})", color.red(), color.green(), color.blue(), color.alpha());
+}
+
 QString application_style_sheet(QPalette const& palette)
 {
     auto surface_color = chrome_surface(palette);
@@ -716,9 +721,15 @@ QToolButton#LadybirdLocationAction {{
         not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border, focus, LOCATION_EDIT_CORNER_RADIUS, popup_surface);
 }
 
+// Hovering a frameless control only lifts it with this soft fill; its ring appears once it is pressed.
+static QColor chrome_control_soft_hover(QPalette const& palette)
+{
+    return is_dark(palette) ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 16);
+}
+
 QString bookmarks_bar_style_sheet(QPalette const& palette)
 {
-    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto hover = style_sheet_color_with_alpha(chrome_control_soft_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
     auto text = style_sheet_color(chrome_button_text(palette));
@@ -740,7 +751,7 @@ QToolBar#LadybirdBookmarksBar QToolButton {{
 
 QToolBar#LadybirdBookmarksBar QToolButton:hover {{
     background: {0};
-    border-color: {3};
+    border-color: transparent;
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton:pressed,
@@ -835,7 +846,7 @@ QString javascript_dialog_style_sheet(QPalette const& palette)
     auto text = style_sheet_color(chrome_text(palette));
     auto muted = style_sheet_color(chrome_muted_text(palette));
     auto scrim = is_dark(palette) ? QColor(0, 0, 0, 150) : QColor(20, 22, 25, 120);
-    auto scrim_color = qformatted("rgba({}, {}, {}, {})", scrim.red(), scrim.green(), scrim.blue(), scrim.alpha());
+    auto scrim_color = style_sheet_color_with_alpha(scrim);
 
     return qformatted(R"(
 QWidget#LadybirdJavaScriptDialogOverlay {{
@@ -1555,9 +1566,8 @@ void paint_circular_control_frame(QPainter& painter, QAbstractButton const& butt
         ? chrome_control_surface_hover(palette)
         : chrome_control_border(palette);
 
-    // Hovering a frameless button only lifts it with a soft fill; the ring appears once it is pressed.
     if (hovered && frame_style == CircularControlFrameStyle::InteractionOnly) {
-        background = is_dark(palette) ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 16);
+        background = chrome_control_soft_hover(palette);
         border = Qt::transparent;
     } else if (hovered) {
         background = chrome_control_surface_hover(palette);
