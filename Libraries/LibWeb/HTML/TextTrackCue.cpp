@@ -31,6 +31,8 @@ void TextTrackCue::set_start_time(double start_time)
 {
     // On setting, the text track cue start time must be set to the new value, interpreted in seconds;
     m_start_time = start_time;
+    if (m_track)
+        m_track->sort_text_track_list_of_cues();
 
     // FIXME: then, if the TextTrackCue object's text track cue is in a text track's list of cues, and that text track is in a media
     //        element's list of text tracks, and the media element's show poster flag is not set, then run the time marches on steps
@@ -46,6 +48,8 @@ WebIDL::ExceptionOr<void> TextTrackCue::set_end_time(double end_time)
 
     // Otherwise, the text track cue end time must be set to the new value.
     m_end_time = end_time;
+    if (m_track)
+        m_track->sort_text_track_list_of_cues();
 
     // FIXME: Then, if the TextTrackCue object's text track cue is in a text track's list of cues, and that text track is in a media
     //        element's list of text tracks, and the media element's show poster flag is not set, then run the time marches on steps

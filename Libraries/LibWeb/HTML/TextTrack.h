@@ -50,6 +50,15 @@ public:
     TextTrackMode mode();
     void set_mode(TextTrackMode);
 
+    GC::Ptr<TextTrackCueList> cues();
+    GC::Ptr<TextTrackCueList> active_cues();
+
+    void add_cue(GC::Ref<TextTrackCue>);
+    WebIDL::ExceptionOr<void> remove_cue(GC::Ref<TextTrackCue>);
+
+    ReadonlySpan<GC::Ref<TextTrackCue>> text_track_list_of_cues() const { return m_text_track_list_of_cues; }
+    void sort_text_track_list_of_cues();
+
     void set_oncuechange(WebIDL::CallbackType*);
     WebIDL::CallbackType* oncuechange();
 
@@ -73,6 +82,13 @@ private:
     TextTrackMode m_mode { TextTrackMode::Disabled };
 
     ReadinessState m_readiness_state { ReadinessState::NotLoaded };
+
+    // https://html.spec.whatwg.org/multipage/media.html#text-track-list-of-cues
+    Vector<GC::Ref<TextTrackCue>> m_text_track_list_of_cues;
+    u64 m_next_cue_order_added { 0 };
+
+    GC::Ptr<TextTrackCueList> m_cues;
+    GC::Ptr<TextTrackCueList> m_active_cues;
 
     HashTable<GC::Ref<TextTrackObserver>> m_observers;
 };

@@ -4,10 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
+#include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrack.h>
+#include <LibWeb/HTML/TextTrackCue.h>
+#include <LibWeb/HTML/TextTrackCueList.h>
 #include <LibWeb/HTML/TextTrackObserver.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
 
@@ -29,6 +34,96 @@ void TextTrack::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_observers);
+    visitor.visit(m_text_track_list_of_cues);
+    visitor.visit(m_cues);
+    visitor.visit(m_active_cues);
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-cues
+GC::Ptr<TextTrackCueList> TextTrack::cues()
+{
+    // 1. If this's mode is the text track disabled mode, then return null.
+    if (m_mode == TextTrackMode::Disabled)
+        return nullptr;
+
+    // 2. Return a live TextTrackCueList object that represents the subset of this's text track list of cues whose end
+    //    times occur at or after the earliest possible position when the script started, in text track cue order.
+    // For each TextTrack object, when an object is returned, the same TextTrackCueList object must be returned each time.
+    if (!m_cues)
+        m_cues = TextTrackCueList::create(*this, TextTrackCueList::Subset::All);
+    return m_cues;
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-activecues
+GC::Ptr<TextTrackCueList> TextTrack::active_cues()
+{
+    // 1. If this's mode is the text track disabled mode, then return null.
+    if (m_mode == TextTrackMode::Disabled)
+        return nullptr;
+
+    // 2. Return a live TextTrackCueList object that represents the subset of this's text track list of cues whose active
+    //    flag was set when the script started, in text track cue order.
+    // For each TextTrack object, when an object is returned, the same TextTrackCueList object must be returned each time.
+    if (!m_active_cues)
+        m_active_cues = TextTrackCueList::create(*this, TextTrackCueList::Subset::Active);
+    return m_active_cues;
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#text-track-cue-order
+static bool cue_order_precedes(TextTrackCue const& a, TextTrackCue const& b)
+{
+    // Within each group, cues must be sorted by their start time, earliest first; then, any cues with the same start
+    // time must be sorted by their end time, latest first; and finally, any cues with identical end times must be
+    // sorted in the order they were last added to their respective text track list of cues, oldest first.
+    if (a.start_time() != b.start_time())
+        return a.start_time() < b.start_time();
+    if (a.end_time() != b.end_time())
+        return a.end_time() > b.end_time();
+    return a.order_added() < b.order_added();
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-addcue
+void TextTrack::add_cue(GC::Ref<TextTrackCue> cue)
+{
+    // 1. Let list be this's text track list of cues.
+    // FIXME: 2. If list does not yet have any associated rules for updating the text track rendering, then associate list
+    //           with the rules for updating the text track rendering appropriate to cue.
+    // FIXME: 3. If list's associated rules for updating the text track rendering are not the same rules for updating the
+    //           text track rendering as appropriate for cue, then throw an "InvalidStateError" DOMException.
+
+    // 4. If the given cue is in a text track list of cues, then remove cue from that text track list of cues.
+    if (auto track = cue->track())
+        track->m_text_track_list_of_cues.remove_first_matching([&](auto const& entry) { return entry == cue; });
+
+    // 5. Add cue to list.
+    cue->set_track(this);
+    cue->set_order_added(m_next_cue_order_added++);
+    auto index = lower_bound_index(m_text_track_list_of_cues, cue, [](auto const& entry, auto const& new_cue) {
+        return cue_order_precedes(*entry, *new_cue) ? -1 : 1;
+    });
+    m_text_track_list_of_cues.insert(index, cue);
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#text-track-cue-order
+void TextTrack::sort_text_track_list_of_cues()
+{
+    quick_sort(m_text_track_list_of_cues, [](auto const& a, auto const& b) {
+        return cue_order_precedes(*a, *b);
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-removecue
+WebIDL::ExceptionOr<void> TextTrack::remove_cue(GC::Ref<TextTrackCue> cue)
+{
+    // 1. If the given cue is not in this's text track list of cues, then throw a "NotFoundError" DOMException.
+    auto index = m_text_track_list_of_cues.find_first_index(cue);
+    if (!index.has_value())
+        return WebIDL::NotFoundError::create("Cue is not in this text track's list of cues"_utf16);
+
+    // 2. Remove cue from this's text track list of cues.
+    m_text_track_list_of_cues.remove(*index);
+    cue->set_track(nullptr);
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-kind

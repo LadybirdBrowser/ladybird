@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	TextTrackCueList getter
+Pass	TextTrackCueList getter, no indexed set/create
+Pass	TextTrackCueList getter, no indexed set/create (strict)

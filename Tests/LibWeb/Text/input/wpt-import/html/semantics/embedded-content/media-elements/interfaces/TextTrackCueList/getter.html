@@ -1,0 +1,49 @@
+<!doctype html>
+<title>TextTrackCueList getter</title>
+<script src=../../../../../../resources/testharness.js></script>
+<script src=../../../../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+setup(function(){
+    window.video = document.createElement('video');
+    window.t1 = video.addTextTrack('subtitles');
+    document.body.appendChild(video);
+});
+test(function(){
+    var cues = t1.cues;
+    assert_equals(cues[0], undefined, 'cues[0] before');
+    var c1 = new VTTCue(0, 1, 'text1');
+    t1.addCue(c1);
+    assert_equals(cues[0], c1, 'cues[0]');
+    assert_equals(cues[1], undefined, 'cues[1]');
+    assert_equals(cues[-1], undefined, 'cues[-1]');
+    t1.removeCue(c1);
+    assert_equals(cues[0], undefined, 'cues[0] after');
+});
+test(function(){
+    var cues = t1.cues;
+    assert_equals(cues[0], undefined);
+    cues[0] = 'foo';
+    assert_equals(cues[0], undefined);
+    var c1 = new VTTCue(0, 1, 'text1');
+    t1.addCue(c1);
+    assert_equals(cues[0], c1);
+    cues[0] = 'foo';
+    assert_equals(cues[0], c1);
+    t1.removeCue(c1);
+}, document.title+', no indexed set/create');
+test(function(){
+    'use strict';
+    var cues = t1.cues;
+    assert_equals(cues[0], undefined);
+    assert_throws_js(TypeError, function() { cues[0] = 'foo'; });
+    assert_equals(cues[0], undefined);
+    var c1 = new VTTCue(0, 1, 'text1');
+    t1.addCue(c1);
+    assert_equals(cues[0], c1);
+    assert_throws_js(TypeError, function() { cues[0] = 'foo'; });
+    assert_equals(cues[0], c1);
+    t1.removeCue(c1);
+}, document.title+', no indexed set/create (strict)');
+
+</script>

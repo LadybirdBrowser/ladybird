@@ -23,6 +23,7 @@ public:
     virtual ~TextTrackCue() override;
 
     GC::Ptr<TextTrack> track() { return m_track; }
+    void set_track(GC::Ptr<TextTrack> track) { m_track = track; }
     static constexpr size_t track_offset() { return offsetof(TextTrackCue, m_track); }
 
     Utf16String const& id() const { return m_identifier; }
@@ -43,6 +44,12 @@ public:
     WebIDL::CallbackType* onexit();
     void set_onexit(WebIDL::CallbackType*);
 
+    bool is_active() const { return m_active; }
+    void set_active(bool active) { m_active = active; }
+
+    u64 order_added() const { return m_order_added; }
+    void set_order_added(u64 order_added) { m_order_added = order_added; }
+
 protected:
     TextTrackCue(GC::Ptr<TextTrack>);
     virtual void visit_edges(Visitor&) override;
@@ -60,6 +67,11 @@ protected:
 
     // https://html.spec.whatwg.org/multipage/media.html#text-track-cue-pause-on-exit-flag
     bool m_pause_on_exit;
+
+    // https://html.spec.whatwg.org/multipage/media.html#text-track-cue-active-flag
+    bool m_active { false };
+
+    u64 m_order_added { 0 };
 };
 
 }
