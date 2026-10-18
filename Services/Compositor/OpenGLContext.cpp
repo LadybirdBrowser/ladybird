@@ -42,22 +42,43 @@ namespace Compositor {
 
 using namespace Compositing::WebGL;
 
+struct OpenGLContext::ColorBuffer {
+    RefPtr<Gfx::PaintingSurface> painting_surface;
+#ifdef AK_OS_MACOS
+    OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
+#endif
+    EGLSurface surface { EGL_NO_SURFACE };
+#ifdef USE_VULKAN_DMABUF_IMAGES
+    EGLImage egl_image { EGL_NO_IMAGE };
+#endif
+    GLuint texture { 0 };
+
+    bool is_allocated() const { return painting_surface; }
+};
+
 struct OpenGLContext::Impl {
     AK_ALLOC_WITH_KMALLOC;
 
     EGLDisplay display { EGL_NO_DISPLAY };
     EGLConfig config { EGL_NO_CONFIG_KHR };
     EGLContext context { EGL_NO_CONTEXT };
-    EGLSurface surface { EGL_NO_SURFACE };
 
     GLuint framebuffer { 0 };
-    GLuint color_buffer { 0 };
     GLuint depth_buffer { 0 };
     EGLint texture_target { 0 };
     bool uses_cpu_painting_surface { false };
+    Optional<bool> supports_copy_texture {};
+
+    // A shared drawing buffer is composited straight from GPU memory, so presenting moves the default framebuffer
+    // to another color buffer instead of letting the page draw over the frame being composited. Besides the
+    // presented buffer and the one being drawn, a third holds the frame presented before, which a raster submitted
+    // before the latest present may still be reading on the GPU. The CPU painting surface is a copy made when
+    // presenting, so it only uses the first.
+    Array<ColorBuffer, 3> color_buffers {};
+    size_t drawing_color_buffer_index { 0 };
+    Optional<size_t> presented_color_buffer_index {};
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-    EGLImage egl_image { EGL_NO_IMAGE };
     struct {
         PFNEGLQUERYDMABUFFORMATSEXTPROC query_dma_buf_formats { nullptr };
         PFNEGLQUERYDMABUFMODIFIERSEXTPROC query_dma_buf_modifiers { nullptr };
@@ -67,7 +88,7 @@ struct OpenGLContext::Impl {
 
 OpenGLContext::OpenGLContext(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Impl impl, WebGLVersion webgl_version, DrawingBufferOptions drawing_buffer_options)
     : m_skia_backend_context(move(skia_backend_context))
-    , m_impl(make<Impl>(impl))
+    , m_impl(make<Impl>(move(impl)))
     , m_webgl_version(webgl_version)
     , m_drawing_buffer_options(drawing_buffer_options)
 {
@@ -92,30 +113,46 @@ void OpenGLContext::free_surface_resources()
         m_impl->framebuffer = 0;
     }
 
-    if (m_impl->color_buffer) {
-        glDeleteTextures(1, &m_impl->color_buffer);
-        m_impl->color_buffer = 0;
-    }
-
     if (m_impl->depth_buffer) {
         glDeleteRenderbuffers(1, &m_impl->depth_buffer);
         m_impl->depth_buffer = 0;
     }
 
+    for (auto& color_buffer : m_impl->color_buffers)
+        free_color_buffer(color_buffer);
+    m_impl->drawing_color_buffer_index = 0;
+    m_impl->presented_color_buffer_index.clear();
+#endif
+}
+
+void OpenGLContext::free_color_buffer([[maybe_unused]] ColorBuffer& color_buffer)
+{
+#ifdef ENABLE_WEBGL
+    if (color_buffer.texture) {
+        glDeleteTextures(1, &color_buffer.texture);
+        color_buffer.texture = 0;
+    }
+
 #    ifdef USE_VULKAN_DMABUF_IMAGES
-    if (m_impl->egl_image != EGL_NO_IMAGE) {
-        eglDestroyImage(m_impl->display, m_impl->egl_image);
-        m_impl->egl_image = EGL_NO_IMAGE;
+    if (color_buffer.egl_image != EGL_NO_IMAGE) {
+        eglDestroyImage(m_impl->display, color_buffer.egl_image);
+        color_buffer.egl_image = EGL_NO_IMAGE;
     }
 #    endif
 
-    if (m_impl->surface != EGL_NO_SURFACE) {
+    if (color_buffer.surface != EGL_NO_SURFACE) {
 #    ifdef AK_OS_MACOS
-        eglReleaseTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
+        eglReleaseTexImage(m_impl->display, color_buffer.surface, EGL_BACK_BUFFER);
 #    endif
-        eglDestroySurface(m_impl->display, m_impl->surface);
-        m_impl->surface = EGL_NO_SURFACE;
+        eglDestroySurface(m_impl->display, color_buffer.surface);
+        color_buffer.surface = EGL_NO_SURFACE;
     }
+
+    // NB: The compositor may still hold the painting surface of the presented buffer; it keeps the shared image alive.
+    color_buffer.painting_surface = nullptr;
+#    ifdef AK_OS_MACOS
+    color_buffer.shared_image_buffer = nullptr;
+#    endif
 #endif
 }
 
@@ -274,15 +311,6 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
 #endif
 }
 
-void OpenGLContext::notify_content_will_change()
-{
-#ifdef ENABLE_WEBGL
-    if (m_impl->uses_cpu_painting_surface)
-        return;
-    m_painting_surface->notify_content_will_change();
-#endif
-}
-
 void OpenGLContext::clear_buffer_to_default_values()
 {
 #ifdef ENABLE_WEBGL
@@ -331,8 +359,13 @@ void OpenGLContext::clear_buffer_to_default_values()
 }
 
 #ifdef ENABLE_WEBGL
-// The drawing buffer is also allocated when the canvas is resized, between the page's commands, so setting it up must
-// leave the page's texture binding alone.
+u32 OpenGLContext::color_buffer_texture_target() const
+{
+    return m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D;
+}
+
+// Color buffers are also allocated when the canvas is resized and while presenting, between the page's commands, so
+// setting one up must leave the page's texture binding alone.
 template<typename Callback>
 static void with_texture_bound(GLenum target, GLuint texture, Callback callback)
 {
@@ -345,10 +378,10 @@ static void with_texture_bound(GLenum target, GLuint texture, Callback callback)
 #endif
 
 #ifdef AK_OS_MACOS
-void OpenGLContext::allocate_iosurface_painting_surface()
+void OpenGLContext::allocate_iosurface_color_buffer(ColorBuffer& color_buffer)
 {
-    m_shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(m_size));
-    m_painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*m_shared_image_buffer, *m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
+    color_buffer.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(m_size));
+    color_buffer.painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*color_buffer.shared_image_buffer, *m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,
@@ -368,22 +401,20 @@ void OpenGLContext::allocate_iosurface_painting_surface()
         EGL_NONE,
         EGL_NONE,
     };
-    m_impl->surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_IOSURFACE_ANGLE, m_shared_image_buffer->iosurface_handle().core_foundation_pointer(), m_impl->config, surface_attributes);
+    color_buffer.surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_IOSURFACE_ANGLE, color_buffer.shared_image_buffer->iosurface_handle().core_foundation_pointer(), m_impl->config, surface_attributes);
 
     eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 
-    glGenTextures(1, &m_impl->color_buffer);
-    with_texture_bound(m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer, [&] {
-        auto result = eglBindTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
+    glGenTextures(1, &color_buffer.texture);
+    with_texture_bound(color_buffer_texture_target(), color_buffer.texture, [&] {
+        auto result = eglBindTexImage(m_impl->display, color_buffer.surface, EGL_BACK_BUFFER);
         VERIFY(result == EGL_TRUE);
     });
-
-    glViewport(0, 0, m_size.width(), m_size.height());
 }
 #endif
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-bool OpenGLContext::allocate_vkimage_painting_surface()
+bool OpenGLContext::allocate_vkimage_color_buffer(ColorBuffer& color_buffer)
 {
     VERIFY(m_skia_backend_context);
 
@@ -422,7 +453,7 @@ bool OpenGLContext::allocate_vkimage_painting_surface()
         return false;
     }
     auto vulkan_image = vulkan_image_or_error.release_value();
-    m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(*m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
+    color_buffer.painting_surface = Gfx::PaintingSurface::create_from_vkimage(*m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLAttrib attribs[] = {
         EGL_WIDTH,
@@ -443,39 +474,36 @@ bool OpenGLContext::allocate_vkimage_painting_surface()
         static_cast<uint32_t>(vulkan_image->info.modifier >> 32),
         EGL_NONE,
     };
-    m_impl->egl_image = eglCreateImage(m_impl->display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
-    if (m_impl->egl_image == EGL_NO_IMAGE) {
+    color_buffer.egl_image = eglCreateImage(m_impl->display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
+    if (color_buffer.egl_image == EGL_NO_IMAGE) {
         dbgln("Compositor: eglCreateImage for the DMABUF failed; falling back to a CPU painting surface");
+        free_color_buffer(color_buffer);
         return false;
     }
 
-    m_impl->surface = EGL_NO_SURFACE;
-    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 
-    glGenTextures(1, &m_impl->color_buffer);
-    with_texture_bound(GL_TEXTURE_2D, m_impl->color_buffer, [&] {
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, m_impl->egl_image);
+    glGenTextures(1, &color_buffer.texture);
+    with_texture_bound(GL_TEXTURE_2D, color_buffer.texture, [&] {
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, color_buffer.egl_image);
     });
-
-    glViewport(0, 0, m_size.width(), m_size.height());
 
     return true;
 }
 #endif
 
 #if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE)
-void OpenGLContext::allocate_cpu_painting_surface()
+void OpenGLContext::allocate_cpu_painting_surface(ColorBuffer& color_buffer)
 {
-    m_painting_surface = Gfx::PaintingSurface::create_with_size(
+    color_buffer.painting_surface = Gfx::PaintingSurface::create_with_size(
         m_size,
         Gfx::BitmapFormat::BGRA8888,
         Gfx::AlphaType::Premultiplied);
 
-    m_impl->surface = EGL_NO_SURFACE;
-    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 
-    glGenTextures(1, &m_impl->color_buffer);
-    with_texture_bound(GL_TEXTURE_2D, m_impl->color_buffer, [&] {
+    glGenTextures(1, &color_buffer.texture);
+    with_texture_bound(GL_TEXTURE_2D, color_buffer.texture, [&] {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -490,14 +518,13 @@ void OpenGLContext::allocate_cpu_painting_surface()
         if (m_webgl_version == WebGLVersion::WebGL2)
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, original_pixel_unpack_buffer);
     });
-
-    glViewport(0, 0, m_size.width(), m_size.height());
 }
 
 void OpenGLContext::copy_default_framebuffer_to_cpu_painting_surface()
 {
     VERIFY(m_impl->uses_cpu_painting_surface);
-    VERIFY(m_painting_surface);
+    auto& painting_surface = m_impl->color_buffers[m_impl->drawing_color_buffer_index].painting_surface;
+    VERIFY(painting_surface);
 
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, m_size));
 
@@ -554,49 +581,53 @@ void OpenGLContext::copy_default_framebuffer_to_cpu_painting_surface()
     if (m_webgl_version == WebGLVersion::WebGL2)
         glReadBuffer(original_read_buffer);
 
-    m_painting_surface->write_from_bitmap(*bitmap);
+    painting_surface->write_from_bitmap(*bitmap);
 }
 #endif
 
 void OpenGLContext::allocate_painting_surface_if_needed()
 {
 #ifdef ENABLE_WEBGL
-    if (m_painting_surface)
+    if (!m_drawing_buffer_needs_allocation)
         return;
+    m_drawing_buffer_needs_allocation = false;
 
     free_surface_resources();
 
     VERIFY(!m_size.is_empty());
 
+    auto& color_buffer = m_impl->color_buffers[m_impl->drawing_color_buffer_index];
 #    if defined(AK_OS_MACOS)
     if (m_impl->uses_cpu_painting_surface) {
-        allocate_cpu_painting_surface();
+        allocate_cpu_painting_surface(color_buffer);
     } else {
-        allocate_iosurface_painting_surface();
+        allocate_iosurface_color_buffer(color_buffer);
     }
 #    elif defined(USE_VULKAN_DMABUF_IMAGES)
 #        if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
     if (m_impl->uses_cpu_painting_surface) {
-        allocate_cpu_painting_surface();
-    } else if (!allocate_vkimage_painting_surface()) {
+        allocate_cpu_painting_surface(color_buffer);
+    } else if (!allocate_vkimage_color_buffer(color_buffer)) {
         // This driver advertises the DMABUF EGL extensions but can't actually allocate a Vulkan/DMABUF painting surface
         // (unsupported format, modifier, or image import). Fall back to a CPU painting surface.
         m_impl->uses_cpu_painting_surface = true;
         free_surface_resources();
-        allocate_cpu_painting_surface();
+        allocate_cpu_painting_surface(color_buffer);
     }
 #        else
-    (void)allocate_vkimage_painting_surface();
+    (void)allocate_vkimage_color_buffer(color_buffer);
 #        endif
 #    elif (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
-    allocate_cpu_painting_surface();
+    allocate_cpu_painting_surface(color_buffer);
 #    endif
-    VERIFY(m_painting_surface);
+    VERIFY(color_buffer.is_allocated());
     VERIFY(eglGetCurrentContext() == m_impl->context);
+
+    glViewport(0, 0, m_size.width(), m_size.height());
 
     glGenFramebuffers(1, &m_impl->framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, m_impl->framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color_buffer_texture_target(), color_buffer.texture, 0);
 
     if (m_drawing_buffer_options.depth || m_drawing_buffer_options.stencil) {
         glGenRenderbuffers(1, &m_impl->depth_buffer);
@@ -621,9 +652,8 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 
 void OpenGLContext::set_size(Gfx::IntSize const& size)
 {
-    if (m_size != size) {
-        m_painting_surface = nullptr;
-    }
+    if (m_size != size)
+        m_drawing_buffer_needs_allocation = true;
     m_size = size;
 }
 
@@ -635,7 +665,7 @@ void OpenGLContext::make_current()
 #endif
 }
 
-void OpenGLContext::present()
+void OpenGLContext::flush_drawing_buffer()
 {
 #ifdef ENABLE_WEBGL
     make_current();
@@ -663,9 +693,88 @@ void OpenGLContext::present()
 #endif
 }
 
-RefPtr<Gfx::PaintingSurface> OpenGLContext::surface()
+void OpenGLContext::present_drawing_buffer([[maybe_unused]] bool preserve_drawing_buffer)
 {
-    return m_painting_surface;
+#ifdef ENABLE_WEBGL
+    flush_drawing_buffer();
+
+    auto presented_index = m_impl->drawing_color_buffer_index;
+    m_impl->presented_color_buffer_index = presented_index;
+    if (m_impl->uses_cpu_painting_surface)
+        return;
+
+    // The page drew into the shared image behind Skia's back, so drop any snapshot Skia cached of it.
+    auto& presented_color_buffer = m_impl->color_buffers[presented_index];
+    presented_color_buffer.painting_surface->notify_content_will_change();
+
+    auto next_index = (presented_index + 1) % m_impl->color_buffers.size();
+    auto& next_color_buffer = m_impl->color_buffers[next_index];
+    // NB: Without a second color buffer the page keeps drawing into the presented one, which a frame composited
+    //     while it draws can catch half drawn.
+    if (preserve_drawing_buffer && !supports_copy_texture())
+        return;
+    if (!next_color_buffer.is_allocated() && !allocate_color_buffer(next_color_buffer))
+        return;
+
+    if (preserve_drawing_buffer) {
+        glCopySubTextureCHROMIUM(presented_color_buffer.texture, 0, color_buffer_texture_target(), next_color_buffer.texture, 0,
+            0, 0, 0, 0, m_size.width(), m_size.height(), GL_FALSE, GL_FALSE, GL_FALSE);
+    }
+    attach_color_buffer_to_default_framebuffer(next_color_buffer);
+    m_impl->drawing_color_buffer_index = next_index;
+#endif
+}
+
+#ifdef ENABLE_WEBGL
+bool OpenGLContext::allocate_color_buffer([[maybe_unused]] ColorBuffer& color_buffer)
+{
+#    if defined(AK_OS_MACOS)
+    allocate_iosurface_color_buffer(color_buffer);
+    return true;
+#    elif defined(USE_VULKAN_DMABUF_IMAGES)
+    return allocate_vkimage_color_buffer(color_buffer);
+#    else
+    return false;
+#    endif
+}
+
+void OpenGLContext::attach_color_buffer_to_default_framebuffer(ColorBuffer const& color_buffer)
+{
+    GLenum framebuffer_target = GL_FRAMEBUFFER;
+    GLenum framebuffer_binding = GL_FRAMEBUFFER_BINDING;
+    if (m_webgl_version == WebGLVersion::WebGL2) {
+        framebuffer_target = GL_DRAW_FRAMEBUFFER;
+        framebuffer_binding = GL_DRAW_FRAMEBUFFER_BINDING;
+    }
+    GLint original_framebuffer;
+    glGetIntegerv(framebuffer_binding, &original_framebuffer);
+
+    glBindFramebuffer(framebuffer_target, default_framebuffer());
+    glFramebufferTexture2D(framebuffer_target, GL_COLOR_ATTACHMENT0, color_buffer_texture_target(), color_buffer.texture, 0);
+
+    glBindFramebuffer(framebuffer_target, original_framebuffer);
+}
+
+bool OpenGLContext::supports_copy_texture()
+{
+    if (!m_impl->supports_copy_texture.has_value()) {
+        auto const* extensions = reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS));
+        m_impl->supports_copy_texture = extensions && StringView { extensions, strlen(extensions) }.split_view(' ').contains_slow("GL_CHROMIUM_copy_texture"sv);
+    }
+    return *m_impl->supports_copy_texture;
+}
+#endif
+
+RefPtr<Gfx::PaintingSurface> OpenGLContext::drawing_buffer_surface()
+{
+    return m_impl->color_buffers[m_impl->drawing_color_buffer_index].painting_surface;
+}
+
+RefPtr<Gfx::PaintingSurface> OpenGLContext::presented_surface()
+{
+    if (!m_impl->presented_color_buffer_index.has_value())
+        return nullptr;
+    return m_impl->color_buffers[*m_impl->presented_color_buffer_index].painting_surface;
 }
 
 u32 OpenGLContext::default_renderbuffer() const
