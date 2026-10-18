@@ -126,7 +126,7 @@ block2:
   [  88] Return value:x~0
 
 
-setter_parameter_resolution$ef39fadb destructuring-assignment.js:19:9
+setter_parameter_resolution$f1fdebeb destructuring-assignment.js:19:9
   Registers: 14
   Blocks:    16
   Constants:
@@ -137,74 +137,72 @@ setter_parameter_resolution$ef39fadb destructuring-assignment.js:19:9
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateVariable `setValue`, is_immutable:false, is_global:false, is_strict:false
-  [  20] InitializeVariableBinding `setValue`, src:Undefined
-  [  38] NewPrimitiveArray dst:reg5, elements:[23]
-  [  50] Mov dst:reg6, src:Bool(false)
-  [  60] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
-  [  80] Jump target:block3
+  [   8] CreateVariable `setValue`, is_immutable:false, is_global:false, is_strict:false
+  [  18] InitializeVariableBinding `setValue`, src:Undefined
+  [  30] NewPrimitiveArray dst:reg5, elements:[23]
+  [  48] Mov dst:reg6, src:Bool(false)
+  [  58] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
+  [  78] Jump target:block3
 
 block1:
-  [  88] Catch value_feedback:0, dst:reg11
-  [  90] SetLexicalEnvironment environment:reg4
-  [  98] Mov dst:reg10, src:Int32(1)
-  [  a8] JumpIf condition:reg9, true_target:block11, false_target:block10
+  [  80] Catch value_feedback:0, dst:reg11
+  [  88] Mov dst:reg10, src:Int32(1)
+  [  98] JumpIf condition:reg9, true_target:block11, false_target:block10
 
 block2:
-  [  b8] GetInitializedBinding value_feedback:1, dst:reg5, `setValue`
-  [  d0] Return value:reg5
+  [  a8] GetInitializedBinding value_feedback:1, dst:reg5, `setValue`
+  [  c0] Return value:reg5
 
 block3:
-  [  d8] NewObject dst:reg12
-  [  e8] NewFunction dst:reg13, shared_function_data_index:0 (set y), home_object:reg12
-  [ 100] PutById base:reg12, `y`, src:reg13, kind:Setter
-  [ 120] Jump target:block5
+  [  c8] NewObject dst:reg12
+  [  d8] NewFunction dst:reg13, shared_function_data_index:0 (set y), home_object:reg12
+  [  f0] PutById base:reg12, `y`, src:reg13, kind:Setter
+  [ 110] Jump target:block5
 
 block4:
-  [ 128] MovSrcUndefined dst:reg13
-  [ 130] Jump target:block6
+  [ 118] MovSrcUndefined dst:reg13
+  [ 120] Jump target:block6
 
 block5:
-  [ 138] IteratorNextUnpack dst_value:reg13, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [ 150] JumpTrueLoop condition:reg6, target:block4
+  [ 128] IteratorNextUnpack dst_value:reg13, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [ 140] JumpTrueLoop condition:reg6, target:block4
 
 block6:
-  [ 160] PutById base:reg12, `y`, src:reg13, kind:Normal
+  [ 150] PutById base:reg12, `y`, src:reg13, kind:Normal
 
 block7:
-  [ 180] JumpFalse condition:reg9, target:block9
+  [ 170] JumpFalse condition:reg9, target:block9
 
 block8:
-  [ 190] JumpLoop target:block2
+  [ 180] JumpLoop target:block2
 
 block9:
-  [ 198] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 1b8] JumpLoop target:block8
+  [ 188] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 1a8] JumpLoop target:block8
 
 block10:
-  [ 1c0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block12, false_target:block13
+  [ 1b0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block12, false_target:block13
 
 block11:
-  [ 1d8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block14, false_target:block15
+  [ 1c8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block14, false_target:block15
 
 block12:
-  [ 1f0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
-  [ 210] Throw src:reg11
+  [ 1e0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
+  [ 200] Throw src:reg11
 
 block13:
-  [ 218] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 238] JumpLoop target:block11
+  [ 208] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 228] JumpLoop target:block11
 
 block14:
-  [ 240] Return value:reg11
+  [ 230] Return value:reg11
 
 block15:
-  [ 248] Throw src:reg11
+  [ 238] Throw src:reg11
 
 Exception handlers:
-  [  d8 ..  138] => handler block1
-  [ 160 ..  180] => handler block1
+  [  c8 ..  128] => handler block1
+  [ 150 ..  170] => handler block1
 
 
 set y$f1335721 destructuring-assignment.js:21:26

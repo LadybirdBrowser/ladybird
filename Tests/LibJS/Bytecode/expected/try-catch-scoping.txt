@@ -13,7 +13,7 @@ block0:
   [  68] End value:reg6
 
 
-tryCatchWithBlocks$7de19348 try-catch-scoping.js:2:5
+tryCatchWithBlocks$862d6678 try-catch-scoping.js:2:5
   Registers: 11
   Blocks:    3
   Locals:    y~0, z~1, e~2, x~3
@@ -25,30 +25,28 @@ tryCatchWithBlocks$7de19348 try-catch-scoping.js:2:5
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:x~3, src:Int32(1)
-  [  20] Jump target:block2
+  [   8] Mov dst:x~3, src:Int32(1)
+  [  18] Jump target:block2
 
 block1:
-  [  28] Catch value_feedback:0, dst:reg5
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Mov2 c0_dst:e~2, c0_src:reg5, c1_dst:z~1, c1_src:Int32(3)
-  [  50] GetGlobal value_feedback:1, dst:reg7, `console`
-  [  60] GetById value_feedback:2, dst:reg8, base:reg7, `log` (console.log)
-  [  78] Add arith_feedback:0, dst:reg9, lhs:x~3, rhs:e~2
-  [  88] Add arith_feedback:1, dst:reg10, lhs:reg9, rhs:z~1
-  [  98] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
-  [  c0] End value:Undefined
+  [  20] Catch value_feedback:0, dst:reg5
+  [  28] Mov2 c0_dst:e~2, c0_src:reg5, c1_dst:z~1, c1_src:Int32(3)
+  [  40] GetGlobal value_feedback:1, dst:reg7, `console`
+  [  50] GetById value_feedback:2, dst:reg8, base:reg7, `log` (console.log)
+  [  68] Add arith_feedback:0, dst:reg9, lhs:x~3, rhs:e~2
+  [  78] Add arith_feedback:1, dst:reg10, lhs:reg9, rhs:z~1
+  [  88] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
+  [  b0] End value:Undefined
 
 block2:
-  [  c8] Mov dst:y~0, src:Int32(2)
-  [  d8] Throw src:y~0
+  [  b8] Mov dst:y~0, src:Int32(2)
+  [  c8] Throw src:y~0
 
 Exception handlers:
-  [  c8 ..   e0] => handler block1
+  [  b8 ..   d0] => handler block1
 
 
-tryCatchFinallyWithBlocks$2cda3f32 try-catch-scoping.js:14:5
+tryCatchFinallyWithBlocks$a5f0648a try-catch-scoping.js:14:5
   Registers: 12
   Blocks:    9
   Locals:    y~0, e~1, z~2, x~3
@@ -61,53 +59,50 @@ tryCatchFinallyWithBlocks$2cda3f32 try-catch-scoping.js:14:5
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:x~3, src:Int32(1)
-  [  20] Jump target:block4
+  [   8] Mov dst:x~3, src:Int32(1)
+  [  18] Jump target:block4
 
 block1:
-  [  28] Catch value_feedback:0, dst:reg6
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Mov dst:reg5, src:Int32(1)
+  [  20] Catch value_feedback:0, dst:reg6
+  [  28] Mov dst:reg5, src:Int32(1)
 
 block2:
-  [  48] Mov dst:z~2, src:Int32(3)
-  [  58] GetGlobal value_feedback:5, dst:reg8, `console`
-  [  68] GetById value_feedback:6, dst:reg10, base:reg8, `log` (console.log)
-  [  80] Mov dst:reg9, src:z~2
-  [  90] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
-  [  b8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block5, false_target:block6
+  [  38] Mov dst:z~2, src:Int32(3)
+  [  48] GetGlobal value_feedback:5, dst:reg8, `console`
+  [  58] GetById value_feedback:6, dst:reg10, base:reg8, `log` (console.log)
+  [  70] Mov dst:reg9, src:z~2
+  [  80] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
+  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block5, false_target:block6
 
 block3:
-  [  d0] Catch value_feedback:1, dst:reg7
-  [  d8] SetLexicalEnvironment environment:reg4
-  [  e0] Mov dst:e~1, src:reg7
-  [  f0] GetGlobal value_feedback:2, dst:reg9, `console`
-  [ 100] GetById value_feedback:3, dst:reg10, base:reg9, `log` (console.log)
-  [ 118] Mov dst:reg11, src:e~1
-  [ 128] Call value_feedback:4, call_feedback:0, dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
-  [ 150] Mov dst:reg5, src:Int32(0)
-  [ 160] JumpLoop target:block2
+  [  c0] Catch value_feedback:1, dst:reg7
+  [  c8] Mov dst:e~1, src:reg7
+  [  d8] GetGlobal value_feedback:2, dst:reg9, `console`
+  [  e8] GetById value_feedback:3, dst:reg10, base:reg9, `log` (console.log)
+  [ 100] Mov dst:reg11, src:e~1
+  [ 110] Call value_feedback:4, call_feedback:0, dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
+  [ 138] Mov dst:reg5, src:Int32(0)
+  [ 148] JumpLoop target:block2
 
 block4:
-  [ 168] Mov dst:y~0, src:Int32(2)
-  [ 178] Throw src:y~0
+  [ 150] Mov dst:y~0, src:Int32(2)
+  [ 160] Throw src:y~0
 
 block5:
-  [ 180] End value:Undefined
+  [ 168] End value:Undefined
 
 block6:
-  [ 188] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 170] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [ 1a0] Return value:reg6
+  [ 188] Return value:reg6
 
 block8:
-  [ 1a8] Throw src:reg6
+  [ 190] Throw src:reg6
 
 Exception handlers:
-  [  d0 ..  168] => handler block1
-  [ 168 ..  180] => handler block3
+  [  c0 ..  150] => handler block1
+  [ 150 ..  168] => handler block3
 
 
 6

@@ -19,7 +19,7 @@ block0:
   [ 108] End value:reg7
 
 
-throwInCatch$1622cfce catch-scope-boundary.js:2:5
+throwInCatch$9784c856 catch-scope-boundary.js:2:5
   Registers: 7
   Blocks:    6
   Locals:    e2~0, e~1, result~2
@@ -31,37 +31,34 @@ throwInCatch$1622cfce catch-scope-boundary.js:2:5
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:result~2, src:String("bad")
-  [  20] Jump target:block5
+  [   8] Mov dst:result~2, src:String("bad")
+  [  18] Jump target:block5
 
 block1:
-  [  28] Catch value_feedback:0, dst:reg5
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Mov dst:e~1, src:reg5
-  [  48] Jump target:block3
+  [  20] Catch value_feedback:0, dst:reg5
+  [  28] Mov dst:e~1, src:reg5
+  [  38] Jump target:block3
 
 block2:
-  [  50] Catch value_feedback:1, dst:reg6
-  [  58] SetLexicalEnvironment environment:reg4
-  [  60] Mov2 c0_dst:e2~0, c0_src:reg6, c1_dst:result~2, c1_src:String("good")
-  [  78] Return value:result~2
+  [  40] Catch value_feedback:1, dst:reg6
+  [  48] Mov2 c0_dst:e2~0, c0_src:reg6, c1_dst:result~2, c1_src:String("good")
+  [  60] Return value:result~2
 
 block3:
-  [  80] Throw src:Int32(2)
+  [  68] Throw src:Int32(2)
 
 block4:
-  [  88] Return value:result~2
+  [  70] Return value:result~2
 
 block5:
-  [  90] Throw src:Int32(1)
+  [  78] Throw src:Int32(1)
 
 Exception handlers:
-  [  80 ..   88] => handler block2
-  [  90 ..   98] => handler block1
+  [  68 ..   70] => handler block2
+  [  78 ..   80] => handler block1
 
 
-throwInCatchWithLocals$b44ee161 catch-scope-boundary.js:17:5
+throwInCatchWithLocals$32ece8d9 catch-scope-boundary.js:17:5
   Registers: 9
   Blocks:    5
   Locals:    inner~0, catchLocal~1, e~2, outerVar~3
@@ -74,36 +71,33 @@ throwInCatchWithLocals$b44ee161 catch-scope-boundary.js:17:5
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:outerVar~3, src:String("outer")
-  [  20] Jump target:block4
+  [   8] Mov dst:outerVar~3, src:String("outer")
+  [  18] Jump target:block4
 
 block1:
-  [  28] Catch value_feedback:0, dst:reg5
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Mov dst:e~2, src:reg5
-  [  48] Add arith_feedback:0, dst:catchLocal~1, lhs:String("local:"), rhs:e~2
-  [  58] Jump target:block3
+  [  20] Catch value_feedback:0, dst:reg5
+  [  28] Mov dst:e~2, src:reg5
+  [  38] Add arith_feedback:0, dst:catchLocal~1, lhs:String("local:"), rhs:e~2
+  [  48] Jump target:block3
 
 block2:
-  [  60] Catch value_feedback:1, dst:reg6
-  [  68] SetLexicalEnvironment environment:reg4
-  [  70] Mov dst:inner~0, src:reg6
-  [  80] Add arith_feedback:1, dst:reg7, lhs:outerVar~3, rhs:String(",")
-  [  90] Add arith_feedback:2, dst:reg8, lhs:reg7, rhs:catchLocal~1
-  [  a0] Add arith_feedback:3, dst:reg7, lhs:reg8, rhs:String(",")
-  [  b0] Add arith_feedback:4, dst:reg8, lhs:reg7, rhs:inner~0
-  [  c0] Return value:reg8
+  [  50] Catch value_feedback:1, dst:reg6
+  [  58] Mov dst:inner~0, src:reg6
+  [  68] Add arith_feedback:1, dst:reg7, lhs:outerVar~3, rhs:String(",")
+  [  78] Add arith_feedback:2, dst:reg8, lhs:reg7, rhs:catchLocal~1
+  [  88] Add arith_feedback:3, dst:reg7, lhs:reg8, rhs:String(",")
+  [  98] Add arith_feedback:4, dst:reg8, lhs:reg7, rhs:inner~0
+  [  a8] Return value:reg8
 
 block3:
-  [  c8] Throw src:String("second")
+  [  b0] Throw src:String("second")
 
 block4:
-  [  d0] Throw src:String("first")
+  [  b8] Throw src:String("first")
 
 Exception handlers:
-  [  c8 ..   d0] => handler block2
-  [  d0 ..   d8] => handler block1
+  [  b0 ..   b8] => handler block2
+  [  b8 ..   c0] => handler block1
 
 
 "good"

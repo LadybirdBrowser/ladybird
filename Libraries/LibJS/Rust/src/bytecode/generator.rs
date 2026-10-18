@@ -1910,30 +1910,55 @@ impl Generator {
         });
 
         if let Some((load_block_index, load_instruction_index)) = synthetic_load {
-            let saved_environment_is_used = self.basic_blocks.iter().enumerate().any(|(block_index, block)| {
-                block
-                    .instructions
-                    .iter()
-                    .enumerate()
-                    .any(|(instruction_index, (instruction, _, _))| {
-                        if block_index == load_block_index && instruction_index == load_instruction_index {
-                            return false;
+            let is_restore_of_saved_environment = |instruction: &Instruction| {
+                matches!(
+                    instruction,
+                    Instruction::SetLexicalEnvironment { environment } if *environment == saved_environment
+                )
+            };
+            let mut saved_environment_is_only_restored = true;
+            let mut has_restores_of_saved_environment = false;
+            let mut changes_running_lexical_environment = false;
+            for (block_index, block) in self.basic_blocks.iter().enumerate() {
+                for (instruction_index, (instruction, _, _)) in block.instructions.iter().enumerate() {
+                    if block_index == load_block_index && instruction_index == load_instruction_index {
+                        continue;
+                    }
+                    if is_restore_of_saved_environment(instruction) {
+                        has_restores_of_saved_environment = true;
+                        continue;
+                    }
+                    // NB: These are the instructions whose interpreter handlers change the running lexical environment:
+                    //     SetLexicalEnvironment in interpreter.flap, and the slow paths in slow_paths/bindings.rs.
+                    //     Exception unwinding and generator resumption do not change it.
+                    changes_running_lexical_environment |= matches!(
+                        instruction,
+                        Instruction::SetLexicalEnvironment { .. }
+                            | Instruction::CreateLexicalEnvironment { .. }
+                            | Instruction::CreateVariableEnvironment { .. }
+                            | Instruction::EnterObjectEnvironment { .. }
+                    );
+                    let mut instruction = instruction.clone();
+                    instruction.visit_operands(&mut |operand: &mut Operand| {
+                        if *operand == saved_environment {
+                            saved_environment_is_only_restored = false;
                         }
-                        let mut instruction = instruction.clone();
-                        let mut mentions_saved_environment = false;
-                        instruction.visit_operands(&mut |operand: &mut Operand| {
-                            if *operand == saved_environment {
-                                mentions_saved_environment = true;
-                            }
-                        });
-                        mentions_saved_environment
-                    })
-            });
+                    });
+                }
+            }
 
-            if !saved_environment_is_used {
+            // NB: Restoring an environment that no instruction changes does nothing.
+            if saved_environment_is_only_restored
+                && (!has_restores_of_saved_environment || !changes_running_lexical_environment)
+            {
                 self.basic_blocks[load_block_index]
                     .instructions
                     .remove(load_instruction_index);
+                for block in &mut self.basic_blocks {
+                    block
+                        .instructions
+                        .retain(|(instruction, _, _)| !is_restore_of_saved_environment(instruction));
+                }
             }
         }
 

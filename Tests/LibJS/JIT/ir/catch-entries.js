@@ -19,7 +19,7 @@ function sum(n) {
         try {
             total += thrower(0);
         } catch (e) {
-            total = 0;
+            total -= e;
         }
     }
     return total;
@@ -35,10 +35,10 @@ jit.compile(sum);
 // CHECK-NEXT: LoadSlot
 // CHECK: Jump [[HANDLER:b[0-9]+]]
 // CHECK: {{^}}[[HANDLER]] (pc [[PC:[0-9]+]]) <- [[ENTRY]]:
-// CHECK-NEXT: LoadSlot r4
-// CHECK-NEXT: SetLexicalEnvironment
+// CHECK-NEXT: CheckInt32
+// CHECK: Int32Sub
 // CHECK: osr entry at pc [[PC]]: [[ENTRY]]
 // CHECK-COUNT-1: osr entry at pc
-// CHECK-COUNT-1: SetLexicalEnvironment
+// CHECK-COUNT-1: Int32Sub
 
 console.log(sum(100));
