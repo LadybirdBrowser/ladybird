@@ -397,7 +397,7 @@ fn visit_node(
             facts.expose(*input);
         }
     }
-    for value in graph.legacy_argument_values_read_by(node_id) {
+    for value in graph.legacy_argument_values_read_by(node_id, |_| true) {
         facts.expose(decisions.value(graph, value));
     }
     // NB: A check known to pass is replaced by what refined its input

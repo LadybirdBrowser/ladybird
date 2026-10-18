@@ -814,6 +814,16 @@ pub enum Op {
     /// one where it relies on its dependencies after other code ran, which
     /// is the only way they can stop holding.
     AssumeValid,
+    /// An `AssumeValid` after an instruction whose calls run code that may
+    /// read the legacy `arguments` of the frames of inlined calls the
+    /// instruction is in. Where those arguments are objects the code never
+    /// allocated, the runtime creates them for that code and invalidates the
+    /// code, so that the frame exits here and continues with the very objects
+    /// that code read. Escape analysis makes it an `AssumeValid` after calls
+    /// whose frame states have such objects, and removes the others (see
+    /// `Graph::legacy_arguments_guards`). Until then it is no `AssumeValid`,
+    /// so that check elimination does not rely on it.
+    AssumeLegacyArgumentsUnread,
     /// Loads binding `index` of the global declarative environment
     /// `environment`. Exits with `ExitKind::BadShape` if it is still
     /// uninitialized.
@@ -1418,7 +1428,7 @@ impl Op {
             },
             // NB: Reading everything keeps loops whose code may invalidate
             //     the code from hoisting it.
-            Op::AssumeValid => P {
+            Op::AssumeValid | Op::AssumeLegacyArgumentsUnread => P {
                 reads: Locations::ALL,
                 ..P::PURE
             },
@@ -1672,6 +1682,7 @@ impl Op {
             Op::CheckShape { .. } => "CheckShape",
             Op::CheckPrototypeChainValid { .. } => "CheckPrototypeChainValid",
             Op::AssumeValid => "AssumeValid",
+            Op::AssumeLegacyArgumentsUnread => "AssumeLegacyArgumentsUnread",
             Op::HasInPrototypeChain => "HasInPrototypeChain",
             Op::LoadGlobalBinding { .. } => "LoadGlobalBinding",
             Op::StoreGlobalBinding { .. } => "StoreGlobalBinding",
@@ -1795,7 +1806,7 @@ impl Op {
             Op::CheckArray => Some(ExitKind::BadType),
             Op::CheckNonNegativeInt32 => Some(ExitKind::Overflow),
             Op::CheckNumber | Op::CheckIdentityComparable | Op::HasInPrototypeChain => Some(ExitKind::BadType),
-            Op::AssumeValid => Some(ExitKind::Invalidated),
+            Op::AssumeValid | Op::AssumeLegacyArgumentsUnread => Some(ExitKind::Invalidated),
             Op::Int32Binary { op } if op.int32_can_overflow() => Some(ExitKind::Overflow),
             Op::CheckValue { kind, .. } => Some(*kind),
             Op::LoadArgument { .. } | Op::SliceArguments => Some(ExitKind::ArgumentsIndex),
@@ -2046,6 +2057,9 @@ pub struct Graph {
     /// The argument slots of the compiled function that its legacy
     /// `arguments` shows. Empty for functions without legacy `arguments`.
     pub legacy_arguments: core::ops::Range<u32>,
+    /// The `AssumeLegacyArgumentsUnread` nodes, each with the nodes of its
+    /// instruction that run code.
+    pub legacy_arguments_guards: Vec<(NodeId, Vec<NodeId>)>,
 }
 
 impl Graph {
@@ -2128,7 +2142,10 @@ impl Graph {
         )
     }
 
-    pub fn legacy_argument_values_read_by(&self, node: NodeId) -> Vec<NodeId> {
+    /// The values that code `node` runs may read through the legacy
+    /// `arguments` of the frames of its frame state chain for which
+    /// `frames` holds.
+    pub fn legacy_argument_values_read_by(&self, node: NodeId, frames: impl Fn(&FrameState) -> bool) -> Vec<NodeId> {
         let data = self.node(node);
         let Some(frame_state) = data.frame_state.filter(|_| data.op.properties().runs_code) else {
             return Vec::new();
@@ -2136,6 +2153,9 @@ impl Graph {
         let mut values = Vec::new();
         for id in self.frame_state_chain(frame_state) {
             let frame_state = self.frame_state(id);
+            if !frames(frame_state) {
+                continue;
+            }
             for (slot, value) in &frame_state.values {
                 if frame_state.legacy_arguments.contains(slot) {
                     values.push(*value);
@@ -2143,6 +2163,16 @@ impl Graph {
             }
         }
         values
+    }
+
+    /// Whether code that `node` runs may read objects the code never
+    /// allocated through the legacy `arguments` of the frames of its frame
+    /// state chain, which the runtime then creates from the values of the
+    /// node's site (see `Op::AssumeLegacyArgumentsUnread`).
+    pub fn defers_legacy_argument_objects(&self, node: NodeId) -> bool {
+        self.legacy_argument_values_read_by(node, |_| true)
+            .into_iter()
+            .any(|value| matches!(self.node(value).op, Op::VirtualObject { .. }))
     }
 
     /// The values of every frame of a frame state chain, innermost frame first.

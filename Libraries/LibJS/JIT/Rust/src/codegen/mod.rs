@@ -210,6 +210,10 @@ pub struct GeneratedCode {
     /// What invalidates the code: the bytes to write at each offset (see
     /// `Op::AssumeValid`).
     pub invalidation_patches: Vec<(u32, Vec<u8>)>,
+    /// See `CompiledCode::site_index_frame_offset`.
+    pub site_index_frame_offset: i32,
+    /// See `CompiledCode::register_dump_frame_offset`.
+    pub register_dump_frame_offset: i32,
 }
 
 /// What a run of generated code is for, so `dump-asm` can label it.
@@ -458,6 +462,8 @@ pub fn generate<M: PortableMacroAssembler>(
             )
         })
         .collect();
+    let site_index_frame_offset = codegen.local_frame_pointer_offset(codegen.locals.exit_index);
+    let register_dump_frame_offset = codegen.local_frame_pointer_offset(codegen.locals.dump);
     let (code, data_offset) = codegen
         .masm
         .finish_with_data_offset()
@@ -471,6 +477,8 @@ pub fn generate<M: PortableMacroAssembler>(
         annotations,
         osr_entries,
         invalidation_patches,
+        site_index_frame_offset,
+        register_dump_frame_offset,
     })
 }
 
@@ -815,6 +823,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
         }
         descriptor
+    }
+
+    /// The offset of the local at `offset` from the frame pointer.
+    fn local_frame_pointer_offset(&self, offset: u32) -> i32 {
+        let frame_pointer = i64::from(self.frame.caller_stack_offset) - 16;
+        i32::try_from(i64::from(offset) - frame_pointer).expect("JIT frames are smaller than 2 GiB")
     }
 
     /// The `saved` registers of a slow path call, with the frame pointer
@@ -1268,6 +1282,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::Constant(_) | Op::Phi | Op::VirtualObject { .. } | Op::Refine { .. } => {
                 unreachable!("constants, phis, virtual objects and refinements have no code")
             }
+            Op::AssumeLegacyArgumentsUnread => unreachable!("escape analysis resolves legacy arguments guards"),
             Op::LoadSlot { slot } => {
                 let address = self.slot_address(*slot)?;
                 self.masm.load64(self.output(node_id), &address);

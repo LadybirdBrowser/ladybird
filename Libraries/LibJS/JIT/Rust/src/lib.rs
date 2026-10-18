@@ -136,6 +136,8 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
         embedded_cells: graph.embedded_cells,
         dependencies: graph.dependencies,
         invalidation_patches: generated.invalidation_patches,
+        site_index_frame_offset: generated.site_index_frame_offset,
+        register_dump_frame_offset: generated.register_dump_frame_offset,
         dump,
     })
 }

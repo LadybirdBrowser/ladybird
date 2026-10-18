@@ -355,6 +355,54 @@ impl GraphBuilder<'_> {
         values
     }
 
+    /// Ends the instruction at `instruction_index` just built (with the
+    /// instructions it built as well), whose nodes are those from
+    /// `first_node` on, with an `AssumeLegacyArgumentsUnread` if code that
+    /// some of its nodes run may read the legacy `arguments` of the frames of
+    /// the inlined calls it is in. Its frame state resumes at the next
+    /// instruction.
+    pub(super) fn guard_legacy_arguments(&mut self, instruction_index: usize, first_node: usize) {
+        let Some(parent) = self.parent_frame_state() else {
+            return;
+        };
+        let has_legacy_arguments = self.function.has_legacy_arguments()
+            || self
+                .graph
+                .frame_state_chain(parent)
+                .iter()
+                .any(|id| !self.graph.frame_state(*id).legacy_arguments.is_empty());
+        if !has_legacy_arguments {
+            return;
+        }
+        let function_index = self.function.index;
+        let graph = &self.graph;
+        let nodes = (first_node..graph.nodes.len())
+            .map(|index| NodeId(index as u32))
+            .filter(|node| {
+                let data = graph.node(*node);
+                // NB: Nodes of the calls the instruction inlined run in frames
+                //     of their own, after which those calls guard themselves.
+                data.op.properties().runs_code
+                    && data.frame_state.is_some_and(|frame_state| {
+                        let innermost = graph.frame_state(frame_state);
+                        innermost.executable == function_index && innermost.parent == Some(parent)
+                    })
+            })
+            .collect::<Vec<_>>();
+        if nodes.is_empty() {
+            return;
+        }
+        let last = instruction_index + self.function.skipped_instructions;
+        let frame_state = FrameState {
+            pc: self.function.instructions[last].next_pc(),
+            ..self.new_frame_state(self.function.liveness.live_out(last), ResumeMode::ResumeAt)
+        };
+        let frame_state = self.graph.add_frame_state(frame_state);
+        let guard = self.emit(Op::AssumeLegacyArgumentsUnread, Vec::new(), None);
+        self.graph.nodes[guard.index()].frame_state = Some(frame_state);
+        self.graph.legacy_arguments_guards.push((guard, nodes));
+    }
+
     fn legacy_argument_slots(&self) -> core::ops::Range<u32> {
         let function = &self.function;
         let Some(call) = function.inline.as_ref().filter(|_| function.has_legacy_arguments()) else {

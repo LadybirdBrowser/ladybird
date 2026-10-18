@@ -465,6 +465,7 @@ fn exits_find_constants_registers_and_spilled_values() {
                 ],
                 in_frame: Vec::new(),
                 passed_argument_count: None,
+                legacy_arguments: 0..0,
             }],
             objects: Vec::new(),
             inlined_frame_bytes: 0,

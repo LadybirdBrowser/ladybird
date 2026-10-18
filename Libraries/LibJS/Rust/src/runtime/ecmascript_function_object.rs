@@ -1011,6 +1011,9 @@ impl EcmascriptFunctionObject {
                 .collect(),
                 None => {
                     let context = frame.execution_context;
+                    // NB: The frame of an inlined call that JIT code published or materialized for a call it made has
+                    //     markers for the objects among its arguments that the code never allocated.
+                    crate::jit::translate::resolve_deferred_arguments(vm, context);
                     context.arguments()[..context.passed_argument_count.get() as usize]
                         .iter()
                         .map(|argument| Cell::new(argument.get()))

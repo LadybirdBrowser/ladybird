@@ -10,17 +10,21 @@
 //! besides accesses of its named properties: when it is stored into the
 //! frame or into an object that escapes, passed to anything but property
 //! accesses and checks (an operand of a slow path or a call included),
-//! passed to an inlined call whose legacy `arguments` code it runs can read,
-//! or merged in a phi. An object that does not escape is never allocated: its
-//! properties become SSA values, initialized to `undefined`. Stores update
-//! them, loads become the value stored last, checks of the object (whose
-//! shape is known) go away, and where paths merge, phis merge the values.
+//! passed to an inlined call whose legacy `arguments` code it runs can read
+//! where no `AssumeLegacyArgumentsUnread` follows, or where code read them
+//! before (`ExitKind::LegacyArgumentsRead`), or merged in a phi. An object
+//! that does not escape is never allocated: its properties become SSA
+//! values, initialized to `undefined`. Stores update them, loads become the
+//! value stored last, checks of the object (whose shape is known) go away,
+//! and where paths merge, phis merge the values.
 //!
 //! Frame states only reach the frame when compiled code leaves: at exits,
 //! and when slow paths and calls do not continue in compiled code (see
 //! `SiteKind::Leave`). Frame states that need the object refer to an
 //! `Op::VirtualObject` with the values its properties have there, and the
-//! runtime creates it then.
+//! runtime creates it then. So does code that reads it through legacy
+//! `arguments`, after which compiled code leaves at the next
+//! `AssumeLegacyArgumentsUnread` (see that).
 //!
 //! Values stored into an object that does not escape do not escape by being
 //! stored there, so nested objects (an options bag holding a location
@@ -33,11 +37,13 @@ use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
 use crate::bitset::BitSet;
+use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::fast_hash::HashMap;
 use crate::fast_hash::HashSet;
 use crate::ir::Block;
 use crate::ir::BlockId;
+use crate::ir::FrameState;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::Node;
@@ -113,8 +119,27 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
         }
     }
 
+    // NB: Code that calls run may read the legacy `arguments` of the frames
+    //     of inlined calls. The runtime creates the objects among them that
+    //     the code never allocated then, after nodes that guard against that
+    //     (see `Op::AssumeLegacyArgumentsUnread`), except where code read
+    //     them before: there, and after other nodes, they stay allocated.
+    let guarded = graph
+        .legacy_arguments_guards
+        .iter()
+        .flat_map(|(_, nodes)| nodes.iter().copied())
+        .collect::<HashSet<_>>();
+    let read_before = graph
+        .exit_sites
+        .iter()
+        .filter(|(_, _, kind)| *kind == ExitKind::LegacyArgumentsRead)
+        .map(|(executable, pc, _)| (*executable, *pc))
+        .collect::<HashSet<_>>();
     for node in placed {
-        for value in graph.legacy_argument_values_read_by(*node) {
+        let allocated_in = |frame_state: &FrameState| {
+            !guarded.contains(node) || read_before.contains(&(frame_state.executable, frame_state.pc))
+        };
+        for value in graph.legacy_argument_values_read_by(*node, allocated_in) {
             if let Some(root) = roots.get(&value) {
                 escaped.insert(root.index());
             }
@@ -291,17 +316,41 @@ pub fn run(graph: &mut Graph) {
         //     properties.
         if !analysis.has_nested_objects {
             replace_objects(graph, &analysis).expect("objects not stored into others merge in no phi of properties");
-            return;
+            break;
         }
         let mut copy = graph.clone();
         match replace_objects(&mut copy, &analysis) {
             Ok(()) => {
                 *graph = copy;
-                return;
+                break;
             }
             Err(objects) => escaping.extend(objects),
         }
     }
+    resolve_legacy_arguments_guards(graph);
+}
+
+/// Makes the `AssumeLegacyArgumentsUnread` nodes after nodes whose code may
+/// read objects the code never allocated through legacy `arguments` (see
+/// `Graph::defers_legacy_argument_objects()`) `AssumeValid` nodes, and
+/// removes the others.
+fn resolve_legacy_arguments_guards(graph: &mut Graph) {
+    let mut placed = BitSet::new(graph.nodes.len());
+    for node in placed_nodes(graph) {
+        placed.insert(node.index());
+    }
+    let mut removed = BitSet::new(graph.nodes.len());
+    for (guard, nodes) in std::mem::take(&mut graph.legacy_arguments_guards) {
+        let needed = nodes
+            .iter()
+            .any(|node| placed.contains(node.index()) && graph.defers_legacy_argument_objects(*node));
+        if needed {
+            graph.nodes[guard.index()].op = Op::AssumeValid;
+        } else {
+            removed.insert(guard.index());
+        }
+    }
+    edit::remove_nodes(graph, &removed);
 }
 
 /// Replaces the objects of `analysis` that do not escape. Fails with the

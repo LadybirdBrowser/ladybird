@@ -268,6 +268,8 @@ impl Debugger {
                 .expect("a paused frame runs an executable"),
         );
 
+        // NB: The copy must hold the objects that a frame of an inlined call has markers for.
+        crate::jit::translate::resolve_deferred_arguments(vm, execution_context);
         let context = execution_context.copy();
         let local_environment = new_declarative_environment(
             vm,
@@ -402,6 +404,7 @@ impl Debugger {
     pub fn bindings_for_frame<'vm>(&self, vm: &'vm Vm, context: &ExecutionContext) -> MarkedVec<'vm, FrameBinding> {
         let executable = Executable::from_head(context.executable.get().expect("a frame runs an executable"));
         let binding_locations = self.binding_locations_for_frame(context);
+        crate::jit::translate::resolve_deferred_arguments(vm, context);
         let bindings = MarkedVec::with_capacity(vm, binding_locations.len());
         for (name, location) in binding_locations {
             let value = match location.storage {

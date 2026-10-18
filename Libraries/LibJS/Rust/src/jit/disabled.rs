@@ -202,6 +202,8 @@ pub mod translate {
     ) -> Vec<Value> {
         unreachable!("no frame runs JIT code");
     }
+
+    pub fn resolve_deferred_arguments(_vm: &Vm, _frame: &ExecutionContext) {}
 }
 
 pub mod snapshot {
