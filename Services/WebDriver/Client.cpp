@@ -468,7 +468,7 @@ ResponsePromise Client::new_window(Web::WebDriver::Parameters parameters, JsonVa
                               bool settled { false };
                           };
                           auto wait_state = adopt_ref(*new WaitState);
-                          wait_state->timer = Core::Timer::create_single_shot(CONNECTION_TIMEOUT_MS, [promise, session, handle, wait_state] {
+                          wait_state->timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(CONNECTION_TIMEOUT_MS), [promise, session, handle, wait_state] {
                               if (wait_state->settled)
                                   return;
                               wait_state->settled = true;

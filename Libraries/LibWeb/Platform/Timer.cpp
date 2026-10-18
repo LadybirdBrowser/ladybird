@@ -70,7 +70,7 @@ void Timer::start()
 
 void Timer::start(int interval_ms)
 {
-    m_timer->start(interval_ms);
+    m_timer->start(AK::Duration::from_milliseconds(interval_ms));
     m_activity_root.take(*this);
 }
 
@@ -82,7 +82,7 @@ void Timer::restart()
 
 void Timer::restart(int interval_ms)
 {
-    m_timer->restart(interval_ms);
+    m_timer->restart(AK::Duration::from_milliseconds(interval_ms));
     m_activity_root.take(*this);
 }
 
@@ -108,12 +108,12 @@ bool Timer::is_active() const
 
 int Timer::interval() const
 {
-    return m_timer->interval();
+    return m_timer->interval().to_milliseconds();
 }
 
 void Timer::set_interval(int interval_ms)
 {
-    m_timer->set_interval(interval_ms);
+    m_timer->set_interval(AK::Duration::from_milliseconds(interval_ms));
 }
 
 bool Timer::is_single_shot() const

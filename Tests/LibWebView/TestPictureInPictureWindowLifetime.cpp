@@ -80,7 +80,7 @@ constexpr auto video_url = "data:video/webm;base64,"
 bool spin_until_or_timeout(Function<bool()> condition, int timeout_ms)
 {
     bool timed_out = false;
-    auto timer = Core::Timer::create_single_shot(timeout_ms, [&] { timed_out = true; });
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(timeout_ms), [&] { timed_out = true; });
     timer->start();
     Core::EventLoop::current().spin_until([&] { return condition() || timed_out; });
     return condition();

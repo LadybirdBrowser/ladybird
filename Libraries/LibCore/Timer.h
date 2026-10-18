@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Time.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Export.h>
 
@@ -18,26 +19,26 @@ class CORE_API Timer final : public EventReceiver {
 
 public:
     static NonnullRefPtr<Timer> create();
-    static NonnullRefPtr<Timer> create_repeating(int interval_ms, Function<void()>&& timeout_handler);
-    static NonnullRefPtr<Timer> create_single_shot(int interval_ms, Function<void()>&& timeout_handler);
+    static NonnullRefPtr<Timer> create_repeating(AK::Duration interval, Function<void()>&& timeout_handler);
+    static NonnullRefPtr<Timer> create_single_shot(AK::Duration interval, Function<void()>&& timeout_handler);
 
     virtual ~Timer() override;
 
     void start();
-    void start(int interval_ms);
+    void start(AK::Duration interval);
     void restart();
-    void restart(int interval_ms);
+    void restart(AK::Duration interval);
     void stop();
 
     void set_active(bool);
 
     bool is_active() const { return m_active; }
-    int interval() const { return m_interval_ms; }
-    void set_interval(int interval_ms)
+    AK::Duration interval() const { return m_interval; }
+    void set_interval(AK::Duration interval)
     {
-        if (m_interval_ms == interval_ms)
+        if (m_interval == interval)
             return;
-        m_interval_ms = interval_ms;
+        m_interval = interval;
         m_interval_dirty = true;
     }
 
@@ -48,14 +49,14 @@ public:
 
 private:
     Timer();
-    Timer(int interval_ms, Function<void()>&& timeout_handler);
+    Timer(AK::Duration interval, Function<void()>&& timeout_handler);
 
     virtual void timer_event(TimerEvent&) override;
 
     bool m_active { false };
     bool m_single_shot { false };
     bool m_interval_dirty { false };
-    int m_interval_ms { 0 };
+    AK::Duration m_interval;
 };
 
 }

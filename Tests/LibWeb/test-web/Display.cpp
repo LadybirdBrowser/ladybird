@@ -71,7 +71,7 @@ void Display::begin_run()
     });
 #endif
 
-    display_timer = Core::Timer::create_repeating(1000, [this] { render_live_display(); });
+    display_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1000), [this] { render_live_display(); });
     display_timer->start();
 }
 

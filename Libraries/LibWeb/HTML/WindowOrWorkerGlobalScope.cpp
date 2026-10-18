@@ -1475,7 +1475,7 @@ void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM
     m_chained_timers_intensively_throttled = false;
     if (document_is_hidden()) {
         if (!m_intensive_timer_throttling_grace_timer) {
-            m_intensive_timer_throttling_grace_timer = Core::Timer::create_single_shot(0, [this] {
+            m_intensive_timer_throttling_grace_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
                 m_chained_timers_intensively_throttled = true;
                 realign_timers();
             });
@@ -1484,7 +1484,7 @@ void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM
         auto grace_period = document.readiness() == DocumentReadyState::Complete
             ? m_intensive_timer_throttling_grace_period_once_loaded
             : m_intensive_timer_throttling_grace_period_while_loading;
-        m_intensive_timer_throttling_grace_timer->restart(timer_delay_from(grace_period));
+        m_intensive_timer_throttling_grace_timer->restart(AK::Duration::from_milliseconds(timer_delay_from(grace_period)));
     } else if (m_intensive_timer_throttling_grace_timer) {
         m_intensive_timer_throttling_grace_timer->stop();
     }

@@ -42,7 +42,7 @@ void CaretBlinkTimer::did_install_display_list(Compositing::DisplayList const& d
         return;
 
     if (!m_timer) {
-        m_timer = Core::Timer::create_single_shot(500, [this] {
+        m_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(500), [this] {
             auto damage_rect = m_damage_rect_of_blinking_carets();
             if (!damage_rect.is_empty())
                 m_schedule_repaint(damage_rect);
@@ -63,7 +63,7 @@ void CaretBlinkTimer::schedule_next_blink()
         : 0;
     auto delay_ns = Compositing::caret_blink_interval_ns - elapsed_ns % Compositing::caret_blink_interval_ns;
     auto delay_ms = max(static_cast<int>((delay_ns + 999'999) / 1'000'000), 1);
-    m_timer->restart(delay_ms);
+    m_timer->restart(AK::Duration::from_milliseconds(delay_ms));
 }
 
 }

@@ -144,7 +144,7 @@ private:
         MUST(connection.socket->write_until_depleted(response.pieces[connection.next_piece_index++].bytes()));
 
         if (connection.next_piece_index < response.pieces.size()) {
-            connection.piece_timer = Core::Timer::create_single_shot(static_cast<int>(response.interval.to_milliseconds()), [this, connection_index] {
+            connection.piece_timer = Core::Timer::create_single_shot(response.interval, [this, connection_index] {
                 write_next_piece(connection_index);
             });
             connection.piece_timer->start();

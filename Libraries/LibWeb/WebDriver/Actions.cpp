@@ -1461,7 +1461,7 @@ public:
 
         // NB: The pointer input of the tick is the only asynchronous wait. Key and wheel input fire their events
         //     synchronously. Once both it and the tick duration have passed, the event loop spins a single time.
-        m_timer = Core::Timer::create_single_shot(static_cast<int>(tick_duration.to_milliseconds()), [this]() {
+        m_timer = Core::Timer::create_single_shot(tick_duration, [this]() {
             m_timer = nullptr;
             m_tick_duration_has_passed = true;
             process_next_tick_once_the_tick_is_over();

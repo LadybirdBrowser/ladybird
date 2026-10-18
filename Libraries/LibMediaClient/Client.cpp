@@ -226,7 +226,7 @@ void Client::update_idle_timer()
         return;
     }
     if (!m_idle_timer) {
-        m_idle_timer = Core::Timer::create_single_shot(IDLE_EXIT_DELAY_MS, [this] {
+        m_idle_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(IDLE_EXIT_DELAY_MS), [this] {
             // Clearing the client reference closes the connection and causes the server to exit.
             if (*s_client == this)
                 *s_client = nullptr;

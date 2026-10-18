@@ -755,13 +755,13 @@ void WebSocket::set_state(InternalState state)
 
     if (state == InternalState::Closing) {
         if (!m_closing_handshake_timer) {
-            m_closing_handshake_timer = Core::Timer::create_single_shot(s_closing_handshake_timeout_ms, [this] {
+            m_closing_handshake_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(s_closing_handshake_timeout_ms), [this] {
                 if (m_state != InternalState::Closing)
                     return;
                 fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), WebSocket::Error::ServerClosedSocket, "Timed out waiting for the peer's close frame");
             });
         } else {
-            m_closing_handshake_timer->restart(s_closing_handshake_timeout_ms);
+            m_closing_handshake_timer->restart(AK::Duration::from_milliseconds(s_closing_handshake_timeout_ms));
         }
     } else if (m_closing_handshake_timer) {
         m_closing_handshake_timer->stop();

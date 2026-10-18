@@ -648,7 +648,7 @@ void FileDownloader::start_stall_watchdog(u64 download_id)
         return;
 
     if (!active->stall_timer) {
-        active->stall_timer = Core::Timer::create_repeating(stall_check_interval_ms, [this, download_id] {
+        active->stall_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(stall_check_interval_ms), [this, download_id] {
             check_for_stalled_segments(download_id);
         });
     }
@@ -718,7 +718,7 @@ void FileDownloader::restart_stalled_segment(u64 download_id, size_t segment_ind
         return;
     }
 
-    segment.retry_timer = Core::Timer::create_single_shot(delay_seconds * 1000, [this, download_id, segment_index] {
+    segment.retry_timer = Core::Timer::create_single_shot(AK::Duration::from_seconds(delay_seconds), [this, download_id, segment_index] {
         auto* active = active_download(download_id);
         if (!active || active->stopped || segment_index >= active->segments.size())
             return;
@@ -756,7 +756,7 @@ bool FileDownloader::retry_segment_request(u64 download_id, size_t segment_index
         return true;
     }
 
-    segment.retry_timer = Core::Timer::create_single_shot(static_cast<int>(delay.to_milliseconds()), [this, download_id, segment_index, is_initial_request] {
+    segment.retry_timer = Core::Timer::create_single_shot(delay, [this, download_id, segment_index, is_initial_request] {
         auto* active = active_download(download_id);
         if (!active || active->stopped || segment_index >= active->segments.size())
             return;

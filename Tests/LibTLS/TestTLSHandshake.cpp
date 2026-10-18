@@ -68,7 +68,7 @@ TEST_CASE(test_TLS_hello_handshake)
     };
     tls->set_notifications_enabled(true);
 
-    auto timeout = Core::Timer::create_single_shot(10'000, [&loop] {
+    auto timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(10'000), [&loop] {
         loop.quit(1);
     });
 

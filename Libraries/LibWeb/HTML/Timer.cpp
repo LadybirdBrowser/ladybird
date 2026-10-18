@@ -24,9 +24,9 @@ Timer::Timer(i32 milliseconds, Function<void()> callback, i32 id, Repeating repe
     , m_earliest_firing(MonotonicTime::now() + AK::Duration::from_milliseconds(milliseconds))
 {
     if (repeating == Repeating::Yes)
-        m_timer = Core::Timer::create_repeating(milliseconds, move(callback));
+        m_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(milliseconds), move(callback));
     else
-        m_timer = Core::Timer::create_single_shot(milliseconds, move(callback));
+        m_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(milliseconds), move(callback));
 }
 
 void Timer::visit_edges(Cell::Visitor& visitor)
@@ -54,7 +54,7 @@ void Timer::stop()
 void Timer::restart(i32 milliseconds)
 {
     m_earliest_firing = MonotonicTime::now() + AK::Duration::from_milliseconds(milliseconds);
-    m_timer->restart(milliseconds);
+    m_timer->restart(AK::Duration::from_milliseconds(milliseconds));
 }
 
 bool Timer::claim_firing()
@@ -81,7 +81,7 @@ void Timer::set_callback(Function<void()> callback)
 
 void Timer::set_interval(i32 milliseconds)
 {
-    if (m_timer->interval() != milliseconds)
+    if (m_timer->interval() != AK::Duration::from_milliseconds(milliseconds))
         restart(milliseconds);
 }
 

@@ -262,7 +262,7 @@ ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& da
     auto store = adopt_own(*new SessionStore(move(persisted_storage)));
     TRY(store->run_startup_recovery(UnixDateTime::now()));
 
-    store->m_flush_timer = Core::Timer::create_repeating(FLUSH_TIMER_INTERVAL_MILLISECONDS, [store = store.ptr()]() {
+    store->m_flush_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(FLUSH_TIMER_INTERVAL_MILLISECONDS), [store = store.ptr()]() {
         store->flush_dirty_state();
     });
     store->m_flush_timer->start();

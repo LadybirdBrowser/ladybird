@@ -41,7 +41,7 @@ TEST_CASE(platform_playback_stream_can_be_created_and_suspended)
         ->when_resolved([&] { resumed.store(true); })
         .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
 
-    auto poll_timer = Core::Timer::create_repeating(1, [] { });
+    auto poll_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [] { });
     poll_timer->start();
     event_loop->spin_until([&] { return resumed.load() && request_count.load() > 0; });
 

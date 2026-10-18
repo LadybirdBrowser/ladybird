@@ -76,7 +76,7 @@ constexpr auto video_url = "data:video/webm;base64,"
 void wait_for(int milliseconds)
 {
     bool elapsed = false;
-    auto timer = Core::Timer::create_single_shot(milliseconds, [&] { elapsed = true; });
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(milliseconds), [&] { elapsed = true; });
     timer->start();
     Core::EventLoop::current().spin_until([&] { return elapsed; });
 }

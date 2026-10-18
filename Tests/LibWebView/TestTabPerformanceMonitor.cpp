@@ -82,7 +82,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
     auto wait_for_samples = [&](u64 minimum_samples) -> ErrorOr<void> {
         bool timed_out = false;
-        auto watchdog = Core::Timer::create_single_shot(20'000, [&] { timed_out = true; });
+        auto watchdog = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(20'000), [&] { timed_out = true; });
         watchdog->start();
         Core::EventLoop::current().spin_until([&] { return timed_out || (samples >= minimum_samples && pushes >= 2 && cpu.has_value()); });
         if (timed_out)

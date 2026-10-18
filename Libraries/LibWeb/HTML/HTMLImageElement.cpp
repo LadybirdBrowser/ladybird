@@ -64,7 +64,7 @@ namespace Web::HTML {
 struct BatchingDispatcher {
 public:
     BatchingDispatcher()
-        : m_timer(Core::Timer::create_single_shot(1, [this] { process(); }))
+        : m_timer(Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1), [this] { process(); }))
     {
     }
 

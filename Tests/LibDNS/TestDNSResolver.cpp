@@ -309,7 +309,7 @@ TEST_CASE(test_dnssec_response_rejects_unknown_key_tag)
         .when_rejected([&](auto&) {
             loop.quit(0);
         });
-    auto deadline = Core::Timer::create_single_shot(1000, [&] { loop.quit(2); });
+    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [&] { loop.quit(2); });
     deadline->start();
     EXPECT_EQ(0, loop.exec());
 }
@@ -346,7 +346,7 @@ TEST_CASE(test_dnssec_response_rejects_unhandled_algorithm)
         .when_rejected([&](auto&) {
             loop.quit(0);
         });
-    auto deadline = Core::Timer::create_single_shot(1000, [&] { loop.quit(3); });
+    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [&] { loop.quit(3); });
     deadline->start();
     EXPECT_EQ(0, loop.exec());
 }
@@ -547,7 +547,7 @@ TEST_CASE(test_validated_lookup_settles_on_a_negative_response)
         })
         .when_rejected([&](auto&) { settled = true; });
 
-    auto deadline = Core::Timer::create_single_shot(2000, [&] { loop.quit(1); });
+    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(2000), [&] { loop.quit(1); });
     deadline->start();
     loop.spin_until([&] { return settled || loop.was_exit_requested(); });
     EXPECT(settled);
@@ -641,7 +641,7 @@ TEST_CASE(test_partial_tcp_frame_does_not_block_the_event_loop)
 
     // The event loop must keep running while the frame is incomplete.
     bool timer_fired = false;
-    auto timer = Core::Timer::create_single_shot(100, [&] { timer_fired = true; });
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(100), [&] { timer_fired = true; });
     timer->start();
     loop.spin_until([&] { return timer_fired; });
     EXPECT(!promise->is_resolved());
@@ -849,7 +849,7 @@ TEST_CASE(test_expired_addresses_are_not_mistaken_for_a_negative_answer)
     EXPECT_EQ(first->cached_addresses().size(), 1u);
     auto queries_for_first_lookup = queries;
 
-    auto timer = Core::Timer::create_single_shot(2100, [&] { loop.quit(0); });
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(2100), [&] { loop.quit(0); });
     timer->start();
     loop.exec();
 

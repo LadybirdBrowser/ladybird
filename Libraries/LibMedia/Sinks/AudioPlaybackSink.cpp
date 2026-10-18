@@ -249,7 +249,7 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
     , m_output_thread_data(move(output_thread_data))
     , m_time_reader(move(time_reader))
 {
-    m_played_out_timer = Core::Timer::create_single_shot(0, [this] {
+    m_played_out_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
         dispatch_waiting_status_once_played_out();
     });
 }
@@ -526,7 +526,7 @@ void AudioPlaybackSink::dispatch_waiting_status_once_played_out()
         // Timers are imprecise, so this may fire early, in which case it waits for the remainder.
         if (m_stream_state == StreamState::Playing) {
             auto delay = AK::Duration::from_time_units(frames_until_played_out, 1, sample_specification.sample_rate());
-            m_played_out_timer->start(max(1, AK::clamp_to<int>(delay.to_milliseconds())));
+            m_played_out_timer->start(AK::Duration::from_milliseconds(max(1, AK::clamp_to<int>(delay.to_milliseconds()))));
         }
         return;
     }

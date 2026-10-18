@@ -311,7 +311,7 @@ TEST_CASE(two_thread_stress)
     producer->start();
 
     IGNORE_USE_IN_ESCAPING_LAMBDA Core::EventLoop& loop = event_loop;
-    auto quit_timer = Core::Timer::create_repeating(25, [&] {
+    auto quit_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(25), [&] {
         if (producer_done.load())
             loop.quit(0);
     });
@@ -391,7 +391,7 @@ TEST_CASE(teardown_when_producer_drops_its_reference_mid_run)
     producer->start();
 
     IGNORE_USE_IN_ESCAPING_LAMBDA Core::EventLoop& loop = event_loop;
-    auto quit_timer = Core::Timer::create_repeating(10, [&] {
+    auto quit_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [&] {
         if (producer_done.load())
             loop.quit(0);
     });

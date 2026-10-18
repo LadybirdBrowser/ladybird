@@ -469,7 +469,7 @@ void expect_request_can_be_exported_from_headers_callback(TestHttpServer& server
         });
 
     bool timed_out = false;
-    auto timeout = Core::Timer::create_single_shot(10'000, [&] { timed_out = true; });
+    auto timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(10'000), [&] { timed_out = true; });
     timeout->start();
     Core::EventLoop::current().spin_until([&] { return finished || timed_out; });
     VERIFY(!timed_out);
@@ -536,7 +536,7 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
         });
 
     bool timed_out = false;
-    auto timeout = Core::Timer::create_single_shot(10'000, [&] {
+    auto timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(10'000), [&] {
         timed_out = true;
     });
     timeout->start();

@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Time.h>
 #include <LibCore/Timer.h>
 
 namespace Core {
@@ -15,14 +14,14 @@ NonnullRefPtr<Timer> Timer::create()
     return adopt_ref(*new Timer);
 }
 
-NonnullRefPtr<Timer> Timer::create_repeating(int interval_ms, Function<void()>&& timeout_handler)
+NonnullRefPtr<Timer> Timer::create_repeating(AK::Duration interval, Function<void()>&& timeout_handler)
 {
-    return adopt_ref(*new Timer(interval_ms, move(timeout_handler)));
+    return adopt_ref(*new Timer(interval, move(timeout_handler)));
 }
 
-NonnullRefPtr<Timer> Timer::create_single_shot(int interval_ms, Function<void()>&& timeout_handler)
+NonnullRefPtr<Timer> Timer::create_single_shot(AK::Duration interval, Function<void()>&& timeout_handler)
 {
-    auto timer = adopt_ref(*new Timer(interval_ms, move(timeout_handler)));
+    auto timer = adopt_ref(*new Timer(interval, move(timeout_handler)));
     timer->set_single_shot(true);
     return timer;
 }
@@ -31,36 +30,36 @@ Timer::~Timer() = default;
 
 Timer::Timer() = default;
 
-Timer::Timer(int interval_ms, Function<void()>&& timeout_handler)
+Timer::Timer(AK::Duration interval, Function<void()>&& timeout_handler)
     : on_timeout(move(timeout_handler))
-    , m_interval_ms(interval_ms)
+    , m_interval(interval)
 {
 }
 
 void Timer::start()
 {
-    start(m_interval_ms);
+    start(m_interval);
 }
 
-void Timer::start(int interval_ms)
+void Timer::start(AK::Duration interval)
 {
     if (m_active)
         return;
-    m_interval_ms = interval_ms;
-    start_timer(AK::Duration::from_milliseconds(interval_ms));
+    m_interval = interval;
+    start_timer(interval);
     m_active = true;
 }
 
 void Timer::restart()
 {
-    restart(m_interval_ms);
+    restart(m_interval);
 }
 
-void Timer::restart(int interval_ms)
+void Timer::restart(AK::Duration interval)
 {
     if (m_active)
         stop();
-    start(interval_ms);
+    start(interval);
 }
 
 void Timer::stop()
@@ -86,7 +85,7 @@ void Timer::timer_event(TimerEvent&)
     else {
         if (m_interval_dirty) {
             stop();
-            start(m_interval_ms);
+            start(m_interval);
             m_interval_dirty = false;
         }
     }

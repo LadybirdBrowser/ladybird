@@ -361,7 +361,7 @@ void CrashReportSubmission::post(StringView path, StringView activity, StringVie
         return;
     }
 
-    m_request_timeout = Core::Timer::create_single_shot(request_timeout_ms,
+    m_request_timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(request_timeout_ms),
         [weak_this = make_weak_ptr<CrashReportSubmission>()] {
             auto self = weak_this.strong_ref();
             if (!self)
@@ -447,7 +447,7 @@ void CrashReportSubmission::fail(String reason, ShouldRetry should_retry, Option
     if (on_retry)
         on_retry(move(reason), retry_number, static_cast<u32>(delay_ms / 1000));
 
-    m_retry_timer = Core::Timer::create_single_shot(delay_ms,
+    m_retry_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(delay_ms),
         [weak_this = make_weak_ptr<CrashReportSubmission>()] {
             if (auto self = weak_this.strong_ref())
                 self->begin_attempt();

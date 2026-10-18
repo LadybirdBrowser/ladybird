@@ -76,7 +76,7 @@ TEST_CASE(null_playback_stream_pulls_only_while_playing)
     EXPECT_EQ(stream->sample_specification().channel_map(), Audio::ChannelMap::stereo());
 
     stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
-    auto poll_timer = Core::Timer::create_repeating(1, [] { });
+    auto poll_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [] { });
     poll_timer->start();
     event_loop.spin_until([&] { return request_count.load() > 0; });
 
@@ -89,7 +89,7 @@ TEST_CASE(null_playback_stream_pulls_only_while_playing)
     auto request_count_when_suspended = request_count.load();
 
     bool checked_suspension = false;
-    auto timer = Core::Timer::create_single_shot(20, [&] {
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(20), [&] {
         EXPECT_EQ(request_count.load(), request_count_when_suspended);
         checked_suspension = true;
     });
@@ -118,7 +118,7 @@ TEST_CASE(null_playback_stream_dates_each_buffer_by_what_it_holds)
     });
 
     stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
-    auto poll_timer = Core::Timer::create_repeating(1, [] { });
+    auto poll_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [] { });
     poll_timer->start();
     event_loop.spin_until([&] { return request_count.load() > 2; });
     EXPECT(every_buffer_dated_by_what_it_holds.load());
@@ -138,7 +138,7 @@ TEST_CASE(null_playback_stream_recovers_from_underrun)
     });
     stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
 
-    auto poll_timer = Core::Timer::create_repeating(1, [&] {
+    auto poll_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [&] {
         stream->notify_data_available();
     });
     poll_timer->start();
@@ -157,7 +157,7 @@ TEST_CASE(null_playback_stream_resume_completes_pending_drain)
     });
     stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
 
-    auto poll_timer = Core::Timer::create_repeating(1, [] { });
+    auto poll_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [] { });
     poll_timer->start();
     event_loop.spin_until([&] { return request_count.load() > 0; });
 
@@ -168,7 +168,7 @@ TEST_CASE(null_playback_stream_resume_completes_pending_drain)
     stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
 
     bool checked_drain = false;
-    auto timer = Core::Timer::create_single_shot(50, [&] {
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(50), [&] {
         EXPECT(drained.load());
         checked_drain = true;
     });

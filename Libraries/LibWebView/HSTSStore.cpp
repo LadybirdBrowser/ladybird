@@ -61,7 +61,7 @@ HSTSStore::HSTSStore(Optional<PersistedStorage> persisted_storage)
     m_transient_storage.set_policies(move(policies));
 
     m_persisted_storage->synchronization_timer = Core::Timer::create_repeating(
-        static_cast<int>(DATABASE_SYNCHRONIZATION_TIMER.to_milliseconds()),
+        DATABASE_SYNCHRONIZATION_TIMER,
         [this]() {
             for (auto const& it : m_transient_storage.take_dirty_policies())
                 m_persisted_storage->insert_policy(it.key, it.value);

@@ -12,7 +12,7 @@
 TEST_CASE(deferred_invoke)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA Core::EventLoop event_loop;
-    auto reaper = Core::Timer::create_single_shot(250, [] {
+    auto reaper = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(250), [] {
         warnln("I waited for the deferred_invoke to happen, but it never did!");
         VERIFY_NOT_REACHED();
     });

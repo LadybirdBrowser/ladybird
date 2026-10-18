@@ -252,7 +252,7 @@ void HeadlessWebView::discard_child_web_view(HeadlessWebView& child_web_view)
 void HeadlessWebView::schedule_forced_close()
 {
     if (!m_forced_close_timer) {
-        m_forced_close_timer = Core::Timer::create_single_shot(child_close_timeout_ms, [weak_this = make_weak_ptr<HeadlessWebView>()] {
+        m_forced_close_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(child_close_timeout_ms), [weak_this = make_weak_ptr<HeadlessWebView>()] {
             if (!weak_this || weak_this->handle().is_empty() || !weak_this->page().is_open())
                 return;
             weak_this->force_close();

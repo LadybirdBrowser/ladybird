@@ -1098,7 +1098,7 @@ void Request::handle_wait_for_cache_state()
     if (!m_started_waiting_for_cache_at.has_value())
         m_started_waiting_for_cache_at = MonotonicTime::now();
 
-    m_wait_for_cache_timer = Core::Timer::create_single_shot(static_cast<int>(s_wait_for_cache_timeout.to_milliseconds()), [this] {
+    m_wait_for_cache_timer = Core::Timer::create_single_shot(s_wait_for_cache_timeout, [this] {
         wait_for_cache_timed_out();
     });
     m_wait_for_cache_timer->start();
@@ -1116,7 +1116,7 @@ void Request::wait_for_cache_timed_out()
         auto idle_time = MonotonicTime::now() - *last_activity_time;
         if (idle_time < s_wait_for_cache_timeout) {
             auto time_until_stalled = min(s_wait_for_cache_timeout - idle_time, s_maximum_wait_for_cache - time_waited);
-            m_wait_for_cache_timer->start(max(static_cast<int>(time_until_stalled.to_milliseconds()), 1));
+            m_wait_for_cache_timer->start(AK::Duration::from_milliseconds(max(static_cast<int>(time_until_stalled.to_milliseconds()), 1)));
             return;
         }
     }

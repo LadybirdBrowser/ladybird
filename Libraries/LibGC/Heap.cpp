@@ -1502,7 +1502,7 @@ void Heap::finish_pending_incremental_sweep()
 void Heap::start_incremental_sweep_timer()
 {
     if (!m_incremental_sweep_timer) {
-        m_incremental_sweep_timer = Core::Timer::create_repeating(GC_INCREMENTAL_SWEEP_INTERVAL_MS, [this] {
+        m_incremental_sweep_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(GC_INCREMENTAL_SWEEP_INTERVAL_MS), [this] {
             sweep_on_timer();
         });
     }
@@ -1549,7 +1549,7 @@ void Heap::sweep_on_timer()
 void Heap::start_idle_gc_timer()
 {
     if (!m_idle_gc_timer) {
-        m_idle_gc_timer = Core::Timer::create_repeating(GC_IDLE_GC_INTERVAL_MS, [this] {
+        m_idle_gc_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(GC_IDLE_GC_INTERVAL_MS), [this] {
             idle_gc_on_timer();
         });
     }

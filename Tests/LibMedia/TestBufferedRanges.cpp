@@ -79,7 +79,7 @@ static Media::TimeRanges wait_for_buffered_ranges(Core::EventLoop& loop, Media::
     ScopeGuard remove_handler = [&] { demuxer.set_scan_state_change_handler(nullptr); };
 
     bool deadline_expired = false;
-    auto deadline_timer = Core::Timer::create_single_shot(1'000, [&] { deadline_expired = true; });
+    auto deadline_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1'000), [&] { deadline_expired = true; });
     deadline_timer->start();
 
     loop.spin_until([&] { return condition(source_buffered_ranges(demuxer)) || deadline_expired; });

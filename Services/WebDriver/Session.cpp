@@ -311,7 +311,7 @@ void Session::arm_browser_startup_timeout(NonnullRefPtr<ServerPromise> promise)
 {
     m_start_promise = move(promise);
     static constexpr u32 BROWSER_STARTUP_TIMEOUT_MS = 30'000;
-    m_start_timer = Core::Timer::create_single_shot(BROWSER_STARTUP_TIMEOUT_MS, [this] {
+    m_start_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(BROWSER_STARTUP_TIMEOUT_MS), [this] {
         [[maybe_unused]] auto timer_lifetime_guard = move(m_start_timer);
         reject_start_promise(Error::from_string_literal("Timed out waiting for browser startup"));
         close();

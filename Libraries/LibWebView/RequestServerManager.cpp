@@ -209,7 +209,7 @@ void RequestServerManager::client_disconnected(RequestServerInstance& instance, 
         return;
 
     auto weak_instance = instance.make_weak_ptr();
-    instance.m_idle_timer = Core::Timer::create_single_shot(idle_request_server_timeout_ms, [weak_instance] {
+    instance.m_idle_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(idle_request_server_timeout_ms), [weak_instance] {
         auto instance = weak_instance.strong_ref();
         if (instance && instance->m_client_ids.is_empty())
             the().retire(*instance);

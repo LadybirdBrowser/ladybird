@@ -1975,7 +1975,7 @@ void HTMLMediaElement::start_or_stop_playback_position_update_timer()
     }
 
     if (!m_playback_position_update_timer) {
-        m_playback_position_update_timer = Core::Timer::create_repeating(playback_position_update_interval_ms, GC::weak_callback(*this, [](auto& self) {
+        m_playback_position_update_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(playback_position_update_interval_ms), GC::weak_callback(*this, [](auto& self) {
             self.upon_current_playback_position_possibly_changed();
         }));
     }
@@ -2737,7 +2737,7 @@ void HTMLMediaElement::note_frame_captured() const
     static constexpr int capture_keepalive_timeout_ms = 5000;
     m_video_frame_was_recently_captured = true;
     if (!m_video_frame_capture_keepalive_timer) {
-        m_video_frame_capture_keepalive_timer = Core::Timer::create_single_shot(capture_keepalive_timeout_ms, GC::weak_callback(*this, [](auto& self) {
+        m_video_frame_capture_keepalive_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(capture_keepalive_timeout_ms), GC::weak_callback(*this, [](auto& self) {
             self.m_video_frame_was_recently_captured = false;
         }));
     }
