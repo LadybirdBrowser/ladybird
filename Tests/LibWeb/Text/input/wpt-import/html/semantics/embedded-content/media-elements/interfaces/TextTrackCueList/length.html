@@ -1,0 +1,22 @@
+<!doctype html>
+<title>TextTrackCueList.length</title>
+<script src=../../../../../../resources/testharness.js></script>
+<script src=../../../../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+setup(function(){
+    window.video = document.createElement('video');
+    window.t1 = video.addTextTrack('subtitles');
+    document.body.appendChild(video);
+});
+test(function(){
+    var cues = t1.cues;
+    assert_equals(cues.length, 0);
+    var c1 = new VTTCue(0, 1, 'text1');
+    t1.addCue(c1);
+    assert_equals(cues.length, 1);
+    t1.removeCue(c1);
+    assert_equals(cues.length, 0);
+});
+
+</script>

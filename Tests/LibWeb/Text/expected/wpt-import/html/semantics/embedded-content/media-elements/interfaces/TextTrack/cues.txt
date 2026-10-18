@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	TextTrack.cues, empty list
+Pass	TextTrack.cues, after addCue()
+Pass	TextTrack.cues, different modes
+Pass	TextTrack.cues, changing order
+Fail	TextTrack.cues, default attribute

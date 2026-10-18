@@ -19,6 +19,12 @@ class TextTrackCueList final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(TextTrackCueList);
 
 public:
+    enum class Subset {
+        All,
+        Active,
+    };
+
+    static GC::Ref<TextTrackCueList> create(GC::Ref<TextTrack>, Subset);
     virtual ~TextTrackCueList() override;
 
     size_t length() const;
@@ -27,10 +33,14 @@ public:
     GC::Ptr<TextTrackCue> get_cue_by_id(Utf16View id) const;
 
 private:
-    TextTrackCueList();
+    TextTrackCueList(GC::Ref<TextTrack>, Subset);
     virtual void visit_edges(Visitor&) override;
 
-    Vector<GC::Ref<TextTrackCue>> m_cues;
+    template<typename Callback>
+    void for_each_cue(Callback) const;
+
+    GC::Ref<TextTrack> m_track;
+    Subset m_subset;
 };
 
 }

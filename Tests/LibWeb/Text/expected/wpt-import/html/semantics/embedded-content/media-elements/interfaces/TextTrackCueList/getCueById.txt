@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	TextTrackCueList.getCueById, no id
+Pass	TextTrackCueList.getCueById, id foo
+Pass	TextTrackCueList.getCueById, no 1
+Pass	TextTrackCueList.getCueById, id a\u0000b

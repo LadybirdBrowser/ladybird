@@ -1,0 +1,33 @@
+<!doctype html>
+<title>TextTrack.oncuechange</title>
+<script src=../../../../../../resources/testharness.js></script>
+<script src=../../../../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+setup(function(){
+    window.video = document.createElement('video');
+    window.t1 = video.addTextTrack('subtitles');
+    window.ev = new Event('cuechange');
+    window.ran = false;
+    window.cb = function() { ran = true; };
+});
+test(function(){
+    assert_equals(t1.oncuechange, null);
+    t1.oncuechange = cb;
+    t1.dispatchEvent(ev);
+    assert_true(ran);
+    t1.oncuechange = null;
+    ran = false;
+    t1.dispatchEvent(ev);
+    assert_false(ran);
+});
+test(function(){
+    t1.addEventListener('cuechange', cb, false);
+    t1.dispatchEvent(ev);
+    assert_true(ran);
+    t1.removeEventListener('cuechange', cb, false);
+    ran = false;
+    t1.dispatchEvent(ev);
+    assert_false(ran);
+}, 'TextTrack.addEventListener/removeEventListener');
+</script>

@@ -1,0 +1,53 @@
+<!doctype html>
+<title>TextTrackCueList.getCueById</title>
+<script src=../../../../../../resources/testharness.js></script>
+<script src=../../../../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+test(function(){
+    var video = document.createElement('video');
+    var t = video.addTextTrack('subtitles');
+    document.body.appendChild(video);
+    var cues = t.cues;
+    var c = new VTTCue(0, 1, 'text1');
+    t.addCue(c);
+    assert_equals(cues.getCueById(""), null, '""');
+    assert_equals(cues.getCueById(null), null, 'null');
+    assert_equals(cues.getCueById(undefined), null, 'undefined');
+}, document.title+ ', no id');
+test(function(){
+    var video = document.createElement('video');
+    var t = video.addTextTrack('subtitles');
+    document.body.appendChild(video);
+    var cues = t.cues;
+    var c = new VTTCue(0, 1, 'text1');
+    c.id = 'foo';
+    t.addCue(c);
+    assert_equals(cues.getCueById(""), null, '""');
+    assert_equals(cues.getCueById("foo"), c, '"foo"');
+    assert_equals(cues.getCueById({toString:function(){return "foo"}}), c, 'object');
+}, document.title+ ', id foo');
+test(function(){
+    var video = document.createElement('video');
+    var t = video.addTextTrack('subtitles');
+    document.body.appendChild(video);
+    var cues = t.cues;
+    var c = new VTTCue(0, 1, 'text1');
+    c.id = '1';
+    t.addCue(c);
+    assert_equals(cues.getCueById(""), null, '""');
+    assert_equals(cues.getCueById("1"), c, '"1"');
+    assert_equals(cues.getCueById(1), c, '1');
+}, document.title+ ', no 1');
+test(function(){
+    var video = document.createElement('video');
+    var t = video.addTextTrack('subtitles');
+    document.body.appendChild(video);
+    var cues = t.cues;
+    var c = new VTTCue(0, 1, 'text1');
+    c.id = 'a\u0000b';
+    t.addCue(c);
+    assert_equals(cues.getCueById("a\u0000b"), c, '"a\\u0000b"');
+    assert_equals(cues.getCueById("a"), null, '"a"');
+}, document.title+ ', id a\\u0000b');
+</script>

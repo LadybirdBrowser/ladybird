@@ -772,12 +772,12 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     text_track->set_language(language);
     text_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
     text_track->set_mode(TextTrackMode::Hidden);
-    // FIXME: set text track list of cues to an empty list
 
     // FIXME: 3. Initially, the text track list of cues is not associated with any rules for updating the text track rendering.
     //    When a text track cue is added to it, the text track list of cues has its rules permanently set accordingly.
 
-    // FIXME: 4. Add the new text track to the media element's list of text tracks.
+    // 4. Add the new text track to the media element's list of text tracks.
+    m_text_tracks->add_track(text_track);
 
     // 5. Queue a media element task given the media element to fire an event named addtrack at the media element's
     //    textTracks attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the new
