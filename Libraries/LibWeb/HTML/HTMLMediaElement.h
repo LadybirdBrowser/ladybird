@@ -160,6 +160,15 @@ public:
     GC::Ref<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
     GC::Ref<VideoTrackList> video_tracks() const { return *m_video_tracks; }
     GC::Ref<TextTrackList> text_tracks() const { return *m_text_tracks; }
+    enum class TimeMarchesOnReason : u8 {
+        NormalPlayback,
+        Other,
+    };
+    void time_marches_on(TimeMarchesOnReason = TimeMarchesOnReason::NormalPlayback);
+
+    void add_newly_introduced_cues(ReadonlySpan<GC::Ref<TextTrackCue>>);
+    void text_track_cue_or_text_track_removed();
+    void text_track_mode_changed();
 
     void set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool);
 
@@ -322,12 +331,6 @@ private:
 
     void dispatch_time_update_event();
 
-    enum class TimeMarchesOnReason : u8 {
-        NormalPlayback,
-        Other,
-    };
-    void time_marches_on(TimeMarchesOnReason = TimeMarchesOnReason::NormalPlayback);
-
     GC::RootVector<GC::Ref<WebIDL::Promise>> take_pending_play_promises();
     void resolve_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises);
     void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, GC::Ref<WebIDL::DOMException> error);
@@ -425,6 +428,14 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-texttracks
     GC::Ptr<TextTrackList> m_text_tracks;
+
+    // https://html.spec.whatwg.org/multipage/media.html#list-of-newly-introduced-cues
+    Vector<GC::Ref<TextTrackCue>> m_list_of_newly_introduced_cues;
+
+    Optional<double> m_time_marches_on_last_time;
+
+    // https://html.spec.whatwg.org/multipage/media.html#pending-text-track-change-notification-flag
+    bool m_pending_text_track_change_notification_flag { false };
 
     // https://html.spec.whatwg.org/multipage/media.html#can-autoplay-flag
     bool m_can_autoplay { true };

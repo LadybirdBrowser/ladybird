@@ -59,6 +59,13 @@ public:
 
     ReadonlySpan<GC::Ref<TextTrackCue>> text_track_list_of_cues() const { return m_text_track_list_of_cues; }
     void sort_text_track_list_of_cues();
+    void unset_active_flag_of_cues();
+
+    GC::Ptr<HTMLTrackElement> track_element() const { return m_track_element; }
+    void set_track_element(GC::Ptr<HTMLTrackElement> track_element) { m_track_element = track_element; }
+
+    GC::Ptr<HTMLMediaElement> media_element() const { return m_media_element; }
+    void set_media_element(GC::Ptr<HTMLMediaElement> media_element) { m_media_element = media_element; }
 
     void set_oncuechange(WebIDL::CallbackType*);
     WebIDL::CallbackType* oncuechange();
@@ -87,6 +94,9 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#text-track-list-of-cues
     Vector<GC::Ref<TextTrackCue>> m_text_track_list_of_cues;
     u64 m_next_cue_order_added { 0 };
+
+    GC::Ptr<HTMLTrackElement> m_track_element;
+    GC::Ptr<HTMLMediaElement> m_media_element;
 
     GC::Ptr<TextTrackCueList> m_cues;
     GC::Ptr<TextTrackCueList> m_active_cues;

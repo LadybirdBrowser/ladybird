@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<audio id="audio" src="../../../Assets/test-webm-audio.ogg"></audio>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const audio = document.getElementById("audio");
+        if (audio.readyState < HTMLMediaElement.HAVE_METADATA)
+            await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        const track = audio.addTextTrack("subtitles");
+        track.mode = "showing";
+        const cue = new VTTCue(0, 1000, "cue");
+        let enterCount = 0;
+        cue.onenter = () => ++enterCount;
+        track.addCue(cue);
+
+        // Time marches on queues enter before the seek queues seeked.
+        const seek = async time => {
+            audio.currentTime = time;
+            await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+        };
+
+        await seek(0.1);
+        println(`initial: enter=${enterCount} active=${track.activeCues.length}`);
+
+        track.removeCue(cue);
+        track.addCue(cue);
+        await seek(0.2);
+        println(`after removeCue and addCue: enter=${enterCount} active=${track.activeCues.length}`);
+
+        track.mode = "disabled";
+        track.mode = "showing";
+        await seek(0.3);
+        println(`after disabled and showing: enter=${enterCount} active=${track.activeCues.length}`);
+
+        done();
+    });
+</script>

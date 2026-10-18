@@ -22,7 +22,7 @@ class TextTrackCue : public DOM::EventTarget {
 public:
     virtual ~TextTrackCue() override;
 
-    GC::Ptr<TextTrack> track() { return m_track; }
+    GC::Ptr<TextTrack> track() const { return m_track; }
     void set_track(GC::Ptr<TextTrack> track) { m_track = track; }
     static constexpr size_t track_offset() { return offsetof(TextTrackCue, m_track); }
 
@@ -52,6 +52,8 @@ public:
 
 protected:
     TextTrackCue(GC::Ptr<TextTrack>);
+
+    void run_time_marches_on_if_needed();
     virtual void visit_edges(Visitor&) override;
 
     GC::Ptr<TextTrack> m_track;

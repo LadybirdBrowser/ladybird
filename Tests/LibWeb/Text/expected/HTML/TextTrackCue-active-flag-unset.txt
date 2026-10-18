@@ -1,0 +1,3 @@
+initial: enter=1 active=1
+after removeCue and addCue: enter=2 active=1
+after disabled and showing: enter=3 active=1

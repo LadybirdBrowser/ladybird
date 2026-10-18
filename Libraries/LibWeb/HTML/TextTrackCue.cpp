@@ -6,6 +6,7 @@
 
 #include <AK/Math.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/TextTrackCue.h>
 
 namespace Web::HTML {
@@ -26,6 +27,14 @@ void TextTrackCue::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_track);
 }
 
+void TextTrackCue::run_time_marches_on_if_needed()
+{
+    if (!m_track)
+        return;
+    if (auto media_element = m_track->media_element(); media_element && !media_element->show_poster())
+        media_element->time_marches_on(HTMLMediaElement::TimeMarchesOnReason::Other);
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrackcue-starttime
 void TextTrackCue::set_start_time(double start_time)
 {
@@ -34,9 +43,10 @@ void TextTrackCue::set_start_time(double start_time)
     if (m_track)
         m_track->sort_text_track_list_of_cues();
 
-    // FIXME: then, if the TextTrackCue object's text track cue is in a text track's list of cues, and that text track is in a media
-    //        element's list of text tracks, and the media element's show poster flag is not set, then run the time marches on steps
-    //        for that media element.
+    // then, if the TextTrackCue object's text track cue is in a text track's list of cues, and that text track is in a media
+    // element's list of text tracks, and the media element's show poster flag is not set, then run the time marches on steps
+    // for that media element.
+    run_time_marches_on_if_needed();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrackcue-endtime
@@ -51,9 +61,10 @@ WebIDL::ExceptionOr<void> TextTrackCue::set_end_time(double end_time)
     if (m_track)
         m_track->sort_text_track_list_of_cues();
 
-    // FIXME: Then, if the TextTrackCue object's text track cue is in a text track's list of cues, and that text track is in a media
-    //        element's list of text tracks, and the media element's show poster flag is not set, then run the time marches on steps
-    //        for that media element.
+    // Then, if the TextTrackCue object's text track cue is in a text track's list of cues, and that text track is in a media
+    // element's list of text tracks, and the media element's show poster flag is not set, then run the time marches on steps
+    // for that media element.
+    run_time_marches_on_if_needed();
     return {};
 }
 
