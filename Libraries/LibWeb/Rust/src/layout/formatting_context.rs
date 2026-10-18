@@ -348,7 +348,7 @@ pub(crate) fn place_child_in_containing_block(
     let used = records.used_values(node);
     set_placement(used, containing_block, offset);
     let fragments = run.fragments.as_deref()?;
-    if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(used) {
+    if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(callbacks, node, used) {
         fragments.attach_committed_fragment(
             node,
             fragment.clone(),
@@ -1635,6 +1635,10 @@ pub(super) fn run_formatting_context(
     } else {
         purpose
     };
+    if let Some(parent_fragments) = parent_fragments {
+        // A later run for this root supersedes a hit recorded earlier in the same pass.
+        parent_fragments.clear_reused_subtree_root(box_, parent_used);
+    }
     let root_cells = used_values::UsedValuesCellState::capture(parent_used);
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
@@ -1677,10 +1681,6 @@ pub(super) fn run_formatting_context(
             return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, reuses_committed_subtree);
         }
     };
-    if let Some(parent_fragments) = parent_fragments {
-        // A later fresh run for this root supersedes a hit recorded earlier in the same pass.
-        parent_fragments.clear_reused_subtree_root(box_, parent_used);
-    }
     let _trace = callbacks
         .arena()
         .layout_trace
@@ -2171,6 +2171,8 @@ pub(crate) fn layout_inside_child(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
+        // A fragment held by an earlier sizing of the box in this run may no longer match the record.
+        used.held_committed_fragment.take();
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
             child,
             input.available_space,

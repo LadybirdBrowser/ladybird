@@ -659,7 +659,7 @@ impl HeldCommittedFragmentCell {
         }));
     }
 
-    fn take(&self) -> Option<HeldCommittedFragment> {
+    pub(crate) fn take(&self) -> Option<HeldCommittedFragment> {
         self.0.take()
     }
 }
@@ -968,11 +968,22 @@ impl RunFragmentBuilder {
         used.held_committed_fragment.hold(fragment, false);
     }
 
-    /// The committed fragment held in the record `used` of a box, and whether the box roots a reused subtree.
-    pub(crate) fn take_reused_committed_fragment(&self, used: &UsedValues) -> Option<(std::sync::Arc<Fragment>, bool)> {
-        used.held_committed_fragment
-            .take()
-            .map(|held| (held.fragment, held.reuses_subtree))
+    /// The committed fragment held in the record `used` of the box `node`, and whether the box roots a reused subtree.
+    /// A box the run hid for line clamping after holding the fragment gets a fragment of its record around the
+    /// committed children instead.
+    pub(crate) fn take_reused_committed_fragment(
+        &self,
+        callbacks: &LayoutPass<'_>,
+        node: crate::layout::node_data::NodeSlotId,
+        used: &UsedValues,
+    ) -> Option<(std::sync::Arc<Fragment>, bool)> {
+        let held = used.held_committed_fragment.take()?;
+        let fragment = if used.is_invisible_for_line_clamp.get() == held.fragment.is_invisible_for_line_clamp {
+            held.fragment
+        } else {
+            snapshot_fragment(callbacks, node, held.fragment.children.clone(), used)
+        };
+        Some((fragment, held.reuses_subtree))
     }
 
     pub(crate) fn discard_unplaced_subtree(&self, node: crate::layout::node_data::NodeSlotId, used: &UsedValues) {
