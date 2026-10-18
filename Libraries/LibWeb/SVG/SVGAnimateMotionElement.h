@@ -26,7 +26,7 @@ private:
 
     virtual Optional<CSS::PropertyID> target_property() const override;
     virtual Vector<Animations::BaseKeyframe> keyframes(SVGElement const& target, CSS::PropertyID) const override;
-    static Vector<Animations::BaseKeyframe> keyframes_along_motion_path(Gfx::Path const&, CSS::PropertyID);
+    Vector<Animations::BaseKeyframe> keyframes_along_motion_path(Gfx::Path const&, CSS::PropertyID) const;
 
     Optional<Gfx::Path> m_referenced_motion_path;
 };

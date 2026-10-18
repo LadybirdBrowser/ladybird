@@ -1,0 +1,18 @@
+t=0.5
+  corner: 50.0, 0.0, 0.0deg
+  curve: 85.4, 85.4, 135.0deg
+  auto-reverse: 0.0, 25.0, -90.0deg
+  mpath: 0.0, 75.0, -90.0deg
+  from-to: 25.0, 25.0, 45.0deg
+  to: 0.0, 25.0, 90.0deg
+  to-with-angle: 25.0, 0.0, 30.0deg
+  relative-lengths: 0.0, 40.0, 0.0deg
+t=1.5
+  corner: 100.0, 50.0, 90.0deg
+  curve: 14.6, 85.4, -135.0deg
+  auto-reverse: 0.0, 75.0, -90.0deg
+  mpath: 0.0, 25.0, -90.0deg
+  from-to: 75.0, 75.0, 45.0deg
+  to: 0.0, 75.0, 90.0deg
+  to-with-angle: 75.0, 0.0, 30.0deg
+  relative-lengths: 0.0, 120.0, 0.0deg

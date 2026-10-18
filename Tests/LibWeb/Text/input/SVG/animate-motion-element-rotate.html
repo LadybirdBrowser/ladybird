@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="400" height="400">
+    <rect id="corner" width="10" height="10"><animateMotion path="M0,0 L100,0 L100,100" rotate="auto" dur="2s"/></rect>
+    <rect id="curve" width="10" height="10"><animateMotion path="M100,50 A50,50 0 0 1 0,50" rotate="auto" dur="2s"/></rect>
+    <rect id="auto-reverse" width="10" height="10"><animateMotion path="M0,0 L0,100" rotate="auto-reverse" dur="2s"/></rect>
+    <rect id="mpath" width="10" height="10"><animateMotion rotate="auto" dur="2s"><mpath href="#motion-path"/></animateMotion></rect>
+    <rect id="from-to" width="10" height="10"><animateMotion from="0,0" to="100,100" rotate="auto" dur="2s"/></rect>
+    <rect id="to" width="10" height="10"><animateMotion to="0,100" rotate="auto" dur="2s"/></rect>
+    <rect id="to-with-angle" width="10" height="10"><animateMotion to="100,0" rotate="30" dur="2s"/></rect>
+    <rect id="relative-lengths" width="10" height="10"><animateMotion from="0,0" to="0,10em" rotate="auto" dur="2s"/></rect>
+    <path id="motion-path" d="M0,100 L0,0" fill="none"/>
+</svg>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+        svg.pauseAnimations();
+        for (const time of [0.5, 1.5]) {
+            svg.setCurrentTime(time);
+            println(`t=${time}`);
+            for (const rect of document.querySelectorAll("rect")) {
+                const matrix = rect.getCTM();
+                const angle = Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+                println(`  ${rect.id}: ${matrix.e.toFixed(1)}, ${matrix.f.toFixed(1)}, ${angle.toFixed(1)}deg`);
+            }
+        }
+        done();
+    });
+</script>
