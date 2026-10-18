@@ -62,7 +62,7 @@
 namespace Ladybird {
 
 static constexpr auto LADYBIRD_TAB_MIME_TYPE = "application/x-ladybird-tab";
-static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 42;
+static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 40;
 static constexpr int HORIZONTAL_TAB_HEIGHT = 36;
 static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 128;
 static constexpr int HORIZONTAL_TAB_MAX_WIDTH = 232;
@@ -501,7 +501,7 @@ TabBar::TabBar(TabWidget* tab_widget)
     setAcceptDrops(true);
     setFocusPolicy(Qt::NoFocus);
     setIconSize({ 16, 16 });
-    setMinimumHeight(39);
+    setMinimumHeight(HORIZONTAL_TAB_HEIGHT);
     recreate_icons();
 
     m_tab_preview_timer = new QTimer(this);
@@ -2148,12 +2148,12 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
 
     if constexpr (use_native_macos_window_controls()) {
         m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
-        m_tab_bar_row_layout->addWidget(m_tab_bar);
-        m_tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignVCenter);
+        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignTop);
         m_tab_bar_row_layout->addStretch(1);
     } else {
-        m_tab_bar_row_layout->addWidget(m_tab_bar);
-        m_tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignVCenter);
+        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignTop);
         m_tab_bar_row_layout->addStretch(1);
         m_tab_bar_row_layout->addWidget(m_window_controls);
     }

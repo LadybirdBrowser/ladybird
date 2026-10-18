@@ -60,7 +60,7 @@ static constexpr int WINDOW_RESIZE_BORDER_WIDTH = 6;
 static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2;
 #if defined(AK_OS_MACOS)
 static constexpr int NATIVE_WINDOW_CONTROL_X_OFFSET = 6;
-static constexpr int NATIVE_WINDOW_CONTROL_Y_OFFSET = 6;
+static constexpr int NATIVE_WINDOW_CONTROL_Y_OFFSET = 4;
 #endif
 
 static int visible_browser_window_count()
