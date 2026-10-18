@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibCore/Timer.h>
 
 namespace Core {
@@ -46,7 +47,7 @@ void Timer::start(int interval_ms)
     if (m_active)
         return;
     m_interval_ms = interval_ms;
-    start_timer(interval_ms);
+    start_timer(AK::Duration::from_milliseconds(interval_ms));
     m_active = true;
 }
 

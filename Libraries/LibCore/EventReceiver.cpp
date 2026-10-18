@@ -6,6 +6,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/Time.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
@@ -38,14 +39,14 @@ void EventReceiver::timer_event(Core::TimerEvent&)
 {
 }
 
-void EventReceiver::start_timer(int ms)
+void EventReceiver::start_timer(AK::Duration interval)
 {
     if (m_timer_id) {
         dbgln("{} {:p} already has a timer!", class_name(), this);
         VERIFY_NOT_REACHED();
     }
 
-    m_timer_id = Core::EventLoop::register_timer(*this, ms, true);
+    m_timer_id = Core::EventLoop::register_timer(*this, interval, true);
 }
 
 void EventReceiver::stop_timer()

@@ -6,6 +6,7 @@
 
 #include "ALooperEventLoopImplementation.h"
 #include "JNIHelpers.h"
+#include <AK/Time.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
@@ -90,14 +91,14 @@ NonnullOwnPtr<Core::EventLoopImplementation> ALooperEventLoopManager::make_imple
     return ALooperEventLoopImplementation::create();
 }
 
-intptr_t ALooperEventLoopManager::register_timer(Core::EventReceiver& receiver, int milliseconds, bool should_reload)
+intptr_t ALooperEventLoopManager::register_timer(Core::EventReceiver& receiver, AK::Duration interval, bool should_reload)
 {
     JavaEnvironment env(global_vm);
     auto& thread_data = EventLoopThreadData::the();
 
     auto timer = env.get()->NewObject(m_timer_class, m_timer_constructor, reinterpret_cast<long>(&current_impl()));
 
-    long millis = milliseconds;
+    long millis = interval.to_milliseconds();
     long timer_id = env.get()->CallLongMethod(m_timer_service, m_register_timer, timer, !should_reload, millis);
 
     // FIXME: Is there a race condition here? Maybe we should take a lock on the timers...
