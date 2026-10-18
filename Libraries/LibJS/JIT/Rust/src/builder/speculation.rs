@@ -1053,6 +1053,30 @@ impl GraphBuilder<'_> {
         }
     }
 
+    /// `ConcatString`: the string in `dst` (which is one) and the string of
+    /// `src`, where `src` is a string or an integer whose string the VM has.
+    pub(super) fn build_concat_string(
+        &mut self,
+        instruction: &Instruction,
+        info: GenericInfo,
+        dst: Operand,
+        src: Operand,
+    ) -> Result<Flow, CompileFailure> {
+        if self.runtime.rope_allocation.allocator == 0 {
+            return self.build_generic(instruction, info);
+        }
+        let (lhs, rhs) = (self.read(dst)?, self.read(src)?);
+        let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        let (lhs, rhs) = (self.tagged(lhs), self.tagged(rhs));
+        let string = self.branch_to_next_case(&mut paths, BranchCondition::String, vec![lhs], true);
+        let integers = self.runtime.layout.numeric_string_cache != 0;
+        let other = self.string_on_path(&mut paths, rhs, integers);
+        self.finish_concatenation(&mut paths, string, other);
+        let result = self.join_hot_paths(paths).expect("ConcatString has a value");
+        self.write(dst, result)?;
+        Ok(Flow::Continue)
+    }
+
     /// The string `value` is, or if `integers`, the string of the integer
     /// it is, where the VM has that: tests send other values on.
     fn string_on_path(&mut self, paths: &mut SlowPaths, value: NodeId, integers: bool) -> NodeId {

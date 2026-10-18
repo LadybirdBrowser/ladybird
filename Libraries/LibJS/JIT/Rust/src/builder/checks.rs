@@ -213,6 +213,7 @@ impl GraphBuilder<'_> {
             Instruction::GetByValue { .. } => self.build_get_by_value(instruction, info),
             Instruction::PutByValue { .. } => self.build_put_by_value(instruction, info),
             Instruction::GetLength { .. } => self.build_get_length(instruction),
+            Instruction::ConcatString { dst, src } => self.build_concat_string(instruction, info, dst, src),
             Instruction::GetById { .. } => self.build_get_by_id(instruction),
             Instruction::PutById { .. } => self.build_put_by_id(instruction),
             Instruction::IteratorClose { .. } => self.build_iterator_close(instruction),

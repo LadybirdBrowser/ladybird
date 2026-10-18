@@ -393,6 +393,17 @@ impl Facts {
         self.narrow_kinds(value, Kinds::of(kind));
     }
 
+    /// Records that the phi `phi` is of a kind one of its inputs is, given
+    /// as each input with the facts where it comes from.
+    pub fn set_phi_kinds<'a>(&mut self, graph: &Graph, phi: NodeId, inputs: impl Iterator<Item = (&'a Facts, NodeId)>) {
+        let kinds = inputs.fold(Kinds(0), |kinds, (facts, input)| {
+            kinds.union(facts.kinds_in(graph, input))
+        });
+        if kinds != Kinds(0) {
+            self.narrow_kinds(phi, kinds);
+        }
+    }
+
     pub fn is_object(&self, value: NodeId) -> bool {
         self.value_kind(value) == Some(ValueKind::Object)
     }
