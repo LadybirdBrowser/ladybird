@@ -1829,6 +1829,7 @@ void Page::invalidate_style_for_preference_change()
         if (auto document = navigable->active_document())
             invalidate_document(*document);
     }
+    m_client->request_frame();
 }
 
 bool Page::content_blocking_enabled_for_url(Optional<URL::URL> const& url) const
