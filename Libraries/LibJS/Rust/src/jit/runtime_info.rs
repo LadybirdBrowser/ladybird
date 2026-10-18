@@ -29,7 +29,9 @@ use crate::bytecode::executable::{
 };
 use crate::gc::class::{Class, GcCell};
 use crate::interpreter::runtime_functions::runtime_function_addresses;
-use crate::interpreter::vm::{FLY_STRING_CACHE_SIZE, NUMERIC_STRING_CACHE_SIZE, Vm};
+use crate::interpreter::vm::{
+    FLY_STRING_CACHE_SIZE, LARGE_NUMERIC_STRING_CACHE_SIZE, NUMERIC_STRING_CACHE_SIZE, NumericStringCacheEntry, Vm,
+};
 use crate::layout::accessor::Accessor;
 use crate::layout::cell::Gc;
 use crate::layout::environment::{
@@ -233,6 +235,11 @@ fn runtime_layout() -> RuntimeLayout {
         fly_string_cache_mask: (FLY_STRING_CACHE_SIZE - 1) as u32,
         numeric_string_cache: 0,
         numeric_string_cache_size: NUMERIC_STRING_CACHE_SIZE as u32,
+        large_numeric_string_cache: 0,
+        large_numeric_string_cache_mask: (LARGE_NUMERIC_STRING_CACHE_SIZE - 1) as u32,
+        large_numeric_string_cache_entry_size: size_of::<NumericStringCacheEntry>() as u32,
+        large_numeric_string_cache_number: offset(offset_of!(NumericStringCacheEntry, number)),
+        large_numeric_string_cache_string: offset(offset_of!(NumericStringCacheEntry, string)),
         environment_outer: offset(offset_of!(Environment, outer)),
         environment_declarative: offset(offset_of!(Environment, declarative)),
         module_environment_class: core::ptr::from_ref(ModuleEnvironment::CLASS) as u64,
@@ -442,6 +449,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
     layout.single_ascii_character_strings = vm.single_ascii_character_strings_address();
     layout.fly_string_cache = vm.fly_string_cache().as_ptr().expose_provenance() as u64;
     layout.numeric_string_cache = vm.numeric_string_cache().as_ptr().expose_provenance() as u64;
+    layout.large_numeric_string_cache = vm.large_numeric_string_cache().as_ptr().expose_provenance() as u64;
     let strings = vm.cached_strings();
     let string = |string| Value::from_string(string).0;
     layout.typeof_strings = TypeofStrings {

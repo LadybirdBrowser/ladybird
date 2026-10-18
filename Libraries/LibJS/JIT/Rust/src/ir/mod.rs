@@ -1039,9 +1039,9 @@ pub enum Op {
     /// strings, which come from the VM's cache of fly strings (when both
     /// strings are short).
     ConcatenateStrings,
-    /// The VM's string of the `Repr::Int32` input 0, from its cache of the
-    /// strings of small non-negative integers, or the empty value if the
-    /// cache has none.
+    /// The VM's string of the `Repr::Int32` input 0, from its caches of the
+    /// strings of non-negative integers, or the empty value if they have
+    /// none.
     IntegerToString,
 
     // Arrays.
