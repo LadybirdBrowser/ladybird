@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	path="M 100 100 L 100 100" stays at the initial point, with a 0 degree angle
+Pass	path="M 100 100 Z" stays at the initial point, with a 0 degree angle
+Fail	accumulate="sum" on a zero-length path adds the end of the path per repeat

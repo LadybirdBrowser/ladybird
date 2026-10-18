@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	path="M 100 100" translates to the initial point of the path
+Pass	<mpath> referencing d="M 100 100" translates to the initial point of the path
+Fail	accumulate="sum" on a single-moveto path adds the end of the path per repeat
+Pass	path="M 200 100" with rotate="auto" uses a 0 degree angle, not the position vector

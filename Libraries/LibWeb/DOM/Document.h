@@ -189,6 +189,7 @@ enum class InvalidateLayoutTreeReason {
     X(ScrollCursorIntoView, false)                  \
     X(ProcessScreenshot, false)                     \
     X(SVGGraphicsElementGetBBox, true)              \
+    X(SVGGraphicsElementGetCTM, false)              \
     X(SVGGraphicsElementGetScreenCTM, false)        \
     X(SVGLengthValue, false)                        \
     X(SVGPathLength, false)                         \

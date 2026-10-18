@@ -1,0 +1,104 @@
+<!doctype html>
+<title>&lt;animateMotion> with a numeric 'rotate' value</title>
+<link rel="help" href="https://w3c.github.io/svgwg/specs/animations/#RotateAttribute">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg id="svg" width="400" height="400">
+  <!-- rotate="<number>" applies a constant rotation of that many degrees. -->
+  <rect id="angle" width="10" height="10">
+    <animateMotion from="0,0" to="200,0" rotate="45" fill="freeze" dur="4s"/>
+  </rect>
+  <rect id="angle-negative" width="10" height="10">
+    <animateMotion from="0,0" to="200,0" rotate="-90" fill="freeze" dur="4s"/>
+  </rect>
+  <!-- The same holds for path animations; 'path' is not special w.r.t. 'rotate'. -->
+  <rect id="angle-path" width="10" height="10">
+    <animateMotion path="M0,0 L200,0" rotate="30" fill="freeze" dur="4s"/>
+  </rect>
+  <!-- Explicit zero, absent, and unparseable values all mean no rotation:
+       the initial value of 'rotate' is 0. -->
+  <rect id="angle-zero" width="10" height="10">
+    <animateMotion from="0,0" to="200,0" rotate="0" fill="freeze" dur="4s"/>
+  </rect>
+  <rect id="no-rotate" width="10" height="10">
+    <animateMotion from="0,0" to="200,0" fill="freeze" dur="4s"/>
+  </rect>
+  <rect id="bogus-rotate" width="10" height="10">
+    <animateMotion from="0,0" to="200,0" rotate="bogus" fill="freeze" dur="4s"/>
+  </rect>
+  <!-- Control: rotate="auto" follows the direction of motion. -->
+  <rect id="auto" width="10" height="10">
+    <animateMotion from="0,0" to="0,200" rotate="auto" fill="freeze" dur="4s"/>
+  </rect>
+</svg>
+<script>
+const rootSVGElement = document.getElementById('svg');
+
+// The rotation is post-multiplied onto the translation computed for the motion,
+// so the resulting matrix is [cos, sin, -sin, cos, tx, ty].
+function assert_animation_transform(id, angleInDegrees, tx, ty) {
+  const ctm = document.getElementById(id).getCTM();
+  const radians = angleInDegrees * Math.PI / 180;
+  const epsilon = 1e-4;
+  assert_approx_equals(ctm.a, Math.cos(radians), epsilon, `${id}: matrix a`);
+  assert_approx_equals(ctm.b, Math.sin(radians), epsilon, `${id}: matrix b`);
+  assert_approx_equals(ctm.c, -Math.sin(radians), epsilon, `${id}: matrix c`);
+  assert_approx_equals(ctm.d, Math.cos(radians), epsilon, `${id}: matrix d`);
+  assert_approx_equals(ctm.e, tx, epsilon, `${id}: translation x`);
+  assert_approx_equals(ctm.f, ty, epsilon, `${id}: translation y`);
+}
+
+// Document begin is the moment the load event is triggered, so the timeline
+// cannot be sampled until after that event has been dispatched. Yield once
+// before pausing and driving it manually.
+const ready = new Promise(resolve => {
+  window.addEventListener('load', () => requestAnimationFrame(() => {
+    rootSVGElement.pauseAnimations();
+    resolve();
+  }));
+});
+
+promise_test(async () => {
+  await ready;
+  rootSVGElement.setCurrentTime(2);
+  assert_animation_transform('angle', 45, 100, 0);
+  rootSVGElement.setCurrentTime(4);
+  assert_animation_transform('angle', 45, 200, 0);
+}, 'rotate="45" applies a constant 45 degree rotation');
+
+promise_test(async () => {
+  await ready;
+  rootSVGElement.setCurrentTime(2);
+  assert_animation_transform('angle-negative', -90, 100, 0);
+}, 'rotate="-90" applies a constant -90 degree rotation');
+
+promise_test(async () => {
+  await ready;
+  rootSVGElement.setCurrentTime(2);
+  assert_animation_transform('angle-path', 30, 100, 0);
+}, 'rotate="30" applies a constant 30 degree rotation to a path animation');
+
+promise_test(async () => {
+  await ready;
+  rootSVGElement.setCurrentTime(2);
+  assert_animation_transform('angle-zero', 0, 100, 0);
+}, 'rotate="0" applies no rotation');
+
+promise_test(async () => {
+  await ready;
+  rootSVGElement.setCurrentTime(2);
+  assert_animation_transform('no-rotate', 0, 100, 0);
+}, 'an absent rotate attribute applies no rotation');
+
+promise_test(async () => {
+  await ready;
+  rootSVGElement.setCurrentTime(2);
+  assert_animation_transform('bogus-rotate', 0, 100, 0);
+}, 'an unparseable rotate value applies no rotation');
+
+promise_test(async () => {
+  await ready;
+  rootSVGElement.setCurrentTime(2);
+  assert_animation_transform('auto', 90, 0, 100);
+}, 'rotate="auto" follows the direction of motion');
+</script>

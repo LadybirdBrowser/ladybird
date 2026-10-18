@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>&lt;animateMotion> with a zero-length motion path made of several path elements</title>
+<link rel="help" href="https://svgwg.org/specs/animations/#AnimateMotionElement">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<!-- Every path below has a total length of 0, so t/dur distance along the path is
+     0 at every t, and the computed coordinate is the path's initial point. -->
+
+<svg id="svg-line" width="300" height="300">
+  <rect id="rect-line" width="10" height="10" fill="green">
+    <animateMotion path="M 100 100 L 100 100" rotate="auto" dur="2s" fill="freeze"/>
+  </rect>
+</svg>
+
+<svg id="svg-close" width="300" height="300">
+  <rect id="rect-close" width="10" height="10" fill="green">
+    <animateMotion path="M 100 100 Z" rotate="auto" dur="2s" fill="freeze"/>
+  </rect>
+</svg>
+
+<!-- Deliberately not tested here: path="M 100 100 M 200 200". Which of the two
+     zero-length subpaths a distance of 0 lands on is not resolved -- SVG 2 says
+     "the point which is t/dur distance along the motion path", while SMIL says a
+     moveto happens instantaneously, which argues for the second one. WebKit uses
+     the first moveto; Chrome and Firefox use the last. Needs a spec answer before
+     it is worth asserting either way. -->
+
+<svg id="svg-accumulate" width="300" height="300">
+  <rect id="rect-accumulate" width="10" height="10" fill="green">
+    <animateMotion path="M 100 100 L 100 100" dur="2s"
+                   repeatCount="2" accumulate="sum" fill="freeze"/>
+  </rect>
+</svg>
+
+<script>
+// Drive the timelines by hand rather than waiting on wall-clock time.
+for (const svg of document.querySelectorAll('svg'))
+  svg.pauseAnimations();
+
+function sampleAt(svg, t) {
+  svg.setCurrentTime(t);
+  return new Promise(resolve => requestAnimationFrame(resolve));
+}
+
+// The supplemental transform is translate(x, y) * rotate(angle), so the CTM of a
+// rect in an untransformed viewport is [cos, sin, -sin, cos, x, y].
+function assertTransform(rect, x, y, angle, description) {
+  const m = rect.getCTM();
+  assert_not_equals(m, null, `${description}: getCTM()`);
+  const epsilon = 0.01;
+  assert_approx_equals(m.e, x, epsilon, `${description}: translate x`);
+  assert_approx_equals(m.f, y, epsilon, `${description}: translate y`);
+  // An undefined tangent must not leak a NaN angle into the matrix; the
+  // approx_equals below would fail on NaN, which is the point.
+  const degrees = Math.atan2(m.b, m.a) * 180 / Math.PI;
+  assert_approx_equals(degrees, angle, epsilon, `${description}: rotation angle`);
+}
+
+promise_setup(() => new Promise(
+  resolve => window.addEventListener('load', resolve, {once: true})));
+
+promise_test(async t => {
+  const svg = document.getElementById('svg-line');
+  const rect = document.getElementById('rect-line');
+  for (const time of [0, 1, 2, 4]) {
+    await sampleAt(svg, time);
+    assertTransform(rect, 100, 100, 0, `t=${time}`);
+  }
+}, 'path="M 100 100 L 100 100" stays at the initial point, with a 0 degree angle');
+
+promise_test(async t => {
+  const svg = document.getElementById('svg-close');
+  const rect = document.getElementById('rect-close');
+  for (const time of [0, 1, 2, 4]) {
+    await sampleAt(svg, time);
+    assertTransform(rect, 100, 100, 0, `t=${time}`);
+  }
+}, 'path="M 100 100 Z" stays at the initial point, with a 0 degree angle');
+
+promise_test(async t => {
+  const svg = document.getElementById('svg-accumulate');
+  const rect = document.getElementById('rect-accumulate');
+  await sampleAt(svg, 1);
+  assertTransform(rect, 100, 100, 0, 't=1, first iteration');
+  await sampleAt(svg, 2);
+  assertTransform(rect, 200, 200, 0, 't=2, second iteration accumulates');
+  await sampleAt(svg, 4);
+  assertTransform(rect, 200, 200, 0, 't=4, frozen');
+}, 'accumulate="sum" on a zero-length path adds the end of the path per repeat');
+</script>

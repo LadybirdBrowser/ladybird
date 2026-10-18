@@ -1,0 +1,107 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>&lt;animateMotion> with a motion path that is a single moveto</title>
+<link rel="help" href="https://svgwg.org/specs/animations/#AnimateMotionElement">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<!-- "M 100 100" is a legal path: a path data segment must begin with a moveto,
+     and nothing requires a second command. Because it is legal, the SMIL rule
+     that an illegal value makes the animation have no effect does not apply.
+     Its total length is 0, so t/dur distance along it is 0 at every t and the
+     computed coordinate is its initial point, (100, 100) -- exactly as for the
+     other zero-length spellings in animateMotion-path-zero-length-subpaths.html. -->
+
+<svg id="svg-path" width="300" height="300">
+  <rect id="rect-path" width="10" height="10" fill="green">
+    <animateMotion path="M 100 100" rotate="auto" dur="2s" fill="freeze"/>
+  </rect>
+</svg>
+
+<svg id="svg-mpath" width="300" height="300">
+  <defs><path id="motion-path" d="M 100 100"/></defs>
+  <rect id="rect-mpath" width="10" height="10" fill="green">
+    <animateMotion rotate="auto" dur="2s" fill="freeze">
+      <mpath href="#motion-path"/>
+    </animateMotion>
+  </rect>
+</svg>
+
+<svg id="svg-accumulate" width="300" height="300">
+  <rect id="rect-accumulate" width="10" height="10" fill="green">
+    <animateMotion path="M 100 100" dur="2s"
+                   repeatCount="2" accumulate="sum" fill="freeze"/>
+  </rect>
+</svg>
+
+<!-- (200,100) is not on the x==y diagonal, so an angle taken from the position
+     vector (26.57 degrees here) is distinguishable from one taken from the
+     undefined tangent (0 degrees). -->
+<svg id="svg-off-diagonal" width="400" height="300">
+  <rect id="rect-off-diagonal" width="10" height="10" fill="green">
+    <animateMotion path="M 200 100" rotate="auto" dur="2s" fill="freeze"/>
+  </rect>
+</svg>
+
+<script>
+for (const svg of document.querySelectorAll('svg'))
+  svg.pauseAnimations();
+
+function sampleAt(svg, t) {
+  svg.setCurrentTime(t);
+  return new Promise(resolve => requestAnimationFrame(resolve));
+}
+
+function assertTransform(rect, x, y, angle, description) {
+  const m = rect.getCTM();
+  assert_not_equals(m, null, `${description}: getCTM()`);
+  const epsilon = 0.01;
+  assert_approx_equals(m.e, x, epsilon, `${description}: translate x`);
+  assert_approx_equals(m.f, y, epsilon, `${description}: translate y`);
+  const degrees = Math.atan2(m.b, m.a) * 180 / Math.PI;
+  assert_approx_equals(degrees, angle, epsilon, `${description}: rotation angle`);
+}
+
+promise_setup(() => new Promise(
+  resolve => window.addEventListener('load', resolve, {once: true})));
+
+promise_test(async t => {
+  const svg = document.getElementById('svg-path');
+  const rect = document.getElementById('rect-path');
+  for (const time of [0, 1, 2, 4]) {
+    await sampleAt(svg, time);
+    assertTransform(rect, 100, 100, 0, `t=${time}`);
+  }
+}, 'path="M 100 100" translates to the initial point of the path');
+
+promise_test(async t => {
+  const svg = document.getElementById('svg-mpath');
+  const rect = document.getElementById('rect-mpath');
+  for (const time of [0, 1, 2, 4]) {
+    await sampleAt(svg, time);
+    assertTransform(rect, 100, 100, 0, `t=${time}`);
+  }
+}, '<mpath> referencing d="M 100 100" translates to the initial point of the path');
+
+promise_test(async t => {
+  const svg = document.getElementById('svg-accumulate');
+  const rect = document.getElementById('rect-accumulate');
+  await sampleAt(svg, 1);
+  assertTransform(rect, 100, 100, 0, 't=1, first iteration');
+  await sampleAt(svg, 2);
+  assertTransform(rect, 200, 200, 0, 't=2, second iteration accumulates');
+  await sampleAt(svg, 4);
+  assertTransform(rect, 200, 200, 0, 't=4, frozen');
+}, 'accumulate="sum" on a single-moveto path adds the end of the path per repeat');
+
+promise_test(async t => {
+  // The tangent of a zero-length path is undefined, so rotate="auto" must not
+  // fall back to the angle of the position vector, which would be 26.57 degrees.
+  const svg = document.getElementById('svg-off-diagonal');
+  const rect = document.getElementById('rect-off-diagonal');
+  for (const time of [0, 1, 2, 4]) {
+    await sampleAt(svg, time);
+    assertTransform(rect, 200, 100, 0, `t=${time}`);
+  }
+}, 'path="M 200 100" with rotate="auto" uses a 0 degree angle, not the position vector');
+</script>
