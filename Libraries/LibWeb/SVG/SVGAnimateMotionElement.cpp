@@ -9,9 +9,12 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/Path.h>
 #include <LibWeb/SVG/SVGAnimateMotionElement.h>
+#include <LibWeb/SVG/SVGGeometryElement.h>
+#include <LibWeb/SVG/SVGMPathElement.h>
 
 namespace Web::SVG {
 
@@ -27,6 +30,27 @@ void SVGAnimateMotionElement::attribute_changed(Utf16FlyString const& name, Opti
     Base::attribute_changed(name, old_value, value, namespace_);
     if (first_is_one_of(name, AttributeNames::from, AttributeNames::path, AttributeNames::to) && !namespace_.has_value())
         update_animation();
+}
+
+void SVGAnimateMotionElement::schedule_referenced_motion_path_update()
+{
+    document().schedule_svg_referenced_motion_path_update(*this);
+}
+
+// https://svgwg.org/specs/animations/#AnimateMotionElement
+void SVGAnimateMotionElement::update_referenced_motion_path()
+{
+    // If the ‘mpath’ sub-element refers to a shape element, the motion path is defined by the equivalent path of the
+    // shape element.
+    // NB: Only the first mpath child counts, as the content model allows one. Without a shape element that it refers to,
+    //     the attributes of this element define the motion path.
+    // FIXME: Follow changes to the geometry of the referenced element.
+    m_referenced_motion_path.clear();
+    if (auto* mpath_element = is_connected() ? first_child_of_type<SVGMPathElement>() : nullptr) {
+        if (auto* geometry_element = as_if<SVGGeometryElement>(mpath_element->referenced_element().ptr()))
+            m_referenced_motion_path = geometry_element->computed_path();
+    }
+    update_animation();
 }
 
 // https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute
@@ -113,8 +137,10 @@ Vector<Animations::BaseKeyframe> SVGAnimateMotionElement::keyframes(SVGElement c
 {
     // Regarding the definition of the motion path, the ‘mpath’ element overrides the ‘path’ attribute, which overrides
     // ‘values’, which overrides ‘from’, ‘by’ and ‘to’.
-    // FIXME: Take the motion path from an mpath child element, and from the values and by attributes.
+    // FIXME: Take the motion path from the values and by attributes.
     // FIXME: Apply the keyPoints and rotate attributes.
+    if (m_referenced_motion_path.has_value())
+        return keyframes_along_motion_path(*m_referenced_motion_path, property_id);
     if (auto path = get_attribute(AttributeNames::path); path.has_value())
         return keyframes_along_motion_path(parse_path_data(*path).to_gfx_path(), property_id);
 

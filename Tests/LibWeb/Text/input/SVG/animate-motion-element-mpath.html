@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="400" height="400">
+    <path id="horizontal" d="M0,0 L100,0"/>
+    <path id="vertical" d="M0,0 L0,100"/>
+    <circle id="circle" cx="100" cy="100" r="50"/>
+    <g id="not-a-shape"></g>
+    <rect id="path" width="10" height="10"><animateMotion dur="2s"><mpath href="#horizontal"/></animateMotion></rect>
+    <rect id="shape" width="10" height="10"><animateMotion dur="2s"><mpath href="#circle"/></animateMotion></rect>
+    <rect id="href-over-xlink-href" width="10" height="10"><animateMotion dur="2s"><mpath href="#horizontal" xlink:href="#vertical"/></animateMotion></rect>
+    <rect id="xlink-href" width="10" height="10"><animateMotion dur="2s"><mpath xlink:href="#vertical"/></animateMotion></rect>
+    <rect id="over-path-attribute" width="10" height="10"><animateMotion dur="2s" path="M0,0 L0,200"><mpath href="#horizontal"/></animateMotion></rect>
+    <rect id="missing-element-falls-back-to-path-attribute" width="10" height="10"><animateMotion dur="2s" path="M0,0 L0,200"><mpath href="#missing"/></animateMotion></rect>
+    <rect id="not-a-shape-falls-back-to-path-attribute" width="10" height="10"><animateMotion dur="2s" path="M0,0 L0,200"><mpath href="#not-a-shape"/></animateMotion></rect>
+    <rect id="href-changed" width="10" height="10"><animateMotion dur="2s"><mpath id="mpath-to-change" href="#horizontal"/></animateMotion></rect>
+    <rect id="mpath-removed" width="10" height="10"><animateMotion dur="2s" path="M0,0 L0,200"><mpath id="mpath-to-remove" href="#horizontal"/></animateMotion></rect>
+    <rect id="mpath-inserted" width="10" height="10"><animateMotion id="animate-motion-to-insert-into" dur="2s"/></rect>
+</svg>
+<div id="host"></div>
+<script>
+    function printPositions(svg, rects) {
+        const origin = svg.getBoundingClientRect();
+        for (const rect of rects) {
+            const box = rect.getBoundingClientRect();
+            println(`${rect.id}: ${(box.left - origin.left).toFixed(1)}, ${(box.top - origin.top).toFixed(1)}`);
+        }
+    }
+
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+
+        document.getElementById("mpath-to-change").setAttribute("href", "#vertical");
+        document.getElementById("mpath-to-remove").remove();
+        const mpath = document.createElementNS("http://www.w3.org/2000/svg", "mpath");
+        mpath.setAttribute("href", "#vertical");
+        document.getElementById("animate-motion-to-insert-into").appendChild(mpath);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <svg width="400" height="400">
+                <path id="horizontal" d="M0,0 L0,300"/>
+                <rect id="in-shadow-root" width="10" height="10"><animateMotion dur="2s"><mpath href="#horizontal"/></animateMotion></rect>
+            </svg>`;
+        await new Promise(requestAnimationFrame);
+
+        const shadowSVG = shadowRoot.querySelector("svg");
+        for (const element of [svg, shadowSVG]) {
+            element.pauseAnimations();
+            element.setCurrentTime(1);
+        }
+        printPositions(svg, svg.querySelectorAll("rect"));
+        printPositions(shadowSVG, shadowSVG.querySelectorAll("rect"));
+        done();
+    });
+</script>

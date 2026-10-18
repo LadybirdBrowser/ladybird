@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>Test for checking position of the svg element when animateMotion's mpath is an ellipse</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/SVGAnimationTestCase-testharness.js"></script>
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <ellipse id="ellipse" cx="-100" rx="100" display="none"/>
+  <rect width="50" height="50" x="0" y="0" fill="green">
+    <animateMotion id="anim" begin="0s" dur="4s" fill="freeze">
+      <mpath href="#ellipse"/>
+    </animateMotion>
+  </rect>
+</svg>
+
+<script>
+var rootSVGElement = document.querySelector("svg");
+var epsilon = 1.0;
+
+// Setup animation test
+function sample1() {
+    assert_approx_equals(rootSVGElement.getBBox().x, 0, epsilon);
+    assert_approx_equals(rootSVGElement.getBBox().y, 0, epsilon);
+}
+
+function sample2() {
+    assert_approx_equals(rootSVGElement.getBBox().x, -200, epsilon);
+    assert_approx_equals(rootSVGElement.getBBox().y, 0, epsilon);
+}
+
+function sample3() {
+    assert_approx_equals(rootSVGElement.getBBox().x, 0, epsilon);
+    assert_approx_equals(rootSVGElement.getBBox().y, 0, epsilon);
+}
+
+smil_async_test((t) => {
+    var rects = rootSVGElement.ownerDocument.getElementsByTagName("rect");
+    rect1 = rects[0];
+
+    const expectedValues = [
+        // [animationId, time, sampleCallback]
+        ["anim", 0.0,   sample1],
+        ["anim", 2.0,   sample2],
+        ["anim", 4.0,   sample3]
+    ];
+
+    runAnimationTest(t, expectedValues);
+});
+
+window.animationStartsImmediately = true;
+
+</script>

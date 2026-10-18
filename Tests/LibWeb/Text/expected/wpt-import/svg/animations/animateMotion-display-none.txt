@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Test for checking position of the svg element when animateMotion's mpath is display:none
