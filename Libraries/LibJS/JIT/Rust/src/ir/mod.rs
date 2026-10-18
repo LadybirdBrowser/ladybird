@@ -1033,8 +1033,9 @@ pub enum Op {
     StringsEqual,
     /// The concatenation of the strings 0 and 1, or the empty value where
     /// only the slow path makes it. An empty string concatenates to the
-    /// other one; a rope string is allocated inline (see
-    /// `RopeAllocationInfo`), but for results short enough to be short
+    /// other one; a rope string is allocated inline, or by the runtime where
+    /// there is no local free cell (see `RopeAllocationInfo`), but for
+    /// results short enough to be short
     /// strings, which come from the VM's cache of fly strings (when both
     /// strings are short).
     ConcatenateStrings,

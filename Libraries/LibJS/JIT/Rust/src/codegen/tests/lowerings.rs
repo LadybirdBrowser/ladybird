@@ -3700,6 +3700,7 @@ fn short_string_concatenations_through_the_fly_string_cache() {
                     rhs_offset: 40,
                     length_offset: 16,
                     min_length: 8,
+                    slow_path: 0,
                 };
                 snapshot.runtime.layout.fly_string_cache = cache_address;
                 snapshot.runtime.layout.fly_string_cache_mask = 1023;
@@ -4197,4 +4198,100 @@ fn in_of_array_elements() {
     assert_eq!(has(value::int32(-1), holey.value()), MARKER);
     assert_eq!(has(value::UNDEFINED, holey.value()), MARKER);
     assert_eq!(has(value::int32(0), value::int32(0)), MARKER);
+}
+
+/// The words of the fake VM that the fake rope string slow path records
+/// its strings in.
+const VM_ROPE_STRINGS_WORDS: [usize; 2] = [10, 11];
+
+/// The fake `RopeAllocationInfo::slow_path`: records its strings, and
+/// returns `ROPE_FROM_RUNTIME`.
+extern "C" fn fake_create_rope_string(vm: *mut u64, lhs: u64, rhs: u64) -> u64 {
+    // SAFETY: The fake VM has room for the words the fakes here use.
+    unsafe {
+        vm.add(VM_ROPE_STRINGS_WORDS[0]).write(lhs);
+        vm.add(VM_ROPE_STRINGS_WORDS[1]).write(rhs);
+    }
+    ROPE_FROM_RUNTIME
+}
+
+/// The cell pointer the fake rope string slow path returns.
+const ROPE_FROM_RUNTIME: u64 = 0x7654_3210;
+
+#[test]
+fn rope_strings_come_from_the_runtime_without_a_local_free_cell() {
+    // A fake heap (allocated, threshold and total bytes), and a block whose
+    // one cell is the only never-allocated cell, if `free`.
+    let concatenate = |lhs: u64, rhs: u64, threshold: u64, free: bool| {
+        let mut heap = vec![100u64, threshold, 1000];
+        let block = FakeBlock::new(8, 0);
+        let address = block.cell().as_ptr() as u64;
+        // NB: The head of the free list, then the cursor, the end and the cell size of the never-allocated cells.
+        let mut free_list = if free {
+            vec![0, address, address + 64, 64]
+        } else {
+            vec![0, 0, 0, 64]
+        };
+        let program = assemble(|_| {
+            vec![
+                Instruction::Enter,
+                Instruction::Add {
+                    arith_feedback: 0,
+                    dst: r(5),
+                    lhs: argument(0),
+                    rhs: argument(1),
+                },
+                Instruction::Return { value: r(5) },
+            ]
+        });
+        let (result, machine) = run_program_with_snapshot(
+            &program,
+            &[lhs, rhs],
+            |snapshot| {
+                snapshot.runtime.rope_allocation = crate::snapshot::RopeAllocationInfo {
+                    allocator: free_list.as_mut_ptr() as u64,
+                    cell_size: 64,
+                    template: vec![0x1234; 8],
+                    lhs_offset: 32,
+                    rhs_offset: 40,
+                    length_offset: 16,
+                    min_length: 8,
+                    slow_path: fake_create_rope_string as *const () as u64,
+                };
+                let allocation = &mut snapshot.runtime.object_allocation;
+                allocation.heap = heap.as_mut_ptr() as u64;
+                allocation.heap_allocated_bytes_offset = 0;
+                allocation.heap_threshold_offset = 8;
+                allocation.heap_total_allocated_bytes_offset = 16;
+                allocation.local_free_list_offset = 0;
+                allocation.freelist_next_offset = 0;
+                allocation.freelist_link_mask = FakeBlock::LINK_MASK;
+                allocation.local_cursor_offset = 8;
+                allocation.local_end_offset = 16;
+                allocation.local_cell_size_offset = 24;
+                // ArithFeedback::String.
+                snapshot.executables[0].feedback.arith = vec![1 << 3];
+            },
+            |_| {},
+        );
+        assert_eq!(result.status, RETURNED);
+        let strings = VM_ROPE_STRINGS_WORDS.map(|word| machine.vm[word]);
+        (result.value, strings, block.cell()[..6].to_vec(), address)
+    };
+    let pointer = |string: u64| string & ((1 << 48) - 1);
+    let string = |pointer: u64| u64::from(STRING_TAG) << 48 | pointer;
+    let (lhs, rhs) = (fake_string_of_length(5, 0), fake_string_of_length(4, 0));
+
+    // A local free cell becomes the rope string.
+    let (result, strings, cell, address) = concatenate(lhs, rhs, 10_000, true);
+    assert_eq!((result, strings), (string(address), [0, 0]));
+    assert_eq!(cell, [0x1234, 0x1234, 9, 0x1234, pointer(lhs), pointer(rhs)]);
+
+    // Without one, or without room before the next collection, the runtime
+    // makes it.
+    for (threshold, free) in [(10_000, false), (150, true)] {
+        let (result, strings, _, _) = concatenate(lhs, rhs, threshold, free);
+        assert_eq!(result, string(ROPE_FROM_RUNTIME));
+        assert_eq!(strings, [pointer(lhs), pointer(rhs)]);
+    }
 }

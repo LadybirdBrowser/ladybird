@@ -26,7 +26,7 @@ use crate::snapshot::CellId;
 
 /// The runtime call that allocates what an allocation node allocates.
 #[derive(Clone, Copy)]
-enum AllocationCall {
+pub(super) enum AllocationCall {
     /// `ObjectAllocationInfo::slow_path` with the shape and the properties
     /// to make room for.
     Object(CellId, u32),
@@ -38,6 +38,9 @@ enum AllocationCall {
     /// `RuntimeInfo::create_lexical_environment` with the parent in the
     /// node's input, the environment shape cache and the capacity.
     Environment(u32, u32),
+    /// `RopeAllocationInfo::slow_path` with the strings in the node's
+    /// inputs.
+    Rope,
 }
 
 /// The out of line part of an allocation: the runtime call.
@@ -89,7 +92,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// The entry and resume labels of the out-of-line call that allocates
     /// for `node` where its inline allocation cannot (see
     /// `emit_deferred_allocations()`).
-    fn defer_allocation(&mut self, node: NodeId, call: AllocationCall) -> (Label, Label) {
+    pub(super) fn defer_allocation(&mut self, node: NodeId, call: AllocationCall) -> (Label, Label) {
         let entry = self.masm.new_label();
         let resume = self.masm.new_label();
         self.deferred_allocations.push(DeferredAllocation {
@@ -239,6 +242,16 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     self.masm.move_imm32(arguments[4], capacity);
                     self.masm.call_absolute(self.runtime.create_lexical_environment);
                 }
+                AllocationCall::Rope => {
+                    // NB: Each input is read before the argument register
+                    //     that may hold it is written.
+                    let scratch = self.pinned.scratch;
+                    self.emit_unbox_cell(scratch, self.input(allocation.node, 1));
+                    self.emit_unbox_cell(arguments[1], self.input(allocation.node, 0));
+                    self.masm.move64(arguments[2], scratch);
+                    self.masm.move64(arguments[0], self.pinned.vm);
+                    self.masm.call_absolute(self.runtime.rope_allocation.slow_path);
+                }
             }
             for (offset, bits) in &allocation.constant_fields {
                 self.masm.move_imm64(self.pinned.scratch, *bits);
@@ -246,10 +259,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     .store64(&Address::new(M::RETURN_GPRS[0], *offset as i32), self.pinned.scratch);
             }
             self.masm.move64(output, M::RETURN_GPRS[0]);
-            if let AllocationCall::Environment(..) = allocation.call {
-                self.box_cell(output, output);
-            } else {
-                self.box_object(output);
+            match allocation.call {
+                AllocationCall::Environment(..) => self.box_cell(output, output),
+                AllocationCall::Rope => self.box_cell_with_tag(output, output, value::STRING_TAG),
+                _ => self.box_object(output),
             }
             self.emit_restore_registers(&saved, None);
             self.masm.jump(allocation.resume);
