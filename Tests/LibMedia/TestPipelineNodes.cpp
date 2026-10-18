@@ -18,6 +18,7 @@
 #include <LibMedia/Processors/AudioTimeStretchProcessor.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMediaCodecs/VideoFrame.h>
@@ -534,7 +535,7 @@ TEST_CASE(audio_playback_sink_reseeks_its_input_from_the_written_output_without_
 {
     auto& loop = never_destroyed_event_loop();
 
-    auto sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Audio::AudioOutput::Null));
+    auto sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Media::AudioOutputFactory::create_null()));
     auto producer = RecordingAudioProducer::create();
     MUST(sink->connect_input(producer));
     sink->start();

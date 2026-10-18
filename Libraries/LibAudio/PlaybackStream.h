@@ -35,12 +35,7 @@ public:
     // AudioServer when this process can reach one, and otherwise a null stream that discards what it is given. The
     // initial output state determines whether playback begins immediately. The data callback is only invoked on one
     // thread at a time.
-    template<typename DataRequestCallback>
-    static NonnullRefPtr<CreatePromise> create(OutputState initial_output_state, u32 target_latency_ms, DataRequestCallback data_request_callback)
-    {
-        auto null_fallback_data_request_callback = data_request_callback;
-        return create(initial_output_state, target_latency_ms, AudioDataRequestCallback { move(data_request_callback) }, AudioDataRequestCallback { move(null_fallback_data_request_callback) });
-    }
+    static NonnullRefPtr<CreatePromise> create(OutputState, u32 target_latency_ms, AudioDataRequestCallback);
 
     virtual SampleSpecification sample_specification() const = 0;
 
@@ -62,9 +57,6 @@ public:
 
     // Runs once, on the creating thread, when the output device can no longer play this stream.
     Function<void()> on_output_lost;
-
-private:
-    static NonnullRefPtr<CreatePromise> create(OutputState, u32 target_latency_ms, AudioDataRequestCallback stream_data_request_callback, AudioDataRequestCallback null_fallback_data_request_callback);
 };
 
 }
