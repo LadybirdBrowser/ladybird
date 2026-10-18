@@ -11,11 +11,13 @@
 
 class QAbstractButton;
 class QPainter;
+class QPainterPath;
 class QPalette;
 
 namespace Ladybird::ChromeStyle {
 
 constexpr inline int LOCATION_EDIT_CORNER_RADIUS = 16;
+constexpr inline int LOADING_SWIRL_PERIOD_MS = 2000;
 
 bool is_dark(QPalette const&);
 QColor mix(QColor const& from, QColor const& to, double amount);
@@ -58,5 +60,7 @@ enum class CircularControlFrameStyle {
     ActiveTabOverlay,
 };
 void paint_circular_control_frame(QPainter&, QAbstractButton const&, CircularControlFrameStyle = CircularControlFrameStyle::InteractionOnly);
+
+void paint_loading_swirl(QPainter&, QPainterPath const& border);
 
 }

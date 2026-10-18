@@ -1401,6 +1401,7 @@ void Tab::set_loading(bool is_loading)
 
     m_is_loading = is_loading;
     m_loading_animation_frame = 0;
+    emit loading_changed();
 
     if (m_is_loading)
         m_loading_animation_timer->start();

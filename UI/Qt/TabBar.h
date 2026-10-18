@@ -67,6 +67,7 @@ public:
     void recreate_icons();
 
     void play_load_sheen(Tab&);
+    void update_loading_swirl_animation();
 
 private:
     virtual QSize sizeHint() const override;
@@ -113,6 +114,7 @@ private:
 
     void set_hovered_tab_index(int);
     Optional<qreal> load_sheen_progress(int index) const;
+    bool is_tab_loading(int index) const;
     void ensure_tab_visible(int index);
     void update_tab_button_geometry();
 
@@ -133,6 +135,7 @@ private:
         QVariantAnimation* animation { nullptr };
     };
     Vector<LoadSheen> m_load_sheens;
+    QVariantAnimation* m_loading_swirl_animation { nullptr };
     QIcon m_fallback_tab_icon;
     QPointer<Tab> m_pressed_tab;
     QPoint m_position_in_selected_tab_while_dragging;

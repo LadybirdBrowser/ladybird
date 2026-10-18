@@ -102,6 +102,7 @@ public:
 
     QIcon const& favicon() const { return m_favicon; }
     QIcon tab_icon() const;
+    bool is_loading() const { return m_is_loading; }
     QString title() const;
 
     QMenu* context_menu() const { return m_context_menu; }
@@ -129,6 +130,7 @@ signals:
     void title_changed(int id, QString const&);
     void favicon_changed(int id, QIcon const&);
     void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
+    void loading_changed();
     void loading_finished();
 
 private:
