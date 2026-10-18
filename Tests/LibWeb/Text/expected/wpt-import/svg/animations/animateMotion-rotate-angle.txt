@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+3 Pass
+4 Fail
+Fail	rotate="45" applies a constant 45 degree rotation
+Fail	rotate="-90" applies a constant -90 degree rotation
+Fail	rotate="30" applies a constant 30 degree rotation to a path animation
+Pass	rotate="0" applies no rotation
+Pass	an absent rotate attribute applies no rotation
+Pass	an unparseable rotate value applies no rotation
+Fail	rotate="auto" follows the direction of motion

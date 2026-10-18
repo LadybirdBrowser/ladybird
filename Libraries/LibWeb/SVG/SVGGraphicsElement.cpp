@@ -234,10 +234,69 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     return Geometry::DOMMatrix::create(ctm);
 }
 
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getCTM
 GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_ctm()
 {
-    dbgln("(STUBBED) SVGGraphicsElement::get_ctm(). Called on: {}", debug_description());
-    return Geometry::DOMMatrix::create();
+    // 1. If the current element is not in the document, then return null.
+    if (!is_connected())
+        return {};
+
+    Layout::ForcedReadScope read { document() };
+    document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetCTM);
+
+    // 2. If the current element is a non-rendered element, and the UA is not able to resolve the style of the element,
+    //    then return null.
+    // NB: We require committed box data for the current element and each of its ancestors up to the element ctm
+    //     transforms to, which also excludes geometry in resource-only subtrees such as masks, clip paths, and patterns.
+    auto const* layout_node = this->layout_node(read);
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
+        return {};
+
+    // 3. Let ctm be a matrix determined based on what the current element is:
+    // -> the current element is the outermost svg element
+    //    ctm is a matrix that transforms the coordinate space of the ‘svg’ (including its transform property) to the
+    //    coordinate space of the document's viewport. The matrix includes the transforms produced by the ‘viewBox’ and
+    //    ‘preserveAspectRatio’ attributes, the transform property, and any transform due to currentScale and
+    //    currentTranslate properties on the SVGSVGElement.
+    // AD-HOC: Like Blink and WebKit, transform to the coordinate space of the svg element's SVG viewport instead, which
+    //         leaves only the transform produced by the viewBox and preserveAspectRatio attributes. Gecko returns null.
+    // -> any other element
+    //    ctm is a matrix that transforms the coordinate space of the current element (including its transform property)
+    //    to the coordinate space of its closest ancestor viewport-establishing element (also including its transform
+    //    property).
+    // NB: Like Blink and WebKit, the coordinate space of an svg element includes the transforms produced by its position
+    //     and its viewBox attribute.
+    auto outermost_svg_element = this->outermost_svg_element();
+    GC::Ptr<DOM::Node const> target = this;
+    if (outermost_svg_element.ptr() != this)
+        target = viewport_element();
+    if (!target)
+        return {};
+
+    Gfx::AffineTransform ctm;
+    for (auto const* node = layout_node;; node = node->parent()) {
+        if (!node || !Painting::has_committed_box(*node))
+            return {};
+
+        Gfx::AffineTransform local_transform;
+        auto viewport_transform = Painting::svg_viewport_transform(*node);
+        if (node->dom_node() == outermost_svg_element.ptr()) {
+            local_transform = viewport_transform.value_or({});
+        } else {
+            local_transform = Painting::svg_element_transform(*node);
+            if (viewport_transform.has_value()) {
+                local_transform.translate(Painting::absolute_rect(*node).location().to_type<float>());
+                local_transform.multiply(*viewport_transform);
+            }
+        }
+        ctm = local_transform.multiply(ctm);
+
+        if (node->dom_node() == target.ptr())
+            break;
+    }
+
+    // 4. Return a newly created, detached DOMMatrix object that represents the same matrix as ctm.
+    return Geometry::DOMMatrix::create(ctm.to_matrix());
 }
 
 }

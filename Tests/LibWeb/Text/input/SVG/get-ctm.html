@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg id="outer" width="200" height="200" viewBox="0 0 100 100" style="padding: 5px; border: 3px solid; transform: rotate(10deg)">
+    <g id="translated" transform="translate(10 20)">
+        <rect id="scaled-rect" transform="scale(2)" width="10" height="10" />
+        <svg id="inner" x="7" y="9" width="50" height="50" viewBox="0 0 25 25">
+            <rect id="inner-rect" x="1" width="5" height="5" transform="translate(3 4)" />
+            <g id="inner-group"><rect id="inner-group-rect" width="1" height="1" /></g>
+        </svg>
+    </g>
+    <rect id="display-none" style="display: none" width="10" height="10" />
+    <defs>
+        <mask id="mask"><rect id="mask-rect" width="50" height="20" /></mask>
+    </defs>
+    <rect width="50" height="20" mask="url(#mask)" />
+</svg>
+<div style="height: 0">
+    <svg id="zero-height" width="100%" height="100%">
+        <g id="in-zero-height" transform="translate(1 2)"></g>
+    </svg>
+</div>
+<svg id="zero-view-box" width="200" height="100" viewBox="0 0 0 100">
+    <rect id="in-zero-view-box" width="10" height="10" />
+</svg>
+<script>
+    test(() => {
+        for (const element of [...document.querySelectorAll("svg [id], svg[id]")].filter(element => element.getCTM)) {
+            const matrix = element.getCTM();
+            println(`${element.id}: ${matrix ? [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f].join(" ") : null}`);
+        }
+        println(`detached: ${document.createElementNS("http://www.w3.org/2000/svg", "rect").getCTM()}`);
+    });
+</script>

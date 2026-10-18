@@ -1,0 +1,14 @@
+outer: 2 0 0 2 0 0
+translated: 2 0 0 2 20 40
+scaled-rect: 4 0 0 4 20 40
+inner: 4 0 0 4 34 58
+inner-rect: 2 0 0 2 13 17
+inner-group: 2 0 0 2 7 9
+inner-group-rect: 2 0 0 2 7 9
+display-none: null
+mask-rect: 2 0 0 2 0 0
+zero-height: 1 0 0 1 0 0
+in-zero-height: 1 0 0 1 1 2
+zero-view-box: 1 0 0 1 0 0
+in-zero-view-box: null
+detached: null

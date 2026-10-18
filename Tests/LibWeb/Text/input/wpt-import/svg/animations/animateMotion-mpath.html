@@ -1,0 +1,51 @@
+<!doctype html>
+<title>animateMotion with mpath</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/SVGAnimationTestCase-testharness.js"></script>
+<svg>
+<path id="route" fill="none" stroke="#666" d="M0,300 q100,-100 200,0 t200,0 t200,0 t200,0 t200,-50"/>
+<g id="car">
+  <path id="body" d="M0,20 v-7 h7 l7,-7 h14 l7,7 h7 v7z" />
+  <circle class="tire" cx="10" cy="20" r="5" />
+  <circle class="tire" cx="32" cy="20" r="5" />
+  <animateMotion dur="4s" repeatCount="indefinite" fill="remove">
+    <mpath href="#route"/>
+  </animateMotion>
+</g>
+</svg>
+<script>
+const rootSVGElement = document.querySelector('svg');
+const car = document.getElementById('car');
+
+function assert_ctm_position(element, x, y) {
+  const ctm = element.getCTM();
+  const epsilon = 2;
+  assert_approx_equals(ctm.e, x, epsilon, 'ctm e');
+  assert_approx_equals(ctm.f, y, epsilon, 'ctm f');
+}
+
+function sample1() {
+  assert_ctm_position(car, 0, 0);
+}
+
+function sample2() {
+  assert_ctm_position(car, 496, 250);
+}
+
+function sample3() {
+  assert_ctm_position(car, 0, 300);
+}
+
+smil_async_test(t => {
+  const expectedValues = [
+    // [animationId, time, sampleCallback]
+    ['anim', 0.0, sample1],
+    ['anim', 2.0, sample2],
+    ['anim', 4.0, sample3],
+  ];
+  runAnimationTest(t, expectedValues);
+});
+
+window.animationStartsImmediately = true;
+</script>

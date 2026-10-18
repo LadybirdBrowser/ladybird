@@ -1,0 +1,40 @@
+<!doctype html>
+<title>SVGGraphicsElement.getCTM and co with empty viewbox</title>
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1997351">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGGraphicsElement" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  svg { vertical-align: top } /* To avoid baseline alignment */
+</style>
+<div id="container" style="width: 500px; height: 0px;">
+  <svg width="100%" height="100%" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs></defs>
+    <g class="viewport">
+    </g>
+  </svg>
+</div>
+<script>
+  function assert_identity(m) {
+    assert_equals(m.a, 1, "a");
+    assert_equals(m.d, 1, "d");
+    for (let member of ["b", "c", "e", "f"]) {
+      assert_equals(m[member], 0, member);
+    }
+  }
+  test(function () {
+    assert_identity(document.querySelector(".viewport").getCTM());
+  }, "getCTM");
+  test(function() {
+    let m = document.querySelector(".viewport").getScreenCTM();
+    assert_equals(m.a, 1, "a");
+    assert_equals(m.d, 1, "d");
+    assert_equals(m.b, 0, "b");
+    assert_equals(m.c, 0, "c");
+    // For the <body> margin.
+    assert_equals(m.e, 8, "e");
+    assert_equals(m.f, 8, "f");
+  }, "getScreenCTM");
+</script>
