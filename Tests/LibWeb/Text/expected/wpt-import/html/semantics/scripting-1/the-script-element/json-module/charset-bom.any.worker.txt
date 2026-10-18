@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	UTF-8 BOM should be stripped when decoding JSON module script
+Pass	UTF-16BE BOM should result in parse error in JSON module script
+Pass	UTF-16LE BOM should result in parse error in JSON module script

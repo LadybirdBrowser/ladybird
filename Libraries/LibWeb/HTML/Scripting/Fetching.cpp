@@ -858,9 +858,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
         //       We might be able to tighten this in the future; see https://github.com/whatwg/html/issues/3255.
 
         // 4. Let sourceText be the result of UTF-8 decoding bodyBytes.
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
-        VERIFY(decoder.has_value());
-        auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+        auto source_text = Utf16String::from_utf8_with_replacement_character(body_bytes_view(body_bytes));
 
         // 5. Let script be the result of creating a classic script using sourceText, settingsObject,
         //    response's URL, and the default classic script fetch options.
@@ -947,9 +945,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     }
 
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.
-    auto decoder = TextCodec::decoder_for("UTF-8"sv);
-    VERIFY(decoder.has_value());
-    auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+    auto source_text = Utf16String::from_utf8_with_replacement_character(body_bytes_view(body_bytes));
 
     // 9. Let mutedErrors be true if response was CORS-cross-origin, and false otherwise.
     auto muted_errors = response->is_cors_cross_origin() ? ClassicScript::MutedErrors::Yes : ClassicScript::MutedErrors::No;
@@ -1132,13 +1128,12 @@ void fetch_single_module_script(JS::Realm& realm,
         // 7. Otherwise
         else {
             // 1. Let sourceText be the result of UTF-8 decoding bodyBytes.
-            auto decoder = TextCodec::decoder_for("UTF-8"sv);
-            VERIFY(decoder.has_value());
+            // NB: Done at each use, so a JavaScript module with a bytecode cache isn't decoded up front.
 
             // 2. If moduleType is "text", then set moduleScript to the result of creating a text module script given
             //    sourceText and settingsObject.
             if (module_type == "text"sv) {
-                auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+                auto source_text = Utf16String::from_utf8_with_replacement_character(body_bytes_view(body_bytes));
                 module_script = ModuleScript::create_a_text_module_script(url.to_byte_string(), source_text.utf16_view(), settings_object).release_value_but_fixme_should_propagate_errors();
             }
 
@@ -1160,7 +1155,9 @@ void fetch_single_module_script(JS::Realm& realm,
                 if (bytecode.has_value() || bytecode_cache_context.has_value())
                     source_hash = bytecode_cache_source_hash(source_bytes, "UTF-8"sv);
                 if (bytecode.has_value()) {
-                    auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
+                    auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                    VERIFY(decoder.has_value());
+                    auto source_length = decoder->length_in_utf16_code_units(StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
                     prepare_bytecode_cache_off_thread(settings_object, *bytecode, JS::ProgramType::Module, source_length, *source_hash,
                         [url = move(url), url_string = move(url_string), response_url = move(response_url),
                             module_type_string = move(module_type_string),
@@ -1185,11 +1182,9 @@ void fetch_single_module_script(JS::Realm& realm,
                             }
 
                             if (!source_code.has_value()) {
-                                auto fallback_decoder = TextCodec::decoder_for("UTF-8"sv);
-                                VERIFY(fallback_decoder.has_value());
                                 source_code = JS::SourceCode::create(
                                     utf16_string_from_url_ascii(url_string.view()),
-                                    decode_source_text_to_utf16(*fallback_decoder, source_byte_storage.bytes()).release_value_but_fixme_should_propagate_errors());
+                                    Utf16String::from_utf8_with_replacement_character(source_byte_storage.bytes()));
                             }
 
                             auto retain_parse_for_cache = bytecode_cache_context.has_value();
@@ -1229,7 +1224,7 @@ void fetch_single_module_script(JS::Realm& realm,
                 if (!source_code.has_value()) {
                     source_code = JS::SourceCode::create(
                         utf16_string_from_url_ascii(url_string.view()),
-                        decode_source_text_to_utf16(*decoder, source_bytes).release_value_but_fixme_should_propagate_errors());
+                        Utf16String::from_utf8_with_replacement_character(source_bytes));
                 }
 
                 auto retain_parse_for_cache = bytecode_cache_context.has_value();
@@ -1267,14 +1262,14 @@ void fetch_single_module_script(JS::Realm& realm,
             // 4. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to
             //    the result of creating a CSS module script given sourceText and settingsObject.
             if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css"sv) {
-                auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+                auto source_text = Utf16String::from_utf8_with_replacement_character(body_bytes_view(body_bytes));
                 module_script = ModuleScript::create_a_css_module_script(url.to_byte_string(), source_text.utf16_view(), settings_object).release_value_but_fixme_should_propagate_errors();
             }
 
             // 5. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of
             //    creating a JSON module script given sourceText and settingsObject.
             if (mime_type.has_value() && mime_type->is_json() && module_type == "json"sv) {
-                auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+                auto source_text = Utf16String::from_utf8_with_replacement_character(body_bytes_view(body_bytes));
                 module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text.utf16_view(), settings_object).release_value_but_fixme_should_propagate_errors();
             }
         }

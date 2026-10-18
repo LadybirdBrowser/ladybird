@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	UTF-8 BOM should be stripped when decoding CSS module script
+Pass	UTF-16BE BOM should be ignored, so CSS module should be UTF-8 decoded
+Pass	UTF-16LE BOM should be ignored, so CSS module should be UTF-8 decoded

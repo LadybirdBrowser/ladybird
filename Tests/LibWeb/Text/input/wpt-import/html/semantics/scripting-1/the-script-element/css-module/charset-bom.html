@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>CSS Module scripts should ignore BOMs and always use UTF-8</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script type="module">
+    import utf8BOMSheet from './resources/bom-utf-8.css' with { type: 'css' };
+    test(function() {
+        assert_equals(utf8BOMSheet.rules[0].selectorText, 'div', 'No UTF-8 BOM expected in selector');
+    }, 'UTF-8 BOM should be stripped when decoding CSS module script');
+
+    import utf16BEBOMSheet from './resources/bom-utf-16be.css' with { type: 'css' };
+    test(function() {
+        assert_equals(utf16BEBOMSheet.rules[0].selectorText, '\ufffd\ufffd\ufffdd\ufffdi\ufffdv\ufffd \ufffd', 'Expected UTF-8 decoded selectorText with 0xfffd replacement characters');
+    }, 'UTF-16BE BOM should be ignored, so CSS module should be UTF-8 decoded');
+
+    import utf16LEBOMSheet from './resources/bom-utf-16le.css' with { type: 'css' };
+    test(function() {
+        assert_equals(utf16LEBOMSheet.rules[0].selectorText, '\ufffd\ufffdd\ufffdi\ufffdv\ufffd \ufffd', 'Expected UTF-8 decoded selectorText with 0xfffd replacement characters');
+    }, 'UTF-16LE BOM should be ignored, so CSS module should be UTF-8 decoded');
+</script>
