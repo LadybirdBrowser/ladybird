@@ -1,0 +1,22 @@
+body {
+    margin: 0;
+    font: 20px/30px serif;
+}
+div {
+    margin: 10px;
+}
+.narrow {
+    width: 120px;
+}
+.external {
+    position: relative;
+    padding-left: 20px;
+    padding-right: 30px;
+    background: lightblue;
+}
+.box {
+    display: inline-block;
+    width: 80px;
+    height: 20px;
+    background: blue;
+}

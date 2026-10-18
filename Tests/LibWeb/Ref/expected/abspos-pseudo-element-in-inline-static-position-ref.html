@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="stylesheet" href="../data/abspos-pseudo-element-in-inline-static-position.css">
+<style>
+    .icon {
+        position: absolute;
+        margin-left: 4px;
+        width: 10px;
+        height: 10px;
+        background: green;
+    }
+    .corner-icon {
+        position: absolute;
+        top: 0;
+        right: 0;
+        margin-left: 4px;
+        width: 6px;
+        height: 6px;
+        background: orange;
+    }
+    .leading-icon {
+        position: absolute;
+        margin-left: -14px;
+        width: 10px;
+        height: 10px;
+        background: green;
+    }
+</style>
+<div><span class="external"><span class="box"></span><span class="icon"></span></span><span class="box"></span></div>
+<div><span class="external"><span class="box"></span><span class="icon"></span></span>,<span class="box"></span></div>
+<div class="narrow"><span class="external"><span class="box"></span> <span class="box"></span><span class="icon"></span></span></div>
+<div><span class="external"><span class="box"></span><span class="corner-icon"></span></span></div>
+<div><span class="external"><span class="leading-icon"></span><span class="box"></span><span class="icon"></span></span></div>

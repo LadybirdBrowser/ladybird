@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/abspos-pseudo-element-in-inline-static-position-dynamic-ref.html">
+<link rel="stylesheet" href="../data/abspos-pseudo-element-in-inline-static-position.css">
+<style>
+    .external::after {
+        content: "\200b";
+        position: absolute;
+        margin-left: 4px;
+        width: 10px;
+        height: 10px;
+        background: green;
+    }
+    .external.in-flow::after {
+        position: static;
+        display: inline-block;
+    }
+</style>
+<div><span class="external in-flow" id="toggle"><span class="box"></span></span><span class="box"></span></div>
+<div><span class="external" id="append"><span class="box"></span></span><span class="box"></span></div>
+<div><span class="external" id="insert"><span class="box"></span></span><span class="box"></span></div>
+<script>
+    window.onload = () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.getElementById("toggle").classList.remove("in-flow");
+
+                const box = document.createElement("span");
+                box.className = "box";
+                document.getElementById("append").append(" ", box);
+
+                document.getElementById("insert").prepend("x");
+
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    };
+</script>
+</html>

@@ -4127,15 +4127,20 @@ fn insertion_parent_for_block_node(
 
     // Inline is fine for in-flow block children (interrupting blocks) and for out-of-flow children;
     // the inline formatting context emits items for both.
-    // Block-level pseudo-element boxes climb out of inline ancestors instead (see below). A table-internal
-    // pseudo-element box has to stay a child of its originating inline box though: table fixup generates one anonymous
-    // inline-table around the consecutive table-internal children of the inline, so e.g. a `display: table-cell`
-    // ::after joins the table of the table-cell siblings in the inline instead of starting a separate block-level
-    // table outside of it.
-    // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-    let is_table_internal_pseudo_element_box = node_facts::has_flag(host.data(node), NodeFlag::Anonymous)
-        && is_table_non_root_box_with_display(display_for_table_fixup(host, node));
-    if (!node_facts::has_flag(host.data(node), NodeFlag::Anonymous) || is_table_internal_pseudo_element_box)
+    // In-flow block-level pseudo-element boxes climb out of inline ancestors instead (see below). Two kinds of
+    // pseudo-element box stay a child of their originating inline box like a DOM child would:
+    // - A table-internal one: table fixup generates one anonymous inline-table around the consecutive table-internal
+    //   children of the inline, so e.g. a `display: table-cell` ::after joins the table of the table-cell siblings in
+    //   the inline instead of starting a separate block-level table outside of it.
+    //   https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+    // - An absolutely positioned one: its static position is inside the inline's content, not after its inline-end
+    //   edges.
+    let is_anonymous = node_facts::has_flag(host.data(node), NodeFlag::Anonymous);
+    let is_table_internal_pseudo_element_box =
+        is_anonymous && is_table_non_root_box_with_display(display_for_table_fixup(host, node));
+    let is_absolutely_positioned_pseudo_element_box = node_is_generated_for_pseudo_element(host.data(node))
+        && host.style(node).is_some_and(|style| style.is_absolutely_positioned());
+    if (!is_anonymous || is_table_internal_pseudo_element_box || is_absolutely_positioned_pseudo_element_box)
         && node_is_inline_outside(host, parent)
         && host.style(parent).is_some_and(|style| style.display().is_flow_inside())
     {
