@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Pass	TextTrack.addCue(), adding a cue to two different tracks
 Pass	TextTrack.addCue(), adding a cue to a track twice
 Pass	TextTrack.addCue(), adding a removed cue to a different track
 Pass	TextTrack.addCue(), adding an associated but removed cue to the same track
-Fail	TextTrack.addCue(), adding a cue associated with a track element to other track
+Pass	TextTrack.addCue(), adding a cue associated with a track element to other track

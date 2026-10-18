@@ -126,6 +126,16 @@ WebIDL::ExceptionOr<void> TextTrack::remove_cue(GC::Ref<TextTrackCue> cue)
     return {};
 }
 
+void TextTrack::empty_text_track_list_of_cues()
+{
+    if (m_text_track_list_of_cues.is_empty())
+        return;
+
+    for (auto const& cue : m_text_track_list_of_cues)
+        cue->set_track(nullptr);
+    m_text_track_list_of_cues.clear();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-kind
 TextTrackKind TextTrack::kind()
 {

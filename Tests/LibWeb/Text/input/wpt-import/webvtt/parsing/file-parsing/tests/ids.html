@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- DO NOT EDIT! This file and support/ids.vtt are generated. -->
+<!-- See /webvtt/parsing/file-parsing/README.md -->
+<meta charset=utf-8>
+<title>WebVTT parser test: ids</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#collect-a-webvtt-block">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+var t = async_test('ids');
+t.step(function(){
+    var video = document.createElement('video');
+    var track = document.createElement('track');
+    assert_true('src' in track, 'track element not supported');
+    track.src = 'support/ids.vtt';
+    track['default'] = true;
+    track.kind = 'subtitles';
+    track.onload = this.step_func(trackLoaded);
+    track.onerror = this.step_func(trackError);
+    video.appendChild(track);
+    document.body.appendChild(video);
+});
+
+function trackLoaded(event) {
+    var track = event.target;
+    var video = track.parentNode;
+    var cues = video.textTracks[0].cues;
+    {
+assert_equals(cues.length, 5);
+assert_equals(cues[0].id, " leading space");
+assert_equals(cues[1].id, "trailing space ");
+assert_equals(cues[2].id, "-- >");
+assert_equals(cues[3].id, "->");
+assert_equals(cues[4].id, " ");
+
+    }
+    this.done();
+}
+
+function trackError(e) {
+    assert_unreached('got unexpected error event');
+}
+</script>

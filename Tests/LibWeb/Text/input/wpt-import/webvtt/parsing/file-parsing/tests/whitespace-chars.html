@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- DO NOT EDIT! This file and support/whitespace-chars.vtt are generated. -->
+<!-- See /webvtt/parsing/file-parsing/README.md -->
+<meta charset=utf-8>
+<title>WebVTT parser test: whitespace chars</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#collect-a-webvtt-block">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+var t = async_test('whitespace chars');
+t.step(function(){
+    var video = document.createElement('video');
+    var track = document.createElement('track');
+    assert_true('src' in track, 'track element not supported');
+    track.src = 'support/whitespace-chars.vtt';
+    track['default'] = true;
+    track.kind = 'subtitles';
+    track.onload = this.step_func(trackLoaded);
+    track.onerror = this.step_func(trackError);
+    video.appendChild(track);
+    document.body.appendChild(video);
+});
+
+function trackLoaded(event) {
+    var track = event.target;
+    var video = track.parentNode;
+    var cues = video.textTracks[0].cues;
+    {
+assert_equals(cues.length, 3);
+
+assert_equals(cues[0].id, 'spaces');
+assert_equals(cues[0].text, '   text0');
+
+assert_equals(cues[1].id, 'tabs');
+assert_equals(cues[1].text, 'text1');
+
+assert_equals(cues[2].id, 'form feed');
+assert_equals(cues[2].text, 'text2');
+
+    }
+    this.done();
+}
+
+function trackError(e) {
+    assert_unreached('got unexpected error event');
+}
+</script>
