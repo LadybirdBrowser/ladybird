@@ -51,6 +51,7 @@ protected:
 private:
     GC::Ptr<SMILTimeContainer> time_container();
     double simple_duration() const;
+    double repeat_count() const;
     Bindings::FillMode fill_mode() const;
 
     GC::Ptr<SMILAnimation> m_animation;
