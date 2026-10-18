@@ -194,7 +194,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
         // Reset the document-root focus gate so that *each* page navigation posts a fresh accessibility focus event on
         // the newly-loaded document. Otherwise, without this reset, only the *first* page load (often an empty default
         // page) would trigger the gate — and subsequent user-initiated navigations (type URL, Enter) would never let
-        // Orca know that a new document is ready for browse-mode navigation. macOS gates its initial setFocus() on the
+        // Orca know that a new document is ready for browse-mode navigation. macOS gates its load announcement on the
         // same flag, so it needs the per-navigation reset too.
         m_posted_initial_accessibility_focus = false;
         m_report_accessibility_focus_with_next_tree = false;
@@ -213,22 +213,21 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
         m_accessibility_manager->update_tree(AK::move(nodes));
 
 #if defined(Q_OS_MACOS)
-        // Only the first tree for a page may take focus. WebContent rebuilds the tree on DOM mutations too, so
-        // doing this on every update would yank focus out of the address bar mid-keystroke. Same reasoning, and
-        // the same gate, as the AT-SPI focus post in the branch below.
-        auto const take_initial_focus = !m_posted_initial_accessibility_focus && m_accessibility_manager && !m_accessibility_manager->is_empty();
-        if (take_initial_focus)
+        // Only the first tree for a page announces the load. WebContent rebuilds the tree on DOM mutations too, and
+        // announcing each of those would move VoiceOver's cursor back to the top of the page while the user is reading
+        // it. Same gate as the AT-SPI focus post in the branch below.
+        // NB: A page load never moves the keyboard focus, with or without an assistive technology. For example, a new
+        //     tab's location editor keeps the focus while the new tab page loads.
+        auto const announce_load = !m_posted_initial_accessibility_focus && m_accessibility_manager && !m_accessibility_manager->is_empty();
+        if (announce_load)
             m_posted_initial_accessibility_focus = true;
         // An assistive technology that turned up mid-page got no focused element from its first queries: The first tree
         // has AppKit look the focus up again — if the page has the keyboard focus (update_accessibility_tree() checks).
         auto const report_focus = m_report_accessibility_focus_with_next_tree && m_accessibility_manager && !m_accessibility_manager->is_empty();
         if (report_focus)
             m_report_accessibility_focus_with_next_tree = false;
-        QTimer::singleShot(100, this, [this, take_initial_focus, report_focus] {
-            auto const focus_now = take_initial_focus && isVisible();
-            if (focus_now)
-                setFocus(Qt::OtherFocusReason);
-            update_accessibility_tree(this, focus_now, report_focus);
+        QTimer::singleShot(100, this, [this, announce_load, report_focus] {
+            update_accessibility_tree(this, announce_load, report_focus);
         });
 #elif !defined(Q_OS_WIN)
         // Prune interfaces for nodes no longer in the tree.
@@ -1745,9 +1744,10 @@ void WebContentView::accessibilityActiveChanged(bool active)
 {
     if (!active || m_requested_accessibility_tree)
         return;
-    // An assistive technology turned up after this page's load finished, or during the load: Fetch the tree without the
-    // focus grab and the load announcement that only a page load gets. A page that's still loading gets both when its
-    // load finishes, as usual. For a page that's already loaded, its first tree reports where the focus is instead.
+    // An assistive technology turned up after this page's load finished, or during the load: Fetch the tree without
+    // what only a page load gets, the document-root focus event on Linux and the load announcement on macOS. A page
+    // that's still loading gets it when its load finishes, as usual. For a page that's already loaded, its first tree
+    // reports where the focus is instead.
     m_posted_initial_accessibility_focus = true;
     m_report_accessibility_focus_with_next_tree = !is_loading();
     fetch_accessibility_tree();
