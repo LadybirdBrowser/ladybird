@@ -647,9 +647,19 @@ impl<'pass> SizingContext<'pass> {
                 .solve_replaced_size_constraint(node, used, block, available_space, constraints)
                 .0;
         }
+        // NB: When the width is automatic and the box's min-content and max-content inline sizes are both transferred
+        //     from its block size, an intrinsic size keyword minimum or maximum resolves to the size computed here and
+        //     cannot change it. Resolving one would compute this size again.
+        let is_transferred_intrinsic_limit = |size: &ComputedSize| {
+            computed_inline.is_auto()
+                && size.is_intrinsic_sizing_constraint()
+                && self.intrinsic_inline_sizes_are_transferred(node, constraints)
+        };
         // 2. If the tentative used width is greater than 'max-width', the rules above are applied again,
         //    but this time using the computed value of 'max-width' as the computed value for 'width'.
-        if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
+        if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints)
+            && !is_transferred_intrinsic_limit(style.max_width())
+        {
             let max =
                 self.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints);
             if used > max {
@@ -663,7 +673,7 @@ impl<'pass> SizingContext<'pass> {
         }
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
         //    but this time using the value of 'min-width' as the computed value for 'width'.
-        if !style.min_width().is_auto() {
+        if !style.min_width().is_auto() && !is_transferred_intrinsic_limit(style.min_width()) {
             let min =
                 self.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
             if used < min {
@@ -2120,11 +2130,17 @@ impl<'pass> SizingContext<'pass> {
         Some((measurement.automatic_content_block_size, baselines))
     }
 
-    fn calculate_transferred_inline_size_for_replaced_element(
-        &self,
-        node: Node,
-        constraints: ContainingBlockConstraints,
-    ) -> Option<CssPixels> {
+    fn transferred_intrinsic_inline_sizing_space(&self, node: Node) -> AvailableSpace {
+        self.used(node)
+            .available_inner_space_or_constraints_from(AvailableSpace {
+                inline_size: AvailableSize::MaxContent,
+                block_size: AvailableSize::Indefinite,
+            })
+    }
+
+    /// Whether the min-content and max-content inline sizes of a box are both its block size transferred through its
+    /// preferred aspect ratio.
+    fn intrinsic_inline_sizes_are_transferred(&self, node: Node, constraints: ContainingBlockConstraints) -> bool {
         // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
         // "size constraints in the opposite dimension will transfer through and can affect the auto size in the considered one"
         let facts = self.facts(node);
@@ -2139,20 +2155,24 @@ impl<'pass> SizingContext<'pass> {
             || style.height().is_auto()
             || style.height().is_intrinsic_sizing_constraint()
         {
-            return None;
+            return false;
         }
-        let available_space = self
-            .used(node)
-            .available_inner_space_or_constraints_from(AvailableSpace {
-                inline_size: AvailableSize::MaxContent,
-                block_size: AvailableSize::Indefinite,
-            });
+        let available_space = self.transferred_intrinsic_inline_sizing_space(node);
         // NB: A cyclic percentage width of a non-replaced box behaves as auto for its intrinsic sizes.
-        if !self.should_treat_inline_size_as_auto(node, available_space)
-            || self.should_treat_block_size_as_auto(node, available_space, constraints)
-        {
+        self.should_treat_inline_size_as_auto(node, available_space)
+            && !self.should_treat_block_size_as_auto(node, available_space, constraints)
+    }
+
+    fn calculate_transferred_inline_size_for_replaced_element(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<CssPixels> {
+        if !self.intrinsic_inline_sizes_are_transferred(node, constraints) {
             return None;
         }
+        let facts = self.facts(node);
+        let available_space = self.transferred_intrinsic_inline_sizing_space(node);
         // NB: Replaced elements resolve their sizes here without a percentage basis.
         let sizing_constraints = if facts.is_replaced_box() {
             ContainingBlockConstraints::default()
