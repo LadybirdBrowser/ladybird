@@ -10,7 +10,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/ThreadSafeWeakable.h>
-#include <LibAudio/AudioOutput.h>
 #include <LibAudio/Forward.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
@@ -20,6 +19,7 @@
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/AudioProducer.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Sinks/AudioSink.h>
 
 namespace Media {
@@ -31,8 +31,8 @@ private:
     class OutputThreadData;
 
 public:
-    static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(PipelineStateChangeHandler on_state_changed, Audio::AudioOutput = Audio::AudioOutput::Platform);
-    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader, PipelineStateChangeHandler, Audio::AudioOutput);
+    static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(PipelineStateChangeHandler on_state_changed, NonnullRefPtr<AudioOutputFactory>);
+    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader, PipelineStateChangeHandler, NonnullRefPtr<AudioOutputFactory>);
     virtual ~AudioPlaybackSink() override;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<AudioProducer> const&) override;
@@ -73,7 +73,7 @@ private:
 
     Core::EventLoop& m_main_thread_event_loop;
     PipelineStateChangeHandler m_on_state_changed;
-    Audio::AudioOutput m_audio_output { Audio::AudioOutput::Platform };
+    NonnullRefPtr<AudioOutputFactory> m_output_factory;
 
     bool m_started_creating_playback_stream { false };
     bool m_playing { false };

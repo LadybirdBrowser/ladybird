@@ -27,6 +27,7 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
@@ -59,7 +60,7 @@ public:
 
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    static NonnullOwnPtr<PlaybackManager> create();
+    static NonnullOwnPtr<PlaybackManager> create(NonnullRefPtr<AudioOutputFactory>);
     ~PlaybackManager();
 
     AK::Duration duration() const { return m_duration; }
@@ -163,7 +164,7 @@ private:
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    PlaybackManager();
+    explicit PlaybackManager(NonnullRefPtr<AudioOutputFactory>);
 
     WeakPlaybackManager weak();
 
@@ -241,6 +242,7 @@ private:
 
     NonnullRefPtr<WeakPlaybackManagerLink> m_weak_link;
 
+    NonnullRefPtr<AudioOutputFactory> m_audio_output_factory;
     NonnullRefPtr<MediaClock> m_clock;
     MediaTimeReader m_time_reader;
     HostHooks m_host_hooks;

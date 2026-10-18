@@ -18,7 +18,7 @@ namespace Commands = Media::MediaSourceExtensions::Commands;
 PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id)
     : m_connection(connection)
     , m_id(id)
-    , m_manager(Media::PlaybackManager::create())
+    , m_manager(Media::PlaybackManager::create(Media::AudioOutputFactory::create()))
 {
     m_manager->on_playback_state_change = [this] {
         report_playback_state();

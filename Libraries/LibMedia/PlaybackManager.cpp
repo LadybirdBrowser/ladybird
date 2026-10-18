@@ -141,7 +141,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                     if (!self)
                         return;
                     self->on_audio_sink_state_changed(status);
-                }));
+                },
+                self->m_audio_output_factory));
             MUST(self->m_audio_time_stretch_processor->connect_input(*self->m_audio_mixer));
             MUST(self->m_audio_sink->connect_input(*self->m_audio_time_stretch_processor));
             self->set_clock(*self->m_audio_sink);
@@ -166,16 +167,17 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
     return {};
 }
 
-NonnullOwnPtr<PlaybackManager> PlaybackManager::create()
+NonnullOwnPtr<PlaybackManager> PlaybackManager::create(NonnullRefPtr<AudioOutputFactory> audio_output_factory)
 {
-    auto playback_manager = adopt_own(*new (nothrow) PlaybackManager());
+    auto playback_manager = adopt_own(*new (nothrow) PlaybackManager(move(audio_output_factory)));
     playback_manager->m_handler = make<StartingStateHandler>(*playback_manager);
     playback_manager->m_handler->on_enter();
     return playback_manager;
 }
 
-PlaybackManager::PlaybackManager()
+PlaybackManager::PlaybackManager(NonnullRefPtr<AudioOutputFactory> audio_output_factory)
     : m_weak_link(make_ref_counted<WeakPlaybackManagerLink>(*this))
+    , m_audio_output_factory(move(audio_output_factory))
     , m_clock(MUST(MonotonicMediaClock::try_create()))
     , m_time_reader(m_clock->time_reader())
 {

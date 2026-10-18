@@ -23,6 +23,7 @@
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/Producers/RemoteVideoProducer.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoEdgeQueue.h>
@@ -335,7 +336,7 @@ TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
 {
     auto& loop = never_destroyed_event_loop();
 
-    auto manager = PlaybackManager::create();
+    auto manager = PlaybackManager::create(Media::AudioOutputFactory::create_null());
     bool metadata_parsed = false;
     manager->add_media_source(create_demuxer(load_test_file(TEST_CLIP)))->when_resolved([&](auto&) {
         metadata_parsed = true;
