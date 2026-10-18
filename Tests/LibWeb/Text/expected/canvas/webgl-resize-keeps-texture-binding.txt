@@ -1,0 +1,4 @@
+webgl: pixel after resize: 255,0,255,255
+webgl: error: NO_ERROR
+webgl2: pixel after resize: 255,0,255,255
+webgl2: error: NO_ERROR
