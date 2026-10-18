@@ -635,11 +635,14 @@ ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const&
 Utf16String resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSettingsObject& settings_object)
 {
     // 1. Let map be settingsObject's global object's import map.
-    auto map = relevant_window_or_worker_global_scope(settings_object.global_object()).import_map();
+    // NB: Only a Window's import map is ever modified from the initial empty one.
+    auto const* window = window_from_global_object(settings_object.global_object());
+    if (!window)
+        return {};
 
     // 2. If map's integrity[url] does not exist, then return the empty string.
     // 3. Return map's integrity[url].
-    return map.integrity().get(url).value_or(""_utf16);
+    return window->import_map().integrity().get(url).value_or(""_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-script

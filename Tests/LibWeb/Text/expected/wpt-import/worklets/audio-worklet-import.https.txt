@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+13 Pass
+5 Fail
+Pass	Importing a script resolves the given promise.
+Pass	Importing scripts resolves all the given promises.
+Pass	Importing nested scripts resolves the given promise
+Pass	Importing cyclic scripts resolves the given promise
+Fail	Importing a script which throws should still resolve the given promise.
+Pass	Importing a non-existent script rejects the given promise with an AbortError.
+Pass	Importing an invalid URL should reject the given promise with a SyntaxError.
+Pass	Importing a blob URL should resolve the given promise.
+Pass	Importing a file:// URL should reject the given promise.
+Pass	Importing a data URL should resolve the given promise.
+Pass	Importing about:blank should reject the given promise.
+Fail	Importing a cross origin resource with the Access-Control-Allow-Origin header should resolve the given promise
+Pass	Importing a cross origin resource without the Access-Control-Allow-Origin header should reject the given promise
+Fail	Importing a cross-origin-redirected resource with the Access-Control-Allow-Origin header should resolve the given promise
+Pass	Importing a cross-origin-redirected resource without the Access-Control-Allow-Origin header should reject the given promise
+Fail	Importing a script that has a syntax error should reject the given promise.
+Fail	Importing a nested script that has a syntax error should reject the given promise.
+Pass	Importing a script that imports an invalid identifier should reject the given promise.
