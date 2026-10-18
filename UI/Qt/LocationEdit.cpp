@@ -51,7 +51,6 @@ private:
     virtual void paintEvent(QPaintEvent*) override
     {
         static constexpr int hover_size = 23;
-        static constexpr int icon_y_offset = -1;
         static constexpr qreal hover_y_offset = 1.0;
 
         QPainter painter(this);
@@ -70,7 +69,7 @@ private:
 
         auto icon_rect = QRect(
             (width() - iconSize().width()) / 2,
-            (height() - iconSize().height()) / 2 + icon_y_offset,
+            (height() - iconSize().height()) / 2,
             iconSize().width(),
             iconSize().height());
         icon().paint(&painter, icon_rect, Qt::AlignCenter, isEnabled() ? QIcon::Normal : QIcon::Disabled, isDown() ? QIcon::On : QIcon::Off);
