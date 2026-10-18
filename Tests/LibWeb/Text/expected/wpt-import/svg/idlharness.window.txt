@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1158 Pass
-622 Fail
+1168 Pass
+612 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1740,16 +1740,16 @@ Pass	SVGElement interface: objects.animateMotion must inherit property "ownerSVG
 Pass	SVGElement interface: objects.animateMotion must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.animateMotion must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.animateMotion must inherit property "correspondingUseElement" with the proper type
-Fail	SVGMPathElement interface: existence and properties of interface object
-Fail	SVGMPathElement interface object length
-Fail	SVGMPathElement interface object name
-Fail	SVGMPathElement interface: existence and properties of interface prototype object
-Fail	SVGMPathElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGMPathElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGMPathElement interface: attribute href
-Fail	SVGMPathElement must be primary interface of objects.mpath
-Fail	Stringification of objects.mpath
-Fail	SVGMPathElement interface: objects.mpath must inherit property "href" with the proper type
+Pass	SVGMPathElement interface: existence and properties of interface object
+Pass	SVGMPathElement interface object length
+Pass	SVGMPathElement interface object name
+Pass	SVGMPathElement interface: existence and properties of interface prototype object
+Pass	SVGMPathElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGMPathElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGMPathElement interface: attribute href
+Pass	SVGMPathElement must be primary interface of objects.mpath
+Pass	Stringification of objects.mpath
+Pass	SVGMPathElement interface: objects.mpath must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.mpath must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.mpath must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.mpath must inherit property "viewportElement" with the proper type

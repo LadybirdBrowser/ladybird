@@ -938,6 +938,7 @@ set(SOURCES
     SVG/SVGList.cpp
     SVG/SVGMaskElement.cpp
     SVG/SVGMetadataElement.cpp
+    SVG/SVGMPathElement.cpp
     SVG/SVGNumber.cpp
     SVG/SVGNumberList.cpp
     SVG/SVGPathElement.cpp
