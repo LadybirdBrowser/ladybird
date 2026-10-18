@@ -1,0 +1,40 @@
+t=0
+  lines: 0.0, 0.0
+  relative-lines: 10.0, 10.0
+  curve: 0.0, 0.0
+  arc: 100.0, 0.0
+  subpaths: 0.0, 0.0
+  zero-length: 30.0, 40.0
+  move-only: 30.0, 40.0
+  empty: 0.0, 0.0
+  overrides-from-and-to: 0.0, 0.0
+t=0.5
+  lines: 50.0, 0.0
+  relative-lines: 60.0, 10.0
+  curve: 25.0, 0.0
+  arc: 70.7, 70.7
+  subpaths: 50.0, 0.0
+  zero-length: 30.0, 40.0
+  move-only: 30.0, 40.0
+  empty: 0.0, 0.0
+  overrides-from-and-to: 50.0, 0.0
+t=1
+  lines: 100.0, 0.0
+  relative-lines: 110.0, 10.0
+  curve: 50.0, 0.0
+  arc: 0.0, 100.0
+  subpaths: 0.0, 200.0
+  zero-length: 30.0, 40.0
+  move-only: 30.0, 40.0
+  empty: 0.0, 0.0
+  overrides-from-and-to: 100.0, 0.0
+t=1.5
+  lines: 100.0, 50.0
+  relative-lines: 110.0, 60.0
+  curve: 75.0, 0.0
+  arc: -70.7, 70.7
+  subpaths: 50.0, 200.0
+  zero-length: 30.0, 40.0
+  move-only: 30.0, 40.0
+  empty: 0.0, 0.0
+  overrides-from-and-to: 150.0, 0.0
