@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<title>border-box and max-content with aspect ratio should include borders</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3">
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/border-box-and-max-content-002-ref.html">
+<style>
+    .wrapper {
+        border: 1px solid red;
+        width: max-content;
+    }
+    .item {
+        max-width: max-content;
+        height: 500px;
+        aspect-ratio: 1;
+        padding: 10px 20px;
+        box-sizing: border-box;
+        background-color: blue;
+    }
+</style>
+<div class="wrapper">
+    <div class="item"></div>
+</div>
