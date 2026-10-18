@@ -24,6 +24,8 @@
 #include <LibWeb/HTML/TrackEvent.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebVTT/Parser.h>
+#include <LibWeb/WebVTT/VTTCue.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 
 namespace Web::HTML {
@@ -67,8 +69,10 @@ void HTMLTrackElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
         m_track->set_language(value_or_empty);
     } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::src)) {
         // https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks:attr-track-src
-        // FIXME: Whenever a track element has its src attribute set, changed, or removed, the user agent must immediately empty the element's text track's text track list of cues.
-        //        (This also causes the algorithm above to stop adding cues from the resource being obtained using the previously given URL, if any.)
+        // Whenever a track element has its src attribute set, changed, or removed, the user agent must immediately empty the element's text track's text track list of cues.
+        // (This also causes the algorithm above to stop adding cues from the resource being obtained using the previously given URL, if any.)
+        m_track->empty_text_track_list_of_cues();
+        ++m_src_generation;
 
         if (!value.has_value())
             return;
@@ -265,7 +269,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Track);
 
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-        fetch_algorithms_input.process_response_consume_body = [this](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = [this, src_generation = m_src_generation](auto response, auto body_bytes) {
             m_loading = false;
 
             // If fetching fails for any reason (network error, the server returns an error code, CORS fails, etc.),
@@ -280,19 +284,28 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
             // (e.g., the format in question is an XML format and the file contained a well-formedness error that XML requires be detected and reported to the application),
             // then the task that is queued on the networking task source in which the aforementioned problem is found must change the text track readiness state to failed to
             // load and fire an event named error at the track element.
-            // FIXME: Currently we always fail here, since we don't support loading any track formats.
-            track_failed_to_load();
+            // FIXME: Support text track formats other than WebVTT, and parse the file incrementally as it is received.
+            auto cues = WebVTT::parse_webvtt_file(body_bytes.template get<Core::ImmutableBytes>().bytes());
+            if (!cues.has_value()) {
+                track_failed_to_load();
+                return;
+            }
 
             // If fetching does not fail, and the file was successfully processed, then the final task that is queued by the networking task source,
             // after it has finished parsing the data, must change the text track readiness state to loaded, and fire an event named load at the track element.
-            // FIXME: Enable this once we support processing track files
-            if (false) {
-                queue_an_element_task(Task::Source::Networking, [this]() {
-                    m_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
-                    dispatch_event(DOM::Event::create(HTML::EventNames::load,
-                        HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
-                });
-            }
+            queue_an_element_task(Task::Source::Networking, [this, cues = cues.release_value(), src_generation]() {
+                if (src_generation == m_src_generation) {
+                    for (auto const& parsed_cue : cues) {
+                        auto cue = MUST(WebVTT::VTTCue::create(parsed_cue.start_time, parsed_cue.end_time, parsed_cue.text));
+                        cue->set_id(parsed_cue.identifier);
+                        m_track->add_cue(cue);
+                    }
+                }
+
+                m_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
+                dispatch_event(DOM::Event::create(HTML::EventNames::load,
+                    HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
+            });
         };
 
         // 4. Fetch request.

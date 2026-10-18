@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- DO NOT EDIT! This file and support/timings-too-short.vtt are generated. -->
+<!-- See /webvtt/parsing/file-parsing/README.md -->
+<meta charset=utf-8>
+<title>WebVTT parser test: timings, too short</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#collect-a-webvtt-timestamp">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+var t = async_test('timings, too short');
+t.step(function(){
+    var video = document.createElement('video');
+    var track = document.createElement('track');
+    assert_true('src' in track, 'track element not supported');
+    track.src = 'support/timings-too-short.vtt';
+    track['default'] = true;
+    track.kind = 'subtitles';
+    track.onload = this.step_func(trackLoaded);
+    track.onerror = this.step_func(trackError);
+    video.appendChild(track);
+    document.body.appendChild(video);
+});
+
+function trackLoaded(event) {
+    var track = event.target;
+    var video = track.parentNode;
+    var cues = video.textTracks[0].cues;
+    {
+assert_equals(cues.length, 2);
+
+assert_equals(cues[0].text, 'text0');
+assert_equals(cues[0].startTime, 0);
+assert_equals(cues[0].endTime, 1);
+
+assert_equals(cues[1].text, 'text1');
+assert_equals(cues[1].startTime, 0);
+assert_equals(cues[1].endTime, 1);
+
+    }
+    this.done();
+}
+
+function trackError(e) {
+    assert_unreached('got unexpected error event');
+}
+</script>

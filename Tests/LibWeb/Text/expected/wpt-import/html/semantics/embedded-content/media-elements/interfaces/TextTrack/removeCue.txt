@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	TextTrack.removeCue(), two elementless tracks
-Fail	TextTrack.removeCue(), cue from track element
+Pass	TextTrack.removeCue(), cue from track element

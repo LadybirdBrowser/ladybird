@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<video><track src="data:text/vtt,WEBVTT%0A%0A00:00.000 --> 00:01.000%0Afirst"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const trackElement = document.querySelector("track");
+        const track = trackElement.track;
+        const cueTexts = () => Array.from(track.cues, cue => cue.text).join(", ");
+
+        if (trackElement.readyState !== HTMLTrackElement.LOADED)
+            await new Promise(resolve => trackElement.addEventListener("load", resolve, { once: true }));
+        println(`first src: ${cueTexts()}`);
+
+        trackElement.src = "data:text/vtt,WEBVTT%0A%0A00:00.000 --> 00:01.000%0Asecond one%0A%0A00:01.000 --> 00:02.000%0Asecond two";
+        println(`after setting src: ${track.cues.length} cues`);
+
+        await new Promise(resolve => trackElement.addEventListener("load", resolve, { once: true }));
+        println(`second src: ${cueTexts()}`);
+
+        done();
+    });
+</script>

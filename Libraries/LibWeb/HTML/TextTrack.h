@@ -55,6 +55,7 @@ public:
 
     void add_cue(GC::Ref<TextTrackCue>);
     WebIDL::ExceptionOr<void> remove_cue(GC::Ref<TextTrackCue>);
+    void empty_text_track_list_of_cues();
 
     ReadonlySpan<GC::Ref<TextTrackCue>> text_track_list_of_cues() const { return m_text_track_list_of_cues; }
     void sort_text_track_list_of_cues();

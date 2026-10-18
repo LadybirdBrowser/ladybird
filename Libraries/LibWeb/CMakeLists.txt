@@ -1076,6 +1076,7 @@ set(SOURCES
     WebIDL/Promise.cpp
     WebIDL/QuotaExceededError.cpp
     WebSockets/WebSocket.cpp
+    WebVTT/Parser.cpp
     WebVTT/VTTCue.cpp
     WebVTT/VTTRegion.cpp
     WebXR/XRLayer.cpp

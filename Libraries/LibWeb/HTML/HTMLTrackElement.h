@@ -59,6 +59,9 @@ private:
 
     bool m_loading { false };
     bool m_awaiting_track_url_change { false };
+
+    // Incremented whenever the src attribute changes, so cues from a previously given URL are not added.
+    u64 m_src_generation { 0 };
 };
 
 }

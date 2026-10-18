@@ -1,0 +1,3 @@
+first src: first
+after setting src: 0 cues
+second src: second one, second two
