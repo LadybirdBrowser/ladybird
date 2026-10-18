@@ -41,14 +41,22 @@ static GC::Ref<Web::DOM::Element> append_style(Web::DOM::Document& document, Utf
     return style;
 }
 
-TEST_CASE(unique_style_text_is_not_retained_in_the_shared_sheet_cache)
+// Detaches enough other sheets that every sheet detached before them is released.
+static void push_out_detached_sheets(Web::DOM::Document& document)
+{
+    for (size_t index = 0; index < Web::CSS::StyleComputer::max_detached_shared_compiled_style_sheets; ++index)
+        append_style(document, Utf16String::formatted("/* filler {} */", index))->remove();
+}
+
+TEST_CASE(unique_style_text_is_retained_only_up_to_the_detached_sheet_limit)
 {
     auto document = create_document();
     for (size_t index = 0; index < 128; ++index) {
         auto style = append_style(document, Utf16String::formatted("/* {} */", index));
         style->remove();
     }
-    EXPECT(document->style_computer().shared_compiled_style_sheets().is_empty());
+    EXPECT_EQ(document->style_computer().shared_compiled_style_sheets().size(), Web::CSS::StyleComputer::max_detached_shared_compiled_style_sheets);
+    EXPECT_EQ(document->style_computer().detached_shared_compiled_style_sheets().size(), Web::CSS::StyleComputer::max_detached_shared_compiled_style_sheets);
 }
 
 TEST_CASE(shared_sheet_contents_are_released_after_the_last_detachment)
@@ -65,13 +73,20 @@ TEST_CASE(shared_sheet_contents_are_released_after_the_last_detachment)
     second->remove();
     EXPECT_EQ(cache.size(), 1u);
     EXPECT(contents);
+    auto sheet_id = cache.begin()->value->sheet_id();
     third->remove();
-    EXPECT(cache.is_empty());
-    EXPECT(!contents);
+    // The detached sheet is kept, so the same text arriving again attaches it instead of compiling it anew.
+    EXPECT_EQ(cache.size(), 1u);
+    EXPECT(contents);
     auto replacement = append_style(document, "div { color: red; }"_utf16);
     EXPECT_EQ(cache.size(), 1u);
+    EXPECT(contents);
+    EXPECT_EQ(document->style_scope().style_sheets().last()->style_engine_sheet_id(), sheet_id);
+    EXPECT(document->style_computer().detached_shared_compiled_style_sheets().is_empty());
     replacement->remove();
-    EXPECT(cache.is_empty());
+    EXPECT(contents);
+    push_out_detached_sheets(document);
+    EXPECT(!contents);
 }
 
 TEST_CASE(shared_sheet_contents_are_released_after_copy_on_write)
@@ -82,9 +97,12 @@ TEST_CASE(shared_sheet_contents_are_released_after_copy_on_write)
     EXPECT_EQ(cache.size(), 1u);
     auto contents = cache.begin()->value->contents().make_weak_ptr();
     MUST(document->style_scope().style_sheets().last()->insert_rule("span { color: red; }"_utf16, 0));
-    EXPECT(cache.is_empty());
-    EXPECT(!contents);
+    // The edited sheet no longer shares, and the shared sheet of the original text is kept like any detached one.
+    EXPECT(!document->style_scope().style_sheets().last()->shared_compiled_style_sheet());
+    EXPECT_EQ(document->style_computer().detached_shared_compiled_style_sheets().size(), 1u);
     second->remove();
+    push_out_detached_sheets(document);
+    EXPECT(!contents);
 }
 
 TEST_CASE(first_instance_uses_shared_compiled_contents)
@@ -110,8 +128,9 @@ TEST_CASE(first_instance_uses_shared_compiled_contents)
     EXPECT(contents);
     EXPECT_EQ(second_sheet.shared_compiled_style_sheet(), shared);
     second->remove();
+    EXPECT(contents);
+    push_out_detached_sheets(document);
     EXPECT(!contents);
-    EXPECT(document->style_computer().shared_compiled_style_sheets().is_empty());
 }
 
 TEST_CASE(occurrences_share_across_media_and_disabled_changes)
@@ -125,6 +144,7 @@ TEST_CASE(occurrences_share_across_media_and_disabled_changes)
     EXPECT(shared);
     EXPECT_EQ(second_sheet.shared_compiled_style_sheet(), shared);
     auto sheet_id = first_sheet.style_engine_sheet_id();
+    auto contents = shared->contents().make_weak_ptr();
     first_sheet.set_disabled(true);
     second_sheet.set_media("print"_utf16);
     EXPECT_EQ(first_sheet.shared_compiled_style_sheet(), shared);
@@ -141,7 +161,9 @@ TEST_CASE(occurrences_share_across_media_and_disabled_changes)
     first->remove();
     EXPECT_EQ(document->style_computer().shared_compiled_style_sheets().size(), 1u);
     second->remove();
-    EXPECT(document->style_computer().shared_compiled_style_sheets().is_empty());
+    EXPECT(contents);
+    push_out_detached_sheets(document);
+    EXPECT(!contents);
 }
 
 TEST_CASE(anonymous_layers_keep_distinct_identities_in_the_same_scope)
@@ -154,7 +176,9 @@ TEST_CASE(anonymous_layers_keep_distinct_identities_in_the_same_scope)
     EXPECT(first_sheet.shared_compiled_style_sheet());
     EXPECT(!second_sheet.shared_compiled_style_sheet());
     EXPECT_NE(first_sheet.style_engine_sheet_id(), second_sheet.style_engine_sheet_id());
+    auto contents = first_sheet.shared_compiled_style_sheet()->contents().make_weak_ptr();
     first->remove();
     second->remove();
-    EXPECT(document->style_computer().shared_compiled_style_sheets().is_empty());
+    push_out_detached_sheets(document);
+    EXPECT(!contents);
 }

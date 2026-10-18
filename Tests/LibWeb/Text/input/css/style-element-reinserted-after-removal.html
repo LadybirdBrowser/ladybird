@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.style.width = "200px";
+        frame.srcdoc = "<!DOCTYPE html><body><span class='target'>target</span>";
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+
+        const frameDocument = frame.contentDocument;
+        const target = frameDocument.querySelector(".target");
+        const css = ".target { color: rgb(1, 2, 3); } @media (min-width: 300px) { .target { background-color: rgb(4, 5, 6); } }";
+        const insert = text => {
+            const style = frameDocument.createElement("style");
+            style.textContent = text;
+            frameDocument.head.append(style);
+            return style;
+        };
+        const report = label => {
+            const computed = frame.contentWindow.getComputedStyle(target);
+            println(`${label}: color=${computed.color} background=${computed.backgroundColor}`);
+        };
+
+        let style = insert(css);
+        report("inserted");
+        style.remove();
+        report("removed");
+
+        // The viewport changes while no element holds the sheet.
+        frame.style.width = "400px";
+        frameDocument.body.offsetWidth;
+        report("resized");
+        style = insert(css);
+        report("reinserted");
+        style.remove();
+
+        // Enough other sheets come and go that the first one's compiled form is released.
+        for (let i = 0; i < 12; ++i)
+            insert(`.target { color: rgb(${i}, 0, 0); }`).remove();
+        report("after other sheets");
+        style = insert(css);
+        report("reinserted after other sheets");
+        style.remove();
+
+        // A sheet removed from the document is reused in a shadow tree.
+        const host = frameDocument.createElement("div");
+        frameDocument.body.append(host);
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>${css}</style><span class="target">shadow</span>`;
+        const shadowComputed = frame.contentWindow.getComputedStyle(shadow.querySelector(".target"));
+        println(`shadow: color=${shadowComputed.color} background=${shadowComputed.backgroundColor}`);
+        report("document after shadow");
+    });
+</script>

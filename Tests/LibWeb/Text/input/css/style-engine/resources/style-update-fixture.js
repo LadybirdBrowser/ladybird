@@ -28,7 +28,10 @@ function createStyleUpdateFixture(elementCount, scenario, seed, measure = false)
     if (!Number.isInteger(elementCount) || elementCount < 100 || !["connected", "detached"].includes(scenario))
         throw new Error("Invalid fixture configuration");
     const style = document.createElement("style");
+    // Each fixture's sheet text is distinct, so that its construction compiles the sheet rather than reusing
+    // the compiled sheet an earlier fixture left behind.
     style.textContent = `
+        /* ${scenario} ${seed} */
         .fixture { color: rgb(10, 20, 30) }
         .fixture.theme { color: rgb(40, 50, 60) }
         .fixture .item { display: block; opacity: 1; margin: 0; padding: 0; border: 0 solid black }

@@ -217,6 +217,9 @@ public:
     void set_style_engine_sheet_id_for(StyleSheetState&, SheetID);
 
     [[nodiscard]] HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>>& shared_compiled_style_sheets() { return m_shared_compiled_style_sheets; }
+    [[nodiscard]] Vector<SharedCompiledStyleSheetKey>& detached_shared_compiled_style_sheets() { return m_detached_shared_compiled_style_sheets; }
+    // How many shared compiled sheets a document keeps after no tree scope holds them.
+    static constexpr size_t max_detached_shared_compiled_style_sheets = 8;
 
     // The reverse of a node's style node identity. StyleEngine plans in identities; turning a
     // plan back into nodes needs this, and it is maintained at exactly the two points the
@@ -300,6 +303,8 @@ private:
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;
     HashMap<RefPtr<StyleSheetState const>, SheetID> m_constructed_sheet_ids;
     HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>> m_shared_compiled_style_sheets;
+    // The shared compiled sheets that no tree scope holds any longer, least recently detached first.
+    Vector<SharedCompiledStyleSheetKey> m_detached_shared_compiled_style_sheets;
     HashMap<u64, WeakPtr<StyleSheetState const>> m_style_engine_sheet_sources;
 };
 
