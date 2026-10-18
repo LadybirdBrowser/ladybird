@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `event-source-byte-order-mark-${crypto.randomUUID()}`;
+
+        // The second chunk starts with a byte order mark, which makes its first field "﻿data".
+        const firstChunk = "data: one\n\n";
+        const url = await server.createEcho("GET", "/event-source-byte-order-mark", {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream", "Access-Control-Allow-Origin": "*" },
+            body: `${firstChunk}﻿data: two\n\ndata: three\n\n`,
+        });
+
+        const source = new EventSource(`${url}?chunks=${firstChunk.length}&chunk_unblock_tokens=${token}`);
+        await new Promise(resolve => {
+            source.onmessage = event => {
+                println(`message: ${event.data}`);
+                if (event.data === "one")
+                    fetch(`${server.baseURL}/unblock/${token}`);
+                if (event.data === "three")
+                    resolve();
+            };
+        });
+        source.close();
+    });
+</script>

@@ -157,7 +157,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
         else {
             event_source->announce_the_connection();
 
-            auto process_body_chunk = GC::create_function(GC::Heap::the(), [event_source, pending_data = ByteBuffer()](ByteBuffer body) mutable {
+            auto process_body_chunk = GC::create_function(GC::Heap::the(), [event_source, pending_data = ByteBuffer(), is_start_of_stream = true](ByteBuffer body) mutable {
                 if (pending_data.is_empty())
                     pending_data = move(body);
                 else
@@ -168,7 +168,8 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
                     return;
 
                 auto end_index = *last_line_break + 1;
-                event_source->interpret_response(pending_data.bytes().slice(0, end_index));
+                event_source->interpret_response(pending_data.bytes().slice(0, end_index), is_start_of_stream);
+                is_start_of_stream = false;
 
                 pending_data = MUST(pending_data.slice(end_index, pending_data.size() - end_index));
             });
@@ -379,9 +380,10 @@ void EventSource::fail_the_connection()
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-void EventSource::interpret_response(ReadonlyBytes response)
+void EventSource::interpret_response(ReadonlyBytes response, bool is_start_of_stream)
 {
-    auto response_string = Utf16String::from_utf8_with_replacement_character(response);
+    // Streams must be decoded using the UTF-8 decode algorithm.
+    auto response_string = Utf16String::from_utf8_with_replacement_character(response, is_start_of_stream ? Utf16String::WithBOMHandling::Yes : Utf16String::WithBOMHandling::No);
 
     // Lines must be processed, in the order they are received, as follows:
     for_each_line(response_string.utf16_view(), [&](auto line) {
