@@ -78,7 +78,7 @@ private:
     void reestablish_the_connection();
     void fail_the_connection();
 
-    void interpret_response(ReadonlyBytes);
+    void interpret_response(ReadonlyBytes, bool is_start_of_stream);
     void process_field(Utf16View field, Utf16View value);
     void dispatch_the_event();
     JS::Object& relevant_global_object() const;
