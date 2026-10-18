@@ -30,6 +30,9 @@ public:
         : QCheckBox("Block ads on this site", parent)
     {
         setAttribute(Qt::WA_MacShowFocusRect, false);
+        // NB: The macOS style widens a checkbox past its layout cell to make room for a focus ring. This switch draws
+        //     its own, so keep it inside its cell, where its text lines up with the site name above it.
+        setAttribute(Qt::WA_LayoutUsesWidgetRect);
         setFocusPolicy(Qt::StrongFocus);
     }
 
@@ -136,6 +139,8 @@ ContentBlockingPopover::ContentBlockingPopover(QWidget* parent)
 
 void ContentBlockingPopover::set_favicon(QIcon const& favicon)
 {
+    // Without a favicon, the site name moves over to the edge rather than sitting next to an empty space.
+    m_favicon->setVisible(!favicon.isNull());
     m_favicon->setPixmap(favicon.pixmap(m_favicon->size(), devicePixelRatioF()));
 }
 
