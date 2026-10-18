@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Each name starts with U+FEFF (EF BB BF).
+        const wasmBytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            // Type section: () -> ()
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+            // Import section: "﻿m" "﻿f" (func 0)
+            0x02, 0x0d, 0x01, 0x04, 0xef, 0xbb, 0xbf, 0x6d, 0x04, 0xef, 0xbb, 0xbf, 0x66, 0x00, 0x00,
+            // Function section
+            0x03, 0x02, 0x01, 0x00,
+            // Export section: "﻿e" (func 1)
+            0x07, 0x08, 0x01, 0x04, 0xef, 0xbb, 0xbf, 0x65, 0x00, 0x01,
+            // Code section
+            0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b,
+            // Custom section: "﻿c"
+            0x00, 0x05, 0x04, 0xef, 0xbb, 0xbf, 0x63,
+        ]);
+
+        const module = new WebAssembly.Module(wasmBytes);
+        const [importDescriptor] = WebAssembly.Module.imports(module);
+        const [exportDescriptor] = WebAssembly.Module.exports(module);
+
+        println(`import module: ${importDescriptor.module === "﻿m"}`);
+        println(`import name: ${importDescriptor.name === "﻿f"}`);
+        println(`export name: ${exportDescriptor.name === "﻿e"}`);
+        println(`custom sections named "\\ufeffc": ${WebAssembly.Module.customSections(module, "﻿c").length}`);
+        println(`custom sections named "c": ${WebAssembly.Module.customSections(module, "c").length}`);
+    });
+</script>

@@ -1,0 +1,5 @@
+import module: true
+import name: true
+export name: true
+custom sections named "\ufeffc": 1
+custom sections named "c": 0
