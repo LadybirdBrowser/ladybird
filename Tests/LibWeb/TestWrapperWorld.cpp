@@ -878,9 +878,9 @@ TEST_CASE(single_shot_timer_restarted_from_callback_keeps_activity_root)
     IGNORE_USE_IN_ESCAPING_LAMBDA Core::EventLoop event_loop;
     auto vm = JS::VM::create();
     IGNORE_USE_IN_ESCAPING_LAMBDA GC::Root<Web::Platform::Timer> timer;
-    timer = Web::Platform::Timer::create_single_shot(GC::Heap::the(), 0, nullptr);
+    timer = Web::Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), nullptr);
     timer->on_timeout = GC::create_function(GC::Heap::the(), [&] {
-        timer->restart(1000);
+        timer->restart(AK::Duration::from_milliseconds(1000));
         event_loop.quit(0);
     });
 

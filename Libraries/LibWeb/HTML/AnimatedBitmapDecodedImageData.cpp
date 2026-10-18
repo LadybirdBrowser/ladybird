@@ -155,7 +155,7 @@ void AnimatedBitmapDecodedImageData::start_animation()
     //     of which should guarantee that we are at the beginning of the animation.
     VERIFY(m_current_frame_index == 0 && m_loops_completed == 0);
 
-    m_animation_timer->start(frame_duration(0));
+    m_animation_timer->start(AK::Duration::from_milliseconds(frame_duration(0)));
 }
 
 void AnimatedBitmapDecodedImageData::stop_animation()
@@ -169,8 +169,8 @@ void AnimatedBitmapDecodedImageData::advance_animation()
     maybe_request_more_frames(m_current_frame_index);
 
     auto current_frame_duration = frame_duration(m_current_frame_index);
-    if (current_frame_duration != m_animation_timer->interval())
-        m_animation_timer->restart(current_frame_duration);
+    if (AK::Duration::from_milliseconds(current_frame_duration) != m_animation_timer->interval())
+        m_animation_timer->restart(AK::Duration::from_milliseconds(current_frame_duration));
 
     if (m_current_frame_index == m_frame_count - 1) {
         ++m_loops_completed;

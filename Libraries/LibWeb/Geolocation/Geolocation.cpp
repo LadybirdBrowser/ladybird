@@ -385,7 +385,7 @@ void Geolocation::acquire_position_from_page(GC::Ref<WebIDL::CallbackType> succe
     auto request_state = make_ref_counted<GeolocationRequestState>();
     auto weak_document = GC::Weak<DOM::Document> { document };
     auto weak_page = GC::Weak<Page> { page };
-    auto timeout_timer = Platform::Timer::create_single_shot(heap(), min(options.timeout, NumericLimits<int>::max()), {});
+    auto timeout_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(min(options.timeout, NumericLimits<int>::max())), {});
     m_timeout_timers.append(timeout_timer);
 
     auto stop_timeout_timer = [this, timeout_timer, request_state] {
@@ -522,7 +522,7 @@ void Geolocation::run_in_parallel_when_document_is_visible(DOM::Document& docume
 
     // Run the callback as soon as the document becomes visible. If we time out, do not run the callback at all.
     auto document_observer = DOM::DocumentObserver::create(document);
-    auto timeout_timer = Platform::Timer::create_single_shot(GC::Heap::the(), VISIBILITY_STATE_TIMEOUT_MS, {});
+    auto timeout_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(VISIBILITY_STATE_TIMEOUT_MS), {});
     m_timeout_timers.append(timeout_timer);
     auto clear_observer_and_timer = [this, document_observer, timeout_timer] {
         document_observer->set_document_visibility_state_observer({});

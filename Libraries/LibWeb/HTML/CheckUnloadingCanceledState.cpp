@@ -30,7 +30,7 @@ CheckUnloadingCanceledState::CheckUnloadingCanceledState(
     , m_traversable(traversable)
     , m_user_involvement(user_involvement)
     , m_callback(callback)
-    , m_timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
+    , m_timeout(Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(TIMEOUT_MS), GC::create_function(heap(), [this] {
         if (!m_completed) {
             if (has_pending_before_unload_dialog()) {
                 m_timeout->restart();

@@ -6432,7 +6432,7 @@ struct DocumentLifecycleState : public GC::Cell {
         : remaining_children(remaining)
         , document(document)
         , finish_callback(finish_callback)
-        , timeout(Platform::Timer::create_single_shot(GC::Heap::the(), TIMEOUT_MS, GC::create_function(GC::Heap::the(), [this] {
+        , timeout(Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(TIMEOUT_MS), GC::create_function(GC::Heap::the(), [this] {
             if (remaining_children > 0)
                 dbgln("FIXME: Document unload/destruction timed out with {} remaining children", remaining_children);
         })))
