@@ -247,7 +247,7 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
     } else if constexpr (IsOneOf<ValueType, ByteBuffer, Bytes, ReadonlyBytes>) {
         TRY(bind_blob_bytes(statement, index, value));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
-        TRY(try_apply_placeholder(statement_id, index, value.offset_to_epoch().to_milliseconds()));
+        TRY(try_apply_placeholder(statement_id, index, value.milliseconds_since_epoch()));
     } else if constexpr (IsSame<ValueType, double>) {
         SQL_TRY(sqlite3_bind_double(statement, index, value));
     } else if constexpr (IsIntegral<ValueType>) {
