@@ -101,7 +101,11 @@ class LinkedResourceFinder(HTMLParser):
                 self._resources.add(attr_dict["action"])
 
     def handle_endtag(self, tag):
-        self._tag_stack_.pop()
+        # Close the most recent matching start tag along with any tags left open inside it. End tags without a matching
+        # start tag, such as a </html> after an omitted <html>, close nothing.
+        if tag in self._tag_stack_:
+            while self._tag_stack_.pop() != tag:
+                pass
 
     def handle_data(self, data):
         if self._tag_stack_ and self._tag_stack_[-1] == "style":
