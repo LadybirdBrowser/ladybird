@@ -9,10 +9,10 @@
 #include <LibJS/ScriptCompilation.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -351,9 +351,7 @@ GC::Ptr<WebIDL::Promise> ModuleScript::run(PreventErrorReporting prevent_error_r
     if (prevent_error_reporting == PreventErrorReporting::No) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         WebIDL::upon_rejection(*evaluation_promise, GC::create_function(GC::Heap::the(), [&realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
-            auto* window_or_worker = window_or_worker_global_scope_from_global_object(realm.global_object());
-            VERIFY(window_or_worker);
-            window_or_worker->report_an_exception(reason);
+            report_an_exception(realm.global_object(), reason);
             return JS::js_undefined();
         }));
     }

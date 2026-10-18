@@ -39,7 +39,7 @@ static void report_worker_exception(WindowOrWorkerGlobalScopeMixin& window_or_wo
 {
     auto& realm = relevant_realm(window_or_worker);
     auto wrapped_error = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { error });
-    window_or_worker.report_an_exception(wrapped_error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+    report_an_exception(relevant_global_object(window_or_worker), wrapped_error, OmitError::Yes);
 }
 
 GC::Ref<WorkerAgentParent> WorkerAgentParent::create(URL::URL url, WorkerOptions const& options,

@@ -119,11 +119,8 @@ public:
 
     void report_error(JS::Value e);
 
-    enum class OmitError {
-        Yes,
-        No,
-    };
-    void report_an_exception(JS::Value exception, OmitError = OmitError::No);
+    bool is_in_error_reporting_mode() const { return m_in_error_reporting_mode; }
+    void set_in_error_reporting_mode(bool value) { m_in_error_reporting_mode = value; }
 
     void push_onto_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise>);
     bool remove_from_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise>);
@@ -219,7 +216,7 @@ private:
 
     GC::Ptr<TrustedTypes::TrustedTypePolicyFactory> m_trusted_type_policy_factory;
 
-    bool m_error_reporting_mode { false };
+    bool m_in_error_reporting_mode { false };
 
     WebSockets::WebSocket::List m_registered_web_sockets;
 

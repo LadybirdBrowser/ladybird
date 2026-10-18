@@ -49,6 +49,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -165,11 +166,7 @@ DOM::EventTarget* current_target_global(WebIDL::CallbackType& callback, DOM::Eve
 void report_exception_for_callback(WebIDL::CallbackType& callback, JS::Value exception)
 {
     auto& realm = callback.callback->shape().realm();
-    auto& global = realm.global_object();
-
-    auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(global);
-    VERIFY(window_or_worker);
-    window_or_worker->report_an_exception(exception);
+    HTML::report_an_exception(realm.global_object(), exception);
 }
 
 JS::Completion invoke_event_listener(WebIDL::CallbackType& callback, DOM::Event& event)

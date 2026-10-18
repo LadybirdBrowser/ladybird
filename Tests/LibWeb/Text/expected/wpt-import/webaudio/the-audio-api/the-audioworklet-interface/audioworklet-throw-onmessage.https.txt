@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Throwing in an onmessage handler in the AudioWorkletGlobalScope shouldn't stop AudioWorkletProcessor
