@@ -1435,6 +1435,35 @@ impl RetainedState {
         }
     }
 
+    /// Record the style record the pseudo-element of `pseudo_kind` of an element holds; zero is
+    /// none. Keep it alive until the host replaces it, as an element's, even when the engine
+    /// publishes a newer assignment.
+    pub fn set_held_pseudo_style_record(&mut self, node: StyleNodeID, pseudo_kind: u8, style_record: u64) {
+        let held = self.held_pseudo_style_records.entry(node).or_default();
+        let slot = held.iter().position(|&(kind, _)| kind == pseudo_kind);
+        let previous = match slot {
+            Some(slot) if style_record == 0 => Some(held.swap_remove(slot).1),
+            Some(slot) => Some(std::mem::replace(&mut held[slot].1, style_record)),
+            None if style_record == 0 => None,
+            None => {
+                held.push((pseudo_kind, style_record));
+                None
+            }
+        };
+        if held.is_empty() {
+            self.held_pseudo_style_records.remove(&node);
+        }
+        if previous == Some(style_record) {
+            return;
+        }
+        if style_record != 0 {
+            self.computed_group_sets.pin_style_record(style_record);
+        }
+        if let Some(previous) = previous {
+            self.computed_group_sets.unpin_style_record(previous);
+        }
+    }
+
     /// Record that a child of an element or shadow root explicitly inherits a non-inherited
     /// property, as the host marks the node. The mark lasts as long as the node's identity.
     pub fn note_children_explicitly_inherit(&mut self, node: StyleNodeID, groups: u32) {
@@ -1987,6 +2016,7 @@ impl StyleEngine {
                 size_container_queries: Default::default(),
                 counter_style_environment_identities: HashMap::default(),
                 held_style_records: Default::default(),
+                held_pseudo_style_records: Default::default(),
                 tick_shown: Default::default(),
                 backing_elements: HashMap::default(),
                 children_explicitly_inherit_marks: HashMap::default(),
@@ -3384,6 +3414,7 @@ impl RetainedState {
             size_container_queries,
             counter_style_environment_identities: _,
             held_style_records,
+            held_pseudo_style_records,
             // Empty but while a clock frame runs, which no retirement reaches.
             tick_shown: _,
             backing_elements,
@@ -3503,6 +3534,9 @@ impl RetainedState {
         size_container_queries.retire(node);
         backing_elements.remove(&node);
         if let Some(style_record) = held_style_records.remove(&node) {
+            computed_group_sets.unpin_style_record(style_record);
+        }
+        for (_, style_record) in held_pseudo_style_records.remove(&node).into_iter().flatten() {
             computed_group_sets.unpin_style_record(style_record);
         }
         children_explicitly_inherit_marks.remove(&node);

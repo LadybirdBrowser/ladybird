@@ -3331,9 +3331,15 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
                 pseudo_element.publish_scroll_offset();
         });
     }
-    // A newly minted identity holds none of what the element held under its previous one.
-    if (style_node_id != 0 && !!m_installed_style.record())
-        CSS::StyleEngineFFI::style_engine_set_held_style_record(style_engine.host(), style_node_id, m_installed_style.record().value());
+    // A newly minted identity holds none of what the element and its pseudo-elements held under its previous one.
+    if (style_node_id != 0) {
+        if (!!m_installed_style.record())
+            CSS::StyleEngineFFI::style_engine_set_held_style_record(style_engine.host(), style_node_id, m_installed_style.record().value());
+        for_each_synthetic_pseudo_element([&](CSS::PseudoElement type, SyntheticPseudoElement const& pseudo_element) {
+            if (auto style_record = pseudo_element.style_record_identity(); !!style_record)
+                CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_engine.host(), style_node_id, to_underlying(type), style_record.value());
+        });
+    }
     if (style_node_id != 0)
         publish_children_explicitly_inherit_mark();
 }

@@ -12031,6 +12031,63 @@ fn held_style_records_outlive_engine_assignments_and_release_on_retirement() {
 }
 
 #[test]
+fn held_pseudo_style_records_outlive_engine_assignments_and_release_on_retirement() {
+    use super::publication::pseudo_kind::{AFTER, BEFORE};
+    let mut engine = StyleEngine::new();
+    let mut raw_node = [0];
+    engine.allocate_style_nodes(&mut raw_node);
+    let node = StyleNodeID::from_raw(raw_node[0]).unwrap();
+    let publish = |engine: &mut StyleEngine, pseudo_kind, pseudo_element_styles| {
+        engine
+            .publish_computed_groups(
+                computed::ComputedStyleTarget::new(node, pseudo_kind),
+                &[],
+                0,
+                0,
+                computed::ComputedMetadataInput {
+                    pseudo_element_styles,
+                    dependency_flags: 0,
+                    counter_style_environment_identity: 0,
+                    animation_overlay_identity: 0,
+                    animated_overlay: HostShared::null(),
+                    animation_overlay_payloads: &[],
+                    longhand_table: HostShared::null(),
+                },
+            )
+            .style_record_identity
+            .raw()
+    };
+    let held_record = publish(&mut engine, BEFORE, 1);
+    engine.set_held_pseudo_style_record(node, BEFORE, held_record);
+    engine.set_held_pseudo_style_record(node, BEFORE, held_record);
+
+    // The engine can publish a replacement before the host installs it.
+    let replacement = publish(&mut engine, BEFORE, 2);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(engine.computed_group_sets.final_style_record_is_live(held_record));
+
+    // Installing the replacement lets go of the record it replaced, however often the host reported it.
+    engine.set_held_pseudo_style_record(node, BEFORE, replacement);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(!engine.computed_group_sets.final_style_record_is_live(held_record));
+    assert!(engine.computed_group_sets.final_style_record_is_live(replacement));
+
+    // Clearing one pseudo-element's record must not release another's.
+    let after_record = publish(&mut engine, AFTER, 3);
+    engine.set_held_pseudo_style_record(node, AFTER, after_record);
+    engine.set_held_pseudo_style_record(node, BEFORE, 0);
+    engine.computed_group_sets.remove_pseudo(node, BEFORE);
+    engine.computed_group_sets.remove_pseudo(node, AFTER);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(!engine.computed_group_sets.final_style_record_is_live(replacement));
+    assert!(engine.computed_group_sets.final_style_record_is_live(after_record));
+
+    engine.retire_node_state(node);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(!engine.computed_group_sets.final_style_record_is_live(after_record));
+}
+
+#[test]
 fn records_left_unreachable_under_a_lease_are_reclaimed_once_it_drops() {
     let mut engine = StyleEngine::new();
     let mut raw_node = [0];
