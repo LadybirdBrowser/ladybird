@@ -249,8 +249,7 @@ fn sleep_milliseconds(milliseconds: u32) {
     std::thread::sleep(core::time::Duration::from_millis(u64::from(milliseconds)));
 }
 
-/// MonotonicTime::now().milliseconds(): CLOCK_MONOTONIC, with the milliseconds rounded up as AK's
-/// Duration::to_milliseconds() rounds them.
+/// MonotonicTime::now().milliseconds(): CLOCK_MONOTONIC, with the milliseconds rounded down.
 #[cfg(unix)]
 fn monotonic_time_now_in_milliseconds() -> i64 {
     let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
@@ -258,18 +257,14 @@ fn monotonic_time_now_in_milliseconds() -> i64 {
     unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &raw mut time) };
     let seconds: i64 = time.tv_sec;
     let nanoseconds: i64 = time.tv_nsec;
-    let mut milliseconds = seconds * 1000 + nanoseconds / 1_000_000;
-    if nanoseconds % 1_000_000 != 0 {
-        milliseconds += 1;
-    }
-    milliseconds
+    seconds * 1000 + nanoseconds / 1_000_000
 }
 
-/// MonotonicTime::now().milliseconds() on Windows, rounded up the same way, but counted from the first call rather than
-/// from boot, which makes no difference to scripts, as they can only compare the times they read.
+/// MonotonicTime::now().milliseconds() on Windows, rounded down the same way, but counted from the first call rather
+/// than from boot, which makes no difference to scripts, as they can only compare the times they read.
 #[cfg(windows)]
 fn monotonic_time_now_in_milliseconds() -> i64 {
     static FIRST_CALL: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
     let elapsed = FIRST_CALL.get_or_init(std::time::Instant::now).elapsed();
-    i64::try_from(elapsed.as_nanos().div_ceil(1_000_000)).unwrap_or(i64::MAX)
+    i64::try_from(elapsed.as_millis()).unwrap_or(i64::MAX)
 }

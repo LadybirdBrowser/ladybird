@@ -293,6 +293,29 @@ TEST_CASE(truncation)
 #endif
 }
 
+TEST_CASE(flooring)
+{
+    EXPECT_EQ(DURATION(2, 800'800'800).to_floored_seconds(), 2);
+    EXPECT_EQ(DURATION(2, 800'800'800).to_floored_milliseconds(), 2'800);
+    EXPECT_EQ(DURATION(-2, -800'800'800).to_floored_seconds(), -3);
+    EXPECT_EQ(DURATION(-2, -800'800'800).to_floored_milliseconds(), -2'801);
+    EXPECT_EQ(DURATION(0, -1).to_floored_seconds(), -1);
+    EXPECT_EQ(DURATION(0, -1).to_floored_milliseconds(), -1);
+
+    EXPECT_EQ(Duration::min().to_floored_seconds(), (i64)-0x8000'0000'0000'0000);
+    EXPECT_EQ(Duration::max().to_floored_seconds(), 0x7fff'ffff'ffff'ffff);
+    EXPECT_EQ(Duration::min().to_floored_milliseconds(), (i64)-0x8000'0000'0000'0000);
+    EXPECT_EQ(Duration::max().to_floored_milliseconds(), 0x7fff'ffff'ffff'ffff);
+    EXPECT_EQ(Duration::from_milliseconds(NumericLimits<i64>::min() + 1).to_floored_milliseconds(), NumericLimits<i64>::min() + 1);
+
+    auto after_epoch = UnixDateTime::from_nanoseconds_since_epoch(2'800'800'800);
+    EXPECT_EQ(after_epoch.seconds_since_epoch(), 2);
+    EXPECT_EQ(after_epoch.milliseconds_since_epoch(), 2'800);
+    auto before_epoch = UnixDateTime::from_nanoseconds_since_epoch(-2'800'800'800);
+    EXPECT_EQ(before_epoch.seconds_since_epoch(), -3);
+    EXPECT_EQ(before_epoch.milliseconds_since_epoch(), -2'801);
+}
+
 TEST_CASE(is_negative)
 {
     auto small = Duration::from_nanoseconds(10);

@@ -322,7 +322,7 @@ ErrorOr<ByteString> CrashReportStore::store_report(ProcessType process_type, Str
 {
     auto directory = TRY(open_report_directory(m_directory));
 
-    auto seconds = static_cast<time_t>(crashed_at.truncated_seconds_since_epoch());
+    auto seconds = static_cast<time_t>(crashed_at.seconds_since_epoch());
     tm utc_time {};
     if (!gmtime_r(&seconds, &utc_time))
         return Error::from_errno(errno);
