@@ -64,7 +64,9 @@ describe("recompiles after discarded code", () => {
             { length: 16 },
             (_, phase) => `case ${phase}: x = (x ^ ${phase}) + ${phase} | 0; break;`
         );
-        const step = new Function("phase", "x", `switch (phase) { ${cases.join(" ")} } return x;`);
+        // NB: A debugger statement keeps the function from being inlined, where its exits would teach it the cases
+        //     before its own code reaches them.
+        const step = new Function("phase", "x", `debugger; switch (phase) { ${cases.join(" ")} } return x;`);
         jit.prepare(step);
         for (let i = 0; i < 10; ++i) step(0, i);
         expect(jit.compile(step)).toBe(jit.enabled);
@@ -101,20 +103,25 @@ describe("recompiles after discarded code", () => {
             "x",
             "switch (phase) { case 0: return x + 1 | 0; case 1: return x ^ 3; } return x;"
         );
+        // NB: Exits forced at random checks may come before the one where the code reaches the case that never ran,
+        //     which then goes unrecorded and teaches the recompiles nothing.
+        const expectCompiled = compiled => {
+            if (!jit.forcesExits) expect(compiled).toBe(jit.enabled);
+        };
         jit.prepare(step);
         for (let i = 0; i < 10; ++i) step(0, i);
         for (let i = 0; i < 7; ++i) {
-            expect(jit.compile(step)).toBe(jit.enabled);
+            expectCompiled(jit.compile(step));
             jit.discard(step);
         }
         // The code exits where it reaches the case that never ran, which a recompile learns from.
-        expect(jit.compile(step)).toBe(jit.enabled);
+        expectCompiled(jit.compile(step));
         for (let i = 0; i < 20; ++i) expect(step(1, i)).toBe(i ^ 3);
         for (let i = 0; i < 7; ++i) {
-            expect(jit.compile(step)).toBe(jit.enabled);
+            expectCompiled(jit.compile(step));
             jit.discard(step);
         }
-        expect(jit.compile(step)).toBe(jit.enabled);
+        expectCompiled(jit.compile(step));
     });
 
     test("code discarded again and again without new exits is not compiled anymore", () => {
