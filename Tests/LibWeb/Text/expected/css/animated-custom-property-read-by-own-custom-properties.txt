@@ -4,8 +4,8 @@ an eighth of a turn:
   --double-turn: 90deg
   --unrelated: 1px
   background-image: linear-gradient(45deg, rgb(255, 0, 0), rgb(0, 0, 255))
-  ::before rotate: 0deg
-  ::before background-image: linear-gradient(0deg, rgb(255, 0, 0), rgb(0, 0, 255))
+  ::before rotate: 45deg
+  ::before background-image: linear-gradient(45deg, rgb(255, 0, 0), rgb(0, 0, 255))
   child background-image: linear-gradient(45deg, rgb(255, 0, 0), rgb(0, 0, 255))
   child --rotations: rotate(45deg) rotate(45deg)
 three eighths of a turn:
@@ -14,8 +14,8 @@ three eighths of a turn:
   --double-turn: 270deg
   --unrelated: 1px
   background-image: linear-gradient(135deg, rgb(255, 0, 0), rgb(0, 0, 255))
-  ::before rotate: 0deg
-  ::before background-image: linear-gradient(0deg, rgb(255, 0, 0), rgb(0, 0, 255))
+  ::before rotate: 135deg
+  ::before background-image: linear-gradient(135deg, rgb(255, 0, 0), rgb(0, 0, 255))
   child background-image: linear-gradient(135deg, rgb(255, 0, 0), rgb(0, 0, 255))
   child --rotations: rotate(135deg) rotate(135deg)
 cancelled:
