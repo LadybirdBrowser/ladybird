@@ -450,6 +450,12 @@ static void propagate_custom_property_environment_move(StyleReactionApplication&
     move_custom_property_environment_below(application, origin, old_origin_data, origin.custom_property_data({}));
 }
 
+void move_custom_property_environment_below_animated_element(Layout::BegunRead const& read, DOM::Element& element, RefPtr<CustomPropertyData const> old_data)
+{
+    StyleReactionApplication application { read, element.document() };
+    propagate_custom_property_environment_move(application, element, move(old_data));
+}
+
 // Install the record the engine settled for a row, and the pseudo-element records beside it. A C++ computation applied
 // the animation plan it decided beside the record it computed and collected the element's animations, those the plan
 // starts among them, into that record; the host composes them over the record the engine settled once it is installed,

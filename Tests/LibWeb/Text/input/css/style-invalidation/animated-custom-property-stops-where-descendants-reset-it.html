@@ -27,14 +27,18 @@
     #declaring {
         --registered: 5deg;
     }
-    #declaring-reader {
+    #declaring-reader, #moving-declaring-reader {
         --own: 1px;
+    }
+    #moving {
+        --declared: 1px;
     }
 </style>
 <div id="reading" class="source"><div><div><div class="reader" id="deep-reader"></div></div></div></div>
 <div id="resetting" class="source"><div id="reset-child"></div></div>
 <div id="host"><div><span class="reader" id="slotted-reader"></span></div></div>
 <div id="declaring" class="source"><div class="reader" id="declaring-reader"></div></div>
+<div id="moving" class="source"><div class="reader" id="moving-reader"></div><div class="reader" id="moving-declaring-reader"></div></div>
 <script>
     test(() => {
         const shadow = document.getElementById("host").attachShadow({ mode: "open" });
@@ -86,5 +90,15 @@
         println(`reader declaring its own below a registered declaration: ${getComputedStyle(declaringReader).rotate}`);
         animationOf("declaring").currentTime = 500;
         println(`that reader after a step: ${getComputedStyle(declaringReader).rotate}`);
+
+        // A change to the element's own declarations in the same update moves what it hands down once more.
+        const moving = document.getElementById("moving");
+        const rotateOf = id => getComputedStyle(document.getElementById(id)).rotate;
+        animationOf("moving").currentTime = 250;
+        moving.style.setProperty("--declared", "2px");
+        println(`readers when the element's declarations move too: ${rotateOf("moving-reader")}, ${rotateOf("moving-declaring-reader")}`);
+        animationOf("moving").currentTime = 500;
+        moving.style.setProperty("--declared", "3px");
+        println(`those readers after a step: ${rotateOf("moving-reader")}, ${rotateOf("moving-declaring-reader")}`);
     });
 </script>

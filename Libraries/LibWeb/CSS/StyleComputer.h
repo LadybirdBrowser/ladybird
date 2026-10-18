@@ -191,8 +191,8 @@ private:
     [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, StyleRecordID sampled_style_record) const;
     void finish_animation_sample(AnimationSample&, ComputedValuesFFI::FfiHostAnimationSampleResult const&) const;
     void finish_animation_refresh(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet&) const;
-    void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
-    void invalidate_animated_custom_property_readers(DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const;
+    void publish_animated_custom_properties(Layout::BegunRead const&, ComputedStyleWorkingSet&, DOM::AbstractElement) const;
+    void invalidate_animated_custom_property_readers(Layout::BegunRead const&, DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values, RefPtr<CustomPropertyData const> old_data) const;
     RefPtr<ComputedStyleWorkingSet> start_needed_transitions(Layout::BegunRead const& read, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     [[nodiscard]] bool has_provisional_transition_states(DOM::AbstractElement) const;
     void finalize_animated_box_type(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement) const;
@@ -335,5 +335,9 @@ private:
     GC::Ref<StyleComputer const> m_style_computer;
     StyleRecordID m_style_record;
 };
+
+// The custom properties an element's animations sample moved from `old_data`: its descendants take what it hands down
+// now, as they take an environment that a style reaction moved.
+void move_custom_property_environment_below_animated_element(Layout::BegunRead const&, DOM::Element&, RefPtr<CustomPropertyData const> old_data);
 
 }

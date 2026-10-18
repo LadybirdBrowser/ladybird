@@ -240,8 +240,13 @@ impl StyleEngine {
         let holds_inherited_environment = existing == old_parent_inheritable
             || (!declares && !self.retained.node_declares_custom_properties(element));
         if !holds_inherited_environment {
-            // Its declared values stand while it reads nothing that changed.
-            if existing == 0 || !declares || self.environment_move_needs_recompute(element, moved, changed_names) {
+            // Its declared values stand while it reads nothing that changed, over what its parent handed it before
+            // the move. One built over anything else missed an earlier move, which only a computation catches up on.
+            if existing == 0
+                || !declares
+                || !self.environment_is_built_over(existing, old_parent_inheritable)
+                || self.environment_move_needs_recompute(element, moved, changed_names)
+            {
                 act(EnvironmentMoveAction::Recompute(element));
             } else {
                 act(EnvironmentMoveAction::Rebuild(element));
@@ -313,6 +318,19 @@ impl StyleEngine {
             replaced: existing,
         });
         Some(existing)
+    }
+
+    /// Whether the environment `identity` names was built over the one `parent` names.
+    fn environment_is_built_over(&self, identity: u64, parent: u64) -> bool {
+        let environments = &self.retained.custom_property_environments;
+        let Some(store) = environments.store(identity) else {
+            return false;
+        };
+        // SAFETY: The store is live while the identity naming it is.
+        let built_over = unsafe { &*store.cast::<CustomPropertyStore>() }
+            .inheritance_parent()
+            .map_or(std::ptr::null(), |parent| Arc::as_ptr(parent).cast());
+        built_over == environments.store(parent).unwrap_or(std::ptr::null())
     }
 
     /// Whether a moved environment computes the element again rather than handing it the moved
@@ -478,12 +496,26 @@ mod tests {
         }
     }
 
+    /// Give `identity` a store of no values built over the one `parent` names, or over none.
+    fn note_store_built_over(engine: &mut StyleEngine, identity: u64, parent: u64) {
+        let environments = &mut engine.retained.custom_property_environments;
+        let parent = environments.store(parent).unwrap_or(std::ptr::null());
+        // SAFETY: The parent is null or a live store, and the environments retain the new one.
+        unsafe {
+            let store = CustomPropertyStore::cascaded_child(parent, Vec::new());
+            environments.retain(identity, store);
+            drop(Arc::from_raw(store.cast::<CustomPropertyStore>()));
+        }
+    }
+
     #[test]
     fn a_move_stops_at_declarations_readers_overlays_and_unstyled_elements() {
         let (mut engine, nodes) = linear_document();
         discard_transaction(&mut engine);
         settle_cascades(&mut engine, &nodes);
         // An element declaring its own over another environment is rebuilt over the moved one.
+        note_store_built_over(&mut engine, 1, 0);
+        note_store_built_over(&mut engine, 3, 1);
         held_record(&mut engine, nodes[1]);
         engine.set_element_custom_property_data(nodes[1], Some(data(0x1000)), 3, None, true);
         // An element whose style reads the environment through if() computes again.
@@ -500,6 +532,22 @@ mod tests {
                 EnvironmentMoveAction::Recompute(nodes[2]),
             ]
         );
+    }
+
+    #[test]
+    fn a_move_recomputes_a_declaration_that_missed_an_earlier_move() {
+        let (mut engine, nodes) = linear_document();
+        discard_transaction(&mut engine);
+        settle_cascades(&mut engine, &nodes);
+        // The element's environment was built over one its parent no longer hands down, so its
+        // record may be older than the move: rebuilding it would publish that record as current.
+        note_store_built_over(&mut engine, 1, 0);
+        note_store_built_over(&mut engine, 4, 0);
+        note_store_built_over(&mut engine, 3, 4);
+        held_record(&mut engine, nodes[1]);
+        engine.set_element_custom_property_data(nodes[1], Some(data(0x1000)), 3, None, true);
+        let actions = walk(&mut engine, nodes[0], &moved(1, 2));
+        assert_eq!(actions, [EnvironmentMoveAction::Recompute(nodes[1])]);
     }
 
     #[test]
