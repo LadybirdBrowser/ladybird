@@ -1390,10 +1390,13 @@ impl<'pass> SizingContext<'pass> {
                 constraints,
             )
         });
+        // NB: An intrinsic size keyword maximum is at least the box's min-content size, which is no smaller than this
+        //     minimum, so it never caps it. Resolving it would measure the box's intrinsic size, which uses this minimum.
         let maximum = match axis {
             SizingAxis::Inline => {
                 (!self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints)
-                    && !style.max_width().is_auto())
+                    && !style.max_width().is_auto()
+                    && !style.max_width().is_intrinsic_sizing_constraint())
                 .then(|| {
                     self.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints)
                 })
