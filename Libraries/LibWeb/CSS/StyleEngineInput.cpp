@@ -2404,6 +2404,8 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleShe
         // Keep a separate program when another occurrence already occupies this scope.
         if ((*existing)->is_attached_to(tree_scope) && sheet.native_rules().has_anonymous_layer())
             return nullptr;
+        if (!(*existing)->has_attachments())
+            style_computer.detached_shared_compiled_style_sheets().remove_first_matching([&](auto const& detached) { return detached == key; });
         return *existing;
     }
     auto contents = StyleSheetState::create(sheet.native_rules().clone_shared_contents(), &document, RustMediaList {}, {});
@@ -2421,6 +2423,18 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleShe
     return shared_compiled_style_sheet;
 }
 
+static void release_shared_compiled_style_sheet(SharedCompiledStyleSheetKey const& key, StyleComputer& style_computer)
+{
+    auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
+    auto sheet_id = shared_compiled_style_sheets.get(key).value()->sheet_id();
+    auto& style_engine = style_computer.style_engine();
+    StyleEngineFFI::style_engine_begin_sheet_rules_replacement(style_engine.host(), sheet_id.value());
+    style_engine.finish_sheet_rules_replacement(sheet_id);
+    shared_compiled_style_sheets.remove(key);
+    if (shared_compiled_style_sheets.is_empty())
+        shared_compiled_style_sheets.clear();
+}
+
 static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, u64 occurrence, TreeScopeID tree_scope, StyleComputer& style_computer)
 {
     auto& style_engine = style_computer.style_engine();
@@ -2429,12 +2443,13 @@ static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, 
     if (sheet.has_attachments())
         return;
 
-    StyleEngineFFI::style_engine_begin_sheet_rules_replacement(style_engine.host(), sheet.sheet_id().value());
-    style_engine.finish_sheet_rules_replacement(sheet.sheet_id());
-    auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
-    shared_compiled_style_sheets.remove(sheet.key());
-    if (shared_compiled_style_sheets.is_empty())
-        shared_compiled_style_sheets.clear();
+    // Pages commonly insert a sheet they removed a moment ago (or a framework re-creates one with the same text).
+    // Keeping the compiled sheet for a while lets that arrival attach it again instead of compiling every rule anew,
+    // and since it holds the parsed contents, the parse cache answers the arriving text without parsing it again.
+    auto& detached = style_computer.detached_shared_compiled_style_sheets();
+    detached.append(sheet.key());
+    if (detached.size() > StyleComputer::max_detached_shared_compiled_style_sheets)
+        release_shared_compiled_style_sheet(detached.take_first(), style_computer);
 }
 
 bool stop_sharing_compiled_style_sheet(StyleSheetState& sheet)

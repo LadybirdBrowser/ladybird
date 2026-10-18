@@ -1,0 +1,8 @@
+inserted: color=rgb(1, 2, 3) background=rgba(0, 0, 0, 0)
+removed: color=rgb(0, 0, 0) background=rgba(0, 0, 0, 0)
+resized: color=rgb(0, 0, 0) background=rgba(0, 0, 0, 0)
+reinserted: color=rgb(1, 2, 3) background=rgb(4, 5, 6)
+after other sheets: color=rgb(0, 0, 0) background=rgba(0, 0, 0, 0)
+reinserted after other sheets: color=rgb(1, 2, 3) background=rgb(4, 5, 6)
+shadow: color=rgb(1, 2, 3) background=rgb(4, 5, 6)
+document after shadow: color=rgb(0, 0, 0) background=rgba(0, 0, 0, 0)
