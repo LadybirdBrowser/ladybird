@@ -1091,6 +1091,10 @@ after_step_7:
         // 20. Set request's client to the element's node document's relevant settings object.
         request->set_client(&document().relevant_settings_object());
 
+        // AD-HOC: The spec doesn't set an initiator type for img requests, so they would never report resource timing.
+        //         Spec PR: https://github.com/whatwg/html/pull/13101
+        request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::IMG);
+
         // 21. If the element uses srcset or picture, set request's initiator to "imageset".
         if (uses_srcset_or_picture())
             request->set_initiator(Fetch::Infrastructure::Request::Initiator::ImageSet);
@@ -1362,6 +1366,10 @@ void HTMLImageElement::react_to_changes_in_the_environment()
         // 2. Set request's client to client, set request's initiator to "imageset", and set request's synchronous flag.
         request->set_client(&client);
         request->set_initiator(Fetch::Infrastructure::Request::Initiator::ImageSet);
+
+        // AD-HOC: The spec doesn't set an initiator type for img requests, so they would never report resource timing.
+        //         Spec PR: https://github.com/whatwg/html/pull/13101
+        request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::IMG);
 
         // 3. Set request's referrer policy to the current state of the element's referrerpolicy attribute.
         request->set_referrer_policy(ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
