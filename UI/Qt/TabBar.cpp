@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <AK/kmalloc.h>
 #include <UI/Qt/Application.h>
@@ -2256,6 +2257,30 @@ void TabWidget::update_tab_toolbar_window_controls_visibility()
 
 void TabWidget::rebuild_layout()
 {
+    // NB: Moving the page stack between layouts drops keyboard focus from the page, which leaves the window's keyboard
+    //     shortcuts dead until something is clicked. Give focus back to whatever had it.
+    QPointer<QWidget> focus_widget = QApplication::focusWidget();
+    if (focus_widget && !isAncestorOf(focus_widget))
+        focus_widget = nullptr;
+    ScopeGuard restore_focus = [&] {
+        if (!focus_widget)
+            return;
+        auto restore = [focus_widget = focus_widget] {
+            if (!focus_widget || !focus_widget->isVisible())
+                return;
+#if defined(AK_OS_MACOS)
+            make_appkit_window_first_responder(*focus_widget);
+#endif
+            focus_widget->setFocus();
+        };
+        // NB: A widget that moved under an already visible parent, like the toolbar does when the tabs move to the
+        //     side, is only shown again on the next turn of the event loop.
+        if (focus_widget->isVisible())
+            restore();
+        else
+            QTimer::singleShot(0, focus_widget.data(), restore);
+    };
+
     clear_layout(*m_main_layout);
     clear_layout(*m_tab_bar_row_layout);
     clear_layout(*m_page_column_layout);
