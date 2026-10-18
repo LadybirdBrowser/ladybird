@@ -68,7 +68,7 @@ bool ContextPresenter::should_shrink_backing_stores_after_resize() const
 void ContextPresenter::schedule_backing_store_shrink(Function<void()> on_timeout)
 {
     if (!m_backing_store_shrink_timer)
-        m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, move(on_timeout));
+        m_backing_store_shrink_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(3000), move(on_timeout));
     m_backing_store_shrink_timer->restart();
 }
 
@@ -147,7 +147,7 @@ Optional<BackingStoreManager::Publication> ContextPresenter::add_backing_store_f
 void ContextPresenter::schedule_surplus_backing_store_retirement(Function<void()> on_timeout)
 {
     if (!m_surplus_backing_store_retirement_timer)
-        m_surplus_backing_store_retirement_timer = Core::Timer::create_single_shot(3000, move(on_timeout));
+        m_surplus_backing_store_retirement_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(3000), move(on_timeout));
     if (!m_surplus_backing_store_retirement_timer->is_active())
         m_surplus_backing_store_retirement_timer->start();
 }

@@ -339,7 +339,7 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Scheduling remote autocomplete suggestions from {} for '{}'", engine->name, m_query);
 
     static constexpr auto remote_query_debounce_delay_ms = 100;
-    m_remote_query_timer = Core::Timer::create_single_shot(remote_query_debounce_delay_ms, [this, query_id, engine = engine.release_value(), query = m_query] {
+    m_remote_query_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(remote_query_debounce_delay_ms), [this, query_id, engine = engine.release_value(), query = m_query] {
         if (m_query_id != query_id)
             return;
         start_remote_query(query_id, engine, move(query));

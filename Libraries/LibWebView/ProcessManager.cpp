@@ -180,7 +180,7 @@ void ProcessManager::force_exit_after_timeout(pid_t pid, int timeout_ms)
     if (m_forced_exit_timers.contains(pid))
         return;
 
-    auto timer = Core::Timer::create_single_shot(timeout_ms, [this, pid] {
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(timeout_ms), [this, pid] {
         m_forced_exit_timers.remove(pid);
         auto process = m_processes.get(pid);
         if (!process.has_value())

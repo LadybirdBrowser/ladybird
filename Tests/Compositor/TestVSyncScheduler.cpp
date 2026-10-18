@@ -13,8 +13,8 @@ TEST_CASE(requests_before_a_tick_are_coalesced)
 {
     Core::EventLoop event_loop;
     int tick_count = 0;
-    auto timeout = Core::Timer::create_single_shot(1000, [&] { event_loop.quit(0); });
-    auto after_tick = Core::Timer::create_single_shot(50, [&] { event_loop.quit(0); });
+    auto timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [&] { event_loop.quit(0); });
+    auto after_tick = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(50), [&] { event_loop.quit(0); });
     auto scheduler = Compositor::create_vsync_scheduler({}, [&](MonotonicTime) {
         ++tick_count;
         if (tick_count == 1)
@@ -34,7 +34,7 @@ TEST_CASE(a_tick_callback_can_request_the_next_tick)
 {
     Core::EventLoop event_loop;
     int tick_count = 0;
-    auto timeout = Core::Timer::create_single_shot(1000, [&] { event_loop.quit(0); });
+    auto timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [&] { event_loop.quit(0); });
     OwnPtr<Compositor::VSyncScheduler> scheduler;
     scheduler = Compositor::create_vsync_scheduler({}, [&](MonotonicTime) {
         if (++tick_count == 1)
@@ -54,7 +54,7 @@ TEST_CASE(a_refresh_rate_change_rearms_the_pending_tick)
 {
     Core::EventLoop event_loop;
     int tick_count = 0;
-    auto timeout = Core::Timer::create_single_shot(1000, [&] { event_loop.quit(0); });
+    auto timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [&] { event_loop.quit(0); });
     auto scheduler = Compositor::create_vsync_scheduler({}, [&](MonotonicTime) {
         ++tick_count;
         event_loop.quit(0);

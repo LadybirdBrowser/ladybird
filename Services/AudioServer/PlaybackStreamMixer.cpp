@@ -214,7 +214,7 @@ void PlaybackStreamMixer::finish_drain_once_played(MixerClientId id, i64 played_
         finish_drain(id);
         return;
     }
-    auto timer = Core::Timer::create_single_shot(max(1, AK::clamp_to<int>(remaining.to_milliseconds() + 1)), [this, id] {
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(max(1, AK::clamp_to<int>(remaining.to_milliseconds() + 1))), [this, id] {
         m_drain_timers.remove(id);
         finish_drain(id);
     });

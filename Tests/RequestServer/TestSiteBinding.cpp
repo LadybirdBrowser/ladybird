@@ -110,7 +110,7 @@ struct TestServer {
     Optional<Requests::NetworkError> wait_for_request_finished(u64 request_id)
     {
         // The client transport is not part of the event loop here, so keep the loop from sleeping until it has news.
-        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
         wake_timer->start();
 
         Optional<Optional<Requests::NetworkError>> network_error;

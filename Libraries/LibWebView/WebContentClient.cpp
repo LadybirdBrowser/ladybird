@@ -425,7 +425,7 @@ void WebContentClient::close_server_if_unused()
     Application::process_manager().force_exit_after_timeout(pid(), detached_page_forced_exit_timeout_ms);
 
     if (!m_detached_page_close_timer) {
-        m_detached_page_close_timer = Core::Timer::create_single_shot(detached_page_close_timeout_ms, [this] {
+        m_detached_page_close_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(detached_page_close_timeout_ms), [this] {
             dbgln("Timed out waiting for detached WebContent page close acknowledgement");
             for (auto& page : m_pages)
                 page.value->set_detached_close_pending(false);

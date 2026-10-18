@@ -84,7 +84,7 @@ void TabPerformanceMonitor::config_variable_changed(ConfigVariableID id)
     });
     if (!m_enabled)
         return;
-    m_timer = Core::Timer::create_repeating(500, [this] { sample(); });
+    m_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(500), [this] { sample(); });
     m_timer->start();
     sample();
 }

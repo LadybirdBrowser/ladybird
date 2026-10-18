@@ -2795,7 +2795,7 @@ void Document::arm_compositor_animation_timers_for_testing(Badge<Internals::Inte
 {
     stop_compositor_animation_timers();
     schedule_compositor_animation_wakeup(NumericLimits<int>::max());
-    m_compositor_animation_observation_timer = Core::Timer::create_single_shot(NumericLimits<int>::max(), GC::weak_callback(*this, [](auto&) { }));
+    m_compositor_animation_observation_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(NumericLimits<int>::max()), GC::weak_callback(*this, [](auto&) { }));
     m_compositor_animation_observation_timer->start();
 }
 
@@ -7587,7 +7587,7 @@ void Document::shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::H
     //   given, document's active sandboxing flag set does not have the sandboxed automatic features browsing context
     //   flag set, then navigate document's node navigable to urlRecord using document, with historyHandling set to
     //   "replace".
-    m_active_refresh_timer = Core::Timer::create_single_shot(time * 1000, [this, has_meta_element = !!meta_element, url_record = move(url_record)]() {
+    m_active_refresh_timer = Core::Timer::create_single_shot(AK::Duration::from_seconds(time), [this, has_meta_element = !!meta_element, url_record = move(url_record)]() {
         if (has_meta_element && has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedAutomaticFeatures))
             return;
 
@@ -8178,7 +8178,7 @@ void Document::schedule_compositor_animation_wakeup(double delay_ms)
 
     m_compositor_animation_wakeup_deadline = deadline;
     if (!m_compositor_animation_wakeup_timer) {
-        m_compositor_animation_wakeup_timer = Core::Timer::create_single_shot(static_cast<int>(timer_delay_ms), GC::weak_callback(*this, [](auto& document) {
+        m_compositor_animation_wakeup_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(static_cast<int>(timer_delay_ms)), GC::weak_callback(*this, [](auto& document) {
             // Cancelling a finite effect can leave this deadline armed. The single wake-up is harmless: it finds
             // nothing due and leaves the timer idle unless another effect supplies a deadline.
             document.m_compositor_animation_wakeup_deadline.clear();
@@ -8187,7 +8187,7 @@ void Document::schedule_compositor_animation_wakeup(double delay_ms)
             document.service_compositor_animation_wakeup(timestamp);
         }));
     }
-    m_compositor_animation_wakeup_timer->restart(static_cast<int>(timer_delay_ms));
+    m_compositor_animation_wakeup_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(timer_delay_ms)));
 }
 
 void Document::service_compositor_animation_wakeup(double timestamp)
@@ -8978,7 +8978,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             m_compositor_animation_observation_timer->stop();
     } else {
         if (!m_compositor_animation_observation_timer) {
-            m_compositor_animation_observation_timer = Core::Timer::create_single_shot(100, GC::weak_callback(*this, [](auto& document) {
+            m_compositor_animation_observation_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(100), GC::weak_callback(*this, [](auto& document) {
                 ++document.m_style_invalidation_counters.animation_frame_pump_requests;
                 document.page().client().request_frame();
                 document.m_compositor_animation_observation_timer->start();

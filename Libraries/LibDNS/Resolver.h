@@ -595,7 +595,7 @@ public:
         in_flight->question = { name, type, class_ };
         in_flight->dnssec_ok = dnssec_ok;
         in_flight->waiters.append(promise);
-        in_flight->retry_timer = Core::Timer::create_single_shot(query_retry_interval_ms, [this, id] { retry_query(id); });
+        in_flight->retry_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(query_retry_interval_ms), [this, id] { retry_query(id); });
         auto* raw = in_flight.ptr();
         m_in_flight.set(key, move(in_flight));
         m_in_flight_by_id.set(id, key);
@@ -930,7 +930,7 @@ private:
             return;
         constexpr int RESOLUTION_DELAY_MS = 50;
         auto weak_state = state.make_weak_ptr();
-        state.grace_timer = Core::Timer::create_single_shot(RESOLUTION_DELAY_MS, [weak_state] {
+        state.grace_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(RESOLUTION_DELAY_MS), [weak_state] {
             if (auto state = weak_state.strong_ref())
                 try_finalize_pending_system_resolution(*state);
         });

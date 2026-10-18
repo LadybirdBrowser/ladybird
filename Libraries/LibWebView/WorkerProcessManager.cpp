@@ -670,7 +670,7 @@ void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, Agent
 
     // NB: A worker busy running script handles no request to close, so its process is terminated if it has not exited
     //     in time. Until it exits, it counts toward the workers of its top-level site.
-    auto termination_timer = Core::Timer::create_single_shot(static_cast<int>(worker_exit_grace_period.to_milliseconds()), [client = agent.client] {
+    auto termination_timer = Core::Timer::create_single_shot(worker_exit_grace_period, [client = agent.client] {
         if (client->is_open())
             client->terminate_process();
     });

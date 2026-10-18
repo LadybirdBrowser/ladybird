@@ -101,7 +101,7 @@ TEST_CASE(single_shot_timer_fires_once)
 {
     Core::EventLoop loop;
     int count = 0;
-    auto timer = Core::Timer::create_single_shot(10, [&] {
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(10), [&] {
         ++count;
         loop.quit(0);
     });
@@ -116,7 +116,7 @@ TEST_CASE(zero_interval_repeating_timer)
 {
     Core::EventLoop loop;
     int count = 0;
-    auto timer = Core::Timer::create_repeating(0, [&] {
+    auto timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(0), [&] {
         if (++count == 5)
             loop.quit(0);
     });
@@ -130,7 +130,7 @@ TEST_CASE(repeating_timer_keeps_cadence)
     Core::EventLoop loop;
     int count = 0;
     auto start = MonotonicTime::now();
-    auto timer = Core::Timer::create_repeating(10, [&] {
+    auto timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [&] {
         if (++count == 20)
             loop.quit(0);
     });
@@ -150,7 +150,7 @@ TEST_CASE(equal_deadlines_fire_in_registration_order)
     Vector<int> order;
     Vector<NonnullRefPtr<Core::Timer>> timers;
     for (int i = 0; i < 8; ++i) {
-        timers.append(Core::Timer::create_single_shot(20, [&order, &loop, i] {
+        timers.append(Core::Timer::create_single_shot(AK::Duration::from_milliseconds(20), [&order, &loop, i] {
             order.append(i);
             if (order.size() == 8)
                 loop.quit(0);
@@ -168,10 +168,10 @@ TEST_CASE(stopped_timer_does_not_fire)
 {
     Core::EventLoop loop;
     int stopped_count = 0;
-    auto stopped_timer = Core::Timer::create_single_shot(10, [&] { ++stopped_count; });
+    auto stopped_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(10), [&] { ++stopped_count; });
     stopped_timer->start();
     stopped_timer->stop();
-    auto quit_timer = Core::Timer::create_single_shot(50, [&] { loop.quit(0); });
+    auto quit_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(50), [&] { loop.quit(0); });
     quit_timer->start();
     loop.exec();
     EXPECT_EQ(stopped_count, 0);
@@ -196,7 +196,7 @@ TEST_CASE(timer_does_not_fire_before_its_interval)
         while (MonotonicTime::now() < busy_until)
             ;
     };
-    timer = Core::Timer::create_single_shot(interval_ms, [&] {
+    timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(interval_ms), [&] {
         auto elapsed = MonotonicTime::now() - started_at;
         auto interval = AK::Duration::from_milliseconds(interval_ms);
         if (elapsed < interval)

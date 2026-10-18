@@ -171,7 +171,7 @@ void ControlConnectionFromClient::set_performance_monitor_enabled(bool enabled)
                     request.value->sample_network_usage();
             }
             m_last_performance_push = MonotonicTime::now();
-            m_performance_timer = Core::Timer::create_repeating(500, [this] { push_network_usage(); });
+            m_performance_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(500), [this] { push_network_usage(); });
             m_performance_timer->start();
         }
     } else {

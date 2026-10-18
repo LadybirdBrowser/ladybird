@@ -917,7 +917,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     test_run_capture.begin_test_output_capture(view, test);
     auto timeout_in_milliseconds = app.per_test_timeout_in_seconds * 1000;
 
-    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &context, test_index]() {
+    test.timeout_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(timeout_in_milliseconds), [&view, &context, test_index]() {
         auto& test = context.tests[test_index];
         if (!test.did_start_test)
             dbgln("Timeout during pre-navigation for {}, WebContent process may be unresponsive", test.relative_path);
@@ -930,7 +930,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         auto& test = context.tests[test_index];
         if (milliseconds <= 0)
             return;
-        test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
+        test.timeout_timer->restart(AK::Duration::from_milliseconds(AK::clamp_to<int>(milliseconds)));
     };
 
     // Clear the current document.
@@ -1185,7 +1185,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     // test URL before the about:blank load completes. WebContent currently cannot handle this, and will drop the test URL.
     // Nothing else bounds this wait, so it gets the per-test timeout.
     bool initial_load_timed_out = false;
-    auto initial_load_timer = Core::Timer::create_single_shot(app.per_test_timeout_in_seconds * 1000, [&] {
+    auto initial_load_timer = Core::Timer::create_single_shot(AK::Duration::from_seconds(app.per_test_timeout_in_seconds), [&] {
         initial_load_timed_out = true;
     });
     initial_load_timer->start();

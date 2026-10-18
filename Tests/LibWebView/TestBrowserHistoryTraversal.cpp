@@ -395,7 +395,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         // The displayed document is still unloading, after its successor's history job was found ready.
         view->load(activated_url);
         bool unloading = false;
-        auto timer = Core::Timer::create_single_shot(300, [&] { unloading = true; });
+        auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(300), [&] { unloading = true; });
         timer->start();
         Core::EventLoop::current().spin_until([&] { return unloading; });
         view->load(newer_url);

@@ -156,7 +156,7 @@ void GamepadManager::update_polling_state()
     }
 
     if (!m_poll_timer) {
-        m_poll_timer = Core::Timer::create_repeating(GAMEPAD_POLL_INTERVAL_MS, [this] {
+        m_poll_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(GAMEPAD_POLL_INTERVAL_MS), [this] {
             drain_sdl_events();
             publish_changed_input_states();
         });

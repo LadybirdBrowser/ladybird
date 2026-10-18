@@ -5086,7 +5086,7 @@ void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventT
     }
 
     if (!m_user_scroll_settle_timer) {
-        m_user_scroll_settle_timer = Core::Timer::create_single_shot(static_cast<int>(Compositing::user_scroll_settle_delay.to_milliseconds()), [this] {
+        m_user_scroll_settle_timer = Core::Timer::create_single_shot(Compositing::user_scroll_settle_delay, [this] {
             user_scroll_did_settle();
         });
     }
@@ -5710,14 +5710,14 @@ void LocalNavigable::schedule_hover_update_after_async_scroll()
     static constexpr int hover_update_after_async_scroll_delay_ms = 100;
 
     if (!m_async_scroll_hover_update_timer) {
-        m_async_scroll_hover_update_timer = Core::Timer::create_single_shot(hover_update_after_async_scroll_delay_ms, [this] {
+        m_async_scroll_hover_update_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(hover_update_after_async_scroll_delay_ms), [this] {
             update_hover_after_async_scroll_stops();
         });
         m_async_scroll_hover_update_timer->start();
         return;
     }
 
-    m_async_scroll_hover_update_timer->restart(hover_update_after_async_scroll_delay_ms);
+    m_async_scroll_hover_update_timer->restart(AK::Duration::from_milliseconds(hover_update_after_async_scroll_delay_ms));
 }
 
 void LocalNavigable::update_hover_after_async_scroll_stops()

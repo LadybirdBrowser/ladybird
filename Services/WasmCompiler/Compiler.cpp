@@ -130,8 +130,7 @@ void Compiler::start_pending_jobs()
         dbgln_if(WASM_CRANELIFT_DEBUG, "WasmCompiler: Compiling a {}-byte batch", job.value()->input.size());
         ++m_active_jobs;
 
-        auto watchdog_interval = static_cast<int>(MAXIMUM_JOB_DURATION.to_milliseconds());
-        job.value()->watchdog = Core::Timer::create_single_shot(watchdog_interval, [this, job_id] {
+        job.value()->watchdog = Core::Timer::create_single_shot(MAXIMUM_JOB_DURATION, [this, job_id] {
             Core::EventLoop::current().deferred_invoke([this, job_id] {
                 if (!m_jobs.contains(job_id))
                     return;

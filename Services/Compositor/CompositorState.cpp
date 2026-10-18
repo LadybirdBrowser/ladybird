@@ -403,7 +403,7 @@ int CompositorState::unpainted_video_update_interval_ms() const
 void CompositorState::schedule_unpainted_video_updates()
 {
     if (!m_unpainted_video_update_timer) {
-        m_unpainted_video_update_timer = Core::Timer::create_repeating(unpainted_video_update_interval_ms(), [this] {
+        m_unpainted_video_update_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(unpainted_video_update_interval_ms()), [this] {
             update_unpainted_video_sinks();
         });
     }
@@ -747,7 +747,7 @@ void CompositorState::set_display_metadata(Web::CompositorContextId context_id, 
     if (context->set_display_metadata(display_id, refresh_rate)) {
         schedule_pending_present_frame(context_id, *context);
         if (m_unpainted_video_update_timer)
-            m_unpainted_video_update_timer->set_interval(unpainted_video_update_interval_ms());
+            m_unpainted_video_update_timer->set_interval(AK::Duration::from_milliseconds(unpainted_video_update_interval_ms()));
     }
 
     if (context->display_tick_requested() && context_is_effectively_visible(*context))
@@ -1114,7 +1114,7 @@ void CompositorState::schedule_gpu_completion_check()
     VERIFY(!m_pending_async_presents.is_empty());
 
     if (!m_gpu_completion_timer) {
-        m_gpu_completion_timer = Core::Timer::create_repeating(gpu_completion_check_interval_ms, [this] {
+        m_gpu_completion_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(gpu_completion_check_interval_ms), [this] {
             check_gpu_completions();
         });
     }

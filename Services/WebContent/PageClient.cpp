@@ -150,7 +150,7 @@ PageClient::PageClient(PageHost& owner, Web::PageId id, Optional<Web::HTML::Cros
         client.async_did_request_cursor_change(id, cursor);
     });
 
-    m_frame_timer = Core::Timer::create_single_shot(0, [this] {
+    m_frame_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
         if (m_is_closed)
             return;
         frame_timer_fired();
@@ -693,7 +693,7 @@ void PageClient::schedule_local_rendering_opportunity()
     }
 
     m_frame_timer_purpose = FrameTimerPurpose::LocalFallback;
-    m_frame_timer->restart(static_cast<int>(AK::ceil(delay)));
+    m_frame_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(AK::ceil(delay))));
 }
 
 void PageClient::schedule_compositor_watchdog()
@@ -702,7 +702,7 @@ void PageClient::schedule_compositor_watchdog()
     auto delay = 4.0 * m_last_rendering_opportunity_frame_interval;
     m_compositor_watchdog_deadline = Web::HighResolutionTime::unsafe_shared_current_time() + delay;
     m_frame_timer_purpose = FrameTimerPurpose::CompositorWatchdog;
-    m_frame_timer->restart(static_cast<int>(AK::ceil(delay)));
+    m_frame_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(AK::ceil(delay))));
 }
 
 void PageClient::frame_timer_fired()
@@ -728,7 +728,7 @@ void PageClient::frame_timer_fired()
         // an earlier request satisfy the current request before its own watchdog deadline.
         if (now < m_compositor_watchdog_deadline) {
             m_frame_timer_purpose = FrameTimerPurpose::CompositorWatchdog;
-            m_frame_timer->restart(static_cast<int>(AK::ceil(m_compositor_watchdog_deadline - now)));
+            m_frame_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(AK::ceil(m_compositor_watchdog_deadline - now))));
             return;
         }
         // An opportunity IPC may already be waiting behind a long main-thread task when this timer becomes runnable.
@@ -1082,7 +1082,7 @@ void PageClient::page_did_change_accessibility_focus(Web::UniqueNodeID node_id)
     // (Document::setFocusedElement hands AXObjectCache::onFocusChange the old and the new element together).
     m_pending_accessibility_focus = static_cast<i64>(node_id.value());
     if (!m_accessibility_focus_timer) {
-        m_accessibility_focus_timer = Core::Timer::create_single_shot(0, [this] {
+        m_accessibility_focus_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
             if (m_is_closed)
                 return;
             if (auto pending = exchange(m_pending_accessibility_focus, {}); pending.has_value())
@@ -1104,7 +1104,7 @@ void PageClient::schedule_accessibility_tree_update()
         return;
 
     if (!m_accessibility_update_timer) {
-        m_accessibility_update_timer = Core::Timer::create_single_shot(200, [this] {
+        m_accessibility_update_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(200), [this] {
             if (m_is_closed)
                 return;
             if (auto doc = page().local_traversable()->active_document()) {

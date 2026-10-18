@@ -141,7 +141,7 @@ CookieJar::CookieJar(Optional<PersistedStorage> persisted_storage, IsPrivate is_
     m_transient_storage.set_cookies(move(cookies));
 
     m_persisted_storage->synchronization_timer = Core::Timer::create_repeating(
-        static_cast<int>(DATABASE_SYNCHRONIZATION_TIMER.to_milliseconds()),
+        DATABASE_SYNCHRONIZATION_TIMER,
         [this]() {
             for (auto const& it : m_transient_storage.take_dirty_cookies())
                 m_persisted_storage->insert_cookie(it.value);

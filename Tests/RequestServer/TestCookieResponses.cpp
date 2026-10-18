@@ -88,7 +88,7 @@ public:
     NonnullOwnPtr<Messages::RequestServerControlClient::StoreResponseCookiesAndHstsPolicy> wait_for_storage_request(Core::EventLoop& event_loop)
     {
         // The control transport is not part of the event loop here, so keep the loop from sleeping until it has news.
-        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
         wake_timer->start();
 
         OwnPtr<Messages::RequestServerControlClient::StoreResponseCookiesAndHstsPolicy> storage_request;
@@ -105,7 +105,7 @@ public:
 
     NonnullOwnPtr<Messages::RequestServerControlClient::RetrieveHttpCookie> wait_for_cookie_request(Core::EventLoop& event_loop)
     {
-        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
         wake_timer->start();
 
         OwnPtr<Messages::RequestServerControlClient::RetrieveHttpCookie> cookie_request;
@@ -211,7 +211,7 @@ public:
     NonnullOwnPtr<MessageType> take_client_message(Core::EventLoop& event_loop)
     {
         // The client transport is outside the event loop, so prevent the loop from sleeping.
-        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
         wake_timer->start();
 
         OwnPtr<MessageType> result;
@@ -791,7 +791,7 @@ TEST_CASE(disconnected_client_requests_stop_while_a_transferred_request_lives_on
         cookie_request = control.take_cookie_request();
         control.retrieve_http_cookie(source_connection.client_id(), 0, RequestServer::RequestType::WebSocket, cookie_request->cookie_request_id());
 
-        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
         wake_timer->start();
         server.event_loop.spin_until([&] { return transferred_server.received_requests() == 1 && websocket_server.received_requests() == 1; });
 

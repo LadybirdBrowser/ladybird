@@ -120,11 +120,11 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     // https://curl.se/libcurl/c/CURLMOPT_TIMERFUNCTION.html
     // Your callback function timer_callback should install a single non-repeating timer with an expire time of
     // timeout_ms milliseconds.
-    m_timer = Core::Timer::create_single_shot(0, [this] {
+    m_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
         auto now = MonotonicTime::now();
         if (m_curl_timer_due_at.has_value() && now < *m_curl_timer_due_at) {
             auto remaining_ms = (*m_curl_timer_due_at - now).to_milliseconds();
-            m_timer->restart(AK::clamp_to<int>(remaining_ms));
+            m_timer->restart(AK::Duration::from_milliseconds(AK::clamp_to<int>(remaining_ms)));
             return;
         }
 
@@ -513,7 +513,7 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
         //
         // Core::Timer intervals are ints, so wait for longer valid timeouts in chunks without calling libcurl before its
         // requested expire time.
-        client->m_timer->restart(AK::clamp_to<int>(timeout_ms));
+        client->m_timer->restart(AK::Duration::from_milliseconds(AK::clamp_to<int>(timeout_ms)));
     }
 
     // The timer callback should return 0 on success, and -1 on error.

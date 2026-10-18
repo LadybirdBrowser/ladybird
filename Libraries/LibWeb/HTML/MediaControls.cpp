@@ -518,7 +518,7 @@ void MediaControls::submit_pending_scrub_seek()
 
     if (!m_scrub_seek_preemption_timer) {
         constexpr int scrub_seek_preemption_timeout_ms = 500;
-        m_scrub_seek_preemption_timer = Core::Timer::create_single_shot(scrub_seek_preemption_timeout_ms, [this] {
+        m_scrub_seek_preemption_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(scrub_seek_preemption_timeout_ms), [this] {
             submit_pending_scrub_seek();
         });
         m_scrub_seek_preemption_timer->start();
@@ -822,7 +822,7 @@ void MediaControls::show_controls()
 
     if (!m_hover_timer) {
         constexpr int hover_timeout_ms = 1000;
-        m_hover_timer = Core::Timer::create_single_shot(hover_timeout_ms, [&] {
+        m_hover_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(hover_timeout_ms), [&] {
             hide_controls();
         });
         m_hover_timer->start();

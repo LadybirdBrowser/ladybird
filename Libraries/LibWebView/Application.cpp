@@ -730,7 +730,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     TRY(launch_services());
 
     if (m_web_content_options.is_test_mode == IsTestMode::No && m_browser_options.enable_content_blocker == EnableContentBlocker::Yes) {
-        m_content_blocker_list_update_timer = Core::Timer::create_repeating(24 * 60 * 60 * 1000, [this] {
+        m_content_blocker_list_update_timer = Core::Timer::create_repeating(AK::Duration::from_seconds(24 * 60 * 60), [this] {
             start_content_blocker_list_update(ContentBlockerListUpdateTrigger::Automatic);
         });
         m_content_blocker_list_update_timer->start();
@@ -880,7 +880,7 @@ void Application::start_next_content_blocker_list_update()
         return 30 * 1000;
     }();
 
-    auto timeout = Core::Timer::create_single_shot(timeout_ms, [this] {
+    auto timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(timeout_ms), [this] {
         warnln("Content blocker list download timed out");
         stop_current_content_blocker_list_update_and_continue();
     });
@@ -2003,7 +2003,7 @@ static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventL
     outln("Taking screenshot after {} seconds", screenshot_timeout);
 
     auto timer = Core::Timer::create_single_shot(
-        screenshot_timeout * 1000,
+        AK::Duration::from_seconds(screenshot_timeout),
         [&]() {
             view.take_screenshot(ViewImplementation::ScreenshotType::Full)
                 ->when_resolved([&event_loop](auto const& path) {

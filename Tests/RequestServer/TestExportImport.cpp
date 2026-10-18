@@ -137,7 +137,7 @@ public:
     template<typename MessageType>
     NonnullOwnPtr<MessageType> wait_for(Core::EventLoop& event_loop, u64 request_id)
     {
-        auto wake_timer = Core::Timer::create_repeating(5, [] { });
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(5), [] { });
         wake_timer->start();
 
         OwnPtr<MessageType> result;
@@ -160,7 +160,7 @@ public:
 
     ByteBuffer read_whole_body(Core::EventLoop& event_loop, u64 request_id)
     {
-        auto wake_timer = Core::Timer::create_repeating(5, [] { });
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(5), [] { });
         wake_timer->start();
 
         event_loop.spin_until([&] {
@@ -271,7 +271,7 @@ public:
                 auto head = ByteString::formatted("HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", m_body.size());
                 MUST(connection.socket->write_until_depleted(head.bytes()));
                 MUST(connection.socket->set_blocking(false));
-                connection.piece_timer = Core::Timer::create_repeating(static_cast<int>(m_interval.to_milliseconds()), [this, &connection] { write_piece(connection); });
+                connection.piece_timer = Core::Timer::create_repeating(m_interval, [this, &connection] { write_piece(connection); });
                 write_piece(connection);
                 connection.piece_timer->start();
             };
@@ -423,7 +423,7 @@ TEST_CASE(stopping_an_imported_request_aborts_the_transfer)
     });
     target.stop_request(30);
 
-    auto wake_timer = Core::Timer::create_repeating(5, [] { });
+    auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(5), [] { });
     wake_timer->start();
     event_loop.spin_until([&] { return http_server.peer_closed(0); });
     EXPECT(!http_server.finished(0));

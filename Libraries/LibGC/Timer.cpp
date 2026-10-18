@@ -43,7 +43,7 @@ void Timer::start(u64 timeout_ms, GC::Ref<GC::Function<void()>> on_timeout)
         }
     };
 
-    m_timer->set_interval(static_cast<int>(timeout_ms));
+    m_timer->set_interval(AK::Duration::from_milliseconds(static_cast<int>(timeout_ms)));
     m_timer->set_single_shot(true);
     m_timer->start();
 }
@@ -57,7 +57,7 @@ void Timer::start_repeating(u64 interval_ms, GC::Ref<GC::Function<void()>> on_ti
             m_on_timeout->function()();
     };
 
-    m_timer->set_interval(static_cast<int>(interval_ms));
+    m_timer->set_interval(AK::Duration::from_milliseconds(static_cast<int>(interval_ms)));
     m_timer->set_single_shot(false);
     m_timer->start();
 }
