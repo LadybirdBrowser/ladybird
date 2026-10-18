@@ -1230,7 +1230,7 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
         if (!process_name.is_empty()) {
             bool const colorize = ak_colorize_output();
             auto time = MonotonicTime::now_coarse();
-            builder.appendff("{}.{:03} ", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000);
+            builder.appendff("{}.{:03} ", time.seconds(), time.nanoseconds_within_second() / 1000000);
             if (colorize)
                 builder.append(BOLD_YELLOW_FORMAT ""sv);
             builder.append(process_name);

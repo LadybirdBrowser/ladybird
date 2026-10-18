@@ -193,6 +193,26 @@ i64 Duration::to_truncated_microseconds() const
     return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
+i64 Duration::to_floored_seconds() const
+{
+    VERIFY(m_nanoseconds < 1'000'000'000);
+    return m_seconds;
+}
+
+i64 Duration::to_floored_milliseconds() const
+{
+    VERIFY(m_nanoseconds < 1'000'000'000);
+    // Drop one second from negative durations so that the multiplication can't overflow before the remainder is added.
+    Checked<i64> milliseconds((m_seconds < 0) ? m_seconds + 1 : m_seconds);
+    milliseconds *= 1'000;
+    milliseconds += m_nanoseconds / 1'000'000;
+    if (m_seconds < 0)
+        milliseconds -= 1'000;
+    if (!milliseconds.has_overflow())
+        return milliseconds.value();
+    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
+}
+
 i64 Duration::to_seconds() const
 {
     VERIFY(m_nanoseconds < 1'000'000'000);

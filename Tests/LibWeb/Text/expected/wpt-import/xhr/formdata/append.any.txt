@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	testFormDataAppend1
+Pass	testFormDataAppend2
+Pass	testFormDataAppendUndefined1
+Pass	testFormDataAppendUndefined2
+Pass	testFormDataAppendNull1
+Pass	testFormDataAppendNull2
+Pass	testFormDataAppendEmptyBlob
