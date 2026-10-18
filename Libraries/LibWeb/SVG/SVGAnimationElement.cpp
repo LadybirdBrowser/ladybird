@@ -155,10 +155,14 @@ Animations::BaseKeyframe SVGAnimationElement::keyframe(double offset, CSS::Prope
 {
     Animations::BaseKeyframe keyframe;
     keyframe.offset = offset;
-    Animations::BaseKeyframe::ParsedProperties properties;
-    properties.set(CSS::PropertyNameAndID::from_id(property_id), CSS::RustStyleValueHandle::retained(value.rust_style_value_data()));
-    keyframe.properties = move(properties);
+    keyframe.properties = Animations::BaseKeyframe::ParsedProperties {};
+    set_keyframe_property(keyframe, property_id, value);
     return keyframe;
+}
+
+void SVGAnimationElement::set_keyframe_property(Animations::BaseKeyframe& keyframe, CSS::PropertyID property_id, CSS::StyleValue const& value)
+{
+    keyframe.parsed_properties().set(CSS::PropertyNameAndID::from_id(property_id), CSS::RustStyleValueHandle::retained(value.rust_style_value_data()));
 }
 
 void SVGAnimationElement::update_animation()

@@ -45,6 +45,7 @@ protected:
     virtual Optional<CSS::PropertyID> target_property() const;
     virtual Vector<Animations::BaseKeyframe> keyframes(SVGElement const& target, CSS::PropertyID) const = 0;
     static Animations::BaseKeyframe keyframe(double offset, CSS::PropertyID, CSS::StyleValue const&);
+    static void set_keyframe_property(Animations::BaseKeyframe&, CSS::PropertyID, CSS::StyleValue const&);
 
     void update_animation();
 
