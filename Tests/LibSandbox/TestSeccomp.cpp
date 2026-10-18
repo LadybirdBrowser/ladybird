@@ -863,10 +863,54 @@ TEST_CASE(network_policy_is_limited_to_internet_sockets)
         policy.allow_network();
     };
 
-    expect_socket_domain_is_allowed(configure, AF_INET, SOCK_STREAM, 0);
-    expect_socket_domain_is_allowed(configure, AF_INET6, SOCK_STREAM, 0);
+    for (auto domain : { AF_INET, AF_INET6 }) {
+        for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
+            for (auto protocol : Array<int, 2> { 0, IPPROTO_TCP })
+                expect_socket_domain_is_allowed(configure, domain, SOCK_STREAM | flags, protocol);
+            for (auto protocol : Array<int, 2> { 0, IPPROTO_UDP })
+                expect_socket_domain_is_allowed(configure, domain, SOCK_DGRAM | flags, protocol);
+        }
+    }
+    auto status = run_with_policy(configure, [] {
+        for (auto domain : { AF_INET, AF_INET6 }) {
+            for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
+                for (auto protocol : Array<int, 4> { IPPROTO_ICMP, IPPROTO_ICMPV6, IPPROTO_UDPLITE, IPPROTO_TCP }) {
+                    VERIFY(socket(domain, SOCK_DGRAM | flags, protocol) == -1);
+                    VERIFY(errno == EPERM);
+                }
+                for (auto type : { SOCK_RAW, SOCK_SEQPACKET }) {
+                    VERIFY(socket(domain, type | flags, 0) == -1);
+                    VERIFY(errno == EPERM);
+                }
+                VERIFY(socket(domain, SOCK_STREAM | flags, IPPROTO_UDP) == -1);
+                VERIFY(errno == EPERM);
+            }
+        }
+    });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
     expect_socket_domain_is_allowed(configure, AF_NETLINK, SOCK_RAW, 0);
     expect_socket_domain_is_refused(configure, AF_UNIX);
+}
+
+TEST_CASE(network_policy_leaves_other_socket_domains_to_later_groups)
+{
+    // Without a broker to answer, a brokered socket() fails with EACCES. Getting that rather than
+    // EAFNOSUPPORT shows that the request came through the network group to the broker.
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) {
+            policy.allow_ipc();
+            policy.allow_network();
+            policy.broker_unix_socket_connections();
+        },
+        [] {
+            VERIFY(socket(AF_UNIX, SOCK_STREAM, 0) == -1);
+            VERIFY(errno == EACCES);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
 // Waits for a descriptor to become readable. The deadline is far longer than any of this work takes,
