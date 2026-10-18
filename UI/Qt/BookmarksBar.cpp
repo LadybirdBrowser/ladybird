@@ -38,6 +38,11 @@ static constexpr int BOOKMARK_BUTTON_TEXT_ELISION_PADDING = 2;
 static constexpr char const* BOOKMARK_ITEM_PROPERTY = "bookmark_item";
 static constexpr char const* BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY = "bookmark_context_menu_open";
 
+static int bookmark_button_height(QFontMetrics const& font_metrics, int icon_height)
+{
+    return max(BOOKMARK_BUTTON_MIN_HEIGHT, max(font_metrics.height(), icon_height) + BOOKMARK_BUTTON_VERTICAL_PADDING);
+}
+
 static QStyleOptionToolButton bookmark_button_style_option(QToolButton const& button)
 {
     QStyleOptionToolButton option;
@@ -200,7 +205,9 @@ void BookmarksBar::update_chrome_style()
         return;
 
     m_is_updating_chrome_style = true;
-    setStyleSheet(ChromeStyle::bookmarks_bar_style_sheet(palette()));
+    // Bookmark items are pills, like the tabs.
+    auto corner_radius = bookmark_button_height(fontMetrics(), iconSize().height()) / 2;
+    setStyleSheet(ChromeStyle::bookmarks_bar_style_sheet(palette(), corner_radius));
     m_is_updating_chrome_style = false;
 }
 
@@ -220,8 +227,8 @@ void BookmarksBar::rebuild()
 
         auto option = bookmark_button_style_option(*button);
 
-        auto bookmark_button_height = max(BOOKMARK_BUTTON_MIN_HEIGHT, max(button->fontMetrics().height(), button->iconSize().height()) + BOOKMARK_BUTTON_VERTICAL_PADDING);
-        auto max_size_rect = QRect { 0, 0, BOOKMARK_BUTTON_MAX_WIDTH, bookmark_button_height };
+        auto height = bookmark_button_height(button->fontMetrics(), button->iconSize().height());
+        auto max_size_rect = QRect { 0, 0, BOOKMARK_BUTTON_MAX_WIDTH, height };
 
         auto layout = bookmark_button_layout(*button, option, title, max_size_rect);
 
@@ -233,7 +240,7 @@ void BookmarksBar::rebuild()
 
         button->setFixedWidth(layout.preferred_width);
         button->setMaximumWidth(BOOKMARK_BUTTON_MAX_WIDTH);
-        button->setFixedHeight(bookmark_button_height);
+        button->setFixedHeight(height);
 
         button->installEventFilter(this);
     };

@@ -727,7 +727,7 @@ static QColor chrome_control_soft_hover(QPalette const& palette)
     return is_dark(palette) ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 16);
 }
 
-QString bookmarks_bar_style_sheet(QPalette const& palette)
+QString bookmarks_bar_style_sheet(QPalette const& palette, int corner_radius)
 {
     auto hover = style_sheet_color_with_alpha(chrome_control_soft_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
@@ -746,7 +746,7 @@ QToolBar#LadybirdBookmarksBar QToolButton {{
     color: {2};
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 7px;
+    border-radius: {4}px;
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton:hover {{
@@ -760,7 +760,7 @@ QToolBar#LadybirdBookmarksBar QToolButton:checked {{
     border-color: {3};
 }}
 )",
-        hover, pressed, text, control_border);
+        hover, pressed, text, control_border, corner_radius);
 }
 
 QString find_in_page_style_sheet(QPalette const& palette)
