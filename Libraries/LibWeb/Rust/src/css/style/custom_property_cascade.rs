@@ -1847,6 +1847,12 @@ impl RetainedState {
         }
         let identity = if rust_store.is_null() {
             inherited_environment
+        } else if let Some(previous) =
+            self.environment_resolving_to_the_same_values(node, pseudo, rust_store, registry_ref)
+        {
+            // SAFETY: The resolution handed over one strong reference to the store, which nothing else holds.
+            drop(unsafe { Arc::from_raw(rust_store.cast::<CustomPropertyStore>()) });
+            previous
         } else {
             unsafe {
                 self.custom_property_environments.adopt_engine_environment(
@@ -1868,6 +1874,40 @@ impl RetainedState {
                 .remember(key, identity, written_values);
         }
         Ok(identity)
+    }
+
+    /// The environment the element's declarations resolved to last, beneath any animation overlay, where they resolve to
+    /// its values again in `resolved`: an environment resolved anew, as one holding a registered value is, would move
+    /// what the element's descendants inherit without moving any value they see. What an environment hands down was
+    /// decided under the registrations it was resolved under, so only one handing down every value, then and now, is
+    /// kept.
+    fn environment_resolving_to_the_same_values(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        resolved: *const c_void,
+        registry: &crate::css::custom_properties::CustomPropertyRegistry,
+    ) -> Option<u64> {
+        if pseudo.is_some() {
+            return None;
+        }
+        let held = self.element_custom_property_data.get(&node)?;
+        let previous = held.sampled_over.unwrap_or(held.identity);
+        if previous & custom_property_environments::ENGINE_ENVIRONMENT_IDENTITY_BIT == 0
+            || self.custom_property_environments.inheritable(previous) != previous
+        {
+            return None;
+        }
+        let previous_store = self.custom_property_environments.store(previous)?;
+        // SAFETY: Both stores are live: the previous one while the environment naming it is, the resolved one for
+        // the call.
+        let (previous_store, resolved) = unsafe {
+            (
+                &*previous_store.cast::<CustomPropertyStore>(),
+                &*resolved.cast::<CustomPropertyStore>(),
+            )
+        };
+        (resolved.hands_down_every_value(registry) && resolved.holds_same_values_as(previous_store)).then_some(previous)
     }
 
     /// What a node's records read beyond their cascade, as `FfiNodeRecordReads` bits, for the row
