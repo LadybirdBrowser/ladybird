@@ -202,22 +202,22 @@ public:
                 if (found_compressed)
                     return {};
                 int empty_parts = 1;
-                bool is_leading = (i == 0);
-                bool is_trailing = false;
                 for (size_t j = i + 1; j < parts.size(); j++) {
                     if (!parts[j].trim_whitespace().is_empty())
                         break;
                     empty_parts++;
-                    if (j == parts.size() - 1)
-                        is_trailing = true;
                 }
+                bool is_leading = (i == 0);
+                bool is_trailing = (i + empty_parts == parts.size());
                 if (is_leading && is_trailing) {
-                    if (empty_parts > 3)
+                    // The only address made of nothing but colons is "::".
+                    if (empty_parts != 3)
                         return {};
                     return IPv6Address();
                 }
                 if (is_leading || is_trailing) {
-                    if (empty_parts > 2)
+                    // A compression at either end is spelled "::", so a single leading or trailing colon is invalid.
+                    if (empty_parts != 2)
                         return {};
                 } else if (empty_parts > 1) {
                     return {};
@@ -244,6 +244,10 @@ public:
             addr[piece * sizeof(u16) + 1] = (u8)part.value();
             piece++;
         }
+
+        // Without a "::" compression, all eight pieces must be spelled out. With one, it stands for at least one piece.
+        if (found_compressed ? have_pieces > 7 : have_pieces != 8)
+            return {};
 
         return IPv6Address(addr);
     }
