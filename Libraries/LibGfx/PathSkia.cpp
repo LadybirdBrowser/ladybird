@@ -207,9 +207,14 @@ void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
     update_state_from_path(sk_path());
 }
 
+// By default, Skia measures a curve by the lengths of the lines between points along it that are at most half a unit off
+// the curve, which leaves the length of a circle with a radius of 25 units about 1 unit short. Measure curves sixteen
+// times as precisely instead.
+static constexpr SkScalar path_measure_resolution_scale = 16;
+
 NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>> glyph_runs, float offset) const
 {
-    SkPathMeasure path_measure(sk_path(), false);
+    SkPathMeasure path_measure(sk_path(), false, path_measure_resolution_scale);
     SkScalar path_length = path_measure.getLength();
 
     auto output_path = PathImplSkia::create();
@@ -296,7 +301,7 @@ Gfx::FloatRect PathImplSkia::bounding_box() const
 
 float PathImplSkia::length() const
 {
-    SkPathMeasure path_measure(sk_path(), false);
+    SkPathMeasure path_measure(sk_path(), false, path_measure_resolution_scale);
     float length = 0;
     do {
         length += path_measure.getLength();
