@@ -2404,8 +2404,10 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleShe
         // Keep a separate program when another occurrence already occupies this scope.
         if ((*existing)->is_attached_to(tree_scope) && sheet.native_rules().has_anonymous_layer())
             return nullptr;
-        if (!(*existing)->has_attachments())
+        if (!(*existing)->has_attachments()) {
             style_computer.detached_shared_compiled_style_sheets().remove_first_matching([&](auto const& detached) { return detached == key; });
+            StyleEngineFFI::style_engine_set_sheet_kept_for_reattachment(style_engine.host(), (*existing)->sheet_id(), false);
+        }
         return *existing;
     }
     auto contents = StyleSheetState::create(sheet.native_rules().clone_shared_contents(), &document, RustMediaList {}, {});
@@ -2428,6 +2430,7 @@ static void release_shared_compiled_style_sheet(SharedCompiledStyleSheetKey cons
     auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
     auto sheet_id = shared_compiled_style_sheets.get(key).value()->sheet_id();
     auto& style_engine = style_computer.style_engine();
+    StyleEngineFFI::style_engine_set_sheet_kept_for_reattachment(style_engine.host(), sheet_id, false);
     StyleEngineFFI::style_engine_begin_sheet_rules_replacement(style_engine.host(), sheet_id.value());
     style_engine.finish_sheet_rules_replacement(sheet_id);
     shared_compiled_style_sheets.remove(key);
@@ -2448,6 +2451,7 @@ static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, 
     // and since it holds the parsed contents, the parse cache answers the arriving text without parsing it again.
     auto& detached = style_computer.detached_shared_compiled_style_sheets();
     detached.append(sheet.key());
+    StyleEngineFFI::style_engine_set_sheet_kept_for_reattachment(style_engine.host(), sheet.sheet_id(), true);
     if (detached.size() > StyleComputer::max_detached_shared_compiled_style_sheets)
         release_shared_compiled_style_sheet(detached.take_first(), style_computer);
 }

@@ -1193,6 +1193,24 @@ impl RetainedState {
         sheet
     }
 
+    /// Whether a sheet's rules keep their routing entry points: it is attached somewhere, or the host keeps it for
+    /// reattachment.
+    pub(super) fn sheet_keeps_routing(&self, sheet: SheetID) -> bool {
+        self.program.sheet_is_attached_somewhere(sheet) || self.sheets_kept_for_reattachment.contains(sheet.0 as usize)
+    }
+
+    /// Note that the host keeps a detached sheet compiled for reattachment, or no longer does.
+    pub(super) fn set_sheet_kept_for_reattachment(&mut self, sheet: SheetID, kept: bool) {
+        if !self.sheets_kept_for_reattachment.set(sheet.0 as usize, kept).0 {
+            return;
+        }
+        if kept {
+            self.restore_routing_for_reattached_sheet(sheet);
+        } else {
+            self.routing_needs_detachment_sweep = true;
+        }
+    }
+
     /// A sheet whose routes were shed while it was detached contributes routes again the moment
     /// it reattaches. The registry must be whole before the attachment's transaction plans, so
     /// this runs at recording time rather than waiting for the next sweep.
@@ -1970,6 +1988,7 @@ impl StyleEngine {
                 declaration_block_version: Arc::new(std::sync::atomic::AtomicU32::new(1)),
                 last_transaction_only_derived_child_reactions: false,
                 sheets_excluded_from_routing: BitColumn::default(),
+                sheets_kept_for_reattachment: BitColumn::default(),
                 routing_needs_detachment_sweep: false,
                 match_workspace: MatchScratch::default(),
                 exact_covered_scratch: Vec::new(),
@@ -3375,6 +3394,7 @@ impl RetainedState {
             declaration_block_version: _,
             last_transaction_only_derived_child_reactions: _,
             sheets_excluded_from_routing: _,
+            sheets_kept_for_reattachment: _,
             routing_needs_detachment_sweep: _,
             match_workspace: _,
             // Scratch of one candidate evaluation.

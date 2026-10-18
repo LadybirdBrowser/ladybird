@@ -61,6 +61,7 @@ void style_engine_attach_sheet(DocumentHost const*, SheetID sheet, TreeScopeID t
 void style_engine_detach_sheet(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope);
 void style_engine_attach_sheet_occurrence(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope, u64 identity, u64 before, bool conditions_hold);
 void style_engine_detach_sheet_occurrence(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
+void style_engine_set_sheet_kept_for_reattachment(DocumentHost const*, SheetID sheet, bool kept);
 void style_engine_set_sheet_occurrence_conditions(DocumentHost const*, TreeScopeID tree_scope, u64 identity, bool conditions_hold);
 void style_engine_set_element_part_exposure(DocumentHost const*, StyleNodeID node, StyleAtomID exposure);
 void style_engine_set_element_directionality(DocumentHost const*, StyleNodeID node, StyleAtomID directionality);

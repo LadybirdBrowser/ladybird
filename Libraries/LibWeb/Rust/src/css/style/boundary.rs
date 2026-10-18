@@ -254,6 +254,8 @@ style_boundary! {
             sheet: SheetID, tree_scope: TreeScopeID, identity: u64, before: u64, conditions_hold: bool
         };
         detach_sheet_occurrence => DetachSheetOccurrence { tree_scope: TreeScopeID, identity: u64 };
+        set_sheet_kept_for_reattachment => SetSheetKeptForReattachment { sheet: SheetID, kept: bool } =>
+            engine.retained.set_sheet_kept_for_reattachment(sheet, kept);
         set_sheet_occurrence_conditions => SetSheetOccurrenceConditions {
             tree_scope: TreeScopeID, identity: u64, conditions_hold: bool
         };
