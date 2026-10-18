@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    body { margin: 0; }
+    .transformed { transform: translateX(1px); }
+    iframe { display: block; width: 100px; height: 100px; border: none; }
+</style>
+<div id="churn"></div>
+<script>
+    // Each box gets a spatial node ahead of the iframe's, and 513 dead nodes are enough to compact the tree.
+    for (let i = 0; i < 513; ++i)
+        churn.appendChild(document.createElement("div")).className = "transformed";
+</script>
+<div class="transformed"><iframe id="iframe" srcdoc="<!DOCTYPE html><body style='margin: 0'>"></iframe></div>
+<div id="absolute" style="position: absolute"></div>
+<script>
+    window.addEventListener("load", async () => {
+        document.elementFromPoint(0, 0);
+        churn.remove();
+        // Runs after the parent hit-tested the iframe, and marks the parent's visual contexts for an update that
+        // compacts the tree while the parent computes the wheel event's offset.
+        iframe.contentWindow.addEventListener("wheel", () => absolute.remove());
+        await internals.wheel(50, 50, 0, 10);
+        document.documentElement.classList.remove("test-wait");
+    });
+</script>
+</html>

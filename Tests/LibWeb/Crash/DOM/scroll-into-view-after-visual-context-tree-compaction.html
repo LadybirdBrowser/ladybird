@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    .transformed { transform: translateX(1px); }
+    .scroller { overflow: scroll; height: 100px; }
+</style>
+<div id="churn"></div>
+<script>
+    // Each box gets a spatial node ahead of the outer scroller's, and 513 dead nodes are enough to compact the tree.
+    for (let i = 0; i < 513; ++i)
+        churn.appendChild(document.createElement("div")).className = "transformed";
+</script>
+<div class="scroller"><div class="scroller"><div style="height: 500px"></div><div id="target"></div></div><div style="height: 500px"></div></div>
+<div id="absolute" style="position: absolute"></div>
+<script>
+    document.elementFromPoint(0, 0);
+    churn.remove();
+    document.elementFromPoint(0, 0);
+    // Marks the visual contexts for an update that compacts the tree while the inner scroller is mapped to the viewport.
+    // The target's own rect needs no update, as nothing around it is transformed or scrolled.
+    absolute.remove();
+    target.scrollIntoView();
+</script>
