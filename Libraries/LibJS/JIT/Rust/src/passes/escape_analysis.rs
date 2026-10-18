@@ -531,7 +531,10 @@ fn virtualize_frame_state(
         }
         let (shape, _) = shapes[&root];
         let object = graph.add_node(Node::new(
-            Op::VirtualObject { shape },
+            Op::VirtualObject {
+                shape,
+                allocation: root,
+            },
             Vec::new(),
             Some(Repr::Tagged),
             graph.node(root).pc,

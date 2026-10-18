@@ -217,7 +217,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         }
         Op::InitializeNamed { offset } => with_inputs(&format!("InitializeNamed +{offset}")),
         Op::AllocateArray { count } => format!("AllocateArray with {count} elements"),
-        Op::VirtualObject { shape } => with_inputs(&format!("VirtualObject {:#x}", shape.0)),
+        Op::VirtualObject { shape, .. } => with_inputs(&format!("VirtualObject {:#x}", shape.0)),
         Op::AllocateEnvironment { shape_cache, capacity } => {
             with_inputs(&format!("AllocateEnvironment {shape_cache} capacity {capacity}"))
         }

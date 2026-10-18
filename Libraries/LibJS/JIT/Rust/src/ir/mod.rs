@@ -716,9 +716,12 @@ pub enum Op {
     /// properties (the inputs, in offset order), as an exit needs it: the
     /// runtime creates it with `shape` when the exit is taken. Frame states
     /// refer to it; it is in no block and has no code. An input may be
-    /// another virtual object.
+    /// another virtual object. Every frame state refers to the object the
+    /// `AllocateObject` node `allocation` made with a virtual object of its
+    /// own, and `allocation` tells the runtime they are the same object.
     VirtualObject {
         shape: CellId,
+        allocation: NodeId,
     },
     /// A new array of `count` packed elements, all `undefined`, of the
     /// realm of the compiled code (see `ArrayAllocationInfo`). Like
@@ -2359,13 +2362,19 @@ mod tests {
         let mut graph = Graph::default();
         let value = graph.add_node(Node::new(Op::Constant(value::UNDEFINED), vec![], Some(Repr::Tagged), 0));
         let inner = graph.add_node(Node::new(
-            Op::VirtualObject { shape: CellId(1) },
+            Op::VirtualObject {
+                shape: CellId(1),
+                allocation: NodeId(0),
+            },
             vec![value],
             Some(Repr::Tagged),
             0,
         ));
         let outer = graph.add_node(Node::new(
-            Op::VirtualObject { shape: CellId(2) },
+            Op::VirtualObject {
+                shape: CellId(2),
+                allocation: NodeId(1),
+            },
             vec![inner, value],
             Some(Repr::Tagged),
             0,

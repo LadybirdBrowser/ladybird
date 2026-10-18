@@ -92,7 +92,7 @@ pub(crate) fn site(
     let objects = objects
         .iter()
         .map(|object| {
-            let Op::VirtualObject { shape } = graph.node(*object).op else {
+            let Op::VirtualObject { shape, allocation } = graph.node(*object).op else {
                 unreachable!("virtual objects are VirtualObject nodes");
             };
             let properties = graph
@@ -101,7 +101,11 @@ pub(crate) fn site(
                 .iter()
                 .map(|property| location_of(*property).1)
                 .collect();
-            VirtualObjectDescriptor { shape, properties }
+            VirtualObjectDescriptor {
+                shape,
+                allocation: allocation.0,
+                properties,
+            }
         })
         .collect();
     let inlined_frame_bytes = match graph.node(node).op {
