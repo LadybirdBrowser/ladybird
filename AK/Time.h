@@ -256,6 +256,8 @@ public:
     // Rounds towards -inf (2.8s to 2s, -2.3s to -3s).
     [[nodiscard]] i64 to_floored_seconds() const;
     [[nodiscard]] i64 to_floored_milliseconds() const;
+    // Rounds towards +inf (2.3s to 3s, -2.8s to -2s).
+    [[nodiscard]] i64 to_ceiled_milliseconds() const;
     // Rounds away from zero (2.3s to 3s, -2.3s to -3s).
     [[nodiscard]] i64 to_seconds() const;
     [[nodiscard]] f64 to_seconds_f64() const;

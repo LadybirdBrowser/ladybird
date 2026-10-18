@@ -269,7 +269,7 @@ void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mod
             auto computed_timeout = next_timer_expiration.value() - time_at_iteration_start;
             if (computed_timeout.is_negative())
                 computed_timeout = AK::Duration::zero();
-            i64 true_timeout = computed_timeout.to_milliseconds();
+            i64 true_timeout = computed_timeout.to_ceiled_milliseconds();
             timeout = static_cast<i32>(min<i64>(AK::NumericLimits<i32>::max(), true_timeout));
         } else {
             should_wait_forever = true;

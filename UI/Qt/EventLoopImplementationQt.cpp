@@ -393,7 +393,7 @@ intptr_t EventLoopManagerQt::register_timer(Core::EventReceiver& object, AK::Dur
 {
     auto timer = new QTimer;
     timer->setTimerType(Qt::PreciseTimer);
-    timer->setInterval(AK::clamp_to<int>(interval.to_milliseconds()));
+    timer->setInterval(AK::clamp_to<int>(interval.to_ceiled_milliseconds()));
     timer->setSingleShot(!should_reload);
     auto weak_object = object.make_weak_ptr();
     QObject::connect(timer, &QTimer::timeout, [weak_object = move(weak_object)] {
