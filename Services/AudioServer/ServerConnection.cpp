@@ -6,6 +6,7 @@
 
 #include <AK/Atomic.h>
 #include <AudioServer/ServerConnection.h>
+#include <math.h>
 
 namespace Audio {
 
@@ -179,6 +180,10 @@ void ServerConnection::set_stream_volume(u64 stream_id, float volume)
     auto* stream = find_stream(stream_id, "set_stream_volume"sv);
     if (!stream)
         return;
+    if (isnan(volume) || volume < 0.0f || volume > 1.0f) {
+        did_misbehave("set_stream_volume: volume is outside [0, 1]");
+        return;
+    }
     stream->volume = volume;
     if (stream->has_ring)
         m_mixer->set_client_gain(stream->mixer_client_id, volume);
