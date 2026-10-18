@@ -1,0 +1,11 @@
+path: 50.0, 0.0
+shape: 50.0, 100.0
+href-over-xlink-href: 50.0, 0.0
+xlink-href: 0.0, 50.0
+over-path-attribute: 50.0, 0.0
+missing-element-falls-back-to-path-attribute: 0.0, 100.0
+not-a-shape-falls-back-to-path-attribute: 0.0, 100.0
+href-changed: 0.0, 50.0
+mpath-removed: 0.0, 100.0
+mpath-inserted: 0.0, 50.0
+in-shadow-root: 0.0, 150.0

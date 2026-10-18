@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/Forward.h>
+#include <LibGfx/Path.h>
 #include <LibWeb/SVG/SVGAnimationElement.h>
 
 namespace Web::SVG {
@@ -14,6 +14,10 @@ namespace Web::SVG {
 class SVGAnimateMotionElement final : public SVGAnimationElement {
     WEB_WRAPPABLE(SVGAnimateMotionElement, SVGAnimationElement);
     GC_DECLARE_ALLOCATOR(SVGAnimateMotionElement);
+
+public:
+    void schedule_referenced_motion_path_update();
+    void update_referenced_motion_path();
 
 private:
     SVGAnimateMotionElement(DOM::Document&, DOM::QualifiedName);
@@ -23,6 +27,8 @@ private:
     virtual Optional<CSS::PropertyID> target_property() const override;
     virtual Vector<Animations::BaseKeyframe> keyframes(SVGElement const& target, CSS::PropertyID) const override;
     static Vector<Animations::BaseKeyframe> keyframes_along_motion_path(Gfx::Path const&, CSS::PropertyID);
+
+    Optional<Gfx::Path> m_referenced_motion_path;
 };
 
 }

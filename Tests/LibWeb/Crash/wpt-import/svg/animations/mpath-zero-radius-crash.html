@@ -1,0 +1,18 @@
+<html>
+<head>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const frame = document.createElementNS("http://www.w3.org/1999/xhtml", "frame")
+      document.documentElement.appendChild(frame)
+      frame.src = `data:text/html,` + encodeURIComponent(`<!doctype html>
+<svg>
+  <ellipse id="id_8" ry="100pt"></ellipse>
+  <animateMotion>
+    <desc></desc>
+    <mpath xlink:href="#id_8"></mpath>
+  </animateMotion>
+</svg>`);
+    })
+  </script>
+</head>
+</html>

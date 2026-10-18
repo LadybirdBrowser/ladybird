@@ -237,6 +237,7 @@
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 #include <LibWeb/SVG/SMILTimeContainer.h>
+#include <LibWeb/SVG/SVGAnimateMotionElement.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
@@ -996,6 +997,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_associated_animation_timelines);
     visitor.visit(m_smil_time_containers_to_begin);
+    visitor.visit(m_animate_motion_elements_to_update);
     visitor.visit(m_list_of_available_images);
     for (auto& it : m_map_of_preloaded_resources)
         visitor.visit(it.value);
@@ -5162,6 +5164,15 @@ void Document::begin_smil_time_container_once_loaded(SVG::SMILTimeContainer& tim
     m_smil_time_containers_to_begin.append(time_container);
 }
 
+void Document::schedule_svg_referenced_motion_path_update(SVG::SVGAnimateMotionElement& element)
+{
+    // The motion path that an animateMotion element takes from the element its mpath child references is the geometry
+    // of that element, which depends on its style. Instead of updating style and layout when the reference changes,
+    // take the motion path the next time the animations are updated.
+    if (!m_animate_motion_elements_to_update.contains_slow(GC::Ref { element }))
+        m_animate_motion_elements_to_update.append(element);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
@@ -9055,7 +9066,14 @@ void Document::prepare_to_observe_css_animation_events()
 void Document::update_animations_and_send_events(double timestamp)
 {
     m_last_animation_frame_timestamp = timestamp;
-    auto timelines_to_update = GC::RootVector { m_associated_animation_timelines.values() };
+
+    // AD-HOC: Take the motion paths of animateMotion elements from the elements their mpath children refer to. See
+    //         schedule_svg_referenced_motion_path_update().
+    GC::RootVector animate_motion_elements_to_update = { exchange(m_animate_motion_elements_to_update, {}) };
+    for (auto& element : animate_motion_elements_to_update)
+        element->update_referenced_motion_path();
+
+    GC::RootVector timelines_to_update = { m_associated_animation_timelines.values() };
 
     {
         HTML::TemporaryExecutionContext temporary_execution_context { relevant_settings_object() };
