@@ -98,7 +98,7 @@ intptr_t ALooperEventLoopManager::register_timer(Core::EventReceiver& receiver, 
 
     auto timer = env.get()->NewObject(m_timer_class, m_timer_constructor, reinterpret_cast<long>(&current_impl()));
 
-    long millis = interval.to_milliseconds();
+    long millis = interval.to_ceiled_milliseconds();
     long timer_id = env.get()->CallLongMethod(m_timer_service, m_register_timer, timer, !should_reload, millis);
 
     // FIXME: Is there a race condition here? Maybe we should take a lock on the timers...

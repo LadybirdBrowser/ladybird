@@ -316,6 +316,19 @@ TEST_CASE(flooring)
     EXPECT_EQ(before_epoch.milliseconds_since_epoch(), -2'801);
 }
 
+TEST_CASE(ceiling)
+{
+    EXPECT_EQ(DURATION(2, 800'800'800).to_ceiled_milliseconds(), 2'801);
+    EXPECT_EQ(DURATION(2, 800'000'000).to_ceiled_milliseconds(), 2'800);
+    EXPECT_EQ(DURATION(-2, -800'800'800).to_ceiled_milliseconds(), -2'800);
+    EXPECT_EQ(DURATION(0, 1).to_ceiled_milliseconds(), 1);
+    EXPECT_EQ(DURATION(0, -1).to_ceiled_milliseconds(), 0);
+
+    EXPECT_EQ(Duration::min().to_ceiled_milliseconds(), (i64)-0x8000'0000'0000'0000);
+    EXPECT_EQ(Duration::max().to_ceiled_milliseconds(), 0x7fff'ffff'ffff'ffff);
+    EXPECT_EQ(Duration::from_milliseconds(NumericLimits<i64>::min() + 1).to_ceiled_milliseconds(), NumericLimits<i64>::min() + 1);
+}
+
 TEST_CASE(is_negative)
 {
     auto small = Duration::from_nanoseconds(10);
