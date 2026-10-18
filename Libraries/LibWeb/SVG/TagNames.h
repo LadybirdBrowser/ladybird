@@ -44,6 +44,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(linearGradient, "linearGradient")           \
     __ENUMERATE_SVG_TAG(mask, "mask")                               \
     __ENUMERATE_SVG_TAG(metadata, "metadata")                       \
+    __ENUMERATE_SVG_TAG(mpath, "mpath")                             \
     __ENUMERATE_SVG_TAG(path, "path")                               \
     __ENUMERATE_SVG_TAG(pattern, "pattern")                         \
     __ENUMERATE_SVG_TAG(polygon, "polygon")                         \

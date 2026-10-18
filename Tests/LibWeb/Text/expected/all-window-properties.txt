@@ -445,6 +445,7 @@ SVGLength
 SVGLengthList
 SVGLineElement
 SVGLinearGradientElement
+SVGMPathElement
 SVGMaskElement
 SVGMatrix
 SVGMetadataElement

@@ -1177,6 +1177,7 @@ class SVGLengthList;
 class SVGLineElement;
 class SVGMaskElement;
 class SVGMetadataElement;
+class SVGMPathElement;
 class SVGNumber;
 class SVGNumberList;
 class SVGPathElement;

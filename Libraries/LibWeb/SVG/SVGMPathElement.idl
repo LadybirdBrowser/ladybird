@@ -1,0 +1,6 @@
+// https://svgwg.org/specs/animations/#InterfaceSVGMPathElement
+[Exposed=Window]
+interface SVGMPathElement : SVGElement {
+};
+
+SVGMPathElement includes SVGURIReference;

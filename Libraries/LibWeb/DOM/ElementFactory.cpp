@@ -125,6 +125,7 @@
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGLineElement.h>
 #include <LibWeb/SVG/SVGLinearGradientElement.h>
+#include <LibWeb/SVG/SVGMPathElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGMetadataElement.h>
 #include <LibWeb/SVG/SVGPathElement.h>
@@ -574,6 +575,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
         return create_element_on_heap<SVG::SVGMaskElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::metadata)
         return create_element_on_heap<SVG::SVGMetadataElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::mpath)
+        return create_element_on_heap<SVG::SVGMPathElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::path)
         return create_element_on_heap<SVG::SVGPathElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::pattern)
