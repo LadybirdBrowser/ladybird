@@ -55,6 +55,8 @@ signals:
 
 private:
     virtual void changeEvent(QEvent* event) override;
+    virtual bool event(QEvent* event) override;
+    virtual bool eventFilter(QObject* watched, QEvent* event) override;
     virtual void contextMenuEvent(QContextMenuEvent* event) override;
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
@@ -75,6 +77,7 @@ private:
     void update_location_icon();
     void update_zoom_indicator();
     void update_focus_glow(int alpha);
+    void set_field_hovered(bool);
     void schedule_chrome_style_update();
     void animate_focus_glow(int target_alpha);
     void highlight_location();
@@ -97,6 +100,7 @@ private:
     bool m_url_is_hidden { false };
     bool m_has_user_edited_hidden_url { false };
     bool m_is_updating_chrome_style { false };
+    bool m_is_updating_field_hover { false };
     bool m_has_pending_chrome_style_update { false };
     bool m_should_show_full_url_on_mouse_release { false };
     int m_text_leading_margin { 0 };
