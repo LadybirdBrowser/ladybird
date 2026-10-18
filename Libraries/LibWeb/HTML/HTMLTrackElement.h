@@ -43,6 +43,10 @@ private:
     // ^DOM::Element
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual void inserted() override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
+
+    void parent_changed(GC::Ptr<Node> old_parent);
 
     GC::Ptr<TextTrack> m_track;
     GC::Ptr<TextTrackObserver> m_track_observer;

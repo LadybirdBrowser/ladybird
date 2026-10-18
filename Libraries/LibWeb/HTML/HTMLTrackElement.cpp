@@ -19,7 +19,9 @@
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextTrack.h>
+#include <LibWeb/HTML/TextTrackList.h>
 #include <LibWeb/HTML/TextTrackObserver.h>
+#include <LibWeb/HTML/TrackEvent.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
@@ -95,12 +97,62 @@ void HTMLTrackElement::inserted()
 {
     HTMLElement::inserted();
 
+    if (auto* media_element = as_if<HTMLMediaElement>(parent()); media_element && !media_element->text_tracks()->contains(*m_track))
+        parent_changed(nullptr);
+
     // AD-HOC: This is a hack to allow tracks to start loading, without needing to implement the entire
     //         "honor user preferences for automatic text track selection" AO detailed here:
     //         https://html.spec.whatwg.org/multipage/media.html#honor-user-preferences-for-automatic-text-track-selection
     m_track->set_mode(TextTrackMode::Hidden);
 
     start_the_track_processing_model();
+}
+
+void HTMLTrackElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
+{
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
+
+    if (is_subtree_root == IsSubtreeRoot::Yes)
+        parent_changed(old_ancestor);
+}
+
+void HTMLTrackElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
+{
+    Base::moved_from(is_subtree_root, old_ancestor);
+
+    if (is_subtree_root == IsSubtreeRoot::Yes)
+        parent_changed(old_ancestor);
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks
+void HTMLTrackElement::parent_changed(GC::Ptr<Node> old_parent)
+{
+    // When a track element's parent element changes and the old parent was a media element, then the user agent must
+    // remove the track element's corresponding text track from the media element's list of text tracks, and then queue
+    // a media element task given the media element to fire an event named removetrack at the media element's
+    // textTracks attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the text
+    // track.
+    if (auto* media_element = as_if<HTMLMediaElement>(old_parent.ptr())) {
+        media_element->text_tracks()->remove_track(*m_track);
+        media_element->queue_a_media_element_task([track = GC::Ref { *m_track }](HTMLMediaElement& media_element) {
+            Bindings::TrackEventInit event_init {};
+            event_init.track = track;
+            media_element.text_tracks()->dispatch_event(TrackEvent::create(HTML::EventNames::removetrack, move(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(media_element))));
+        });
+    }
+
+    // When a track element's parent element changes and the new parent is a media element, then the user agent must
+    // add the track element's corresponding text track to the media element's list of text tracks, and then queue a
+    // media element task given the media element to fire an event named addtrack at the media element's textTracks
+    // attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the text track.
+    if (auto* media_element = as_if<HTMLMediaElement>(parent())) {
+        media_element->text_tracks()->add_track(*m_track);
+        media_element->queue_a_media_element_task([track = GC::Ref { *m_track }](HTMLMediaElement& media_element) {
+            Bindings::TrackEventInit event_init {};
+            event_init.track = track;
+            media_element.text_tracks()->dispatch_event(TrackEvent::create(HTML::EventNames::addtrack, move(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(media_element))));
+        });
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-track-readystate

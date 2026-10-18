@@ -23,6 +23,8 @@ public:
     virtual ~TextTrackList() override;
 
     void add_track(GC::Ref<TextTrack>);
+    void remove_track(GC::Ref<TextTrack>);
+    bool contains(TextTrack const&) const;
 
     size_t length() const;
 
