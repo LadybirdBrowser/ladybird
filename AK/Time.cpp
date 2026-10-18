@@ -145,7 +145,7 @@ Duration Duration::scaled_by(u32 numerator, u32 denominator) const
     return Duration(seconds, static_cast<u32>(nanoseconds));
 }
 
-i64 Duration::to_truncated_seconds() const
+i64 Duration::to_seconds() const
 {
     VERIFY(m_nanoseconds < 1'000'000'000);
     if (m_seconds < 0 && m_nanoseconds) {
@@ -155,7 +155,7 @@ i64 Duration::to_truncated_seconds() const
     return m_seconds;
 }
 
-i64 Duration::to_truncated_milliseconds() const
+i64 Duration::to_milliseconds() const
 {
     VERIFY(m_nanoseconds < 1'000'000'000);
     Checked<i64> milliseconds((m_seconds < 0) ? m_seconds + 1 : m_seconds);
@@ -174,7 +174,7 @@ i64 Duration::to_truncated_milliseconds() const
     return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
-i64 Duration::to_truncated_microseconds() const
+i64 Duration::to_microseconds() const
 {
     VERIFY(m_nanoseconds < 1'000'000'000);
     Checked<i64> microseconds((m_seconds < 0) ? m_seconds + 1 : m_seconds);
@@ -227,55 +227,10 @@ i64 Duration::to_ceiled_milliseconds() const
     return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
-i64 Duration::to_seconds() const
-{
-    VERIFY(m_nanoseconds < 1'000'000'000);
-    if (m_seconds >= 0 && m_nanoseconds) {
-        Checked<i64> seconds(m_seconds);
-        seconds++;
-        return seconds.has_overflow() ? NumericLimits<i64>::max() : seconds.value();
-    }
-    return m_seconds;
-}
-
 f64 Duration::to_seconds_f64() const
 {
     VERIFY(m_nanoseconds < 1'000'000'000);
     return static_cast<double>(m_seconds) + (m_nanoseconds / 1'000'000'000.0);
-}
-
-i64 Duration::to_milliseconds() const
-{
-    VERIFY(m_nanoseconds < 1'000'000'000);
-    Checked<i64> milliseconds((m_seconds < 0) ? m_seconds + 1 : m_seconds);
-    milliseconds *= 1'000;
-    milliseconds += m_nanoseconds / 1'000'000;
-    if (m_seconds >= 0 && m_nanoseconds % 1'000'000 != 0)
-        milliseconds++;
-    if (m_seconds < 0) {
-        // We dropped one second previously, put it back in now that we have handled the rounding.
-        milliseconds -= 1'000;
-    }
-    if (!milliseconds.has_overflow())
-        return milliseconds.value();
-    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
-}
-
-i64 Duration::to_microseconds() const
-{
-    VERIFY(m_nanoseconds < 1'000'000'000);
-    Checked<i64> microseconds((m_seconds < 0) ? m_seconds + 1 : m_seconds);
-    microseconds *= 1'000'000;
-    microseconds += m_nanoseconds / 1'000;
-    if (m_seconds >= 0 && m_nanoseconds % 1'000 != 0)
-        microseconds++;
-    if (m_seconds < 0) {
-        // We dropped one second previously, put it back in now that we have handled the rounding.
-        microseconds -= 1'000'000;
-    }
-    if (!microseconds.has_overflow())
-        return microseconds.value();
-    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
 i64 Duration::to_nanoseconds() const

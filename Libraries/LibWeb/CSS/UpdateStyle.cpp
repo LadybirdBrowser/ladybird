@@ -38,7 +38,7 @@ extern "C" void ladybird_utf16_fly_string_unref(size_t);
 // The time since `started_at`, for the timing counters of style updates.
 static u64 microseconds_since(MonotonicTime started_at)
 {
-    return (MonotonicTime::now() - started_at).to_truncated_microseconds();
+    return (MonotonicTime::now() - started_at).to_microseconds();
 }
 
 // One style update of a document: its style computation, the style record views it reads, and the strings the engine

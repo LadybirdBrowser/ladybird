@@ -235,7 +235,7 @@ void Display::render_live_display() const
                     return;
                 auto const& state = view_states()[i];
                 if (state.active && state.pid > 0) {
-                    auto duration = (now - state.start_time).to_truncated_seconds();
+                    auto duration = (now - state.start_time).to_seconds();
                     auto prefix = ByteString::formatted("⏺ {} ({}s): ", state.pid, duration);
                     t.label(prefix, state.test_name);
                 } else {

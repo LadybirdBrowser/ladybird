@@ -260,10 +260,10 @@ int TestSuite::run(Vector<NonnullRefPtr<TestCase>> const& tests)
     dbgln("Finished {} tests and {} benchmarks in {}ms ({}ms tests, {}ms benchmarks, {}ms other).",
         test_count,
         benchmark_count,
-        elapsed.to_truncated_milliseconds(),
-        m_test_time.to_truncated_milliseconds(),
-        m_bench_time.to_truncated_milliseconds(),
-        (elapsed - runtime).to_truncated_milliseconds());
+        elapsed.to_milliseconds(),
+        m_test_time.to_milliseconds(),
+        m_bench_time.to_milliseconds(),
+        (elapsed - runtime).to_milliseconds());
 
     if (test_count != 0) {
         if (test_passed_count == test_count) {

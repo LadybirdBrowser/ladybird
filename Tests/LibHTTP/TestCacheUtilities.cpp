@@ -72,7 +72,7 @@ TEST_CASE(overflowing_age_saturates)
     auto now = UnixDateTime::now();
 
     auto age = HTTP::calculate_age(*headers, now, now);
-    EXPECT_EQ(age.to_truncated_seconds(), 2'147'483'648);
+    EXPECT_EQ(age.to_seconds(), 2'147'483'648);
 }
 
 TEST_CASE(state_changing_response_fields_are_not_stored)
