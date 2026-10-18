@@ -1,0 +1,3 @@
+random value in range: true
+at 250ms: 100.00px over the random value
+at 500ms: 200.00px over the random value

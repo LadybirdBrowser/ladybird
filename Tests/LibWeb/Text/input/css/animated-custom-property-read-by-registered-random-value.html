@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --length {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+    @property --size {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+    @keyframes grow {
+        from { --length: 0px; }
+        to { --length: 400px; }
+    }
+    #target {
+        --size: calc(random(10px, 20px) + var(--length));
+    }
+    #target.animated {
+        animation: grow 1s linear infinite paused;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const size = () => parseFloat(getComputedStyle(target).getPropertyValue("--size"));
+        const random = size();
+        println(`random value in range: ${random >= 10 && random <= 20}`);
+
+        // The animation moves the value its random() adds to, not the random value.
+        target.className = "animated";
+        for (const currentTime of [250, 500]) {
+            target.getAnimations()[0].currentTime = currentTime;
+            println(`at ${currentTime}ms: ${(size() - random).toFixed(2)}px over the random value`);
+        }
+    });
+</script>
