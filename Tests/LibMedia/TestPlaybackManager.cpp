@@ -12,6 +12,7 @@
 #include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibTest/TestCase.h>
 
 #include "TestMediaCommon.h"
@@ -52,7 +53,7 @@ TEST_CASE(buffering_at_the_download_head_holds_until_data_arrives)
     stream->add_chunk_at(0, file_data.bytes().trim(served_size));
     stream->set_data_request_callback([](Optional<u64>) { });
 
-    auto manager = Media::PlaybackManager::create();
+    auto manager = Media::PlaybackManager::create(Media::AudioOutputFactory::create_null());
     Vector<Media::PlaybackState> states;
     manager->on_playback_state_change = [&] { states.append(manager->state()); };
 
