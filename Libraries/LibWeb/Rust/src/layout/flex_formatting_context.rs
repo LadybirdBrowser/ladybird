@@ -3313,8 +3313,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         //     that is not stretched indefinite.
         if self.should_treat_cross_size_as_auto(self.run.box_) {
             for index in 0..self.flex_items.len() {
-                // NB: A button centers its content within its used block size, so it keeps it definite.
-                if !self.flex_item_is_stretched(index) && !self.facts(self.flex_items[index].box_).uses_button_layout()
+                // NB: A button or a text input centers its content within its used block size, so it keeps it definite.
+                let item_facts = self.facts(self.flex_items[index].box_);
+                if !self.flex_item_is_stretched(index)
+                    && !item_facts.uses_button_layout()
+                    && !item_facts.is_text_input()
                 {
                     continue;
                 }

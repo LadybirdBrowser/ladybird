@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/text-input-centers-text-in-clamped-automatic-height-ref.html">
+<style>
+    body {
+        margin: 0;
+        font-size: 0;
+    }
+    .row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .block-wrapper {
+        display: block;
+        width: 120px;
+        overflow: hidden;
+        line-height: normal;
+        background: lightblue;
+    }
+    input {
+        box-sizing: border-box;
+        width: 120px;
+        margin: 0;
+        border: 0;
+        font: 14px sans-serif;
+        background: pink;
+        height: auto;
+    }
+    .primitive {
+        appearance: none;
+    }
+    .shrunk-by-max-height {
+        padding: 16px 0;
+        line-height: 48px;
+        min-height: 48px;
+        max-height: 48px;
+    }
+    .grown-by-min-height {
+        padding: 4px 0;
+        line-height: normal;
+        min-height: 40px;
+    }
+</style>
+<div class="row">
+    <span class="block-wrapper"><input class="primitive shrunk-by-max-height" value="Xyz"></span>
+    <input class="primitive shrunk-by-max-height" value="Xyz">
+    <input class="shrunk-by-max-height" value="Xyz">
+</div>
+<div class="row">
+    <span class="block-wrapper"><input class="primitive grown-by-min-height" value="Xyz"></span>
+    <input class="primitive grown-by-min-height" value="Xyz">
+    <input class="grown-by-min-height" value="Xyz">
+</div>

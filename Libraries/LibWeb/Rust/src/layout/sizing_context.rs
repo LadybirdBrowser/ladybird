@@ -1756,7 +1756,7 @@ impl<'pass> SizingContext<'pass> {
             block_size: AvailableSize::Indefinite,
         };
         self.resolve_used_block_size_if_not_treated_as_auto(node, inline_definite_space, constraints);
-        self.make_button_content_box_definite(node, layout_mode, available_space, constraints, None);
+        self.make_form_control_content_box_definite(node, layout_mode, available_space, constraints, None);
         sizing_repeats_for_available_inline_sizes_at_or_above
     }
 
@@ -2808,7 +2808,9 @@ impl<'pass> SizingContext<'pass> {
             .automatic_content_block_size
     }
 
-    pub(crate) fn make_button_content_box_definite(
+    /// Buttons and text inputs center their content within their content box, which therefore has to be definite
+    /// before the content is laid out, also where a min or max block size decides an automatic block size.
+    pub(crate) fn make_form_control_content_box_definite(
         &self,
         node: Node,
         layout_mode: LayoutMode,
@@ -2817,18 +2819,25 @@ impl<'pass> SizingContext<'pass> {
         measured_content_block_size: Option<CssPixels>,
     ) {
         let facts = self.facts(node);
-        if !facts.uses_button_layout() {
+        // https://drafts.csswg.org/css-ui-4/#input-rules
+        // The content is vertically centered
+        // NB: A text input without its native appearance centers its content too, including content that overflows a
+        //     content box made shorter by a max-height.
+        let is_primitive_text_input = facts.is_primitive_text_input();
+        if !facts.uses_button_layout() && !is_primitive_text_input {
             return;
         }
-        // Flex/grid-inside buttons are their own flex/grid container and get no anonymous content wrapper,
-        // so there is nothing to make definite for centering.
+        // Flex/grid-inside controls are their own flex/grid container, which aligns their content itself, so there is
+        // nothing to make definite for centering.
         let style = self.style(node);
         if style.display().is_flex_inside() || style.display().is_grid_inside() {
             return;
         }
         // With auto height and no min-height the content box already exactly wraps the content, so there is
-        // no extra space to center within and no need to force a definite content box.
-        if style.height().is_auto() && style.min_height().is_auto() {
+        // no extra space to center within and no need to force a definite content box. A text input's max-height can
+        // still make its content box shorter than its content.
+        let max_height_can_clamp_text_input_content = is_primitive_text_input && !style.max_height().is_auto();
+        if style.height().is_auto() && style.min_height().is_auto() && !max_height_can_clamp_text_input_content {
             return;
         }
         if self.used(node).has_definite_block_size() {
@@ -2872,17 +2881,23 @@ impl<'pass> SizingContext<'pass> {
                 constraints,
             ));
         }
-        // Only force a definite content box when the button's used block size exceeds its content block size, so a larger
-        // preferred or minimum size has room to center within. A content-sized box stays indefinite, so an intrinsic
-        // keyword does not resolve percentage-sized descendants.
-        if used_block_size <= natural {
+        // Only force a definite content box when a button's used block size exceeds its content block size, so a larger
+        // preferred or minimum size has room to center within, or when a text input's differs from it in either
+        // direction. A content-sized box stays indefinite, so an intrinsic keyword does not resolve percentage-sized
+        // descendants.
+        let content_box_needs_to_be_definite = if is_primitive_text_input {
+            used_block_size != natural
+        } else {
+            used_block_size > natural
+        };
+        if !content_box_needs_to_be_definite {
             return;
         }
         let used = self.used(node);
         used.set_content_block_size(used_block_size);
         used.has_definite_block_size.set(true);
         used.has_definite_block_size_only_for_button_content_alignment
-            .set(block_size_is_automatic);
+            .set(block_size_is_automatic && facts.uses_button_layout());
     }
 
     pub(crate) fn table_box_inside_wrapper(&self, wrapper: Node) -> Node {

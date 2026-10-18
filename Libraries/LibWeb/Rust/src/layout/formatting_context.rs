@@ -1432,7 +1432,7 @@ fn dimension_block_level_root(run: &FormattingContextRun, input: &LayoutInput) -
             body_input.available_space.block_size = AvailableSize::definite(min_block_size);
         }
     }
-    sizing.make_button_content_box_definite(
+    sizing.make_form_control_content_box_definite(
         node,
         run.layout_mode,
         available_space,
