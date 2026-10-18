@@ -1408,6 +1408,11 @@ void Tab::set_loading(bool is_loading)
         m_loading_animation_timer->stop();
 
     update_tab_icon();
+
+    // Only mark the end of loads that finished, rather than being stopped. The browser's own about: pages are not
+    // marked.
+    if (!m_is_loading && view().last_load_finished() && view().url().scheme() != "about"sv)
+        emit loading_finished();
 }
 
 void Tab::update_tab_icon()
