@@ -235,6 +235,8 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
                     m_relationship |= Relationship::Preconnect;
                 else if (token.equals_ignoring_ascii_case(u"icon"sv))
                     m_relationship |= Relationship::Icon;
+                else if (token.equals_ignoring_ascii_case(u"prefetch"sv))
+                    m_relationship |= Relationship::Prefetch;
             }
 
             start = i + 1;
@@ -263,7 +265,7 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         // - When the href attribute of the link element of an external resource link that is already browsing-context connected is changed.
         auto fetch = name == AttributeNames::href;
 
-        if (!fetch && (m_relationship & (Relationship::Preconnect | Relationship::Stylesheet))) {
+        if (!fetch && (m_relationship & (Relationship::Preconnect | Relationship::Prefetch | Relationship::Stylesheet))) {
             // - When the crossorigin attribute of the link element of an external resource link that is already browsing-context connected is set, changed, or removed.
             fetch = name == AttributeNames::crossorigin;
         }
@@ -281,6 +283,11 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         if (!fetch && (m_relationship & Relationship::ModulePreload)) {
             // - When the external resource link is created on a link element that is already browsing-context connected.
             fetch = name == AttributeNames::rel && !(old_relationship & Relationship::ModulePreload);
+        }
+
+        if (!fetch && (m_relationship & Relationship::Prefetch)) {
+            // - When the external resource link is created on a link element that is already browsing-context connected.
+            fetch = name == AttributeNames::rel && !(old_relationship & Relationship::Prefetch);
         }
 
         if (!fetch && (m_relationship & Relationship::Stylesheet)) {
@@ -458,12 +465,14 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
         document().remove_from_script_blocking_style_sheet_set(*this);
     }
 
-    if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload | Relationship::ModulePreload))
+    if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload | Relationship::ModulePreload | Relationship::Prefetch))
         default_fetch_and_process_linked_resource(fetch_generation);
     else if (m_relationship & Relationship::ModulePreload)
         fetch_and_process_linked_modulepreload_resource();
     else if (m_relationship & Relationship::Preload)
         fetch_and_process_linked_preload_resource();
+    else if (m_relationship & Relationship::Prefetch)
+        fetch_and_process_linked_prefetch_resource();
     else if (m_relationship & Relationship::Preconnect)
         fetch_and_process_linked_preconnect_resource();
     else if (m_relationship & Relationship::DNSPrefetch)
@@ -740,6 +749,50 @@ void HTMLLinkElement::fetch_and_process_linked_modulepreload_resource()
         link_element->dispatch_event(create_event_for_element(*link_element, HTML::EventNames::load));
     });
     fetch_modulepreload_module_script_graph(relevant_realm(*this), *url, *destination, settings_object, options, on_complete);
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#link-type-prefetch:fetch-and-process-the-linked-resource-2
+void HTMLLinkElement::fetch_and_process_linked_prefetch_resource()
+{
+    // 1. If el's href attribute's value is the empty string, then return.
+    if (attribute(AttributeNames::href).value_or({}).is_empty())
+        return;
+
+    // 2. Let options be the result of creating link options from el.
+    auto options = create_link_options();
+
+    // 3. Let request be the result of creating a link request given options.
+    auto request = create_link_request(options);
+
+    // 4. If request is null, then return.
+    if (!request)
+        return;
+
+    // 5. Set request's initiator to "prefetch".
+    request->set_initiator(Fetch::Infrastructure::Request::Initiator::Prefetch);
+
+    // 6. Let processPrefetchResponse be the following steps given a response response and null, failure, or a byte
+    //    sequence bytesOrNull:
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    fetch_algorithms_input.process_response_consume_body = [this, fetch_generation = m_current_fetch_generation](auto response, auto) {
+        if (fetch_generation != m_current_fetch_generation)
+            return;
+        m_fetch_controller = nullptr;
+
+        // 1. If response is a network error, fire an event named error at el.
+        if (response->is_network_error()) {
+            dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
+        }
+        // 2. Otherwise, fire an event named load at el.
+        else {
+            dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
+        }
+    };
+
+    // 7. The user agent should fetch request, with processResponseConsumeBody set to processPrefetchResponse. User
+    //    agents may delay the fetching of request to prioritize other requests that are necessary for the current
+    //    document.
+    m_fetch_controller = Fetch::Fetching::fetch(HTML::relevant_realm(*this), *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#linked-resource-fetch-setup-steps
@@ -1331,7 +1384,8 @@ bool HTMLLinkElement::should_fetch_and_process_resource_type() const
     // https://html.spec.whatwg.org/multipage/links.html#link-type-preload:fetch-and-process-the-linked-resource
     // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:fetch-and-process-the-linked-resource
     // https://html.spec.whatwg.org/multipage/links.html#link-type-modulepreload:fetch-and-process-the-linked-resource
-    if (m_relationship & (Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload | Relationship::ModulePreload | Relationship::Stylesheet))
+    // https://html.spec.whatwg.org/multipage/links.html#link-type-prefetch:fetch-and-process-the-linked-resource
+    if (m_relationship & (Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload | Relationship::ModulePreload | Relationship::Prefetch | Relationship::Stylesheet))
         return true;
 
     // AD-HOC: The spec is underspecified for fetching and processing rel="icon". See:

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<title>Ensures that prefetch respects HTTP cache semantics</title>
+<meta name="timeout" content="long">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../common/utils.js"></script>
+<script src="resources/prefetch-helper.js"></script>
+<script src="../common/get-host-info.sub.js"></script>
+<body>
+<script>
+const {REMOTE_ORIGIN} = get_host_info();
+async function prefetch(link, uid, t) {
+    link.rel = "prefetch";
+    document.head.appendChild(link);
+    const event = new Promise(resolve => {
+        link.addEventListener("error", () => resolve("error"));
+        link.addEventListener("load", () => resolve("load"));
+        t.step_timeout(() => resolve("timeout"), 1000);
+    });
+    return await event;
+}
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.href = `/preload/resources/prefetch-info.py?key=${uid}`;
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "load");
+}, "Prefetch should fire the load event");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.href = `${REMOTE_ORIGIN}/preload/resources/prefetch-info.py?key=${uid}`;
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "load");
+}, "Cross-origin prefetch should fire the load event");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.href = `/preload/resources/prefetch-info.py?key=${uid}&status=404`;
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "load");
+}, "Prefetch should fire the load event for 404");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.href = `${REMOTE_ORIGIN}/preload/resources/prefetch-info.py?key=${uid}&status=404`;
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "load");
+}, "Prefetch should fire the load event for 404 (cross-origin)");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.href = `/preload/resources/prefetch-info.py?key=${uid}&status=500`;
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "load");
+}, "Prefetch should fire the load event for 500");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.href = `${REMOTE_ORIGIN}/preload/resources/prefetch-info.py?key=${uid}&status=500`;
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "load");
+}, "Cross-origin prefetch should fire the load event for 500");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.crossOrigin = "anonymous";
+    link.href = `${REMOTE_ORIGIN}/preload/resources/prefetch-info.py?key=${uid}&cors=false`;
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "error");
+}, "Prefetch should fire the error event for network errors");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.crossOrigin = "anonymous";
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "timeout");
+}, "Prefetch should do nothing with an empty href");
+
+promise_test(async t => {
+    const uid = token();
+    const link = document.createElement("link");
+    link.href = "https://example.com\u0000mozilla.org";
+    link.crossOrigin = "anonymous";
+    const event = await prefetch(link, uid, t);
+    assert_equals(event, "timeout");
+}, "Prefetch should do nothing with an invalid href");
+</script>
+</body>
