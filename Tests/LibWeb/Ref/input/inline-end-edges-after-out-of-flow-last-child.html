@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/inline-end-edges-after-out-of-flow-last-child-ref.html">
+<style>
+    div {
+        margin: 10px;
+    }
+    .inline {
+        padding: 0 30px 0 20px;
+    }
+    .box {
+        display: inline-block;
+        width: 50px;
+        height: 10px;
+        background: blue;
+    }
+    .out-of-flow {
+        width: 10px;
+        height: 10px;
+        background: green;
+    }
+    .absolute {
+        position: absolute;
+    }
+    .float {
+        float: left;
+    }
+    .float-after::after {
+        content: "";
+        float: left;
+        width: 10px;
+        height: 10px;
+        background: green;
+    }
+</style>
+<div><span class="inline"><span class="box"></span><span class="out-of-flow absolute"></span></span><span class="box"></span></div>
+<div><span class="inline"><span class="box"></span><span class="out-of-flow float"></span></span><span class="box"></span></div>
+<div><span class="inline float-after"><span class="box"></span></span><span class="box"></span></div>
