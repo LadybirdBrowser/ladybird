@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --turn {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0deg;
+    }
+    @property --registered {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0deg;
+    }
+    @keyframes turn {
+        from { --turn: 0deg; }
+        to { --turn: 360deg; }
+    }
+    .source {
+        animation: turn 1s linear infinite paused;
+    }
+    #resetting > div {
+        --turn: 0deg;
+    }
+    .reader {
+        rotate: var(--turn);
+    }
+    #declaring {
+        --registered: 5deg;
+    }
+    #declaring-reader {
+        --own: 1px;
+    }
+</style>
+<div id="reading" class="source"><div><div><div class="reader" id="deep-reader"></div></div></div></div>
+<div id="resetting" class="source"><div id="reset-child"></div></div>
+<div id="host"><div><span class="reader" id="slotted-reader"></span></div></div>
+<div id="declaring" class="source"><div class="reader" id="declaring-reader"></div></div>
+<script>
+    test(() => {
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                @keyframes turn {
+                    from { --turn: 0deg; }
+                    to { --turn: 360deg; }
+                }
+                slot { animation: turn 1s linear infinite paused; }
+            </style>
+            <slot></slot>`;
+
+        // Every element below the child that resets the animated property inherits the same value on every step.
+        const resetChild = document.getElementById("reset-child");
+        for (let i = 0; i < 50; ++i) {
+            const div = resetChild.appendChild(document.createElement("div"));
+            div.appendChild(document.createElement("span")).className = "reader";
+        }
+
+        const step = (animation, currentTime) => {
+            internals.updateStyle();
+            internals.resetStyleInvalidationCounters();
+            animation.currentTime = currentTime;
+            internals.updateStyle();
+            return internals.getStyleInvalidationCounters().engineComputedStyleRecords;
+        };
+        const animationOf = id => document.getElementById(id).getAnimations()[0];
+
+        internals.updateStyle();
+        const slotAnimation = shadow.querySelector("slot").getAnimations()[0];
+        step(slotAnimation, 250);
+        println(`reader in an element a slot takes: ${getComputedStyle(document.getElementById("slotted-reader")).rotate}`);
+
+        step(animationOf("reading"), 250);
+        println(`deep reader below non-readers: ${getComputedStyle(document.getElementById("deep-reader")).rotate}`);
+        step(animationOf("reading"), 500);
+        println(`deep reader after a step: ${getComputedStyle(document.getElementById("deep-reader")).rotate}`);
+
+        const records = step(animationOf("resetting"), 250);
+        println(`reader below the reset: ${getComputedStyle(resetChild.querySelector(".reader")).rotate}`);
+        // Only the animated element and the child that resets the property compute again.
+        println(`restyle stops at the reset: ${records <= 2}`);
+
+        // An element declaring a registered custom property resolves its environment anew on every computation, which
+        // moves what it hands down once more; a reader declaring its own still takes the animated value.
+        const declaringReader = document.getElementById("declaring-reader");
+        animationOf("declaring").currentTime = 250;
+        println(`reader declaring its own below a registered declaration: ${getComputedStyle(declaringReader).rotate}`);
+        animationOf("declaring").currentTime = 500;
+        println(`that reader after a step: ${getComputedStyle(declaringReader).rotate}`);
+    });
+</script>
