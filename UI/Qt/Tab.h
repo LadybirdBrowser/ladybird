@@ -125,6 +125,8 @@ public:
 
 public slots:
     void focus_location_editor();
+    void park_location_editing();
+    LocationEdit* location_edit_with_parked_editing() const { return m_location_edit->has_parked_editing_session() ? m_location_edit : nullptr; }
 
 signals:
     void title_changed(int id, QString const&);

@@ -47,6 +47,8 @@ public:
     bool url_is_hidden() const { return m_url_is_hidden; }
     void set_url_is_hidden(bool);
     void show_autocomplete();
+    void park_editing_session();
+    bool has_parked_editing_session() const { return m_parked_editing_session.has_value(); }
 
     Function<void(String, Optional<URL::URL>, WebView::OmniboxDestinationKind)> on_navigation;
 
@@ -98,6 +100,13 @@ private:
 
     Optional<URL::URL> m_url;
     bool m_url_is_hidden { false };
+
+    struct ParkedEditingSession {
+        int cursor_position { 0 };
+        int selection_start { -1 };
+        int selection_length { 0 };
+    };
+    Optional<ParkedEditingSession> m_parked_editing_session;
     bool m_has_user_edited_hidden_url { false };
     bool m_is_updating_chrome_style { false };
     bool m_is_updating_field_hover { false };
