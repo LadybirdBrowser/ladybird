@@ -42,6 +42,7 @@ HTMLTrackElement::~HTMLTrackElement() = default;
 void HTMLTrackElement::initialize_element()
 {
     m_track = TextTrack::create();
+    m_track->set_track_element(this);
     m_track_observer = TextTrackObserver::create(*m_track);
 }
 
@@ -138,6 +139,9 @@ void HTMLTrackElement::parent_changed(GC::Ptr<Node> old_parent)
     // track.
     if (auto* media_element = as_if<HTMLMediaElement>(old_parent.ptr())) {
         media_element->text_tracks()->remove_track(*m_track);
+        m_track->set_media_element(nullptr);
+        m_track->unset_active_flag_of_cues();
+        media_element->text_track_cue_or_text_track_removed();
         media_element->queue_a_media_element_task([track = GC::Ref { *m_track }](HTMLMediaElement& media_element) {
             Bindings::TrackEventInit event_init {};
             event_init.track = track;
@@ -151,6 +155,8 @@ void HTMLTrackElement::parent_changed(GC::Ptr<Node> old_parent)
     // attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the text track.
     if (auto* media_element = as_if<HTMLMediaElement>(parent())) {
         media_element->text_tracks()->add_track(*m_track);
+        m_track->set_media_element(media_element);
+        media_element->add_newly_introduced_cues(m_track->text_track_list_of_cues());
         media_element->queue_a_media_element_task([track = GC::Ref { *m_track }](HTMLMediaElement& media_element) {
             Bindings::TrackEventInit event_init {};
             event_init.track = track;

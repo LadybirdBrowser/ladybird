@@ -8,6 +8,8 @@
 #include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HTMLTrackElement.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/HTML/TextTrackCue.h>
 #include <LibWeb/HTML/TextTrackCueList.h>
@@ -35,6 +37,8 @@ void TextTrack::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_observers);
     visitor.visit(m_text_track_list_of_cues);
+    visitor.visit(m_track_element);
+    visitor.visit(m_media_element);
     visitor.visit(m_cues);
     visitor.visit(m_active_cues);
 }
@@ -92,8 +96,12 @@ void TextTrack::add_cue(GC::Ref<TextTrackCue> cue)
     //           text track rendering as appropriate for cue, then throw an "InvalidStateError" DOMException.
 
     // 4. If the given cue is in a text track list of cues, then remove cue from that text track list of cues.
-    if (auto track = cue->track())
+    if (auto track = cue->track()) {
         track->m_text_track_list_of_cues.remove_first_matching([&](auto const& entry) { return entry == cue; });
+        cue->set_active(false);
+        if (track->m_media_element)
+            track->m_media_element->text_track_cue_or_text_track_removed();
+    }
 
     // 5. Add cue to list.
     cue->set_track(this);
@@ -102,6 +110,9 @@ void TextTrack::add_cue(GC::Ref<TextTrackCue> cue)
         return cue_order_precedes(*entry, *new_cue) ? -1 : 1;
     });
     m_text_track_list_of_cues.insert(index, cue);
+
+    if (m_media_element)
+        m_media_element->add_newly_introduced_cues({ &cue, 1 });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#text-track-cue-order
@@ -123,6 +134,10 @@ WebIDL::ExceptionOr<void> TextTrack::remove_cue(GC::Ref<TextTrackCue> cue)
     // 2. Remove cue from this's text track list of cues.
     m_text_track_list_of_cues.remove(*index);
     cue->set_track(nullptr);
+    cue->set_active(false);
+
+    if (m_media_element)
+        m_media_element->text_track_cue_or_text_track_removed();
     return {};
 }
 
@@ -131,9 +146,14 @@ void TextTrack::empty_text_track_list_of_cues()
     if (m_text_track_list_of_cues.is_empty())
         return;
 
-    for (auto const& cue : m_text_track_list_of_cues)
+    for (auto const& cue : m_text_track_list_of_cues) {
         cue->set_track(nullptr);
+        cue->set_active(false);
+    }
     m_text_track_list_of_cues.clear();
+
+    if (m_media_element)
+        m_media_element->text_track_cue_or_text_track_removed();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-kind
@@ -188,7 +208,29 @@ TextTrackMode TextTrack::mode()
 
 void TextTrack::set_mode(TextTrackMode mode)
 {
+    if (m_mode == mode)
+        return;
     m_mode = mode;
+
+    if (m_mode == TextTrackMode::Disabled)
+        unset_active_flag_of_cues();
+
+    if (m_media_element)
+        m_media_element->text_track_mode_changed();
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#text-track-cue-active-flag
+void TextTrack::unset_active_flag_of_cues()
+{
+    // The user agent must synchronously unset this flag whenever the text track cue is removed from its text track's
+    // text track list of cues; whenever the text track itself is removed from its media element's list of text tracks
+    // or has its text track mode changed to disabled; and whenever the media element's readyState is changed back to
+    // HAVE_NOTHING.
+    // FIXME: When the flag is unset in this way for one or more cues in text tracks that were showing prior to the
+    //        relevant incident, the user agent must, after having unset the flag for all the affected cues, apply the
+    //        rules for updating the text track rendering of those text tracks.
+    for (auto const& cue : m_text_track_list_of_cues)
+        cue->set_active(false);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#handler-texttrack-oncuechange

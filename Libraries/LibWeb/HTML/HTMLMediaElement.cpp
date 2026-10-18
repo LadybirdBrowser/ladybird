@@ -6,7 +6,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
+#include <AK/AnyOf.h>
+#include <AK/QuickSort.h>
 #include <LibCore/Timer.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
@@ -38,6 +42,7 @@
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLSourceElement.h>
+#include <LibWeb/HTML/HTMLTrackElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/MediaError.h>
@@ -45,6 +50,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/TextTrack.h>
+#include <LibWeb/HTML/TextTrackCue.h>
 #include <LibWeb/HTML/TextTrackList.h>
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/TrackEvent.h>
@@ -249,6 +255,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_audio_tracks);
     visitor.visit(m_video_tracks);
     visitor.visit(m_text_tracks);
+    visitor.visit(m_list_of_newly_introduced_cues);
     visitor.visit(m_document_observer);
     visitor.visit(m_source_element_selector);
     visitor.visit(m_pending_play_promises);
@@ -778,6 +785,7 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
 
     // 4. Add the new text track to the media element's list of text tracks.
     m_text_tracks->add_track(text_track);
+    text_track->set_media_element(this);
 
     // 5. Queue a media element task given the media element to fire an event named addtrack at the media element's
     //    textTracks attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the new
@@ -2474,6 +2482,12 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     m_ready_state = ready_state;
     CSS::Invalidation::invalidate_style_after_media_ready_state_change(*this, was_buffering);
 
+    // https://html.spec.whatwg.org/multipage/media.html#text-track-cue-active-flag
+    if (m_ready_state == ReadyState::HaveNothing) {
+        for (size_t i = 0; i < m_text_tracks->length(); ++i)
+            m_text_tracks->item(i)->unset_active_flag_of_cues();
+    }
+
     ScopeGuard guard { [&] {
         upon_has_ended_playback_possibly_changed();
         update_screen_wake_lock();
@@ -3354,19 +3368,53 @@ void HTMLMediaElement::dispatch_time_update_event()
 // https://html.spec.whatwg.org/multipage/media.html#time-marches-on
 void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
 {
-    // FIXME: 1. Let current cues be a list of cues, initialized to contain all the cues of all the hidden or showing text tracks
-    //           of the media element (not the disabled ones) whose start times are less than or equal to the current playback
-    //           position and whose end times are greater than the current playback position.
-    // FIXME: 2. Let other cues be a list of cues, initialized to contain all the cues of hidden and showing text tracks of the
-    //           media element that are not present in current cues.
-    // FIXME: 3. Let last time be the current playback position at the time this algorithm was last run for this media element,
-    //           if this is not the first time it has run.
-    // FIXME: 4. If the current playback position has, since the last time this algorithm was run, only changed through its usual
-    //           monotonic increase during normal playback, then let missed cues be the list of cues in other cues whose start times
-    //           are greater than or equal to last time and whose end times are less than or equal to the current playback position.
-    //           Otherwise, let missed cues be an empty list.
-    // FIXME: 5. Remove all the cues in missed cues that are also in the media element's list of newly introduced cues, and then
-    //           empty the element's list of newly introduced cues.
+    auto current_position = current_playback_position();
+
+    auto for_each_cue_of_hidden_or_showing_text_tracks = [&](auto callback) {
+        for (size_t i = 0; i < m_text_tracks->length(); ++i) {
+            auto text_track = m_text_tracks->item(i);
+            if (text_track->mode() == TextTrackMode::Disabled)
+                continue;
+            for (auto const& cue : text_track->text_track_list_of_cues())
+                callback(cue);
+        }
+    };
+
+    // 1. Let current cues be a list of cues, initialized to contain all the cues of all the hidden or showing text tracks
+    //    of the media element (not the disabled ones) whose start times are less than or equal to the current playback
+    //    position and whose end times are greater than the current playback position.
+    // 2. Let other cues be a list of cues, initialized to contain all the cues of hidden and showing text tracks of the
+    //    media element that are not present in current cues.
+    GC::RootVector<GC::Ref<TextTrackCue>> current_cues;
+    GC::RootVector<GC::Ref<TextTrackCue>> other_cues;
+    for_each_cue_of_hidden_or_showing_text_tracks([&](GC::Ref<TextTrackCue> cue) {
+        if (cue->start_time() <= current_position && cue->end_time() > current_position)
+            current_cues.append(cue);
+        else
+            other_cues.append(cue);
+    });
+
+    // 3. Let last time be the current playback position at the time this algorithm was last run for this media element,
+    //    if this is not the first time it has run.
+    auto last_time = m_time_marches_on_last_time;
+    m_time_marches_on_last_time = current_position;
+
+    // 4. If the current playback position has, since the last time this algorithm was run, only changed through its usual
+    //    monotonic increase during normal playback, then let missed cues be the list of cues in other cues whose start times
+    //    are greater than or equal to last time and whose end times are less than or equal to the current playback position.
+    //    Otherwise, let missed cues be an empty list.
+    GC::RootVector<GC::Ref<TextTrackCue>> missed_cues;
+    if (reason == TimeMarchesOnReason::NormalPlayback && last_time.has_value()) {
+        for (auto const& cue : other_cues) {
+            if (cue->start_time() >= *last_time && cue->end_time() <= current_position)
+                missed_cues.append(cue);
+        }
+    }
+
+    // 5. Remove all the cues in missed cues that are also in the media element's list of newly introduced cues, and then
+    //    empty the element's list of newly introduced cues.
+    missed_cues.remove_all_matching([&](auto const& cue) { return m_list_of_newly_introduced_cues.contains_slow(cue); });
+    m_list_of_newly_introduced_cues.clear();
 
     // 6. If the time was reached through the usual monotonic increase of the current playback position during normal
     //    playback, and if the user agent has not fired a timeupdate event at the element in the past 15 to 250ms and is
@@ -3391,48 +3439,200 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
         }
     }
 
-    // FIXME: 7. If all of the cues in current cues have their text track cue active flag set, none of the cues in other cues have
-    //           their text track cue active flag set, and missed cues is empty, then return.
-    // FIXME: 8. If the time was reached through the usual monotonic increase of the current playback position during normal playback,
-    //           and there are cues in other cues that have their text track cue pause-on-exit flag set and that either have their
-    //           text track cue active flag set or are also in missed cues, then immediately pause the media element.
-    // FIXME: 9. Let events be a list of tasks, initially empty. Each task in this list will be associated with a text track, a
-    //           text track cue, and a time, which are used to sort the list before the tasks are queued.
+    // 7. If all of the cues in current cues have their text track cue active flag set, none of the cues in other cues have
+    //    their text track cue active flag set, and missed cues is empty, then return.
+    if (all_of(current_cues, [](auto const& cue) { return cue->is_active(); })
+        && !any_of(other_cues, [](auto const& cue) { return cue->is_active(); })
+        && missed_cues.is_empty()) {
+        return;
+    }
+
+    // 8. If the time was reached through the usual monotonic increase of the current playback position during normal playback,
+    //    and there are cues in other cues that have their text track cue pause-on-exit flag set and that either have their
+    //    text track cue active flag set or are also in missed cues, then immediately pause the media element.
+    if (reason == TimeMarchesOnReason::NormalPlayback) {
+        auto should_pause = any_of(other_cues, [&](auto const& cue) {
+            return cue->pause_on_exit() && (cue->is_active() || missed_cues.contains_slow(cue));
+        });
+        if (should_pause)
+            pause_element();
+    }
+
+    // 9. Let events be a list of tasks, initially empty. Each task in this list will be associated with a text track, a
+    //    text track cue, and a time, which are used to sort the list before the tasks are queued.
     //
-    //           Let affected tracks be a list of text tracks, initially empty.
+    //    Let affected tracks be a list of text tracks, initially empty.
+    struct CueEvent {
+        Utf16FlyString name;
+        GC::Ref<TextTrackCue> target;
+        double time { 0 };
+    };
+    GC::ConservativeVector<CueEvent> events;
+    GC::RootVector<GC::Ref<TextTrack>> affected_tracks;
+
+    //    When the steps below say to prepare an event named event for a text track cue target with a time time, the user
+    //    agent must run these steps:
+    auto prepare_an_event = [&](Utf16FlyString const& event, GC::Ref<TextTrackCue> target, double time) {
+        // 1. Let track be the text track with which the text track cue target is associated.
+        auto track = target->track();
+        VERIFY(track);
+
+        // 2. Create a task to fire an event named event at target.
+        // 3. Add the newly created task to events, associated with the time time, the text track track, and the text
+        //    track cue target.
+        events.append({ event, target, time });
+
+        // 4. Add track to affected tracks.
+        if (!affected_tracks.contains_slow(GC::Ref { *track }))
+            affected_tracks.append(*track);
+    };
+
+    // 10. For each text track cue in missed cues, prepare an event named enter for the TextTrackCue object with the text
+    //     track cue start time.
+    for (auto const& cue : missed_cues)
+        prepare_an_event(HTML::EventNames::enter, cue, cue->start_time());
+
+    // 11. For each text track cue in other cues that either has its text track cue active flag set or is in missed cues,
+    //     prepare an event named exit for the TextTrackCue object with the later of the text track cue end time and the
+    //     text track cue start time.
+    for (auto const& cue : other_cues) {
+        if (cue->is_active() || missed_cues.contains_slow(cue))
+            prepare_an_event(HTML::EventNames::exit, cue, max(cue->end_time(), cue->start_time()));
+    }
+
+    // 12. For each text track cue in current cues that does not have its text track cue active flag set, prepare an event
+    //     named enter for the TextTrackCue object with the text track cue start time.
+    for (auto const& cue : current_cues) {
+        if (!cue->is_active())
+            prepare_an_event(HTML::EventNames::enter, cue, cue->start_time());
+    }
+
+    // 13. Sort the tasks in events in ascending time order (tasks with earlier times first).
     //
-    //           When the steps below say to prepare an event named event for a text track cue target with a time time, the user
-    //           agent must run these steps:
-    //               1. Let track be the text track with which the text track cue target is associated.
-    //               2. Create a task to fire an event named event at target.
-    //               3. Add the newly created task to events, associated with the time time, the text track track, and the text
-    //                  track cue target.
-    //               4. Add track to affected tracks.
-    // FIXME: 10. For each text track cue in missed cues, prepare an event named enter for the TextTrackCue object with the text
-    //            track cue start time.
-    // FIXME: 11. For each text track cue in other cues that either has its text track cue active flag set or is in missed cues,
-    //            prepare an event named exit for the TextTrackCue object with the later of the text track cue end time and the
-    ///           text track cue start time.
-    // FIXME: 12. For each text track cue in current cues that does not have its text track cue active flag set, prepare an event
-    //            named enter for the TextTrackCue object with the text track cue start time.
-    // FIXME: 13. Sort the tasks in events in ascending time order (tasks with earlier times first).
+    //     Further sort tasks in events that have the same time by the relative text track cue order of the text track cues
+    //     associated with these tasks.
     //
-    //            Further sort tasks in events that have the same time by the relative text track cue order of the text track cues
-    //            associated with these tasks.
-    //
-    //            Finally, sort tasks in events that have the same time and same text track cue order by placing tasks that fire
-    //            enter events before those that fire exit events.
-    // FIXME: 14. Queue a media element task given the media element for each task in events, in list order.
-    // FIXME: 15. Sort affected tracks in the same order as the text tracks appear in the media element's list of text tracks, and
-    //            remove duplicates.
-    // FIXME: 16. For each text track in affected tracks, in the list order, queue a media element task given the media element to
-    //            fire an event named cuechange at the TextTrack object, and, if the text track has a corresponding track element,
-    //            to then fire an event named cuechange at the track element as well.
-    // FIXME: 17. Set the text track cue active flag of all the cues in the current cues, and unset the text track cue active flag
-    //            of all the cues in the other cues.
+    //     Finally, sort tasks in events that have the same time and same text track cue order by placing tasks that fire
+    //     enter events before those that fire exit events.
+    auto text_track_index = [&](TextTrack const& text_track) {
+        for (size_t i = 0; i < m_text_tracks->length(); ++i) {
+            if (m_text_tracks->item(i).ptr() == &text_track)
+                return i;
+        }
+        VERIFY_NOT_REACHED();
+    };
+    auto index_in_text_track_list_of_cues = [&](TextTrackCue const& cue) {
+        auto cues = cue.track()->text_track_list_of_cues();
+        for (size_t i = 0; i < cues.size(); ++i) {
+            if (cues[i].ptr() == &cue)
+                return i;
+        }
+        VERIFY_NOT_REACHED();
+    };
+    quick_sort(events, [&](auto const& a, auto const& b) {
+        if (a.time != b.time)
+            return a.time < b.time;
+        auto a_track_index = text_track_index(*a.target->track());
+        auto b_track_index = text_track_index(*b.target->track());
+        if (a_track_index != b_track_index)
+            return a_track_index < b_track_index;
+        auto a_cue_index = index_in_text_track_list_of_cues(a.target);
+        auto b_cue_index = index_in_text_track_list_of_cues(b.target);
+        if (a_cue_index != b_cue_index)
+            return a_cue_index < b_cue_index;
+        return a.name == HTML::EventNames::enter && b.name == HTML::EventNames::exit;
+    });
+
+    // 14. Queue a media element task given the media element for each task in events, in list order.
+    for (auto& event : events) {
+        queue_a_media_element_task([name = move(event.name), target = event.target](HTMLMediaElement& self) {
+            target->dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), name));
+        });
+    }
+
+    // 15. Sort affected tracks in the same order as the text tracks appear in the media element's list of text tracks, and
+    //     remove duplicates.
+    quick_sort(affected_tracks, [&](auto const& a, auto const& b) {
+        return text_track_index(a) < text_track_index(b);
+    });
+
+    // 16. For each text track in affected tracks, in the list order, queue a media element task given the media element to
+    //     fire an event named cuechange at the TextTrack object, and, if the text track has a corresponding track element,
+    //     to then fire an event named cuechange at the track element as well.
+    for (auto const& text_track : affected_tracks) {
+        queue_a_media_element_task([text_track](HTMLMediaElement& self) {
+            text_track->dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::cuechange));
+            if (auto track_element = text_track->track_element())
+                track_element->dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::cuechange));
+        });
+    }
+
+    // 17. Set the text track cue active flag of all the cues in the current cues, and unset the text track cue active flag
+    //     of all the cues in the other cues.
+    for (auto const& cue : current_cues)
+        cue->set_active(true);
+    for (auto const& cue : other_cues)
+        cue->set_active(false);
+
     // FIXME: 18. Run the rules for updating the text track rendering of each of the text tracks in affected tracks that are showing,
     //            providing the text track's text track language as the fallback language if it is not the empty string. For example,
     //            for text tracks based on WebVTT, the rules for updating the display of WebVTT text tracks.
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#list-of-newly-introduced-cues
+void HTMLMediaElement::add_newly_introduced_cues(ReadonlySpan<GC::Ref<TextTrackCue>> cues)
+{
+    if (cues.is_empty())
+        return;
+
+    // Whenever a text track cue is added to the list of cues of a text track that is in the list of text tracks for a
+    // media element, that cue must be added to the media element's list of newly introduced cues. Whenever a text track
+    // is added to the list of text tracks for a media element, all of the cues in that text track's list of cues must
+    // be added to the media element's list of newly introduced cues.
+    for (auto const& cue : cues)
+        m_list_of_newly_introduced_cues.append(cue);
+
+    // When a media element's list of newly introduced cues has new cues added while the media element's show poster flag
+    // is not set, then the user agent must run the time marches on steps.
+    if (!m_show_poster)
+        time_marches_on(TimeMarchesOnReason::Other);
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#list-of-newly-introduced-cues
+void HTMLMediaElement::text_track_cue_or_text_track_removed()
+{
+    // When a text track cue is removed from the list of cues of a text track that is in the list of text tracks for a
+    // media element, and whenever a text track is removed from the list of text tracks of a media element, if the
+    // media element's show poster flag is not set, then the user agent must run the time marches on steps.
+    if (!m_show_poster)
+        time_marches_on(TimeMarchesOnReason::Other);
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#pending-text-track-change-notification-flag
+void HTMLMediaElement::text_track_mode_changed()
+{
+    // Whenever a text track that is in a media element's list of text tracks has its text track mode change value, the
+    // user agent must run the following steps for the media element:
+
+    // 1. If the media element's pending text track change notification flag is set, return.
+    if (m_pending_text_track_change_notification_flag)
+        return;
+
+    // 2. Set the media element's pending text track change notification flag.
+    m_pending_text_track_change_notification_flag = true;
+
+    // 3. Queue a media element task given the media element to run these steps:
+    queue_a_media_element_task([](HTMLMediaElement& self) {
+        // 1. Unset the media element's pending text track change notification flag.
+        self.m_pending_text_track_change_notification_flag = false;
+
+        // 2. Fire an event named change at the media element's textTracks attribute's TextTrackList object.
+        self.m_text_tracks->dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::change));
+    });
+
+    // 4. If the media element's show poster flag is not set, run the time marches on steps.
+    if (!m_show_poster)
+        time_marches_on(TimeMarchesOnReason::Other);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#take-pending-play-promises
