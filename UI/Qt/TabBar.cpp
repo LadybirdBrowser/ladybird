@@ -98,6 +98,7 @@ static constexpr int TAB_BUTTON_SIZE = 22;
 static constexpr int TAB_BUTTON_ICON_SIZE = 14;
 static constexpr qreal LOAD_SHEEN_FADE_PROGRESS = 0.15;
 static constexpr int LOAD_SHEEN_DURATION_MS = 400;
+static constexpr int TAB_TITLE_FADE_WIDTH = 24;
 static constexpr int TAB_ICON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_BUTTON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_ICON_SIZE = 12;
@@ -857,13 +858,27 @@ void TabBar::paintEvent(QPaintEvent*)
         auto title_font = tab_title_font(font());
         painter.setFont(title_font);
 
-        QFontMetrics font_metrics(title_font);
-        auto title = font_metrics.elidedText(tabText(index), Qt::ElideRight, max(0, contents_rect.width()));
+        auto title = tabText(index);
         auto tab_text_color = text_color;
         if (!is_selected)
             tab_text_color.setAlpha(is_hovered ? (dark ? 236 : 228) : (dark ? 226 : 216));
-        painter.setPen(tab_text_color);
-        painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter, title);
+
+        // A title too long for its tab fades out toward the tab's end, rather than being cut short with an ellipsis.
+        // NB: Measure in fractional pixels, so a title that just fits is not taken for one that does not.
+        if (QFontMetricsF(title_font).horizontalAdvance(title) > contents_rect.width()) {
+            auto faded_text_color = tab_text_color;
+            faded_text_color.setAlpha(0);
+            QLinearGradient fade(contents_rect.right() + 1 - TAB_TITLE_FADE_WIDTH, 0, contents_rect.right() + 1, 0);
+            fade.setColorAt(0.0, tab_text_color);
+            fade.setColorAt(1.0, faded_text_color);
+            painter.setPen(QPen(QBrush(fade), 1));
+        } else {
+            painter.setPen(tab_text_color);
+        }
+        painter.save();
+        painter.setClipRect(contents_rect);
+        painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine, title);
+        painter.restore();
     }
 
     if (m_drop_indicator_index >= 0 && count() > 0) {
