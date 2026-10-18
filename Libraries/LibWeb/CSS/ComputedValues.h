@@ -491,6 +491,7 @@ public:
     Clear clear() const { return static_cast<Clear>(m_noninherited.box->clear); }
     Color caret_color() const { return m_inherited.ui->caret_color_value(); }
     ColorInterpolation color_interpolation() const { return m_inherited.svg->color_interpolation_value(); }
+    FillRule fill_rule() const { return m_inherited.svg->fill_rule_value(); }
     PreferredColorScheme color_scheme() const { return m_inherited.ui->color_scheme_value(); }
     ContentVisibility content_visibility() const { return static_cast<ContentVisibility>(m_inherited.box->content_visibility); }
     ReadonlySpan<ComputedValuesFFI::ComputedCursor> cursor() const { return m_inherited.ui->cursor_span(); }
@@ -758,6 +759,7 @@ public:
 
         Optional<URL> fill_url_value() const { return paint_url_value(fill); }
         Optional<URL> stroke_url_value() const { return paint_url_value(stroke); }
+        FillRule fill_rule_value() const { return static_cast<FillRule>(fill_rule); }
         StrokeLinecap stroke_linecap_value() const { return static_cast<StrokeLinecap>(stroke_linecap); }
         StrokeLinejoin stroke_linejoin_value() const { return static_cast<StrokeLinejoin>(stroke_linejoin); }
         ColorInterpolation color_interpolation_value() const { return static_cast<ColorInterpolation>(color_interpolation); }

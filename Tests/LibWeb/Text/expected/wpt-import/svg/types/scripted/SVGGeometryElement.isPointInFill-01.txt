@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	SVGGeometryElement.prototype.isPointInFill, no arguments.
+Pass	SVGGeometryElement.prototype.isPointInFill, null/undefined.
+Pass	SVGGeometryElement.prototype.isPointInFill, non-finite argument.
+Pass	SVGGeometryElement.prototype.isPointInFill, functional test.
+Pass	SVGGeometryElement.prototype.isPointInFill, functional test with zoom.
+Pass	SVGGeometryElement.prototype.isPointInFill, points on the shape boundary are inside.
+Pass	SVGGeometryElement.prototype.isPointInFill, 'fill-rule'.
+Pass	SVGGeometryElement.prototype.isPointInFill, 'visibility' and 'pointer-events' have no effect.
+Pass	SVGGeometryElement.prototype.isPointInFill, 'clip-rule' never overrides 'fill-rule'.

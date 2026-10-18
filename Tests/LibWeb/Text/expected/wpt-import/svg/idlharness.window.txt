@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1168 Pass
-612 Fail
+1181 Pass
+599 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -83,7 +83,7 @@ Pass	SVGGeometryElement interface: existence and properties of interface prototy
 Pass	SVGGeometryElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGGeometryElement interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGGeometryElement interface: attribute pathLength
-Fail	SVGGeometryElement interface: operation isPointInFill(optional DOMPointInit)
+Pass	SVGGeometryElement interface: operation isPointInFill(optional DOMPointInit)
 Fail	SVGGeometryElement interface: operation isPointInStroke(optional DOMPointInit)
 Pass	SVGGeometryElement interface: operation getTotalLength()
 Pass	SVGGeometryElement interface: operation getPointAtLength(float)
@@ -871,8 +871,8 @@ Pass	SVGRectElement interface: objects.rect must inherit property "height" with 
 Pass	SVGRectElement interface: objects.rect must inherit property "rx" with the proper type
 Pass	SVGRectElement interface: objects.rect must inherit property "ry" with the proper type
 Pass	SVGGeometryElement interface: objects.rect must inherit property "pathLength" with the proper type
-Fail	SVGGeometryElement interface: objects.rect must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
-Fail	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.rect with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.rect must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.rect with too few arguments must throw TypeError
 Fail	SVGGeometryElement interface: objects.rect must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
 Fail	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.rect with too few arguments must throw TypeError
 Pass	SVGGeometryElement interface: objects.rect must inherit property "getTotalLength()" with the proper type
@@ -905,8 +905,8 @@ Pass	SVGCircleElement interface: objects.circle must inherit property "cx" with 
 Pass	SVGCircleElement interface: objects.circle must inherit property "cy" with the proper type
 Pass	SVGCircleElement interface: objects.circle must inherit property "r" with the proper type
 Pass	SVGGeometryElement interface: objects.circle must inherit property "pathLength" with the proper type
-Fail	SVGGeometryElement interface: objects.circle must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
-Fail	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.circle with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.circle must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.circle with too few arguments must throw TypeError
 Fail	SVGGeometryElement interface: objects.circle must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
 Fail	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.circle with too few arguments must throw TypeError
 Pass	SVGGeometryElement interface: objects.circle must inherit property "getTotalLength()" with the proper type
@@ -941,8 +941,8 @@ Pass	SVGEllipseElement interface: objects.ellipse must inherit property "cy" wit
 Pass	SVGEllipseElement interface: objects.ellipse must inherit property "rx" with the proper type
 Pass	SVGEllipseElement interface: objects.ellipse must inherit property "ry" with the proper type
 Pass	SVGGeometryElement interface: objects.ellipse must inherit property "pathLength" with the proper type
-Fail	SVGGeometryElement interface: objects.ellipse must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
-Fail	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.ellipse with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.ellipse must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.ellipse with too few arguments must throw TypeError
 Fail	SVGGeometryElement interface: objects.ellipse must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
 Fail	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.ellipse with too few arguments must throw TypeError
 Pass	SVGGeometryElement interface: objects.ellipse must inherit property "getTotalLength()" with the proper type
@@ -977,8 +977,8 @@ Pass	SVGLineElement interface: objects.line must inherit property "y1" with the 
 Pass	SVGLineElement interface: objects.line must inherit property "x2" with the proper type
 Pass	SVGLineElement interface: objects.line must inherit property "y2" with the proper type
 Pass	SVGGeometryElement interface: objects.line must inherit property "pathLength" with the proper type
-Fail	SVGGeometryElement interface: objects.line must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
-Fail	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.line with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.line must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.line with too few arguments must throw TypeError
 Fail	SVGGeometryElement interface: objects.line must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
 Fail	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.line with too few arguments must throw TypeError
 Pass	SVGGeometryElement interface: objects.line must inherit property "getTotalLength()" with the proper type
@@ -1041,8 +1041,8 @@ Pass	Stringification of objects.polyline
 Fail	SVGPolylineElement interface: objects.polyline must inherit property "points" with the proper type
 Fail	SVGPolylineElement interface: objects.polyline must inherit property "animatedPoints" with the proper type
 Pass	SVGGeometryElement interface: objects.polyline must inherit property "pathLength" with the proper type
-Fail	SVGGeometryElement interface: objects.polyline must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
-Fail	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polyline with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.polyline must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polyline with too few arguments must throw TypeError
 Fail	SVGGeometryElement interface: objects.polyline must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
 Fail	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.polyline with too few arguments must throw TypeError
 Pass	SVGGeometryElement interface: objects.polyline must inherit property "getTotalLength()" with the proper type
@@ -1073,8 +1073,8 @@ Pass	Stringification of objects.polygon
 Fail	SVGPolygonElement interface: objects.polygon must inherit property "points" with the proper type
 Fail	SVGPolygonElement interface: objects.polygon must inherit property "animatedPoints" with the proper type
 Pass	SVGGeometryElement interface: objects.polygon must inherit property "pathLength" with the proper type
-Fail	SVGGeometryElement interface: objects.polygon must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
-Fail	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polygon with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.polygon must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polygon with too few arguments must throw TypeError
 Fail	SVGGeometryElement interface: objects.polygon must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
 Fail	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.polygon with too few arguments must throw TypeError
 Pass	SVGGeometryElement interface: objects.polygon must inherit property "getTotalLength()" with the proper type

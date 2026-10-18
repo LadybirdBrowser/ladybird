@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:rbuis@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-contain/#content-visibility">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+body {
+  margin: 0;
+  padding: 0;
+}
+div {
+  content-visibility:hidden;
+}
+rect {
+  stroke-width: 5px;
+  stroke:green;
+}
+</style>
+
+<div>
+  <svg xmlns="http://www.w3.org/2000/svg">
+    <rect id="rect" x="5" y="5" width="10" height="10"/>
+  </svg>
+</div>
+
+<script>
+  test(() => {
+    const rectElement = document.getElementById('rect');
+    const length = rectElement.getTotalLength();
+    assert_greater_than(length, 0, 'length');
+  }, `getTotalLength() should return nonzero value in a c-v:hidden subtree.`);
+
+  test(() => {
+    const rectElement = document.getElementById('rect');
+    const point = rectElement.getPointAtLength(0);
+    assert_greater_than(point.x, 0, 'point.x');
+    assert_greater_than(point.y, 0, 'point.y');
+  }, `getPointAtLength() should return nonzero values in a c-v:hidden subtree.`);
+
+  test(() => {
+    const rectElement = document.getElementById('rect');
+    const inFill = rectElement.isPointInFill({ x: 7, y: 7});
+    assert_true(inFill, 'fill');
+  }, `isPointInFill() should return true in a c-v:hidden subtree.`);
+
+  test(() => {
+    const rectElement = document.getElementById('rect');
+    const inStroke = rectElement.isPointInStroke({ x: 7, y: 7});
+    assert_true(inStroke, 'stroke');
+  }, `isPointInStroke() should return true in a c-v:hidden subtree.`);
+</script>

@@ -6,6 +6,7 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
@@ -64,7 +65,7 @@ static CSS::StyleRecordID declared_only_style_record(Layout::BegunRead const& re
 
 // The geometry of the element in user units, which the geometry queries such as getTotalLength() measure. It is empty
 // for an element without style.
-Gfx::Path SVGGeometryElement::computed_path()
+bool SVGGeometryElement::with_computed_values(Function<void(CSSPixelSize viewport_size, CSS::ComputedValues const&)> const& callback)
 {
     // NB: Update layout so that the viewport size is resolved correctly
     Layout::ForcedReadScope read { document() };
@@ -79,8 +80,10 @@ Gfx::Path SVGGeometryElement::computed_path()
     // FIXME: Layout builds each shape's geometry in Rust (svg_geometry_path_of() in svg_formatting_context.rs), while
     //        this reads the get_path() implementations, which duplicate it. Answer from the Rust builders instead, so
     //        a fix to one copy cannot miss the other.
-    if (auto computed_values = computed_style())
-        return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values);
+    if (auto computed_values = computed_style()) {
+        callback({ viewport_size.width(), viewport_size.height() }, *computed_values);
+        return true;
+    }
 
     // NB: An element with no style is either in a subtree that is not rendered, which the style engine answers
     //     without installing anything, or outside the document, where no rule reaches it. The engine of the window's
@@ -100,8 +103,45 @@ Gfx::Path SVGGeometryElement::computed_path()
     };
     auto view = style_computer.computed_style_record_view(style_read, record);
     if (!view)
-        return {};
-    return get_path({ viewport_size.width(), viewport_size.height() }, *view);
+        return false;
+    callback({ viewport_size.width(), viewport_size.height() }, *view);
+    return true;
+}
+
+Gfx::Path SVGGeometryElement::computed_path()
+{
+    Gfx::Path path;
+    with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
+        path = get_path(viewport_size, computed_values);
+    });
+    return path;
+}
+
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGGeometryElement__isPointInFill
+WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_fill(Bindings::DOMPointInit const& point)
+{
+    // The isPointInFill method, when invoked, must return true if the point given by point passed to the method, in
+    // the coordinate space of an element, is inside the intended path as determined by the winding rule indicated by
+    // the fill-rule property of an element; and must return false otherwise. Open subpaths must be implicitly closed
+    // when computing the area inside the path, without affecting the actual subpaths. Points on the path itself must be
+    // considered to be inside the path.
+    // NB: Gfx::Path::contains() closes open subpaths and counts points on the path as inside.
+
+    // The returned value is independent of any visual CSS property but fill-rule
+    // If either of the x or y properties on point are infinite or NaN, then the method must return false.
+    if (!isfinite(point.x) || !isfinite(point.y))
+        return false;
+
+    // If current element is a non-rendered element, and the UA is not able to compute the geometry of the element,
+    // then throw an InvalidStateError.
+    bool is_point_in_fill = false;
+    auto has_geometry = with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
+        auto winding_rule = computed_values.fill_rule() == CSS::FillRule::Evenodd ? Gfx::WindingRule::EvenOdd : Gfx::WindingRule::Nonzero;
+        is_point_in_fill = get_path(viewport_size, computed_values).contains({ point.x, point.y }, winding_rule);
+    });
+    if (!has_geometry)
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's geometry cannot be computed"_utf16);
+    return is_point_in_fill;
 }
 
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength

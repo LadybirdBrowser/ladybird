@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	getTotalLength() should return nonzero value in a c-v:hidden subtree.
+Pass	getPointAtLength() should return nonzero values in a c-v:hidden subtree.
+Pass	isPointInFill() should return true in a c-v:hidden subtree.
+Fail	isPointInStroke() should return true in a c-v:hidden subtree.
