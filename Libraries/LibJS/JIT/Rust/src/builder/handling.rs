@@ -305,11 +305,13 @@ pub fn handling(opcode: OpCode) -> Handling {
         // are int32 values already.
         O::ToObject | O::ToLength => EXPANDED,
 
+        // Concatenations of strings, and of a string and an integer.
+        O::ConcatString => EXPANDED,
+
         // Checks that only throw in their slow path.
         O::ThrowIfTDZ | O::ThrowIfNotObject | O::ThrowIfNullish | O::ResolveThisBinding => EXPANDED,
 
         O::Exp
-        | O::ConcatString
         | O::CopyObjectExcludingProperties
         | O::ImportCall
         | O::NewClass

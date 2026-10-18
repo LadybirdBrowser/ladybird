@@ -44,14 +44,17 @@ use super::facts::Location;
 use super::facts::ValueKind;
 use super::facts::elements_kind_implies;
 use crate::bitset::BitSet;
+use crate::bytecode::OpCode;
 use crate::code::Dependency;
 use crate::inline_vec::InlineVec;
 use crate::ir::BlockId;
+use crate::ir::BranchCondition;
 use crate::ir::ElementsKind;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
+use crate::ir::value;
 use crate::snapshot::CellId;
 
 /// What the analysis decided for the nodes of one visit of the graph.
@@ -111,7 +114,7 @@ pub fn run(graph: &mut Graph) {
         let mut skipped = Vec::new();
         for block in 0..block_count {
             let block_id = BlockId::from_index(block);
-            let Some(facts) = facts_at_entry(graph, block_id, &mut edge_facts, &visited) else {
+            let Some(facts) = facts_at_entry(graph, block_id, &mut edge_facts, &visited, &revisited, &decisions) else {
                 // No visited predecessor reaches this block.
                 edge_facts[block].clear();
                 skipped.push(block_id);
@@ -170,11 +173,16 @@ pub fn run(graph: &mut Graph) {
 /// assumed to agree, and checked when the next round sees what they bring.
 /// Roots start knowing nothing, except that the code is valid: invalidated
 /// code is discarded, so nothing enters it.
+///
+/// A phi of a block that no back edge leads to is of a kind one of its
+/// inputs is, where it comes from.
 fn facts_at_entry(
     graph: &Graph,
     block: BlockId,
     edge_facts: &mut [Vec<(BlockId, Facts)>],
     visited: &[bool],
+    revisited: &[bool],
+    decisions: &Decisions,
 ) -> Option<Facts> {
     let predecessors = &graph.block(block).predecessors;
     if predecessors.is_empty() {
@@ -192,14 +200,41 @@ fn facts_at_entry(
         incoming.extend(
             edges
                 .extract_if(.., |(target, _)| *target == block)
-                .map(|(_, facts)| facts),
+                .map(|(_, facts)| (*predecessor, facts)),
         );
     }
-    match incoming.len() {
-        0 => None,
-        1 => incoming.pop(),
-        _ => Some(Facts::merge(incoming.into_iter())),
+    let phis = &graph.block(block).phis;
+    // NB: Each predecessor brings the facts along its one edge here.
+    let knows_phi_inputs = !revisited[block.index()]
+        && !phis.is_empty()
+        && incoming.len() == predecessors.len()
+        && predecessors
+            .iter()
+            .all(|predecessor| incoming.iter().filter(|(source, _)| source == predecessor).count() == 1);
+    if !knows_phi_inputs {
+        return match incoming.len() {
+            0 => None,
+            1 => incoming.pop().map(|(_, facts)| facts),
+            _ => Some(Facts::merge(incoming.into_iter().map(|(_, facts)| facts))),
+        };
     }
+    let mut facts = Facts::merge(incoming.iter().map(|(_, facts)| facts.clone()));
+    for phi in phis {
+        let inputs = graph
+            .node(*phi)
+            .inputs
+            .iter()
+            .zip(predecessors)
+            .map(|(input, predecessor)| {
+                let (_, facts) = incoming
+                    .iter()
+                    .find(|(source, _)| source == predecessor)
+                    .expect("each predecessor brings facts");
+                (facts, decisions.value(graph, *input))
+            });
+        facts.set_phi_kinds(graph, *phi, inputs);
+    }
+    Some(facts)
 }
 
 /// Applies the nodes of `block` to `facts`, recording decisions, and returns
@@ -268,6 +303,15 @@ fn visit_block(
             let mut passed = facts.clone();
             passed.set_branch_outcome(key, true);
             facts.set_branch_outcome(key, false);
+            // Strings that are the empty value where only the slow path makes
+            // them are strings where they are not.
+            if let BranchCondition::TaggedEquals { equal } = condition
+                && graph.constant_value(inputs[1]) == Some(value::EMPTY)
+                && matches!(graph.node(inputs[0]).op, Op::ConcatenateStrings | Op::IntegerToString)
+            {
+                let not_empty = if equal { &mut facts } else { &mut passed };
+                not_empty.set_value_kind(inputs[0], ValueKind::String);
+            }
             return vec![(if_true, passed), (if_false, facts)];
         }
     }
@@ -400,6 +444,15 @@ fn visit_node(
         }
         // NB: Values that pass are int32 values.
         Op::CheckInt32 => facts.set_value_kind(input(0), ValueKind::Int32),
+        // NB: ConcatString makes a string, also in its slow path, which may
+        //     run other code.
+        ref op @ Op::CallSlowPath {
+            opcode: OpCode::ConcatString,
+            ..
+        } => {
+            facts.apply(&op.properties(), &graph.stable_shapes);
+            facts.set_value_kind(node_id, ValueKind::String);
+        }
         Op::CheckPrototypeChainValid { validity } => {
             remove = facts.is_prototype_chain_valid(validity);
             facts.set_prototype_chain_valid(validity);
