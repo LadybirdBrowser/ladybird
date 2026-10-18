@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Resolves with the server's answer once it has the status, or with null after twenty seconds.
+    async function waitForDownloadStatus(url, status) {
+        const deadline = performance.now() + 20000;
+        while (performance.now() < deadline) {
+            const response = await fetch(url).catch(() => null);
+            if (response?.status === status)
+                return response;
+            await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        return null;
+    }
+
+    // A download that the UI process has taken over outlives the document that started it.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const id = uniqueID();
+        const filename = `download-outlives-its-document-${id}.bin`;
+        const token = `download-outlives-its-document-${id}`;
+
+        const bytes = new Uint8Array(64 * 1024);
+        let binary = "";
+        for (let i = 0; i < bytes.length; ++i) {
+            bytes[i] = i % 251;
+            binary += String.fromCharCode(bytes[i]);
+        }
+
+        const download = new URL(await server.createEcho("GET", `/download-${id}`, {
+            status: 200,
+            headers: {
+                "Cache-Control": "no-store",
+                "Content-Type": "application/octet-stream",
+                "Content-Disposition": `attachment; filename="${filename}"`,
+                "Content-Length": String(bytes.length),
+            },
+            body: btoa(binary),
+            body_encoding: "base64",
+        }));
+        download.search = `?chunks=1024&chunk_unblock_tokens=${token}`;
+
+        const page = await server.createEcho("GET", `/download-page-${id}`, {
+            status: 200,
+            headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>addEventListener("load", () => location.href = "${download.href}");<\/script>`,
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = page;
+        document.body.append(frame);
+
+        const downloadURL = `${server.baseURL}/downloads/${filename}`;
+        try {
+            // The server holds the rest of the body until the frame's document has gone away.
+            if (!(await waitForDownloadStatus(downloadURL, 202))) {
+                println("the download did not start");
+                return;
+            }
+
+            await new Promise(resolve => {
+                frame.onload = resolve;
+                frame.src = "about:blank";
+            });
+            frame.remove();
+        } finally {
+            await fetch(`${server.baseURL}/unblock/${token}`);
+        }
+
+        const finished = await waitForDownloadStatus(downloadURL, 200);
+        if (!finished) {
+            println("after its document went away, the download did not finish");
+            return;
+        }
+        const saved = new Uint8Array(await finished.arrayBuffer());
+        const intact = saved.length === bytes.length && saved.every((byte, index) => byte === bytes[index]);
+        println(`after its document went away, the download finished with ${intact ? "all" : "different"} ${saved.length} bytes`);
+    });
+</script>

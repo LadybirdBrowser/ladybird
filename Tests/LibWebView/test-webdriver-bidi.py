@@ -343,6 +343,19 @@ def intercepted_event(bidi, method, url):
         assert not event["isBlocked"], event
 
 
+def take_blocked_requests(bidi, context, url):
+    # An object element can fetch its data once for each time it determines what it represents.
+    bidi.evaluate(context, "0")
+    events = [
+        event
+        for event in bidi.events
+        if event["method"] == "network.beforeRequestSent" and event["params"]["request"]["url"] == url
+    ]
+    for event in events:
+        bidi.events.remove(event)
+    return [event["params"]["request"]["request"] for event in events if event["params"]["isBlocked"]]
+
+
 def send_fetch(bidi, context, url, options=None):
     return bidi.send(
         "script.evaluate",
@@ -932,6 +945,36 @@ def check_network_failed_response_transport(bidi, context, server):
             bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
 
 
+def check_network_document_abort_releases_blocked_object(bidi, context, server):
+    url = f"http://127.0.0.1:{server.server_port}/network-interception/object-data"
+    subscription = bidi.command("session.subscribe", {"events": ["network.beforeRequestSent"]})["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {"phases": ["beforeRequestSent"], "urlPatterns": [{"type": "string", "pattern": url}]},
+    )["intercept"]
+    try:
+        # An <object>'s fetch has no fetch record, and its document's abort still stops it, blocked or not.
+        markup = f'<object data="{url}"></object>'
+        bidi.evaluate(
+            context,
+            "window.objectFrame = document.createElement('iframe'); "
+            f"objectFrame.srcdoc = {json.dumps(markup)}; document.body.append(objectFrame); 0",
+        )
+        event = intercepted_event(bidi, "network.beforeRequestSent", url)
+        bidi.evaluate(context, "objectFrame.contentWindow.location = 'about:blank'; 0")
+        deadline = time.monotonic() + 10
+        while bidi.evaluate(context, "objectFrame.contentDocument.URL")["result"].get("value") != "about:blank":
+            assert time.monotonic() < deadline, "The object's frame did not navigate away"
+        for request_id in [event["request"]["request"], *take_blocked_requests(bidi, context, url)]:
+            result = bidi.response(bidi.send("network.continueRequest", {"request": request_id}))
+            assert result["type"] == "error" and result["error"] == "no such request", result
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+            bidi.evaluate(context, "objectFrame.remove(); 0")
+
+
 def check_network_provided_body_at_response_started(bidi, context, server):
     url = f"http://127.0.0.1:{server.server_port}/network-interception/fail-body"
     provided = "provided body"
@@ -1110,6 +1153,8 @@ def check_network_interception(bidi, context, server, case="all"):
         check_network_failed_response_transport(bidi, context, server)
     if case in ["all", "provided-body-at-response-started"]:
         check_network_provided_body_at_response_started(bidi, context, server)
+    if case in ["all", "document-abort-object"]:
+        check_network_document_abort_releases_blocked_object(bidi, context, server)
     for action in ["cancel", "default"]:
         if case in ["all", "auth-response-matrix", "auth-action-extras", f"auth-{action}-extra"]:
             for credentials in [{"type": "password", "username": "user", "password": "pass"}, {}]:
@@ -2202,6 +2247,7 @@ if __name__ == "__main__":
             "scoped-headers",
             "fail-transport",
             "provided-body-at-response-started",
+            "document-abort-object",
             "auth-gates",
             "auth-omit",
             "auth-cors",

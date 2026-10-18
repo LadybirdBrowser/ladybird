@@ -1,0 +1,2 @@
+object data held before its headers, after its document went away: released
+object data held mid-body, after its document went away: released

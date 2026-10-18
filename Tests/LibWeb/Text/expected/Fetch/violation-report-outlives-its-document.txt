@@ -1,0 +1,2 @@
+report still running after its document went away: true
+report finished once its response arrived

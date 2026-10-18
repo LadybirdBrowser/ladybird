@@ -6736,6 +6736,16 @@ void Document::abort()
     if (auto window = this->window(); window && window->associated_document_if_any().ptr() == this) {
         for (auto& fetch_record : relevant_settings_object().fetch_group())
             cancel_fetch(fetch_record.fetch_controller());
+
+        for (auto& controller : HTML::relevant_agent(*this).fetch_controller_registry.controllers()) {
+            if (!controller->task_destination().is_for_document(*this))
+                continue;
+            // AD-HOC: A keepalive fetch without a fetch record, such as a violation report, outlives the document, as
+            //         terminating a fetch group leaves its keepalive fetches running.
+            if (controller->is_keepalive())
+                continue;
+            cancel_fetch(controller.ptr());
+        }
     }
 
     if (canceled_fetch)

@@ -1,0 +1,1 @@
+after its document went away, the download finished with all 65536 bytes
