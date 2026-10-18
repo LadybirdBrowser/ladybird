@@ -45,6 +45,16 @@ void TextTrackList::add_track(GC::Ref<TextTrack> text_track)
     m_text_tracks.append(text_track);
 }
 
+void TextTrackList::remove_track(GC::Ref<TextTrack> text_track)
+{
+    m_text_tracks.remove_first_matching([&](auto const& entry) { return entry == text_track; });
+}
+
+bool TextTrackList::contains(TextTrack const& text_track) const
+{
+    return m_text_tracks.find_if([&](auto const& entry) { return entry.ptr() == &text_track; }) != m_text_tracks.end();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttracklist-length
 size_t TextTrackList::length() const
 {
