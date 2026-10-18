@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        internals.setPreferredColorScheme("light");
+        internals.updateStyle();
+        const query = matchMedia("(prefers-color-scheme: dark)");
+        const changed = new Promise(resolve => query.onchange = resolve);
+        internals.resetRenderingSchedulerCounters();
+        internals.setPreferredColorScheme("dark");
+        println(`preference requested rendering: ${internals.getRenderingSchedulerCounters().updateRequests > 0}`);
+        internals.injectRenderingOpportunity(performance.now());
+        await changed;
+        println(`media query changed: ${query.matches}`);
+        query.onchange = null;
+        internals.setManualRenderingOpportunities(false);
+        internals.setPreferredColorScheme("auto");
+        done();
+    });
+</script>
