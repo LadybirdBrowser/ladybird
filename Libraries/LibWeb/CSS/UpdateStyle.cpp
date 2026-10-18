@@ -516,8 +516,17 @@ static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layo
         auto changed_inherited_groups = StyleEngineFFI::style_engine_changed_style_groups(&old_record, &new_record, 0, ComputedValues::inherited_style_group_count);
         invalidation.set_inherited_style_groups_changed(static_cast<u8>(changed_inherited_groups & RequiredInvalidationAfterStyleChange::all_inherited_style_groups));
     }
-    if (old_computed_values)
+    if (old_computed_values) {
         element.apply_display_none_change(read, DOM::Element::DisplayNoneState::of(*old_computed_values));
+        // NB: The descendants of an element that stays display:none have no boxes, so their styles only serve a CSSOM
+        //     read or the subtree's reveal, both of which materialize them again. Where what they inherit moves, clear
+        //     them as entering display:none does rather than computing them all again. The SVG elements visible
+        //     content can reference keep their styles, and take what they inherit from styled ancestors.
+        if (old_computed_values->display().is_none() && element.computed_style()->display().is_none()
+            && invalidation.inherited_style_groups_changed() != 0 && !did_change_custom_properties
+            && !element.has_referenceable_svg_descendant())
+            element.clear_computed_styles_from_display_none_descendants(read);
+    }
     // The pseudo-elements of a record the host composes inherit the composition, so the engine settles them only now.
     if (reaction.composed_by_the_host)
         invalidation |= element.refresh_pseudo_element_styles_over_composition(read, old_computed_values ? &*old_computed_values : nullptr, did_change_custom_properties);

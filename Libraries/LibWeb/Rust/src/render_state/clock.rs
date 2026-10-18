@@ -63,7 +63,7 @@ pub(crate) mod hover;
 mod lane;
 pub(crate) use hover::PendingPointer;
 pub(crate) use lane::LaneDelivery;
-pub(super) use lane::{LaneSlot, note_host_write, seal_plan, take_lanes_in};
+pub(super) use lane::{LaneSlot, note_host_write, retire_slot, seal_plan, take_lanes_in};
 
 /// What the ticks of a lane sample, sealed at the end of the lane's frame's rendering update.
 pub(crate) struct ClockPlan {

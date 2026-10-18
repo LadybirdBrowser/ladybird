@@ -262,9 +262,57 @@ pub(crate) enum FeatureNameType {
     Max,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) struct QueryFeatureValue {
     pub components: Vec<ComponentValue>,
+    /// What the value parses to, made the first time a query evaluates the value.
+    parsed: std::sync::OnceLock<Box<ParsedFeatureValues>>,
+}
+
+impl PartialEq for QueryFeatureValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.components == other.components
+    }
+}
+
+impl QueryFeatureValue {
+    pub(crate) fn new(components: Vec<ComponentValue>) -> Self {
+        Self {
+            components,
+            parsed: std::sync::OnceLock::new(),
+        }
+    }
+
+    /// What the value parses to as `kind`, which it is parsed to the first time it is asked for.
+    fn parsed_as(&self, kind: FeatureValueParse) -> Option<&StyleValueData> {
+        self.parsed.get_or_init(Box::default).0[kind as usize]
+            .get_or_init(|| parse_feature_value_as(&self.components, kind))
+            .as_ref()
+    }
+}
+
+/// What a query feature's value parses to, by what it was parsed as. Parsing does not depend on the environment a query
+/// is evaluated in, so each evaluation only resolves what the first one parsed.
+#[derive(Clone, Default)]
+struct ParsedFeatureValues([std::sync::OnceLock<Option<StyleValueData>>; FeatureValueParse::COUNT]);
+
+impl std::fmt::Debug for ParsedFeatureValues {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ParsedFeatureValues")
+    }
+}
+
+#[derive(Clone, Copy)]
+enum FeatureValueParse {
+    Integer,
+    Length,
+    Number,
+    Ratio,
+    Resolution,
+}
+
+impl FeatureValueParse {
+    const COUNT: usize = Self::Resolution as usize + 1;
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -643,7 +691,7 @@ fn parse_feature_value(stream: &mut TokenStream<'_>) -> Option<QueryFeatureValue
         return None;
     }
     transaction.commit();
-    Some(QueryFeatureValue { components })
+    Some(QueryFeatureValue::new(components))
 }
 
 fn parse_feature_name<R>(
@@ -748,9 +796,7 @@ where
     let (_, id, true) = parse_feature_name(&mut transaction, kind, false, resolve_feature)? else {
         return None;
     };
-    let left = QueryFeatureValue {
-        components: left_components,
-    };
+    let left = QueryFeatureValue::new(left_components);
     transaction.discard_whitespace();
     if !transaction.has_next_token() {
         transaction.commit();
@@ -1853,10 +1899,10 @@ fn resolve_number(value: &StyleValueData, length_context: Option<&FfiLengthResol
 }
 
 fn resolve_parsed_media_feature_value(
-    value: StyleValueData,
+    value: &StyleValueData,
     length_context: Option<&FfiLengthResolutionContext>,
 ) -> Option<ResolvedFeatureValue> {
-    match &value {
+    match value {
         StyleValueData::Integer { value } => Some(ResolvedFeatureValue::Integer(*value)),
         StyleValueData::Length { value, unit } => {
             let pixels = if let Some(context) = length_context {
@@ -1883,25 +1929,82 @@ fn resolve_parsed_media_feature_value(
         }
         StyleValueData::Calculated { .. } => {
             if let Some(value) = length_context
-                .and_then(|context| crate::css::calc::resolve_calculated_integer_with_context(&value, context))
-                .or_else(|| crate::css::calc::resolve_calculated_integer_without_context(&value))
+                .and_then(|context| crate::css::calc::resolve_calculated_integer_with_context(value, context))
+                .or_else(|| crate::css::calc::resolve_calculated_integer_without_context(value))
             {
                 return Some(ResolvedFeatureValue::Integer(value));
             }
             if let Some(context) = length_context
-                && let Some(value) = crate::css::calc::resolve_calculated_length_with_context(&value, context)
+                && let Some(value) = crate::css::calc::resolve_calculated_length_with_context(value, context)
             {
                 return Some(ResolvedFeatureValue::Length(
                     CssPixels::nearest_value_for(value).to_double(),
                 ));
             }
             length_context
-                .and_then(|context| crate::css::calc::resolve_calculated_resolution_with_context(&value, context))
-                .or_else(|| crate::css::calc::resolve_calculated_resolution_without_context(&value))
+                .and_then(|context| crate::css::calc::resolve_calculated_resolution_with_context(value, context))
+                .or_else(|| crate::css::calc::resolve_calculated_resolution_without_context(value))
                 .map(ResolvedFeatureValue::Resolution)
         }
         _ => None,
     }
+}
+
+fn parse_feature_value_as(components: &[ComponentValue], kind: FeatureValueParse) -> Option<StyleValueData> {
+    let components = trim_whitespace(components);
+    let value_context = FfiValueParsingContext {
+        kind: FfiValueParsingContextKind::Special,
+        value: 2, // SpecialContext::MediaCondition
+        secondary_value: 0,
+        name: FfiUtf16View {
+            ascii: std::ptr::null(),
+            utf16: std::ptr::null(),
+            length: 0,
+        },
+    };
+    let context = media_value_parse_context(&value_context);
+    let property = crate::css::property_metadata::property_id::CUSTOM;
+    match kind {
+        FeatureValueParse::Integer => parse_one_value_from_stream(components, |stream| {
+            parse_integer_from_stream(&context, property, stream, NumericRange::INFINITE)
+        }),
+        FeatureValueParse::Length => parse_one_value_from_stream(components, |stream| {
+            parse_length_from_stream(&context, property, stream, NumericRange::INFINITE)
+        }),
+        FeatureValueParse::Number => parse_one_value_from_stream(components, |stream| {
+            parse_number_from_stream(&context, property, stream, NumericRange::INFINITE)
+        }),
+        FeatureValueParse::Ratio => {
+            let values = components
+                .iter()
+                .filter(|value| !value.is_whitespace())
+                .collect::<Vec<_>>();
+            parse_ratio_value_with_context(&context, property, &values)
+        }
+        FeatureValueParse::Resolution => parse_one_value_from_stream(components, |stream| {
+            parse_resolution_from_stream(&context, property, stream, NumericRange::INFINITE)
+        }),
+    }
+}
+
+/// Resolves `value`, parsed as `kind`, where it parses as that.
+fn resolve_feature_value_parsed_as(
+    value: &QueryFeatureValue,
+    kind: FeatureValueParse,
+    length_context: Option<&FfiLengthResolutionContext>,
+) -> Option<ResolvedFeatureValue> {
+    let parsed = value.parsed_as(kind)?;
+    Some(resolve_parsed_media_feature_value(parsed, length_context).unwrap_or(ResolvedFeatureValue::Unknown))
+}
+
+/// Whether `value` parses as a calculated number that resolves to zero, which a length feature takes as `0px`.
+fn feature_value_is_calculated_zero(
+    value: &QueryFeatureValue,
+    length_context: Option<&FfiLengthResolutionContext>,
+) -> bool {
+    value.parsed_as(FeatureValueParse::Number).is_some_and(|number| {
+        matches!(number, StyleValueData::Calculated { .. }) && resolve_number(number, length_context) == Some(0.0)
+    })
 }
 
 fn parse_media_feature_value(
@@ -1921,89 +2024,36 @@ fn parse_media_feature_value(
         return ResolvedFeatureValue::Ident(keyword);
     }
 
-    let value_context = FfiValueParsingContext {
-        kind: FfiValueParsingContextKind::Special,
-        value: 2, // SpecialContext::MediaCondition
-        secondary_value: 0,
-        name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: std::ptr::null(),
-            length: 0,
-        },
-    };
-    let context = media_value_parse_context(&value_context);
     let types = metadata.accepted_value_types;
     if types & MEDIA_FEATURE_VALUE_BOOLEAN != 0
-        && let Some(value) = parse_one_value_from_stream(components, |stream| {
-            parse_integer_from_stream(
-                &context,
-                crate::css::property_metadata::property_id::CUSTOM,
-                stream,
-                NumericRange::INFINITE,
-            )
-        })
-        && (matches!(value, StyleValueData::Calculated { .. })
-            || matches!(value, StyleValueData::Integer { value: 0 | 1 }))
+        && let Some(integer) = value.parsed_as(FeatureValueParse::Integer)
+        && (matches!(integer, StyleValueData::Calculated { .. })
+            || matches!(integer, StyleValueData::Integer { value: 0 | 1 }))
     {
-        return resolve_parsed_media_feature_value(value, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
+        return resolve_parsed_media_feature_value(integer, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
     }
     if types & MEDIA_FEATURE_VALUE_INTEGER != 0
-        && let Some(value) = parse_one_value_from_stream(components, |stream| {
-            parse_integer_from_stream(
-                &context,
-                crate::css::property_metadata::property_id::CUSTOM,
-                stream,
-                NumericRange::INFINITE,
-            )
-        })
+        && let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Integer, length_context)
     {
-        return resolve_parsed_media_feature_value(value, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
+        return resolved;
     }
     if types & MEDIA_FEATURE_VALUE_LENGTH != 0 {
-        if let Some(value) = parse_one_value_from_stream(components, |stream| {
-            parse_length_from_stream(
-                &context,
-                crate::css::property_metadata::property_id::CUSTOM,
-                stream,
-                NumericRange::INFINITE,
-            )
-        }) {
-            return resolve_parsed_media_feature_value(value, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
+        if let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Length, length_context) {
+            return resolved;
         }
-        if let Some(value @ StyleValueData::Calculated { .. }) = parse_one_value_from_stream(components, |stream| {
-            parse_number_from_stream(
-                &context,
-                crate::css::property_metadata::property_id::CUSTOM,
-                stream,
-                NumericRange::INFINITE,
-            )
-        }) && resolve_number(&value, length_context) == Some(0.0)
-        {
+        if feature_value_is_calculated_zero(value, length_context) {
             return ResolvedFeatureValue::Length(0.0);
         }
     }
-    if types & MEDIA_FEATURE_VALUE_RATIO != 0 {
-        let values = components
-            .iter()
-            .filter(|value| !value.is_whitespace())
-            .collect::<Vec<_>>();
-        if let Some(value) =
-            parse_ratio_value_with_context(&context, crate::css::property_metadata::property_id::CUSTOM, &values)
-        {
-            return resolve_parsed_media_feature_value(value, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
-        }
+    if types & MEDIA_FEATURE_VALUE_RATIO != 0
+        && let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Ratio, length_context)
+    {
+        return resolved;
     }
     if types & MEDIA_FEATURE_VALUE_RESOLUTION != 0
-        && let Some(value) = parse_one_value_from_stream(components, |stream| {
-            parse_resolution_from_stream(
-                &context,
-                crate::css::property_metadata::property_id::CUSTOM,
-                stream,
-                NumericRange::INFINITE,
-            )
-        })
+        && let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Resolution, length_context)
     {
-        return resolve_parsed_media_feature_value(value, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
+        return resolved;
     }
     ResolvedFeatureValue::Unknown
 }
@@ -2026,50 +2076,18 @@ fn parse_size_feature_value(
         return ResolvedFeatureValue::Ident(keyword);
     }
 
-    let value_context = FfiValueParsingContext {
-        kind: FfiValueParsingContextKind::Special,
-        value: 2, // SpecialContext::MediaCondition
-        secondary_value: 0,
-        name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: std::ptr::null(),
-            length: 0,
-        },
-    };
-    let context = media_value_parse_context(&value_context);
     if matches!(id, 1 | 2 | 3 | 5) {
-        if let Some(value) = parse_one_value_from_stream(components, |stream| {
-            parse_length_from_stream(
-                &context,
-                crate::css::property_metadata::property_id::CUSTOM,
-                stream,
-                NumericRange::INFINITE,
-            )
-        }) {
-            return resolve_parsed_media_feature_value(value, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
+        if let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Length, length_context) {
+            return resolved;
         }
-        if let Some(value @ StyleValueData::Calculated { .. }) = parse_one_value_from_stream(components, |stream| {
-            parse_number_from_stream(
-                &context,
-                crate::css::property_metadata::property_id::CUSTOM,
-                stream,
-                NumericRange::INFINITE,
-            )
-        }) && resolve_number(&value, length_context) == Some(0.0)
-        {
+        if feature_value_is_calculated_zero(value, length_context) {
             return ResolvedFeatureValue::Length(0.0);
         }
     }
-    if id == 0 {
-        let values = components
-            .iter()
-            .filter(|value| !value.is_whitespace())
-            .collect::<Vec<_>>();
-        if let Some(value) =
-            parse_ratio_value_with_context(&context, crate::css::property_metadata::property_id::CUSTOM, &values)
-        {
-            return resolve_parsed_media_feature_value(value, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
-        }
+    if id == 0
+        && let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Ratio, length_context)
+    {
+        return resolved;
     }
     ResolvedFeatureValue::Unknown
 }
@@ -3256,9 +3274,7 @@ mod tests {
                 .position(|metadata| metadata.name == feature_name)
                 .and_then(|id| u8::try_from(id).ok())
                 .unwrap();
-            let value = QueryFeatureValue {
-                components: components_from_source(source).unwrap(),
-            };
+            let value = QueryFeatureValue::new(components_from_source(source).unwrap());
             let mut sink = TextSink::new();
             serialize_query_feature_value(&mut sink, &value, id, QueryKind::Media);
             String::from_utf16(&sink.into_utf16()).unwrap()

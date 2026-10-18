@@ -1,0 +1,5 @@
+hidden grandchild color: rgb(255, 0, 0)
+hidden grandchild has style after read: true
+hidden grandchild style is cleared: true
+hidden child style is cleared: true
+hidden grandchild color after move: rgb(0, 128, 0)
