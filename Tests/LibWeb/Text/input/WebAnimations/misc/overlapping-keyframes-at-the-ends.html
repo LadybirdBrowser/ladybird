@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+        const keyframes = [
+            { offset: 0, opacity: 0.1 },
+            { offset: 0, opacity: 0.2 },
+            { offset: 1, opacity: 0.8 },
+            { offset: 1, opacity: 0.9 },
+        ];
+
+        const animation = foo.animate(keyframes, { duration: 1000, fill: "both", delay: 1000 });
+        println(`before: ${getComputedStyle(foo).opacity}`);
+        animation.currentTime = 1500;
+        println(`halfway: ${getComputedStyle(foo).opacity}`);
+        animation.finish();
+        println(`after: ${getComputedStyle(foo).opacity}`);
+    });
+</script>

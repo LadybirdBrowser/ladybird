@@ -1,0 +1,3 @@
+before: 0.2
+halfway: 0.5
+after: 0.9
