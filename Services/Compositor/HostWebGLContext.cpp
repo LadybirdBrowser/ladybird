@@ -138,8 +138,8 @@ ErrorOr<void> HostWebGLContext::tex_sub_image3d_from_bitmap(Commands::TexSubImag
 }
 
 // A non-preserving context's drawing buffer is cleared after being prepared for
-// compositing, but the clear is deferred until the next GL command or read, so a
-// readback of the presented frame taken before then still sees the rendered frame.
+// compositing, but the clear is deferred until the next GL command or read. Until
+// then the presented frame is still the canvas content, so readbacks take it.
 void HostWebGLContext::clear_drawing_buffer_if_needed()
 {
     if (!m_needs_clear_before_next_frame)
@@ -157,22 +157,23 @@ ErrorOr<ByteBuffer> HostWebGLContext::execute_sync_call(ReadonlyBytes request)
 
 ErrorOr<NonnullRefPtr<Gfx::PaintingSurface>> HostWebGLContext::prepare_for_compositing(bool preserve_drawing_buffer)
 {
-    // Flush all pending GL work so Skia samples the finished drawing buffer. The
-    // default framebuffer was written behind Skia's back, so discard cached snapshots
-    // before the display-list player asks Skia for an image.
-    m_gl_context->present();
+    // Nothing ran since the last present, so that frame is still the canvas content. The drawing buffer holds
+    // whatever an earlier frame left in it until the deferred clear.
+    if (m_needs_clear_before_next_frame) {
+        if (auto presented_surface = m_gl_context->presented_surface())
+            return presented_surface.release_nonnull();
+    }
 
-    auto drawing_surface = m_gl_context->surface();
-    if (!drawing_surface)
+    m_gl_context->present_drawing_buffer(preserve_drawing_buffer);
+
+    auto presented_surface = m_gl_context->presented_surface();
+    if (!presented_surface)
         return Error::from_string_literal("WebGL context has no drawing buffer");
-    m_gl_context->notify_content_will_change();
 
-    // Defer the clear (see execute_commands) so a readback before the next frame still sees
-    // this frame.
     if (!preserve_drawing_buffer)
         m_needs_clear_before_next_frame = true;
 
-    return drawing_surface.release_nonnull();
+    return presented_surface.release_nonnull();
 }
 
 void HostWebGLContext::clear_drawing_buffer()
@@ -182,16 +183,16 @@ void HostWebGLContext::clear_drawing_buffer()
     m_needs_clear_before_next_frame = false;
 }
 
-RefPtr<Gfx::PaintingSurface> HostWebGLContext::surface()
+RefPtr<Gfx::PaintingSurface> HostWebGLContext::presented_surface()
 {
-    return m_gl_context->surface();
+    return m_gl_context->presented_surface();
 }
 
 Gfx::ShareableBitmap HostWebGLContext::read_back_drawing_buffer(Gfx::IntRect rect)
 {
     m_gl_context->make_current();
-    m_gl_context->present();
-    auto surface = m_gl_context->surface();
+    m_gl_context->flush_drawing_buffer();
+    auto surface = m_needs_clear_before_next_frame ? m_gl_context->presented_surface() : m_gl_context->drawing_buffer_surface();
     if (!surface)
         return {};
 

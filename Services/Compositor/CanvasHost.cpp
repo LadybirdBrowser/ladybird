@@ -177,10 +177,7 @@ void CanvasHost::execute_webgl_commands(Compositing::CanvasId canvas_id, Readonl
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
-    auto& webgl_context = as_webgl(*context);
-    MUST(webgl_context.execute_commands(commands, bitmaps));
-    if (auto surface = webgl_context.surface())
-        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, surface.release_nonnull());
+    MUST(as_webgl(*context).execute_commands(commands, bitmaps));
 }
 
 void CanvasHost::set_webgl_shared_command_buffer(Compositing::CanvasId canvas_id, Compositing::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
@@ -205,9 +202,6 @@ bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId
     if (webgl_context.execute_commands(*commands, bitmaps).is_error())
         return false;
     webgl_context.store_executed_flush_sequence_number(flush_sequence_number);
-
-    if (auto surface = webgl_context.surface())
-        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, surface.release_nonnull());
     return true;
 }
 
@@ -279,7 +273,7 @@ RefPtr<Gfx::PaintingSurface> CanvasHost::presented_surface(Compositing::CanvasId
             return canvas_context.presented_surface;
         },
         [](WebGLContext& webgl_context) -> RefPtr<Gfx::PaintingSurface> {
-            return webgl_context->surface();
+            return webgl_context->presented_surface();
         });
 }
 
