@@ -100,11 +100,9 @@ private:
         advance_next_tick_time_past(now);
         VERIFY(*m_next_tick_time > now);
 
-        // NB: The timer is armed against a fixed display grid. Rounding the delay up avoids firing before the grid
-        //     point, and advancing by whole intervals keeps request and update latency from shifting later ticks.
-        auto delay_nanoseconds = (*m_next_tick_time - now).to_nanoseconds();
-        auto delay_milliseconds = (delay_nanoseconds + 999'999) / 1'000'000;
-        m_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(max<i64>(delay_milliseconds, 1))));
+        // NB: The timer is armed against a fixed display grid. Advancing by whole intervals keeps request and update
+        //     latency from shifting later ticks.
+        m_timer->restart(*m_next_tick_time - now);
     }
 
     Function<void(MonotonicTime)> m_tick_callback;

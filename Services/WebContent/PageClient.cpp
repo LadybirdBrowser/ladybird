@@ -693,7 +693,7 @@ void PageClient::schedule_local_rendering_opportunity()
     }
 
     m_frame_timer_purpose = FrameTimerPurpose::LocalFallback;
-    m_frame_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(AK::ceil(delay))));
+    m_frame_timer->restart(AK::Duration::from_seconds_f64(delay / 1000));
 }
 
 void PageClient::schedule_compositor_watchdog()
@@ -702,7 +702,7 @@ void PageClient::schedule_compositor_watchdog()
     auto delay = 4.0 * m_last_rendering_opportunity_frame_interval;
     m_compositor_watchdog_deadline = Web::HighResolutionTime::unsafe_shared_current_time() + delay;
     m_frame_timer_purpose = FrameTimerPurpose::CompositorWatchdog;
-    m_frame_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(AK::ceil(delay))));
+    m_frame_timer->restart(AK::Duration::from_seconds_f64(delay / 1000));
 }
 
 void PageClient::frame_timer_fired()
@@ -728,7 +728,7 @@ void PageClient::frame_timer_fired()
         // an earlier request satisfy the current request before its own watchdog deadline.
         if (now < m_compositor_watchdog_deadline) {
             m_frame_timer_purpose = FrameTimerPurpose::CompositorWatchdog;
-            m_frame_timer->restart(AK::Duration::from_milliseconds(static_cast<int>(AK::ceil(m_compositor_watchdog_deadline - now))));
+            m_frame_timer->restart(AK::Duration::from_seconds_f64((m_compositor_watchdog_deadline - now) / 1000));
             return;
         }
         // An opportunity IPC may already be waiting behind a long main-thread task when this timer becomes runnable.

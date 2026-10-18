@@ -1116,7 +1116,7 @@ void Request::wait_for_cache_timed_out()
         auto idle_time = MonotonicTime::now() - *last_activity_time;
         if (idle_time < s_wait_for_cache_timeout) {
             auto time_until_stalled = min(s_wait_for_cache_timeout - idle_time, s_maximum_wait_for_cache - time_waited);
-            m_wait_for_cache_timer->start(AK::Duration::from_milliseconds(max(static_cast<int>(time_until_stalled.to_milliseconds()), 1)));
+            m_wait_for_cache_timer->start(time_until_stalled);
             return;
         }
     }
