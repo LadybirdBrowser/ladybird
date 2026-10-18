@@ -480,6 +480,26 @@ pub(super) fn value_reads_any_of_custom_properties(value: &StyleValueData, names
             .any(|reference| names.binary_search_by(|name| name.as_ref().cmp(reference)).is_ok())
 }
 
+/// The custom properties a written value reads by name, or `None` when it may read others: an
+/// `if()` condition, a custom function or an attribute's value can read any.
+fn named_custom_property_reads(value: &StyleValueData) -> Option<Vec<&[u16]>> {
+    let value = substituted_tokens(value);
+    if let StyleValueData::Unresolved {
+        presence_attr,
+        presence_dashed_function,
+        presence_if,
+        ..
+    } = value
+        && (*presence_attr || *presence_dashed_function || *presence_if)
+    {
+        return None;
+    }
+    let Some((references, all_references_visible)) = custom_property_references(value) else {
+        return Some(Vec::new());
+    };
+    all_references_visible.then_some(references)
+}
+
 pub(super) fn sorted_custom_property_names(mut names: Vec<Arc<[u16]>>) -> CustomPropertyNames {
     names.sort_unstable();
     names.dedup();
@@ -1945,6 +1965,169 @@ impl RetainedState {
             reads |= bridge::FfiNodeRecordReads::SiblingPosition as u8;
         }
         reads
+    }
+
+    /// What the custom properties an element declares resolve to once its animations sampled
+    /// `animated` into its custom properties. An animated value wins the cascade over a declared
+    /// one, so a declaration reading an animated name, or reading a declaration that does, resolves
+    /// against the animated values. Answers each such declaration whose value moved from the one
+    /// it holds in `base`, the element's environment beneath its animations. `inheritance` is the
+    /// environment the element inherits, and `finalization` computes registered values against the
+    /// element's lengths.
+    pub(crate) fn resolve_custom_properties_reading_animated_values(
+        &mut self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        base: *const c_void,
+        inheritance: *const c_void,
+        animated: &[(
+            crate::css::retained_fly_string::RetainedUtf16FlyString,
+            RetainedStyleValueData,
+        )],
+        finalization: CustomPropertyFinalization<'_>,
+    ) -> Vec<(
+        crate::css::retained_fly_string::RetainedUtf16FlyString,
+        RetainedStyleValueData,
+    )> {
+        if animated.is_empty() || !self.any_custom_property_is_declared() {
+            return Vec::new();
+        }
+        let Some(cascaded) = self.cascaded_custom_declarations_of(node, pseudo) else {
+            return Vec::new();
+        };
+        let mut moved: Vec<Arc<[u16]>> = animated
+            .iter()
+            .map(|(name, _)| Arc::from(name.to_utf16().as_ref()))
+            .collect();
+        let mut candidates: Vec<_> = cascaded
+            .iter()
+            .filter(|(declared, _)| declared.operator == CascadeOperator::Declared)
+            .filter_map(|(declared, value)| {
+                let name = self.declared_custom_property_name(declared.name)?;
+                Some((name, declared, value, named_custom_property_reads(value.data())))
+            })
+            .filter(|(name, _, _, _)| !moved.contains(&name.text))
+            .collect();
+        // What a declaration reads moves where any name it reads moved, and a read the scan
+        // cannot name may read any.
+        let mut readers = Vec::new();
+        loop {
+            let reads_moved = |reads: &Option<Vec<&[u16]>>| {
+                reads
+                    .as_ref()
+                    .is_none_or(|reads| reads.iter().any(|read| moved.iter().any(|name| name[..] == **read)))
+            };
+            let Some(index) = candidates.iter().position(|(_, _, _, reads)| reads_moved(reads)) else {
+                break;
+            };
+            let (name, declared, value, _) = candidates.swap_remove(index);
+            moved.push(name.text.clone());
+            readers.push((name.clone(), declared, value));
+        }
+        if readers.is_empty() {
+            return Vec::new();
+        }
+
+        let functions = if readers
+            .iter()
+            .any(|(_, _, value)| value_calls_custom_functions(value.data()))
+        {
+            // A container condition the engine cannot decide leaves the declarations as they resolved.
+            let Some(functions) = self.prepare_custom_functions(node, pseudo) else {
+                return Vec::new();
+            };
+            Some(functions)
+        } else {
+            None
+        };
+        let reads_attributes = functions.as_ref().is_some_and(|functions| functions.reads_attributes)
+            || readers.iter().any(|(_, _, value)| value_reads_attributes(value.data()));
+        let attribute_element = self.substitution_attribute_element(node, pseudo);
+        let attributes = reads_attributes
+            .then(|| SubstitutionAttributes::of(&self.facts, attribute_element, self.html_element_namespace));
+        let reads_conditions =
+            functions.is_some() || readers.iter().any(|(_, _, value)| value_reads_conditions(value.data()));
+        let style_query = reads_conditions
+            .then(|| self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo.unwrap_or(u8::MAX))))
+            .flatten();
+
+        // The readers resolve as declared, over the element's environment, beside the animated values.
+        let values = readers
+            .iter()
+            .map(|(name, declared, value)| {
+                (
+                    name.raw.raw(),
+                    name.text.clone(),
+                    declared.important,
+                    value.pointer().cast(),
+                )
+            })
+            .chain(animated.iter().map(|(name, value)| {
+                (
+                    name.raw(),
+                    Arc::from(name.to_utf16().as_ref()),
+                    false,
+                    value.pointer().cast(),
+                )
+            }))
+            .collect();
+        // SAFETY: The base store is live for the sample, and the values are live for the call.
+        let cascaded_store = unsafe { Arc::from_raw(CustomPropertyStore::cascaded_child(base, values).cast()) };
+        let registry = self.document_style_computation_inputs.custom_property_registry();
+        let mut random_function_index = 0_usize;
+        let mut parse_context = registry.parse_context(&mut random_function_index);
+        parse_context.in_quirks_mode = self.document_style_computation_inputs.in_quirks_mode;
+        let media_environment = self.document_media.environment();
+        // The `style()` queries the declarations read were noted as they resolved beneath the animations.
+        let mut style_query_references = None;
+        // SAFETY: The store the element inherits from is live for the sample.
+        let inheritance_store = unsafe { inheritance.cast::<CustomPropertyStore>().as_ref() };
+        let mut resolution_context = engine_resolution_context(
+            &parse_context,
+            Some(&cascaded_store),
+            inheritance_store,
+            registry,
+            attributes.as_ref(),
+            &media_environment,
+            style_query.as_ref(),
+            Some(&mut style_query_references),
+            functions.as_ref(),
+        );
+        // A registered reader's random() takes the base value drawn for the element as its
+        // declarations resolved, not one the keyframes share.
+        let random_base_values = std::cell::RefCell::new(&mut self.random_base_values);
+        let draw_random_base_value = |name: &[u16], element_shared: bool| {
+            random_base_values.borrow_mut().ensure(Some(node), name, element_shared)
+        };
+        let finalization = CustomPropertyFinalization {
+            random_base_values: &[],
+            draw_random_base_value: Some(&draw_random_base_value),
+            ..finalization
+        };
+        // SAFETY: As above.
+        let (resolved, _) = unsafe {
+            resolve_declared_custom_properties(&cascaded_store, base, true, &mut resolution_context, finalization)
+        };
+        if resolved.is_null() {
+            return Vec::new();
+        }
+        // SAFETY: The resolution hands over one strong reference to the store.
+        let resolved = unsafe { Arc::from_raw(resolved.cast::<CustomPropertyStore>()) };
+        readers
+            .iter()
+            .filter_map(|(name, _, _)| {
+                let name_raw = name.raw.raw();
+                if !resolved.declared_names.contains(&name_raw) {
+                    return None;
+                }
+                let value = resolved.own_values.get(&name_raw)?.value.clone();
+                // SAFETY: The name is live while the engine notes it.
+                Some((
+                    unsafe { crate::css::retained_fly_string::RetainedUtf16FlyString::from_borrowed_raw(name_raw) },
+                    value,
+                ))
+            })
+            .collect()
     }
 
     /// What a keyframe's written value substitutes to on the element being sampled, against the

@@ -6168,10 +6168,23 @@ fn finish_animation_sample(
     });
     result.outcome = FfiHostAnimationSampleOutcome::Evaluated;
     if !custom_results.is_empty() {
-        let retained = custom_results
+        let mut retained = custom_results
             .into_iter()
             .map(|(custom_name_id, value)| (custom_properties.name(custom_name_id).clone(), value))
             .collect::<Vec<_>>();
+        // The element's own custom properties that read an animated one move with it, whether or
+        // not they resolved to what it inherits.
+        let pseudo =
+            (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
+        let readers = engine.resolve_custom_properties_reading_animated_values(
+            node,
+            pseudo,
+            input.stores.base,
+            input.stores.inheritance,
+            &retained,
+            finalization,
+        );
+        retained.extend(readers);
         let rows = retained
             .iter()
             .map(|(name, value)| FfiAnimatedCustomPropertyResult {
