@@ -348,6 +348,25 @@ pub(crate) fn place_child_in_containing_block(
     let used = records.used_values(node);
     set_placement(used, containing_block, offset);
     let fragments = run.fragments.as_deref()?;
+    if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(callbacks, node, used) {
+        fragments.attach_committed_fragment(
+            node,
+            fragment.clone(),
+            reuses_subtree,
+            (!containing_block.is_invalid()).then_some(containing_block),
+            used,
+            containing_block_is_sealed(records, containing_block),
+            resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
+            point_add(
+                offset,
+                committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
+            ),
+        );
+        return Some(fragment_tree::PlacedFragment {
+            fragment,
+            exports_payloads: false,
+        });
+    }
     fragments.normalize_arrivals_for_placement(node, callbacks);
     loop {
         let batch = fragments.take_drainable_abspos(node, records, callbacks);
@@ -401,12 +420,14 @@ pub(crate) fn place_reused_child(
         .fragments
         .as_deref()
         .expect("a reused subtree is placed by a run that builds fragments");
-    fragments.attach_reused_subtree(
+    fragments.attach_committed_fragment(
         node,
         fragment,
+        true,
         (!containing_block.is_invalid()).then_some(containing_block),
         used,
         containing_block_is_sealed(records, containing_block),
+        None,
         point_add(
             offset,
             committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
@@ -1614,6 +1635,10 @@ pub(super) fn run_formatting_context(
     } else {
         purpose
     };
+    if let Some(parent_fragments) = parent_fragments {
+        // A later run for this root supersedes a hit recorded earlier in the same pass.
+        parent_fragments.clear_reused_subtree_root(box_, parent_used);
+    }
     let root_cells = used_values::UsedValuesCellState::capture(parent_used);
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
@@ -1627,6 +1652,17 @@ pub(super) fn run_formatting_context(
     ) {
         Ok(attempt) => attempt,
         Err(entry) => {
+            if let Some(result) = reuse_committed_subtree_as_it_is(
+                purpose,
+                parent_fragments,
+                parent_used,
+                box_,
+                &callbacks,
+                &cache_key,
+                &entry,
+            ) {
+                return result;
+            }
             let reuses_committed_subtree = entry.can_reuse_committed_subtree();
             let _trace = callbacks
                 .arena()
@@ -1645,10 +1681,6 @@ pub(super) fn run_formatting_context(
             return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, reuses_committed_subtree);
         }
     };
-    if let Some(parent_fragments) = parent_fragments {
-        // A later fresh run for this root supersedes a hit recorded earlier in the same pass.
-        parent_fragments.clear_reused_subtree_root(box_);
-    }
     let _trace = callbacks
         .arena()
         .layout_trace
@@ -1671,6 +1703,48 @@ pub(super) fn run_formatting_context(
     );
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
+}
+
+/// Takes a committing run of `box_` from the cache entry `entry` with nothing replayed: its root record gets what the
+/// stored run left, and the run's placement attaches the box's committed fragment as it is. That is exact where the
+/// committed fragment is the one the stored run produced, which a plain box shows by holding the record's metrics and
+/// the very line data the run left, and where nothing from the stored run reaches past its root.
+fn reuse_committed_subtree_as_it_is(
+    purpose: LayoutPurpose,
+    parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
+    root_used: &UsedValues,
+    box_: Node,
+    callbacks: &LayoutPass<'_>,
+    cache_key: &fc_run_cache::FcRunCacheKey,
+    entry: &fc_run_cache::FcRunCacheEntry,
+) -> Option<ChildLayoutResult> {
+    let fragments = parent_fragments?;
+    if purpose != LayoutPurpose::Commit
+        || !entry.can_reuse_committed_subtree()
+        || entry.is_uncommitted()
+        || !cache_key.has_no_table_cell_intrinsic_block_padding()
+        || entry.outputs.root.as_ref().is_some_and(|root| !root.carries_nothing())
+        || NodeFacts::new(callbacks, box_).has_anchor_names()
+    {
+        return None;
+    }
+    let fragment = callbacks
+        .arena()
+        .with_current_committed_fragment(box_, |fragment| fragment.is_plain_box().then(|| fragment.clone()))
+        .flatten()?;
+    entry.outputs.root_outcome.clone().apply_to_record(root_used);
+    if !root_used.shows_box_of_fragment(&fragment) {
+        return None;
+    }
+    let _trace = callbacks.arena().layout_trace.run(
+        box_,
+        cache_key.fc_type(),
+        purpose,
+        LayoutMode::Normal,
+        || "REUSE SUBTREE",
+    );
+    fragments.hold_reused_committed_fragment(box_, root_used, fragment);
+    Some(entry.outputs.result)
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -2097,12 +2171,25 @@ pub(crate) fn layout_inside_child(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
-        run.sizing().dimension_empty_atomic_root(
+        // A fragment held by an earlier sizing of the box in this run may no longer match the record.
+        used.held_committed_fragment.take();
+        let committed_fragment = run.sizing().dimension_empty_atomic_root(
             child,
             input.available_space,
             input.containing_block_constraints,
             layout_mode,
         );
+        // OPTIMIZATION: A box that took its metrics from its committed fragment is placed with that fragment, where
+        // it shows the box as the record holds it.
+        if let Some(fragment) = committed_fragment
+            && run.purpose == LayoutPurpose::Commit
+            && let Some(fragments) = run.fragments.as_deref()
+            && fragment.is_plain_box()
+            && used.shows_box_of_fragment(&fragment)
+            && !facts.has_anchor_names()
+        {
+            fragments.hold_committed_fragment_of_empty_box(used, fragment);
+        }
         store_derived_baselines(used, DerivedBaselines::default());
         note_skipped_child_dependency();
         return ChildLayoutOutcome::Skipped;

@@ -1024,7 +1024,7 @@ impl<'context> InlineFormattingContext<'context> {
 
     fn hide_atomic_inline_for_line_clamp(&self, node: Node) {
         if let Some(fragments) = self.run.fragments.as_deref() {
-            fragments.discard_unplaced_subtree(node);
+            fragments.discard_unplaced_subtree(node, self.used(node));
         }
         self.used(node).is_invisible_for_line_clamp.set(true);
     }

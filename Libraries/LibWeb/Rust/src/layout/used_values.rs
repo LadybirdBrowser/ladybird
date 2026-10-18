@@ -369,6 +369,7 @@ pub(crate) struct UsedValues {
 
     pub(crate) line_data: RefCell<LineDataState>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
+    pub(crate) held_committed_fragment: fragment_tree::HeldCommittedFragmentCell,
 }
 
 impl Default for UsedValues {
@@ -417,6 +418,7 @@ impl Default for UsedValues {
             has_descendant_that_depends_on_percentage_block_size: Cell::new(false),
             line_data: RefCell::new(LineDataState::Empty),
             rare_data: LazyRefCell::new(),
+            held_committed_fragment: fragment_tree::HeldCommittedFragmentCell::default(),
         }
     }
 }
@@ -683,6 +685,31 @@ impl UsedValues {
         self.padding_right.set(fragment.padding_right);
         self.padding_top.set(fragment.padding_top);
         self.padding_bottom.set(fragment.padding_bottom);
+    }
+
+    /// Whether `fragment` shows this record's box as it stands: its metrics, and the very line data it holds.
+    pub(crate) fn shows_box_of_fragment(&self, fragment: &fragment_tree::Fragment) -> bool {
+        let same_line_data = match (&fragment.line_data, &*self.line_data.borrow()) {
+            (None, LineDataState::Empty) => true,
+            (Some(left), LineDataState::Finished(right)) => std::sync::Arc::ptr_eq(left, right),
+            _ => false,
+        };
+        same_line_data
+            && fragment.content_inline_size == self.content_inline_size.get()
+            && fragment.content_block_size == self.content_block_size.get()
+            && fragment.margin_left == self.margin_left.get()
+            && fragment.margin_right == self.margin_right.get()
+            && fragment.margin_top == self.margin_top.get()
+            && fragment.margin_bottom == self.margin_bottom.get()
+            && fragment.border_left == self.border_left.get()
+            && fragment.border_right == self.border_right.get()
+            && fragment.border_top == self.border_top.get()
+            && fragment.border_bottom == self.border_bottom.get()
+            && fragment.padding_left == self.padding_left.get()
+            && fragment.padding_right == self.padding_right.get()
+            && fragment.padding_top == self.padding_top.get()
+            && fragment.padding_bottom == self.padding_bottom.get()
+            && fragment.uses_collapsing_borders_model == self.uses_collapsing_borders_model.get()
     }
 
     fn collapsed_border_share(&self, width: CssPixels, start_edge: bool) -> CssPixels {

@@ -180,7 +180,9 @@ pub(crate) fn committed_svg_viewport_transform(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiAffineTransform> {
-    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.viewport_transform))
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg.as_ref()?.viewport_transform)
+    })
 }
 
 pub(crate) fn committed_svg_viewport_size(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
@@ -188,7 +190,7 @@ pub(crate) fn committed_svg_viewport_size(arena: &impl GeometryRead, slot: NodeS
         return used_values::FfiCssPixelSize::default();
     }
     arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.fragment.svg.viewport_size)
+        link.and_then(|link| link.fragment.svg.as_ref()?.viewport_size)
             .unwrap_or_default()
     })
 }
@@ -197,7 +199,9 @@ pub(crate) fn committed_svg_element_transform(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiAffineTransform> {
-    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.element_transform))
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg.as_ref()?.element_transform)
+    })
 }
 
 pub(crate) fn committed_svg_additional_element_transform(
@@ -205,7 +209,7 @@ pub(crate) fn committed_svg_additional_element_transform(
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiAffineTransform> {
     arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.fragment.svg.additional_element_transform)
+        link.and_then(|link| link.fragment.svg.as_ref()?.additional_element_transform)
     })
 }
 
@@ -213,14 +217,16 @@ pub(crate) fn committed_svg_mask_area_facts(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::SvgMaskAreaFacts> {
-    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.mask_area_facts))
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg.as_ref()?.mask_area_facts)
+    })
 }
 
 pub(crate) fn committed_svg_view_box(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiSvgViewBox> {
-    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.view_box))
+    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.as_ref()?.view_box))
 }
 
 pub(crate) fn committed_svg_resource_content_units_are_object_bounding_box(
@@ -228,13 +234,19 @@ pub(crate) fn committed_svg_resource_content_units_are_object_bounding_box(
     slot: NodeSlotId,
 ) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
-        link.is_some_and(|link| link.fragment.svg.resource_content_units_are_object_bounding_box)
+        link.is_some_and(|link| {
+            link.fragment
+                .svg
+                .as_ref()
+                .is_some_and(|svg| svg.resource_content_units_are_object_bounding_box)
+        })
     })
 }
 
 pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixels {
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(CssPixels::default, |link| link.fragment.svg.viewport_percentage_basis)
+        link.and_then(|link| link.fragment.svg.as_ref())
+            .map_or_else(CssPixels::default, |svg| svg.viewport_percentage_basis)
     })
 }
 

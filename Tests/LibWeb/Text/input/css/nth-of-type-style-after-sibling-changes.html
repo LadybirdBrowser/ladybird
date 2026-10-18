@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #list > * { color: black; }
+    #list > span:first-of-type { color: red; }
+    #list > p:last-of-type { color: green; }
+    #list > span:nth-of-type(2) { color: blue; }
+    #list > p:nth-last-of-type(2) { color: orange; }
+</style>
+<div id="list"></div>
+<script>
+    test(() => {
+        const list = document.getElementById("list");
+        for (let i = 0; i < 30; ++i)
+            list.append(document.createElement(i % 3 === 0 ? "p" : "span"));
+
+        function expectedColor(element) {
+            const all = Array.from(list.children);
+            const ofType = all.filter(other => other.localName === element.localName);
+            const index = ofType.indexOf(element);
+            if (element.localName === "span") {
+                if (index === 1)
+                    return "rgb(0, 0, 255)";
+                if (index === 0)
+                    return "rgb(255, 0, 0)";
+            } else if (element.localName === "p") {
+                if (index === ofType.length - 2)
+                    return "rgb(255, 165, 0)";
+                if (index === ofType.length - 1)
+                    return "rgb(0, 128, 0)";
+            }
+            return "rgb(0, 0, 0)";
+        }
+
+        function run(description) {
+            const wrong = Array.from(list.children)
+                .map((element, index) => [element, index])
+                .filter(([element]) => getComputedStyle(element).color !== expectedColor(element))
+                .map(([, index]) => index);
+            println(`${description}: ${wrong.length === 0 ? "PASS" : "FAIL at " + wrong.join(",")}`);
+        }
+
+        run("initial");
+        list.prepend(document.createElement("span"));
+        run("span inserted at the start");
+        list.append(document.createElement("p"));
+        run("p appended");
+        list.insertBefore(document.createElement("span"), list.children[1]);
+        list.insertBefore(document.createElement("p"), list.children[25]);
+        run("span and p inserted in one update");
+        list.firstElementChild.remove();
+        run("first span removed");
+        list.lastElementChild.remove();
+        list.lastElementChild.remove();
+        run("last two elements removed");
+        list.prepend(document.createElement("div"));
+        run("other type inserted at the start");
+    });
+</script>

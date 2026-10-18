@@ -314,6 +314,7 @@ impl RetainedState {
         self.memory
             .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
         traversal.cascade_compaction_workspace_memory.release();
+        traversal.unbatched_facts_memory.release();
     }
 
     pub(super) fn discard_retained_prefix_caches(&mut self) {
@@ -447,6 +448,8 @@ impl RetainedState {
             dispatch_workspace_bytes: 0,
             cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             cascade_compaction_workspace_memory: MemoryLease::new(MemoryCategory::BatchScratch),
+            unbatched_facts: StyleNodeFacts::new(),
+            unbatched_facts_memory: MemoryLease::new(MemoryCategory::BatchScratch),
         }));
     }
 
@@ -484,6 +487,7 @@ impl RetainedState {
         self.memory
             .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
         traversal.cascade_compaction_workspace_memory.release();
+        traversal.unbatched_facts_memory.release();
         let released_cascade_payload_bytes = self.match_answers.sweep_unreferenced();
         self.retained_match_answers
             .release_swept_cascade_payloads(released_cascade_payload_bytes);
@@ -537,6 +541,8 @@ impl RetainedState {
             dispatch_workspace_bytes: 0,
             cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             cascade_compaction_workspace_memory: MemoryLease::new(MemoryCategory::BatchScratch),
+            unbatched_facts: StyleNodeFacts::new(),
+            unbatched_facts_memory: MemoryLease::new(MemoryCategory::BatchScratch),
         })
     }
 
@@ -635,6 +641,8 @@ impl RetainedState {
             dispatch_workspace_bytes: 0,
             cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             cascade_compaction_workspace_memory: MemoryLease::new(MemoryCategory::BatchScratch),
+            unbatched_facts: StyleNodeFacts::new(),
+            unbatched_facts_memory: MemoryLease::new(MemoryCategory::BatchScratch),
         }));
     }
 
@@ -751,6 +759,7 @@ impl RetainedState {
             self.memory
                 .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
             traversal.cascade_compaction_workspace_memory.release();
+            traversal.unbatched_facts_memory.release();
             self.discard_published_match_answers();
             self.finish_memory_evaluation_loop();
         }
@@ -5191,10 +5200,13 @@ impl RetainedState {
             .unwrap_or_default();
         let mut completion_scratch_bytes = 0;
         let mut retained_match_answer_is_exact = compact_for_cascade;
-        let mut facts = StyleNodeFacts::new();
+        let mut facts = traversal
+            .as_deref_mut()
+            .map(|traversal| std::mem::take(&mut traversal.unbatched_facts))
+            .unwrap_or_default();
         let mut requests = Vec::new();
         loop {
-            self.facts.materialize(covered.iter().copied(), &mut facts);
+            self.facts.materialize_missing(covered.iter().copied(), &mut facts);
             let mut prefix_contexts = PrefixTransitionContexts::default();
             if !self.prepared_scope_program(scope).1.prefixes().is_empty() {
                 let (program, _) = self.prepared_scope_program(scope);
@@ -5308,6 +5320,12 @@ impl RetainedState {
                     if !prefix_caches_return_to_completion_batch {
                         prefix_caches.borrow_mut().states.release();
                     }
+                    if let Some(traversal) = traversal.as_deref_mut() {
+                        traversal
+                            .unbatched_facts_memory
+                            .resize_required_to(&mut self.memory, facts.capacity_bytes());
+                        traversal.unbatched_facts = facts;
+                    }
                     return Ok(all);
                 }
                 Err(incomplete) => {
@@ -5323,6 +5341,12 @@ impl RetainedState {
                             .release(MemoryCategory::BatchScratch, completion_scratch_bytes);
                         if !prefix_caches_return_to_completion_batch {
                             prefix_caches.borrow_mut().states.release();
+                        }
+                        if let Some(traversal) = traversal.as_deref_mut() {
+                            traversal
+                                .unbatched_facts_memory
+                                .resize_required_to(&mut self.memory, facts.capacity_bytes());
+                            traversal.unbatched_facts = facts;
                         }
                         return Err(Incomplete::MissingFacts(missing));
                     }
