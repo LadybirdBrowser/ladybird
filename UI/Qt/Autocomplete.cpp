@@ -269,18 +269,13 @@ public:
         painter->save();
         bool selected = option.state & QStyle::State_Selected;
         bool hovered = option.state & QStyle::State_MouseOver;
-        if (selected) {
+        // A row under the mouse lights up the same way as the row selected with the keyboard.
+        if (selected || hovered) {
             auto rect = option.rect.adjusted(4, 2, -4, -2);
             painter->setRenderHint(QPainter::Antialiasing, true);
             painter->setPen(Qt::NoPen);
             painter->setBrush(autocomplete_selection_fill(option.palette));
-            painter->drawRoundedRect(rect, 7, 7);
-        } else if (hovered) {
-            auto rect = option.rect.adjusted(4, 2, -4, -2);
-            painter->setRenderHint(QPainter::Antialiasing, true);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(ChromeStyle::chrome_surface_hover(option.palette));
-            painter->drawRoundedRect(rect, 7, 7);
+            painter->drawRoundedRect(rect, ChromeStyle::LOCATION_EDIT_CORNER_RADIUS, ChromeStyle::LOCATION_EDIT_CORNER_RADIUS);
         }
 
         auto favicon = index.data(FaviconRole).value<QIcon>();
