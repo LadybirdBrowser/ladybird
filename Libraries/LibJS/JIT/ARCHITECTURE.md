@@ -164,6 +164,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | CheckTypedArrayStorage | Exits unless the storage offset of a typed array (input 0) is valid. Typed arrays whose length the snapshot knows to be fixed use it as a constant past this check, so accesses with a constant index rely on it alone. The value is the offset, refined. | E | | | cse |
 | CheckNotHole | Exits at holes (the empty value). The value is input 0, refined. | E | | | cse |
 | AssumeValid | Exits if the code was invalidated; a patchable no-op (section 5). | E | Any | | |
+| AssumeLegacyArgumentsUnread | After an instruction whose calls may run code reading the legacy `arguments` of inlined frames; escape analysis makes it an `AssumeValid` or removes it (section 4, "Legacy arguments"). | E | Any | | |
 | **Object memory** | | | | | |
 | LoadNamed | A named property at an offset; exits for accessors. | E | Named | | cse |
 | StoreNamed | Stores an existing named property; exits for accessors. | E | Named | Named | |
@@ -200,7 +201,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | AllocateObject, AllocateArray | A new plain object or packed array; nothing can see it before it is stored. | | | | allocates |
 | AllocateFunction, AllocateEnvironment | A new closure or lexical environment from its template. | | | | allocates |
 | InitializeNamed, InitializeElement | Initializing stores into an object or array nothing else has seen. | | | Named / Elements | |
-| VirtualObject | An object escape analysis removed, as frame states need it; in no block, no code. | | | | |
+| VirtualObject | An object escape analysis removed, as frame states need it; in no block, no code. Names the `AllocateObject` it stands for, which is the same object at every site of the code. | | | | |
 | **Frames and environments** | | | | | |
 | InitializeFrame, EnsureFrameInitialized | The `Enter` bytecode: publishes the frame, empties the registers and locals, copies the constants (the second only if the frame is not initialized yet). | | | Frame | |
 | PublishFrame | Makes the frame the running execution context, which direct calls leave to their callee's code. | | | Frame | |
@@ -274,6 +275,24 @@ node that observes its slots), the frame is invisible: the garbage collector, st
 runtime functions only see the running frame and its callers, so nothing may run other code,
 collect garbage or exit lazily before that. Eager exits publish the frame in the translator, and
 the prologue's resumption in the interpreter publishes it inline.
+
+**Legacy arguments.** Code that a call in an inlined function runs may read the function's
+arguments through its legacy `f.arguments`, which may be objects the code never allocated. They
+stay virtual: the frames of inlined calls that the runtime publishes or materializes while compiled
+code keeps running get a marker in such an argument slot (an empty value with the low half of the
+JIT frame's frame pointer), where the frame state's `legacy_arguments` include it. Reading
+`f.arguments` (or the debugger) replaces the marker with the object, created from the values of the
+site the JIT frame is suspended at: in stack slots for a call site, and in the JIT frame's register
+dump for a publication (the frame stores the site's index where
+`CompiledCode::site_index_frame_offset` says). The runtime remembers the
+object for the frame (by the allocation its `VirtualObject` names), and every later
+materialization for that frame uses it, as it is. It then invalidates and discards the code and
+records `ExitKind::LegacyArgumentsRead` at the call. The builder ends every instruction whose
+calls run code in a frame chain with legacy arguments with an `AssumeLegacyArgumentsUnread`, which
+escape analysis keeps as an `AssumeValid` where the call has such objects, so the frame exits
+right after the call and the interpreter continues with the objects that code read and maybe
+changed. Recompiles keep the objects allocated at calls where code read them before. Calls
+without such a node after them keep the objects among legacy arguments allocated too.
 
 
 ### 4.1 Generators and async functions
@@ -379,7 +398,7 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 | Bounds check elimination | Bounds checks against constant counts go away where the index is known to be in range: induction variables of loops whose back edge compares the grown counter with a constant bound, merges of values from outside a loop, and int32 arithmetic on them that cannot overflow. The counter an on-stack replacement entry brings is checked against the bound once where it enters, unless such a check exited there before. With the same ranges, `((x << k) + c) >> k` becomes `x + (c >> k)` where nothing overflows and `c` is a multiple of 2^k. Int32 additions, subtractions and multiplications become `Int32WrappingBinary` where the ranges of their operands keep the result an int32 (and not -0), with operands also bounded by the masks and shifts of any int32, and by the dominating bounds checks and in-bounds branches of indices. |
 | Exit unboxing | Frame states take the unboxed value of an int32, float64 or bool boxing that only frame states use, so that exits box it instead of the fast path. |
 | Dead code elimination | Removes nodes without uses and without effects; frame states count as uses. Branches whose edges lead to the same place doing the same thing become jumps. |
-| Escape analysis | Allocations that do not escape become their properties' SSA values; frame states refer to `VirtualObject`s. |
+| Escape analysis | Allocations that do not escape become their properties' SSA values; frame states refer to `VirtualObject`s. `AssumeLegacyArgumentsUnread` nodes after calls whose frame states have virtual objects among legacy arguments become `AssumeValid` nodes; the others go away. |
 | Dead code elimination | Again, for what escape analysis left unused. |
 | Branch fusion | A branch on a single-use comparison (int32, float64 or tagged) compares itself, after a block that only branches on a phi of booleans hands the branch to its predecessors. |
 | Refinement removal | Every use of a refined value becomes a use of the value itself; `Refine` nodes go away and checks lose their values; value numbering then merges what differed only in refinements (section 3.2). |

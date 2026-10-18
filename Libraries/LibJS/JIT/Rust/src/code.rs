@@ -46,6 +46,17 @@ pub struct CompiledCode {
     /// What invalidates the code: the bytes to write at each offset of it
     /// (see `Op::AssumeValid`).
     pub invalidation_patches: Vec<(u32, Vec<u8>)>,
+    /// The offset from the frame pointer of the 32-bit word where the code
+    /// keeps the index of a site the runtime reads the values of: that of
+    /// an exit or leave, while a slow path in an inlined callee runs in
+    /// frames the runtime published, that of their publication, and while a
+    /// call in an inlined callee runs in frames the runtime materialized for
+    /// it, that of the call.
+    pub site_index_frame_offset: i32,
+    /// The offset from the frame pointer of the register dump (see
+    /// `ValueLocation::Register`) that exits, leaves and publications fill,
+    /// which holds the values of a publication while its slow path runs.
+    pub register_dump_frame_offset: i32,
     /// The debug dumps `CompileOptions` asked for, as text to print.
     pub dump: Option<String>,
     /// With `CompileOptions::coverage`, what the code contains (see
@@ -120,6 +131,13 @@ pub enum ExitKind {
     /// Something the code depended on stopped holding while it ran other
     /// code (see `Dependency`), so the code was invalidated.
     Invalidated,
+    /// Code that a call in an inlined function ran read the legacy
+    /// `arguments` of the function's frame, among which were objects the
+    /// code never allocated: the runtime created them, and the code exited
+    /// after the call (see `Op::AssumeLegacyArgumentsUnread`). Recorded at
+    /// the call, in the executable of the function. Recompiles allocate the
+    /// objects among the function's arguments at that call.
+    LegacyArgumentsRead,
 }
 
 /// Something compiled code assumes keeps holding, without checking it where
@@ -251,6 +269,11 @@ pub struct FrameState {
     pub in_frame: Vec<u32>,
     /// See `ir::FrameState::passed_argument_count`.
     pub passed_argument_count: Option<u32>,
+    /// The argument slots that the legacy `arguments` of the frame's
+    /// function shows (see `ir::FrameState::legacy_arguments`). Objects the
+    /// code never allocated among them are only created when code reads them
+    /// (see `ir::Op::AssumeLegacyArgumentsUnread`).
+    pub legacy_arguments: core::ops::Range<u32>,
 }
 
 /// Where an exit finds a value.

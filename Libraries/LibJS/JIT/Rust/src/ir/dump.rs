@@ -239,6 +239,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::CheckShape { shapes } => with_inputs(&format!("CheckShape [{}]", shapes_text(shapes.iter()))),
         Op::CheckPrototypeChainValid { validity } => format!("CheckPrototypeChainValid {:#x}", validity.0),
         Op::AssumeValid => "AssumeValid".to_string(),
+        Op::AssumeLegacyArgumentsUnread => "AssumeLegacyArgumentsUnread".to_string(),
         Op::HasInPrototypeChain => with_inputs("HasInPrototypeChain"),
         Op::LoadGlobalBinding { environment, index } => format!("LoadGlobalBinding {:#x}[{index}]", environment.0),
         Op::StoreGlobalBinding { environment, index } => {

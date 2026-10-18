@@ -303,6 +303,7 @@ fn install(
         snapshot,
     )
     .with_invalidation(id, compiled.invalidation_patches)
+    .with_frame_offsets(compiled.site_index_frame_offset, compiled.register_dump_frame_offset)
     .with_osr_outer_loop_back_edges(compiled.osr_outer_loop_back_edges)
     .with_uncaught_handlers(compiled.uncaught_handlers);
     vm.jit.dependents.register(vm, executable, id, &compiled.dependencies);

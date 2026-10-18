@@ -934,9 +934,11 @@ impl<'a> GraphBuilder<'a> {
                 self.function.skipped_instructions -= 1;
                 continue;
             }
+            let first_node = self.graph.nodes.len();
             if let Flow::Ended = self.build_instruction()? {
                 return Ok(());
             }
+            self.guard_legacy_arguments(instruction_index, first_node);
         }
         // NB: The block falls through into the next one.
         let next_pc = self.function.instructions[self.function.instruction_index].next_pc();

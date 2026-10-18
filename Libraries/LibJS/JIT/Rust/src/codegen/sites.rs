@@ -85,6 +85,7 @@ pub(crate) fn site(
                 values,
                 in_frame,
                 passed_argument_count: frame_state.passed_argument_count,
+                legacy_arguments: frame_state.legacy_arguments.clone(),
             }
         })
         .collect();

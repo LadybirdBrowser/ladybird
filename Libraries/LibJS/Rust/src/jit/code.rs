@@ -21,6 +21,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::EcmascriptFunctionObject;
+use crate::layout::object::Object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 
 /// The status word of what JIT code returns, `libjs_jit::code::JitStatus`.
@@ -141,6 +142,25 @@ pub struct JitCode {
     /// are no-ops until then.
     invalidation_patches: Vec<(u32, Vec<u8>)>,
     invalidated: Cell<bool>,
+    /// See `libjs_jit::code::CompiledCode::site_index_frame_offset`.
+    site_index_frame_offset: i32,
+    /// See `libjs_jit::code::CompiledCode::register_dump_frame_offset`.
+    register_dump_frame_offset: i32,
+    /// The objects the code never allocated that the runtime created for frames running the code while they were
+    /// suspended in a call, because code the call ran read them through the legacy `arguments` of a frame of an
+    /// inlined call (see `translate::resolve_deferred_arguments()`). Those frames continue in the interpreter with
+    /// these objects, which only they use. Exits and leaves forget a frame's objects; a frame an exception unwinds
+    /// past its compiled code leaves its objects here until the code detaches. Invalidated code is entered no more,
+    /// so no other frame that runs it can come to have the address of one of them.
+    materialized_objects: RefCell<Vec<MaterializedObject>>,
+}
+
+/// An object created for a frame running JIT code, standing for the object its code never allocated at `allocation`
+/// (see `libjs_jit::code::VirtualObjectDescriptor`).
+struct MaterializedObject {
+    frame: *const ExecutionContext,
+    allocation: u32,
+    object: Gc<Object>,
 }
 
 impl JitCode {
@@ -177,7 +197,61 @@ impl JitCode {
             id: 0,
             invalidation_patches: Vec::new(),
             invalidated: Cell::new(false),
+            site_index_frame_offset: 0,
+            register_dump_frame_offset: 0,
+            materialized_objects: RefCell::new(Vec::new()),
         }
+    }
+
+    /// Gives the code where its frames keep the index of a site and the register dump the runtime reads.
+    pub fn with_frame_offsets(mut self, site_index_frame_offset: i32, register_dump_frame_offset: i32) -> Self {
+        self.site_index_frame_offset = site_index_frame_offset;
+        self.register_dump_frame_offset = register_dump_frame_offset;
+        self
+    }
+
+    pub fn register_dump_frame_offset(&self) -> i32 {
+        self.register_dump_frame_offset
+    }
+
+    /// The index of the site whose values the runtime reads from the JIT frame at `frame_pointer` (see
+    /// `libjs_jit::code::CompiledCode::site_index_frame_offset`).
+    pub fn site_index_of_frame(&self, frame_pointer: u64) -> u32 {
+        let address = frame_pointer.wrapping_add_signed(i64::from(self.site_index_frame_offset)) as *const u32;
+        // SAFETY: The JIT frame is on the stack, suspended in a slow path or call that stored the index there.
+        unsafe { address.read() }
+    }
+
+    /// Stores `index` as the index of the site whose values the runtime reads from the JIT frame at `frame_pointer`.
+    pub fn set_site_index_of_frame(&self, frame_pointer: u64, index: u32) {
+        let address = frame_pointer.wrapping_add_signed(i64::from(self.site_index_frame_offset)) as *mut u32;
+        // SAFETY: The JIT frame is on the stack, suspended in a call, and the code reads the word only where it
+        //         stored it.
+        unsafe { address.write(index) }
+    }
+
+    /// The object created for `frame` that stands for the object its code never allocated at `allocation`, if any.
+    pub fn materialized_object(&self, frame: *const ExecutionContext, allocation: u32) -> Option<Gc<Object>> {
+        self.materialized_objects
+            .borrow()
+            .iter()
+            .find(|materialized| materialized.frame == frame && materialized.allocation == allocation)
+            .map(|materialized| materialized.object)
+    }
+
+    pub fn remember_materialized_object(&self, frame: *const ExecutionContext, allocation: u32, object: Gc<Object>) {
+        self.materialized_objects.borrow_mut().push(MaterializedObject {
+            frame,
+            allocation,
+            object,
+        });
+    }
+
+    /// Forgets the objects created for `frame`, which no longer runs the code.
+    pub fn forget_materialized_objects(&self, frame: *const ExecutionContext) {
+        self.materialized_objects
+            .borrow_mut()
+            .retain(|materialized| materialized.frame != frame);
     }
 
     /// Gives the code its id among all code the VM installed, and the bytes that invalidate it.
@@ -278,6 +352,9 @@ unsafe impl Trace for JitCode {
     fn trace(&self, visitor: &mut Visitor) {
         for cell in &self.embedded_cells {
             visitor.visit(*cell);
+        }
+        for materialized in self.materialized_objects.borrow().iter() {
+            visitor.visit(materialized.object);
         }
         for executable in &self.snapshot_executables {
             visitor.visit(executable.executable);
