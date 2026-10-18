@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/Function.h>
@@ -182,6 +183,131 @@ public:
             ++iterator;
         }
         run_callback();
+    }
+
+    // Runs UTF-8's decoder over the view with an error mode of "replacement". With lonely surrogates allowed, the view
+    // is read as WTF-8 instead, and each encoded surrogate becomes a single replacement character.
+    // https://encoding.spec.whatwg.org/#utf-8-decoder
+    template<typename Callback>
+    void for_each_code_point_with_replacement_character(AllowLonelySurrogates allow_lonely_surrogates, Callback callback) const
+    {
+        u32 utf8_code_point = 0;
+        size_t utf8_bytes_seen = 0;
+        size_t utf8_bytes_needed = 0;
+        u8 utf8_lower_boundary = 0x80;
+        u8 utf8_upper_boundary = 0xBF;
+
+        auto bytes = m_string.bytes();
+        for (size_t i = 0; i < bytes.size();) {
+            auto byte = bytes[i];
+
+            // 3. If UTF-8 bytes needed is 0, based on byte:
+            if (utf8_bytes_needed == 0) {
+                ++i;
+
+                // 0x00 to 0x7F
+                if (byte <= 0x7F) {
+                    // Return a code point whose value is byte.
+                    callback(byte);
+                }
+                // 0xC2 to 0xDF
+                else if (byte >= 0xC2 && byte <= 0xDF) {
+                    // 1. Set UTF-8 bytes needed to 1.
+                    utf8_bytes_needed = 1;
+
+                    // 2. Set UTF-8 code point to byte & 0x1F.
+                    utf8_code_point = byte & 0x1F;
+                }
+                // 0xE0 to 0xEF
+                else if (byte >= 0xE0 && byte <= 0xEF) {
+                    // 1. If byte is 0xE0, then set UTF-8 lower boundary to 0xA0.
+                    if (byte == 0xE0)
+                        utf8_lower_boundary = 0xA0;
+
+                    // 2. If byte is 0xED, then set UTF-8 upper boundary to 0x9F.
+                    if (byte == 0xED && allow_lonely_surrogates == AllowLonelySurrogates::No)
+                        utf8_upper_boundary = 0x9F;
+
+                    // 3. Set UTF-8 bytes needed to 2.
+                    utf8_bytes_needed = 2;
+
+                    // 4. Set UTF-8 code point to byte & 0xF.
+                    utf8_code_point = byte & 0xF;
+                }
+                // 0xF0 to 0xF4
+                else if (byte >= 0xF0 && byte <= 0xF4) {
+                    // 1. If byte is 0xF0, then set UTF-8 lower boundary to 0x90.
+                    if (byte == 0xF0)
+                        utf8_lower_boundary = 0x90;
+
+                    // 2. If byte is 0xF4, then set UTF-8 upper boundary to 0x8F.
+                    if (byte == 0xF4)
+                        utf8_upper_boundary = 0x8F;
+
+                    // 3. Set UTF-8 bytes needed to 3.
+                    utf8_bytes_needed = 3;
+
+                    // 4. Set UTF-8 code point to byte & 0x7.
+                    utf8_code_point = byte & 0x7;
+                }
+                // Otherwise
+                else {
+                    // Return error.
+                    callback(UnicodeUtils::REPLACEMENT_CODE_POINT);
+                }
+
+                // Return continue.
+                continue;
+            }
+
+            // 4. If byte is not in the range UTF-8 lower boundary to UTF-8 upper boundary, inclusive:
+            if (byte < utf8_lower_boundary || byte > utf8_upper_boundary) {
+                // 1. Set UTF-8 code point, UTF-8 bytes needed, and UTF-8 bytes seen to 0, set UTF-8 lower boundary to
+                //    0x80, and set UTF-8 upper boundary to 0xBF.
+                utf8_code_point = 0;
+                utf8_bytes_needed = 0;
+                utf8_bytes_seen = 0;
+                utf8_lower_boundary = 0x80;
+                utf8_upper_boundary = 0xBF;
+
+                // 2. Restore byte to ioQueue.
+                // NB: i is not advanced, so byte is read again.
+
+                // 3. Return error.
+                callback(UnicodeUtils::REPLACEMENT_CODE_POINT);
+                continue;
+            }
+            ++i;
+
+            // 5. Set UTF-8 lower boundary to 0x80 and UTF-8 upper boundary to 0xBF.
+            utf8_lower_boundary = 0x80;
+            utf8_upper_boundary = 0xBF;
+
+            // 6. Set UTF-8 code point to (UTF-8 code point << 6) | (byte & 0x3F)
+            utf8_code_point = (utf8_code_point << 6) | (byte & 0x3F);
+
+            // 7. Increase UTF-8 bytes seen by one.
+            ++utf8_bytes_seen;
+
+            // 8. If UTF-8 bytes seen is not equal to UTF-8 bytes needed, then return continue.
+            if (utf8_bytes_seen != utf8_bytes_needed)
+                continue;
+
+            // 9. Let codePoint be UTF-8 code point.
+            auto code_point = utf8_code_point;
+
+            // 10. Set UTF-8 code point, UTF-8 bytes needed, and UTF-8 bytes seen to 0.
+            utf8_code_point = 0;
+            utf8_bytes_needed = 0;
+            utf8_bytes_seen = 0;
+
+            // 11. Return a code point whose value is codePoint.
+            callback(is_unicode_surrogate(code_point) ? UnicodeUtils::REPLACEMENT_CODE_POINT : code_point);
+        }
+
+        // 1. If byte is end-of-queue and UTF-8 bytes needed is not 0, then set UTF-8 bytes needed to 0 and return error.
+        if (utf8_bytes_needed != 0)
+            callback(UnicodeUtils::REPLACEMENT_CODE_POINT);
     }
 
 private:

@@ -15,26 +15,32 @@ namespace AK {
 
 static_assert(sizeof(Detail::ShortString) == sizeof(Detail::Utf16StringData*));
 
+static Utf16String from_bytes_with_replacement_character(StringView string, AllowLonelySurrogates allow_lonely_surrogates)
+{
+    Utf8View utf8_view { string };
+
+    if (utf8_view.validate(AllowLonelySurrogates::No))
+        return Utf16String::from_utf8_without_validation(string);
+
+    Utf16StringBuilder builder;
+    utf8_view.for_each_code_point_with_replacement_character(allow_lonely_surrogates, [&](u32 code_point) {
+        builder.append_code_point(code_point);
+    });
+
+    return builder.to_string();
+}
+
 Utf16String Utf16String::from_utf8_with_replacement_character(StringView utf8_string, WithBOMHandling with_bom_handling)
 {
     if (auto bytes = utf8_string.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
         utf8_string = utf8_string.substring_view(3);
 
-    Utf8View utf8_view { utf8_string };
+    return from_bytes_with_replacement_character(utf8_string, AllowLonelySurrogates::No);
+}
 
-    if (utf8_view.validate(AllowLonelySurrogates::No))
-        return Utf16String::from_utf8_without_validation(utf8_string);
-
-    Utf16StringBuilder builder;
-
-    for (auto code_point : utf8_view) {
-        if (is_unicode_surrogate(code_point))
-            builder.append_code_point(UnicodeUtils::REPLACEMENT_CODE_POINT);
-        else
-            builder.append_code_point(code_point);
-    }
-
-    return builder.to_string();
+Utf16String Utf16String::from_wtf8_with_replacement_character(StringView wtf8_string)
+{
+    return from_bytes_with_replacement_character(wtf8_string, AllowLonelySurrogates::Yes);
 }
 
 Utf16String Utf16String::from_ascii_without_validation(ReadonlyBytes ascii_string)

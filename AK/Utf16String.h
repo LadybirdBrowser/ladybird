@@ -64,6 +64,7 @@ public:
         Yes,
     };
     static Utf16String from_utf8_with_replacement_character(StringView, WithBOMHandling = WithBOMHandling::Yes);
+    static Utf16String from_wtf8_with_replacement_character(StringView);
 
     ALWAYS_INLINE static ErrorOr<Utf16String> try_from_utf8(StringView utf8_string)
     {

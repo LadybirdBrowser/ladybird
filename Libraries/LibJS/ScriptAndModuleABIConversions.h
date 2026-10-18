@@ -93,7 +93,7 @@ GC::Ref<ModuleType> module_from_abi(JSModule* module)
 // The runtime borrows filenames as UTF-16 and reads them back as UTF-8, which C++ hands over as a StringView.
 inline Utf16String filename_to_utf16(StringView filename)
 {
-    return Utf16String::from_utf8_with_replacement_character(filename, Utf16String::WithBOMHandling::No);
+    return Utf16String::from_wtf8_with_replacement_character(filename);
 }
 
 // Collects the syntax errors that the runtime reports to a JSParserErrorSink as ParserErrors.
