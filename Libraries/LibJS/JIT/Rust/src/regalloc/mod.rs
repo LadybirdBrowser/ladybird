@@ -115,6 +115,7 @@ pub fn saves_only_gprs(op: &Op) -> bool {
             | Op::AllocateArray { .. }
             | Op::AllocateFunction { .. }
             | Op::AllocateEnvironment { .. }
+            | Op::ConcatenateStrings
     )
 }
 

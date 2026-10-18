@@ -6,13 +6,16 @@
 
 //! Lowering of `ConcatenateStrings` and `IntegerToString`. Two strings make
 //! a rope string, allocated inline per the allocation contract (see
-//! `RopeAllocationInfo`), unless one of them is empty (then the result is
-//! the other one). Concatenations short enough to become short flat strings
-//! (whose ASCII bytes are in their storage word) find them in the VM's cache
-//! of fly strings if both strings are short. Everything else results in the
-//! empty value, for the slow path, which also fills that cache.
+//! `RopeAllocationInfo`), or by a call of the runtime out of line where
+//! there is no local free cell, unless one of them is empty (then the
+//! result is the other one). Concatenations short enough to become short
+//! flat strings (whose ASCII bytes are in their storage word) find them in
+//! the VM's cache of fly strings if both strings are short. Everything else
+//! results in the empty value, for the slow path, which also fills that
+//! cache.
 
 use super::Codegen;
+use super::allocation::AllocationCall;
 use super::call::ConstantField;
 use crate::asm::Address;
 use crate::asm::Condition;
@@ -31,12 +34,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let temps = &self.allocation.node(node).temps;
         let temps = [Gpr(temps[0]), Gpr(temps[1]), Gpr(temps[2])];
         let (slow, done) = (self.masm.new_label(), self.masm.new_label());
+        let mut resume = None;
         if self.runtime.rope_allocation.allocator != 0 && self.rope_template_fits() {
-            self.emit_concatenation_of_strings(node, [lhs, rhs], temps, slow, done);
+            let no_free_cell = if self.runtime.rope_allocation.slow_path != 0 {
+                let (entry, resume_label) = self.defer_allocation(node, AllocationCall::Rope);
+                resume = Some(resume_label);
+                entry
+            } else {
+                slow
+            };
+            self.emit_concatenation_of_strings(node, [lhs, rhs], temps, no_free_cell, slow, done);
         }
         self.masm.bind(slow);
         self.masm.move_imm64(output, value::EMPTY);
         self.masm.bind(done);
+        if let Some(resume) = resume {
+            self.masm.bind(resume);
+        }
     }
 
     /// `IntegerToString`: the VM's string of an int32, as
@@ -84,12 +98,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// The concatenation of the strings `lhs` and `rhs` into the node's
     /// output, continuing at `done`, with the temps `cell`, `other` and
-    /// `length`.
+    /// `length`. Branches to `no_free_cell` where the rope string's cell
+    /// cannot be allocated inline.
     fn emit_concatenation_of_strings(
         &mut self,
         node: NodeId,
         [lhs, rhs]: [Gpr; 2],
         [cell, other, length]: [Gpr; 3],
+        no_free_cell: Label,
         slow: Label,
         done: Label,
     ) {
@@ -128,8 +144,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.branch_test64(Condition::NonZero, scratch, u64::MAX, slow);
 
         // The cell, per the allocation contract.
-        self.emit_check_heap_threshold(rope.cell_size, cell, other, slow);
-        self.emit_pop_free_list(rope.allocator, cell, other, slow);
+        self.emit_check_heap_threshold(rope.cell_size, cell, other, no_free_cell);
+        self.emit_pop_free_list(rope.allocator, cell, other, no_free_cell);
         self.emit_count_allocation(rope.cell_size, rope.cell_size, other, false);
 
         let mut fields: Vec<ConstantField> = (0u32..)

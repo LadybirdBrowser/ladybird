@@ -346,7 +346,12 @@ impl PrimitiveString {
             return Ok(inline_string);
         }
 
-        Ok(vm.heap().allocate(RopeString::new(lhs, rhs)).upcast())
+        Ok(Self::create_rope(vm, lhs, rhs))
+    }
+
+    /// The rope string of the non-empty strings `lhs` and `rhs`, whose lengths add up to less than `u32::MAX`.
+    pub(crate) fn create_rope(vm: &Vm, lhs: Gc<PrimitiveString>, rhs: Gc<PrimitiveString>) -> Gc<PrimitiveString> {
+        vm.heap().allocate(RopeString::new(lhs, rhs)).upcast()
     }
 
     pub fn create_from_substring(

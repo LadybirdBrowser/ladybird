@@ -163,6 +163,7 @@ pub fn allocation_infos(vm: &Vm, realm: Gc<Realm>) -> AllocationInfos {
         rhs_offset: offset(ROPE_STRING_RHS_OFFSET),
         length_offset: offset(core::mem::offset_of!(PrimitiveString, length_in_utf16_code_units)),
         min_length: ROPE_STRING_MIN_LENGTH,
+        slow_path: libjs_jit_create_rope_string as *const () as u64,
     };
 
     let function = FunctionAllocationInfo {
@@ -507,6 +508,19 @@ pub fn closure_template_snapshots(
 /// JIT code calls this with its VM and a live shape.
 pub extern "C" fn libjs_jit_allocate_object(vm: &Vm, shape: Gc<Shape>, reserve: u32) -> *mut Object {
     Object::create_with_premade_shape_and_reserve(vm, shape, reserve).as_ptr()
+}
+
+/// `PrimitiveString* libjs_jit_create_rope_string(VM*, PrimitiveString* lhs, PrimitiveString* rhs)`: the rope string of
+/// `lhs` and `rhs`.
+///
+/// JIT code calls this with its VM and live non-empty strings, whose lengths add up to at least `ROPE_STRING_MIN_LENGTH`
+/// and less than `u32::MAX`.
+pub extern "C" fn libjs_jit_create_rope_string(
+    vm: &Vm,
+    lhs: Gc<PrimitiveString>,
+    rhs: Gc<PrimitiveString>,
+) -> *mut PrimitiveString {
+    PrimitiveString::create_rope(vm, lhs, rhs).as_ptr()
 }
 
 /// `Array* libjs_jit_allocate_array(VM*, u32 count)`: an array of the running realm with `count` packed undefined

@@ -1268,7 +1268,11 @@ impl ObjectAllocationInfo {
 /// `template` (`8 * template.len()` bytes) to it, and stores the length
 /// (u32) at `cell + length_offset` and the halves (cell pointers) at
 /// `cell + lhs_offset` and `cell + rhs_offset`. If `allocator` is 0, there is
-/// no fast path. The slow path is the interpreter's.
+/// no fast path. Where there is no local free cell or the heap wants to
+/// collect garbage, JIT code calls
+/// `PrimitiveString* slow_path(VM*, PrimitiveString* lhs, PrimitiveString* rhs)`
+/// instead, which returns the rope string; if `slow_path` is 0, the
+/// interpreter's slow path concatenates the strings.
 #[derive(Debug, Clone, Default)]
 pub struct RopeAllocationInfo {
     /// The `GC::CellAllocator` of rope strings.
@@ -1280,6 +1284,7 @@ pub struct RopeAllocationInfo {
     pub rhs_offset: u32,
     pub length_offset: u32,
     pub min_length: u32,
+    pub slow_path: u64,
 }
 
 /// The allocation contract for arrays with packed elements (`JS::Array`
