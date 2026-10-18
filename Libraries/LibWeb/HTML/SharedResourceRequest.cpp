@@ -161,7 +161,18 @@ void SharedResourceRequest::fetch_resource(GC::Ref<Fetch::Infrastructure::Reques
         });
 
         // Check for failed fetch response
-        if (!Fetch::Infrastructure::is_ok_status(response->status()) || !response->body()) {
+        if (!response->body()) {
+            self->handle_failed_fetch();
+            return;
+        }
+
+        if (!Fetch::Infrastructure::is_ok_status(response->status())) {
+            // NB: Fetch only reports the response's timing once its body has been fully read, so read it without
+            //     holding back the failure.
+            auto ignore_chunk = GC::create_function(GC::Heap::the(), [](ByteBuffer) { });
+            auto ignore_end_of_body = GC::create_function(GC::Heap::the(), [] { });
+            auto ignore_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) { });
+            (void)response->body()->incrementally_read(realm, ignore_chunk, ignore_end_of_body, ignore_body_error, GC::Ref { realm.global_object() });
             self->handle_failed_fetch();
             return;
         }
