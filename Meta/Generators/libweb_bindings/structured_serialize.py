@@ -107,9 +107,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(
     for interface in transferable:
         out.write(f"    case HTML::TransferType::{interface.name}: {{\n")
         if interface.name == "MessagePort":
-            out.write("""        auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(target_realm.global_object());
-        VERIFY(global_scope);
-        auto transferable = HTML::MessagePort::create(global_scope->this_impl());
+            out.write("""        auto transferable = HTML::MessagePort::create(Bindings::impl_from<DOM::EventTarget>(target_realm.global_object()));
 """)
         elif interface.name == "OffscreenCanvas":
             out.write("""        auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(target_realm.global_object());
