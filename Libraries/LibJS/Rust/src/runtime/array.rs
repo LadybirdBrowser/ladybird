@@ -48,7 +48,7 @@ pub const ARRAY_IS_PROXY_TARGET_OFFSET: usize = core::mem::offset_of!(Array, is_
 
 pub static ARRAY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_get_own_property: Array::internal_get_own_property,
-    is_cacheable_for_property_absence: |_| false,
+    is_cacheable_for_absence_of: |_, vm, property_key| !property_key.is_number() && *property_key != vm.names.length,
     internal_set: Array::internal_set,
     internal_define_own_property: Array::internal_define_own_property,
     internal_has_property: Array::internal_has_property,
@@ -85,12 +85,16 @@ impl Array {
 
     /// An array with `prototype`, for `class`, which is Array or a class that extends it.
     pub fn new_with_class(vm: &Vm, class: &'static Class, realm: Gc<Realm>, prototype: Gc<Object>) -> Self {
-        let premade_shape = realm
-            .intrinsics()
-            .new_array_shape_if_created()
-            .filter(|shape| shape.prototype() == Some(prototype));
+        let premade_shape = realm.intrinsics().new_array_shape_if_created();
         let base = match premade_shape {
-            Some(shape) => Object::new_with_shape(class, shape, MayInterfereWithIndexedPropertyAccess::No),
+            Some(shape) if shape.prototype() == Some(prototype) => {
+                Object::new_with_shape(class, shape, MayInterfereWithIndexedPropertyAccess::No)
+            }
+            Some(shape) => Object::new_with_shape(
+                class,
+                shape.create_prototype_transition(vm, Some(prototype)),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             None => Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
         };
         let array = Self {

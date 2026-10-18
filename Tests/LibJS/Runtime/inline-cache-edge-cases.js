@@ -178,3 +178,39 @@ describe("Cached inherited setter", () => {
         expect(receiver.x).toBe(2);
     });
 });
+
+describe("Cached missing property", () => {
+    function expectToBeFoundOnceAdded(read, receiver, holder) {
+        expect(read(receiver)).toBeUndefined();
+        expect(read(receiver)).toBeUndefined();
+        holder.defaultProps = "added";
+        try {
+            expect(read(receiver)).toBe("added");
+        } finally {
+            delete holder.defaultProps;
+        }
+        expect(read(receiver)).toBeUndefined();
+    }
+
+    test("of a string is found once a prototype has it", () => {
+        const read = value => value.defaultProps;
+        expectToBeFoundOnceAdded(read, "path", String.prototype);
+        expectToBeFoundOnceAdded(read, "path", Object.prototype);
+    });
+
+    test("of a String object is found once it or a prototype has it", () => {
+        const read = value => value.defaultProps;
+        const string = new String("path");
+        expectToBeFoundOnceAdded(read, string, string);
+        expectToBeFoundOnceAdded(read, string, String.prototype);
+        expectToBeFoundOnceAdded(read, string, Object.prototype);
+    });
+
+    test("of an array is found once it or a prototype has it", () => {
+        const read = value => value.defaultProps;
+        const array = [1, 2];
+        expectToBeFoundOnceAdded(read, array, array);
+        expectToBeFoundOnceAdded(read, array, Array.prototype);
+        expectToBeFoundOnceAdded(read, array, Object.prototype);
+    });
+});

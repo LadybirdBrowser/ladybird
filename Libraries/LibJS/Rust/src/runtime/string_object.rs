@@ -36,7 +36,7 @@ pub struct StringObject {
 pub static STRING_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     initialize: StringObject::initialize,
     internal_get_own_property: StringObject::internal_get_own_property,
-    is_cacheable_for_property_absence: |_| false,
+    is_cacheable_for_absence_of: |_, _, property_key| !property_key.is_number(),
     internal_define_own_property: StringObject::internal_define_own_property,
     internal_own_property_keys: StringObject::internal_own_property_keys,
     eligible_for_own_property_enumeration_fast_path: |_| false,
