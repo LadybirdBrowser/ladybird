@@ -252,12 +252,13 @@ impl RetainedState {
                             .style_record_custom_property_environment(new_element_record.raw())
             });
         // The element's new record names the environment its pseudo-elements resolve against,
-        // whether or not the host installed it yet.
+        // whether or not the host installed it yet, with what the element's animations sampled
+        // into its custom properties laid over it, as its own values read them.
         let element_environment = self
             .computed_group_sets
             .style_record_custom_property_environment(new_element_record.raw());
         debug_assert!(element_environment.is_some(), "an element record holds an environment");
-        let element_environment = element_environment.unwrap_or(0);
+        let element_environment = self.sampled_custom_property_environment(node, element_environment.unwrap_or(0));
         // The kinds the node's match answer has rules for: a winner row is published for each
         // the engine cascaded itself, and a kind with rules but no row is not decided.
         let kinds_with_rules = self.pseudo_kinds_with_rules(node, settlement)?;
