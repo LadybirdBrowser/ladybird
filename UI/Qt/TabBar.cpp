@@ -233,6 +233,15 @@ static void paint_load_sheen(QPainter& painter, QPalette const& palette, QPainte
     painter.restore();
 }
 
+// NB: The macOS style gives tab bars a small font when it polishes them, so tab titles are drawn a point larger than
+//     the tab bar's font rather than by setting the tab bar's font.
+static QFont tab_title_font(QFont font)
+{
+    if (font.pointSizeF() > 0)
+        font.setPointSizeF(font.pointSizeF() + 1);
+    return font;
+}
+
 static QColor tab_hover_surface(QPalette const& palette, qreal hover_progress)
 {
     auto dark = ChromeStyle::is_dark(palette);
@@ -360,7 +369,7 @@ private:
         if (hovered || isDown())
             text_color = ChromeStyle::chrome_button_text(palette());
         painter.setPen(text_color);
-        auto text_font = m_tab_bar.font();
+        auto text_font = tab_title_font(m_tab_bar.font());
         painter.setFont(text_font);
 
         QFontMetrics font_metrics(text_font);
@@ -845,9 +854,10 @@ void TabBar::paintEvent(QPaintEvent*)
         painter.setOpacity(1.0);
         contents_rect.setLeft(icon_rect.right() + 8);
 
-        painter.setFont(font());
+        auto title_font = tab_title_font(font());
+        painter.setFont(title_font);
 
-        QFontMetrics font_metrics(font());
+        QFontMetrics font_metrics(title_font);
         auto title = font_metrics.elidedText(tabText(index), Qt::ElideRight, max(0, contents_rect.width()));
         auto tab_text_color = text_color;
         if (!is_selected)
