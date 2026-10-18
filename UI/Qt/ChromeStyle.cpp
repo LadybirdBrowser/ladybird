@@ -594,6 +594,12 @@ static QColor autocomplete_surface(QPalette const& palette)
     return chrome_surface(palette);
 }
 
+// Hovering a frameless control only lifts it with this soft fill; its ring appears once it is pressed.
+static QColor chrome_control_soft_hover(QPalette const& palette)
+{
+    return is_dark(palette) ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 16);
+}
+
 static QColor location_edit_focus_border(QPalette const& palette)
 {
     return mix(chrome_border(palette), chrome_accent(), is_dark(palette) ? 0.50 : 0.54);
@@ -605,7 +611,9 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto surface_color = chrome_surface(palette);
     if (dark)
         surface_color = mix(chrome_background(palette), material_color_anchors(true).background, 0.34);
-    auto hover_color = surface_color;
+    // Hovering the field lifts it with the same soft fill as the toolbar buttons, to show that it can be clicked.
+    auto soft_hover = chrome_control_soft_hover(palette);
+    auto hover_color = mix(surface_color, QColor(soft_hover.rgb()), soft_hover.alpha() / 255.0);
     auto focus_color = dark ? mix(surface_color, QColor(255, 255, 255), 0.035) : surface_color;
 
     auto border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.36) : chrome_border(palette);
@@ -647,7 +655,7 @@ QLineEdit#LadybirdLocationEdit {{
     placeholder-text-color: {5};
 }}
 
-QLineEdit#LadybirdLocationEdit:hover {{
+QLineEdit#LadybirdLocationEdit[fieldHovered="true"] {{
     background: {1};
     border-color: {8};
 }}
@@ -719,12 +727,6 @@ QToolButton#LadybirdLocationAction {{
 )",
         surface, hover, border, focus_border, text, placeholder, selection, selection_text, hover_border,
         not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border, focus, LOCATION_EDIT_CORNER_RADIUS, popup_surface);
-}
-
-// Hovering a frameless control only lifts it with this soft fill; its ring appears once it is pressed.
-static QColor chrome_control_soft_hover(QPalette const& palette)
-{
-    return is_dark(palette) ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 16);
 }
 
 QString bookmarks_bar_style_sheet(QPalette const& palette, int corner_radius)

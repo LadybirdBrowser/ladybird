@@ -152,6 +152,9 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
             m_zoom_action->trigger();
     });
 
+    for (auto* button : { m_leading_icon_button, m_trailing_action_button, m_zoom_indicator_button })
+        button->installEventFilter(this);
+
     update_text_margins();
     update_placeholder();
     update_location_icon();
@@ -291,9 +294,45 @@ void LocationEdit::show_autocomplete()
 void LocationEdit::changeEvent(QEvent* event)
 {
     QLineEdit::changeEvent(event);
+    // NB: Repolishing for the hover look changes our palette to the hovered colors, which needs no new style.
+    if (event->type() == QEvent::PaletteChange && m_is_updating_field_hover)
+        return;
     if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange) {
         schedule_chrome_style_update();
     }
+}
+
+bool LocationEdit::event(QEvent* event)
+{
+    if (event->type() == QEvent::Enter)
+        set_field_hovered(true);
+    else if (event->type() == QEvent::Leave)
+        set_field_hovered(false);
+    return QLineEdit::event(event);
+}
+
+bool LocationEdit::eventFilter(QObject* watched, QEvent* event)
+{
+    // The buttons inside the field have their own hover look, so the field itself does not look hovered under them.
+    if (event->type() == QEvent::Enter)
+        set_field_hovered(false);
+    else if (event->type() == QEvent::Leave)
+        set_field_hovered(underMouse());
+    return QLineEdit::eventFilter(watched, event);
+}
+
+// NB: The style sheet's :hover would also match while the mouse is over one of the buttons inside the field, so the
+//     field's hover look follows this property instead.
+void LocationEdit::set_field_hovered(bool hovered)
+{
+    if (property("fieldHovered").toBool() == hovered)
+        return;
+    setProperty("fieldHovered", hovered);
+    m_is_updating_field_hover = true;
+    style()->unpolish(this);
+    style()->polish(this);
+    m_is_updating_field_hover = false;
+    update();
 }
 
 void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
