@@ -438,7 +438,7 @@ static QPixmap create_loading_spinner_icon_pixmap(QPalette const& palette, int f
 
         painter.save();
         painter.rotate(segment * 360.0 / segment_count);
-        painter.setPen(QPen(segment_color, 2, Qt::SolidLine, Qt::RoundCap));
+        painter.setPen(QPen(segment_color, 1.5, Qt::SolidLine, Qt::RoundCap));
         painter.drawLine(QPointF(0, -4), QPointF(0, -7));
         painter.restore();
     }
