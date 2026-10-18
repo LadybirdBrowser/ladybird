@@ -710,7 +710,7 @@ HTMLParserEndState::HTMLParserEndState(GC::Ref<DOM::Document> document, GC::Ptr<
     : m_document(document)
     , m_parser(parser)
     , m_parser_generation(parser_generation)
-    , m_timeout(Platform::Timer::create_single_shot(GC::Heap::the(), THE_END_TIMEOUT_MS, GC::create_function(GC::Heap::the(), [this] {
+    , m_timeout(Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(THE_END_TIMEOUT_MS), GC::create_function(GC::Heap::the(), [this] {
         if (m_phase != Phase::Completed && m_phase != Phase::Cancelled)
             dbgln("HTMLParserEndState: timed out in phase {}", to_underlying(m_phase));
     })))

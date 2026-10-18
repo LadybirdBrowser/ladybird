@@ -125,14 +125,14 @@ bool DedicatedWorkerGlobalScope::has_animation_frame_callbacks() const
 void DedicatedWorkerGlobalScope::schedule_rendering_update()
 {
     if (!m_rendering_update_timer) {
-        m_rendering_update_timer = Platform::Timer::create_single_shot(heap(), 0, GC::create_function(heap(), [this] {
+        m_rendering_update_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(0), GC::create_function(heap(), [this] {
             run_rendering_update();
         }));
     }
     if (m_rendering_update_timer->is_active())
         return;
     auto interval_ms = static_cast<int>(AK::ceil(1000.0 / max(1.0, page()->client().maximum_frames_per_second())));
-    m_rendering_update_timer->start(interval_ms);
+    m_rendering_update_timer->start(AK::Duration::from_milliseconds(interval_ms));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model

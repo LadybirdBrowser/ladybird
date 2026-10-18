@@ -339,7 +339,7 @@ void GamepadHapticActuator::issue_haptic_effect(GamepadHapticEffectType type, Ga
     // for more precise playback timing when params.startDelay is not 0.0. The user agent MAY modify the effect to
     // increase compatibility. For example, an effect intended for a rumble motor may be transformed into a
     // waveform-based effect for a device that supports waveform haptics but lacks rumble motors.
-    m_playing_effect_timer = Platform::Timer::create_single_shot(heap, static_cast<int>(params.start_delay), GC::create_function(heap, [this, type, params, on_complete, &heap] {
+    m_playing_effect_timer = Platform::Timer::create_single_shot(heap, AK::Duration::from_milliseconds(static_cast<int>(params.start_delay)), GC::create_function(heap, [this, type, params, on_complete, &heap] {
         auto& page = m_window->page();
 
         auto first_magnitude = type == GamepadHapticEffectType::DualRumble ? params.strong_magnitude : params.left_trigger;
@@ -350,7 +350,7 @@ void GamepadHapticActuator::issue_haptic_effect(GamepadHapticEffectType type, Ga
                 static_cast<u16>(second_magnitude * NumericLimits<u16>::max()),
                 static_cast<u32>(params.duration)));
 
-        m_playing_effect_timer = Platform::Timer::create_single_shot(heap, params.duration, GC::create_function(heap, [this, type, on_complete] {
+        m_playing_effect_timer = Platform::Timer::create_single_shot(heap, AK::Duration::from_milliseconds(params.duration), GC::create_function(heap, [this, type, on_complete] {
             // Explicitly stop the rumble before completing, ensuring the stop signal is sent synchronously.
             auto& page = m_window->page();
 

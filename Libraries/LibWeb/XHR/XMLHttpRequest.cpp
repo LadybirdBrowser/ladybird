@@ -1031,7 +1031,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         //     2. If req’s done flag is unset, then set this’s timed out flag and terminate this’s fetch controller.
         if (m_timeout != 0) {
             stop_timeout_timer();
-            m_timeout_timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
+            m_timeout_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(m_timeout), nullptr);
             m_timeout_timer->on_timeout = GC::create_function(GC::Heap::the(), [this, request]() {
                 if (!request->done()) {
                     m_timed_out = true;
@@ -1090,7 +1090,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         // 5. Pause until either processedResponse is true or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.
         if (m_timeout != 0) {
             stop_timeout_timer();
-            m_timeout_timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
+            m_timeout_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(m_timeout), nullptr);
             m_timeout_timer->on_timeout = GC::create_function(GC::Heap::the(), [this, did_time_out]() {
                 did_time_out->set_value(true);
                 stop_timeout_timer();

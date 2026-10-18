@@ -93,7 +93,7 @@ void EventLoop::visit_edges(Visitor& visitor)
 void EventLoop::schedule()
 {
     if (!m_system_event_loop_timer) {
-        m_system_event_loop_timer = Platform::Timer::create_single_shot(GC::Heap::the(), 0, GC::create_function(GC::Heap::the(), [this] {
+        m_system_event_loop_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [this] {
             process();
         }));
     }
@@ -269,7 +269,7 @@ void EventLoop::process()
             //     during an idle period belong to the next one; immediately starting it lets self-scheduling
             //     callbacks spin continuously even when they have no work to do.
             if (!m_idle_period_timer) {
-                m_idle_period_timer = Platform::Timer::create_single_shot(GC::Heap::the(), 50, GC::create_function(GC::Heap::the(), [this] {
+                m_idle_period_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(50), GC::create_function(GC::Heap::the(), [this] {
                     schedule();
                 }));
             }
