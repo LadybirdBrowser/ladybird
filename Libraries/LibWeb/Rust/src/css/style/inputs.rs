@@ -368,6 +368,7 @@ impl RetainedState {
         {
             return reusable;
         }
+        self.note_relational_arrival_keys(&compiled);
         let program = self.programs.add(compiled);
         self.selector_programs_need_sweep |= reusable.is_some();
         self.programs.settle_memory(&mut self.memory);
@@ -390,6 +391,66 @@ impl RetainedState {
         }
         Arc::make_mut(&mut self.attribute_value_text_names).extend(program.attribute_value_text_names());
         self.attribute_value_text_requirements_version += 1;
+    }
+
+    /// Record what an arrival has to carry to reach the anchor of one of `program`'s `:has()` arguments.
+    pub(super) fn note_relational_arrival_keys(&mut self, program: &SelectorProgram) {
+        if !program.contains_relational_selector() {
+            return;
+        }
+        for entry in 0..program.entries().len() {
+            program.collect_transpose_entry_points(entry, |site| {
+                if site.anchor.is_some() && !self.relational_arrival_keys.keys.contains(&site.key) {
+                    self.unresolved_relational_arrival_keys.insert(site.key);
+                }
+            });
+        }
+    }
+
+    /// Starts the keys over from `keys`, as a sweep that reclaimed some of their atoms leaves them.
+    pub(super) fn replace_relational_arrival_keys(&mut self, keys: HashSet<RoutingKey>) {
+        self.relational_arrival_keys = Arc::default();
+        self.unresolved_relational_arrival_keys = keys;
+        self.relational_arrival_keys_version += 1;
+    }
+
+    /// Resolves the keys rules added since the host last learned them to what it compares an element's names and
+    /// states with. The atom table is scanned once for all of them, however many rules added one.
+    pub(crate) fn resolve_relational_arrival_keys(&mut self) {
+        if self.unresolved_relational_arrival_keys.is_empty() {
+            return;
+        }
+        let mut resolved = (*self.relational_arrival_keys).clone();
+        let mut name_atoms = Vec::new();
+        for key in std::mem::take(&mut self.unresolved_relational_arrival_keys) {
+            if !resolved.keys.insert(key) {
+                continue;
+            }
+            match key {
+                RoutingKey::TagName(atom)
+                | RoutingKey::Id(atom)
+                | RoutingKey::Class(atom)
+                | RoutingKey::AttributeName(atom) => name_atoms.push(atom),
+                RoutingKey::State(fact) => resolved.states.push(fact as u8),
+                _ => resolved.reached_by_any_arrival = true,
+            }
+        }
+        match self.atoms.raw_identities_of(name_atoms) {
+            Some(raws) => resolved.names.extend(raws),
+            None => resolved.reached_by_any_arrival = true,
+        }
+        self.relational_arrival_keys = Arc::new(resolved);
+        self.relational_arrival_keys_version += 1;
+    }
+
+    /// Moves whenever what an arrival has to carry to reach a `:has()` anchor does, once resolved.
+    pub(crate) fn relational_arrival_keys_version(&self) -> u64 {
+        self.relational_arrival_keys_version
+    }
+
+    /// What an arrival has to carry to reach a `:has()` anchor, as last resolved.
+    pub(crate) fn relational_arrival_keys(&self) -> &Arc<RelationalArrivalKeys> {
+        &self.relational_arrival_keys
     }
 
     /// Moves whenever an attribute name comes to require its value text: a selector's here, or an
@@ -1976,6 +2037,9 @@ impl StyleEngine {
                 attribute_value_text_names: Arc::default(),
                 tested_attribute_names: Arc::default(),
                 attribute_value_text_requirements_version: 0,
+                relational_arrival_keys: Arc::default(),
+                unresolved_relational_arrival_keys: HashSet::default(),
+                relational_arrival_keys_version: 0,
                 selector_programs_need_sweep: false,
                 routing: Arc::new(RoutingRegistry::new()),
                 selector_truth_changes: SelectorTruthChanges::default(),
@@ -3381,6 +3445,9 @@ impl RetainedState {
             attribute_value_text_names: _,
             tested_attribute_names: _,
             attribute_value_text_requirements_version: _,
+            relational_arrival_keys: _,
+            unresolved_relational_arrival_keys: _,
+            relational_arrival_keys_version: _,
             selector_programs_need_sweep: _,
             routing: _,
             // Scratch of one transaction.

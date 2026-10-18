@@ -37,6 +37,7 @@
 #include <LibWeb/HTML/HTMLHeadingElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTableCellElement.h>
@@ -373,26 +374,167 @@ static void mark_style_arrival_pending(DOM::Node& node, StyleEngine& style_engin
     }
 }
 
-// Whether a subtree already waiting to arrive holds the node. An element without an identity is always in one.
-static bool waits_to_arrive_with_an_ancestor(DOM::Node& node)
+// Whether a subtree already waiting to arrive holds the node, or the children of an element in a display:none subtree
+// that wait do. An element without an identity is always in one or the other. Where `holder` is given, the walk goes on
+// to the nearest element with an identity, and sets it there if that element's children wait.
+static bool waits_to_arrive_with_an_ancestor(DOM::Node& node, DOM::Element** holder = nullptr)
 {
+    bool waits = false;
     for (auto* ancestor = node.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (ancestor->style_arrival_pending())
+        auto* element = as_if<DOM::Element>(*ancestor);
+        if (element && element->style_node_id() != no_style_node) {
+            if (!element->child_style_arrivals_wait())
+                return waits;
+            if (holder)
+                *holder = element;
             return true;
-        if (auto* element = as_if<DOM::Element>(*ancestor))
-            return element->style_node_id() == no_style_node;
+        }
+        if (element || ancestor->style_arrival_pending()) {
+            waits = true;
+            if (!holder)
+                return true;
+            continue;
+        }
         if (!is<DOM::ShadowRoot>(*ancestor))
-            return false;
+            return waits;
     }
-    return false;
+    return waits;
 }
 
+// The element that arrived alone in a display:none subtree whose waiting children the node is, or is inside of.
+static DOM::Element* element_whose_waiting_children_hold(DOM::Node& node)
+{
+    DOM::Element* holder = nullptr;
+    (void)waits_to_arrive_with_an_ancestor(node, &holder);
+    return holder;
+}
+
+// Whether a name answers to one of the keys. Tag and attribute names are keyed folded, as are IDs and classes in quirks
+// mode, and folding a name that is folded already allocates nothing.
+static bool name_answers_to_keys(Utf16FlyString const& name, bool folds, StyleEngine::RelationalArrivalKeys const& keys)
+{
+    return keys.names.contains(name.raw_identity()) || (folds && keys.names.contains(name.to_ascii_lowercase().raw_identity()));
+}
+
+// Whether an element can wait to arrive below one in a display:none subtree. A `:has()` argument could reach its anchor
+// through the element's keys, and an element that is an SVG element, a style sheet's owner, a slot, a shadow host or in
+// the top layer has an effect beyond its subtree, or a place in the engine's tree other than its parent's child, even
+// while it is hidden. An animated element keeps its style while hidden.
+static bool element_can_wait_to_arrive(DOM::Element& element, StyleEngine::RelationalArrivalKeys const& keys)
+{
+    if (keys.reached_by_any_arrival || is<SVG::SVGElement>(element) || element.is_html_style_element() || is<HTML::HTMLLinkElement>(element)
+        || is<HTML::HTMLSlotElement>(element) || element.shadow_root() || element.in_top_layer() || element.has_associated_animations())
+        return false;
+    if (!keys.names.is_empty()) {
+        auto folds_ids_and_classes = element.document().in_quirks_mode();
+        if (name_answers_to_keys(element.local_name(), true, keys))
+            return false;
+        if (auto const& id = element.id(); id.has_value() && name_answers_to_keys(*id, folds_ids_and_classes, keys))
+            return false;
+        if (any_of(element.class_names(), [&](auto const& class_name) { return name_answers_to_keys(class_name, folds_ids_and_classes, keys); }))
+            return false;
+        bool attribute_answers = false;
+        element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16String const&) {
+            attribute_answers = attribute_answers || name_answers_to_keys(name.local_name(), true, keys);
+        });
+        if (attribute_answers)
+            return false;
+    }
+    return !any_of(keys.state_pseudo_classes, [&](auto pseudo_class) { return SelectorMatching::element_matches_state(element, pseudo_class); });
+}
+
+// The children that waited become subtrees waiting to arrive like any other. Whoever releases them outside of a take-in
+// notes that they arrive as the input is next submitted.
+static void release_waiting_children(DOM::Element& element)
+{
+    element.set_child_style_arrivals_wait(false);
+    element.set_descendant_style_arrival_pending(true);
+    auto mark = [](DOM::Node& child) { child.set_style_arrival_pending(true); };
+    if (auto shadow_root = element.shadow_root())
+        mark(*shadow_root);
+    for (auto* child = element.first_child(); child; child = child->next_sibling()) {
+        if (is<DOM::Element>(*child) || is<DOM::Text>(*child))
+            mark(*child);
+    }
+}
+
+static bool s_taking_in_pending_style_arrivals = false;
+
+// Children that waited may have to arrive as the input is next submitted. A style update or a take-in only notes it.
+// Script records it as it records an insertion, which the transaction a geometry read deferred must not be waiting for.
+static void note_waiting_children_may_arrive(StyleEngine& style_engine, DOM::Document const& document)
+{
+    if (s_taking_in_pending_style_arrivals || document.is_in_style_stabilization_epoch())
+        style_engine.note_waiting_arrivals_may_arrive();
+    else
+        style_engine.note_pending_arrivals(1);
+}
+
+// Releases the waiting children outside of a take-in, which they arrive at as the input is next submitted.
+static void release_waiting_children_until_submitted(DOM::Element& element, StyleEngine& style_engine)
+{
+    release_waiting_children(element);
+    note_waiting_children_may_arrive(style_engine, element.document());
+}
+
+// Releases the waiting children that hold the node, if any do.
+static void release_waiting_children_holding(DOM::Node& node, StyleEngine& style_engine)
+{
+    if (auto* holder = element_whose_waiting_children_hold(node))
+        release_waiting_children_until_submitted(*holder, style_engine);
+}
+
+// What joins children that wait in a display:none subtree is looked at as it connects, against the keys they were last
+// looked at against: keys that moved since have them all looked at again anyway. Only a document where children may
+// wait walks past the nearest node waiting to arrive to look for them.
 static void record_node_connected(DOM::Node& node, StyleEngine& style_engine)
 {
-    if (waits_to_arrive_with_an_ancestor(node))
-        style_engine.note_pending_arrivals(1);
-    else
+    DOM::Element* holder = nullptr;
+    if (!waits_to_arrive_with_an_ancestor(node, style_engine.may_have_waiting_children() ? &holder : nullptr)) {
         mark_style_arrival_pending(node, style_engine);
+        return;
+    }
+    if (!holder) {
+        style_engine.note_pending_arrivals(1);
+        return;
+    }
+    if (auto* element = as_if<DOM::Element>(node); element && !element_can_wait_to_arrive(*element, style_engine.last_relational_arrival_keys()))
+        release_waiting_children_until_submitted(*holder, style_engine);
+}
+
+// A name or state an element waiting in a display:none subtree takes is not recorded, as the element arrives with what
+// it is then. One that a `:has()` argument may reach it by could let it reach that argument's anchor, so the children
+// waiting with it arrive. The keys the children were last looked at against are the ones to ask: keys that moved since
+// have them all looked at again anyway.
+enum class NamesFold {
+    InQuirksMode,
+    Always,
+};
+
+static void record_waiting_element_names_changed(DOM::Element& element, ReadonlySpan<Utf16FlyString> names, NamesFold names_fold = NamesFold::InQuirksMode)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() != no_style_node)
+        return;
+    auto const& keys = style_engine->last_relational_arrival_keys();
+    auto folds = names_fold == NamesFold::Always || element.document().in_quirks_mode();
+    if (keys.reached_by_any_arrival || (!keys.names.is_empty() && any_of(names, [&](auto const& name) { return name_answers_to_keys(name, folds, keys); })))
+        release_waiting_children_holding(element, *style_engine);
+}
+
+static void record_waiting_element_state_changed(DOM::Element& element, PseudoClass pseudo_class)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() != no_style_node)
+        return;
+    auto const& keys = style_engine->last_relational_arrival_keys();
+    if (keys.reached_by_any_arrival || keys.state_pseudo_classes.contains_slow(pseudo_class))
+        release_waiting_children_holding(element, *style_engine);
+}
+
+void record_waiting_element_classes_changed(DOM::Element& element)
+{
+    record_waiting_element_names_changed(element, element.class_names());
 }
 
 void record_element_connected(DOM::Element& element)
@@ -454,10 +596,16 @@ void record_subtree_connecting(DOM::Node& root)
         mark_style_arrival_pending(root, *style_engine);
 }
 
+// A subtree waiting to arrive, and whether its root arrives alone, its children waiting on in a display:none subtree.
+struct PendingArrivalRoot {
+    GC::Ref<DOM::Node> node;
+    bool children_wait { false };
+};
+
 // Every node in the subtrees waiting to arrive, in tree order, takes its identity, and every element records its
 // arrival. The subtrees are taken in together, so each identity is assigned before the first arrival is recorded:
 // an arrival names its parent and siblings, and a sibling that waited in another subtree has arrived by then.
-static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Ref<DOM::Node>> roots)
+static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<PendingArrivalRoot> roots)
 {
     auto& style_computer = document.style_computer();
     auto& style_engine = style_computer.style_engine();
@@ -499,8 +647,13 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
         }
     };
     for (auto const& root : roots) {
-        ensure_dom_order_parent_identity(root->parent(), style_engine);
-        for_each_shadow_including_inclusive_descendant_with_scope(*root, tree_scope_of(root->root()), collect);
+        ensure_dom_order_parent_identity(root.node->parent(), style_engine);
+        if (root.children_wait) {
+            collect(root.node, tree_scope_of(root.node->root()));
+            root.node->set_child_style_arrivals_wait(true);
+        } else {
+            for_each_shadow_including_inclusive_descendant_with_scope(root.node, tree_scope_of(root.node->root()), collect);
+        }
     }
 
     if (!text_arrivals.is_empty()) {
@@ -583,45 +736,175 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
     // The insertion that connected a subtree marked it for the layout tree build under the identity it did not have
     // yet, so the mark is made here, as the insertion would have made it.
     for (auto const& root : roots) {
-        auto const* parent = root->parent();
+        auto const* parent = root.node->parent();
         if (parent && (parent->is_html_style_element() || parent->is_svg_style_element()) && !parent->has_layout_box())
             continue;
-        root->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
+        root.node->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 }
 
-// The subtrees waiting to arrive, in tree order, found along the marks their ancestors carry. The marks are cleared on
-// the way: a subtree that left the tree before this walk leaves marks behind that nothing waits under.
-static void collect_pending_style_arrival_roots(DOM::Node& node, Vector<GC::Ref<DOM::Node>, 16>& roots)
+// Whether the element's parent is in a display:none subtree an animation cannot be holding visible: it or an ancestor
+// holds a display:none style and runs no animation. The element's own display does not hide its children from
+// selectors its siblings match, such as `:empty + *`, so it is not the one asked about.
+static bool parent_is_in_display_none_subtree_no_animation_reveals(DOM::Element const& element)
 {
-    node.set_descendant_style_arrival_pending(false);
+    for (auto const* ancestor = element.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        auto const* ancestor_element = as_if<DOM::Element>(*ancestor);
+        if (!ancestor_element)
+            continue;
+        if (ancestor_element->installed_style().display_is_none())
+            return !ancestor_element->has_associated_animations();
+    }
+    return false;
+}
+
+// Whether every descendant of the element can wait to arrive.
+static bool descendants_can_wait_to_arrive(DOM::Element& element, StyleEngine::RelationalArrivalKeys const& keys)
+{
+    if (element.associated_animation_count_in_subtree() != 0)
+        return false;
+    bool can_wait = true;
+    element.for_each_shadow_including_descendant([&](DOM::Node& node) {
+        auto* descendant = as_if<DOM::Element>(node);
+        if (!descendant || element_can_wait_to_arrive(*descendant, keys))
+            return TraversalDecision::Continue;
+        can_wait = false;
+        return TraversalDecision::Break;
+    });
+    return can_wait;
+}
+
+// Decides, along one take-in, which elements arrive alone in a display:none subtree, their children waiting.
+class HiddenChildArrivalDecision {
+public:
+    HiddenChildArrivalDecision(DOM::Document& document, HiddenChildArrivals hidden_child_arrivals)
+        : m_document(document)
+        , m_style_engine(document.style_computer().style_engine())
+        , m_hidden_child_arrivals(hidden_child_arrivals)
+    {
+    }
+
+    ~HiddenChildArrivalDecision()
+    {
+        if (m_keys)
+            m_style_engine.set_waiting_children_checked_against_keys_version(m_keys->version);
+    }
+
+    // Whether the children of `node`, which arrives now, can wait.
+    bool children_of_arrival_can_wait(DOM::Node& node)
+    {
+        auto* element = as_if<DOM::Element>(node);
+        if (!element || !may_wait() || !element->has_children() || element->shadow_root() || is<HTML::HTMLSlotElement>(*element)
+            || !parent_is_in_display_none_subtree_no_animation_reveals(*element))
+            return false;
+        return descendants_can_wait_to_arrive(*element, keys());
+    }
+
+    // Whether the children of `element`, which wait, can go on waiting.
+    bool waiting_children_can_go_on_waiting(DOM::Element& element)
+    {
+        if (!may_wait() || element.shadow_root() || !parent_is_in_display_none_subtree_no_animation_reveals(element))
+            return false;
+        // The children were looked at against these keys, as was whatever joined them or changed a name or state of
+        // theirs since.
+        if (m_style_engine.waiting_children_checked_against_keys_version() == keys().version)
+            return true;
+        return descendants_can_wait_to_arrive(element, keys());
+    }
+
+private:
+    bool may_wait() const { return m_hidden_child_arrivals == HiddenChildArrivals::MayWait; }
+
+    StyleEngine::RelationalArrivalKeys const& keys()
+    {
+        if (!m_keys)
+            m_keys = &m_style_engine.relational_arrival_keys(Layout::ForcedReadScope { *m_document });
+        return *m_keys;
+    }
+
+    GC::Ref<DOM::Document> m_document;
+    StyleEngine& m_style_engine;
+    HiddenChildArrivals m_hidden_child_arrivals;
+    StyleEngine::RelationalArrivalKeys const* m_keys { nullptr };
+};
+
+// The subtrees waiting to arrive, in tree order, found along the marks their ancestors carry, and whether anything
+// still waits below the node once they arrive. The marks are cleared on the way, and kept on the path to children
+// that go on waiting in a display:none subtree: a subtree that left the tree before this walk leaves marks behind that
+// nothing waits under.
+static bool collect_pending_style_arrival_roots(DOM::Node& node, Vector<PendingArrivalRoot, 16>& roots, HiddenChildArrivalDecision& decision)
+{
+    bool waits_below = false;
     auto visit = [&](DOM::Node& child) {
-        if (child.style_arrival_pending())
-            roots.append(child);
-        else if (child.descendant_style_arrival_pending())
-            collect_pending_style_arrival_roots(child, roots);
+        if (auto* element = as_if<DOM::Element>(child); element && element->child_style_arrivals_wait()) {
+            if (decision.waiting_children_can_go_on_waiting(*element)) {
+                waits_below = true;
+                return;
+            }
+            release_waiting_children(*element);
+        }
+        if (child.style_arrival_pending()) {
+            auto children_wait = decision.children_of_arrival_can_wait(child);
+            roots.append({ child, children_wait });
+            waits_below |= children_wait;
+        } else if (child.descendant_style_arrival_pending()) {
+            waits_below |= collect_pending_style_arrival_roots(child, roots, decision);
+        }
     };
     if (auto* element = as_if<DOM::Element>(node); element && element->shadow_root())
         visit(*element->shadow_root());
     for (auto* child = node.first_child(); child; child = child->next_sibling())
         visit(*child);
+    node.set_descendant_style_arrival_pending(waits_below);
+    return waits_below;
 }
 
-static bool s_taking_in_pending_style_arrivals = false;
-
-void take_in_pending_style_arrivals(DOM::Document& document)
+void take_in_pending_style_arrivals(DOM::Document& document, HiddenChildArrivals hidden_child_arrivals)
 {
     if (s_taking_in_pending_style_arrivals)
         return;
+    auto& style_engine = document.style_computer().style_engine();
     // Nodes that waited and left the tree again are counted too, and nothing is left of them to take in.
-    document.style_computer().style_engine().forget_pending_arrivals();
+    auto arrivals_were_noted = style_engine.has_pending_arrivals();
+    style_engine.forget_pending_arrivals();
     if (!document.descendant_style_arrival_pending())
         return;
+    // Children that wait in a display:none subtree go on waiting until a node connects, something notes they may have
+    // to arrive, or the keys they were looked at against move. Until then, the marks on the path to them lead to nothing
+    // that has to arrive.
+    if (!arrivals_were_noted && hidden_child_arrivals == HiddenChildArrivals::MayWait
+        && style_engine.waiting_children_checked_against_keys_version() == style_engine.relational_arrival_keys(Layout::ForcedReadScope { document }).version)
+        return;
+    // Only the arrivals of a tracked tree record which children wait.
+    if (!document.style_engine_tracks_tree())
+        hidden_child_arrivals = HiddenChildArrivals::TakeIn;
     TemporaryChange taking_in { s_taking_in_pending_style_arrivals, true };
-    Vector<GC::Ref<DOM::Node>, 16> roots;
-    collect_pending_style_arrival_roots(document, roots);
+    Vector<PendingArrivalRoot, 16> roots;
+    {
+        HiddenChildArrivalDecision decision { document, hidden_child_arrivals };
+        style_engine.set_may_have_waiting_children(collect_pending_style_arrival_roots(document, roots, decision));
+    }
     if (!roots.is_empty() && document.style_engine_tracks_tree())
         record_subtree_arrivals(document, roots);
+}
+
+void record_element_associated_with_animation(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine)
+        return;
+    // An animated element keeps its style while hidden, so it cannot wait to arrive itself.
+    if (element.style_node_id() == no_style_node)
+        release_waiting_children_holding(element, *style_engine);
+    // An animation can hold a display:none element visible, revealing whatever waited to arrive below it.
+    if (element.child_style_arrivals_wait() || element.descendant_style_arrival_pending())
+        note_waiting_children_may_arrive(*style_engine, element.document());
+}
+
+void record_waiting_children_may_be_revealed(DOM::Element& element)
+{
+    if (auto* style_engine = style_engine_for(element))
+        note_waiting_children_may_arrive(*style_engine, element.document());
 }
 
 // A node that is no element hovers the element it is inside of.
@@ -1314,9 +1597,15 @@ void record_top_layer_changed(DOM::Document& document)
     auto const& members = document.top_layer_elements();
     Vector<StyleNodeID, 8> identities;
     identities.ensure_capacity(members.size());
+    auto& style_engine = document.style_computer().style_engine();
     for (auto const& member : members) {
-        if (member->style_node_id() != no_style_node)
+        if (member->style_node_id() != no_style_node) {
             identities.unchecked_append(member->style_node_id());
+            continue;
+        }
+        // A member is rendered whatever display:none subtree it is in, so the children it waits with arrive.
+        if (member->is_connected())
+            release_waiting_children_holding(*member, style_engine);
     }
     StyleEngineFFI::style_engine_set_top_layer_elements(document.style_computer().style_engine().host(), identities.span());
 }
@@ -1871,6 +2160,8 @@ void record_subtree_disconnecting(DOM::Node& root)
     Vector<StyleNodeID, 64> departing_texts;
     auto disconnect_element = [&](DOM::Node& node, TreeScopeID tree_scope) {
         if (auto* element = as_if<DOM::Element>(node)) {
+            // Children that waited leave with the element, which takes them in again as a whole wherever it arrives.
+            element->set_child_style_arrivals_wait(false);
             record_element_disconnecting(*element, tree_scope, &node == &root ? PreviousSiblings::Arrived : PreviousSiblings::Departed);
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node)) {
             shadow_roots.append(*shadow_root);
@@ -1895,6 +2186,12 @@ void record_shadow_root_connected(DOM::ShadowRoot& shadow_root)
     auto* style_engine = style_engine_for(shadow_root);
     if (!style_engine)
         return;
+    // A host's shadow tree takes the place of its children in the flat tree, so children that waited below it arrive,
+    // as do those a host waits with: a shadow host cannot wait to arrive.
+    if (auto* host = shadow_root.host(); host && host->child_style_arrivals_wait())
+        release_waiting_children_until_submitted(*host, *style_engine);
+    else if (host && host->style_node_id() == no_style_node)
+        release_waiting_children_holding(*host, *style_engine);
     // The root retakes its place here rather than when whatever next needs it happens to ask. A
     // scope's root is how a sheet attached to that scope is bounded, and an empty shadow tree has no
     // child whose relations would ask for it, so the scope would be left naming a node that has been
@@ -2545,6 +2842,15 @@ void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_s
 
 bool can_record_element_state_change(DOM::Element& element)
 {
+    // A state an element waiting in a display:none subtree takes matters where a `:has()` argument may reach the
+    // element by a state, for record_element_state_changed() to release the children waiting with it.
+    if (element.style_node_id() == no_style_node) {
+        auto* style_engine = style_engine_for(element);
+        if (!style_engine)
+            return false;
+        auto const& keys = style_engine->last_relational_arrival_keys();
+        return (keys.reached_by_any_arrival || !keys.state_pseudo_classes.is_empty()) && element_whose_waiting_children_hold(element);
+    }
     return style_engine_for_published(element);
 }
 
@@ -2561,12 +2867,14 @@ void move_style_hover(DOM::Document& document, GC::Ptr<DOM::Node> node)
 
 void record_element_state_changed(DOM::Element& element, PseudoClass pseudo_class, bool new_value)
 {
-    auto* style_engine = style_engine_for_published(element);
-    if (!style_engine)
-        return;
     auto fact = state_fact_for(pseudo_class);
     if (!fact.has_value())
         return;
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine) {
+        record_waiting_element_state_changed(element, pseudo_class);
+        return;
+    }
 
     style_engine->record_state_delta({
         .node = element.style_node_id().value(),
@@ -2603,8 +2911,11 @@ static void record_feature(
 void record_element_id_changed(DOM::Element& element, Optional<Utf16FlyString> const& old_value, Optional<Utf16FlyString> const& new_value)
 {
     auto* style_engine = style_engine_for_identified(element);
-    if (!style_engine)
+    if (!style_engine) {
+        if (new_value.has_value())
+            record_waiting_element_names_changed(element, { &*new_value, 1 });
         return;
+    }
 
     auto atom_of = [&](Optional<Utf16FlyString> const& value) -> StyleAtomID {
         return value.has_value() ? intern_id_or_class_atom(*style_engine, element, *value) : 0;
@@ -2666,8 +2977,11 @@ void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16
 void record_element_attribute_changed(DOM::Element& element, Utf16FlyString const& name, Optional<Utf16FlyString> const& namespace_uri, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
 {
     auto* style_engine = style_engine_for_identified(element);
-    if (!style_engine)
+    if (!style_engine) {
+        if (!old_value.has_value() && new_value.has_value())
+            record_waiting_element_names_changed(element, { &name, 1 }, NamesFold::Always);
         return;
+    }
     if (!old_value.has_value() && !new_value.has_value())
         return;
 

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/style-engine/children-waiting-in-hidden-subtree-revealed-without-read-ref.html" />
+<style>
+    body { margin: 0; }
+    .hidden { display: none; }
+    .item { width: 100px; height: 20px; background: green; }
+</style>
+<div id="hidden-parent" class="hidden"></div>
+<script>
+    const hiddenParent = document.getElementById("hidden-parent");
+    document.body.offsetWidth;
+    const container = document.createElement("div");
+    for (let i = 0; i < 3; i++) {
+        const item = document.createElement("div");
+        item.className = "item";
+        container.appendChild(item);
+    }
+    hiddenParent.appendChild(container);
+    document.body.offsetWidth;
+    hiddenParent.className = "";
+</script>

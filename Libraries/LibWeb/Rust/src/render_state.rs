@@ -155,6 +155,7 @@ impl RenderState {
     /// host learns of the engine's deferred element style inputs, where they moved, and the facts of the state as the
     /// job leaves it.
     fn take_owed(&mut self) -> Owed {
+        self.engine_mut().resolve_relational_arrival_keys();
         let engine = self.engine_ref();
         let arena = self.arena.arena();
         let facts = StateFacts {
@@ -173,9 +174,11 @@ impl RenderState {
             },
             selector_attribute_value_text_requirements_version: engine
                 .selector_attribute_value_text_requirements_version(),
+            relational_arrival_keys_version: engine.relational_arrival_keys_version(),
         };
         let selector_value_text_names = std::sync::Arc::clone(engine.selector_attribute_value_text_names());
         let selector_tested_attribute_names = std::sync::Arc::clone(engine.selector_tested_attribute_names());
+        let relational_arrival_keys = std::sync::Arc::clone(engine.relational_arrival_keys());
         Owed {
             work: std::mem::take(&mut self.owed),
             deferred_inputs: self.engine_mut().take_moved_deferred_element_style_inputs(),
@@ -183,6 +186,7 @@ impl RenderState {
             facts,
             selector_value_text_names,
             selector_tested_attribute_names,
+            relational_arrival_keys,
         }
     }
 
@@ -277,6 +281,8 @@ pub(crate) struct Owed {
     selector_value_text_names: crate::css::style::SelectorAttributeNames,
     /// The attribute names the engine's selectors test in any way, as the job left them.
     selector_tested_attribute_names: crate::css::style::SelectorAttributeNames,
+    /// What an arrival has to carry to reach a `:has()` anchor, as the job left it.
+    relational_arrival_keys: std::sync::Arc<crate::css::style::RelationalArrivalKeys>,
 }
 
 /// What a document's render state answers of itself as a job or a frame leaves it, which the host reads in place for as
@@ -289,6 +295,8 @@ pub(crate) struct StateFacts {
     pub(crate) arena: ArenaFacts,
     /// Where the engine's selectors' requirements of attribute value text are.
     pub(crate) selector_attribute_value_text_requirements_version: u64,
+    /// Where what an arrival has to carry to reach a `:has()` anchor is.
+    pub(crate) relational_arrival_keys_version: u64,
 }
 
 /// What the style engine answers of itself as a job or a frame leaves it, which only a write to the engine moves (see

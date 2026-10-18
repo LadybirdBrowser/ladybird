@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .hidden { display: none; }
+    .shown { display: block; }
+    .item { color: rgb(0, 0, 255); height: 10px; }
+    .item + .item { color: rgb(0, 128, 0); }
+    .outer { color: rgb(0, 0, 0); }
+    .outer:has(.badge) { color: rgb(255, 0, 0); }
+    .outer:has(:any-link) { background-color: rgb(255, 255, 0); }
+    #empty-host { display: none; }
+    #empty-host:empty { display: block; }
+</style>
+<div id="root"></div>
+<script>
+function makeContainer(count) {
+    const container = document.createElement("div");
+    for (let i = 0; i < count; i++) {
+        const item = document.createElement("div");
+        item.className = "item";
+        item.appendChild(document.createElement("span"));
+        container.appendChild(item);
+    }
+    return container;
+}
+
+function makeHiddenParent() {
+    const parent = document.createElement("div");
+    parent.className = "hidden";
+    root.appendChild(parent);
+    internals.updateStyle();
+    return parent;
+}
+
+test(() => {
+    // Revealing the subtree styles and lays out the children that waited.
+    {
+        const parent = makeHiddenParent();
+        const container = makeContainer(3);
+        parent.appendChild(container);
+        internals.updateStyle();
+        parent.className = "shown";
+        println(`revealed height: ${container.offsetHeight}`);
+        println(`revealed sibling color: ${getComputedStyle(container.children[1]).color}`);
+        parent.remove();
+    }
+
+    // A read of a child that waits answers its style, sibling selectors included.
+    {
+        const parent = makeHiddenParent();
+        const container = makeContainer(3);
+        parent.appendChild(container);
+        internals.updateStyle();
+        println(`hidden first color: ${getComputedStyle(container.children[0]).color}`);
+        println(`hidden second color: ${getComputedStyle(container.children[1]).color}`);
+        parent.remove();
+    }
+
+    // A :has() argument reaches its anchor through a hidden child, as it arrives and as it changes later.
+    {
+        const outer = document.createElement("div");
+        outer.className = "outer";
+        root.appendChild(outer);
+        const parent = document.createElement("div");
+        parent.className = "hidden";
+        outer.appendChild(parent);
+        internals.updateStyle();
+        const container = makeContainer(3);
+        container.children[2].firstChild.className = "badge";
+        parent.appendChild(container);
+        println(`anchor color with badge arriving: ${getComputedStyle(outer).color}`);
+        container.remove();
+        println(`anchor color without badge: ${getComputedStyle(outer).color}`);
+
+        const plain = makeContainer(3);
+        parent.appendChild(plain);
+        internals.updateStyle();
+        println(`anchor color with plain content: ${getComputedStyle(outer).color}`);
+        plain.children[1].firstChild.classList.add("badge");
+        println(`anchor color with badge added later: ${getComputedStyle(outer).color}`);
+
+        const links = makeContainer(2);
+        const link = document.createElement("a");
+        links.children[1].appendChild(link);
+        parent.appendChild(links);
+        internals.updateStyle();
+        println(`anchor background without link: ${getComputedStyle(outer).backgroundColor}`);
+        link.href = "#target";
+        println(`anchor background with link: ${getComputedStyle(outer).backgroundColor}`);
+        outer.remove();
+    }
+
+    // A rule added later can reach an anchor through children that already wait.
+    {
+        const outer = document.createElement("div");
+        root.appendChild(outer);
+        const parent = document.createElement("div");
+        parent.className = "hidden";
+        outer.appendChild(parent);
+        internals.updateStyle();
+        const container = makeContainer(3);
+        container.children[1].firstChild.className = "late";
+        parent.appendChild(container);
+        internals.updateStyle();
+        const style = document.createElement("style");
+        style.textContent = "div:has(.late) { color: rgb(255, 0, 255); }";
+        document.head.appendChild(style);
+        println(`anchor color with rule added later: ${getComputedStyle(outer).color}`);
+        style.remove();
+        outer.remove();
+    }
+
+    // The parent of a hidden subtree is not empty, though the children of its child wait.
+    {
+        const host = document.createElement("div");
+        host.id = "empty-host";
+        root.appendChild(host);
+        internals.updateStyle();
+        println(`empty host display: ${getComputedStyle(host).display}`);
+        host.appendChild(makeContainer(2));
+        println(`host display with content: ${getComputedStyle(host).display}`);
+        host.remove();
+    }
+
+    // Children that join the waiting ones arrive with them as the subtree is revealed.
+    {
+        const parent = makeHiddenParent();
+        const container = makeContainer(2);
+        parent.appendChild(container);
+        internals.updateStyle();
+        container.appendChild(makeContainer(1).firstChild);
+        container.children[0].firstChild.appendChild(document.createElement("b"));
+        internals.updateStyle();
+        parent.className = "shown";
+        println(`revealed height after joins: ${container.offsetHeight}`);
+        parent.remove();
+    }
+
+    // An animation that holds the hidden parent visible reveals the children that waited.
+    {
+        const parent = makeHiddenParent();
+        const container = makeContainer(2);
+        parent.appendChild(container);
+        internals.updateStyle();
+        parent.animate({ display: ["block", "block"] }, { duration: 1000000 });
+        println(`animated reveal height: ${container.offsetHeight}`);
+        parent.getAnimations().forEach(animation => animation.cancel());
+        parent.remove();
+    }
+
+    // An element animated after it began to wait keeps its style while hidden, as one animated before does.
+    {
+        const parent = makeHiddenParent();
+        const container = makeContainer(2);
+        parent.appendChild(container);
+        internals.updateStyle();
+        const animated = container.children[1].firstChild;
+        animated.animate([{ opacity: 0 }, { opacity: 1 }], 100).finish();
+        internals.updateStyle();
+        println(`animated waiting element styled: ${internals.styleRecordIdentity(animated) !== 0}`);
+        parent.remove();
+    }
+
+    // A shadow tree attached to an element whose children wait takes their place, and arrives as it is revealed.
+    {
+        const parent = makeHiddenParent();
+        const container = makeContainer(2);
+        parent.appendChild(container);
+        internals.updateStyle();
+        const shadow = container.attachShadow({ mode: "open" });
+        const shadowItem = document.createElement("div");
+        shadowItem.style.height = "15px";
+        shadow.appendChild(shadowItem);
+        internals.updateStyle();
+        parent.className = "shown";
+        println(`revealed shadow host height: ${container.offsetHeight}`);
+        parent.remove();
+    }
+
+    // A dialog that waited enters the top layer as one that arrived in full before its parent was hidden does.
+    {
+        const styled = [];
+        for (const waits of [true, false]) {
+            const parent = document.createElement("div");
+            if (waits)
+                parent.className = "hidden";
+            root.appendChild(parent);
+            internals.updateStyle();
+            const container = makeContainer(1);
+            const dialog = document.createElement("dialog");
+            dialog.textContent = "dialog";
+            container.children[0].appendChild(dialog);
+            parent.appendChild(container);
+            internals.updateStyle();
+            if (!waits) {
+                parent.className = "hidden";
+                internals.updateStyle();
+            }
+            dialog.showModal();
+            internals.updateStyle();
+            styled.push(internals.styleRecordIdentity(dialog) !== 0);
+            dialog.close();
+            parent.remove();
+        }
+        println(`waiting dialog styled as an arrived one is: ${styled[0] === styled[1]}`);
+    }
+
+    // A subtree whose children waited arrives in full where it moves to be seen.
+    {
+        const parent = makeHiddenParent();
+        const container = makeContainer(3);
+        parent.appendChild(container);
+        internals.updateStyle();
+        root.appendChild(container);
+        println(`moved height: ${container.offsetHeight}`);
+        container.remove();
+        parent.appendChild(container);
+        internals.updateStyle();
+        container.remove();
+        root.appendChild(container);
+        println(`reinserted height: ${container.offsetHeight}`);
+        container.remove();
+        parent.remove();
+    }
+});
+</script>

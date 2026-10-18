@@ -162,6 +162,18 @@ use std::sync::Mutex;
 /// Attribute names a document's selectors read, which its engine shares with its host.
 pub(crate) type SelectorAttributeNames = Arc<HashSet<StyleAtomID>>;
 
+/// What an element's arrival has to carry to reach the anchor of a `:has()` argument: a name whose raw identity is
+/// among `names` as its tag, ID, class or attribute name, or a state among `states`. Where an argument can be reached
+/// by anything else, every arrival can reach one. The engine shares it with its host, which leaves the subtrees of
+/// elements in a display:none subtree out of the engine's tree for as long as nothing could observe them.
+#[derive(Clone, Default)]
+pub(crate) struct RelationalArrivalKeys {
+    keys: HashSet<RoutingKey>,
+    pub(crate) names: Vec<usize>,
+    pub(crate) states: Vec<u8>,
+    pub(crate) reached_by_any_arrival: bool,
+}
+
 use crate::css::cascaded_properties::CascadeOrigin;
 #[cfg(test)]
 use crate::css::cascaded_properties::CascadedPropertyStore;
@@ -1014,6 +1026,12 @@ pub struct RetainedState {
     /// The attribute names a selector tests in any way, which the host holds a copy of between jobs.
     tested_attribute_names: SelectorAttributeNames,
     attribute_value_text_requirements_version: u64,
+    /// What an arrival has to carry to reach a `:has()` anchor, which the host holds a copy of between jobs.
+    relational_arrival_keys: Arc<RelationalArrivalKeys>,
+    /// The keys rules added since, which the host learns of once they are resolved.
+    unresolved_relational_arrival_keys: HashSet<RoutingKey>,
+    /// Moves whenever `relational_arrival_keys` does.
+    relational_arrival_keys_version: u64,
     selector_programs_need_sweep: bool,
     routing: Arc<RoutingRegistry>,
     /// Exact selector changes and refresh requests emitted by the current transaction.

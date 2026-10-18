@@ -17,8 +17,10 @@
         const reaction = document.createElement("span");
         reaction.id = "reaction";
         reaction.className = "before";
-        middle.appendChild(reaction);
         hidden.appendChild(middle);
+        getComputedStyle(query).color;
+        // The span arrives in the hidden subtree itself, where the children of an element arriving with it would wait.
+        middle.appendChild(reaction);
         getComputedStyle(query).color;
         internals.updateStyle();
 

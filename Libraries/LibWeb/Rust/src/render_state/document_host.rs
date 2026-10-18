@@ -109,6 +109,10 @@ pub struct DocumentHost {
     selector_value_text_names: RefCell<crate::css::style::SelectorAttributeNames>,
     /// The attribute names the engine's selectors test in any way, as its last job left them.
     selector_tested_attribute_names: RefCell<crate::css::style::SelectorAttributeNames>,
+    /// What an arrival has to carry to reach a `:has()` anchor, as its last job left it.
+    relational_arrival_keys: RefCell<std::sync::Arc<crate::css::style::RelationalArrivalKeys>>,
+    /// The keys the host was last told of, kept alive for as long as it reads them.
+    lent_relational_arrival_keys: RefCell<std::sync::Arc<crate::css::style::RelationalArrivalKeys>>,
     /// The ticks the render clock hands the lanes of the document's presented frames.
     ticks: Arc<ClockTicks>,
     /// The steps the hover of the lanes decided that the last rendering update took in, which the host runs as the lanes
@@ -202,6 +206,8 @@ impl DocumentHost {
             facts: Cell::new(None),
             selector_value_text_names: RefCell::default(),
             selector_tested_attribute_names: RefCell::default(),
+            relational_arrival_keys: RefCell::default(),
+            lent_relational_arrival_keys: RefCell::default(),
             ticks: ClockTicks::new(document),
             lane_transitions: RefCell::default(),
             frame_held_for_testing: Cell::default(),
@@ -363,6 +369,7 @@ impl DocumentHost {
             facts,
             selector_value_text_names,
             selector_tested_attribute_names,
+            relational_arrival_keys,
         }: Owed,
     ) {
         self.engine_memo
@@ -370,6 +377,7 @@ impl DocumentHost {
         self.facts.set(Some(facts));
         *self.selector_value_text_names.borrow_mut() = selector_value_text_names;
         *self.selector_tested_attribute_names.borrow_mut() = selector_tested_attribute_names;
+        *self.relational_arrival_keys.borrow_mut() = relational_arrival_keys;
         self.engine_memo
             .deferred
             .borrow_mut()
@@ -674,6 +682,26 @@ impl DocumentHost {
     pub(crate) fn known_selector_attribute_value_text_requirements_version(&self) -> Option<u64> {
         self.facts_where(|moves| !moves.selectors)
             .map(|facts| facts.selector_attribute_value_text_requirements_version)
+    }
+
+    /// What an arrival has to carry to reach a `:has()` anchor, with where it is, where the host knows: none runs, and it
+    /// queued no rule since its last job or frame, which is all that compiles a selector.
+    pub(crate) fn known_relational_arrival_keys(
+        &self,
+    ) -> Option<(u64, std::sync::Arc<crate::css::style::RelationalArrivalKeys>)> {
+        let version = self
+            .facts_where(|moves| !moves.selectors)?
+            .relational_arrival_keys_version;
+        Some((version, std::sync::Arc::clone(&self.relational_arrival_keys.borrow())))
+    }
+
+    /// Keeps `keys` alive until the host next asks, and answers them.
+    pub(crate) fn lend_relational_arrival_keys(
+        &self,
+        keys: std::sync::Arc<crate::css::style::RelationalArrivalKeys>,
+    ) -> std::cell::Ref<'_, crate::css::style::RelationalArrivalKeys> {
+        *self.lent_relational_arrival_keys.borrow_mut() = keys;
+        std::cell::Ref::map(self.lent_relational_arrival_keys.borrow(), |keys| &**keys)
     }
 
     /// Whether the engine's selectors read the value text of an attribute that answers to any of `keys`, where the host

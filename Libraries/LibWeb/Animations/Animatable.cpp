@@ -226,6 +226,7 @@ void Animatable::associate_with_animation(GC::Ref<Animation> animation)
     CSS::record_element_animations_changed(as<DOM::Element>(*this));
 
     as<DOM::Element>(*this).change_associated_animation_count_in_subtree(1);
+    CSS::record_element_associated_with_animation(as<DOM::Element>(*this));
 
     as<DOM::Element>(*this).document().associate_with_animation(animation);
     animation->did_associate_with_target();

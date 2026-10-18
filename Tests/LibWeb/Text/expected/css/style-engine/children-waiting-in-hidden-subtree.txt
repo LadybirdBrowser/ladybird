@@ -1,0 +1,20 @@
+revealed height: 30
+revealed sibling color: rgb(0, 128, 0)
+hidden first color: rgb(0, 0, 255)
+hidden second color: rgb(0, 128, 0)
+anchor color with badge arriving: rgb(255, 0, 0)
+anchor color without badge: rgb(0, 0, 0)
+anchor color with plain content: rgb(0, 0, 0)
+anchor color with badge added later: rgb(255, 0, 0)
+anchor background without link: rgba(0, 0, 0, 0)
+anchor background with link: rgb(255, 255, 0)
+anchor color with rule added later: rgb(255, 0, 255)
+empty host display: block
+host display with content: none
+revealed height after joins: 30
+animated reveal height: 20
+animated waiting element styled: true
+revealed shadow host height: 15
+waiting dialog styled as an arrived one is: true
+moved height: 30
+reinserted height: 30

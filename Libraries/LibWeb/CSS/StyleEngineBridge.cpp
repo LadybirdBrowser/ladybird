@@ -286,6 +286,40 @@ void StyleEngine::note_pending_arrivals(size_t count)
     m_pending_arrival_count += count;
 }
 
+void StyleEngine::note_waiting_arrivals_may_arrive()
+{
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+    ++m_pending_arrival_count;
+}
+
+void StyleEngine::note_waiting_arrivals_if_keys_moved(Layout::BegunRead const& read)
+{
+    if (m_may_have_waiting_children && m_waiting_children_checked_against_keys_version != relational_arrival_keys(read).version)
+        note_waiting_arrivals_may_arrive();
+}
+
+namespace {
+
+#include <LibWeb/SelectorStateFactsGenerated.inc>
+
+}
+
+StyleEngine::RelationalArrivalKeys const& StyleEngine::relational_arrival_keys(Layout::BegunRead const& read)
+{
+    auto keys = StyleEngineFFI::style_engine_relational_arrival_keys(host(), &read);
+    if (keys.version == m_relational_arrival_keys.version)
+        return m_relational_arrival_keys;
+    m_relational_arrival_keys.version = keys.version;
+    m_relational_arrival_keys.reached_by_any_arrival = keys.reached_by_any_arrival;
+    m_relational_arrival_keys.names.clear();
+    for (size_t i = 0; i < keys.name_count; ++i)
+        m_relational_arrival_keys.names.set(keys.names[i]);
+    m_relational_arrival_keys.state_pseudo_classes.clear();
+    for (size_t i = 0; i < keys.state_count; ++i)
+        m_relational_arrival_keys.state_pseudo_classes.append(pseudo_classes_by_state_fact[keys.states[i]]);
+    return m_relational_arrival_keys;
+}
+
 void StyleEngine::record_tree_delta(StyleEngineFFI::FfiTreeDelta const& delta)
 {
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
@@ -395,7 +429,7 @@ void StyleEngine::submit_recorded_input()
         m_style_computer->document().assign_slottables_if_needed();
     Layout::ForcedReadScope read { render_document() };
     if (m_style_computer) {
-        take_in_pending_style_arrivals(m_style_computer->document());
+        take_in_pending_style_arrivals(m_style_computer->document(), HiddenChildArrivals::MayWait);
         publish_pending_element_features(*this, *m_style_computer);
     }
     StyleEngineFFI::style_engine_submit_staged_input(host());
