@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Verify that a 200 null-typed object emits an entry.
+Pass	Verify that a 404 null-typed object emits an entry.
+Pass	Verify that a 404 img-typed object emits an entry.

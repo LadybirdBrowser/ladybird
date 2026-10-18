@@ -285,7 +285,20 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
                 auto& realm = HTML::relevant_realm(*this);
                 auto& global = document().relevant_settings_object().realm().global_object();
 
-                if (response->is_network_error() || !Fetch::Infrastructure::is_ok_status(response->status())) {
+                if (response->is_network_error()) {
+                    resource_did_fail();
+                    return;
+                }
+
+                if (!Fetch::Infrastructure::is_ok_status(response->status())) {
+                    // NB: Fetch only reports the response's timing once its body has been fully read, so read it without
+                    //     holding back the failure.
+                    if (auto body = response->body()) {
+                        auto ignore_chunk = GC::create_function(GC::Heap::the(), [](ByteBuffer) { });
+                        auto ignore_end_of_body = GC::create_function(GC::Heap::the(), [] { });
+                        auto ignore_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) { });
+                        (void)body->incrementally_read(realm, ignore_chunk, ignore_end_of_body, ignore_body_error, GC::Ref { global });
+                    }
                     resource_did_fail();
                     return;
                 }
