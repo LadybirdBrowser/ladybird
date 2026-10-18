@@ -9,6 +9,7 @@
 #include <LibCore/System.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
+#include <math.h>
 
 static constexpr u32 SAMPLE_RATE = 48000;
 static constexpr u32 CHANNEL_COUNT = 2;
@@ -124,7 +125,8 @@ TEST_CASE(mixing_pop_wraps_with_six_channels)
     static constexpr u32 channel_count = 6;
     auto producer = MUST(Audio::SharedAudioFrameRing::create(SAMPLE_RATE, channel_count, 8));
     auto consumer = map_consumer_side(producer);
-    auto stamp = [](u64 frame, u32 channel) { return static_cast<float>(frame * 8 + channel); };
+    // Kept within the magnitude a mixing pop lets through.
+    auto stamp = [](u64 frame, u32 channel) { return static_cast<float>(frame) + (static_cast<float>(channel) * 0.125f); };
     auto push_frames = [&](u64 first_frame, size_t frame_count) {
         Vector<float> samples;
         for (u64 frame = first_frame; frame < first_frame + frame_count; ++frame)
@@ -146,6 +148,32 @@ TEST_CASE(mixing_pop_wraps_with_six_channels)
     for (u64 frame = 5; frame < 13; ++frame)
         for (u32 channel = 0; channel < channel_count; ++channel)
             EXPECT_EQ(mix[(frame - 5) * channel_count + channel], stamp(frame, channel));
+}
+
+TEST_CASE(mixing_pop_keeps_the_mix_finite)
+{
+    auto producer = MUST(Audio::SharedAudioFrameRing::create(SAMPLE_RATE, CHANNEL_COUNT, 8));
+    auto consumer = map_consumer_side(producer);
+    auto huge = NumericLimits<float>::max();
+    EXPECT_EQ(producer.try_push(Vector<float> { NAN, INFINITY, -INFINITY, 0.5f, huge, -huge, huge, -huge }), 4u);
+
+    // Non-finite samples add nothing, and the rest pass through.
+    Vector<float> mix;
+    mix.resize(2 * CHANNEL_COUNT);
+    mix.fill(0.0f);
+    EXPECT_EQ(consumer.pop_mixing_into(mix, 1.0f), 2u);
+    EXPECT_EQ(mix[0], 0.0f);
+    EXPECT_EQ(mix[1], 0.0f);
+    EXPECT_EQ(mix[2], 0.0f);
+    EXPECT_EQ(mix[3], 0.5f);
+
+    // Huge samples are bounded, so adding two of them up stays finite.
+    mix.resize(CHANNEL_COUNT);
+    mix.fill(0.0f);
+    EXPECT_EQ(consumer.pop_mixing_into(mix, 1.0f), 1u);
+    EXPECT_EQ(consumer.pop_mixing_into(mix, 1.0f), 1u);
+    EXPECT(isfinite(mix[0]) && mix[0] > 0.0f);
+    EXPECT(isfinite(mix[1]) && mix[1] < 0.0f);
 }
 
 TEST_CASE(discard_all_empties_the_ring)

@@ -8,8 +8,13 @@
 #include <LibAudio/SharedAudioFrameRing.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <math.h>
 
 namespace Audio {
+
+// Far above anything a device can play, yet small enough that mixing bounded samples from any realistic number of
+// streams, with gains of at most 1, stays finite.
+static constexpr float MAXIMUM_SAMPLE_MAGNITUDE = 16.0f;
 
 size_t SharedAudioFrameRing::buffer_size_for(u64 frame_capacity, u32 channel_count)
 {
@@ -108,8 +113,13 @@ size_t SharedAudioFrameRing::pop_mixing_into(Span<float> mix, float gain)
 
     auto sample_capacity = frame_capacity * channel_count;
     auto ring_index = (head & (frame_capacity - 1)) * channel_count;
+    // The producer can write anything into the samples, even while they are read, so each is read once and made
+    // finite and bounded before it is mixed.
     for (size_t i = 0; i < frames_to_read * channel_count; i++) {
-        mix[i] += m_samples[ring_index] * gain;
+        auto sample = m_samples[ring_index];
+        if (!isfinite(sample))
+            sample = 0.0f;
+        mix[i] += clamp(sample, -MAXIMUM_SAMPLE_MAGNITUDE, MAXIMUM_SAMPLE_MAGNITUDE) * gain;
         if (++ring_index == sample_capacity)
             ring_index = 0;
     }
