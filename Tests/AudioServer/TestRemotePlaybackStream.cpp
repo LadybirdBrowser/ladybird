@@ -19,6 +19,7 @@
 #include <LibIPC/Transport.h>
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibTest/TestCase.h>
+#include <math.h>
 
 static constexpr u32 CHANNEL_COUNT = FakeDeviceStream::CHANNEL_COUNT;
 
@@ -334,6 +335,17 @@ TEST_CASE(volume_reaches_the_mix)
     (void)stream->set_volume(0.25);
     (void)stream->resume();
     EXPECT(fixture.render_until_full_buffer_of(0.25f));
+}
+
+TEST_CASE(a_volume_outside_the_unit_range_disconnects_the_client)
+{
+    for (auto volume : { -0.5f, 1.5f, NAN }) {
+        Source source;
+        RemoteFixture fixture;
+        auto stream = fixture.create_stream(Audio::OutputState::Suspended, source);
+        fixture.client->async_set_stream_volume(static_cast<Audio::RemotePlaybackStream&>(*stream).stream_id(), volume);
+        EXPECT(fixture.pump_until([&] { return fixture.server_died; }));
+    }
 }
 
 TEST_CASE(losing_the_connection_reports_output_lost_and_settles_requests)
