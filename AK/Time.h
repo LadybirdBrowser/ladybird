@@ -250,20 +250,17 @@ public:
     [[nodiscard]] constexpr static Duration max() { return Duration(__INT64_MAX__, 999'999'999); }
 
     // Truncates towards zero (2.8s to 2s, -2.8s to -2s).
-    [[nodiscard]] i64 to_truncated_seconds() const;
-    [[nodiscard]] i64 to_truncated_milliseconds() const;
-    [[nodiscard]] i64 to_truncated_microseconds() const;
+    [[nodiscard]] i64 to_seconds() const;
+    [[nodiscard]] i64 to_milliseconds() const;
+    [[nodiscard]] i64 to_microseconds() const;
+    [[nodiscard]] i64 to_nanoseconds() const;
     // Rounds towards -inf (2.8s to 2s, -2.3s to -3s).
     [[nodiscard]] i64 to_floored_seconds() const;
     [[nodiscard]] i64 to_floored_milliseconds() const;
     // Rounds towards +inf (2.3s to 3s, -2.8s to -2s).
     [[nodiscard]] i64 to_ceiled_milliseconds() const;
-    // Rounds away from zero (2.3s to 3s, -2.3s to -3s).
-    [[nodiscard]] i64 to_seconds() const;
+
     [[nodiscard]] f64 to_seconds_f64() const;
-    [[nodiscard]] i64 to_milliseconds() const;
-    [[nodiscard]] i64 to_microseconds() const;
-    [[nodiscard]] i64 to_nanoseconds() const;
     [[nodiscard]] timespec to_timespec() const;
     // Rounds towards -inf (it was the easiest to implement).
     [[nodiscard]] timeval to_timeval() const;

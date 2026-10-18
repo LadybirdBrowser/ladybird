@@ -889,10 +889,10 @@ fn label_or_fallback(vm: &Vm, fallback: &str) -> ThrowCompletionOr<Utf16String> 
 }
 
 /// AK::human_readable_time(), which shows the seconds as `{:.3}` does: with at most three fraction digits, rounded
-/// the way AK rounds them and without trailing zeros. Like Duration::to_milliseconds(), it rounds the duration up to
+/// the way AK rounds them and without trailing zeros. Like Duration::to_milliseconds(), it truncates the duration to
 /// whole milliseconds first.
 fn human_readable_time(duration: Duration) -> String {
-    let mut milliseconds = i64::try_from(duration.as_nanos().div_ceil(1_000_000)).unwrap_or(i64::MAX);
+    let mut milliseconds = i64::try_from(duration.as_millis()).unwrap_or(i64::MAX);
 
     let days = milliseconds / 86_400_000;
     milliseconds %= 86_400_000;

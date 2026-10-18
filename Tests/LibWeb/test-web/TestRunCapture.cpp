@@ -276,7 +276,7 @@ void TestRunCapture::setup_output_capture_for_helper_process(WebView::Process& p
 
 static ByteString format_elapsed_time(UnixDateTime run_start_time)
 {
-    auto elapsed_milliseconds = AK::max((UnixDateTime::now() - run_start_time).to_truncated_milliseconds(), 0);
+    auto elapsed_milliseconds = AK::max((UnixDateTime::now() - run_start_time).to_milliseconds(), 0);
     i64 total_seconds = elapsed_milliseconds / 1000;
     i64 centiseconds = (elapsed_milliseconds / 10) % 100;
     i64 minutes = total_seconds / 60;

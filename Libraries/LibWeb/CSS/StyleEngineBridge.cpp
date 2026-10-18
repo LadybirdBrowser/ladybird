@@ -724,14 +724,14 @@ void StyleEngine::note_animations_changed(StyleNodeID style_node)
 
 StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const& view, MonotonicTime submission_started_at, MonotonicTime bridge_started_at)
 {
-    auto bridge_microseconds = (MonotonicTime::now() - bridge_started_at).to_truncated_microseconds();
+    auto bridge_microseconds = (MonotonicTime::now() - bridge_started_at).to_microseconds();
     return {
         .version = { view.transaction_version, view.program_version },
         .reactions = { view.answers, view.count },
         .is_scoped = view.scoped,
         .only_derived_child_reactions = view.only_derived_child_reactions,
         .connected_element_count = view.connected_element_count,
-        .submission_microseconds = static_cast<u64>((bridge_started_at - submission_started_at).to_truncated_microseconds()),
+        .submission_microseconds = static_cast<u64>((bridge_started_at - submission_started_at).to_microseconds()),
         .bridge_microseconds = static_cast<u64>(bridge_microseconds),
     };
 }
