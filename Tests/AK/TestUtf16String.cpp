@@ -113,8 +113,8 @@ TEST_CASE(from_utf8)
 
 TEST_CASE(from_utf8_with_replacement_character)
 {
-    auto string1 = Utf16String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, Utf16String::WithBOMHandling::No); // U+110000
-    EXPECT_EQ(string1, u"long string \ufffd\ufffd\ufffd\ufffd"sv);
+    auto string1 = Utf16String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, Utf16String::WithBOMHandling::No);
+    EXPECT_EQ(string1, u"long string \ufffd\ufffd"sv);
 
     auto string3 = Utf16String::from_utf8_with_replacement_character("A valid string!"sv, Utf16String::WithBOMHandling::No);
     EXPECT_EQ(string3, "A valid string!"sv);
@@ -129,7 +129,43 @@ TEST_CASE(from_utf8_with_replacement_character)
     EXPECT_EQ(string6, u"\ufeffWHF!"sv);
 
     auto string7 = Utf16String::from_utf8_with_replacement_character("\xED\xA0\x80WHF!"sv); // U+D800
-    EXPECT_EQ(string7, u"\ufffdWHF!"sv);
+    EXPECT_EQ(string7, u"\ufffd\ufffd\ufffdWHF!"sv);
+}
+
+TEST_CASE(from_utf8_with_replacement_character_matches_utf8_decoder)
+{
+    auto decode = [](StringView input) { return Utf16String::from_utf8_with_replacement_character(input, Utf16String::WithBOMHandling::No); };
+
+    EXPECT_EQ(decode("\xE0\x80\x80"sv), u"\ufffd\ufffd\ufffd"sv);
+    EXPECT_EQ(decode("\xC0\x80"sv), u"\ufffd\ufffd"sv);
+    EXPECT_EQ(decode("\xF0\x9F\x98"sv), u"\ufffd"sv);
+    EXPECT_EQ(decode("\xF0\x9F\x98"
+                     "A"sv),
+        u"\ufffdA"sv);
+    EXPECT_EQ(decode("\xF4\x90\x80\x80"sv), u"\ufffd\ufffd\ufffd\ufffd"sv);
+    EXPECT_EQ(decode("\xFF"sv), u"\ufffd"sv);
+    EXPECT_EQ(decode("a\x80"
+                     "b"sv),
+        u"a\ufffdb"sv);
+    EXPECT_EQ(decode("\xFF\xF0\x9F\x98\x80"sv), u"\ufffd\U0001F600"sv);
+}
+
+TEST_CASE(from_wtf8_with_replacement_character)
+{
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("A valid string!"sv), "A valid string!"sv);
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("\xF0\x9F\x98\x80"sv), u"\U0001F600"sv);
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv), u"\ufeffWHF!"sv);
+
+    // Each encoded surrogate is a single code point.
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("\xED\xA0\x80-\xED\xB0\x80"sv), u"\ufffd-\ufffd"sv);
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("\xED\xA0\xED\xBF\xBF"sv), u"\ufffd\ufffd"sv);
+
+    // Bytes that are not WTF-8 are replaced as UTF-8's decoder does.
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("\xC0\x80"sv), u"\ufffd\ufffd"sv);
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("\xF0\x9F\x98"
+                                                                "A"sv),
+        u"\ufffdA"sv);
+    EXPECT_EQ(Utf16String::from_wtf8_with_replacement_character("\xF4\x90\x80\x80"sv), u"\ufffd\ufffd\ufffd\ufffd"sv);
 }
 
 TEST_CASE(from_utf16)

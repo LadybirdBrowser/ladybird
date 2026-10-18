@@ -52,6 +52,7 @@ public:
 
     // Creates a new String using the replacement character for invalid bytes
     [[nodiscard]] static String from_utf8_with_replacement_character(StringView, WithBOMHandling = WithBOMHandling::Yes);
+    [[nodiscard]] static String from_wtf8_with_replacement_character(StringView);
 
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, ByteString, FlyString, String>)

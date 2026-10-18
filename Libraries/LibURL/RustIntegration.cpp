@@ -315,7 +315,7 @@ static Optional<Host> parse_host_impl(FFI::RustUrlInput input, bool is_opaque)
 
 Optional<Host> parse_host(StringView input, bool is_opaque)
 {
-    auto processed_input = String::from_utf8_with_replacement_character(input, String::WithBOMHandling::No);
+    auto processed_input = String::from_wtf8_with_replacement_character(input);
     return parse_host_impl({ processed_input.bytes().data(), nullptr, processed_input.bytes().size() }, is_opaque);
 }
 

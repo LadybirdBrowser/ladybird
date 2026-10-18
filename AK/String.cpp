@@ -22,26 +22,32 @@
 
 namespace AK {
 
-String String::from_utf8_with_replacement_character(StringView view, WithBOMHandling with_bom_handling)
+static String from_bytes_with_replacement_character(StringView view, AllowLonelySurrogates allow_lonely_surrogates)
 {
-    if (auto bytes = view.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
-        view = view.substring_view(3);
-
     Utf8View utf8_view { view };
 
     if (utf8_view.validate(AllowLonelySurrogates::No))
         return String::from_utf8_without_validation(view.bytes());
 
     StringBuilder builder(view.length());
-
-    for (auto code_point : utf8_view) {
-        if (is_unicode_surrogate(code_point))
-            builder.append_code_point(UnicodeUtils::REPLACEMENT_CODE_POINT);
-        else
-            builder.append_code_point(code_point);
-    }
+    utf8_view.for_each_code_point_with_replacement_character(allow_lonely_surrogates, [&](u32 code_point) {
+        builder.append_code_point(code_point);
+    });
 
     return builder.to_string_without_validation();
+}
+
+String String::from_utf8_with_replacement_character(StringView view, WithBOMHandling with_bom_handling)
+{
+    if (auto bytes = view.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
+        view = view.substring_view(3);
+
+    return from_bytes_with_replacement_character(view, AllowLonelySurrogates::No);
+}
+
+String String::from_wtf8_with_replacement_character(StringView view)
+{
+    return from_bytes_with_replacement_character(view, AllowLonelySurrogates::Yes);
 }
 
 String String::from_utf8_without_validation(ReadonlyBytes bytes)

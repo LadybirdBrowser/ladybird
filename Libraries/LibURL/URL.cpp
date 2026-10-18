@@ -186,7 +186,7 @@ void URL::set_scheme(StringView scheme)
 void URL::set_username(StringView username)
 {
     auto rust_url = to_rust();
-    auto processed_username = String::from_utf8_with_replacement_character(username, String::WithBOMHandling::No);
+    auto processed_username = String::from_wtf8_with_replacement_character(username);
     FFI::rust_url_set_username(&rust_url, rust_url_input(processed_username.bytes_as_string_view()), this, set_from_rust_callback);
 }
 
@@ -201,7 +201,7 @@ void URL::set_username(Utf16View username)
 void URL::set_password(StringView password)
 {
     auto rust_url = to_rust();
-    auto processed_password = String::from_utf8_with_replacement_character(password, String::WithBOMHandling::No);
+    auto processed_password = String::from_wtf8_with_replacement_character(password);
     FFI::rust_url_set_password(&rust_url, rust_url_input(processed_password.bytes_as_string_view()), this, set_from_rust_callback);
 }
 
