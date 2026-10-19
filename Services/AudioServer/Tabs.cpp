@@ -71,10 +71,14 @@ static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(
 
 Tabs::Tab& Tabs::tab_for(u64 tab_id)
 {
-    return m_tabs.ensure(tab_id, [audio_output = m_audio_output] {
-        auto mixer = Audio::PlaybackStreamMixer::create(Core::EventLoop::current(), DEVICE_TARGET_LATENCY_MS, [audio_output](Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback) {
+    return m_tabs.ensure(tab_id, [this, tab_id] {
+        auto mixer = Audio::PlaybackStreamMixer::create(Core::EventLoop::current(), DEVICE_TARGET_LATENCY_MS, [audio_output = m_audio_output](Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback) {
             return create_device_stream(audio_output, state, target_latency_ms, move(callback));
         });
+        if (auto authorized_groups = m_authorized_playback_groups.get(tab_id); authorized_groups.has_value()) {
+            for (auto group : *authorized_groups)
+                mixer->set_group_authorization(group, Audio::PlaybackGroupAuthorization::Authorized);
+        }
         return Tab { .mixer = move(mixer), .connections = {} };
     });
 }
@@ -123,6 +127,24 @@ void Tabs::set_capture_permission(u64 tab_id, bool granted)
         return;
     for (auto& [client_id, connection] : tab->connections)
         connection->set_capture_permitted(granted);
+}
+
+void Tabs::set_playback_group_authorization(u64 tab_id, Audio::PlaybackGroupId group, Audio::PlaybackGroupAuthorization authorization)
+{
+    switch (authorization) {
+    case Audio::PlaybackGroupAuthorization::Authorized:
+        m_authorized_playback_groups.ensure(tab_id).set(group);
+        break;
+    case Audio::PlaybackGroupAuthorization::Unauthorized:
+        if (auto authorized_groups = m_authorized_playback_groups.get(tab_id); authorized_groups.has_value()) {
+            authorized_groups->remove(group);
+            if (authorized_groups->is_empty())
+                m_authorized_playback_groups.remove(tab_id);
+        }
+        break;
+    }
+    if (auto tab = m_tabs.get(tab_id); tab.has_value())
+        tab->mixer->set_group_authorization(group, authorization);
 }
 
 void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided)

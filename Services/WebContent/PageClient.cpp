@@ -13,6 +13,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibAudio/OutputSession.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -23,6 +24,8 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
+#include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetImport.h>
@@ -1965,6 +1968,23 @@ void PageClient::page_did_update_primary_selection(Utf16String const& text)
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
 {
     client().async_did_change_audio_play_state(m_id, play_state);
+}
+
+// The UI process derives the group from the page's ID too, and has the AudioServer play it while the page hosts
+// documents.
+static Audio::PlaybackGroupId audio_playback_group(Web::PageId page_id)
+{
+    return Audio::PlaybackGroupId { page_id.value() };
+}
+
+NonnullRefPtr<Media::AudioOutputFactory> PageClient::create_audio_output_factory()
+{
+    return Media::AudioOutputFactory::create(Audio::OutputSession::create(audio_playback_group(m_id)));
+}
+
+NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playback_manager()
+{
+    return MediaClient::RemotePlaybackManager::create(audio_playback_group(m_id));
 }
 
 void PageClient::page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)

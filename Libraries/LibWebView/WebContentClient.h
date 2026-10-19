@@ -16,6 +16,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/WeakPtr.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
@@ -159,6 +160,10 @@ public:
     ErrorOr<void> grant_audio_capture(URL::URL const&);
     // The permission follows the origins the process's open pages show, so it goes with a navigation away.
     void update_audio_capture_permission();
+    // The process's AudioServer plays the page's sound while the page is authorized. It hears of an authorization
+    // before this returns, so a document the page goes on to run is heard from its start.
+    void authorize_audio_playback(Web::PageId);
+    void revoke_audio_playback(Web::PageId);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::CompositorContextId compositor_context_id_for_page(WebContentPage const&);
@@ -246,6 +251,7 @@ private:
     ErrorOr<void> ensure_audio_server_controller();
     ErrorOr<void> initialize_audio_server_controller();
     ErrorOr<void> tell_audio_server_of_capture_permission();
+    ErrorOr<void> tell_audio_server_of_playback_authorization(Audio::PlaybackGroupId);
     static String audio_capture_permission_key(URL::URL const&);
     bool audio_capture_permitted() const;
     void decide_audio_capture_request(u64 request_id);
@@ -260,6 +266,8 @@ private:
     // again whenever it relaunches, and rules on nothing itself.
     HashTable<String> m_audio_capture_grants;
     bool m_audio_capture_permitted { false };
+    // Likewise, the AudioServer is told again of the groups it may play.
+    HashTable<Audio::PlaybackGroupId> m_authorized_audio_playback_groups;
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     static HashTable<WebContentClient*>& clients();

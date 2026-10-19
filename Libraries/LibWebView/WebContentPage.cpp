@@ -647,6 +647,7 @@ void WebContentPage::close()
         m_client->update_audio_capture_permission();
         if (auto* bidi = WebDriverBiDi::the())
             bidi->push_session_state_for_client(*m_client);
+        m_client->revoke_audio_playback(m_id);
     }
     m_web_ui = nullptr;
     auto owed_replies = move(m_owed_replies);

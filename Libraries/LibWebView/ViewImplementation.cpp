@@ -3207,6 +3207,8 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     if (m_debugger_is_attached)
         page.async_attach_debugger();
     page.async_set_page_mute_state(m_mute_state);
+    // The page's sound plays while it hosts the tab's documents.
+    page.client().authorize_audio_playback(page.id());
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     Application::the().apply_view_options({}, *this, page);

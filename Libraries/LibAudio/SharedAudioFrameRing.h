@@ -85,6 +85,8 @@ public:
     // Consumer only.
     // Adds this ring's next frames, scaled by gain, into `mix` and returns how many frames it added.
     size_t pop_mixing_into(Span<float> mix, float gain);
+    // Drops up to the given number of this ring's next frames and returns how many it dropped.
+    size_t discard(size_t maximum_frame_count);
     void discard_all();
     // `played_at_ns` is when the device will have played everything consumed so far.
     void publish_consumption(i64 played_at_ns, bool playing);

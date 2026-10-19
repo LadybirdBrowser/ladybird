@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A media element in an SVG image starts loading without any script, and its playback goes through the page that
+    // displays the image.
+    promiseTest(async () => {
+        const image = new Image();
+        const loaded = new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+        });
+        image.src = "../../data/svg-image-with-a-media-element.svg";
+        await loaded;
+        println(`loaded: ${image.naturalWidth}x${image.naturalHeight}`);
+    });
+</script>
