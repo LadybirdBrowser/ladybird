@@ -1742,7 +1742,8 @@ void TabBar::update_tab_button_geometry()
             return;
         prepare_button(button, true);
 
-        auto should_be_visible = index != dragged_index && (position == QTabBar::LeftSide || index == m_hovered_tab_index);
+        auto should_be_visible = index != dragged_index
+            && (position == QTabBar::LeftSide || (index == m_hovered_tab_index && !m_tab_widget->can_expand_vertical_tabs_on_hover()));
         bool did_update_button = false;
         if (button->isVisible() != should_be_visible) {
             button->setVisible(should_be_visible);
