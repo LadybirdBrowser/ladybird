@@ -1501,16 +1501,18 @@ pub fn parse_builtin_file(source: &[u16]) -> ParsedProgram {
 
 /// Describes the named functions that a parsed builtin file declares at its top level, in source order, taking their
 /// ASTs out of the program.
-pub fn describe_builtin_file_functions(parsed: &mut ParsedProgram) -> Vec<SharedFunctionDescription> {
+pub fn describe_builtin_file_functions(parsed: &ParsedProgram) -> Vec<SharedFunctionDescription> {
     let arena = parsed.arena.clone();
     let scope = &arena.scopes[parsed.scope_ref];
+    // Every caller creates functions of its own from the same parse, so take them from a copy of its function table.
+    let mut function_table = parsed.function_table.clone();
     let mut descriptions = Vec::new();
     for child in &scope.children {
         if let StatementKind::FunctionDeclaration(ref function_declaration) = child.inner
             && function_declaration.name.is_some()
         {
-            let function_data = parsed.function_table.take(function_declaration.function_id);
-            let subtable = parsed.function_table.extract_reachable(&function_data, &arena.scopes);
+            let function_data = function_table.take(function_declaration.function_id);
+            let subtable = function_table.extract_reachable(&function_data, &arena.scopes);
             descriptions.push(describe_shared_function(
                 function_data,
                 subtable,

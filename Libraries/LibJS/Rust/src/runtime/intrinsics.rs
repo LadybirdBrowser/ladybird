@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
+use std::collections::HashMap;
+use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
@@ -823,34 +825,50 @@ namespace_object_accessors! {
     temporal_object: Temporal;
 }
 
-fn abstract_operations_source() -> Utf16String {
-    Utf16String::from_utf8(include_str!(
-        "../../../Runtime/JavaScriptImplementations/AbstractOperations.js"
-    ))
+fn abstract_operations_source() -> &'static str {
+    include_str!("../../../Runtime/JavaScriptImplementations/AbstractOperations.js")
 }
 
-fn array_constructor_source() -> Utf16String {
-    Utf16String::from_utf8(include_str!(
-        "../../../Runtime/JavaScriptImplementations/ArrayConstructor.js"
-    ))
+fn array_constructor_source() -> &'static str {
+    include_str!("../../../Runtime/JavaScriptImplementations/ArrayConstructor.js")
 }
 
-fn array_prototype_source() -> Utf16String {
-    Utf16String::from_utf8(include_str!(
-        "../../../Runtime/JavaScriptImplementations/ArrayPrototype.js"
-    ))
+fn array_prototype_source() -> &'static str {
+    include_str!("../../../Runtime/JavaScriptImplementations/ArrayPrototype.js")
 }
 
 /// The shared data of each named function a builtin file declares at its top level, in source order.
-pub(crate) fn parse_builtin_file(vm: &Vm, script_text: Utf16String) -> MarkedVec<'_, Gc<SharedFunctionInstanceData>> {
-    let code = SourceCode::create(Utf16String::from_utf8("BuiltinFile"), script_text);
-    let mut source = Vec::with_capacity(code.length_in_code_units());
-    Utf16View::of_string(code.code()).append_to(&mut source);
+pub(crate) fn parse_builtin_file<'vm>(
+    vm: &'vm Vm,
+    script_text: &'static str,
+) -> MarkedVec<'vm, Gc<SharedFunctionInstanceData>> {
+    // Every realm on this thread declares the same builtin files, so each is parsed once and its parse shared.
+    type ParsedBuiltinFile = (Rc<SourceCode>, crate::compile::ParsedProgram);
+    thread_local! {
+        static PARSED_BUILTIN_FILES: RefCell<HashMap<(usize, usize), Rc<ParsedBuiltinFile>>> =
+            RefCell::new(HashMap::new());
+    }
+    let parsed_file = PARSED_BUILTIN_FILES.with(|files| {
+        files
+            .borrow_mut()
+            .entry((script_text.as_ptr() as usize, script_text.len()))
+            .or_insert_with(|| {
+                let code = SourceCode::create(
+                    Utf16String::from_utf8("BuiltinFile"),
+                    Utf16String::from_utf8(script_text),
+                );
+                let mut source = Vec::with_capacity(code.length_in_code_units());
+                Utf16View::of_string(code.code()).append_to(&mut source);
+                let parsed = crate::compile::parse_builtin_file(&source);
+                Rc::new((code, parsed))
+            })
+            .clone()
+    });
+    let (code, parsed) = &*parsed_file;
 
-    let mut parsed = crate::compile::parse_builtin_file(&source);
     let shared_data_list = MarkedVec::new(vm);
-    for description in crate::compile::describe_builtin_file_functions(&mut parsed) {
-        shared_data_list.push(SharedFunctionInstanceData::create(vm, description, Some(&code)));
+    for description in crate::compile::describe_builtin_file_functions(parsed) {
+        shared_data_list.push(SharedFunctionInstanceData::create(vm, description, Some(code)));
     }
     shared_data_list
 }
