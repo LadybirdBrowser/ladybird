@@ -13,7 +13,7 @@ use num_traits::Zero;
 
 use crate::build_configuration::HEAP_REGION_OFFSET_MASK;
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
-use crate::bytecode::property_access::{CachePropertyAbsence, GetByIdMode, get_by_id};
+use crate::bytecode::property_access::{GetByIdMode, get_by_id};
 use crate::gc::capi::js_heap_region_base;
 use crate::gc::class_id::ClassId;
 use crate::interpreter::vm::Vm;
@@ -989,16 +989,7 @@ impl Value {
         if self.is_nullish() {
             return vm.throw_completion(ErrorKind::TypeError, ErrorType::ToObjectNullOrUndefined, &[]);
         }
-        get_by_id(
-            vm,
-            GetByIdMode::Normal,
-            || None,
-            property_key,
-            self,
-            self,
-            cache,
-            CachePropertyAbsence::Yes,
-        )
+        get_by_id(vm, GetByIdMode::Normal, || None, property_key, self, self, cache)
     }
 
     // 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
