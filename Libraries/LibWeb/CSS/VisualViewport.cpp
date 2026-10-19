@@ -214,6 +214,16 @@ CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) con
     return inverse.map(position.to_type<int>()).to_type<CSSPixels>();
 }
 
+CSSPixelPoint VisualViewport::map_from_layout_viewport(CSSPixelPoint position) const
+{
+    return transform().map(position.to_type<float>()).to_type<CSSPixels>();
+}
+
+CSSPixelRect VisualViewport::map_from_layout_viewport(CSSPixelRect const& rect) const
+{
+    return transform().map(rect.to_type<float>()).to_type<CSSPixels>();
+}
+
 void VisualViewport::reset()
 {
     m_scale = 1.0;

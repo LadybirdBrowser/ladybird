@@ -1,0 +1,3 @@
+scale: 2
+target: word
+menu at pointer: true

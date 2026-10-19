@@ -4541,11 +4541,30 @@ void LocalNavigable::set_parent_compositor_context(Optional<Web::CompositorConte
 CSSPixelRect LocalNavigable::to_page_rect(CSSPixelRect const& a_rect)
 {
     auto rect = a_rect;
-    rect.set_location(to_page_position(a_rect.location()));
+    auto position = to_local_root_viewport_position(a_rect.location());
+    if (!position.has_value()) {
+        rect.set_location({});
+        return rect;
+    }
+    rect.set_location(*position);
+    if (auto document = local_root()->active_document())
+        return document->visual_viewport()->map_from_layout_viewport(rect);
     return rect;
 }
 
 CSSPixelPoint LocalNavigable::to_page_position(CSSPixelPoint a_position)
+{
+    auto position = to_local_root_viewport_position(a_position);
+    if (!position.has_value())
+        return {};
+    if (auto document = local_root()->active_document())
+        return document->visual_viewport()->map_from_layout_viewport(*position);
+    return *position;
+}
+
+// Maps a position in this navigable's layout viewport to one in the layout viewport of its local root. The page sees
+// that through the local root's visual viewport, which the user may have pinch-zoomed.
+Optional<CSSPixelPoint> LocalNavigable::to_local_root_viewport_position(CSSPixelPoint a_position)
 {
     auto position = a_position;
     for (GC::Ptr<LocalNavigable> ancestor = this; ancestor;) {

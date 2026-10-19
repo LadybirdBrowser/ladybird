@@ -375,6 +375,7 @@ public:
         };
         Kind kind { Kind::Page };
         GC::Ref<DOM::Node> target;
+        CSSPixelPoint position;
         Optional<Web::MediaContextMenu> media {};
     };
     void record_context_menu_request(Badge<EventHandler>, ContextMenuRequest);

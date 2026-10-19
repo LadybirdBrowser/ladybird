@@ -433,6 +433,8 @@ private:
     void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
     Gfx::IntRect present_viewport_rect() const;
 
+    Optional<CSSPixelPoint> to_local_root_viewport_position(CSSPixelPoint);
+
     // A navigation the UI process is to continue: it checks unloading, then asks for the navigation params.
     struct NavigationParkedForPopulation {
         Utf16String navigation_id;
