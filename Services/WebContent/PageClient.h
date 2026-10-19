@@ -365,6 +365,7 @@ private:
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
     virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory() override;
     virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager() override;
+    virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&) override;
     virtual void page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState) override;
     virtual void page_did_start_using_gamepads() override;
     virtual void page_did_play_gamepad_effect(Web::Gamepad::GamepadHandle, Web::Gamepad::GamepadEffect const&) override;

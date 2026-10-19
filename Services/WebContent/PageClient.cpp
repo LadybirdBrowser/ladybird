@@ -1987,6 +1987,11 @@ NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playb
     return MediaClient::RemotePlaybackManager::create(audio_playback_group(m_id));
 }
 
+void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager& playback_manager)
+{
+    playback_manager.set_audio_group(audio_playback_group(m_id));
+}
+
 void PageClient::page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
 {
     client().async_did_change_screen_wake_lock_state(m_id, wake_lock_state);

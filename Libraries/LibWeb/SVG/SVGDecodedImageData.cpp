@@ -505,6 +505,11 @@ NonnullOwnPtr<MediaClient::RemotePlaybackManager> SVGDecodedImageData::SVGPageCl
     return m_host_page->client().create_media_playback_manager();
 }
 
+void SVGDecodedImageData::SVGPageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager& playback_manager)
+{
+    m_host_page->client().rebind_media_playback_manager(playback_manager);
+}
+
 void SVGDecodedImageData::did_request_frame()
 {
     // Recording the SVG image can itself schedule a frame request through the

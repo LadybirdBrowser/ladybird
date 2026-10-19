@@ -70,6 +70,7 @@ private:
     virtual void seek(u64 session_id, u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode) override;
     virtual void set_volume(u64 session_id, double volume) override;
     virtual void set_playback_rate(u64 session_id, float rate) override;
+    virtual void set_audio_group(u64 session_id, Audio::PlaybackGroupId audio_group) override;
     virtual void set_duration(u64 session_id, AK::Duration duration) override;
     virtual void set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback) override;
     virtual void reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) override;

@@ -2432,4 +2432,9 @@ NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playb
     VERIFY_NOT_REACHED();
 }
 
+void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager&)
+{
+    VERIFY_NOT_REACHED();
+}
+
 }

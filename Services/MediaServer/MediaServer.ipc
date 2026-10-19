@@ -37,6 +37,7 @@ endpoint MediaServer
     seek(u64 session_id, u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode) =|
     set_volume(u64 session_id, double volume) =|
     set_playback_rate(u64 session_id, float rate) =|
+    set_audio_group(u64 session_id, Audio::PlaybackGroupId audio_group) =|
     set_duration(u64 session_id, AK::Duration duration) =|
     set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback) =|
     reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) =|

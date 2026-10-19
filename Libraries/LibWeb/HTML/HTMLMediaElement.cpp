@@ -427,6 +427,10 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
         document().media_element_audio_play_state_changed({});
     }
 
+    // The element's sound plays for the page of the document it is in, without restarting its playback.
+    if (m_playback_manager && &old_document.page() != &document().page())
+        document().page().client().rebind_media_playback_manager(*m_playback_manager);
+
     // https://html.spec.whatwg.org/multipage/media.html#delaying-the-load-event-flag
     // While the delaying-the-load-event flag is true, the element must delay the load event of its document.
     // NB: The flag delays the load event of the element's current node document, so it follows the element when it is
