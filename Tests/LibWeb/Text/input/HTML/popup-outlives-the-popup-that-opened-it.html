@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Closing a popup should leave the popups it opened working. Here the second popup navigates to a page that closes
+    // it, which only happens if it can still navigate after the first popup is gone.
+    promiseTest(async () => {
+        const url = await httpTestServer().createEcho("GET", `/popup-outlives-its-opener-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<script>close();<\/script>",
+        });
+
+        const firstPopup = open("about:blank");
+        firstPopup.internals.grantTransientActivation();
+        const script = firstPopup.document.createElement("script");
+        script.textContent = `window.secondPopup = open("about:blank");`;
+        firstPopup.document.body.appendChild(script);
+        const secondPopup = firstPopup.secondPopup;
+
+        firstPopup.close();
+        secondPopup.location.href = url;
+        println(`Second popup navigated: ${await waitForCondition(() => secondPopup.closed)}`);
+    });
+</script>
