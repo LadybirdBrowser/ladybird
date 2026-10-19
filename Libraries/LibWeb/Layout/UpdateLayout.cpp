@@ -5,6 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <AK/StringBuilder.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
@@ -21,6 +22,51 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 
 namespace Web::DOM {
+
+// Describes the node a style node names, for the panic of a layout update that ran out of passes: the node and its
+// flat tree ancestors, each with whether it is styled and the display of its box, as a NUL-terminated ASCII string in
+// the buffer, which the panic's message quotes.
+static void describe_node_for_bound_failure(Document& document, Layout::BegunRead const& read, u32 style_node, Bytes buffer)
+{
+    StringBuilder builder;
+    GC::Ptr<Node> node;
+    if (style_node)
+        node = document.style_computer().node_for_style_node(CSS::StyleNodeID { style_node });
+    if (!node) {
+        builder.append("none"sv);
+    } else {
+        int depth = 0;
+        for (Node* current = node.ptr(); current && depth < 6; current = current->flat_tree_parent(), ++depth) {
+            if (depth)
+                builder.append(" < "sv);
+            auto* element = as_if<Element>(*current);
+            if (!element) {
+                if (current->is_document())
+                    builder.append("document"sv);
+                else if (current->is_text())
+                    builder.append("#text"sv);
+                else
+                    builder.append("node"sv);
+                continue;
+            }
+            builder.appendff("{}", element->local_name());
+            if (element->id().has_value())
+                builder.appendff("#{}", element->id().value());
+            for (auto const& class_name : element->class_names())
+                builder.appendff(".{}", class_name);
+            if (!element->has_style())
+                builder.append("{unstyled}"sv);
+            else if (auto const* layout_node = element->unsafe_layout_node(read))
+                builder.appendff("{{{}}}", layout_node->display().to_string());
+            else
+                builder.append("{no box}"sv);
+        }
+    }
+    auto text = builder.string_view();
+    auto length = min(text.length(), buffer.size() - 1);
+    memcpy(buffer.data(), text.characters_without_null_termination(), length);
+    buffer[length] = 0;
+}
 
 // The document-side steps of the layout update, which the Rust loop drives through this table.
 Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callbacks()
@@ -80,11 +126,11 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         .after_layout_commit = [](void* context, Layout::BegunRead const* read, bool layout_tree_changed) { static_cast<Document*>(context)->after_layout_commit(*read, layout_tree_changed ? LayoutTreeChanged::Yes : LayoutTreeChanged::No); },
         .note_full_layout_performed = [](void* context) { static_cast<Document*>(context)->style_invalidation_counters().relayouts_performed++; },
         .evaluate_pending_container_queries = [](void* context, Layout::BegunRead const* read) { static_cast<Document*>(context)->style_computer().style_engine().evaluate_size_containers_needing_evaluation_after_layout(*read); },
-        .record_stabilization_bound_failure = [](void* context, Layout::BegunRead const* read) -> Layout::RustFFI::FfiStabilizationBoundFailureHostFacts {
+        .record_stabilization_bound_failure = [](void* context, Layout::BegunRead const* read, u32 last_unstyled_element, u32 last_rebuild_request) -> Layout::RustFFI::FfiStabilizationBoundFailureHostFacts {
             auto& document = *static_cast<Document*>(context);
             ++document.m_style_invalidation_counters.style_stabilization_bound_failures;
             auto navigable = document.navigable();
-            return {
+            Layout::RustFFI::FfiStabilizationBoundFailureHostFacts facts {
                 .document_is_top_level = navigable && navigable->is_top_level_traversable(),
                 .needs_animated_style_update = document.m_needs_animated_style_update,
                 .has_pending_style_transaction = document.style_computer().style_engine().has_pending_transaction(*read),
@@ -95,7 +141,12 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
                 .top_layer_membership_changes_pending = !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .document_needs_layout_tree_update = document.needs_layout_tree_update(),
                 .document_child_needs_layout_tree_update = document.child_needs_layout_tree_update(),
-            }; },
+                .last_unstyled_element = {},
+                .last_rebuild_request = {},
+            };
+            describe_node_for_bound_failure(document, *read, last_unstyled_element, { facts.last_unstyled_element, sizeof(facts.last_unstyled_element) });
+            describe_node_for_bound_failure(document, *read, last_rebuild_request, { facts.last_rebuild_request, sizeof(facts.last_rebuild_request) });
+            return facts; },
         .attach_style_resources = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image, Layout::RustFFI::FfiStyleImageFacts images) {
             auto& document = *static_cast<Document*>(context);
             if (Layout::attach_owed_style_resources(*read, document, slot, owns_content_replacement_image, images))
