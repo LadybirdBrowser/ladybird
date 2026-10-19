@@ -1020,6 +1020,10 @@ pub enum Op {
     Float64ToInt32,
     /// ToUint8Clamp of the numeric `Repr::Float64` input 0, as a `Repr::Int32`.
     Float64ToUint8Clamped,
+    /// The `Repr::Float64` input 0 as a `Repr::Int32`. Exits with
+    /// `ExitKind::NotInt32` unless it is an int32 (and not -0): what a
+    /// `CheckInt32` of its `BoxFloat64` does, without the boxing.
+    CheckFloat64Int32,
     /// `input 0 >>> input 1` of two `Repr::Int32` inputs, as the
     /// `Repr::Int32` of the bits of the unsigned result.
     Uint32ShiftRight,
@@ -1348,7 +1352,11 @@ impl Op {
                 allocates: true,
                 ..P::PURE
             },
-            Op::CheckInt32 | Op::CheckNumber | Op::CheckIdentityComparable | Op::CheckNonNegativeInt32 => P::PURE,
+            Op::CheckInt32
+            | Op::CheckFloat64Int32
+            | Op::CheckNumber
+            | Op::CheckIdentityComparable
+            | Op::CheckNonNegativeInt32 => P::PURE,
             Op::BoxInt32
             | Op::BoxBool
             | Op::Int32Binary { .. }
@@ -1643,6 +1651,7 @@ impl Op {
             Op::LoadArgument { .. } => "LoadArgument",
             Op::CallForwardingArguments { .. } => "CallForwardingArguments",
             Op::CheckInt32 => "CheckInt32",
+            Op::CheckFloat64Int32 => "CheckFloat64Int32",
             Op::CheckNumber => "CheckNumber",
             Op::BoxInt32 => "BoxInt32",
             Op::BoxBool => "BoxBool",
@@ -1802,7 +1811,7 @@ impl Op {
             Op::CheckObject => Some(ExitKind::NotObject),
             Op::CheckElements { .. } | Op::CheckTypedArray => Some(ExitKind::BadElements),
             Op::CheckBounds | Op::CheckNotHole | Op::CheckTypedArrayStorage => Some(ExitKind::OutOfBounds),
-            Op::CheckInt32 => Some(ExitKind::NotInt32),
+            Op::CheckInt32 | Op::CheckFloat64Int32 => Some(ExitKind::NotInt32),
             Op::CheckArray => Some(ExitKind::BadType),
             Op::CheckNonNegativeInt32 => Some(ExitKind::Overflow),
             Op::CheckNumber | Op::CheckIdentityComparable | Op::HasInPrototypeChain => Some(ExitKind::BadType),

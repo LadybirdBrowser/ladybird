@@ -1381,6 +1381,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.emit_unbox_cell(output, input);
             }
             Op::CheckInt32 => self.emit_check_int32(node_id),
+            Op::CheckFloat64Int32 => self.emit_check_float64_int32(node_id),
             Op::CheckNumber => self.emit_check_number(node_id),
             Op::CheckIdentityComparable => self.emit_check_identity_comparable(node_id),
             Op::BoxInt32 => {

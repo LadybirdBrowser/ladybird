@@ -411,9 +411,11 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                     _ => None,
                 },
                 // NB: The double of a double checked to be an int32 is the
-                //     double, which needs no check.
+                //     double, which needs no check. A CheckFloat64Int32 stays
+                //     where it is, since it may exit.
                 Op::Int32ToFloat64 => match graph.node(inputs[0]).op {
                     Op::UnboxInt32 => boxed(Op::BoxFloat64, graph.node(inputs[0]).inputs[0]),
+                    Op::CheckFloat64Int32 => Some(graph.node(inputs[0]).inputs[0]),
                     _ => dissolved_double(graph, inputs[0]),
                 },
                 // NB: Both signed and unsigned int32 values are exactly
@@ -531,6 +533,20 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
             if let Some(constant) = folded {
                 replacements.replace(node, constant);
                 removed.insert(node.index());
+                continue;
+            }
+            // NB: Once no check of a double goes anymore, an int32 check of a
+            //     boxed double checks the double itself, so that only users
+            //     that need the boxing keep it.
+            if !dissolve_checks
+                && graph.node(node).op == Op::CheckInt32
+                && let boxing = graph.node(graph.unrefined(inputs[0]))
+                && boxing.op == Op::BoxFloat64
+            {
+                let double = boxing.inputs[0];
+                let data = &mut graph.nodes[node.index()];
+                data.op = Op::CheckFloat64Int32;
+                data.inputs = vec![double];
                 continue;
             }
             // NB: Int32 operations take constant right-hand sides as
