@@ -2595,6 +2595,66 @@ struct SharedSelectorProgram {
     program: SelectorProgram,
     hash: u64,
     _memory: MemoryLease,
+    /// Each entry's transpose entry points, walked the first time a document routes the program.
+    transpose_sites: std::sync::OnceLock<TransposeSites>,
+}
+
+/// The transpose entry points of each entry of a shared program, charged to the process's program pools.
+struct TransposeSites {
+    by_entry: Box<[Box<[OwnedTransposeSite]>]>,
+    _memory: MemoryLease,
+}
+
+/// A transpose entry point kept beside the program it was walked from.
+struct OwnedTransposeSite {
+    key: RoutingKey,
+    node: SelectorNodeID,
+    origin: SelectorNodeID,
+    path: Box<[InverseStep]>,
+    anchor: Option<RelativeAnchor>,
+    origin_dispatch: Box<[DispatchKey]>,
+    origin_required: Box<[DispatchKey]>,
+    parent_dispatch: Box<[DispatchKey]>,
+    waypoints: Box<[DispatchKey]>,
+}
+
+impl OwnedTransposeSite {
+    fn new(site: TransposeSite<'_>) -> Self {
+        Self {
+            key: site.key,
+            node: site.node,
+            origin: site.origin,
+            path: site.path.into(),
+            anchor: site.anchor,
+            origin_dispatch: site.origin_dispatch.into(),
+            origin_required: site.origin_required.into(),
+            parent_dispatch: site.parent_dispatch.into(),
+            waypoints: site.waypoints.into(),
+        }
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        (size_of::<Self>()
+            + size_of_val(self.path.as_ref())
+            + size_of_val(self.origin_dispatch.as_ref())
+            + size_of_val(self.origin_required.as_ref())
+            + size_of_val(self.parent_dispatch.as_ref())
+            + size_of_val(self.waypoints.as_ref())) as u64
+    }
+
+    fn site(&self) -> TransposeSite<'_> {
+        TransposeSite {
+            key: self.key,
+            node: self.node,
+            origin: self.origin,
+            path: &self.path,
+            anchor: self.anchor,
+            origin_dispatch: &self.origin_dispatch,
+            origin_required: &self.origin_required,
+            parent_dispatch: &self.parent_dispatch,
+            waypoints: &self.waypoints,
+        }
+    }
 }
 
 /// A selector program interned for the whole process, which a document attaches without compiling it.
@@ -2649,6 +2709,7 @@ fn share_selector_program(
         program,
         hash,
         _memory: program_memory,
+        transpose_sites: std::sync::OnceLock::new(),
     });
     pool.insert(hash, &program);
     program
@@ -3023,6 +3084,51 @@ impl SelectorPrograms {
             .as_ref()
             .expect("a selector program identity must remain live while referenced")
             .program()
+    }
+
+    /// Visit the transpose entry points of one entry of a program, as
+    /// `SelectorProgram::collect_transpose_entry_points` does. A program the whole process shares
+    /// is walked once, for every document that routes it.
+    pub fn for_each_transpose_entry_point(
+        &self,
+        program: SelectorProgramID,
+        entry: usize,
+        mut visit: impl FnMut(TransposeSite<'_>),
+    ) {
+        match self.programs[program.0 as usize]
+            .as_ref()
+            .expect("a selector program identity must remain live while referenced")
+        {
+            SelectorProgramStorage::Process(shared) => {
+                let sites = shared.transpose_sites.get_or_init(|| {
+                    let by_entry: Box<[Box<[OwnedTransposeSite]>]> = (0..shared.program.entries().len())
+                        .map(|entry| {
+                            let mut sites = Vec::new();
+                            shared.program.collect_transpose_entry_points(entry, |site| {
+                                sites.push(OwnedTransposeSite::new(site));
+                            });
+                            sites.into_boxed_slice()
+                        })
+                        .collect();
+                    let bytes = size_of_val(by_entry.as_ref()) as u64
+                        + by_entry
+                            .iter()
+                            .flatten()
+                            .map(OwnedTransposeSite::capacity_bytes)
+                            .sum::<u64>();
+                    let mut memory = MemoryLease::new(MemoryCategory::RuleProgram);
+                    memory.reconcile_committed(&mut selector_program_pools().programs.memory, bytes);
+                    TransposeSites {
+                        by_entry,
+                        _memory: memory,
+                    }
+                });
+                for site in &sites.by_entry[entry] {
+                    visit(site.site());
+                }
+            }
+            SelectorProgramStorage::Document(compiled) => compiled.collect_transpose_entry_points(entry, visit),
+        }
     }
 
     #[must_use]
@@ -4677,7 +4783,7 @@ impl RoutingRegistry {
             let subject_required = compiled.subject_required_keys(entry);
             let subject_position = compiled.subject_position(entry);
             let mut entry_registered = false;
-            compiled.collect_transpose_entry_points(entry, |site| {
+            programs.for_each_transpose_entry_point(program, entry, |site| {
                 if !entry_registered {
                     self.register_entry_facts(
                         entry_id,
