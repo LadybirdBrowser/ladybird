@@ -782,6 +782,11 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
 {
     auto now = now_for_testing.value_or(MonotonicTime::now());
 
+    // Nothing hit tests a wheel before the first display list shows where the scrollers are, and the page can let a
+    // touchpad step through to here before then.
+    if (!m_has_async_scrolling_state)
+        return AsyncScrollResult::declined(Web::InputRoutingDecision::NoAsyncScrollingState);
+
     // The UI hands this context every wheel event before WebContent's main thread passes it on. A step that the main
     // thread passes on after the UI sent one it cannot come before must neither latch a scroller nor pull a stretch,
     // since nothing would be left to let go of either.
