@@ -404,6 +404,64 @@ pub(super) struct EnvironmentByAnswer {
     custom_property_reads: Option<Option<CustomPropertyNames>>,
 }
 
+/// The custom properties cascaded custom declarations declare or read, by the declarations: the operator, written
+/// value and name of each, the last two of which an entry holds so that neither is handed out again while it does.
+#[derive(Default)]
+pub(super) struct CustomPropertyReadsByDeclarations(HashMap<u64, MemoizedCustomPropertyReads>);
+
+/// A cascaded custom declaration as the memo holds it: its operator, written value and declared name.
+type HeldCustomDeclaration = (CascadeOperator, RetainedStyleValueData, Arc<[u16]>);
+
+struct MemoizedCustomPropertyReads {
+    declarations: Box<[HeldCustomDeclaration]>,
+    reads: Option<CustomPropertyNames>,
+}
+
+// A copy of the engine state starts over, as the memo only saves work.
+impl Clone for CustomPropertyReadsByDeclarations {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl CustomPropertyReadsByDeclarations {
+    /// The most declaration lists remembered at once.
+    const LIMIT: usize = 4096;
+
+    fn get(
+        &self,
+        hash: u64,
+        declarations: &[(CascadeOperator, &RetainedStyleValueData, Arc<[u16]>)],
+    ) -> Option<Option<CustomPropertyNames>> {
+        let memoized = self.0.get(&hash)?;
+        let same = memoized.declarations.len() == declarations.len()
+            && memoized.declarations.iter().zip(declarations).all(
+                |((operator, value, name), (other_operator, other_value, other_name))| {
+                    operator == other_operator
+                        && value.pointer() == other_value.pointer()
+                        && Arc::ptr_eq(name, other_name)
+                },
+            );
+        same.then(|| memoized.reads.clone())
+    }
+
+    fn remember(
+        &mut self,
+        hash: u64,
+        declarations: &[(CascadeOperator, &RetainedStyleValueData, Arc<[u16]>)],
+        reads: Option<CustomPropertyNames>,
+    ) {
+        if self.0.len() >= Self::LIMIT {
+            self.0.clear();
+        }
+        let declarations = declarations
+            .iter()
+            .map(|(operator, value, name)| (*operator, (*value).clone(), Arc::clone(name)))
+            .collect();
+        self.0.insert(hash, MemoizedCustomPropertyReads { declarations, reads });
+    }
+}
+
 pub(super) fn append_custom_property_reads(value: &StyleValueData, names: &mut Vec<Arc<[u16]>>) -> bool {
     let Some((references, all_references_visible)) = custom_property_references(substituted_tokens(value)) else {
         return true;
@@ -1340,21 +1398,42 @@ impl RetainedState {
     }
 
     fn cascaded_custom_property_reads(
-        &self,
+        &mut self,
         cascaded: &[(CustomDeclaration, RetainedStyleValueData)],
     ) -> Option<CustomPropertyNames> {
-        let mut names = Vec::new();
+        let mut declarations = Vec::with_capacity(cascaded.len());
         for (declared, value) in cascaded {
-            if !matches!(declared.operator, CascadeOperator::Declared | CascadeOperator::Initial)
-                || !append_custom_property_reads(value.data(), &mut names)
-            {
+            if !matches!(declared.operator, CascadeOperator::Declared | CascadeOperator::Initial) {
                 return None;
+            }
+            let name = Arc::clone(&self.declared_custom_property_name(declared.name)?.text);
+            declarations.push((declared.operator, value, name));
+        }
+        // OPTIMIZATION: Elements alike in their rules cascade the same declarations, which read the same names.
+        let hash = intern_table::content_hash(
+            declarations
+                .iter()
+                .map(|(operator, value, name)| (*operator, value.pointer(), Arc::as_ptr(name).cast::<u16>()))
+                .collect::<SmallVec<[_; 16]>>(),
+        );
+        if let Some(memoized) = self.custom_property_reads_by_declarations.get(hash, &declarations) {
+            return memoized;
+        }
+        let mut names = Vec::new();
+        let mut reads_are_listed = true;
+        for (_, value, name) in &declarations {
+            if !append_custom_property_reads(value.data(), &mut names) {
+                reads_are_listed = false;
+                break;
             }
             // A declared name counts as a read. An environment leaves out a declared value equal to the
             // one it inherits.
-            names.push(self.declared_custom_property_name(declared.name)?.text.clone());
+            names.push(Arc::clone(name));
         }
-        Some(sorted_custom_property_names(names))
+        let reads = reads_are_listed.then(|| sorted_custom_property_names(names));
+        self.custom_property_reads_by_declarations
+            .remember(hash, &declarations, reads.clone());
+        reads
     }
 
     /// The name a cascaded custom declaration names, as its store entry keys it. A block's

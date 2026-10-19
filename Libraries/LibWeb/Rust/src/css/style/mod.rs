@@ -853,6 +853,8 @@ pub struct RetainedState {
     /// declare or read through `var()`. `None` when they cannot be listed.
     custom_declaration_custom_property_reads:
         HashMap<StyleNodeID, Option<custom_property_cascade::CustomPropertyNames>>,
+    /// What `custom_declaration_custom_property_reads` notes, by the custom declarations an element cascaded.
+    custom_property_reads_by_declarations: custom_property_cascade::CustomPropertyReadsByDeclarations,
     /// The custom-property environments elements resolved to over the environments they inherit, and what their
     /// declarations read, by the match answer the declarations cascaded from: an element alike in its answer, its
     /// tree and what it inherits resolves alike. Cleared wherever a match answer's identity may be handed out again.
