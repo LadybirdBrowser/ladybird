@@ -30,7 +30,7 @@ displayListTest({
             mutate: () => { m.setAttribute("width", "200"); },
             check: equal => { equal(document.elementFromPoint(50, 50), masked, "expanded mask includes hit"); },
             expect: `
-                damage: rows=8 moved=0 order=0 eligibility=0 all=false
+                damage: rows=7 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
