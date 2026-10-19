@@ -244,6 +244,7 @@ private:
 
     ErrorOr<IPC::TransportHandle> connect_audio_server_client();
     ErrorOr<void> ensure_audio_server_controller();
+    ErrorOr<void> initialize_audio_server_controller();
     ErrorOr<void> tell_audio_server_of_capture_permission();
     static String audio_capture_permission_key(URL::URL const&);
     bool audio_capture_permitted() const;

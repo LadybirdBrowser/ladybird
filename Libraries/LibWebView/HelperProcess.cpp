@@ -694,11 +694,12 @@ ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerControlClient>& c
     return {};
 }
 
-ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 owner_child_id, u64 audio_tab_id)
+ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(AudioServerControlClient& controller, u64 audio_tab_id)
 {
-    TRY(ensure_audio_server_is_running(controller, owner_child_id));
+    if (!controller.is_open())
+        return Error::from_string_literal("The AudioServer is gone");
 
-    auto response = controller->send_sync_but_allow_failure<Messages::AudioServerControl::ConnectNewClient>(audio_tab_id);
+    auto response = controller.send_sync_but_allow_failure<Messages::AudioServerControl::ConnectNewClient>(audio_tab_id);
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to AudioServer");
     return response->take_handle().release_value();

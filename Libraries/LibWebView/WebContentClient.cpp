@@ -881,9 +881,17 @@ void WebContentClient::request_video_presentation_channel()
 
 ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
 {
-    // The server must know of the permission before any client gets its connection.
-    TRY(ensure_audio_server_controller());
-    return connect_new_audio_server_client(m_audio_server_client, child_id(), m_audio_tab_id);
+    // The server must know of the permission before any client gets its connection. A failed request can reveal that the
+    // existing server has died, so the connection is tried once more, letting a closed controller be replaced and
+    // initialized first.
+    auto connect = [this]() -> ErrorOr<IPC::TransportHandle> {
+        TRY(ensure_audio_server_controller());
+        return connect_new_audio_server_client(*m_audio_server_client, m_audio_tab_id);
+    };
+    auto handle = connect();
+    if (handle.is_error())
+        handle = connect();
+    return handle;
 }
 
 ErrorOr<void> WebContentClient::ensure_audio_server_controller()
@@ -892,6 +900,16 @@ ErrorOr<void> WebContentClient::ensure_audio_server_controller()
     TRY(ensure_audio_server_is_running(m_audio_server_client, child_id()));
     if (m_audio_server_client.ptr() == previous_controller)
         return {};
+    // A server that isn't told everything gets no clients; the next attempt starts over with another.
+    if (auto result = initialize_audio_server_controller(); result.is_error()) {
+        m_audio_server_client->shutdown();
+        return result.release_error();
+    }
+    return {};
+}
+
+ErrorOr<void> WebContentClient::initialize_audio_server_controller()
+{
     m_audio_server_client->on_capture_requested = [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, u64 request_id, ByteString const&) {
         auto self = weak_self.strong_ref();
         if (self && tab_id == self->m_audio_tab_id)
