@@ -4062,18 +4062,23 @@ impl RetainedState {
             .and_then(|(previous_generation, previous_state)| {
                 (previous_generation == current_generation).then_some(previous_state)
             });
-        let delta = self
-            .winner_groups
-            .semantic_delta(previous_cascade_state, current_cascade_state);
-        if delta.is_empty() {
+        // A first binding moves every winner of the state, which needs no merge to count.
+        let changed_properties = match previous_cascade_state {
+            None => self.winner_groups.winner_count_in_state(current_cascade_state),
+            previous => self
+                .winner_groups
+                .semantic_delta_properties(previous, current_cascade_state)
+                .count(),
+        };
+        if changed_properties == 0 {
             self.counters.bump(Counter::CascadeWinnerDeltaStops);
             return;
         }
         self.counters
-            .add(Counter::CascadeWinnerDeltaProperties, delta.properties().len() as u64);
+            .add(Counter::CascadeWinnerDeltaProperties, changed_properties as u64);
         self.counters.add(
             Counter::ComputedWinnerDeltaPropertiesConsumed,
-            delta.properties().len() as u64,
+            changed_properties as u64,
         );
         if !node_handle_changed {
             self.counters.bump(Counter::ComputedWinnerPropagationStops);
