@@ -12,6 +12,7 @@
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Export.h>
+#include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibIPC/Forward.h>
 
@@ -42,11 +43,15 @@ public:
     FontResourceId add_font(Gfx::Font const&);
     Vector<DisplayListFontResource> take_fonts();
 
+    void retain_video_frame_hold(NonnullRefPtr<VideoFrameHold>);
+    Vector<NonnullRefPtr<VideoFrameHold>> take_video_frame_holds() { return move(m_video_frame_holds); }
+
 private:
     void append_segment(CanvasId, bool present);
 
     Vector<Canvas2DCommandStreamSegment> m_segments;
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
+    Vector<NonnullRefPtr<VideoFrameHold>> m_video_frame_holds;
     // The tail segment grows through the reference commands_for() hands out,
     // so its command count is only known at query time.
     size_t m_command_count_excluding_tail { 0 };

@@ -1,0 +1,4 @@
+drawImage before the seek: 1
+createPattern before the seek: 1
+texImage2D before the seek: 1
+drawImage after the seek: 3

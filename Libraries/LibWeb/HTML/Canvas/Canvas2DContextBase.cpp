@@ -263,6 +263,29 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
         }
     }
 
+    if (auto const* source_video = image.get_pointer<GC::Ref<HTMLVideoElement>>()) {
+        auto captured_frame = (*source_video)->capture_current_video_frame();
+        if (!captured_frame.has_value())
+            return {};
+        if (auto* canvas_command_list = this->canvas_command_list()) {
+            canvas_command_list->append(Gfx::CanvasCommands::DrawVideoFrame {
+                .video_sink_handle = captured_frame->sink_handle.value(),
+                .generation = captured_frame->generation,
+                .dst_rect = destination_rect,
+                .src_rect = source_rect.to_rounded<int>(),
+                .scaling_mode = scaling_mode,
+                .filter = drawing_state().filter,
+                .global_alpha = drawing_state().global_alpha,
+                .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
+            });
+            m_transport->shared_stream().retain_video_frame_hold(*captured_frame->hold);
+            did_draw(destination_rect);
+        }
+        if (image_is_not_origin_clean(image))
+            m_origin_clean = false;
+        return {};
+    }
+
     auto frame = canvas_image_source_frame(image);
     if (!frame.has_value())
         return {};

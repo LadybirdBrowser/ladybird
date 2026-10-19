@@ -271,12 +271,12 @@ void CompositorConnection::hand_frame_sink_to_paint_thread()
     paint_stage_adopt_frame_sink(&sink.leak_ref());
 }
 
-void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_handle)
+void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page)
 {
     if (!can_send_message_to_compositor())
         return;
     ensure_video_presentation_channel();
-    async_add_video_sink(video_sink_handle);
+    async_add_video_sink(video_sink_handle, move(presentation_page));
 }
 
 void CompositorConnection::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
@@ -284,6 +284,21 @@ void CompositorConnection::remove_video_sink(Media::VideoSinkHandle video_sink_h
     if (!can_send_message_to_compositor())
         return;
     async_remove_video_sink(video_sink_handle);
+}
+
+void CompositorConnection::release_video_frame_hold(Media::VideoSinkHandle video_sink_handle, u64 generation)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    async_release_video_frame_hold(video_sink_handle, generation);
+}
+
+static void note_video_frame_holds_sent_to_compositor(Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
+{
+    for (auto const& frame : frames) {
+        if (auto const* captured_frame = frame.get_pointer<Compositing::CapturedVideoFrame>(); captured_frame && captured_frame->hold)
+            captured_frame->hold->note_sent_to_compositor();
+    }
 }
 
 void CompositorConnection::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
@@ -342,11 +357,14 @@ void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandS
     }
 
     auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), move(kept_font_ids), move(added_fonts)));
+    auto video_frame_holds = stream.take_video_frame_holds();
     if (post_message(encoded_message).is_error()) {
         did_lose_compositor();
         return;
     }
     m_canvas_font_ids_held_by_compositor = move(font_ids_of_this_batch);
+    for (auto& hold : video_frame_holds)
+        hold->note_sent_to_compositor();
 }
 
 void CompositorConnection::destroy_canvas_context(Compositing::CanvasId canvas_id)
@@ -651,14 +669,17 @@ void CompositorConnection::set_webgl_command_buffer(Compositing::CanvasId canvas
         did_lose_compositor();
 }
 
-void CompositorConnection::send_webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+void CompositorConnection::send_webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
 {
     if (!can_send_message_to_compositor())
         return;
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommandsFromSharedBuffer::static_encode(canvas_id, offset, size_in_bytes, flush_sequence_number, bitmaps));
-    if (post_message(encoded_message).is_error())
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommandsFromSharedBuffer::static_encode(canvas_id, offset, size_in_bytes, flush_sequence_number, frames));
+    if (post_message(encoded_message).is_error()) {
         did_lose_compositor();
+        return;
+    }
+    note_video_frame_holds_sent_to_compositor(frames);
 }
 
 bool CompositorConnection::drain_webgl_command_buffer(Compositing::CanvasId canvas_id)
@@ -674,7 +695,7 @@ bool CompositorConnection::drain_webgl_command_buffer(Compositing::CanvasId canv
     return true;
 }
 
-void CompositorConnection::send_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+void CompositorConnection::send_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -682,9 +703,12 @@ void CompositorConnection::send_webgl_commands(Compositing::CanvasId canvas_id, 
     auto shared_commands = MUST(Core::AnonymousBuffer::create_with_size(commands.size()));
     commands.copy_to({ shared_commands.data<u8>(), shared_commands.size() });
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommands::static_encode(canvas_id, shared_commands, bitmaps));
-    if (post_message(encoded_message).is_error())
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommands::static_encode(canvas_id, shared_commands, frames));
+    if (post_message(encoded_message).is_error()) {
         did_lose_compositor();
+        return;
+    }
+    note_video_frame_holds_sent_to_compositor(frames);
 }
 
 void CompositorConnection::present_webgl_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer)

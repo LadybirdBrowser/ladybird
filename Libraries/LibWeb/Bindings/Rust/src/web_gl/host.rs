@@ -113,7 +113,7 @@ pub(crate) struct Frame(NonNull<c_void>);
 impl Frame {
     /// # Safety
     ///
-    /// `frame` is a Gfx::DecodedImageFrame allocated with `new`, which the value takes over.
+    /// `frame` is a Compositing::WebGL::ImageSourceFrame allocated with `new`, which the value takes over.
     pub(crate) unsafe fn from_raw(frame: NonNull<c_void>) -> Self {
         Self(frame)
     }

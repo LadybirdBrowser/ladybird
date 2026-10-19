@@ -91,7 +91,8 @@ public:
             return;
         unregister();
         m_compositor_host = &compositor_host;
-        m_compositor_host->add_video_sink(m_handle);
+        m_presentation_page = MUST(Compositing::VideoFramePresentationPage::create());
+        m_compositor_host->add_video_sink(m_handle, *m_presentation_page);
     }
 
     void unregister()
@@ -100,12 +101,30 @@ public:
             return;
         m_compositor_host->remove_video_sink(m_handle);
         m_compositor_host = nullptr;
+        m_presentation_page = nullptr;
+        m_latest_hold = nullptr;
+    }
+
+    Optional<Compositing::CapturedVideoFrame> capture_current_frame()
+    {
+        if (!m_compositor_host || !m_presentation_page)
+            return {};
+        auto hold = m_latest_hold.strong_ref();
+        if (!hold || hold->generation() != m_presentation_page->current_generation()) {
+            hold = Compositing::VideoFrameHold::hold_current_frame(*m_presentation_page, m_handle, m_compositor_host->video_frame_hold_releaser_for_current_connection());
+            if (!hold)
+                return {};
+            m_latest_hold = *hold;
+        }
+        return Compositing::CapturedVideoFrame { .sink_handle = m_handle, .generation = hold->generation(), .hold = hold };
     }
 
 private:
     Media::VideoSinkHandle m_handle;
     Compositing::VideoSinkResourceId m_resource_id;
     Compositor::CompositorHost* m_compositor_host { nullptr };
+    RefPtr<Compositing::VideoFramePresentationPage> m_presentation_page;
+    WeakPtr<Compositing::VideoFrameHold> m_latest_hold;
 };
 
 static u64 s_next_remote_fetch_data_id = 0;
@@ -1838,13 +1857,12 @@ Optional<Compositing::VideoSinkResourceId> HTMLMediaElement::video_sink_resource
     return m_active_video_sink->resource_id();
 }
 
-RefPtr<Media::VideoFrame> HTMLMediaElement::current_presented_frame() const
+Optional<Compositing::CapturedVideoFrame> HTMLMediaElement::capture_current_video_frame() const
 {
-    auto handle = video_sink_handle();
-    if (!m_playback_manager || !handle.has_value())
-        return nullptr;
+    if (!m_active_video_sink)
+        return {};
     note_frame_captured();
-    return m_playback_manager->current_presented_frame(*handle);
+    return m_active_video_sink->capture_current_frame();
 }
 
 void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& track)

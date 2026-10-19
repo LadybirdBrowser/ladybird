@@ -24,6 +24,7 @@ set(SOURCES
     ScrollFlingController.cpp
     ScrollSnapController.cpp
     ScrollbarController.cpp
+    VideoFrameHolds.cpp
     VideoFrameSkia.cpp
     VSyncScheduler.cpp
     WebGLObjectMap.cpp

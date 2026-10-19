@@ -151,6 +151,7 @@ void CompositorHost::flush_canvas_2d_stream()
 void CompositorHost::discard_canvas_2d_stream()
 {
     (void)m_canvas_2d_stream->take_segments();
+    (void)m_canvas_2d_stream->take_video_frame_holds();
 }
 
 class CompositorRemoteWebGLTransport final : public Web::WebGL::RemoteWebGLTransport {
@@ -193,11 +194,11 @@ private:
         m_connection->set_webgl_command_buffer(*m_canvas_id, command_buffer);
     }
 
-    virtual void send_commands_from_shared_buffer(u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
+    virtual void send_commands_from_shared_buffer(u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const& frames) override
     {
         if (!m_canvas_id.has_value())
             return;
-        m_connection->send_webgl_commands_from_shared_buffer(*m_canvas_id, offset, size_in_bytes, flush_sequence_number, bitmaps);
+        m_connection->send_webgl_commands_from_shared_buffer(*m_canvas_id, offset, size_in_bytes, flush_sequence_number, frames);
     }
 
     virtual bool wait_until_published_commands_executed() override
@@ -207,11 +208,11 @@ private:
         return m_connection->drain_webgl_command_buffer(*m_canvas_id);
     }
 
-    virtual void send_commands(ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
+    virtual void send_commands(ReadonlyBytes commands, Vector<Compositing::WebGL::ImageSourceFrame> const& frames) override
     {
         if (!m_canvas_id.has_value())
             return;
-        m_connection->send_webgl_commands(*m_canvas_id, commands, bitmaps);
+        m_connection->send_webgl_commands(*m_canvas_id, commands, frames);
     }
 
     virtual void present_canvas(bool preserve_drawing_buffer) override
@@ -398,10 +399,10 @@ void CompositorHost::stop_presenting_to_client(Web::CompositorContextId context_
         connection->stop_presenting_to_client(context_id);
 }
 
-void CompositorHost::add_video_sink(Media::VideoSinkHandle video_sink_handle)
+void CompositorHost::add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page)
 {
     if (auto* connection = compositor_connection())
-        connection->add_video_sink(video_sink_handle);
+        connection->add_video_sink(video_sink_handle, move(presentation_page));
 }
 
 void CompositorHost::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
@@ -414,6 +415,17 @@ void CompositorHost::set_video_sink_ticking(Media::VideoSinkHandle video_sink_ha
 {
     if (auto* connection = compositor_connection())
         connection->set_video_sink_ticking(video_sink_handle, should_tick);
+}
+
+Compositing::VideoFrameHold::ReleaseThroughCompositor CompositorHost::video_frame_hold_releaser_for_current_connection() const
+{
+    auto* connection = compositor_connection();
+    if (!connection)
+        return {};
+    return [weak_connection = connection->make_weak_ptr<CompositorConnection>()](Media::VideoSinkHandle video_sink_handle, u64 generation) {
+        if (auto connection = weak_connection.strong_ref())
+            connection->release_video_frame_hold(video_sink_handle, generation);
+    };
 }
 
 void CompositorHost::invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation)

@@ -8,6 +8,7 @@ set(TEST_SOURCES
     TestSmoothScrollAnimation.cpp
     TestTextureUpload.cpp
     TestUIOverlays.cpp
+    TestVideoFrameHold.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)

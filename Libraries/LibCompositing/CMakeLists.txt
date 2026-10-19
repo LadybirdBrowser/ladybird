@@ -20,6 +20,8 @@ set(SOURCES
     Scrolling/WheelGestureIdentity.cpp
     Types.cpp
     UIOverlays.cpp
+    Video/VideoFrameHold.cpp
+    Video/VideoFramePresentationPage.cpp
     WebGL/TextureUpload.cpp
     WebGL/WebGLCommandList.cpp
 )

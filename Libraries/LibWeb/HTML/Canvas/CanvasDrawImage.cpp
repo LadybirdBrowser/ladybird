@@ -96,8 +96,8 @@ Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource con
                 return {};
             return Gfx::DecodedImageFrame { *bitmap };
         },
-        [](GC::Ref<HTMLVideoElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
-            return source->current_decoded_image_frame();
+        [](GC::Ref<HTMLVideoElement> const&) -> Optional<Gfx::DecodedImageFrame> {
+            VERIFY_NOT_REACHED();
         });
 }
 

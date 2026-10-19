@@ -11,7 +11,6 @@
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/Limits.h>
 #include <LibWeb/Loader/ResourceLoader.h>
@@ -21,7 +20,7 @@
 // which declares these functions in host.rs.
 //
 // The recorder holds a transport and a bitmap as a pointer that owns one reference, and an anonymous buffer and an
-// image frame as a pointer to an AnonymousBufferOwnedByRecorder or a Gfx::DecodedImageFrame that it owns.
+// image frame as a pointer to an AnonymousBufferOwnedByRecorder or an ImageSourceFrameOwnedByRecorder that it owns.
 
 namespace Web::WebGL {
 
@@ -99,12 +98,12 @@ static Core::AnonymousBuffer const& anonymous_buffer_from(void const* anonymous_
     return static_cast<AnonymousBufferOwnedByRecorder const*>(anonymous_buffer)->buffer;
 }
 
-static Vector<Gfx::DecodedImageFrame> copy_frames(void const* const* frames, size_t frame_count)
+static Vector<Compositing::WebGL::ImageSourceFrame> copy_frames(void const* const* frames, size_t frame_count)
 {
-    Vector<Gfx::DecodedImageFrame> copied_frames;
+    Vector<Compositing::WebGL::ImageSourceFrame> copied_frames;
     copied_frames.ensure_capacity(frame_count);
     for (size_t i = 0; i < frame_count; ++i)
-        copied_frames.unchecked_append(*static_cast<Gfx::DecodedImageFrame const*>(frames[i]));
+        copied_frames.unchecked_append(static_cast<ImageSourceFrameOwnedByRecorder const*>(frames[i])->frame);
     return copied_frames;
 }
 
@@ -226,7 +225,7 @@ void web_webgl_anonymous_buffer_destroy(void* anonymous_buffer)
 
 void web_webgl_frame_destroy(void* frame)
 {
-    delete static_cast<Gfx::DecodedImageFrame*>(frame);
+    delete static_cast<ImageSourceFrameOwnedByRecorder*>(frame);
 }
 
 void web_webgl_bitmap_unref(void* bitmap)

@@ -27,6 +27,13 @@ Vector<DisplayListFontResource> Canvas2DCommandStream::take_fonts()
     return fonts;
 }
 
+void Canvas2DCommandStream::retain_video_frame_hold(NonnullRefPtr<VideoFrameHold> hold)
+{
+    if (!m_video_frame_holds.is_empty() && m_video_frame_holds.last().ptr() == hold.ptr())
+        return;
+    m_video_frame_holds.append(move(hold));
+}
+
 void Canvas2DCommandStream::append_segment(CanvasId canvas_id, bool present)
 {
     if (!m_segments.is_empty())
