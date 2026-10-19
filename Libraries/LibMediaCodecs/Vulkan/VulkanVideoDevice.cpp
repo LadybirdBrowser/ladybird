@@ -25,6 +25,8 @@ constexpr Array required_extensions {
 
 constexpr Array optional_extensions {
     VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
+    VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME,
+    VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME,
     VK_KHR_VIDEO_DECODE_VP9_EXTENSION_NAME,
     VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME,
     VK_KHR_VIDEO_MAINTENANCE_1_EXTENSION_NAME,
@@ -234,6 +236,25 @@ VulkanVideoDevice::~VulkanVideoDevice()
 bool VulkanVideoDevice::has_enabled_extension(StringView name) const
 {
     return any_of(m_enabled_extensions, [&](auto enabled) { return StringView { enabled, strlen(enabled) } == name; });
+}
+
+Mutex& VulkanVideoDevice::queue_mutex(u32 family_index)
+{
+    for (size_t i = 0; i < m_queue_families.size(); i++) {
+        if (m_queue_families[i].index == family_index)
+            return m_queue_mutexes[i];
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void VulkanVideoDevice::lock_queue(u32 family_index)
+{
+    queue_mutex(family_index).lock();
+}
+
+void VulkanVideoDevice::unlock_queue(u32 family_index)
+{
+    queue_mutex(family_index).unlock();
 }
 
 ErrorOr<void> VulkanVideoDevice::video_capabilities(VkVideoProfileInfoKHR const& profile, VkVideoCapabilitiesKHR& capabilities) const

@@ -8,7 +8,9 @@
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
 
+#    include <AK/Array.h>
 #    include <AK/Error.h>
+#    include <AK/Mutex.h>
 #    include <AK/NonnullOwnPtr.h>
 #    include <AK/Vector.h>
 #    include <LibGfx/GpuDeviceIdentity.h>
@@ -47,6 +49,11 @@ public:
     VkPhysicalDeviceFeatures2 const& enabled_features() const { return m_features; }
     bool has_enabled_extension(StringView) const;
 
+    // A queue takes one submission at a time, and every FFmpeg in the process submits to this device's queues. Each
+    // family has one queue.
+    void lock_queue(u32 family_index);
+    void unlock_queue(u32 family_index);
+
     // Fills in the capabilities, and whatever codec-specific capabilities are chained to them, for a video profile.
     ErrorOr<void> video_capabilities(VkVideoProfileInfoKHR const&, VkVideoCapabilitiesKHR&) const;
 
@@ -59,11 +66,15 @@ private:
 
     static ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> create(Gfx::GpuDeviceIdentity const&);
 
+    Mutex& queue_mutex(u32 family_index);
+
     u32 m_api_version { 0 };
     VkInstance m_instance { VK_NULL_HANDLE };
     VkPhysicalDevice m_physical_device { VK_NULL_HANDLE };
     VkDevice m_logical_device { VK_NULL_HANDLE };
     Vector<QueueFamily> m_queue_families;
+    // One for each of the decode, compute and transfer families, which may coincide.
+    Array<Mutex, 3> m_queue_mutexes;
     Vector<char const*> m_enabled_extensions;
 
     VkPhysicalDeviceFeatures2 m_features {};

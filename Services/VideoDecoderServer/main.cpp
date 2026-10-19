@@ -21,6 +21,10 @@
 #include <VideoDecoderServer/ControlConnection.h>
 #include <VideoDecoderServer/Sandbox.h>
 
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+#    include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
+#endif
+
 static Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> create_software_video_decoder(Media::CodecID codec_id, ReadonlyBytes codec_initialization_data)
 {
     return NonnullOwnPtr<Media::VideoDecoder> { TRY(Media::FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data)) };
@@ -89,6 +93,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = Media::VulkanVideoDevice::create_for_process(*gpu_device_identity); result.is_error())
             warnln("Could not create a Vulkan device for decoding video: {}", result.error());
     }
+#endif
+
+#if defined(USE_VULKAN_DMABUF_IMAGES) && defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+    // H.264 and HEVC decode through the system library, whose dependencies make syscalls the sandbox will not allow.
+    if (Media::VulkanVideoDevice::the() != nullptr)
+        (void)Media::FFmpeg::SystemFFmpeg::the();
 #endif
 
     Vector<Media::VideoDecoderRegistration> hosted_decoders;

@@ -36,6 +36,7 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
 
 #define FFMPEG_ENUMERATE_FUNCTIONS(F)       \
     F(avcodec_version)                      \
+    F(avutil_version)                       \
     F(avcodec_find_decoder)                 \
     F(avcodec_find_decoder_by_name)         \
     F(avcodec_descriptor_get_by_name)       \

@@ -142,4 +142,9 @@ bool SystemFFmpeg::provides_decoder_missing_from_bundle() const
     });
 }
 
+bool SystemFFmpeg::shares_bundled_struct_layouts() const
+{
+    return m_functions->avcodec_version() >> 16 == LIBAVCODEC_VERSION_MAJOR && m_functions->avutil_version() >> 16 == LIBAVUTIL_VERSION_MAJOR;
+}
+
 }
