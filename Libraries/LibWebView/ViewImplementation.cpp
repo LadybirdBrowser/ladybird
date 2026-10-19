@@ -1162,8 +1162,6 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     page.async_set_preferred_motion(m_preferred_motion);
     page.async_set_preferred_languages(Application::settings().languages());
     page.async_set_zoom_level(m_zoom_level);
-    if (m_user_style_sheet.has_value())
-        page.async_set_user_style(*m_user_style_sheet);
     send_browsing_behavior(page);
     send_autoplay_settings(page);
     send_global_privacy_control(page);
@@ -3927,14 +3925,6 @@ ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
     TRY(dump_file->write_until_depleted(";\n"sv.bytes()));
 
     return path;
-}
-
-void ViewImplementation::set_user_style_sheet(String const& source)
-{
-    m_user_style_sheet = source;
-    traversable().for_each_hosting_page([&](WebContentPage& page) {
-        page.async_set_user_style(source);
-    });
 }
 
 void ViewImplementation::initialize_context_menus()

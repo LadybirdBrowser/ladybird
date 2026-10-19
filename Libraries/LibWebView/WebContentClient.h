@@ -160,7 +160,6 @@ public:
     Web::CompositorContextId compositor_context_id_for_page(WebContentPage const&);
     Web::CompositorContextId allocate_compositor_context(Web::PageId page_id, Web::PagePresentationRegistration);
     Optional<Web::PageId> page_id_for_compositor_context_id(Web::CompositorContextId) const;
-    void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
     bool has_requested_close() const { return m_requested_close; }
 
     pid_t pid() const { return m_process_handle.pid; }
