@@ -1073,31 +1073,276 @@ class ConnectionBase;
 """)
 
 
+RUST_BUILTIN_TYPES = {
+    "bool": "bool",
+    "u8": "u8",
+    "u16": "u16",
+    "u32": "u32",
+    "u64": "u64",
+    "i8": "i8",
+    "i16": "i16",
+    "i32": "i32",
+    "i64": "i64",
+    "int": "i32",
+    "unsigned": "u32",
+    "size_t": "usize",
+    "float": "f32",
+    "double": "f64",
+    "String": "::libipc_rust::wire::Utf8String",
+    "ByteString": "::libipc_rust::wire::ByteString",
+    "Utf16String": "::libipc_rust::wire::Utf16String",
+    "ByteBuffer": "::std::vec::Vec<u8>",
+    "Empty": "()",
+    "IPC::File": "::libipc_rust::wire::File",
+}
+
+RUST_KEYWORDS = {
+    "Self", "abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "crate", "do", "dyn",
+    "else", "enum", "extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro",
+    "macro_rules", "match", "mod", "move", "mut", "override", "priv", "pub", "raw", "ref", "return", "safe", "self",
+    "static", "struct", "super", "trait", "true", "try", "type", "typeof", "union", "unsafe", "unsized", "use",
+    "virtual", "where", "while", "yield",
+}  # fmt: skip
+
+
+def split_template_arguments(arguments: str) -> List[str]:
+    parts: List[str] = []
+    depth = 0
+    current = ""
+    for character in arguments:
+        if character == "<":
+            depth += 1
+        elif character == ">":
+            depth -= 1
+        if character == "," and depth == 0:
+            parts.append(current.strip())
+            current = ""
+            continue
+        current += character
+    if current.strip():
+        parts.append(current.strip())
+    return parts
+
+
+def rust_type(cpp_type: str) -> str:
+    cpp_type = cpp_type.strip()
+    if cpp_type.startswith("::"):
+        cpp_type = cpp_type[2:]
+    if cpp_type in RUST_BUILTIN_TYPES:
+        return RUST_BUILTIN_TYPES[cpp_type]
+    if "<" in cpp_type and cpp_type.endswith(">"):
+        template = cpp_type[: cpp_type.index("<")]
+        arguments = split_template_arguments(cpp_type[cpp_type.index("<") + 1 : -1])
+        if template == "Vector":
+            return f"::std::vec::Vec<{rust_type(arguments[0])}>"
+        if template == "Optional":
+            return f"::std::option::Option<{rust_type(arguments[0])}>"
+        if template == "Array" and len(arguments) == 2 and arguments[1].isdecimal():
+            return f"[{rust_type(arguments[0])}; {arguments[1]}]"
+        raise RuntimeError(f"No Rust type for {cpp_type}")
+    # NB: Namespaced user types are supplied by the crate, with "::" as "_".
+    if re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*(?:::[A-Za-z_][A-Za-z_0-9]*)+", cpp_type):
+        return "crate::ipc_types::" + rust_field_name(cpp_type.replace("::", "_"))
+    raise RuntimeError(f"No Rust type for {cpp_type}")
+
+
+def rust_field_name(name: str) -> str:
+    if name in {"self", "super", "crate", "Self", "_"}:
+        raise RuntimeError(f"Cannot use {name!r} as a Rust identifier")
+    return f"r#{name}" if name in RUST_KEYWORDS else name
+
+
+def snake_case(identifier: str) -> str:
+    result = ""
+    for index, character in enumerate(identifier):
+        if character.isupper() and index > 0 and not identifier[index - 1].isupper():
+            result += "_"
+        result += character.lower()
+    return result
+
+
+def rust_utf8_bytes(parameter: Parameter, value: str) -> Optional[str]:
+    field_type = rust_type(parameter.type)
+    if field_type == RUST_BUILTIN_TYPES["String"]:
+        return None
+    if field_type == RUST_BUILTIN_TYPES["ByteString"]:
+        return f"&{value}.0"
+    if field_type == RUST_BUILTIN_TYPES["ByteBuffer"]:
+        return f"&{value}"
+    raise RuntimeError(f"Cannot apply [UTF8] to Rust parameter {parameter.name!r} of type {parameter.type}")
+
+
+def write_rust_message_struct(out: TextIO, name: str, message_id: int, parameters: List[Parameter]) -> None:
+    pascal_name = rust_field_name(pascal_case(name))
+    utf8_parameters = [
+        parameter
+        for parameter in parameters
+        if "UTF8" in parameter.attributes and rust_utf8_bytes(parameter, "value") is not None
+    ]
+    out.write("\n")
+    if parameters:
+        out.write(f"    pub struct {pascal_name} {{\n")
+        for parameter in parameters:
+            field_type = rust_type(parameter.type)
+            out.write(f"        pub {rust_field_name(parameter.name)}: {field_type},\n")
+        out.write("    }\n")
+    else:
+        out.write(f"    pub struct {pascal_name};\n")
+
+    if utf8_parameters:
+        out.write(f"""
+    impl {pascal_name} {{
+        fn validate_utf8(&self) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
+""")
+        for parameter in utf8_parameters:
+            bytes_expression = rust_utf8_bytes(parameter, f"self.{rust_field_name(parameter.name)}")
+            out.write(
+                f'            ::libipc_rust::wire::validate_utf8({bytes_expression}).map_err(|_| ::libipc_rust::wire::EncodeError::InvalidValue("UTF-8"))?;\n'
+            )
+        out.write("""            ::std::result::Result::Ok(())
+        }
+    }
+""")
+
+    out.write(f"""
+    impl ::libipc_rust::wire::EndpointMessage for {pascal_name} {{
+        const ENDPOINT_MAGIC: u32 = super::ENDPOINT_MAGIC;
+        const MESSAGE_ID: i32 = {message_id};
+    }}
+
+    impl ::libipc_rust::wire::Encode for {pascal_name} {{
+        fn encode(&self, _encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
+""")
+    if utf8_parameters:
+        out.write("            self.validate_utf8()?;\n")
+    for parameter in parameters:
+        out.write(f"            _encoder.encode(&self.{rust_field_name(parameter.name)})?;\n")
+    out.write("""            ::std::result::Result::Ok(())
+        }
+
+        fn encode_owned(self, _encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {
+""")
+    if utf8_parameters:
+        out.write("            self.validate_utf8()?;\n")
+    for parameter in parameters:
+        out.write(f"            _encoder.encode_owned(self.{rust_field_name(parameter.name)})?;\n")
+    out.write(f"""            ::std::result::Result::Ok(())
+        }}
+    }}
+
+    impl ::libipc_rust::wire::Decode for {pascal_name} {{
+        fn decode(_decoder: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
+""")
+    if parameters:
+        out.write("            ::std::result::Result::Ok(Self {\n")
+        for parameter in parameters:
+            field_name = rust_field_name(parameter.name)
+            if parameter not in utf8_parameters:
+                out.write(f"                {field_name}: _decoder.decode()?,\n")
+                continue
+            field_type = rust_type(parameter.type)
+            bytes_expression = rust_utf8_bytes(parameter, "value")
+            out.write(f"""                {field_name}: {{
+                    let value: {field_type} = _decoder.decode()?;
+                    ::libipc_rust::wire::validate_utf8({bytes_expression})?;
+                    value
+                }},
+""")
+        out.write("            })\n")
+    else:
+        out.write("            ::std::result::Result::Ok(Self)\n")
+    out.write("        }\n    }\n")
+
+
+def write_rust_endpoint(out: TextIO, endpoint: Endpoint) -> None:
+    out.write(f"""
+#[allow(clippy::all, dead_code)]
+pub mod {rust_field_name(snake_case(endpoint.name))} {{
+    pub const ENDPOINT_MAGIC: u32 = {endpoint.magic};
+""")
+
+    out.write("\n    pub mod messages {\n")
+    message_output = io.StringIO()
+    variants: List[str] = []
+    message_id = 0
+    for message in endpoint.messages:
+        message_id += 1
+        write_rust_message_struct(message_output, message.name, message_id, message.inputs)
+        variants.append(rust_field_name(pascal_case(message.name)))
+        if message.is_synchronous:
+            message_id += 1
+            write_rust_message_struct(message_output, message.response_name(), message_id, message.outputs)
+            variants.append(rust_field_name(pascal_case(message.response_name())))
+
+    out.write(textwrap.indent(message_output.getvalue(), "    "))
+    out.write("    }\n\n    pub enum Message {\n")
+    for variant in variants:
+        out.write(f"        {variant}(messages::{variant}),\n")
+    out.write("    }\n")
+    out.write("""
+    impl Message {
+        /// Decodes a message of this endpoint, allowing unused bytes and attachments as C++ does.
+        pub fn decode(bytes: &[u8], attachments: ::std::vec::Vec<::libipc_rust::Attachment>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {
+            let mut decoder = ::libipc_rust::wire::Decoder::new(bytes, attachments);
+            let (magic, id) = ::libipc_rust::wire::decode_message_header(&mut decoder)?;
+            if magic != ENDPOINT_MAGIC {
+                return Err(::libipc_rust::wire::DecodeError::InvalidValue("endpoint magic"));
+            }
+            let message = match id {
+""")
+    for variant in variants:
+        out.write(
+            f"                <messages::{variant} as ::libipc_rust::wire::EndpointMessage>::MESSAGE_ID => Self::{variant}(decoder.decode()?),\n"
+        )
+    out.write("""                _ => return Err(::libipc_rust::wire::DecodeError::InvalidValue("message ID")),
+            };
+            ::std::result::Result::Ok(message)
+        }
+""")
+    out.write("    }\n}\n")
+
+
+def build_rust(out: TextIO, endpoints: List[Endpoint]) -> None:
+    out.write("// NB: Generated by the IPC endpoint compiler.\n")
+    for endpoint in endpoints:
+        write_rust_endpoint(out, endpoint)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Ladybird IPC endpoint compiler")
     parser.add_argument("--input", required=True, help="IPC endpoint definition file")
-    parser.add_argument("--output", required=True, help="Generated header file")
-    parser.add_argument("--implementation", required=True, help="Generated implementation file")
+    parser.add_argument("--output", help="Generated header file")
+    parser.add_argument("--implementation", help="Generated implementation file")
     parser.add_argument("--header-name", help="Header name to include from the implementation")
     parser.add_argument(
         "--library", default="", help="Owning library, e.g. LibWebCommon; determines the export header and macro"
     )
+    parser.add_argument("--rust-output", help="Generated Rust module")
     args = parser.parse_args()
+    if not args.output and not args.rust_output:
+        parser.error("one of --output and --rust-output is required")
+    if bool(args.output) != bool(args.implementation):
+        parser.error("--output and --implementation must be used together")
 
     with open(args.input, "r", encoding="utf-8") as input_file:
         endpoints = parse(input_file.read())
 
-    with (
-        open(args.output, "w", encoding="utf-8") as output_file,
-        open(args.implementation, "w", encoding="utf-8") as implementation_file,
-    ):
-        build(
-            output_file,
-            endpoints,
-            implementation_file,
-            args.header_name or Path(args.output).name,
-            args.library,
-        )
+    if args.output:
+        with (
+            open(args.output, "w", encoding="utf-8") as output_file,
+            open(args.implementation, "w", encoding="utf-8") as implementation_file,
+        ):
+            build(
+                output_file,
+                endpoints,
+                implementation_file,
+                args.header_name or Path(args.output).name,
+                args.library,
+            )
+
+    if args.rust_output:
+        with open(args.rust_output, "w", encoding="utf-8") as output_file:
+            build_rust(output_file, endpoints)
 
 
 if __name__ == "__main__":

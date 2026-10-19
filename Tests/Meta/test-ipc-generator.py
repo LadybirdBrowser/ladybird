@@ -8,7 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(os.environ["LADYBIRD_SOURCE_DIR"]) / "Meta"))
 
 from Generators.generate_ipc_definitions import build
+from Generators.generate_ipc_definitions import build_rust
 from Generators.generate_ipc_definitions import parse
+from Generators.generate_ipc_definitions import rust_type
 
 ENDPOINT = """\
 endpoint TestClient {
@@ -202,6 +204,158 @@ void TestClientPageProxy::async_page_changed(u32 revision) const
         with self.assertRaises(RuntimeError) as raised:
             generate(ROUTED_SYNCHRONOUS_ENDPOINT)
         self.assertIn("cannot be routed", str(raised.exception))
+
+
+class TestIPCRustGenerator(unittest.TestCase):
+    def generate(self, contents: str) -> str:
+        output = io.StringIO()
+        build_rust(output, parse(contents))
+        return output.getvalue()
+
+    def test_message_numbers_match_cpp_including_synchronous_replies(self) -> None:
+        generated = self.generate(ENDPOINT)
+        for name, number in [("PageChanged", 1), ("PageWantsCookie", 2), ("PageWantsCookieResponse", 3), ("Ping", 4)]:
+            self.assertIn(
+                f"impl ::libipc_rust::wire::EndpointMessage for {name} {{\n            const ENDPOINT_MAGIC: u32 = super::ENDPOINT_MAGIC;\n            const MESSAGE_ID: i32 = {number};",
+                generated,
+            )
+        self.assertIn(f"pub const ENDPOINT_MAGIC: u32 = {parse(ENDPOINT)[0].magic};", generated)
+
+    def test_types_compose_and_custom_types_are_supplied_by_the_crate(self) -> None:
+        self.assertEqual(rust_type("Vector<Optional<i64>>"), "::std::vec::Vec<::std::option::Option<i64>>")
+        self.assertEqual(rust_type("Array<u8, 16>"), "[u8; 16]")
+        self.assertEqual(rust_type("Web::PageId"), "crate::ipc_types::Web_PageId")
+        generated = self.generate("endpoint Test { update(Vector<Optional<i64>> values, u32 type) =| }")
+        self.assertIn("pub values: ::std::vec::Vec<::std::option::Option<i64>>", generated)
+        self.assertIn("pub r#type: u32", generated)
+        self.assertIn("_encoder.encode(&self.r#type)?;", generated)
+
+    def test_unmapped_types_are_rejected(self) -> None:
+        for cpp_type in [
+            "u128",
+            "char",
+            "long",
+            "CustomType",
+            "Vector<u128>",
+            "Optional<Unknown>",
+            "Web::PageId*",
+            "Foo::",
+            "Foo::::Bar",
+        ]:
+            with self.subTest(cpp_type=cpp_type):
+                with self.assertRaisesRegex(RuntimeError, "No Rust type for"):
+                    rust_type(cpp_type)
+        self.assertEqual(rust_type("::Web::PageId"), "crate::ipc_types::Web_PageId")
+
+    def test_consumer_types_do_not_require_debug(self) -> None:
+        generated = self.generate("endpoint Test { send(Test::Value value) => (Test::Value value) }")
+        self.assertNotIn("derive(Debug)", generated)
+
+    def test_empty_messages_and_multiple_endpoints_get_separate_modules(self) -> None:
+        generated = self.generate("endpoint First { ping() => () } endpoint Second { stop() =| }")
+        self.assertIn("pub mod first", generated)
+        self.assertIn("pub mod second", generated)
+        for name in ["Ping", "PingResponse", "Stop"]:
+            self.assertIn(f"pub struct {name};", generated)
+
+    def test_keywords_use_raw_identifiers(self) -> None:
+        for keyword in (
+            "abstract",
+            "become",
+            "box",
+            "do",
+            "final",
+            "gen",
+            "macro",
+            "override",
+            "priv",
+            "try",
+            "typeof",
+            "unsized",
+            "virtual",
+            "yield",
+        ):
+            with self.subTest(keyword=keyword):
+                generated = self.generate(f"endpoint {keyword} {{ update(u32 {keyword}) =| }}")
+                self.assertIn(f"pub mod r#{keyword}", generated)
+                self.assertIn(f"pub r#{keyword}: u32", generated)
+
+    def test_path_keywords_are_rejected(self) -> None:
+        for keyword in ("self", "super", "crate", "Self", "_"):
+            with self.subTest(keyword=keyword):
+                with self.assertRaisesRegex(RuntimeError, "Cannot use.*as a Rust identifier"):
+                    self.generate(f"endpoint Test {{ update(u32 {keyword}) =| }}")
+        with self.assertRaisesRegex(RuntimeError, "Cannot use 'Self'"):
+            self.generate("endpoint Test { self() =| }")
+
+    def test_message_types_do_not_shadow_generator_names(self) -> None:
+        names = (
+            "message",
+            "attachment",
+            "encode",
+            "decode",
+            "encoder",
+            "decoder",
+            "endpoint_message",
+            "encode_error",
+            "decode_error",
+            "vec",
+            "option",
+            "result",
+            "string",
+        )
+        generated = self.generate("endpoint Test { " + " ".join(f"{name}(String value) =|" for name in names) + " }")
+        self.assertIn("pub mod messages {", generated)
+        self.assertIn("Message(messages::Message)", generated)
+        self.assertIn("impl ::libipc_rust::wire::Encode for Encode", generated)
+        self.assertIn("pub value: ::libipc_rust::wire::Utf8String", generated)
+        self.assertNotIn("use libipc_rust", generated)
+
+    def test_decoder_checks_endpoint_and_message_number_but_allows_trailing_bytes(self) -> None:
+        generated = self.generate(ENDPOINT)
+        self.assertIn("if magic != ENDPOINT_MAGIC", generated)
+        self.assertIn('InvalidValue("message ID")', generated)
+        self.assertNotIn("decoder.is_at_end()", generated)
+
+    def test_owned_encoding_moves_every_field(self) -> None:
+        generated = self.generate("endpoint Test { send(Vector<IPC::File> files) =| }")
+        self.assertIn("fn encode_owned(self,", generated)
+        self.assertIn("_encoder.encode_owned(self.files)?;", generated)
+
+    def test_utf8_is_validated_on_requests_and_responses(self) -> None:
+        for cpp_type, expression in [
+            ("ByteString", "&value.0"),
+            ("ByteBuffer", "&value"),
+        ]:
+            with self.subTest(cpp_type=cpp_type):
+                generated = self.generate(
+                    f"endpoint Test {{ echo([UTF8] {cpp_type} text) => ([UTF8] {cpp_type} text) }}"
+                )
+                self.assertEqual(generated.count(f"::libipc_rust::wire::validate_utf8({expression})?;"), 2)
+                encode_expression = expression.replace("value", "self.text")
+                self.assertEqual(
+                    generated.count(f"::libipc_rust::wire::validate_utf8({encode_expression}).map_err("), 2
+                )
+                self.assertEqual(generated.count('EncodeError::InvalidValue("UTF-8")'), 2)
+                self.assertEqual(generated.count("fn validate_utf8(&self)"), 2)
+                self.assertEqual(generated.count("self.validate_utf8()?;"), 4)
+                self.assertEqual(
+                    generate(f"endpoint Test {{ echo([UTF8] {cpp_type} text) => ([UTF8] {cpp_type} text) }}").count(
+                        "Utf8View(text).validate()"
+                    ),
+                    2,
+                )
+
+    def test_utf8_strings_need_no_additional_validation(self) -> None:
+        generated = self.generate("endpoint Test { echo([UTF8] String text) => ([UTF8] String text) }")
+        self.assertNotIn("validate_utf8", generated)
+        self.assertIn("pub text: ::libipc_rust::wire::Utf8String", generated)
+
+    def test_utf8_requires_a_byte_string_type(self) -> None:
+        for cpp_type in ["u32", "Utf16String", "IPC::File", "Optional<ByteString>", "Test::CustomType"]:
+            with self.subTest(cpp_type=cpp_type):
+                with self.assertRaisesRegex(RuntimeError, r"Cannot apply \[UTF8\] to Rust parameter 'value'"):
+                    self.generate(f"endpoint Test {{ update([UTF8] {cpp_type} value) =| }}")
 
 
 if __name__ == "__main__":

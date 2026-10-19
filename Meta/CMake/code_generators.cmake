@@ -23,6 +23,7 @@ function(embed_as_string name source_file output source_variable_name)
 endfunction()
 
 function(compile_ipc source output)
+    cmake_parse_arguments(PARSE_ARGV 2 ARG "" "RUST_OUTPUT" "")
     if (NOT IS_ABSOLUTE ${source})
         set(source ${CMAKE_CURRENT_SOURCE_DIR}/${source})
     endif()
@@ -37,20 +38,33 @@ function(compile_ipc source output)
         list(APPEND library_arguments --library ${CMAKE_MATCH_1})
         set(GENERATED_IPC TRUE PARENT_SCOPE)
     endif()
+    set(rust_arguments)
+    set(rust_output)
+    set(rust_commands)
+    if (ARG_RUST_OUTPUT)
+        get_filename_component(rust_output "${ARG_RUST_OUTPUT}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+        list(APPEND rust_arguments --rust-output ${rust_output}.tmp)
+        list(APPEND rust_commands
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${rust_output}.tmp ${rust_output}
+            COMMAND "${CMAKE_COMMAND}" -E remove ${rust_output}.tmp)
+    endif()
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_custom_command(
-        OUTPUT ${output} ${implementation}
+        OUTPUT ${output} ${implementation} ${rust_output}
         COMMAND "${Python3_EXECUTABLE}" "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_ipc_definitions.py"
             --input ${source} --output ${output}.tmp --implementation ${implementation}.tmp
-            --header-name ${output_name} ${library_arguments}
+            --header-name ${output_name} ${library_arguments} ${rust_arguments}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${output}.tmp ${output}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${implementation}.tmp ${implementation}
         COMMAND "${CMAKE_COMMAND}" -E remove ${output}.tmp ${implementation}.tmp
+        ${rust_commands}
         VERBATIM
         DEPENDS "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_ipc_definitions.py"
+            "${LADYBIRD_SOURCE_DIR}/Meta/Utils/lexer.py"
+            "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
         MAIN_DEPENDENCY ${source}
     )
-    add_custom_target(generate_${output_name} DEPENDS ${output} ${implementation})
+    add_custom_target(generate_${output_name} DEPENDS ${output} ${implementation} ${rust_output})
     add_dependencies(ladybird_codegen_accumulator generate_${output_name})
     list(APPEND SOURCES ${implementation})
     set(SOURCES ${SOURCES} PARENT_SCOPE)
