@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    @property --fade { syntax: "<number>"; inherits: false; initial-value: 0; }
+    @property --t { syntax: "<number>"; inherits: true; initial-value: 0; }
+    @keyframes count { from { --t: 0; } to { --t: 100; } }
+    .grid { display: grid; --fade: 1; --t: 0; animation: count 10s linear infinite paused; animation-delay: -5s; }
+    .child { color: rgb(1, 2, 3); }
+</style>
+<div class="grid" id="grid"><div>existing</div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Start the animation, which samples --t into the environment the grid hands its children: paused
+        // halfway, so the sample is 50.
+        document.body.offsetHeight;
+        // Change the registrations after that environment was published.
+        const style = document.createElement("style");
+        style.textContent = "@property --late { syntax: '<length>'; inherits: true; initial-value: 0px; }";
+        document.head.appendChild(style);
+        // A child inserted under the animating grid gets its first style under the new registrations.
+        const child = document.createElement("div");
+        child.className = "child";
+        child.textContent = "new";
+        grid.appendChild(child);
+        document.body.offsetHeight;
+        const computed = getComputedStyle(child);
+        println(computed.color);
+        println(computed.getPropertyValue("--t"));
+        println(computed.getPropertyValue("--fade"));
+    });
+</script>

@@ -825,25 +825,52 @@ bool StyleEngine::counter(Layout::BegunRead const& read, size_t index, StringVie
     return true;
 }
 
+// Resolves the children's environments over what the element hands down, and substitutes the element's own values under
+// what its animations sampled, laid over what its style resolves to: name the environment the element holds, and the
+// one its animation overlay lies over, with what each hands down under the registrations as they are now.
+void StyleEngine::note_element_custom_property_environments(Layout::BegunRead const& read, DOM::Element const& element, CustomPropertyData const& data)
+{
+    auto note = [&](CustomPropertyData const& environment) {
+        auto inheritable = environment.inheritable(read, element.document());
+        StyleEngineFFI::style_engine_note_custom_property_environment(host(), environment.identity(), environment.rust_store(),
+            inheritable ? inheritable->identity() : 0, inheritable ? inheritable->rust_store() : nullptr);
+    };
+    if (data.is_animation_overlay_for({ element })) {
+        if (auto base = data.parent())
+            note(*base);
+    }
+    note(data);
+}
+
 void StyleEngine::set_element_custom_property_data(Layout::BegunRead const& read, DOM::Element const& element, CustomPropertyData const* data)
 {
     // A move of the environment the element inherits reads whether this is its animation overlay, and
     // whether what the element's style resolves to declares custom properties of its own.
     bool const is_animation_overlay = data && data->is_animation_overlay_for({ element });
     auto const* base = is_animation_overlay ? data->parent().ptr() : data;
-    // The engine resolves the children's environments over what the element hands down, and substitutes the
-    // element's own values under what its animations sampled, laid over what its style resolves to.
-    auto note = [&](CustomPropertyData const& environment) {
-        auto inheritable = environment.inheritable(read, element.document());
-        StyleEngineFFI::style_engine_note_custom_property_environment(host(), environment.identity(), environment.rust_store(),
-            inheritable ? inheritable->identity() : 0, inheritable ? inheritable->rust_store() : nullptr);
-    };
-    if (base)
-        note(*base);
-    if (is_animation_overlay)
-        note(*data);
+    if (data)
+        note_element_custom_property_environments(read, element, *data);
     StyleEngineFFI::style_engine_set_element_custom_property_data(m_render_document->host(), element.style_node_id().value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0,
         base ? base->identity() : 0);
+}
+
+// The registrations decide what an environment hands down, and the engine resolves a child's environment over what
+// its parent's hands down as the host last named it. Once the registrations change, name it again for every
+// environment an element holds, so a child the engine styles from here on gets an environment the host can install.
+void StyleEngine::republish_element_custom_property_environments(Layout::BegunRead const& read, DOM::Document& document)
+{
+    struct Context {
+        StyleEngine& style_engine;
+        Layout::BegunRead const& read;
+        GC::Ref<DOM::Document> document;
+    } context { *this, read, document };
+    StyleEngineFFI::style_engine_for_each_element_custom_property_environment(host(), &read, &context, [](void* context_pointer, u32 style_node, void const* data) {
+        auto& context = *static_cast<Context*>(context_pointer);
+        auto element = context.document->style_computer().element_for_style_node(StyleNodeID { style_node });
+        if (!element)
+            return;
+        context.style_engine.note_element_custom_property_environments(context.read, *element, *static_cast<CustomPropertyData const*>(data));
+    });
 }
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= 64);

@@ -11696,6 +11696,11 @@ void Document::did_change_custom_property_registrations(Optional<Utf16FlyString>
 {
     ++m_custom_property_registration_generation;
     sync_custom_property_registrations_to_rust();
+    // What every environment an element holds hands down follows the registrations. The engine has to be told
+    // again, or a child it styles under one registration resolves over an environment the host can't install.
+    // That waits for the next style update, which reaches the engine under a read of its own. A change beside
+    // a frame in flight leaves the flight alone.
+    m_custom_property_environments_need_republishing = true;
 
     // An @property rule's program input already reaches the elements declaring or referencing its
     // name. CSS.registerProperty() has no rule, so publish the equivalent named input explicitly.
@@ -11703,6 +11708,14 @@ void Document::did_change_custom_property_registrations(Optional<Utf16FlyString>
         auto& style_engine = style_computer().style_engine();
         CSS::StyleEngineFFI::style_engine_record_custom_property_registration_change(style_engine.host(), style_engine.intern_atom(*registered_property_set_change));
     }
+}
+
+void Document::republish_custom_property_environments_for_style_update(Layout::BegunRead const& read)
+{
+    if (!m_custom_property_environments_need_republishing)
+        return;
+    m_custom_property_environments_need_republishing = false;
+    style_computer().style_engine().republish_element_custom_property_environments(read, *this);
 }
 
 void Document::sync_custom_property_registrations_to_rust()

@@ -1188,6 +1188,31 @@ pub extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u3
 
 /// Whether the engine has a style transaction pending, which the host knows without asking where it wrote nothing
 /// since its last job.
+/// Hands the host every custom-property environment the engine holds for an element, with the element's style node,
+/// for the host to name again what each hands down. The callbacks run outside the engine, so each may queue a write
+/// to it or ask it.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_for_each_element_custom_property_environment(
+    host: &DocumentHost,
+    read: &BegunRead,
+    context: *mut c_void,
+    callback: extern "C" fn(*mut c_void, u32, *const c_void),
+) {
+    // The engine keeps each environment alive while an element holds it, and nothing moves one on before the
+    // callbacks have run.
+    let held: Vec<(u32, *const c_void)> = with_engine(read, host, |engine| {
+        engine
+            .retained
+            .element_custom_property_data
+            .iter()
+            .map(|(node, held)| (node.raw(), held.data.data()))
+            .collect()
+    });
+    for (node, data) in held {
+        callback(context, node, data);
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {

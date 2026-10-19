@@ -973,6 +973,9 @@ public:
     void mark_style_attribute_dirty(Element&);
     void synchronize_dirty_style_attributes();
     void flush_deferred_style_change_event();
+    // Once the registrations changed, name again to the style engine what every environment an
+    // element holds hands down, before the transaction that derives records under them.
+    void republish_custom_property_environments_for_style_update(Layout::BegunRead const&);
     // The style engine resolves substitutions against the Rust registry, whose parse context is
     // set up by the first sync; a document without registrations syncs once for it.
     void build_registered_properties_cache_for_style_update()
@@ -2360,6 +2363,7 @@ private:
     size_t m_custom_property_registration_generation { 0 };
     void const* m_rust_custom_property_registry { nullptr };
     bool m_rust_custom_property_registry_synced { false };
+    bool m_custom_property_environments_need_republishing { false };
 
     CSS::StyleScope m_style_scope;
 
