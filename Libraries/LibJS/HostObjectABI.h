@@ -135,9 +135,10 @@ enum {
     //
     // Inline caches remember that a key is missing from an object, or found further up its prototype chain, and answer
     // from that without calling hooks while the shapes involved stay the same. Whether the engine may do so depends only
-    // on JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE and the is_cacheable_for_inherited_property hook, never on
-    // which other hooks a class has. A class whose hooks can answer for keys missing from its shape must set the flag,
-    // and one whose hooks can start shadowing inherited properties must have that hook return false.
+    // on JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE, JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE and
+    // the is_cacheable_for_inherited_property hook, never on which other hooks a class has. A class whose hooks can
+    // answer for keys missing from its shape must set the first flag, or the second if they only answer for array
+    // indices, and one whose hooks can start shadowing inherited properties must have that hook return false.
     //
     // Enumeration (for-in, Object.keys, Object.assign, object spread, JSON.stringify) has fast paths that read keys,
     // attributes and values straight from the shape and storage. The engine never takes them for an object whose class
@@ -146,6 +147,7 @@ enum {
     JS_HOST_CLASS_IMMUTABLE_PROTOTYPE = 1 << 5,
     JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE = 1 << 6,
     JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH = 1 << 7,
+    JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE = 1 << 10,
 
     // Only for JS_HOST_CLASS_FUNCTION, which must then have a construct hook.
     JS_HOST_CLASS_HAS_CONSTRUCTOR = 1 << 8,

@@ -150,11 +150,19 @@ def legacy_platform_object_info_fields(context: GenerationContext, interface: In
     return [field for field in LEGACY_PLATFORM_OBJECT_INFO_FIELDS if field in fields]
 
 
+# The LegacyPlatformObjectInfo fields of wrappers whose hooks only answer for array indices.
+INDEXED_PROPERTY_FIELDS = {
+    "supports_indexed_properties",
+    "has_indexed_property_setter",
+    "indexed_property_setter_has_identifier",
+}
+
+
 def wrapper_host_class_flags(context: GenerationContext, interface: Interface) -> list[str]:
     interfaces = interface_and_inherited_interfaces(context, interface)
     is_location = any(interface_in_chain.name == "Location" for interface_in_chain in interfaces)
     is_global = any("Global" in interface_in_chain.extended_attributes for interface_in_chain in interfaces)
-    is_legacy_platform_object = legacy_platform_object_info_fields(context, interface) is not None
+    legacy_platform_object_fields = legacy_platform_object_info_fields(context, interface)
 
     flags = ["platform_object_host_class_flags"]
     if is_location:
@@ -165,7 +173,9 @@ def wrapper_host_class_flags(context: GenerationContext, interface: Interface) -
         flags.append("JS_HOST_CLASS_IS_GLOBAL_OBJECT")
     if is_global:
         flags.append("JS_HOST_CLASS_IMMUTABLE_PROTOTYPE")
-    if is_legacy_platform_object or is_location:
+    if legacy_platform_object_fields is not None and set(legacy_platform_object_fields) <= INDEXED_PROPERTY_FIELDS:
+        flags.append("JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE")
+    elif legacy_platform_object_fields is not None or is_location:
         flags.append("JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE")
     return flags
 
