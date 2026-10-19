@@ -1280,6 +1280,7 @@ impl StyleEngine {
 
     /// Answers the identities the end of the transaction released, for the host to mint again.
     pub(super) fn discard_style_transaction_outputs(&mut self) -> Vec<u32> {
+        self.retained.forget_custom_property_environments_by_answer();
         if let Some(pass) = self.host.suspended_style_pass.take() {
             self.abandon_style_pass(pass);
         }

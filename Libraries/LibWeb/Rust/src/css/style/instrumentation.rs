@@ -163,6 +163,7 @@ define_counters! {
     EngineComputedRecordSubstitutionMemoHits => "engineComputedRecordSubstitutionMemoHits",
     EngineCustomPropertyEnvironmentsResolved => "engineCustomPropertyEnvironmentsResolved",
     EngineCustomPropertyEnvironmentMemoHits => "engineCustomPropertyEnvironmentMemoHits",
+    EngineCustomPropertyEnvironmentAnswerHits => "engineCustomPropertyEnvironmentAnswerHits",
     EngineCustomPropertyEnvironmentBails => "engineCustomPropertyEnvironmentBails",
     EngineComputedRecordBailMonospaceQuirk => "engineComputedRecordBailMonospaceQuirk",
     EngineComputedRecordBailRecordParent => "engineComputedRecordBailRecordParent",

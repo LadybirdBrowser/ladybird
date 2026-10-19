@@ -664,7 +664,7 @@ impl RetainedState {
             };
             // A function's container condition the engine cannot decide yet waits, as the row does.
             let environment = self
-                .engine_custom_property_environment(node, parent_environment, &inputs, None)
+                .engine_custom_property_environment_by_answer(node, parent_environment, &inputs)
                 .inspect_err(|&unanswered| {
                     if unanswered == Unanswered::Refused {
                         self.counters.bump(Counter::EngineComputedRecordBailCustomProperties);
@@ -1501,7 +1501,7 @@ impl RetainedState {
         let has_registered_declarations = self.declares_registered_custom_property(node, None, &inputs);
         // A function's container condition the engine cannot decide yet waits, as the row does.
         let mut environment = self
-            .engine_custom_property_environment(node, parent_environment, &inputs, None)
+            .engine_custom_property_environment_by_answer(node, parent_environment, &inputs)
             .inspect_err(|&unanswered| {
                 if unanswered == Unanswered::Refused {
                     self.counters.bump(Counter::EngineComputedRecordBailCustomProperties);
@@ -4273,6 +4273,7 @@ impl StyleEngine {
         self.retained
             .custom_property_environments
             .retain_only(|identity| live.contains(&identity));
+        self.retained.forget_custom_property_environments_by_answer();
         true
     }
 

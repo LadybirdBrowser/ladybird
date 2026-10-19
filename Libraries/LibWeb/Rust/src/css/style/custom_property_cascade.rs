@@ -387,6 +387,23 @@ fn substituted_tokens(value: &StyleValueData) -> &StyleValueData {
 /// Custom property names, sorted and without duplicates.
 pub(crate) type CustomPropertyNames = Arc<[Arc<[u16]>]>;
 
+/// What an element's custom declarations resolve over, where its match answer decides them all.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct EnvironmentByAnswerKey {
+    answer: MatchAnswerID,
+    tree_scope: TreeScopeID,
+    parent_environment: u64,
+    registration_generation: u64,
+}
+
+/// The environment such declarations resolved to, and what they read beyond it.
+#[derive(Clone)]
+pub(super) struct EnvironmentByAnswer {
+    environment: u64,
+    reads: u8,
+    custom_property_reads: Option<Option<CustomPropertyNames>>,
+}
+
 pub(super) fn append_custom_property_reads(value: &StyleValueData, names: &mut Vec<Arc<[u16]>>) -> bool {
     let Some((references, all_references_visible)) = custom_property_references(substituted_tokens(value)) else {
         return true;
@@ -1381,6 +1398,92 @@ impl RetainedState {
         self.engine_custom_property_environment_of(node, None, parent_environment, inputs, registered)
     }
 
+    /// `engine_custom_property_environment` for an element whose cascade declares no registered custom property: the
+    /// environment an element alike in its match answer, its tree and the environment it inherits resolved to.
+    pub(super) fn engine_custom_property_environment_by_answer(
+        &mut self,
+        node: StyleNodeID,
+        parent_environment: u64,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> Drive<u64> {
+        let key = self.environment_by_answer_key(node, parent_environment, inputs);
+        if let Some(key) = key
+            && let Some(memoized) = self.custom_property_environments_by_answer.get(&key).cloned()
+        {
+            self.counters.bump(Counter::EngineCustomPropertyEnvironmentAnswerHits);
+            match memoized.reads {
+                0 => self.custom_declaration_reads.remove(&node),
+                reads => self.custom_declaration_reads.insert(node, reads),
+            };
+            match memoized.custom_property_reads {
+                None => self.custom_declaration_custom_property_reads.remove(&node),
+                Some(reads) => self.custom_declaration_custom_property_reads.insert(node, reads),
+            };
+            return Ok(memoized.environment);
+        }
+        self.last_custom_property_environment_memoizable = false;
+        let environment = self.engine_custom_property_environment(node, parent_environment, inputs, None)?;
+        if let Some(key) = key
+            && self.last_custom_property_environment_memoizable
+        {
+            let memoized = EnvironmentByAnswer {
+                environment,
+                reads: self.custom_declaration_reads.get(&node).copied().unwrap_or(0),
+                custom_property_reads: self.custom_declaration_custom_property_reads.get(&node).cloned(),
+            };
+            self.custom_property_environments_by_answer.insert(key, memoized);
+        }
+        Ok(environment)
+    }
+
+    /// What decides an element's custom declarations, where its published match answer does: no batch of matches
+    /// stands in for the answer, the element's inline style declares no custom property, and no container condition
+    /// gates a rule of the answer declaring one.
+    fn environment_by_answer_key(
+        &self,
+        node: StyleNodeID,
+        parent_environment: u64,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> Option<EnvironmentByAnswerKey> {
+        if self.facts.element_custom_declarations_written(node).is_some() {
+            return None;
+        }
+        let gated = |rule: RuleID| {
+            self.program.rule_is_gated_by_container_query(rule) && !self.program.custom_declarations_of(rule).is_empty()
+        };
+        let answer_id = if let Some(matches) = self.batch_custom_property_matches.get(&node) {
+            if matches.iter().any(|entry| entry.pseudo.is_none() && gated(entry.rule)) {
+                return None;
+            }
+            *self.batch_custom_property_answers.get(&node)?
+        } else {
+            let (published, answer) = Self::published_answer_lookup(
+                &self.published_match_answers,
+                self.batch_matching_traversal.as_deref(),
+                node,
+            )?;
+            let matches = published.matches_for(answer)?;
+            if matches
+                .iter()
+                .any(|entry| entry.pseudo_element.is_none() && gated(entry.rule))
+            {
+                return None;
+            }
+            answer.cascade_input?
+        };
+        Some(EnvironmentByAnswerKey {
+            answer: answer_id,
+            tree_scope: self.tree.tree_scope(node),
+            parent_environment,
+            registration_generation: inputs.custom_property_registration_generation,
+        })
+    }
+
+    /// Forget the environments taken by match answer, whose identities may be handed out again.
+    pub(super) fn forget_custom_property_environments_by_answer(&mut self) {
+        self.custom_property_environments_by_answer.clear();
+    }
+
     /// What `engine_custom_property_environment` says of the element, for one of its
     /// pseudo-elements over the element's own environment.
     pub(super) fn engine_custom_property_environment_of(
@@ -1396,6 +1499,7 @@ impl RetainedState {
                 self.custom_declaration_reads.remove(&node);
                 self.custom_declaration_custom_property_reads.remove(&node);
             }
+            self.last_custom_property_environment_memoizable = true;
             return Ok(self.custom_property_environments.inheritable(parent_environment));
         }
         // A node the engine drives has the match answer its winners came from, and a published
@@ -1470,6 +1574,7 @@ impl RetainedState {
     ) -> Drive<u64> {
         let inherited_environment = self.custom_property_environments.inheritable(parent_environment);
         if cascaded.is_empty() {
+            self.last_custom_property_environment_memoizable = true;
             return Ok(inherited_environment);
         }
         let registry_ref = inputs.custom_property_registry();
@@ -1511,6 +1616,7 @@ impl RetainedState {
         let reads_conditions =
             functions.is_some() || cascaded.iter().any(|(_, value)| value_reads_conditions(value.data()));
         let memoizes = !reads_attributes && !reads_conditions && registered.is_none();
+        self.last_custom_property_environment_memoizable = memoizes;
         let key = Self::environment_inputs(
             parent_environment,
             inputs.custom_property_registration_generation,

@@ -293,6 +293,10 @@ impl RetainedState {
             && let Some(matches) = self.batch_custom_property_matches_of(answers, answer)
         {
             self.batch_custom_property_matches.insert(node, matches);
+            match answer.cascade_input {
+                Some(identity) => self.batch_custom_property_answers.insert(node, identity),
+                None => self.batch_custom_property_answers.remove(&node),
+            };
         }
         if let Some(matches) = self.batch_backing_pseudo_matches_of(node, answers, answer) {
             self.batch_backing_pseudo_matches.insert(node, matches);
@@ -307,6 +311,7 @@ impl RetainedState {
     fn clear_batch_answer_facts(&mut self) {
         self.batch_answers_complete_but_for_custom_properties.clear();
         self.batch_custom_property_matches.clear();
+        self.batch_custom_property_answers.clear();
         self.batch_backing_pseudo_matches.clear();
     }
 
@@ -422,6 +427,7 @@ impl StyleEngine {
         // them before this transaction publishes anything: a later C++ computation can install
         // the same record, which must not then be mistaken for an unconsumed derivation.
         self.discard_engine_computed_records();
+        self.retained.forget_custom_property_environments_by_answer();
         self.reclaim_computed_memory_if_needed();
         self.sync_tier3_benefit_observations();
         let tier3_evictions = self.retained.memory.finish_tier3_quota_period();

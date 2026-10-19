@@ -488,6 +488,7 @@ impl RetainedState {
             .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
         traversal.cascade_compaction_workspace_memory.release();
         traversal.unbatched_facts_memory.release();
+        self.forget_custom_property_environments_by_answer();
         let released_cascade_payload_bytes = self.match_answers.sweep_unreferenced();
         self.retained_match_answers
             .release_swept_cascade_payloads(released_cascade_payload_bytes);
@@ -741,6 +742,7 @@ impl RetainedState {
                 caches.answers.release(&mut self.match_answers);
             }
             drop(caches);
+            self.forget_custom_property_environments_by_answer();
             let released_cascade_payload_bytes = self.match_answers.sweep_unreferenced();
             self.retained_match_answers
                 .release_swept_cascade_payloads(released_cascade_payload_bytes);
@@ -4208,8 +4210,11 @@ impl RetainedState {
         if let Some(batch) = self.batch_answers_complete_but_for_custom_properties.get_mut(&node) {
             *batch = complete_but_for_custom_properties;
         }
+        // The answer the batch named for these matches is not the one republished, so the matches no longer key an
+        // environment by it.
         if let Some(matches) = custom_property_matches {
             self.batch_custom_property_matches.insert(node, matches);
+            self.batch_custom_property_answers.remove(&node);
         }
         self.computed_group_sets
             .set_node_pseudo_style_mask(node, Some(pseudo_style_mask));
