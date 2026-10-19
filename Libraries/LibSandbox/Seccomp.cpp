@@ -84,8 +84,6 @@ static constexpr unsigned read_only_open_flags = [] {
 #define SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(policy, name) \
     IF_DEFINED_##name(SECCOMP_APPEND_ALLOW_SYSCALL(policy, name), (policy).append(SECCOMP_ALLOW_NOTHING))
 
-#define IF_DEFINED_accept(if_defined, if_not_defined) if_defined
-#define IF_DEFINED_accept4(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_access(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_bind(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_brk(if_defined, if_not_defined) if_defined
@@ -141,7 +139,6 @@ static constexpr unsigned read_only_open_flags = [] {
 #define IF_DEFINED_ioctl(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_link(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_linkat(if_defined, if_not_defined) if_defined
-#define IF_DEFINED_listen(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_lseek(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_madvise(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_membarrier(if_defined, if_not_defined) if_defined
@@ -208,14 +205,6 @@ static constexpr unsigned read_only_open_flags = [] {
 #define IF_DEFINED_write(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_writev(if_defined, if_not_defined) if_defined
 
-#ifndef __NR_accept
-#    undef IF_DEFINED_accept
-#    define IF_DEFINED_accept(if_defined, if_not_defined) if_not_defined
-#endif
-#ifndef __NR_accept4
-#    undef IF_DEFINED_accept4
-#    define IF_DEFINED_accept4(if_defined, if_not_defined) if_not_defined
-#endif
 #ifndef __NR_access
 #    undef IF_DEFINED_access
 #    define IF_DEFINED_access(if_defined, if_not_defined) if_not_defined
@@ -327,10 +316,6 @@ static constexpr unsigned read_only_open_flags = [] {
 #ifndef __NR_linkat
 #    undef IF_DEFINED_linkat
 #    define IF_DEFINED_linkat(if_defined, if_not_defined) if_not_defined
-#endif
-#ifndef __NR_listen
-#    undef IF_DEFINED_listen
-#    define IF_DEFINED_listen(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_getcpu
 #    undef IF_DEFINED_getcpu
@@ -1627,9 +1612,6 @@ void SeccompPolicy::allow_network()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendto);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, connect);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, bind);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, listen);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, accept);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, accept4);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, shutdown);
 
 #ifdef __NR_setsockopt
