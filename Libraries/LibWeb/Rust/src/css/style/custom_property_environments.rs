@@ -396,12 +396,11 @@ impl CustomPropertyEnvironments {
     }
 
     /// The registrations changed. What a written value substitutes to under an environment depends
-    /// on them, and so does what an environment C++ published hands down, which C++ names again
-    /// as it hands the environment over: forget both.
+    /// on them: forget those. So does what an environment C++ published hands down, which C++
+    /// names again for every environment an element holds as the registrations change, and as it
+    /// hands any environment over.
     pub(super) fn registrations_changed(&mut self) {
         self.substitutions.clear();
-        self.inheritable
-            .retain(|&identity, _| identity & ENGINE_ENVIRONMENT_IDENTITY_BIT != 0);
     }
 
     pub(super) fn remember_substitution(
