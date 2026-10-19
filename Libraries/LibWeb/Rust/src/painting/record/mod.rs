@@ -117,6 +117,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     // Rows of the layout subtrees whose root moved: every producer of theirs records again.
     pub(crate) moved_expansion: FastSet<NodeSlotId>,
     pub(crate) blocking_wheel_event_region_count: u32,
+    pub(crate) records_per_box_wheel_hit_test_targets: bool,
     pub(crate) observer: O,
     list: HitTestList,
     pub(crate) scratch: &'a mut scratch::RecordingScratch,

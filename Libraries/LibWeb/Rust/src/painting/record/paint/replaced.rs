@@ -12,7 +12,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::builder::PendingInlineClip;
-use crate::painting::display_list::commands::{CanvasId, CompositorContextId};
+use crate::painting::display_list::commands::{CanvasId, CompositorContextId, CompositorNestedContextWheelRegion};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
@@ -441,20 +441,35 @@ pub(crate) fn paint_navigable_container_foreground<O: Observer>(
     if let Some(corner_radii) = corner_radii {
         inline_clips.push(PendingInlineClip::intersecting_rounded_rect(content_rect, corner_radii));
     }
+    // Preserve fractional placement so the child raster uses the same pixel phase as content
+    // painted directly under the embedding transform.
+    let scale = recorder.converter.device_pixels_per_css_pixel();
+    let destination_rect = FloatRect::new(
+        (absolute_rect.x.to_double() * scale) as f32,
+        (absolute_rect.y.to_double() * scale) as f32,
+        (absolute_rect.width.to_double() * scale) as f32,
+        (absolute_rect.height.to_double() * scale) as f32,
+    );
+    let child_context_id = CompositorContextId(facts.composited_context_id);
     recorder.record_with_inline_clips(&inline_clips, |recorder| {
-        // Preserve fractional placement so the child raster uses the same pixel phase as content
-        // painted directly under the embedding transform.
-        let scale = recorder.converter.device_pixels_per_css_pixel();
-        let destination_rect = FloatRect::new(
-            (absolute_rect.x.to_double() * scale) as f32,
-            (absolute_rect.y.to_double() * scale) as f32,
-            (absolute_rect.width.to_double() * scale) as f32,
-            (absolute_rect.height.to_double() * scale) as f32,
-        );
-        recorder.recorder.draw_composited_context(
-            destination_rect,
-            CompositorContextId(facts.composited_context_id),
-            ScalingMode::NearestNeighbor,
-        );
+        recorder
+            .recorder
+            .draw_composited_context(destination_rect, child_context_id, ScalingMode::NearestNeighbor);
     });
+
+    // The compositor only reads the metadata outside groups, and a record under ambient clips would count as drawn.
+    if destination_rect.is_empty()
+        || !recorder.visible_for_hit_testing(paintable)
+        || recorder.recorder.is_recording_inside_group()
+        || recorder.is_recording_svg_resource_content()
+    {
+        return;
+    }
+    recorder
+        .recorder
+        .compositor_nested_context_wheel_region(CompositorNestedContextWheelRegion {
+            rect: destination_rect,
+            corner_radii: corner_radii.unwrap_or_default(),
+            child_context_id,
+        });
 }

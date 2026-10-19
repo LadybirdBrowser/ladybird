@@ -108,6 +108,7 @@ fn record_display_list_impl<O: Observer>(
         live_producer: false,
         moved_expansion: FastSet::default(),
         blocking_wheel_event_region_count: 0,
+        records_per_box_wheel_hit_test_targets: frame_inputs.records_per_box_wheel_hit_test_targets(),
         observer: O::default(),
         list: HitTestList {
             item_capacity_hint_from_previous_list: paint_state.hit_test_item_capacity_hint,

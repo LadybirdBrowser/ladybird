@@ -38,12 +38,13 @@
         // The compositor routes the wheel with the first frame that shows where the iframe is.
         await waitForCondition(() => {
             const state = internals.compositorScrollState();
-            return state.document === document && state.mainThreadWheelEventRegionCount > 0;
+            return state.document === document && state.nestedContextWheelRegionCount > 0;
         });
 
         const state = internals.compositorScrollState();
         const output = [
             `main thread regions: ${state.mainThreadWheelEventRegionCount}`,
+            `nested context regions: ${state.nestedContextWheelRegionCount}`,
             `over iframe: ${wheelTargetToString(internals.compositorWheelTargetAt(60, 60, 0, 100))}`,
             `outside iframe: ${wheelTargetToString(internals.compositorWheelTargetAt(250, 60, 0, 100))}`,
         ];

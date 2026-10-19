@@ -1,4 +1,5 @@
-main thread regions: 1
+main thread regions: 0
+nested context regions: 1
 over iframe: blocked-by-main-thread-region
 outside iframe: latched scroller=viewport
 display list:
@@ -10,7 +11,12 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
+CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s1 rect=[0,0 800x600]
 CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
-CompositorMainThreadWheelEventRegion@s1/e0 rect=[40,40 160x120]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2013]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2000]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2000]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[40,40 160x120]
 DrawCompositedContext@s1/e0 dst_rect=[40,40 160x120] inline_clips=[clip=[40,40 160x120]]
+CompositorNestedContextWheelRegion@s1/e0 rect=[40,40 160x120]
 

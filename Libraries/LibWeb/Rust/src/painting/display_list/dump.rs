@@ -593,6 +593,11 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             let command = read_command::<CompositorMainThreadWheelEventRegion>(payload);
             write_field(output, "rect", command.rect);
         }
+        DisplayListCommandType::CompositorNestedContextWheelRegion => {
+            let command = read_command::<CompositorNestedContextWheelRegion>(payload);
+            write_field(output, "rect", command.rect);
+            write_corner_radii(output, command.corner_radii);
+        }
         DisplayListCommandType::CompositorScrollChainingBarrier => {
             let command = read_command::<CompositorScrollChainingBarrier>(payload);
             write_field(

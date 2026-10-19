@@ -197,6 +197,8 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayList::AsyncScrollingM
     TRY(encoder.encode(metadata.wheel_event_listener_state_generation));
     TRY(encoder.encode(metadata.has_blocking_wheel_event_listeners));
     TRY(encoder.encode(metadata.has_blocking_wheel_event_region_covering_viewport));
+    TRY(encoder.encode(metadata.viewport_keeps_horizontal_scrolls));
+    TRY(encoder.encode(metadata.viewport_keeps_vertical_scrolls));
     TRY(encoder.encode(metadata.device_pixels_per_css_pixel));
     TRY(encoder.encode(metadata.keyboard_scroll_state));
     return {};
@@ -211,6 +213,8 @@ ErrorOr<Compositing::DisplayList::AsyncScrollingMetadata> decode(Decoder& decode
         .wheel_event_listener_state_generation = TRY(decoder.decode<u64>()),
         .has_blocking_wheel_event_listeners = TRY(decoder.decode<bool>()),
         .has_blocking_wheel_event_region_covering_viewport = TRY(decoder.decode<bool>()),
+        .viewport_keeps_horizontal_scrolls = TRY(decoder.decode<bool>()),
+        .viewport_keeps_vertical_scrolls = TRY(decoder.decode<bool>()),
         .device_pixels_per_css_pixel = TRY(decoder.decode<double>()),
         .keyboard_scroll_state = TRY(decoder.decode<Compositing::KeyboardScrollState>()),
     };

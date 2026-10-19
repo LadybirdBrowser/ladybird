@@ -53,10 +53,12 @@ pub enum DisplayListCommandType {
     CompositorSnapContainer,
     CompositorSnapArea,
     CompositorScrollChainingBarrier,
+    CompositorNestedContextWheelRegion,
 }
 ffi_enum_bytes!(DisplayListCommandType as u8);
 
-pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize = DisplayListCommandType::CompositorScrollChainingBarrier as usize + 1;
+pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize =
+    DisplayListCommandType::CompositorNestedContextWheelRegion as usize + 1;
 
 impl DisplayListCommandType {
     pub fn from_u8(value: u8) -> Option<Self> {
@@ -80,6 +82,7 @@ impl DisplayListCommandType {
                 | Self::CompositorSnapContainer
                 | Self::CompositorSnapArea
                 | Self::CompositorScrollChainingBarrier
+                | Self::CompositorNestedContextWheelRegion
         )
     }
 
@@ -122,6 +125,7 @@ impl DisplayListCommandType {
             Self::CompositorSnapContainer => "CompositorSnapContainer",
             Self::CompositorSnapArea => "CompositorSnapArea",
             Self::CompositorScrollChainingBarrier => "CompositorScrollChainingBarrier",
+            Self::CompositorNestedContextWheelRegion => "CompositorNestedContextWheelRegion",
         }
     }
 }
@@ -1528,6 +1532,25 @@ ffi_bytes_fields!(CompositorScrollChainingBarrier {
 
 impl DisplayListCommand for CompositorScrollChainingBarrier {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorScrollChainingBarrier;
+}
+
+/// Where a nested context is painted: its content box, clipped to the rounded padding edge. The compositor can hand a
+/// wheel inside `rect` that nothing painted later covers to the nested context's own scroll nodes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct CompositorNestedContextWheelRegion {
+    pub rect: FloatRect,
+    pub corner_radii: CornerRadii,
+    pub child_context_id: CompositorContextId,
+}
+ffi_bytes_fields!(CompositorNestedContextWheelRegion {
+    rect,
+    corner_radii,
+    child_context_id
+});
+
+impl DisplayListCommand for CompositorNestedContextWheelRegion {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorNestedContextWheelRegion;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

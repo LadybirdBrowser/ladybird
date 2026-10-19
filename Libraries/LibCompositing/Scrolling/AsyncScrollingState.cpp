@@ -50,6 +50,8 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
         async_scrolling_state.wheel_event_listener_state_generation = metadata->wheel_event_listener_state_generation;
         async_scrolling_state.has_blocking_wheel_event_listeners = metadata->has_blocking_wheel_event_listeners;
         async_scrolling_state.has_blocking_wheel_event_region_covering_viewport = metadata->has_blocking_wheel_event_region_covering_viewport;
+        async_scrolling_state.viewport_keeps_horizontal_scrolls = metadata->viewport_keeps_horizontal_scrolls;
+        async_scrolling_state.viewport_keeps_vertical_scrolls = metadata->viewport_keeps_vertical_scrolls;
         async_scrolling_state.device_pixels_per_css_pixel = metadata->device_pixels_per_css_pixel;
     }
 
@@ -114,6 +116,17 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
             async_scrolling_state.main_thread_wheel_event_regions.append({
                 .context = context,
                 .rect = command.rect,
+            });
+            break;
+        }
+        case Compositing::DisplayListCommandType::CompositorNestedContextWheelRegion: {
+            auto command = Compositing::read_display_list_object<Compositing::CompositorNestedContextWheelRegion>(payload);
+            async_scrolling_state.nested_context_wheel_regions.append({
+                .context = context,
+                .rect = command.rect,
+                .corner_radii = command.corner_radii,
+                .child_context_id = command.child_context_id,
+                .paint_order_index = next_paint_order_index++,
             });
             break;
         }
@@ -298,6 +311,7 @@ JsonObject async_scrolling_state_to_json(AsyncScrollingState const& state)
     object.set("hasBlockingWheelEventListeners"sv, state.has_blocking_wheel_event_listeners);
     object.set("blockingWheelEventRegionCount"sv, state.blocking_wheel_event_regions.size());
     object.set("mainThreadWheelEventRegionCount"sv, state.main_thread_wheel_event_regions.size());
+    object.set("nestedContextWheelRegionCount"sv, state.nested_context_wheel_regions.size());
     object.set("wheelEventListenerStateGeneration"sv, state.wheel_event_listener_state_generation);
     object.set("hasBlockingWheelEventRegionCoveringViewport"sv, state.has_blocking_wheel_event_region_covering_viewport);
     return object;

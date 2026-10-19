@@ -82,6 +82,11 @@ struct CachedMainThreadWheelEventTarget {
     Optional<Gfx::FloatRect> viewport_rect;
 };
 
+struct CachedNestedContextWheelRegion {
+    NestedContextWheelRegion region;
+    Optional<Gfx::FloatRect> viewport_rect;
+};
+
 struct CachedBlockingWheelEventTarget {
     Compositing::ContextRef context;
     Gfx::FloatRect rect;
@@ -157,9 +162,11 @@ private:
     double m_device_pixels_per_css_pixel { 1.0 };
     Vector<WheelHitTestTarget> m_wheel_hit_test_regions;
     Vector<MainThreadWheelEventRegion> m_main_thread_wheel_event_regions;
+    Vector<NestedContextWheelRegion> m_nested_context_wheel_regions;
     Vector<CachedWheelHitTestTarget> m_cached_wheel_hit_test_targets;
     Vector<BlockingWheelEventRegion> m_blocking_wheel_event_regions;
     Vector<CachedMainThreadWheelEventTarget> m_cached_main_thread_wheel_event_targets;
+    Vector<CachedNestedContextWheelRegion> m_cached_nested_context_wheel_regions;
     Vector<CachedBlockingWheelEventTarget> m_cached_blocking_wheel_event_targets;
     Vector<ScrollChainingBarrier> m_scroll_chaining_barriers;
     Vector<CachedScrollChainingBarrier> m_cached_scroll_chaining_barriers;

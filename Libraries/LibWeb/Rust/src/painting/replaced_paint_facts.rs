@@ -88,11 +88,13 @@ pub(crate) enum ReplacedPaintFacts {
 
 impl ReplacedPaintFacts {
     /// The damage a row takes where its facts change to these. A canvas or a navigable container caches what it paints
-    /// and is hit-tested with beside its row, which goes with the facts.
+    /// and is hit-tested with beside its row, which goes with the facts. Whether a navigable container's content is
+    /// composited also decides which wheel region its scroll metadata records.
     pub(crate) fn damage_when_changed(&self) -> PaintDamage {
         match self {
             Self::FormControl(_) => PaintDamage::DRAW_FOREGROUND,
-            Self::Canvas(_) | Self::NavigableContainer(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT,
+            Self::Canvas(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT,
+            Self::NavigableContainer(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT | PaintDamage::SCROLL_METADATA,
             Self::Image(_) | Self::Video(_) => PaintDamage::ALL_DRAW,
         }
     }

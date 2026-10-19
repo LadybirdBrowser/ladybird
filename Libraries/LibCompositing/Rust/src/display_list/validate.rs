@@ -292,6 +292,7 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::CompositorSnapContainer => size_of::<CompositorSnapContainer>(),
         T::CompositorSnapArea => size_of::<CompositorSnapArea>(),
         T::CompositorScrollChainingBarrier => size_of::<CompositorScrollChainingBarrier>(),
+        T::CompositorNestedContextWheelRegion => size_of::<CompositorNestedContextWheelRegion>(),
     }
 }
 
@@ -485,7 +486,8 @@ fn validate_command_fields(
         | T::CompositorWheelHitTestTarget
         | T::CompositorWheelHitTestTargetWithCornerRadii
         | T::CompositorMainThreadWheelEventRegion
-        | T::CompositorBlockingWheelEventRegion => {}
+        | T::CompositorBlockingWheelEventRegion
+        | T::CompositorNestedContextWheelRegion => {}
     }
     Ok(())
 }
