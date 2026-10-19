@@ -747,6 +747,7 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     toolbar_layout->addWidget(location_edit_container, 1);
 
     m_content_blocking_button = new ContentBlockingButton(m_toolbar);
+    m_content_blocking_button->setToolTip("Ad Block");
     toolbar_layout->addWidget(m_content_blocking_button, 0, Qt::AlignVCenter);
     QObject::connect(m_content_blocking_button, &QToolButton::clicked, this, [this] { show_content_blocking_popover(); });
     view().on_content_blocking_change = [this](auto const& snapshot) { update_content_blocking_controls(snapshot); };
