@@ -2524,11 +2524,15 @@ fn modulo_of_random_int32_values() {
     for _ in 0..20000 {
         let pick = |random: &mut crate::regalloc::tests::Random| {
             let bits = random.next();
-            match bits % 4 {
+            match bits % 6 {
                 0 => (bits >> 32) as i32,
                 1 => ((bits >> 32) as i32) >> (bits % 31),
                 2 => i32::MAX - (bits >> 40) as i32,
-                _ => i32::MIN + (bits >> 40) as i32,
+                3 => i32::MIN + (bits >> 40) as i32,
+                // NB: Powers of two take a mask, and their negations (with
+                //     i32::MIN among both) do not.
+                4 => 1i32.wrapping_shl((bits >> 8) as u32 % 32),
+                _ => -(1i32.wrapping_shl((bits >> 8) as u32 % 31)),
             }
         };
         let (lhs, rhs) = (value::int32(pick(&mut random)), value::int32(pick(&mut random)));
