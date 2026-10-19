@@ -25,7 +25,7 @@ use crate::layout::object::Object;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 
 /// How many feedback slots of each kind an executable's bytecode indexes into.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct FeedbackSlotCounts {
     pub arith: u32,
     pub value: u32,
@@ -77,6 +77,18 @@ impl ExecutableFeedback {
         // SAFETY: new() laid out `count` initialized elements of type T, aligned for T, at `offset` in the storage,
         //         which lives as long as the feedback. Its elements are cells, which allow shared mutation.
         unsafe { core::slice::from_raw_parts(storage.data().add(offset).cast::<T>(), count as usize) }
+    }
+
+    /// Takes over what `other`, the feedback of an executable with the same bytecode, observed.
+    pub fn copy_from(&self, other: &ExecutableFeedback) {
+        assert!(self.counts == other.counts, "the feedback has the same slots");
+        if let (Some(storage), Some(other_storage)) = (&self.storage, &other.storage) {
+            // SAFETY: Both storages hold `layout.size` bytes laid out for the same counts, and are distinct.
+            unsafe { core::ptr::copy_nonoverlapping(other_storage.data(), storage.data(), self.layout.size) };
+        }
+        for (value, other_value) in self.value.iter().zip(&other.value) {
+            value.set(other_value.get());
+        }
     }
 
     pub fn arith(&self) -> &[Cell<u8>] {
