@@ -1,0 +1,19 @@
+# Copyright (c) 2026-present, the Ladybird developers.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
+[package]
+name = "rust_echo_server"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+ak = { path = "../../../AK/Rust" }
+rustc-demangle = "0.1"
+libipc_rust = { path = "../../../Libraries/LibIPC/Rust" }
+
+[lints]
+workspace = true
