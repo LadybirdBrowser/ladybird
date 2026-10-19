@@ -225,6 +225,41 @@ TEST_CASE(held_late_frame_waiting_on_input_reports_pending)
     EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::Pending }));
 }
 
+TEST_CASE(seek_past_the_cached_frames_waits_for_the_frame_at_the_target)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+        dispatched_statuses.append(status);
+    });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1033), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    // The target lies after the cached frames end, but before the later one's conservative end.
+    clock->seek(AK::Duration::from_milliseconds(1080));
+    dispatched_statuses.clear();
+    sink->seek(AK::Duration::from_milliseconds(1080));
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(dispatched_statuses.is_empty());
+
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1066), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1066));
+    EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::HaveData }));
+}
+
 // The input reaching its end leaves the last frame on screen until its interval ends, and only an update after that
 // can report the end of the stream.
 TEST_CASE(updates_are_required_until_the_last_frame_finishes_presenting)
