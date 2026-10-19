@@ -18,6 +18,7 @@ namespace WebView {
 struct WEBCOMMON_API DictionaryLookupTextStyle {
     String font_family;
     float ui_point_size { 0 };
+    Optional<float> optical_size;
     u16 weight { 0 };
     u8 slope { 0 };
 };

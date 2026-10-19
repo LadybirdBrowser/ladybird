@@ -13,6 +13,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, WebView::DictionaryLookupTextStyle c
 {
     TRY(encoder.encode(style.font_family));
     TRY(encoder.encode(style.ui_point_size));
+    TRY(encoder.encode(style.optical_size));
     TRY(encoder.encode(style.weight));
     TRY(encoder.encode(style.slope));
     return {};
@@ -23,10 +24,11 @@ ErrorOr<WebView::DictionaryLookupTextStyle> IPC::decode(Decoder& decoder)
 {
     auto font_family = TRY(decoder.decode<String>());
     auto ui_point_size = TRY(decoder.decode<float>());
+    auto optical_size = TRY(decoder.decode<Optional<float>>());
     auto weight = TRY(decoder.decode<u16>());
     auto slope = TRY(decoder.decode<u8>());
 
-    return WebView::DictionaryLookupTextStyle { move(font_family), ui_point_size, weight, slope };
+    return WebView::DictionaryLookupTextStyle { move(font_family), ui_point_size, optical_size, weight, slope };
 }
 
 template<>
