@@ -30,6 +30,9 @@ public:
     unsigned major() const { return m_major; }
     bool has_decoder(CodecID) const;
     bool provides_decoder_missing_from_bundle() const;
+    // Within a major, FFmpeg only appends to its structs, so code built against the bundled headers can reach into this
+    // library's structs when both of its majors match the bundled ones.
+    bool shares_bundled_struct_layouts() const;
 
 private:
     void* m_library_handle;

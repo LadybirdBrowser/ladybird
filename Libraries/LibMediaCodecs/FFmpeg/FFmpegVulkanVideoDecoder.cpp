@@ -5,6 +5,8 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/Diagnostics.h>
+#include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <LibIPC/File.h>
@@ -15,6 +17,10 @@
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibThreading/Thread.h>
 #include <string.h>
+
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+#    include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
+#endif
 
 extern "C" {
 #include <libavutil/hwcontext_drm.h>
@@ -45,6 +51,10 @@ char const* decoder_name_for(CodecID codec_id)
         return "vp9";
     case CodecID::AV1:
         return "av1";
+    case CodecID::H264:
+        return "h264";
+    case CodecID::H265:
+        return "hevc";
     default:
         return nullptr;
     }
@@ -57,17 +67,32 @@ StringView decode_extension_for(CodecID codec_id)
         return VK_KHR_VIDEO_DECODE_VP9_EXTENSION_NAME ""sv;
     case CodecID::AV1:
         return VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME ""sv;
+    case CodecID::H264:
+        return VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME ""sv;
+    case CodecID::H265:
+        return VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME ""sv;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
+// We only ship decoders for royalty-free codecs, so H.264 and HEVC decode through the system's FFmpeg. The decoder
+// reaches into FFmpeg's hardware structs, so that library is only used when they are laid out as in the bundled one.
 FFmpegFunctions const* ffmpeg_for(CodecID codec_id)
 {
     switch (codec_id) {
     case CodecID::VP9:
     case CodecID::AV1:
         return &FFmpegFunctions::bundled();
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+    case CodecID::H264:
+    case CodecID::H265: {
+        auto const* library = SystemFFmpeg::the();
+        if (library == nullptr || !library->shares_bundled_struct_layouts())
+            return nullptr;
+        return &library->functions();
+    }
+#endif
     default:
         return nullptr;
     }
@@ -101,15 +126,26 @@ Optional<VkVideoComponentBitDepthFlagBitsKHR> component_bit_depth_for(u8 bit_dep
     }
 }
 
-// Every decoder in the process shares one device context around the process's device, which lives as long as it does.
+void lock_queue(AVHWDeviceContext*, u32 queue_family, u32)
+{
+    VulkanVideoDevice::the()->lock_queue(queue_family);
+}
+
+void unlock_queue(AVHWDeviceContext*, u32 queue_family, u32)
+{
+    VulkanVideoDevice::the()->unlock_queue(queue_family);
+}
+
+// The decoders using one FFmpeg share one device context around the process's device, which lives as long as it
+// does. A context only works with the FFmpeg that made it, so each FFmpeg gets its own.
 DecoderErrorOr<AVBufferRef*> device_context_for(FFmpegFunctions const& functions, VulkanVideoDevice& device)
 {
     static NeverDestroyed<Mutex> mutex;
-    static AVBufferRef* device_context_reference = nullptr;
+    static NeverDestroyed<HashMap<FFmpegFunctions const*, AVBufferRef*>> device_context_references;
 
     MutexLocker locker { *mutex };
-    if (device_context_reference != nullptr)
-        return device_context_reference;
+    if (auto reference = device_context_references->get(&functions); reference.has_value())
+        return *reference;
 
     auto* reference = functions.av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_VULKAN);
     if (reference == nullptr)
@@ -131,12 +167,15 @@ DecoderErrorOr<AVBufferRef*> device_context_for(FFmpegFunctions const& functions
         queue_family.num = 1;
         queue_family.flags = static_cast<VkQueueFlagBits>(family.flags);
     }
+    // Each context would otherwise keep its own locks on queues that the others submit to as well.
+    AK_IGNORE_DIAGNOSTIC("-Wdeprecated-declarations", vulkan_context.lock_queue = lock_queue;)
+    AK_IGNORE_DIAGNOSTIC("-Wdeprecated-declarations", vulkan_context.unlock_queue = unlock_queue;)
 
     if (functions.av_hwdevice_ctx_init(reference) < 0)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "FFmpeg could not use the Vulkan device"sv);
 
+    DECODER_TRY_ALLOC(device_context_references->try_set(&functions, reference));
     free_reference.disarm();
-    device_context_reference = reference;
     return reference;
 }
 
@@ -216,10 +255,18 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoder::capabilities(ParsedCodec
     vp9_profile.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_VP9_PROFILE_INFO_KHR;
     VkVideoDecodeAV1ProfileInfoKHR av1_profile {};
     av1_profile.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_PROFILE_INFO_KHR;
+    VkVideoDecodeH264ProfileInfoKHR h264_profile {};
+    h264_profile.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR;
+    VkVideoDecodeH265ProfileInfoKHR h265_profile {};
+    h265_profile.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_PROFILE_INFO_KHR;
     VkVideoDecodeVP9CapabilitiesKHR vp9_capabilities {};
     vp9_capabilities.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_VP9_CAPABILITIES_KHR;
     VkVideoDecodeAV1CapabilitiesKHR av1_capabilities {};
     av1_capabilities.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_CAPABILITIES_KHR;
+    VkVideoDecodeH264CapabilitiesKHR h264_capabilities {};
+    h264_capabilities.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR;
+    VkVideoDecodeH265CapabilitiesKHR h265_capabilities {};
+    h265_capabilities.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_CAPABILITIES_KHR;
 
     VkVideoProfileInfoKHR profile_info {};
     profile_info.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR;
@@ -256,6 +303,48 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoder::capabilities(ParsedCodec
         profile_info.pNext = &av1_profile;
         profile_info.videoCodecOperation = VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR;
         decode_capabilities.pNext = &av1_capabilities;
+        break;
+    }
+    case CodecID::H264: {
+        // Without a profile, ask for High, which can decode the other two.
+        h264_profile.stdProfileIdc = STD_VIDEO_H264_PROFILE_IDC_HIGH;
+        if (auto parameters = codec.h264_parameters(); parameters.has_value()) {
+            switch (parameters->profile().value_or(Codecs::H264::Profile::High10)) {
+            case Codecs::H264::Profile::Baseline:
+                h264_profile.stdProfileIdc = STD_VIDEO_H264_PROFILE_IDC_BASELINE;
+                break;
+            case Codecs::H264::Profile::Main:
+                h264_profile.stdProfileIdc = STD_VIDEO_H264_PROFILE_IDC_MAIN;
+                break;
+            case Codecs::H264::Profile::High:
+                break;
+            default:
+                return {};
+            }
+        }
+        h264_profile.pictureLayout = VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR;
+        profile_info.pNext = &h264_profile;
+        profile_info.videoCodecOperation = VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR;
+        decode_capabilities.pNext = &h264_capabilities;
+        break;
+    }
+    case CodecID::H265: {
+        h265_profile.stdProfileIdc = STD_VIDEO_H265_PROFILE_IDC_MAIN;
+        if (auto parameters = codec.h265_parameters(); parameters.has_value()) {
+            switch (parameters->profile().value_or(Codecs::H265::Profile::Main12)) {
+            case Codecs::H265::Profile::Main:
+                break;
+            case Codecs::H265::Profile::Main10:
+                h265_profile.stdProfileIdc = STD_VIDEO_H265_PROFILE_IDC_MAIN_10;
+                bit_depth = 10;
+                break;
+            default:
+                return {};
+            }
+        }
+        profile_info.pNext = &h265_profile;
+        profile_info.videoCodecOperation = VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR;
+        decode_capabilities.pNext = &h265_capabilities;
         break;
     }
     default:
