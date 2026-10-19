@@ -357,6 +357,13 @@ pub(crate) enum ParserString {
 }
 
 impl ParserString {
+    /// Moves the string out of the storage it shares with the other strings of its tokens (see `TextDetacher`).
+    pub(crate) fn detach(&mut self, detacher: &mut TextDetacher) {
+        if let Self::Shared { storage, range } = self {
+            detacher.string(storage, range);
+        }
+    }
+
     fn finish_shared(&mut self, storage: Arc<[u16]>, offset: usize) {
         let Self::Pending(range) = self else {
             return;
@@ -442,8 +449,21 @@ pub(crate) enum ParserTokenKind {
 }
 
 impl ParserTokenKind {
+    /// Detaches the token's string, if it has one (see `ParserString::detach`).
+    pub(crate) fn detach(&mut self, detacher: &mut TextDetacher) {
+        if let Some(string) = self.string_mut() {
+            string.detach(detacher);
+        }
+    }
+
     fn finish_shared_strings(&mut self, storage: Arc<[u16]>, offset: usize) {
-        let string = match self {
+        if let Some(string) = self.string_mut() {
+            string.finish_shared(storage, offset);
+        }
+    }
+
+    fn string_mut(&mut self) -> Option<&mut ParserString> {
+        match self {
             Self::Ident(value)
             | Self::Function(value)
             | Self::AtKeyword(value)
@@ -452,9 +472,6 @@ impl ParserTokenKind {
             Self::Hash { value, .. } => Some(value),
             Self::Dimension { unit, .. } => Some(unit),
             _ => None,
-        };
-        if let Some(string) = string {
-            string.finish_shared(storage, offset);
         }
     }
 }
@@ -499,6 +516,61 @@ impl SourceStorage {
     }
 }
 
+/// Moves the text that values outliving their parse keep out of the storage they share with the rest of the sheet, so
+/// that keeping them does not keep the whole sheet's text alive. The values are walked twice: once to find the span of
+/// each storage they keep, and once to point them into one copy of that span.
+#[derive(Default)]
+pub(crate) struct TextDetacher {
+    sources: DetachedSpans<SourceStorage>,
+    strings: DetachedSpans<[u16]>,
+}
+
+/// Each storage values keep text of, the span of it they keep, and its copy once it is made.
+type DetachedSpans<T> = Vec<(Arc<T>, Range<usize>, Option<Arc<T>>)>;
+
+impl TextDetacher {
+    /// Detaches the text of the values `walk` hands to the detacher, by calling it twice.
+    pub(crate) fn detach(mut walk: impl FnMut(&mut Self)) {
+        let mut detacher = Self::default();
+        walk(&mut detacher);
+        for (storage, span, copy) in &mut detacher.sources {
+            *copy = Some(Arc::new(match storage.as_ref() {
+                SourceStorage::Ascii(units) => SourceStorage::Ascii(units[span.clone()].into()),
+                SourceStorage::Utf16(units) => SourceStorage::Utf16(units[span.clone()].into()),
+            }));
+        }
+        for (storage, span, copy) in &mut detacher.strings {
+            *copy = Some(storage[span.clone()].into());
+        }
+        walk(&mut detacher);
+    }
+
+    fn source(&mut self, storage: &mut Arc<SourceStorage>, range: &mut Range<usize>) {
+        Self::visit(&mut self.sources, storage, range);
+    }
+
+    fn string(&mut self, storage: &mut Arc<[u16]>, range: &mut Range<usize>) {
+        Self::visit(&mut self.strings, storage, range);
+    }
+
+    fn visit<T: ?Sized>(spans: &mut DetachedSpans<T>, storage: &mut Arc<T>, range: &mut Range<usize>) {
+        let Some((_, span, copy)) = spans.iter_mut().find(|(candidate, ..)| Arc::ptr_eq(candidate, storage)) else {
+            spans.push((Arc::clone(storage), range.clone(), None));
+            return;
+        };
+        match copy {
+            None => {
+                span.start = span.start.min(range.start);
+                span.end = span.end.max(range.end);
+            }
+            Some(copy) => {
+                *storage = Arc::clone(copy);
+                *range = range.start - span.start..range.end - span.start;
+            }
+        }
+    }
+}
+
 pub(crate) enum ParserSourceIter<'a> {
     Empty,
     Owned(std::slice::Iter<'a, u16>),
@@ -525,6 +597,13 @@ impl ParserSource {
 
     fn shared(storage: Arc<SourceStorage>, range: Range<usize>) -> Self {
         Self::Shared { storage, range }
+    }
+
+    /// Moves the source text out of the whole source it shares with every other token (see `TextDetacher`).
+    pub(crate) fn detach(&mut self, detacher: &mut TextDetacher) {
+        if let Self::Shared { storage, range } = self {
+            detacher.source(storage, range);
+        }
     }
 
     pub(crate) fn covering(first: &Self, last: &Self) -> Option<Self> {
