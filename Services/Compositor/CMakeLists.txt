@@ -73,6 +73,10 @@ target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSa
 # OpenGL framework pulled in by Skia.
 target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibCompositing ${ANGLE_TARGETS} skia)
 
+if (USE_VULKAN_DMABUF_IMAGES)
+    target_sources(compositorservice PRIVATE VideoFrameSkiaVulkan.cpp)
+endif()
+
 if (APPLE)
     target_sources(compositorservice PRIVATE VideoFrameSkia.mm)
     target_link_libraries(compositorservice PUBLIC "-framework CoreGraphics" "-framework CoreVideo")

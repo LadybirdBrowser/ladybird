@@ -15,8 +15,6 @@
 
 namespace Media::FFmpeg {
 
-static constexpr size_t MAXIMUM_FRAMES_IN_FLIGHT = 256;
-
 Optional<DecoderCapabilities> FFmpegVideoDecoder::capabilities(FFmpegFunctions const& functions, ParsedCodec const& codec)
 {
     if (track_type_from_codec_id(codec.codec_id()) != TrackType::Video)
@@ -98,44 +96,8 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
 
 DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& coded_frame, DecodeIntent intent)
 {
-    auto coded_data = coded_frame.data();
-    VERIFY(coded_data.size() < NumericLimits<int>::max());
-
-    auto key = m_next_frame_key++;
-    m_packet->data = const_cast<u8*>(coded_data.data());
-    m_packet->size = static_cast<int>(coded_data.size());
-    m_packet->pts = static_cast<i64>(key);
-    m_packet->dts = AV_NOPTS_VALUE;
-
-    if (m_frames_in_flight.size() >= MAXIMUM_FRAMES_IN_FLIGHT) {
-        auto stale_frame_count = m_frames_in_flight.size();
-        m_frames_in_flight.remove_all_matching([&](u64 in_flight_key, auto const&) { return in_flight_key + MAXIMUM_FRAMES_IN_FLIGHT <= key; });
-        stale_frame_count -= m_frames_in_flight.size();
-        if (stale_frame_count > 0)
-            dbgln("FFmpegVideoDecoder: {} frames were never output", stale_frame_count);
-    }
-    DECODER_TRY_ALLOC(m_frames_in_flight.try_set(key, { coded_frame.presentation_timestamp(), coded_frame.duration(), intent }));
-
-    ScopeGuard clear_packet_side_data { [&] { m_functions.av_packet_free_side_data(m_packet); } };
-    auto new_codec_configuration = coded_frame.new_codec_configuration();
-    if (new_codec_configuration.has_value() && !new_codec_configuration->is_empty())
-        TRY(add_new_extradata_to_packet(m_functions, *m_packet, *new_codec_configuration));
-
-    auto result = m_functions.avcodec_send_packet(m_codec_context, m_packet);
-    switch (result) {
-    case 0:
-        return {};
-    case AVERROR(EAGAIN):
-        return DecoderError::with_description(DecoderErrorCategory::TryAgain, "FFmpeg decoder cannot decode any more data until frames have been retrieved"sv);
-    case AVERROR_EOF:
-        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "FFmpeg decoder has been flushed"sv);
-    case AVERROR(EINVAL):
-        return DecoderError::with_description(DecoderErrorCategory::Invalid, "FFmpeg codec has not been opened"sv);
-    case AVERROR(ENOMEM):
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "FFmpeg codec ran out of internal memory"sv);
-    default:
-        return DecoderError::with_description(DecoderErrorCategory::Corrupted, "FFmpeg codec reports that the data is corrupted"sv);
-    }
+    auto key = TRY(m_frames_awaiting_output.add(coded_frame, intent));
+    return send_coded_frame(m_functions, *m_codec_context, *m_packet, coded_frame, key);
 }
 
 void FFmpegVideoDecoder::signal_end_of_stream()
@@ -156,14 +118,14 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
 
         switch (result) {
         case 0: {
-            auto in_flight_frame = m_frames_in_flight.take(static_cast<u64>(m_frame->pts));
-            if (!in_flight_frame.has_value()) {
+            auto frame = m_frames_awaiting_output.take(m_frame->pts);
+            if (!frame.has_value()) {
                 dbgln("FFmpegVideoDecoder: Dropping a frame whose timing was forgotten");
                 continue;
             }
-            if (in_flight_frame->intent == DecodeIntent::Reference)
+            if (frame->intent == DecodeIntent::Reference)
                 continue;
-            m_pending_frame = in_flight_frame.release_value();
+            m_pending_frame = frame.release_value();
             break;
         }
         case AVERROR(EAGAIN):
@@ -177,21 +139,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
         }
     }
 
-    auto color_primaries = static_cast<ColorPrimaries>(codec_context_option("color_primaries"));
-    auto transfer_characteristics = static_cast<TransferCharacteristics>(codec_context_option("color_trc"));
-    auto matrix_coefficients = static_cast<MatrixCoefficients>(codec_context_option("colorspace"));
-    auto color_range = [&] {
-        switch (codec_context_option("color_range")) {
-        case AVColorRange::AVCOL_RANGE_MPEG:
-            return VideoFullRangeFlag::Studio;
-        case AVColorRange::AVCOL_RANGE_JPEG:
-            return VideoFullRangeFlag::Full;
-        default:
-            return VideoFullRangeFlag::Unspecified;
-        }
-    }();
-    auto cicp = container_cicp;
-    cicp.adopt_specified_values({ color_primaries, transfer_characteristics, matrix_coefficients, color_range });
+    auto cicp = coding_independent_code_points_of(m_functions, *m_codec_context, container_cicp);
 
     auto pixel_format = static_cast<AVPixelFormat>(m_frame->format);
     auto bit_depth = [&]() -> Optional<u8> {
@@ -297,18 +245,11 @@ DecoderErrorOr<void> FFmpegVideoDecoder::copy_pending_frame_into(Gfx::YUVData& y
     return {};
 }
 
-i64 FFmpegVideoDecoder::codec_context_option(char const* name) const
-{
-    i64 value = 0;
-    VERIFY(m_functions.av_opt_get_int(m_codec_context, name, 0, &value) == 0);
-    return value;
-}
-
 void FFmpegVideoDecoder::flush()
 {
     m_functions.avcodec_flush_buffers(m_codec_context);
     m_pending_frame.clear();
-    m_frames_in_flight.clear();
+    m_frames_awaiting_output.clear();
 }
 
 }

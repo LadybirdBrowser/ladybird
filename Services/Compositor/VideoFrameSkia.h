@@ -32,6 +32,10 @@ SkYUVAPixmaps make_yuva_pixmaps(Gfx::YUVData const&);
 // sample its surfaces yet.
 sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const&, Media::CodingIndependentCodePoints, Gfx::SkiaBackendContext&);
 
+// A surface's image stays valid for every frame decoded into the surface, but the decoder hands the surface over afresh
+// with each one, which Skia has to be told before it next samples the image.
+void video_surface_image_will_show_new_frame(SkImage&);
+
 // Makes an image of the frame's pixels, on the GPU when there is a backend context, and in memory otherwise.
 sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
 

@@ -54,14 +54,12 @@ struct DisplayListRasterCache::VideoSinkImage {
     Media::VideoFramePoolID pool_id { 0 };
     u32 slot_index { 0 };
     u64 slot_acquisition_id { 0 };
-    // A surface-backed image samples the surface where it lies, so it stays valid for every frame decoded into
-    // that surface rather than only for the one acquisition.
-    u32 surface_id { 0 };
     // Drawing is recorded here but read by the GPU afterwards, so the frame stays held, and its surface's pixels
     // with it, until a different frame is drawn in its place.
     RefPtr<Media::VideoFrame const> drawn_frame;
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     sk_sp<SkImage> image;
+    Gfx::IntSize visible_size;
 };
 
 struct DisplayListRasterCache::RepeatedTileRaster {
@@ -181,7 +179,7 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_image_frame(DisplayListResource
     return image;
 }
 
-sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceStorage const& resource_storage, VideoSinkResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceStorage const& resource_storage, VideoSinkResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntSize& visible_size)
 {
     auto sink = resource_storage.video_sink(id);
     if (!sink)
@@ -192,15 +190,12 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
 
     auto handle = Media::VideoFrameHandle::for_frame(*frame);
     auto surface = frame->surface();
-    auto surface_id = surface ? surface->id() : 0;
     auto& cached_image = *m_video_sink_images.ensure(id.value(), [] { return make<VideoSinkImage>(); });
     auto cached_image_matches = [&] {
         if (!cached_image.image)
             return false;
         if (cached_image.skia_backend_context != skia_backend_context)
             return false;
-        if (surface_id != 0)
-            return cached_image.surface_id == surface_id;
         if (cached_image.pool_id != handle.pool_id)
             return false;
         if (cached_image.slot_index != handle.slot_index)
@@ -211,6 +206,7 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
     }();
     if (cached_image_matches) {
         cached_image.drawn_frame = frame;
+        visible_size = cached_image.visible_size;
         return cached_image.image;
     }
 
@@ -225,10 +221,11 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
     cached_image.pool_id = handle.pool_id;
     cached_image.slot_index = handle.slot_index;
     cached_image.slot_acquisition_id = handle.slot_acquisition_id;
-    cached_image.surface_id = surface_id;
     cached_image.drawn_frame = frame;
     cached_image.skia_backend_context = skia_backend_context;
     cached_image.image = image;
+    cached_image.visible_size = frame->size().to_type<int>();
+    visible_size = cached_image.visible_size;
     return image;
 }
 

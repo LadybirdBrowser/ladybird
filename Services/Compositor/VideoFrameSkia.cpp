@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -12,6 +13,7 @@
 #include <LibGfx/SkiaUtils.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
 #include <core/SkCanvas.h>
@@ -23,10 +25,16 @@
 
 namespace Compositor {
 
-#ifndef AK_OS_MACOS
+#if !defined(AK_OS_MACOS) && !defined(USE_VULKAN_DMABUF_IMAGES)
 sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const&, Media::CodingIndependentCodePoints, Gfx::SkiaBackendContext&)
 {
     return nullptr;
+}
+#endif
+
+#ifndef USE_VULKAN_DMABUF_IMAGES
+void video_surface_image_will_show_new_frame(SkImage&)
+{
 }
 #endif
 
@@ -154,6 +162,62 @@ SkYUVAPixmaps make_yuva_pixmaps(Gfx::YUVData const& yuv_data)
     return SkYUVAPixmaps::FromExternalPixmaps(yuva_info, plane_pixmaps);
 }
 
+// A surface-backed image samples the surface where it lies, so it stays valid for every frame decoded into that
+// surface. A decoder recycles a bounded set of surfaces, so each one's image is kept for as long as the surface is.
+struct VideoSurfaceImage {
+    AK_ALLOC_WITH_KMALLOC;
+
+    NonnullRefPtr<Media::VideoSurface const> surface;
+    NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+    Media::CodingIndependentCodePoints cicp;
+    sk_sp<SkImage> image;
+    Media::VideoFramePoolID shown_pool_id { 0 };
+    u32 shown_slot_index { 0 };
+    u64 shown_slot_acquisition_id { 0 };
+};
+
+static HashMap<u32, NonnullOwnPtr<VideoSurfaceImage>>& video_surface_images()
+{
+    // Leaked so that no image outlives the GPU context at exit.
+    static auto& images = *new HashMap<u32, NonnullOwnPtr<VideoSurfaceImage>>;
+    return images;
+}
+
+static sk_sp<SkImage> image_for_video_surface(Media::VideoFrame const& frame, Media::VideoSurface const& surface, Gfx::SkiaBackendContext& skia_backend_context)
+{
+    auto& images = video_surface_images();
+    auto* cached_image = [&]() -> VideoSurfaceImage* {
+        auto cached = images.get(surface.id());
+        if (!cached.has_value())
+            return nullptr;
+        auto& image = **cached;
+        if (image.surface.ptr() != &surface || image.skia_backend_context.ptr() != &skia_backend_context || image.cicp != frame.cicp())
+            return nullptr;
+        return &image;
+    }();
+
+    if (!cached_image) {
+        // A surface that only this cache still holds will not be handed out again.
+        images.remove_all_matching([](auto, auto const& image) { return image->surface->ref_count() == 1; });
+
+        auto image = sk_image_from_video_surface(surface, frame.cicp(), skia_backend_context);
+        if (!image)
+            return nullptr;
+        auto new_image = make<VideoSurfaceImage>(surface, skia_backend_context, frame.cicp(), move(image));
+        cached_image = new_image.ptr();
+        images.set(surface.id(), move(new_image));
+    }
+
+    auto handle = Media::VideoFrameHandle::for_frame(frame);
+    if (cached_image->shown_pool_id != handle.pool_id || cached_image->shown_slot_index != handle.slot_index || cached_image->shown_slot_acquisition_id != handle.slot_acquisition_id) {
+        video_surface_image_will_show_new_frame(*cached_image->image);
+        cached_image->shown_pool_id = handle.pool_id;
+        cached_image->shown_slot_index = handle.slot_index;
+        cached_image->shown_slot_acquisition_id = handle.slot_acquisition_id;
+    }
+    return cached_image->image;
+}
+
 sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     sk_sp<SkImage> image;
@@ -161,7 +225,7 @@ sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<
     auto surface = frame.surface();
 
     if (surface != nullptr && skia_backend_context)
-        image = sk_image_from_video_surface(*surface, frame.cicp(), *skia_backend_context);
+        image = image_for_video_surface(frame, *surface, *skia_backend_context);
 
     auto yuv_data = image ? Optional<Gfx::YUVData> {} : frame.yuv_data();
     if (!image && !yuv_data.has_value() && surface == nullptr)

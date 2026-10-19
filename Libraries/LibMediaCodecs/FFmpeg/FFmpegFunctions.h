@@ -15,6 +15,7 @@
 
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavutil/hwcontext.h>
 #include <libavutil/opt.h>
 }
 
@@ -36,6 +37,7 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
 #define FFMPEG_ENUMERATE_FUNCTIONS(F)       \
     F(avcodec_version)                      \
     F(avcodec_find_decoder)                 \
+    F(avcodec_find_decoder_by_name)         \
     F(avcodec_descriptor_get_by_name)       \
     F(avcodec_alloc_context3)               \
     F(avcodec_free_context)                 \
@@ -43,6 +45,9 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(avcodec_send_packet)                  \
     F(avcodec_receive_frame)                \
     F(avcodec_flush_buffers)                \
+    F(avcodec_get_hw_config)                \
+    F(avcodec_get_hw_frames_parameters)     \
+    F(avcodec_default_get_buffer2)          \
     F(avcodec_parameters_alloc)             \
     F(avcodec_parameters_free)              \
     F(avcodec_parameters_to_context)        \
@@ -54,6 +59,14 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(av_frame_alloc)                       \
     F(av_frame_free)                        \
     F(av_frame_unref)                       \
+    F(av_frame_ref)                         \
+    F(av_frame_move_ref)                    \
+    F(av_buffer_ref)                        \
+    F(av_buffer_unref)                      \
+    F(av_hwdevice_ctx_alloc)                \
+    F(av_hwdevice_ctx_init)                 \
+    F(av_hwframe_ctx_init)                  \
+    F(av_hwframe_map)                       \
     F(av_malloc)                            \
     F(av_opt_set_int)                       \
     F(av_opt_set_chlayout)                  \
