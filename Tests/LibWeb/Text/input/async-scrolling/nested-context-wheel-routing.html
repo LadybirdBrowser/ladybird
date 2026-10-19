@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    iframe {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        border: 10px solid;
+    }
+
+    #covering-header {
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 800px;
+        height: 30px;
+    }
+</style>
+<div id="covering-header"></div>
+<script>
+    function createFrame(left, top, srcdoc, style = "") {
+        const frame = document.createElement("iframe");
+        frame.style = `left: ${left}px; top: ${top}px; ${style}`;
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = srcdoc;
+        document.body.append(frame);
+        return { frame, frameLoaded };
+    }
+
+    function route(x, y, deltaY = 100) {
+        return wheelTargetToString(internals.compositorWheelTargetAt(x, y, 0, deltaY));
+    }
+
+    promiseTest(async () => {
+        const frames = [
+            createFrame(0, 0, "<body style='height: 1000px'></body>"),
+            createFrame(200, 0, "<body></body>"),
+            createFrame(400, 0, "<style>html { overscroll-behavior: contain; }</style><body></body>"),
+            createFrame(600, 0, "<body style='height: 1000px'></body>", "pointer-events: none"),
+            createFrame(0, 200, "<body style='height: 1000px'><script>addEventListener('wheel', () => {}, { passive: false });<\/script></body>"),
+            createFrame(200, 200, "<body style='height: 1000px'><div style='overflow: auto; height: 50px'><div style='height: 500px'></div></div></body>"),
+        ];
+        await Promise.all(frames.map(({ frameLoaded }) => frameLoaded));
+        await waitForCondition(() => {
+            const state = internals.compositorScrollState();
+            return state.document === document && state.nestedContextWheelRegionCount === 5;
+        });
+        await waitForCondition(() => frames.every(({ frame }) => frame.contentWindow.internals.compositorScrollState().document === frame.contentDocument));
+
+        println(`main thread regions: ${internals.compositorScrollState().mainThreadWheelEventRegionCount}`);
+        println(`nested context regions: ${internals.compositorScrollState().nestedContextWheelRegionCount}`);
+        println(`over a frame that scrolls: ${route(60, 80)}`);
+        println(`over the border of a frame that scrolls: ${route(5, 80)}`);
+        println(`over a frame with nothing to scroll: ${route(260, 80)}`);
+        println(`over a frame whose root keeps its scrolls: ${route(460, 80)}`);
+        println(`over a frame that takes no pointer input: ${route(660, 80)}`);
+        println(`over a frame with a blocking wheel listener: ${route(60, 280)}`);
+        println(`over a scroller in a frame: ${route(260, 240)}`);
+        println(`over a scroller in a frame, upwards: ${route(260, 240, -100)}`);
+        println(`over the header covering a frame: ${route(60, 25)}`);
+
+        // The listeners of this document never see the wheel events over the content of a document nested in it.
+        window.addEventListener("wheel", () => {}, { passive: false });
+        await waitForCondition(() => internals.compositorScrollState().hasBlockingWheelEventRegionCoveringViewport);
+        println(`with a blocking wheel listener here, over a frame that scrolls: ${route(60, 80)}`);
+        println(`with a blocking wheel listener here, over a frame with nothing to scroll: ${route(260, 80)}`);
+
+        frames[3].frame.style.pointerEvents = "auto";
+        await waitForCondition(() => internals.compositorScrollState().nestedContextWheelRegionCount === 6);
+        println(`once it takes pointer input, over a frame that took none: ${route(660, 80)}`);
+    });
+</script>

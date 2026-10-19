@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = "<body style='margin: 0; height: 1000px'></body>";
+        document.body.prepend(frame);
+        await frameLoaded;
+        await waitForCondition(() => internals.compositorWheelTargetAt(100, 75, 0, 50).document === frame.contentDocument);
+
+        // The compositor scrolls the frame by the first step of the gesture. A listener the frame then adds may cancel
+        // the later steps, so the compositor leaves them to the page until a frame shows where the listener is.
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(100, 75, 0, 50, true, "ongoing");
+        const scrollYBeforeListener = frame.contentWindow.scrollY;
+        let canceledWheelEvents = 0;
+        frame.contentWindow.addEventListener("wheel", event => {
+            if (event.cancelable) {
+                event.preventDefault();
+                ++canceledWheelEvents;
+            }
+        }, { passive: false });
+        await internals.wheelThroughUIProcess(100, 75, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(100, 75, 0, 0, true, "ended");
+        // Whether the listener's state is stale or known by the later steps depends on when the frame records again.
+        const trace = internals.takeInputTrace().filter(record => record.stage === "compositor");
+        printInputTrace(trace.filter(record => record.id === trace[0].id));
+        const compositorScrolledLaterStep = trace.some(record => record.id !== trace[0].id && record.decision === "continued-latch");
+        println(`compositor scrolled a later step: ${compositorScrolledLaterStep}`);
+        println(`frame scrolled by the first step: ${scrollYBeforeListener > 0}`);
+        println(`canceled wheel events: ${canceledWheelEvents}`);
+        println(`frame scrolled by the canceled step: ${frame.contentWindow.scrollY !== scrollYBeforeListener}`);
+    });
+</script>

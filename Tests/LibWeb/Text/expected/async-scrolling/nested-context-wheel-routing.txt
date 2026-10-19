@@ -1,0 +1,14 @@
+main thread regions: 0
+nested context regions: 5
+over a frame that scrolls: latched scroller=nested viewport
+over the border of a frame that scrolls: latched scroller=viewport
+over a frame with nothing to scroll: latched scroller=viewport
+over a frame whose root keeps its scrolls: scroll-kept-by-overscroll-behavior
+over a frame that takes no pointer input: latched scroller=viewport
+over a frame with a blocking wheel listener: blocking-wheel-event-listeners
+over a scroller in a frame: latched scroller=div
+over a scroller in a frame, upwards: no-scroll-target
+over the header covering a frame: latched scroller=viewport
+with a blocking wheel listener here, over a frame that scrolls: latched scroller=nested viewport
+with a blocking wheel listener here, over a frame with nothing to scroll: blocking-wheel-event-listeners
+once it takes pointer input, over a frame that took none: latched scroller=nested viewport

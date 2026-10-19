@@ -1,6 +1,6 @@
 main thread regions: 0
 nested context regions: 1
-over iframe: blocked-by-main-thread-region
+over iframe: latched scroller=nested viewport
 outside iframe: latched scroller=viewport
 display list:
 AccumulatedVisualContext Tree:

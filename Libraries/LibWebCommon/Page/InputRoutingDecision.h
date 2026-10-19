@@ -32,6 +32,9 @@ namespace Web {
     X(Latched, "latched")                                                                               \
     X(LatchedOutermostScrollerToStretch, "latched-outermost-scroller-to-stretch")                       \
     X(ContinuedLatch, "continued-latch")                                                                \
+    X(HandedToNestedContext, "handed-to-nested-context")                                                \
+    X(NestedContextPassedStepOn, "nested-context-passed-step-on")                                       \
+    X(NestedContextUnavailable, "nested-context-unavailable")                                           \
     X(NotOverAScrollbar, "not-over-a-scrollbar")                                                        \
     X(NotPrimaryButton, "not-primary-button")                                                           \
     X(HoveringScrollbarPaintedByCompositor, "hovering-scrollbar-painted-by-compositor")                 \

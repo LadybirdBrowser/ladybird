@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = "<body style='margin: 0; height: 300px'></body>";
+        document.body.prepend(frame);
+        await frameLoaded;
+        await waitForCondition(() => internals.compositorWheelTargetAt(100, 75, 0, 50).document === frame.contentDocument);
+
+        // A touchpad gesture can begin with a step that moves nothing. The gesture is latched to the frame's viewport by
+        // its first step that does, and its later steps, momentum included, stay there past the frame's edge rather than
+        // scrolling the page. The momentum follows the fingers without an end in between, as momentum arriving more than
+        // 100 ms after an end starts another gesture.
+        internals.beginInputTrace();
+        await scrollSettled(frame.contentDocument, async () => {
+            await internals.wheelThroughUIProcess(100, 75, 0, 0, true, "ongoing");
+            await internals.wheelThroughUIProcess(100, 75, 0, 100, true, "ongoing");
+            await internals.wheelThroughUIProcess(100, 75, 0, 100, true, "ongoing");
+            await internals.wheelThroughUIProcess(100, 75, 0, 100, true, "momentum");
+            await internals.wheelThroughUIProcess(100, 75, 0, 0, true, "ended");
+        });
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
+        println(`frame scrollY: ${frame.contentWindow.scrollY}`);
+        println(`window.scrollY: ${window.scrollY}`);
+    });
+</script>
