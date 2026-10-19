@@ -690,23 +690,10 @@ static bool is_renderable(DOM::Document const& document)
     return true;
 }
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
-void EventLoop::update_the_rendering()
+// Takes in what the render clock's lanes did, then the queued input events. The lanes wait for the plan of the rendering
+// update with the serial number `update_serial`. Answers the documents whose lanes were taken in.
+Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(u64 update_serial)
 {
-    VERIFY(!m_running_rendering_task);
-    m_running_rendering_task = true;
-    for (auto const& page : pages_of_local_roots())
-        page->client().will_begin_rendering_update();
-    auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
-    ++m_rendering_scheduler_counters.updates_run;
-    ++m_rendering_update_serial;
-
-    // AD-HOC: The last rendering update may have ended as its style transaction flew. Its layout runs beside this
-    //         update's steps up to step 16, which takes the rest of it in, or the rest of it runs now.
-    if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing && !m_rendering_update_in_flight->layout_flew
-        && !let_layout_of_rendering_update_fly())
-        finish_rendering_update_in_flight();
-
     // AD-HOC: The render clock's lanes present frames of a document's animations and hover beside the tasks since the
     //         last update, at display ticks later than the opportunity this update renders for, which reached the event
     //         loop only after those tasks. An update after a lane's tick presented a frame renders at the time it runs,
@@ -739,7 +726,7 @@ void EventLoop::update_the_rendering()
             if (auto* root_arena = root_document ? root_document->layout_node_arena_if_created() : nullptr)
                 outer_input_event = Layout::RustFFI::document_host_newest_pointer_input_event(root_arena->host());
         }
-        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), m_rendering_update_serial, outer_input_event)) {
+        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), update_serial, outer_input_event)) {
             tick_presented = true;
             navigable->set_needs_to_record_display_list();
             navigable->set_needs_repaint();
@@ -810,6 +797,43 @@ void EventLoop::update_the_rendering()
         if (lanes_taken_in || !arena || !Layout::RustFFI::document_host_may_have_lanes(arena->host()))
             style_computer->forget_style_nodes_retired_beside_lanes();
     }
+    return documents_with_lanes;
+}
+
+// NB: Pointer moves and wheel steps wait for a rendering update, which coalesces those that come at the display's rate.
+//     A button or key press goes ahead of the next display tick, with the events queued before it, unless an update in
+//     flight holds what it would read.
+void EventLoop::queue_task_to_process_input_events()
+{
+    if (m_input_events_task_queued)
+        return;
+    m_input_events_task_queued = true;
+    queue_a_task(Task::Source::UserInteraction, this, nullptr, GC::create_function(GC::Heap::the(), [this] {
+        m_input_events_task_queued = false;
+        if (m_running_rendering_task || m_rendering_update_in_flight)
+            return;
+        take_clock_lanes_and_input_events_in(m_rendering_update_serial + 1);
+    }));
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
+void EventLoop::update_the_rendering()
+{
+    VERIFY(!m_running_rendering_task);
+    m_running_rendering_task = true;
+    for (auto const& page : pages_of_local_roots())
+        page->client().will_begin_rendering_update();
+    auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
+    ++m_rendering_scheduler_counters.updates_run;
+    ++m_rendering_update_serial;
+
+    // AD-HOC: The last rendering update may have ended as its style transaction flew. Its layout runs beside this
+    //         update's steps up to step 16, which takes the rest of it in, or the rest of it runs now.
+    if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing && !m_rendering_update_in_flight->layout_flew
+        && !let_layout_of_rendering_update_fly())
+        finish_rendering_update_in_flight();
+
+    auto documents_with_lanes = take_clock_lanes_and_input_events_in(m_rendering_update_serial);
 
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.
     auto frame_timestamp = m_last_render_opportunity_time;
