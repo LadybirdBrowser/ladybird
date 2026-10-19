@@ -1448,7 +1448,7 @@ static Optional<RecordedScrollTree> recorded_scroll_tree_of(DOM::Document& docum
         .admission = {},
     };
     auto async_scrolling_state = Compositing::async_scrolling_state_from_display_list(*display_list);
-    recorded.admission = Compositing::wheel_routing_admission_for(async_scrolling_state, document.page().wheel_event_listener_state_generation());
+    recorded.admission = Compositing::wheel_routing_admission_for(async_scrolling_state, document.wheel_event_listener_state_generation());
     recorded.scroll_tree.set_state(move(async_scrolling_state));
     recorded.scroll_tree.rebuild_wheel_hit_test_targets(display_list, &recorded.visual_context_tree, document.scroll_state_snapshot());
     return recorded;

@@ -1369,6 +1369,9 @@ public:
     // state has to be derived when they move.
     void set_may_have_blocking_wheel_event_listener() { m_may_have_blocking_wheel_event_listener = true; }
     [[nodiscard]] bool may_have_blocking_wheel_event_listener() const { return m_may_have_blocking_wheel_event_listener; }
+    // The page's wheel event listener state generation at the newest change to this document's blocking listeners.
+    u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
+    void set_wheel_event_listener_state_generation(u64 generation) { m_wheel_event_listener_state_generation = generation; }
 
     // Whether a node in this document has ever published a paint fact. It never goes back to false:
     // a node that lost its last fact still has to publish that it did.
@@ -2225,6 +2228,7 @@ private:
     bool m_requested_wanted_font_faces { false };
     bool m_may_have_scroll_snap_areas { false };
     bool m_may_have_blocking_wheel_event_listener { false };
+    u64 m_wheel_event_listener_state_generation { 0 };
     bool m_may_have_dom_paint_facts { false };
 
     HashTable<GC::Ref<Element>> m_list_owners_pending_item_renumber;
