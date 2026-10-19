@@ -69,7 +69,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/Promise.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::HTML {
@@ -3312,8 +3311,8 @@ void HTMLMediaElement::notify_about_playing()
 
 void HTMLMediaElement::update_audio_play_state()
 {
-    // AD-HOC: Browser chrome should indicate that this element is playing audio only while it can produce audible
-    //         output. Remember the state reported for each element so that changes to any input remain balanced.
+    // AD-HOC: The element counts as playing audio for its document's timer exemption only while it can produce audible
+    //         output.
     auto const is_playing_audio = m_has_started_playback
         && m_audio_tracks->has_enabled_track()
         && effective_media_volume() > 0;
@@ -3321,8 +3320,6 @@ void HTMLMediaElement::update_audio_play_state()
         return;
 
     m_is_playing_audio = is_playing_audio;
-    document().page().client().page_did_change_audio_play_state(
-        m_is_playing_audio ? AudioPlayState::Playing : AudioPlayState::Paused);
     document().media_element_audio_play_state_changed({});
 }
 

@@ -16,6 +16,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/WeakPtr.h>
+#include <LibAudio/Audibility.h>
 #include <LibAudio/PlaybackGroupId.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
@@ -36,11 +37,11 @@
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/MuteState.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
@@ -56,6 +57,7 @@
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebView/Debugger.h>
+#include <LibWebView/AudioServerAudibility.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ChildIdentity.h>
@@ -256,6 +258,7 @@ private:
     ErrorOr<void> initialize_audio_server_controller();
     ErrorOr<void> tell_audio_server_of_capture_permission();
     ErrorOr<void> tell_audio_server_of_playback_authorization(Audio::PlaybackGroupId);
+    void did_change_audio_playback_audibility(Audio::PlaybackGroupId, Audio::Audibility);
     static String audio_capture_permission_key(URL::URL const&);
     bool audio_capture_permitted() const;
     void decide_audio_capture_request(u64 request_id);
@@ -273,6 +276,7 @@ private:
     // Likewise, the AudioServer is told again of the groups it may play, and of those the user has muted.
     HashTable<Audio::PlaybackGroupId> m_authorized_audio_playback_groups;
     HashTable<Audio::PlaybackGroupId> m_muted_audio_playback_groups;
+    AudioServerAudibility m_audio_server_audibility { [this](Audio::PlaybackGroupId group, Audio::Audibility audibility) { did_change_audio_playback_audibility(group, audibility); } };
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     static HashTable<WebContentClient*>& clients();

@@ -1754,8 +1754,8 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         m_window->fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::WebContent);
     };
 
-    view().on_audio_play_state_changed = [this](auto play_state) {
-        emit audio_play_state_changed(tab_index(), play_state);
+    view().on_audibility_changed = [this](auto audibility) {
+        emit audibility_changed(tab_index(), audibility);
     };
 
     view().on_screen_wake_lock_state_changed = [this](auto wake_lock_state) {

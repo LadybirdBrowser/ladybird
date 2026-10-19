@@ -1,0 +1,5 @@
+plays audio heard in the isolated iframe: true
+WebContent#0
+  iframe#0: remote WebContent#1
+stops playing audio once the iframe is gone: true
+before the sound would have been forgotten: true

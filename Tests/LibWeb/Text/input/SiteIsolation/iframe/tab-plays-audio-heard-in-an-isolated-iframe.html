@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(20_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const httpServer = httpTestServer();
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", "/tab-plays-audio-heard-in-an-isolated-iframe-child", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const context = new AudioContext();
+                    const oscillator = new OscillatorNode(context);
+                    oscillator.connect(context.destination);
+                    oscillator.start();
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("tab-plays-audio-heard-in-an-isolated-iframe");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        // The iframe's page stops hosting its document, and is no longer heard at all.
+        const removedAt = performance.now();
+        iframe.remove();
+        println(`stops playing audio once the iframe is gone: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
+        println(`before the sound would have been forgotten: ${performance.now() - removedAt < 2000}`);
+    });
+</script>

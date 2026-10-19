@@ -139,6 +139,7 @@ endif()
 
 set(TEST_SOURCES
     TestAccessibilityTreeManager.cpp
+    TestAudioServerAudibility.cpp
     TestBackgroundNetworking.cpp
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
@@ -198,6 +199,9 @@ foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibDatabase LibWebView LibURL)
     if (source STREQUAL "TestProfile.cpp" OR source STREQUAL "TestDownloadSegmentation.cpp")
         list(APPEND test_libraries LibHTTP)
+    endif()
+    if (source STREQUAL "TestAudioServerAudibility.cpp")
+        list(APPEND test_libraries LibAudio LibIPC)
     endif()
     if (source STREQUAL "TestFontService.cpp")
         list(APPEND test_libraries LibFileSystem LibIPC LibGfx)
