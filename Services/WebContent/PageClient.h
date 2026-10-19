@@ -113,7 +113,6 @@ public:
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
-    void set_user_style(String source);
     void set_has_devtools_client(bool);
     bool has_devtools_client() const { return m_has_devtools_client; }
     virtual bool has_active_devtools_client() const override { return has_devtools_client(); }

@@ -298,8 +298,6 @@ endpoint WebContentServer routed by Web::PageId page_id
 
     set_page_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state) =|
 
-    set_user_style(Web::PageId page_id, String source) =|
-
     system_time_zone_changed() =|
     set_system_font_family(String family) =|
 

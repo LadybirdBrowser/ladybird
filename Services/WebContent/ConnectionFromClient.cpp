@@ -3449,12 +3449,6 @@ void ConnectionFromClient::set_page_mute_state(Web::PageId page_id, Web::HTML::M
         page->page().set_page_mute_state(mute_state);
 }
 
-void ConnectionFromClient::set_user_style(Web::PageId page_id, String source)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().set_user_style(Utf16String::from_utf8(source));
-}
-
 void ConnectionFromClient::system_time_zone_changed()
 {
     JS::clear_system_time_zone_cache();
