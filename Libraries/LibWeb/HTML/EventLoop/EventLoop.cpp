@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -830,7 +831,22 @@ void EventLoop::update_the_rendering()
         return is_renderable(document);
     });
 
-    // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
+    // 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
+    //    - the user agent believes that updating the rendering of doc's node navigable would have no visible effect; and
+    //    - doc's map of animation frame callbacks is empty.
+    docs.remove_all_matching([](auto const& document) {
+        // NB: Nothing of a document whose navigable container isn't being rendered (e.g. a display: none iframe) can be
+        //     seen. Its animations, observers and media query lists still report through the steps below, so keep a
+        //     document that has any of them to report.
+        auto container = document->navigable()->container();
+        if (!container || container->has_layout_box())
+            return false;
+        return !document->window()->animation_frame_callback_driver().has_callbacks()
+            && !document->has_associated_animations()
+            && !document->has_intersection_observers()
+            && !document->has_resize_observers()
+            && !document->needs_media_query_list_evaluation();
+    });
 
     // FIXME: 5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.
 
