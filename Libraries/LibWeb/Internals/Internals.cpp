@@ -2117,6 +2117,11 @@ bool Internals::media_element_is_playing_audio(HTML::HTMLMediaElement& element)
     return element.is_playing_audio();
 }
 
+bool Internals::document_is_playing_audio(DOM::Document& document)
+{
+    return document.is_playing_audio();
+}
+
 bool Internals::media_element_video_sink_is_ticking(HTML::HTMLMediaElement& element)
 {
     return element.m_video_sink_is_ticking;

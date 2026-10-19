@@ -420,6 +420,12 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
     //     second fetch on top of it.
     m_document_observer->retarget_for_adoption(document());
 
+    // The element's page keeps track of it, and is asked below whether the element's document is playing audio.
+    if (&old_document.page() != &document().page()) {
+        old_document.page().unregister_media_element({}, unique_id());
+        document().page().register_media_element({}, unique_id());
+    }
+
     // An element playing audio takes the timer exemption it earns its document along with it (see
     // Document::is_playing_audio()).
     if (m_is_playing_audio) {
