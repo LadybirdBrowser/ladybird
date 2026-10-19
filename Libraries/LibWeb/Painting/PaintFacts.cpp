@@ -104,8 +104,9 @@ static Optional<u64> composited_context_id_for_navigable_container(HTML::Navigab
     return context_id->value();
 }
 
-void reconcile_navigable_container_paint_facts(Layout::BegunRead const& read, DOM::Document const& document)
+bool reconcile_navigable_container_paint_facts(Layout::BegunRead const& read, DOM::Document const& document)
 {
+    bool has_composited_context = false;
     for (auto const* navigable_container : HTML::NavigableContainer::all_instances()) {
         if (&navigable_container->document() != &document)
             continue;
@@ -116,10 +117,12 @@ void reconcile_navigable_container_paint_facts(Layout::BegunRead const& read, DO
         if (auto context_id = composited_context_id_for_navigable_container(*navigable_container); context_id.has_value()) {
             facts.has_composited_context = true;
             facts.composited_context_id = *context_id;
+            has_composited_context = true;
         }
         // Where the facts changed, the container's paint cache goes with them.
         Layout::RustFFI::render_state_set_navigable_container_paint_facts(layout_node->document_host(), Layout::Node::slot_id(layout_node), facts);
     }
+    return has_composited_context;
 }
 
 static Layout::RustFFI::FfiNaturalSize natural_size_facts(Optional<CSSPixels> width, Optional<CSSPixels> height, Optional<CSSPixelFraction> aspect_ratio)

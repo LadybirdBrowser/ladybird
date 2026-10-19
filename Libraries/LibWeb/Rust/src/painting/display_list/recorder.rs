@@ -1292,6 +1292,10 @@ impl DisplayListRecorder {
         self.append_command(&barrier, &[]);
     }
 
+    pub fn compositor_nested_context_wheel_region(&mut self, region: CompositorNestedContextWheelRegion) {
+        self.append_command(&region, &[]);
+    }
+
     pub fn compositor_scrollbar(&mut self, scrollbar: CompositorScrollbar) {
         self.append_command(&scrollbar, &[]);
     }

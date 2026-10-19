@@ -24,6 +24,9 @@ pub(crate) struct UncapturedContentInputs {
     pub device_viewport_size: IntSize,
     pub document_id: UniqueNodeId,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
+    // The compositor hands a wheel over a nested context to it only where no box painted later covers it, which it can
+    // tell only from the wheel hit test targets of every box.
+    pub has_navigable_container_with_composited_context: bool,
     pub chrome_metrics: FfiChromeMetrics,
     pub paint_viewport_scrollbars: bool,
     pub middle_button_scroll_origin: Option<CssPixelPoint>,

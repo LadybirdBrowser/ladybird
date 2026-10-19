@@ -23,6 +23,7 @@ pub struct FfiRecordingInputs {
     pub should_paint_overlay: bool,
     pub document_id: i64,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
+    pub has_navigable_container_with_composited_context: bool,
     pub wheel_event_listener_state_generation: u64,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     pub paint_viewport_scrollbars: bool,
@@ -127,6 +128,7 @@ impl FfiRecordingInputs {
                 document_id: UniqueNodeId(self.document_id),
                 has_blocking_wheel_event_region_covering_viewport: self
                     .has_blocking_wheel_event_region_covering_viewport,
+                has_navigable_container_with_composited_context: self.has_navigable_container_with_composited_context,
                 chrome_metrics: self.chrome_metrics,
                 paint_viewport_scrollbars: self.paint_viewport_scrollbars,
                 middle_button_scroll_origin: self

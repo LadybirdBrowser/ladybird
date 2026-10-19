@@ -38,4 +38,9 @@ impl FrameInputs {
             has_non_viewport_wheel_scroll_target_candidate: paint_state.has_non_viewport_wheel_scroll_target_candidate,
         }
     }
+
+    pub(crate) fn records_per_box_wheel_hit_test_targets(&self) -> bool {
+        self.has_non_viewport_wheel_scroll_target_candidate
+            || self.uncaptured.has_navigable_container_with_composited_context
+    }
 }

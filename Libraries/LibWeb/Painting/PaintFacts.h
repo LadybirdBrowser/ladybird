@@ -27,7 +27,8 @@ WEB_API void push_layer_image_paint_facts(Layout::NodeWithStyle&);
 WEB_API void push_replaced_image_paint_facts(Layout::Node&);
 // The image the element provides changed.
 WEB_API void push_replaced_image_paint_facts(DOM::Element const&, Layout::ImageProvider const&);
-WEB_API void reconcile_navigable_container_paint_facts(Layout::BegunRead const&, DOM::Document const&);
+// Returns whether the content of a navigable container of the document has a context the compositor draws.
+WEB_API bool reconcile_navigable_container_paint_facts(Layout::BegunRead const&, DOM::Document const&);
 WEB_API void publish_image_map_area_facts_if_needed(Layout::BegunRead const&, DOM::Document&);
 
 }

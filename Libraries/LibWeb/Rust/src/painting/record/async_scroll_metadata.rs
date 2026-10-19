@@ -123,8 +123,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
     fn record_wheel_hit_test_target(&mut self, paintable: NodeSlotId) {
         // OPTIMIZATION: The compositor falls back to the viewport when there are no explicit
         // targets. Avoid generating redundant per-box targets when no non-viewport scroller
-        // could need one.
-        if !self.paint_state.has_non_viewport_wheel_scroll_target_candidate {
+        // or nested context could need one.
+        if !self.records_per_box_wheel_hit_test_targets {
             return;
         }
         if !self.is_visible(paintable) || !self.visible_for_hit_testing(paintable) {
@@ -457,7 +457,15 @@ impl<O: Observer> PaintRecorder<'_, O> {
             .source
             .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
         {
-            self.record_main_thread_wheel_event_region(paintable);
+            // A nested context the compositor can reach records a region of its own where its content is painted.
+            let has_composited_context = self
+                .source
+                .replaced_paint_facts(paintable)
+                .and_then(|facts| facts.navigable_container())
+                .is_some_and(|facts| facts.has_composited_context);
+            if !has_composited_context {
+                self.record_main_thread_wheel_event_region(paintable);
+            }
         } else if let Some(scroll_node_kind) = self.kind_of_compositor_scroll_node_recorded_for(paintable) {
             self.record_scroll_node(paintable, scroll_node_kind);
         }

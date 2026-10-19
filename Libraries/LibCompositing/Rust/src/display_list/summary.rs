@@ -107,7 +107,8 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         | T::PaintScrollBar
         | T::CompositorSnapContainer
         | T::CompositorSnapArea
-        | T::CompositorScrollChainingBarrier => {}
+        | T::CompositorScrollChainingBarrier
+        | T::CompositorNestedContextWheelRegion => {}
     }
 }
 
@@ -235,7 +236,8 @@ fn command_blend(
         | T::PaintScrollBar
         | T::CompositorSnapContainer
         | T::CompositorSnapArea
-        | T::CompositorScrollChainingBarrier => None,
+        | T::CompositorScrollChainingBarrier
+        | T::CompositorNestedContextWheelRegion => None,
     }
 }
 

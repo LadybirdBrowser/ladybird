@@ -23,6 +23,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
+#include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/Page/InputRoutingDecision.h>
 
 namespace Compositing {
@@ -98,6 +99,16 @@ struct MainThreadWheelEventRegion {
     Gfx::FloatRect rect;
 };
 
+// Where a nested context's content is painted. A wheel inside it that no wheel hit test target painted later covers
+// can be handed to the nested context.
+struct NestedContextWheelRegion {
+    Compositing::ContextRef context;
+    Gfx::FloatRect rect;
+    Gfx::CornerRadii corner_radii;
+    Web::CompositorContextId child_context_id;
+    u32 paint_order_index { 0 };
+};
+
 // A scroll container without a scroll node of its own that keeps the scrolls along an axis to itself. A wheel inside
 // its rect is not passed on along that axis to the scroll node above it.
 struct ScrollChainingBarrier {
@@ -146,6 +157,7 @@ struct AsyncScrollingState {
     Vector<AsyncSnapContainer> snap_containers;
     Vector<WheelHitTestTarget> wheel_hit_test_targets;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
+    Vector<NestedContextWheelRegion> nested_context_wheel_regions;
     Vector<ScrollChainingBarrier> scroll_chaining_barriers;
     Vector<AsyncScrollbar> scrollbars;
 
@@ -161,6 +173,8 @@ struct AsyncScrollingState {
     u64 wheel_event_listener_state_generation { 0 };
     bool has_blocking_wheel_event_listeners { false };
     bool has_blocking_wheel_event_region_covering_viewport { false };
+    bool viewport_keeps_horizontal_scrolls { false };
+    bool viewport_keeps_vertical_scrolls { false };
     double device_pixels_per_css_pixel { 1.0 };
 };
 

@@ -19,11 +19,13 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_device_pixels_per_css_pixel = state.device_pixels_per_css_pixel;
     m_wheel_hit_test_regions = move(state.wheel_hit_test_targets);
     m_main_thread_wheel_event_regions = move(state.main_thread_wheel_event_regions);
+    m_nested_context_wheel_regions = move(state.nested_context_wheel_regions);
     m_blocking_wheel_event_regions = move(state.blocking_wheel_event_regions);
     m_scroll_chaining_barriers = move(state.scroll_chaining_barriers);
     m_has_blocking_wheel_event_region_covering_viewport = state.has_blocking_wheel_event_region_covering_viewport;
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
+    m_cached_nested_context_wheel_regions.clear();
     m_cached_blocking_wheel_event_targets.clear();
     m_cached_scroll_chaining_barriers.clear();
     m_visual_context_tree_structural_epoch.clear();
@@ -273,6 +275,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Compositing::Display
 {
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
+    m_cached_nested_context_wheel_regions.clear();
     m_cached_blocking_wheel_event_targets.clear();
     m_cached_scroll_chaining_barriers.clear();
     m_visual_context_tree_structural_epoch.clear();
@@ -319,6 +322,16 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Compositing::Display
         });
     }
 
+    m_cached_nested_context_wheel_regions.ensure_capacity(m_nested_context_wheel_regions.size());
+    for (auto const& region : m_nested_context_wheel_regions) {
+        if (!context_is_valid(region.context))
+            continue;
+        m_cached_nested_context_wheel_regions.append({
+            .region = region,
+            .viewport_rect = viewport_rect_for_context(region.context, region.rect),
+        });
+    }
+
     for (auto const& region : m_blocking_wheel_event_regions) {
         // Keep invalid blockers so hit testing fails closed when their extent cannot be determined.
         m_cached_blocking_wheel_event_targets.append({
@@ -341,18 +354,24 @@ void AsyncScrollTree::clear_wheel_hit_test_targets()
 {
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
+    m_cached_nested_context_wheel_regions.clear();
     m_cached_blocking_wheel_event_targets.clear();
     m_cached_scroll_chaining_barriers.clear();
     m_visual_context_tree_structural_epoch.clear();
 }
 
+static bool rounded_rect_contains_point(Gfx::FloatRect const& rect, Gfx::CornerRadii const& corner_radii, Gfx::FloatPoint position_in_context)
+{
+    if (!rect.contains(position_in_context))
+        return false;
+    if (!corner_radii.has_any_radius())
+        return true;
+    return corner_radii.contains(position_in_context.to_type<int>(), rect.to_type<int>());
+}
+
 static bool wheel_hit_test_target_contains_point(CachedWheelHitTestTarget const& target, Gfx::FloatPoint position_in_context)
 {
-    if (!target.rect.contains(position_in_context))
-        return false;
-    if (!target.corner_radii.has_any_radius())
-        return true;
-    return target.corner_radii.contains(position_in_context.to_type<int>(), target.rect.to_type<int>());
+    return rounded_rect_contains_point(target.rect, target.corner_radii, position_in_context);
 }
 
 Optional<Gfx::FloatPoint> AsyncScrollTree::scroll_offset_for_node(AsyncScrollNodeID node_id, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
@@ -444,6 +463,18 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
             continue;
         auto position_in_context = visual_context_tree.transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
         if (position_in_context.has_value() && target.rect.contains(*position_in_context))
+            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
+    }
+
+    // The main thread hands a wheel over a nested context's content to the nested navigable.
+    for (auto const& cached_region : m_cached_nested_context_wheel_regions) {
+        auto const& region = cached_region.region;
+        if (cached_region.viewport_rect.has_value() && !cached_region.viewport_rect->contains(position))
+            continue;
+        if (!context_is_valid(region.context))
+            continue;
+        auto position_in_context = visual_context_tree.transform_point_for_hit_test(region.context, position, m_scroll_state_snapshot);
+        if (position_in_context.has_value() && rounded_rect_contains_point(region.rect, region.corner_radii, *position_in_context))
             return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
     }
 

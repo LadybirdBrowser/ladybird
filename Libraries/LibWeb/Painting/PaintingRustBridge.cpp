@@ -668,15 +668,23 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         inputs.bitmap_rect = bitmap_rect;
         inputs.background_color = document.background_color(read);
     }
-    reconcile_navigable_container_paint_facts(read, document);
+    inputs.has_navigable_container_with_composited_context = reconcile_navigable_container_paint_facts(read, document);
     Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata;
     if (auto navigable = document.navigable()) {
+        bool viewport_keeps_horizontal_scrolls = false;
+        bool viewport_keeps_vertical_scrolls = false;
+        if (auto* viewport_box = document.layout_node(read)) {
+            viewport_keeps_horizontal_scrolls = Painting::box_ending_scroll_chain(*viewport_box, 1, 0) == viewport_box;
+            viewport_keeps_vertical_scrolls = Painting::box_ending_scroll_chain(*viewport_box, 0, 1) == viewport_box;
+        }
         async_scrolling_metadata = Compositing::DisplayList::AsyncScrollingMetadata {
             .document_id = document.unique_id(),
             .viewport_rect = device_viewport_rect.to_type<int>(),
             .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),
             .has_blocking_wheel_event_listeners = wheel_event_region_state.has_blocking_wheel_event_listeners,
             .has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport,
+            .viewport_keeps_horizontal_scrolls = viewport_keeps_horizontal_scrolls,
+            .viewport_keeps_vertical_scrolls = viewport_keeps_vertical_scrolls,
             .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
         };
     }

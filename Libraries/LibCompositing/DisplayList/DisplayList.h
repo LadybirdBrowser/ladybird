@@ -43,6 +43,10 @@ public:
         u64 wheel_event_listener_state_generation { 0 };
         bool has_blocking_wheel_event_listeners { false };
         bool has_blocking_wheel_event_region_covering_viewport { false };
+        // Whether the viewport keeps the scrolls along an axis from the document it is nested in. A viewport with
+        // nothing to scroll has no scroll node to carry its overscroll-behavior.
+        bool viewport_keeps_horizontal_scrolls { false };
+        bool viewport_keeps_vertical_scrolls { false };
         // Converts the compositor's device pixel offsets to the CSS pixels the snap geometry is in.
         double device_pixels_per_css_pixel { 1.0 };
         Compositing::KeyboardScrollState keyboard_scroll_state {};
