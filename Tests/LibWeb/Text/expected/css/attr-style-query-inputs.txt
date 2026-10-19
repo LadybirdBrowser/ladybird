@@ -1,0 +1,3 @@
+initial: 10px, 10px
+attribute changed: 30px, 30px
+property changed: 40px, 40px

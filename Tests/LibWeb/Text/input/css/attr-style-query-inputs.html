@@ -1,0 +1,32 @@
+<!doctype html>
+<style>
+    @property --length {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+    body {
+        font-size: 10px;
+    }
+    #target {
+        --length: 20px;
+        --value: attr(data-expression type(<length>));
+        width: var(--value);
+        height: attr(data-expression type(<length>));
+    }
+</style>
+<div id="target" data-expression="if(style(--length: 2em): 10px; else: 20px)"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function dump(label) {
+            const style = getComputedStyle(target);
+            println(`${label}: ${style.width}, ${style.height}`);
+        }
+        dump("initial");
+        target.dataset.expression = "if(style(--length: 2em): 30px; else: 40px)";
+        dump("attribute changed");
+        target.style.setProperty("--length", "30px");
+        dump("property changed");
+    });
+</script>
