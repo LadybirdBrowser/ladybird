@@ -530,6 +530,12 @@ impl TransitionDecision {
         };
         context.set_transform_reference_box(reference_box);
         let existing_for = |property_id| existing.iter().find(|existing| existing.property_id == property_id);
+        // OPTIMIZATION: An element inherits an animated value only from an ancestor holding one, so one walk up the
+        //               tree, taken for the first inherited property, answers for every property where none does.
+        let ancestors_hold_animated_values = std::cell::OnceCell::new();
+        let inherits_animated_values = |element: crate::css::style::tree::StyleNodeID| {
+            *ancestors_hold_animated_values.get_or_init(|| engine.ancestors_hold_animated_values(element))
+        };
         let matched = entries
             .iter()
             .map(|entry| (entry.property_id, Some(entry), existing_for(entry.property_id)));
@@ -542,10 +548,12 @@ impl TransitionDecision {
             .map(|(property_id, entry, existing)| {
                 let mut property = TransitionProperty::new(property_id, entry, existing);
                 let inherited_animation = element
-                    .filter(|_| {
-                        after_overlay
-                            .and_then(|overlay| overlay.get(property_id))
-                            .is_none_or(|entry| !entry.inherited)
+                    .filter(|&element| {
+                        after_table.is_inherited(property_id)
+                            && after_overlay
+                                .and_then(|overlay| overlay.get(property_id))
+                                .is_none_or(|entry| !entry.inherited)
+                            && inherits_animated_values(element)
                     })
                     .and_then(|element| engine.inherited_animated_value(element, after_table, property_id));
                 let values_originate_from_current_color = prepare_transition_values(
@@ -566,6 +574,13 @@ impl TransitionDecision {
                     property.before_change_value = computed_value(before_table, None, property_id);
                 }
                 decide_transition(&context, &property, values_originate_from_current_color)
+            })
+            // A property the step leaves alone that holds no transition is one every consumer of the step leaves alone
+            // where the step names no action for it.
+            .filter(|action| {
+                action.kind != FfiTransitionActionKind::None
+                    || !action.start_value.is_null()
+                    || existing_for(action.property_id).is_some()
             })
             .collect()
     }

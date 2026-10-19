@@ -109,6 +109,23 @@ impl RetainedState {
         self.transition_baselines.get(node, pseudo_kind)
     }
 
+    /// Whether an ancestor `node` inherits from holds animated values, which is the only way it inherits one.
+    pub(crate) fn ancestors_hold_animated_values(&self, node: StyleNodeID) -> bool {
+        let mut ancestor = self.tree.inheritance_parent(node);
+        while let Some(current) = ancestor {
+            if let Some(record) = self.computed_group_sets.assigned_style_record(current)
+                && self
+                    .computed_group_sets
+                    .style_record_view(record.raw())
+                    .is_some_and(|view| view.animated_overlay.is_some())
+            {
+                return true;
+            }
+            ancestor = self.tree.inheritance_parent(current);
+        }
+        false
+    }
+
     /// Where an inherited value of `property` in `table`, a record of `node`'s, comes from when an
     /// ancestor animates it. A record the engine derives holds the animated value its parent passed
     /// on in its table, where a transition decides against the value beneath the animations: an
