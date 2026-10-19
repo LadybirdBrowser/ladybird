@@ -263,6 +263,10 @@
 #    define LSAN_IGNORE_OBJECT(base)
 #endif
 
+#if defined(HAS_ADDRESS_SANITIZER) && !defined(AK_OS_WINDOWS) && __has_include(<sanitizer/lsan_interface.h>)
+#    define HAS_LEAK_SANITIZER
+#endif
+
 #if __has_feature(thread_sanitizer) || defined(__SANITIZE_THREAD__)
 #    define HAS_THREAD_SANITIZER
 #endif
