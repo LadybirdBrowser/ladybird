@@ -56,6 +56,7 @@ private:
     void create_registered_video_edge(VideoSinkHandle, u64 edge_id);
 
     HashMap<u64, EdgeState> m_edge_states;
+    HashMap<u64, NonnullRefPtr<RemoteVideoSink>> m_released_edge_pumps_with_lent_slots;
     HashMap<u64, VideoSinkHandle> m_pending_edge_handles_by_edge_id;
 };
 

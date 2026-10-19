@@ -37,8 +37,11 @@ public:
     };
 
     static NonnullRefPtr<RemoteVideoProducer> create(VideoEdgeQueue, NonnullRefPtr<VideoFrameSlotDirectory>, Delegates);
+    virtual ~RemoteVideoProducer() override;
 
     void notify_data_available();
+
+    void stop_consuming();
 
     virtual void start() override;
     virtual VideoProducerOutput peek() override;
@@ -57,9 +60,13 @@ private:
     void discard_stale_ring_heads();
     void release_all_ring_frames();
 
+    struct LentSlotReleaser;
+
     VideoEdgeQueue m_edge;
     NonnullRefPtr<VideoFrameSlotDirectory> m_slot_directory;
     Delegates m_delegates;
+    NonnullRefPtr<LentSlotReleaser> m_lent_slot_releaser;
+    bool m_has_stopped_consuming { false };
 
     u32 m_expected_seek_id { 0 };
     RefPtr<VideoFrame> m_current_frame;

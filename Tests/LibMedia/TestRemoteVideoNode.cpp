@@ -633,6 +633,46 @@ TEST_CASE(current_frame_ignores_handles_whose_lend_was_released)
     EXPECT(sink->current_frame() == nullptr);
 }
 
+TEST_CASE(stopped_pump_reclaims_only_the_frames_left_in_the_ring)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto retired_pool_count = 0;
+    RemoteVideoSink::Delegates delegates;
+    delegates.ring_data_available = [] { };
+    delegates.transmit_seek = [](InvalidateHeldData) { };
+    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
+    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
+    delegates.retire_pool = [&](VideoFramePoolID) { retired_pool_count++; };
+    auto sink = MUST(RemoteVideoSink::create(move(delegates)));
+
+    auto pool = MUST(VideoFramePool::create());
+    auto producer = ScriptedVideoProducer::create();
+    producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
+    producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
+
+    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
+    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
+
+    MUST(sink->connect_input(producer));
+    sink->start_input();
+
+    EXPECT(spin_until(loop, [&] {
+        auto newest = consumer_edge.peek_newest();
+        return newest.has_value() && newest->handle.timestamp == AK::Duration::from_milliseconds(33);
+    }));
+    auto taken_handle = consumer_edge.peek()->handle;
+    consumer_edge.consume();
+
+    sink->stop_and_reclaim_unconsumed_frames();
+    EXPECT(sink->has_lent_slots());
+    EXPECT_EQ(retired_pool_count, 0);
+
+    sink->release_slot(taken_handle.pool_id, taken_handle.slot_index);
+    EXPECT(!sink->has_lent_slots());
+    EXPECT_EQ(retired_pool_count, 1);
+}
+
 TEST_CASE(consumer_forgets_announced_slots_on_suspension)
 {
     auto producer_edge = MUST(VideoEdgeQueue::create());
