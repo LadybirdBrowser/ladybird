@@ -13,7 +13,10 @@
 #include <AK/Vector.h>
 #include <LibCompositing/WebGL/GLFunctions.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Size.h>
+
+class SkImage;
 
 #if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
 #    define ENABLE_WEBGL_CPU_PAINTING_SURFACE
@@ -61,6 +64,16 @@ public:
 
     Vector<String> get_supported_opengl_extensions();
 
+    // Keeps the errors WebGL has yet to collect apart from those of the Compositor's own GL work.
+    GLenum get_error();
+    bool stash_errors();
+    void discard_errors();
+
+    WebGLVersion webgl_version() const { return m_webgl_version; }
+    bool can_copy_images_into_textures();
+    // The source size is the part of the image to copy, which can be smaller than the image.
+    bool copy_image_into_bound_texture(SkImage const&, Gfx::IntSize source_size, Gfx::IntSize, GLenum target, GLint level, GLint xoffset, GLint yoffset, bool flip_y, bool premultiply_alpha);
+
 private:
     struct ColorBuffer;
 
@@ -70,18 +83,20 @@ private:
     NonnullOwnPtr<Impl> m_impl;
     WebGLVersion m_webgl_version;
     [[maybe_unused]] DrawingBufferOptions m_drawing_buffer_options;
+    Vector<GLenum> m_stashed_errors;
 
     void free_surface_resources();
     void free_color_buffer(ColorBuffer&);
     bool allocate_color_buffer(ColorBuffer&);
+    bool allocate_shared_color_buffer(ColorBuffer&, Gfx::IntSize, Gfx::PaintingSurface::Origin);
     void attach_color_buffer_to_default_framebuffer(ColorBuffer const&);
     u32 color_buffer_texture_target() const;
     bool supports_copy_texture();
 #if defined(AK_OS_MACOS)
-    void allocate_iosurface_color_buffer(ColorBuffer&);
+    void allocate_iosurface_color_buffer(ColorBuffer&, Gfx::IntSize, Gfx::PaintingSurface::Origin);
 #endif
 #if defined(USE_VULKAN_DMABUF_IMAGES)
-    bool allocate_vkimage_color_buffer(ColorBuffer&);
+    bool allocate_vkimage_color_buffer(ColorBuffer&, Gfx::IntSize, Gfx::PaintingSurface::Origin);
 #endif
 #if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE)
     void allocate_cpu_painting_surface(ColorBuffer&);
