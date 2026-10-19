@@ -320,22 +320,47 @@ impl GraphemeSegmenter {
     }
 }
 
-struct LineSegmenter {
+struct LineSegmenter<'text> {
     handle: IcuSegmenterHandle,
+    text: &'text [u16],
+    /// Where the last search for a boundary started, and the boundary it found, so that no boundary lies before it.
+    last_search: std::cell::Cell<Option<(usize, usize)>>,
 }
 
-impl LineSegmenter {
-    fn new(text: &[u16]) -> Self {
+impl<'text> LineSegmenter<'text> {
+    fn new(text: &'text [u16]) -> Self {
         // SAFETY: See GraphemeSegmenter::new; the same lifetime contract holds,
         // and the C++ side picks the ASCII line-breaking fast path internally.
         let raw = unsafe { unicode_layout_line_segmenter_create(text.as_ptr(), text.len()) };
         Self {
             handle: IcuSegmenterHandle { raw },
+            text,
+            last_search: std::cell::Cell::new(None),
         }
     }
 
     fn next_boundary(&self, index: usize, inclusive: bool) -> Option<usize> {
-        self.handle.next_boundary(index, inclusive)
+        // NB: The segmenter moves a search that starts inside a surrogate pair to the start of the pair, which can
+        //     find a boundary before where the search started.
+        let starts_inside_surrogate_pair = index > 0
+            && index < self.text.len()
+            && is_utf16_low_surrogate(self.text[index])
+            && is_utf16_high_surrogate(self.text[index - 1]);
+        if starts_inside_surrogate_pair {
+            return self.handle.next_boundary(index, inclusive);
+        }
+        // OPTIMIZATION: The chunker asks about every position from the start of the text to its end. A search finds
+        //               the first boundary at or after where it starts, so the boundary the last search found answers
+        //               every search that starts between the two.
+        let search_start = if inclusive { index } else { index + 1 };
+        if let Some((last_search_start, boundary)) = self.last_search.get()
+            && (last_search_start..=boundary).contains(&search_start)
+        {
+            return Some(boundary);
+        }
+        let boundary = self.handle.next_boundary(index, inclusive)?;
+        self.last_search.set(Some((search_start, boundary)));
+        Some(boundary)
     }
 }
 
@@ -444,7 +469,7 @@ struct TextChunker<'text> {
     text: &'text [u16],
     frozen_font_list: &'text FrozenFontList,
     grapheme_segmenter: GraphemeSegmenter,
-    line_segmenter: LineSegmenter,
+    line_segmenter: LineSegmenter<'text>,
     word_break: u8,
     font_variant_emoji: u8,
     should_collapse_whitespace: bool,
