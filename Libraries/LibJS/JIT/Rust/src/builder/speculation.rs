@@ -407,8 +407,8 @@ impl GraphBuilder<'_> {
 
     /// The number `value` is, as an unboxed double, checked where needed.
     pub(super) fn number(&mut self, value: NodeId) -> NodeId {
-        if self.graph.node(value).repr == Some(Repr::Float64) {
-            return value;
+        if let Some(double) = self.float64_value_of(value) {
+            return double;
         }
         if let Some(integer) = self.int32_value_of(value) {
             return self.int32_to_float64(integer);
@@ -854,8 +854,8 @@ impl GraphBuilder<'_> {
         value: NodeId,
         otherwise: impl FnOnce(&mut Self, BranchCondition, Vec<NodeId>) -> NodeId,
     ) -> NodeId {
-        if self.graph.node(value).repr == Some(Repr::Float64) {
-            return value;
+        if let Some(double) = self.float64_value_of(value) {
+            return double;
         }
         if let Some(integer) = self.int32_value_of(value) {
             return self.int32_to_float64(integer);
