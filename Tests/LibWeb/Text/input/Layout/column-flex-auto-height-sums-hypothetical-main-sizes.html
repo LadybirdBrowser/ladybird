@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    * { margin: 0; }
+    .column { display: flex; flex-direction: column; width: 100px; }
+    .tall { height: 1000px; }
+</style>
+<!-- A sidebar with a percentage-height column that must shrink to make room for a footer. -->
+<div id="sidebar" style="display: flex; flex-direction: column; width: 200px; height: 300px; overflow: clip">
+    <div class="column" id="sidebar-content" style="height: 100%">
+        <div style="height: 50px"></div>
+        <div style="flex: 1 1 0px; overflow: auto"><div class="tall"></div></div>
+    </div>
+    <div id="sidebar-footer" style="height: 40px; flex-shrink: 0"></div>
+</div>
+<div class="column" id="zero-basis-scroller"><div style="height: 50px"></div><div style="flex: 1 1 0px; overflow: auto"><div class="tall"></div></div></div>
+<div class="column" id="zero-basis-visible"><div style="height: 50px"></div><div style="flex: 1 1 0px"><div class="tall"></div></div></div>
+<div class="column" id="percentage-min-height"><div style="height: 50px"></div><div style="flex: 1 1 0px; min-height: 10%"><div class="tall"></div></div></div>
+<div class="column" id="small-basis-scroller"><div style="height: 50px"></div><div style="flex: 1 1 10px; overflow: auto"><div class="tall"></div></div></div>
+<div class="column" id="mixed-grow"><div style="flex: 1 0 20px"><div style="height: 100px"></div></div><div style="flex: 3 0 10px; overflow: hidden"><div style="height: 100px"></div></div></div>
+<div class="column" id="min-max-clamped"><div style="flex: 0 1 200px; max-height: 80px"></div><div style="flex: 1 1 0px; min-height: 30px; overflow: auto"><div style="height: 100px"></div></div></div>
+<div class="column" id="max-content-with-gap" style="height: max-content; row-gap: 7px"><div style="flex: 1 1 0px; overflow: auto"><div style="height: 300px"></div></div><div style="height: 40px"></div></div>
+<div class="column" id="min-content-wrap" style="height: min-content; flex-wrap: wrap"><div style="height: 50px"></div><div style="height: 60px"></div></div>
+<div style="display: inline-flex; flex-direction: column" id="inline-column"><div style="flex: 1 1 0px; overflow: auto"><div style="height: 300px; width: 10px"></div></div><div style="height: 40px"></div></div>
+<div style="display: flex; width: min-content" id="row-unaffected"><div style="flex: 1 1 0px; overflow: auto"><div style="width: 300px; height: 10px"></div></div><div style="width: 40px"></div></div>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll("body > div[id]:not(#out), #sidebar > div")) {
+            const rect = element.getBoundingClientRect();
+            println(`${element.id}: ${rect.width}x${rect.height}`);
+        }
+    });
+</script>
