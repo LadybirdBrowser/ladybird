@@ -1,0 +1,4 @@
+opener's tab plays the video's audio: true
+popup's tab plays the adopted video's audio: true
+opener's tab stops playing audio: true
+video still playing: true

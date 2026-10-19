@@ -10,11 +10,6 @@
 
 namespace Web::HTML {
 
-enum class AudioPlayState {
-    Paused,
-    Playing,
-};
-
 enum class MuteState {
     Muted,
     Unmuted,

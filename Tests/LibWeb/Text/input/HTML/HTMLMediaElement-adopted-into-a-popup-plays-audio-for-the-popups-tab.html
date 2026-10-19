@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video loop src="../../../Assets/test-webm.webm"></video>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(20_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const video = document.querySelector("video");
+        const popup = window.open("about:blank", "_blank");
+        await video.play();
+        println(`opener's tab plays the video's audio: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+
+        // The video plays on in the popup's document, for the popup's tab.
+        popup.document.body.appendChild(popup.document.adoptNode(video));
+        println(`popup's tab plays the adopted video's audio: ${await waitForCondition(() => popup.internals.tabIsPlayingAudio())}`);
+        println(`opener's tab stops playing audio: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
+        println(`video still playing: ${!video.paused}`);
+
+        video.pause();
+        popup.close();
+    });
+</script>

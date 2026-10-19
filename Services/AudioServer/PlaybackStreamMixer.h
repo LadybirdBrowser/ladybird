@@ -14,6 +14,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <AK/Time.h>
+#include <AK/Vector.h>
+#include <LibAudio/Audibility.h>
 #include <LibAudio/PlaybackGroupId.h>
 #include <LibAudio/PlaybackStream.h>
 #include <LibAudio/SharedAudioFrameRing.h>
@@ -33,6 +36,12 @@ enum class PlaybackGroupMuteState : u8 {
     Muted,
 };
 
+// The peak, about -72 dBFS, at which an authorized group's combined sound counts as audible, after its streams' gain
+// and whether or not the group is muted.
+static constexpr float AUDIBLE_PEAK = 1.0f / 4096;
+// How long a group goes on counting as audible after its sound stops.
+static constexpr AK::Duration AUDIBILITY_LINGER = AK::Duration::from_seconds(3);
+
 // Mixes the shared rings of one tab's client streams into one output device stream, which plays only while some
 // client is playing or draining.
 class PlaybackStreamMixer : public AtomicRefCounted<PlaybackStreamMixer> {
@@ -40,7 +49,12 @@ public:
     using DeviceStreamFactory = Function<NonnullRefPtr<PlaybackStream::CreatePromise>(OutputState, u32 target_latency_ms, PlaybackStream::AudioDataRequestCallback)>;
 
     // Control thread. The device stream opens suspended through the factory.
-    static NonnullRefPtr<PlaybackStreamMixer> create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory);
+    static NonnullRefPtr<PlaybackStreamMixer> create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory, AK::Duration audibility_linger = AUDIBILITY_LINGER);
+
+    // Control thread. A group becomes audible as soon as it is heard, and inaudible once the linger has passed since it
+    // last was, or at once when it is revoked or the mixer is let go of.
+    Function<void(PlaybackGroupId, Audibility)> on_group_audibility_changed;
+    void report_every_group_inaudible();
     ~PlaybackStreamMixer();
 
     // Control thread. Runs once the device stream is open or has failed to open; at once if that is already known.
@@ -102,9 +116,19 @@ private:
         HashMap<MixerClientId, Client> m_clients;
         HashTable<PlaybackGroupId> m_authorized_groups;
         HashTable<PlaybackGroupId> m_muted_groups;
+
+        // The combined sound of each authorized group's streams in the current device buffer, and its peak.
+        struct GroupMix {
+            Vector<float> samples;
+            bool has_samples { false };
+            float peak { 0 };
+        };
+        HashMap<PlaybackGroupId, GroupMix> m_group_mixes;
+        // When the device plays the last buffer in which each group was heard, while it still counts as audible.
+        HashMap<PlaybackGroupId, i64> m_audible_until_ns;
     };
 
-    PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms);
+    PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms, AK::Duration audibility_linger);
 
     void set_device_stream(NonnullRefPtr<PlaybackStream>);
     void set_device_error(Error);
@@ -114,6 +138,9 @@ private:
     // The ring ran empty; the drain is done once the device has played what it took, at `played_at_ns`.
     void finish_drain_once_played(MixerClientId, i64 played_at_ns);
     void finish_drain(MixerClientId);
+    void group_became_audible(PlaybackGroupId);
+    void expire_audibility();
+    void report_group_inaudible(PlaybackGroupId);
 
     NonnullRefPtr<MixState> m_state;
     u32 const m_device_target_latency_ms { 0 };
@@ -124,6 +151,11 @@ private:
     size_t m_active_client_count { 0 };
     bool m_device_is_playing { false };
     HashMap<MixerClientId, NonnullRefPtr<Core::Timer>> m_drain_timers;
+
+    AK::Duration const m_audibility_linger;
+    HashTable<PlaybackGroupId> m_audible_groups;
+    // Runs when the earliest audible group's linger would pass, which the device need not be playing for.
+    RefPtr<Core::Timer> m_audibility_timer;
 };
 
 }

@@ -83,6 +83,10 @@ Tabs::Tab& Tabs::tab_for(u64 tab_id)
             for (auto group : *muted_groups)
                 mixer->set_group_mute_state(group, Audio::PlaybackGroupMuteState::Muted);
         }
+        mixer->on_group_audibility_changed = [this, tab_id](Audio::PlaybackGroupId group, Audio::Audibility audibility) {
+            if (auto control_connection = m_control_connection.strong_ref())
+                control_connection->async_playback_group_audibility_changed(tab_id, group, audibility);
+        };
         return Tab { .mixer = move(mixer), .connections = {} };
     });
 }
@@ -195,8 +199,10 @@ void Tabs::connection_died(u64 tab_id, int client_id)
     if (!tab.has_value())
         return;
     tab->connections.remove(client_id);
-    if (tab->connections.is_empty())
-        m_tabs.remove(tab_id);
+    if (!tab->connections.is_empty())
+        return;
+    tab->mixer->report_every_group_inaudible();
+    m_tabs.remove(tab_id);
 }
 
 }

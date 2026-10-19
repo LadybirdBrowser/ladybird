@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+    promiseTest(async () => {
+        internals.setTestTimeout(20_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const popup = window.open("about:blank", "_blank");
+
+        // The sound of the popup's initial about:blank document is its own tab's, from the start.
+        const context = new popup.AudioContext();
+        const oscillator = new popup.OscillatorNode(context);
+        oscillator.connect(context.destination);
+        oscillator.start();
+        while (!popup.internals.tabIsPlayingAudio())
+            await wait(25);
+        println(`popup's tab plays audio: ${popup.internals.tabIsPlayingAudio()}`);
+        println(`opener's tab plays audio: ${internals.tabIsPlayingAudio()}`);
+
+        await context.close();
+        popup.close();
+    });
+</script>
