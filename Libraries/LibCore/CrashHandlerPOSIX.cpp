@@ -141,12 +141,6 @@ static ReportFrame frame_for_address(FlatPtr address)
     return frame;
 }
 
-static bool write_frame(FlatPtr address, size_t index)
-{
-    auto frame = frame_for_address(address);
-    return write_record(&frame, sizeof(frame), sizeof(ReportHeader) + index * sizeof(frame));
-}
-
 static void capture_assertion_backtrace(ReadonlySpan<AK::AssertionBacktraceFrame> frames)
 {
     if (!s_owns_assertion || frames.is_empty())
@@ -198,9 +192,12 @@ static u32 capture_native_stack(void* context)
 #endif
 
     u32 frame_count = 0;
+    [[maybe_unused]] bool has_binary_identity = false;
     for (; frame_count < maximum_frames && program_counter;) {
-        if (!write_frame(program_counter, frame_count))
+        auto frame = frame_for_address(program_counter);
+        if (!write_record(&frame, sizeof(frame), sizeof(ReportHeader) + frame_count * sizeof(frame)))
             break;
+        has_binary_identity |= frame.binary.size != 0;
         ++frame_count;
         FlatPtr saved_frame[2];
         if (!frame_pointer || frame_pointer % alignof(FlatPtr) || !read_stack_frame(frame_pointer, saved_frame))
@@ -220,21 +217,23 @@ static u32 capture_native_stack(void* context)
     }
 
 #if defined(AK_OS_LINUX)
-    // Without frame pointers, retain bounded candidate code addresses from the stack.
-    if (frame_count < 2 && stack_pointer && stack_pointer % alignof(FlatPtr) == 0) {
+    // Without a usable frame chain, retain bounded candidate code addresses from the stack.
+    if ((frame_count < 2 || !has_binary_identity) && stack_pointer && stack_pointer % alignof(FlatPtr) == 0) {
         Array<FlatPtr, 1024> stack_words;
         auto bytes_read = pread(s_memory_fd, stack_words.data(), sizeof(stack_words), stack_pointer);
         if (bytes_read >= static_cast<ssize_t>(sizeof(FlatPtr))) {
             auto words_read = static_cast<size_t>(bytes_read) / sizeof(FlatPtr);
             for (auto address : stack_words.span().slice(0, words_read)) {
-                if (frame_count == maximum_frames)
-                    break;
                 auto frame = frame_for_address(address);
                 if (frame.binary.size == 0)
                     continue;
-                if (!write_record(&frame, sizeof(frame), sizeof(ReportHeader) + frame_count * sizeof(frame)))
+                // A full chain of unavailable frames must still leave room for binary identity.
+                auto index = min(static_cast<size_t>(frame_count), maximum_frames - 1);
+                if (!write_record(&frame, sizeof(frame), sizeof(ReportHeader) + index * sizeof(frame)))
                     break;
-                ++frame_count;
+                frame_count = index + 1;
+                if (frame_count == maximum_frames)
+                    break;
             }
         }
     }

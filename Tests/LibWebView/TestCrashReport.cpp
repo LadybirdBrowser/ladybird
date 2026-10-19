@@ -23,6 +23,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#if defined(TEST_CRASH_REPORT_LATE_LIBRARY)
+#    include <dlfcn.h>
+#endif
+
 #if defined(AK_OS_LINUX)
 TEST_CASE(crash_scratch_has_fixed_size_and_allows_report_writes)
 {
@@ -101,7 +105,8 @@ enum class CrashThread {
     Worker,
 };
 
-static int crash_child(WebView::CrashReport& report, int signal, CrashThread thread = CrashThread::Main)
+template<typename Crash>
+static int crash_child_running(WebView::CrashReport& report, Crash crash)
 {
     auto pid = fork();
     VERIFY(pid >= 0);
@@ -109,6 +114,17 @@ static int crash_child(WebView::CrashReport& report, int signal, CrashThread thr
         struct rlimit limit { 0, 0 };
         setrlimit(RLIMIT_CORE, &limit);
         MUST(Core::CrashHandler::initialize(report.fd()));
+        crash();
+        _exit(0);
+    }
+    int status;
+    VERIFY(waitpid(pid, &status, 0) == pid);
+    return status;
+}
+
+static int crash_child(WebView::CrashReport& report, int signal, CrashThread thread = CrashThread::Main)
+{
+    return crash_child_running(report, [&] {
         if (thread == CrashThread::Worker) {
             auto crash_worker = [](void* argument) -> void* {
                 raise(*static_cast<int*>(argument));
@@ -120,12 +136,39 @@ static int crash_child(WebView::CrashReport& report, int signal, CrashThread thr
         } else {
             raise(signal);
         }
-        _exit(0);
-    }
-    int status;
-    VERIFY(waitpid(pid, &status, 0) == pid);
-    return status;
+    });
 }
+
+#if defined(TEST_CRASH_REPORT_LATE_LIBRARY)
+TEST_CASE(unresolved_frames_do_not_skip_stack_search)
+{
+    for (size_t frame_count : { 3uz, Core::CrashReportData::maximum_frames }) {
+        auto report = MUST(WebView::CrashReport::create(WebView::ProcessType::Compositor));
+        auto status = crash_child_running(*report, [&] {
+            auto* library = dlopen(TEST_CRASH_REPORT_LATE_LIBRARY, RTLD_NOW | RTLD_LOCAL);
+            VERIFY(library);
+            auto crash = reinterpret_cast<void (*)(size_t)>(dlsym(library, "crash_with_unresolved_frames"));
+            VERIFY(crash);
+            crash(frame_count);
+        });
+        EXPECT(WIFSIGNALED(status));
+        EXPECT_EQ(WTERMSIG(status), SIGILL);
+        Core::CrashReportData::ReportHeader header;
+        EXPECT_EQ(pread(report->fd(), &header, sizeof(header), 0), static_cast<ssize_t>(sizeof(header)));
+        EXPECT(header.frame_count >= frame_count);
+        EXPECT(header.frame_count <= Core::CrashReportData::maximum_frames);
+        bool has_binary_identity = false;
+        for (size_t i = 0; i < header.frame_count; ++i) {
+            Core::CrashReportData::ReportFrame frame;
+            EXPECT_EQ(pread(report->fd(), &frame, sizeof(frame), sizeof(header) + i * sizeof(frame)), static_cast<ssize_t>(sizeof(frame)));
+            if (i < min(frame_count, Core::CrashReportData::maximum_frames - 1))
+                EXPECT_EQ(frame.binary.size, 0u);
+            has_binary_identity |= frame.binary.size != 0;
+        }
+        EXPECT(has_binary_identity);
+    }
+}
+#endif
 
 TEST_CASE(capture_native_crash_without_personal_data)
 {
