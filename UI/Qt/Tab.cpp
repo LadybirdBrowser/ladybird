@@ -669,6 +669,13 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
         show_private_session_popover();
     });
 
+    m_content_blocking_button = new ContentBlockingButton(m_toolbar);
+    m_content_blocking_button->setToolTip("Ad Block");
+    QObject::connect(m_content_blocking_button, &QToolButton::clicked, this, [this] { show_content_blocking_popover(); });
+    view().on_content_blocking_change = [this](auto const& snapshot) { update_content_blocking_controls(snapshot); };
+    update_content_blocking_controls(view().content_blocking_snapshot());
+    content_blocker_count_visibility_changed();
+
     m_hamburger_button = new HamburgerButton(m_toolbar);
     m_hamburger_button->setObjectName("LadybirdHamburgerButton");
     m_hamburger_button->setText("Show &Menu");
@@ -723,16 +730,16 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
     navigation_button_layout->setSpacing(2);
     navigation_button_layout->setContentsMargins(0, 0, 0, 0);
+
     m_left_toggle_vertical_tabs_expanded_button = create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action);
-    navigation_button_layout->addWidget(m_left_toggle_vertical_tabs_expanded_button);
+    m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
     m_sidebar_toggle_navigation_spacer = new QSpacerItem(0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+
+    navigation_button_layout->addWidget(m_left_toggle_vertical_tabs_expanded_button);
     navigation_button_layout->addItem(m_sidebar_toggle_navigation_spacer);
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_back_action, view(), -1));
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, view(), 1));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
-
-    if constexpr (use_native_macos_window_controls())
-        toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
 
     auto* location_edit_container = new QWidget(m_toolbar);
     location_edit_container->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
@@ -740,32 +747,27 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     location_edit_layout->setSpacing(0);
     location_edit_layout->setContentsMargins(TOOLBAR_LOCATION_EDIT_SIDE_GAP, 0, TOOLBAR_LOCATION_EDIT_SIDE_GAP, 0);
 
-    toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignVCenter);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     location_edit_layout->addWidget(m_location_edit);
-    toolbar_layout->addWidget(location_edit_container, 1);
 
-    m_content_blocking_button = new ContentBlockingButton(m_toolbar);
-    m_content_blocking_button->setToolTip("Ad Block");
-    toolbar_layout->addWidget(m_content_blocking_button, 0, Qt::AlignVCenter);
-    QObject::connect(m_content_blocking_button, &QToolButton::clicked, this, [this] { show_content_blocking_popover(); });
-    view().on_content_blocking_change = [this](auto const& snapshot) { update_content_blocking_controls(snapshot); };
-    update_content_blocking_controls(view().content_blocking_snapshot());
-    content_blocker_count_visibility_changed();
-
-    m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
-    toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignVCenter);
-
-    toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
-    toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
     m_performance_monitor = new PerformanceMonitorWidget(m_toolbar);
-    toolbar_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
     (void)WebView::TabPerformanceMonitor::the();
     m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor));
     view().on_performance_stats = [this](WebView::TabPerformanceStats const& stats) {
         static_cast<PerformanceMonitorWidget*>(m_performance_monitor)->set_stats(stats);
     };
+
+    if constexpr (use_native_macos_window_controls())
+        toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
+
+    toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(location_edit_container, 1);
+    toolbar_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_content_blocking_button, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignVCenter);
 
     if constexpr (!use_native_macos_window_controls()) {
