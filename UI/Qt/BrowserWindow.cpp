@@ -751,16 +751,16 @@ void BrowserWindow::activate_tab(int index)
     m_tabs_container->set_current_index(index);
 }
 
-bool BrowserWindow::activate_tab_with_url(URL::URL const& url)
+Tab* BrowserWindow::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment)
 {
     for (int index = 0; index < m_tabs_container->count(); ++index) {
         auto* tab = m_tabs_container->tab(index);
-        if (tab && tab->view().url() == url) {
+        if (tab && tab->view().url().equals(url, exclude_fragment)) {
             m_tabs_container->set_current_index(index);
-            return true;
+            return tab;
         }
     }
-    return false;
+    return nullptr;
 }
 
 bool BrowserWindow::definitely_close_tab(int index)
