@@ -306,6 +306,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::LoadElementsCapacity
         | Op::AppendElement
         | Op::CallArrayPush
+        | Op::CallStoreHoleyElement
         | Op::OpenArrayIteration
         | Op::LoadArrayIteratorArray
         | Op::LoadArrayIteratorIndex

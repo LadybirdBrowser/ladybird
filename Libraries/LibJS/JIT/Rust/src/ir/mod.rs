@@ -1089,6 +1089,14 @@ pub enum Op {
     /// registers the call clobbers and restores them afterwards, so it is no
     /// call for the register allocator. The node's value is the new length.
     CallArrayPush,
+    /// Stores the tagged input 2 at the `Repr::Int32` index input 1, below the
+    /// length of the holey elements of the array at the `Repr::Pointer` input
+    /// 0, through `RuntimeInfo::store_holey_element`, which grows the elements
+    /// where they have no room for it (or makes them a dictionary, where the
+    /// store is sparse), and makes them packed if it filled their last hole. A branch on `BranchCondition::HoleFillableArray`
+    /// established that this runs no code. It saves the registers the call
+    /// clobbers, like `CallArrayPush`.
+    CallStoreHoleyElement,
 
     // For-of loops over arrays.
     /// `RuntimeInfo::open_array_iteration` of the tagged iterable input 0:
@@ -1594,7 +1602,7 @@ impl Op {
             },
             // NB: The keys of a cache never change.
             Op::LoadPropertyIteratorKeyCount | Op::LoadPropertyIteratorKey => P::PURE,
-            Op::CallArrayPush => P {
+            Op::CallArrayPush | Op::CallStoreHoleyElement => P {
                 reads: Locations::ELEMENTS_AND_COUNTS,
                 writes: Locations::ELEMENTS_AND_COUNTS,
                 allocates: true,
@@ -1741,6 +1749,7 @@ impl Op {
             Op::LoadElementsCapacity => "LoadElementsCapacity",
             Op::AppendElement => "AppendElement",
             Op::CallArrayPush => "CallArrayPush",
+            Op::CallStoreHoleyElement => "CallStoreHoleyElement",
             Op::OpenArrayIteration => "OpenArrayIteration",
             Op::LoadArrayIteratorArray => "LoadArrayIteratorArray",
             Op::LoadArrayIteratorIndex => "LoadArrayIteratorIndex",

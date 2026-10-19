@@ -105,6 +105,7 @@ pub fn saves_only_gprs(op: &Op) -> bool {
         } | Op::InitializeFrame { clobbers_floats: true }
             | Op::EnsureFrameInitialized { clobbers_floats: true }
             | Op::CallArrayPush
+            | Op::CallStoreHoleyElement
             | Op::OpenArrayIteration
             | Op::AddNamed { .. }
             | Op::ProbeKeyedStore { .. }

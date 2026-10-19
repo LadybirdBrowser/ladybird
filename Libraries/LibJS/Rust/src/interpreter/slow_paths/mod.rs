@@ -388,8 +388,7 @@ impl RuntimeFunctions for Runtime {
         if property_access::try_put_by_value_cache(vm, instruction, values) {
             return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
         }
-        // NB: Stores that fill a hole of an array, which JIT code leaves to its slow path, take the interpreter's quick
-        //     way for them.
+        // NB: Stores that fill a hole of an array take the interpreter's quick way for them.
         if property_access::put_kind_from_operand(instruction.kind) == PutKind::Normal
             && property_access::try_put_by_value_holey_array(values)
         {
@@ -723,8 +722,8 @@ impl RuntimeFunctions for Runtime {
     ) -> bool {
         let handled = property_access::try_put_by_value_holey_array(values);
         if handled {
-            // NB: The interpreter only comes here for stores that fill a hole or need more storage, which JIT code
-            //     does not handle.
+            // NB: The interpreter only comes here for stores that fill a hole or need more storage, which its fast path
+            //     does not handle. JIT code handles them itself where nothing can observe it.
             feedback::record_keyed_bits(
                 vm,
                 instruction.keyed_feedback,

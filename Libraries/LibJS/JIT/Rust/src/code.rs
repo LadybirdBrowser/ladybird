@@ -118,7 +118,9 @@ pub enum ExitKind {
     /// An object accessed by index did not have the elements kind (packed or
     /// holey array, or typed array of one kind) its keyed feedback had seen.
     BadElements,
-    /// An index was out of the bounds of the elements, or hit a hole.
+    /// An index was out of the bounds of the elements, or hit a hole, or a
+    /// keyed store compiled to exit instead of running its slow path met a
+    /// case only its slow path handles.
     OutOfBounds,
     /// A value had another type than the instruction's feedback had seen.
     BadType,
