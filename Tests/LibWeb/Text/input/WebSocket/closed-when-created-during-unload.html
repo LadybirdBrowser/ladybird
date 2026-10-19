@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = "<p>child</p>";
+        document.body.append(frame);
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+
+        const childWindow = frame.contentWindow;
+        const webSocket = await new Promise(resolve => {
+            childWindow.addEventListener("pagehide", () => {
+                resolve(new childWindow.WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`));
+            });
+            frame.remove();
+        });
+
+        const otherWebSocket = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
+        await new Promise(resolve => otherWebSocket.addEventListener("open", resolve, { once: true }));
+        otherWebSocket.close();
+
+        println(`readyState: ${webSocket.readyState}`);
+    });
+</script>
