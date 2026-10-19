@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video loop src="../../../Assets/test-webm.webm"></video>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(15_000);
+        const video = document.querySelector("video");
+        const popup = window.open("about:blank", "_blank");
+        const report = label => {
+            println(`${label}: opener playing audio: ${internals.documentIsPlayingAudio(document)}, popup playing audio: ${internals.documentIsPlayingAudio(popup.document)}`);
+        };
+
+        await video.play();
+        report("before adoption");
+
+        popup.document.body.appendChild(popup.document.adoptNode(video));
+        report("adopted into the popup");
+
+        document.body.appendChild(document.adoptNode(video));
+        report("adopted back");
+
+        video.pause();
+        popup.close();
+    });
+</script>
