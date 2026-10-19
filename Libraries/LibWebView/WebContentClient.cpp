@@ -848,7 +848,12 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
 
 Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClient::request_media_server_connection()
 {
-    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), [this] { return connect_audio_server_client(); });
+    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), [weak_self = make_weak_ptr<WebContentClient>()]() -> ErrorOr<IPC::TransportHandle> {
+        auto self = weak_self.strong_ref();
+        if (!self)
+            return Error::from_string_literal("The WebContent process is gone");
+        return self->connect_audio_server_client();
+    });
     if (connection.is_error()) {
         warnln("Unable to connect a MediaServer client: {}", connection.error());
         return OptionalNone {};
@@ -887,9 +892,10 @@ ErrorOr<void> WebContentClient::ensure_audio_server_controller()
     TRY(ensure_audio_server_is_running(m_audio_server_client, child_id()));
     if (m_audio_server_client.ptr() == previous_controller)
         return {};
-    m_audio_server_client->on_capture_requested = [this](u64 tab_id, u64 request_id, ByteString const&) {
-        if (tab_id == m_audio_tab_id)
-            decide_audio_capture_request(request_id);
+    m_audio_server_client->on_capture_requested = [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, u64 request_id, ByteString const&) {
+        auto self = weak_self.strong_ref();
+        if (self && tab_id == self->m_audio_tab_id)
+            self->decide_audio_capture_request(request_id);
     };
     if (m_audio_capture_permitted)
         TRY(tell_audio_server_of_capture_permission());
