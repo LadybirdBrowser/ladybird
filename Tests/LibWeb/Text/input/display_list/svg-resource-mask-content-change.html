@@ -32,7 +32,7 @@ displayListTest({
             name: "widen the mask content",
             mutate: () => { document.getElementById("mask-rect").setAttribute("width", "200"); },
             expect: `
-                damage: rows=9 moved=0 order=0 eligibility=0 all=false
+                damage: rows=8 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

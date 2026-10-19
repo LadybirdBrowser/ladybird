@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .wide {
+        stroke-width: 10px;
+    }
+</style>
+<svg id="sized" width="200" height="100">
+    <rect id="sized-rect" width="50%" height="50%" />
+    <path id="sized-sibling" d="M0,0L10,10" stroke="black" />
+</svg>
+<svg id="transposed" width="200" height="100">
+    <rect id="transposed-rect" width="50%" height="50%" />
+    <path id="transposed-sibling" d="M0,0L10,10" stroke="black" />
+</svg>
+<svg id="transposed-view-box" width="200" height="200" viewBox="0 0 100 50" preserveAspectRatio="none">
+    <rect id="transposed-view-box-rect" width="50%" height="50%" />
+    <path id="transposed-view-box-sibling" d="M0,0L10,10" stroke="black" />
+</svg>
+<svg id="view-boxed" width="200" height="200" viewBox="0 0 100 100">
+    <rect id="view-boxed-rect" width="10" height="10" />
+    <path id="view-boxed-sibling" d="M0,0L10,10" stroke="black" />
+</svg>
+<svg id="siblings" width="200" height="100">
+    <path id="first" d="M10,10L20,20" stroke="black" />
+    <path id="second" d="M30,10L40,20" stroke="black" />
+    <circle id="third" cx="70" cy="20" r="10" />
+</svg>
+<svg id="anchoring" width="200" height="100">
+    <rect id="anchor" x="20" y="10" width="30" height="20" style="anchor-name: --shape" />
+    <path id="anchor-sibling" d="M0,0L10,10" stroke="black" />
+</svg>
+<div id="anchored" style="position: absolute; position-anchor: --shape; left: anchor(right); top: anchor(bottom); width: 5px; height: 5px"></div>
+<svg id="relative" width="200" height="100">
+    <rect id="relative-rect" width="10" height="10" style="position: relative; left: 10px; top: 10px" />
+    <path id="relative-sibling" d="M0,0L10,10" stroke="black" />
+</svg>
+<svg width="200" height="100">
+    <g id="group">
+        <rect id="grouped-rect" width="10" height="10" />
+        <path id="grouped-sibling" d="M0,0L10,10" stroke="black" />
+    </g>
+</svg>
+<script>
+    function box(id) {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        return `${id}: ${rect.width}x${rect.height}`;
+    }
+
+    test(() => {
+        const lines = [];
+        document.body.offsetWidth;
+
+        // The viewport a percentage resolves against grows while a sibling changes.
+        document.getElementById("sized").setAttribute("width", "400");
+        document.getElementById("sized-sibling").classList.add("wide");
+        document.body.offsetWidth;
+        lines.push(box("sized-rect"));
+
+        // The viewport turns on its side while a sibling changes. Its diagonal, which a percentage stroke width resolves
+        // against, stays the same.
+        document.getElementById("transposed").setAttribute("width", "100");
+        document.getElementById("transposed").setAttribute("height", "200");
+        document.getElementById("transposed-sibling").classList.add("wide");
+        document.body.offsetWidth;
+        lines.push(box("transposed-rect"));
+
+        // The same, for a view box.
+        document.getElementById("transposed-view-box").setAttribute("viewBox", "0 0 50 100");
+        document.getElementById("transposed-view-box-sibling").classList.add("wide");
+        document.body.offsetWidth;
+        lines.push(box("transposed-view-box-rect"));
+
+        // The view box shrinks while a sibling changes.
+        document.getElementById("view-boxed").setAttribute("viewBox", "0 0 50 50");
+        document.getElementById("view-boxed-sibling").classList.add("wide");
+        document.body.offsetWidth;
+        lines.push(box("view-boxed-rect"));
+
+        // Only one shape changes, and its siblings keep their boxes.
+        const before = [box("first"), box("second"), box("third")];
+        document.getElementById("second").classList.add("wide");
+        document.body.offsetWidth;
+        lines.push(...before, box("first"), box("second"), box("third"));
+        document.getElementById("second").classList.remove("wide");
+        document.body.offsetWidth;
+        lines.push(box("second"));
+
+        // An element anchored to a shape keeps its anchor while a sibling changes.
+        const anchoredBefore = document.getElementById("anchored").getBoundingClientRect();
+        const anchorBefore = document.getElementById("anchor").getBoundingClientRect();
+        document.getElementById("anchor-sibling").classList.add("wide");
+        document.body.offsetWidth;
+        const anchoredAfter = document.getElementById("anchored").getBoundingClientRect();
+        const anchorAfter = document.getElementById("anchor").getBoundingClientRect();
+        lines.push(`anchored moved: ${anchoredAfter.x - anchoredBefore.x},${anchoredAfter.y - anchoredBefore.y}`);
+        lines.push(`anchor moved: ${anchorAfter.x - anchorBefore.x},${anchorAfter.y - anchorBefore.y}`);
+
+        // A relatively positioned shape stays put while a sibling changes.
+        const relativeBefore = document.getElementById("relative-rect").getBoundingClientRect();
+        document.getElementById("relative-sibling").classList.add("wide");
+        document.body.offsetWidth;
+        document.getElementById("relative-sibling").classList.remove("wide");
+        document.body.offsetWidth;
+        const relativeAfter = document.getElementById("relative-rect").getBoundingClientRect();
+        lines.push(`relative-rect moved: ${relativeAfter.x - relativeBefore.x},${relativeAfter.y - relativeBefore.y}`);
+
+        // A group's transform moves the shapes it holds while one of them changes.
+        document.getElementById("group").setAttribute("transform", "scale(2)");
+        document.getElementById("grouped-sibling").classList.add("wide");
+        document.body.offsetWidth;
+        lines.push(box("grouped-rect"));
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

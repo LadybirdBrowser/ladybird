@@ -1,0 +1,15 @@
+sized-rect: 200x50
+transposed-rect: 50x100
+transposed-view-box-rect: 100x100
+view-boxed-rect: 40x40
+first: 11x11
+second: 11x11
+third: 20x20
+first: 11x11
+second: 20x20
+third: 20x20
+second: 11x11
+anchored moved: 0,0
+anchor moved: 0,0
+relative-rect moved: 0,0
+grouped-rect: 20x20

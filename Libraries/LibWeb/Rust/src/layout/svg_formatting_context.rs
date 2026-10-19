@@ -633,6 +633,9 @@ pub(super) struct SvgFormattingContext<'pass> {
     quirks_mode_percentage_basis_block_size: Option<CssPixels>,
     viewport_width: CssPixels,
     viewport_height: CssPixels,
+    /// Whether this context's box is an <svg> viewport whose view box and size are the ones it was
+    /// last committed with, so that a shape below it resolves against the viewport it did then.
+    viewport_is_committed_viewport: bool,
     current_text_position: FfiFloatPoint,
 }
 
@@ -652,6 +655,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             quirks_mode_percentage_basis_block_size: None,
             viewport_width: CssPixels::default(),
             viewport_height: CssPixels::default(),
+            viewport_is_committed_viewport: false,
             current_text_position: FfiFloatPoint::default(),
         }
     }
@@ -1774,6 +1778,24 @@ impl<'pass> SvgFormattingContext<'pass> {
             },
             |view_box| CssPixels::nearest_value_for(view_box.height),
         );
+        self.viewport_is_committed_viewport = kind == NodeKind::SVGSVGBox
+            && self.run.purpose == formatting_context::LayoutPurpose::Commit
+            && self.run.layout_mode == LayoutMode::Normal
+            && crate::painting::paint_read::GeometryRead::with_committed_fragment_link(
+                self.run.callbacks.arena(),
+                self.run.box_,
+                |link| {
+                    link.is_some_and(|link| {
+                        let committed = link.fragment.svg.as_deref().copied().unwrap_or_default();
+                        committed.view_box == attributes.has_active_view_box.then_some(attributes.active_view_box)
+                            && committed.viewport_size
+                                == Some(FfiCssPixelSize {
+                                    width: used.content_inline_size.get(),
+                                    height: used.content_block_size.get(),
+                                })
+                    })
+                },
+            );
         self.available_space = Some(input.available_space);
         self.quirks_mode_percentage_basis_block_size = input
             .containing_block_constraints
@@ -1885,6 +1907,9 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn layout_graphics_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node, input: LayoutInput) {
         self.create_used_values(graphics_box);
         let facts = self.svg_facts(graphics_box);
+        if self.place_unchanged_committed_shape(graphics_box, facts) {
+            return;
+        }
         self.commit_svg_element_facts(graphics_box, facts, self.svg_attributes(graphics_box));
         let kind = self.node_kind(graphics_box);
 
@@ -1915,6 +1940,67 @@ impl<'pass> SvgFormattingContext<'pass> {
                 self.layout_mask_or_clip(run, child);
             }
         }
+    }
+
+    /// Places a shape with the fragment it last committed, where laying it out again would produce that fragment: the
+    /// shape has no boxes below it, nothing marked it for layout since that commit, and it resolves against the viewport
+    /// it was committed in. Then neither this pass nor the commit redoes a shape that a change to a sibling did not
+    /// touch. Answers whether it placed the shape.
+    fn place_unchanged_committed_shape(&self, shape: Node, facts: SvgElementFacts) -> bool {
+        if !self.viewport_is_committed_viewport
+            || self.node_kind(shape) != NodeKind::SVGGeometryBox
+            || !self.first_child(shape).is_invalid()
+        {
+            return false;
+        }
+        // An anchor registers itself only when its box is placed with a fragment of its own.
+        if NodeFacts::new(&self.run.callbacks, shape).has_anchor_names() {
+            return false;
+        }
+        // A line's coordinates are attribute lengths resolved here against the initial containing block, the root font
+        // and size query containers, and a change to any of those does not mark the line for layout.
+        if self.svg_attributes(shape).geometry_kind == SVG_GEOMETRY_KIND_LINE {
+            return false;
+        }
+        let Some(fragments) = self.run.fragments.as_deref() else {
+            return false;
+        };
+        // A committed fragment stops being current when something marks its box for layout.
+        let Some(fragment) = self
+            .run
+            .callbacks
+            .arena()
+            .with_current_committed_fragment(shape, |fragment| fragment.clone())
+        else {
+            return false;
+        };
+        if fragment.computed_svg_path.is_none() {
+            return false;
+        }
+        let Some(committed_offset) = crate::painting::paint_read::GeometryRead::with_committed_fragment_link(
+            self.run.callbacks.arena(),
+            shape,
+            |link| link.map(|link| link.committed_offset),
+        ) else {
+            return false;
+        };
+        // The transforms and the stroke's percentage basis are what the shape's facts take from outside its own
+        // geometry.
+        let committed = fragment.svg.as_deref().copied().unwrap_or_default();
+        if committed.element_transform != (!facts.element_transform.is_identity()).then_some(facts.element_transform)
+            || committed.additional_element_transform
+                != (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform)
+            || committed.viewport_percentage_basis != facts.viewport_percentage_basis
+        {
+            return false;
+        }
+        let used = self.used_values(shape);
+        used.set_box_metrics_from_fragment(&fragment);
+        used.has_definite_inline_size.set(true);
+        used.has_definite_block_size.set(true);
+        fragments.hold_committed_fragment_of_empty_box(used, fragment);
+        self.place_child(shape, committed_offset.x, committed_offset.y);
+        true
     }
 
     fn layout_path_like_element(
