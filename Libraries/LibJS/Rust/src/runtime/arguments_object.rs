@@ -54,7 +54,7 @@ pub static ARGUMENTS_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_get_own_property: ArgumentsObject::internal_get_own_property,
     internal_define_own_property: ArgumentsObject::internal_define_own_property,
     internal_get: ArgumentsObject::internal_get,
-    is_cacheable_for_property_absence: |_| false,
+    is_cacheable_for_absence_of: |_, _, property_key| !property_key.is_number(),
     internal_set: ArgumentsObject::internal_set,
     internal_delete: ArgumentsObject::internal_delete,
     ..ORDINARY_OBJECT_METHODS
