@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/40px monospace }
+    #word { margin: 300px 0 0 200px }
+</style>
+<div id="word">word</div>
+<script>
+    test(() => {
+        internals.pinch(200, 150, 1.0);
+        const viewport = window.visualViewport;
+        const rect = word.getBoundingClientRect();
+        const visualX = (rect.left + rect.width / 2 - viewport.offsetLeft) * viewport.scale;
+        const visualY = (rect.top + rect.height / 2 - viewport.offsetTop) * viewport.scale;
+        internals.mouseDown(visualX, visualY, 1, 2);
+        internals.mouseUp(visualX, visualY, 2);
+
+        const request = internals.takeContextMenuRequest();
+        println(`scale: ${viewport.scale}`);
+        println(`target: ${request.target.id}`);
+        println(`menu at pointer: ${Math.abs(request.x - visualX) < 1 && Math.abs(request.y - visualY) < 1}`);
+    });
+</script>

@@ -38,6 +38,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/CookieStore/CookieStore.h>
@@ -2801,12 +2802,12 @@ void ConnectionFromClient::generate_text_fragment_url(Web::PageId page_id, u64 r
     async_did_generate_text_fragment_url(page_id, request_id, move(generated_url));
 }
 
-static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layout_node(Web::Layout::Node const& layout_node, double zoom_level)
+static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layout_node(Web::Layout::Node const& layout_node, double scale)
 {
     auto const& font = layout_node.first_available_font();
     return {
         .font_family = font.family().to_string(),
-        .ui_point_size = font.pixel_size() * static_cast<float>(zoom_level),
+        .ui_point_size = font.pixel_size() * static_cast<float>(scale),
         .weight = font.weight(),
         .slope = font.slope(),
     };
@@ -2831,12 +2832,6 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
     if (!navigable)
         return {};
 
-    auto to_page_viewport_point = [&](Web::CSSPixelPoint point) {
-        auto scroll_offset = navigable->viewport_scroll_offset();
-        Web::CSSPixelPoint viewport_point { point.x() - scroll_offset.x(), point.y() - scroll_offset.y() };
-        return navigable->to_page_position(viewport_point);
-    };
-
     auto rect = range.get_bounding_client_rect();
     if (rect->width() <= 0 || rect->height() <= 0)
         return {};
@@ -2846,7 +2841,7 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
         Web::CSSPixels::nearest_value_for(rect->x()),
         Web::CSSPixels::nearest_value_for(rect->y() + font.pixel_metrics().ascent),
     };
-    return page.css_to_device_point(to_page_viewport_point(baseline_origin)).to_type<int>();
+    return page.css_to_device_point(navigable->to_page_position(baseline_origin)).to_type<int>();
 }
 
 void ConnectionFromClient::get_selected_text_for_lookup(Web::PageId page_id, u64 request_id)
@@ -2875,7 +2870,11 @@ void ConnectionFromClient::get_selected_text_for_lookup(Web::PageId page_id, u64
     Optional<WebView::DictionaryLookupTextStyle> style;
     Optional<Gfx::IntPoint> baseline_origin;
     if (layout_node) {
-        style = dictionary_lookup_text_style_from_layout_node(*layout_node, navigable->page().client().zoom_level());
+        // The word is drawn over the page as the user sees it, which the local root's visual viewport may magnify.
+        auto scale = navigable->page().client().zoom_level();
+        if (auto local_root_document = navigable->local_root()->active_document())
+            scale *= local_root_document->visual_viewport()->scale();
+        style = dictionary_lookup_text_style_from_layout_node(*layout_node, scale);
         if (range)
             baseline_origin = dictionary_lookup_baseline_origin_for_range(*range, page->page(), *layout_node);
     }
