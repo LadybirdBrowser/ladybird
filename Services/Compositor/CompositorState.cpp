@@ -312,6 +312,8 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
         return;
     sink_state->sink = sink;
     sink->set_on_present_needed([this, &client, handle] {
+        if (auto* sink_state = video_sink_state(client, handle); sink_state && sink_state->sink)
+            client.video_sink_presented_frame(handle, sink_state->sink->current_frame());
         present_contexts_drawing_video_sink(client, handle);
         update_unpainted_video_update_scheduling();
     });

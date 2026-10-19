@@ -501,10 +501,11 @@ TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexIm
     //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
     // FIXME: If source is null then an INVALID_VALUE error is generated.
     auto& wrapper = *static_cast<JS::Object*>(source_wrapper);
-    Optional<Gfx::DecodedImageFrame> frame;
+    Optional<Compositing::WebGL::ImageSourceFrame> frame;
     switch (source_kind) {
     case TexImageSourceKind::HTMLImageElement:
-        frame = Bindings::impl_from<HTML::HTMLImageElement>(wrapper).current_image_frame();
+        if (auto image_frame = Bindings::impl_from<HTML::HTMLImageElement>(wrapper).current_image_frame(); image_frame.has_value())
+            frame = image_frame.release_value();
         break;
     case TexImageSourceKind::HTMLCanvasElement:
         if (auto bitmap = Bindings::impl_from<HTML::HTMLCanvasElement>(wrapper).get_bitmap_from_surface())
@@ -515,7 +516,8 @@ TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexIm
             frame = Gfx::DecodedImageFrame { *bitmap };
         break;
     case TexImageSourceKind::HTMLVideoElement:
-        frame = Bindings::impl_from<HTML::HTMLVideoElement>(wrapper).current_decoded_image_frame();
+        if (auto captured_frame = Bindings::impl_from<HTML::HTMLVideoElement>(wrapper).capture_current_video_frame(); captured_frame.has_value())
+            frame = captured_frame.release_value();
         break;
     case TexImageSourceKind::ImageBitmap:
         frame = Gfx::DecodedImageFrame { *Bindings::impl_from<HTML::ImageBitmap>(wrapper).bitmap() };
@@ -548,7 +550,7 @@ TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexIm
         return TexImageSourceResult::NoFrame;
 
     // FIXME: Respect unpackColorSpace
-    *out_frame = new Gfx::DecodedImageFrame(frame.release_value());
+    *out_frame = new ImageSourceFrameOwnedByRecorder { frame.release_value() };
     return TexImageSourceResult::Frame;
 }
 

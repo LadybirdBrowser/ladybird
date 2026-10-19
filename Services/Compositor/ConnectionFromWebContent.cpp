@@ -18,7 +18,7 @@ namespace Compositor {
 ConnectionFromWebContent::ConnectionFromWebContent(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<CompositorState> compositor_state, int client_id)
     : IPC::ConnectionFromClient<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport), client_id)
     , m_compositor_state(move(compositor_state))
-    , m_canvas_host(m_compositor_state->skia_backend_context(), m_compositor_state->canvas_surface_registry())
+    , m_canvas_host(m_compositor_state->skia_backend_context(), m_compositor_state->canvas_surface_registry(), m_video_frame_holds)
 {
 }
 
@@ -81,14 +81,28 @@ void ConnectionFromWebContent::pointer_left(Web::CompositorContextId context_id,
         m_render_clock_connection->async_pointer_left(context_id, input_event_id);
 }
 
-void ConnectionFromWebContent::add_video_sink(Media::VideoSinkHandle video_sink_handle)
+void ConnectionFromWebContent::add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page)
 {
+    m_video_frame_holds.add_sink(video_sink_handle, move(presentation_page));
     m_compositor_state->add_video_sink(*this, video_sink_handle);
 }
 
 void ConnectionFromWebContent::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
+    m_video_frame_holds.remove_sink(video_sink_handle);
+    m_canvas_host.forget_video_sink(video_sink_handle);
     m_compositor_state->remove_video_sink(*this, video_sink_handle);
+}
+
+void ConnectionFromWebContent::release_video_frame_hold(Media::VideoSinkHandle video_sink_handle, u64 generation)
+{
+    if (m_video_frame_holds.release_hold(video_sink_handle, generation).is_error())
+        did_misbehave("WebContent released a video frame hold that it did not take");
+}
+
+void ConnectionFromWebContent::video_sink_presented_frame(Media::VideoSinkHandle video_sink_handle, RefPtr<Media::VideoFrame> frame)
+{
+    m_video_frame_holds.present_frame(video_sink_handle, move(frame));
 }
 
 void ConnectionFromWebContent::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
@@ -352,9 +366,9 @@ void ConnectionFromWebContent::webgl_set_command_buffer(Compositing::CanvasId ca
     m_canvas_host.set_webgl_shared_command_buffer(canvas_id, shared_command_buffer.release_value());
 }
 
-void ConnectionFromWebContent::webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> bitmaps)
+void ConnectionFromWebContent::webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> frames)
 {
-    if (!m_canvas_host.execute_webgl_commands_from_shared_buffer(canvas_id, offset, size_in_bytes, flush_sequence_number, bitmaps))
+    if (!m_canvas_host.execute_webgl_commands_from_shared_buffer(canvas_id, offset, size_in_bytes, flush_sequence_number, frames))
         did_misbehave("WebContent published an invalid WebGL shared command buffer range");
 }
 
@@ -364,14 +378,14 @@ void ConnectionFromWebContent::webgl_drain_command_buffer(Compositing::CanvasId)
     // including all published command ranges, has already been processed.
 }
 
-void ConnectionFromWebContent::webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps)
+void ConnectionFromWebContent::webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Compositing::WebGL::ImageSourceFrame> frames)
 {
     if (!commands.is_valid()) {
         did_misbehave("WebContent sent an invalid WebGL command buffer");
         return;
     }
 
-    m_canvas_host.execute_webgl_commands(canvas_id, commands.bytes(), bitmaps);
+    m_canvas_host.execute_webgl_commands(canvas_id, commands.bytes(), frames);
 }
 
 void ConnectionFromWebContent::webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer)

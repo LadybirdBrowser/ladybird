@@ -13,8 +13,8 @@
 #include <AK/Vector.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Types.h>
+#include <LibCompositing/WebGL/ImageSourceFrame.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/Export.h>
@@ -35,10 +35,10 @@ public:
     virtual void destroy_context() = 0;
 
     virtual void set_shared_command_buffer(Core::AnonymousBuffer const&) = 0;
-    virtual void send_commands_from_shared_buffer(u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps) = 0;
+    virtual void send_commands_from_shared_buffer(u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const& frames) = 0;
     virtual bool wait_until_published_commands_executed() = 0;
 
-    virtual void send_commands(ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps) = 0;
+    virtual void send_commands(ReadonlyBytes, Vector<Compositing::WebGL::ImageSourceFrame> const& frames) = 0;
     virtual void present_canvas(bool preserve_drawing_buffer) = 0;
     virtual void clear_drawing_buffer() = 0;
     virtual ByteBuffer sync_call(ByteBuffer request) = 0;
@@ -46,6 +46,13 @@ public:
     virtual bool read_buffer_sub_data(GLenum target, GLintptr offset, GLintptr size, Core::AnonymousBuffer data) = 0;
 
     virtual Gfx::ShareableBitmap read_back_drawing_buffer(Gfx::IntRect const&) = 0;
+};
+
+// NB: The frame is a Variant, which cannot be allocated with kmalloc itself.
+struct ImageSourceFrameOwnedByRecorder {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Compositing::WebGL::ImageSourceFrame frame;
 };
 
 }

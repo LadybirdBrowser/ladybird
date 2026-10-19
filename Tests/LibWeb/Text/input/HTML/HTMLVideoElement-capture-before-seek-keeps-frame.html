@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The left half of each frame is red, and the right half is gray at 60 times the whole second mod 5.
+    function grayIn(pixels) {
+        const [red, , blue] = pixels.slice(0, 4);
+        if (red < 150 || blue > 100)
+            return "not red";
+        return `${Math.round(pixels[4 * 48 + 1] / 60)}`;
+    }
+
+    function readRow(context) {
+        return context.getImageData(0, 18, 64, 1).data;
+    }
+
+    function create2DContext() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 36;
+        return canvas.getContext("2d", { willReadFrequently: true });
+    }
+
+    function createWebGLTexture(gl) {
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        return texture;
+    }
+
+    function readWebGLTextureRow(gl, texture) {
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        const pixels = new Uint8Array(64 * 4);
+        gl.readPixels(0, 18, 64, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        return pixels;
+    }
+
+    async function seekAndWait(video, time) {
+        const seeked = new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+        video.currentTime = time;
+        await seeked;
+    }
+
+    promiseTest(async () => {
+        const video = document.createElement("video");
+        video.src = "../../../Assets/red-with-second-in-gray-64x36.webm";
+        document.body.append(video);
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+            await new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true }));
+        await seekAndWait(video, 1.5);
+
+        const drawnContext = create2DContext();
+        drawnContext.drawImage(video, 0, 0);
+
+        const patternContext = create2DContext();
+        const pattern = patternContext.createPattern(video, "no-repeat");
+
+        const gl = document.createElement("canvas").getContext("webgl");
+        const texture = createWebGLTexture(gl);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+
+        await seekAndWait(video, 3.5);
+
+        println(`drawImage before the seek: ${grayIn(readRow(drawnContext))}`);
+        patternContext.fillStyle = pattern;
+        patternContext.fillRect(0, 0, 64, 36);
+        println(`createPattern before the seek: ${grayIn(readRow(patternContext))}`);
+        println(`texImage2D before the seek: ${grayIn(readWebGLTextureRow(gl, texture))}`);
+
+        const laterContext = create2DContext();
+        laterContext.drawImage(video, 0, 0);
+        println(`drawImage after the seek: ${grayIn(readRow(laterContext))}`);
+    });
+</script>

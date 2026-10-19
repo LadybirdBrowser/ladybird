@@ -79,7 +79,22 @@ void CanvasCommandPlayer::play_command(CanvasCommands::DrawCanvas const& command
     auto image = source_surface->sk_image_snapshot<sk_sp<SkImage>>();
     if (!image)
         return;
+    draw_image(*image, command);
+}
 
+void CanvasCommandPlayer::play_command(CanvasCommands::DrawVideoFrame const& command)
+{
+    if (!m_video_frame_image_resolver)
+        return;
+    auto image = m_video_frame_image_resolver(command.video_sink_handle, command.generation);
+    if (!image)
+        return;
+    draw_image(*image, command);
+}
+
+template<typename Command>
+void CanvasCommandPlayer::draw_image(SkImage const& image, Command const& command)
+{
     SkPaint paint;
     if (command.filter.has_value())
         paint.setImageFilter(to_skia_image_filter(command.filter.value()));
@@ -87,7 +102,7 @@ void CanvasCommandPlayer::play_command(CanvasCommands::DrawCanvas const& command
     paint.setBlender(to_skia_blender(command.compositing_and_blending_operator));
 
     m_surface->canvas().drawImageRect(
-        image.get(),
+        &image,
         to_skia_rect(command.src_rect),
         to_skia_rect(command.dst_rect),
         to_skia_sampling_options(command.scaling_mode),

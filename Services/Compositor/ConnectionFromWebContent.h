@@ -13,6 +13,7 @@
 #include <Compositor/CompositorWebContentClientEndpoint.h>
 #include <Compositor/CompositorWebContentServerEndpoint.h>
 #include <Compositor/RenderClockConnection.h>
+#include <Compositor/VideoFrameHolds.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/WebGL/Types.h>
@@ -42,8 +43,9 @@ private:
 
     virtual void die() override;
 
-    virtual void add_video_sink(Media::VideoSinkHandle) override;
+    virtual void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
+    virtual void release_video_frame_hold(Media::VideoSinkHandle, u64 generation) override;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) override;
     virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::CompositorContextId) override;
@@ -65,9 +67,9 @@ private:
 
     virtual Messages::CompositorWebContentServer::CreateWebglContextResponse create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) override;
     virtual void webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) override;
-    virtual void webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> bitmaps) override;
+    virtual void webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> frames) override;
     virtual void webgl_drain_command_buffer(Compositing::CanvasId canvas_id) override;
-    virtual void webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps) override;
+    virtual void webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Compositing::WebGL::ImageSourceFrame> frames) override;
     virtual void webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer) override;
     virtual void webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id) override;
     virtual Messages::CompositorWebContentServer::WebglSyncCallResponse webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) override;
@@ -100,11 +102,13 @@ private:
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) override;
     virtual void create_video_edge(Media::VideoSinkHandle) override;
     virtual void release_video_edge(Media::VideoSinkHandle) override;
+    virtual void video_sink_presented_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>) override;
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) override;
     virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const override { return m_canvas_host.canvas_surface_owner_id(); }
     bool context_is_owned_by_this_connection(Web::CompositorContextId);
 
     NonnullRefPtr<CompositorState> m_compositor_state;
+    VideoFrameHolds m_video_frame_holds;
     CanvasHost m_canvas_host;
 
     // The canvas IDs this WebContent has reserved and not yet named a 2D context with.

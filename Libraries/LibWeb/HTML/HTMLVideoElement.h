@@ -54,8 +54,6 @@ public:
     };
     Representation current_representation() const;
 
-    Optional<Gfx::DecodedImageFrame> current_decoded_image_frame() const;
-
     GC::Ref<WebIDL::Promise> request_picture_in_picture();
     // Whether requestPictureInPicture() would enter Picture-in-Picture if it were given a user activation.
     bool can_enter_picture_in_picture() const;

@@ -6,20 +6,35 @@
 
 #include <Compositor/CanvasHost.h>
 #include <Compositor/HostWebGLContext.h>
+#include <Compositor/VideoFrameHolds.h>
+#include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CanvasCommandPlayer.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <core/SkImage.h>
 
 namespace Compositor {
 
-CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Compositing::CanvasSurfaceRegistry& canvas_surface_registry)
+struct CanvasHost::VideoFrameImage {
+    AK_ALLOC_WITH_KMALLOC;
+
+    u64 generation { 0 };
+    // Kept until replaced, since the GPU samples the image after the commands are played.
+    RefPtr<Media::VideoFrame> frame;
+    sk_sp<SkImage> image;
+};
+
+CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Compositing::CanvasSurfaceRegistry& canvas_surface_registry, VideoFrameHolds const& video_frame_holds)
     : m_skia_backend_context(move(skia_backend_context))
     , m_canvas_surface_registry(canvas_surface_registry)
     , m_canvas_surface_owner_id(canvas_surface_registry.allocate_owner_id())
+    , m_video_frame_holds(video_frame_holds)
 {
 }
 
@@ -53,6 +68,9 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         return &m_text_resources.font(Compositing::FontResourceId { font_id });
     };
     auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, move(canvas_surface_resolver), move(font_resolver));
+    player->set_video_frame_image_resolver([this](u64 video_sink_handle, u64 generation) {
+        return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation);
+    });
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
     // "Thus, the bitmap of such a context starts off as opaque black instead of transparent black"
@@ -152,6 +170,7 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
         resources.fonts.set(font.id);
     }
     m_text_resources.retain_only(resources);
+    Vector<NonnullRefPtr<Gfx::PaintingSurface>> surfaces_that_sample_video_frames;
     for (auto const& segment : segments) {
         // The canvas may have been destroyed while this segment was pending in
         // WebContent, so a missing context is not a protocol violation.
@@ -161,20 +180,81 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
             continue;
 
         if (!segment.commands.is_empty()) {
+            m_drew_video_frame_in_segment = false;
             canvas_context->command_player->play(segment.commands);
             canvas_context->has_uncommitted_commands = true;
+            if (m_drew_video_frame_in_segment && !surfaces_that_sample_video_frames.contains_slow(canvas_context->command_player->surface()))
+                surfaces_that_sample_video_frames.append(canvas_context->command_player->surface());
         }
 
         if (segment.present && canvas_context->has_uncommitted_commands)
             present_canvas_2d_context(segment.canvas_id, *canvas_context);
     }
+
+    // The frames stay held only until WebContent releases them, which follows this stream, so the GPU has to have
+    // finished sampling them by then.
+    if (m_skia_backend_context) {
+        for (auto& surface : surfaces_that_sample_video_frames)
+            m_skia_backend_context->flush_and_submit(surface);
+    }
 }
 
-void CanvasHost::execute_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+sk_sp<SkImage> CanvasHost::held_video_frame_image(Media::VideoSinkHandle handle, u64 generation)
+{
+    if (auto cached = m_video_frame_images.get(handle); cached.has_value() && (*cached)->generation == generation)
+        return (*cached)->image;
+
+    m_drew_video_frame_in_segment = true;
+    auto frame = m_video_frame_holds.held_frame(handle, generation);
+    if (!frame)
+        return nullptr;
+    auto image = sk_image_from_video_frame(*frame, m_skia_backend_context);
+    if (!image)
+        return nullptr;
+    m_video_frame_images.set(handle, make<VideoFrameImage>(generation, move(frame), image));
+    return image;
+}
+
+void CanvasHost::forget_video_sink(Media::VideoSinkHandle handle)
+{
+    m_video_frame_images.remove(handle);
+}
+
+Vector<Gfx::DecodedImageFrame> CanvasHost::resolve_webgl_image_source_frames(Vector<Compositing::WebGL::ImageSourceFrame> const& frames) const
+{
+    Vector<Gfx::DecodedImageFrame> resolved_frames;
+    resolved_frames.ensure_capacity(frames.size());
+    for (auto const& frame : frames) {
+        auto resolved_frame = frame.visit(
+            [](Gfx::DecodedImageFrame const& decoded_frame) -> Optional<Gfx::DecodedImageFrame> {
+                return decoded_frame;
+            },
+            [&](Compositing::CapturedVideoFrame const& captured_frame) -> Optional<Gfx::DecodedImageFrame> {
+                auto video_frame = m_video_frame_holds.held_frame(captured_frame.sink_handle, captured_frame.generation);
+                if (!video_frame)
+                    return {};
+                auto bitmap_or_error = video_frame->to_bitmap();
+                if (bitmap_or_error.is_error()) {
+                    dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+                    return {};
+                }
+                auto color_space = Gfx::ColorSpace {};
+                if (auto color_space_result = Gfx::ColorSpace::from_cicp(video_frame->cicp()); !color_space_result.is_error())
+                    color_space = color_space_result.release_value();
+                return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { bitmap_or_error.release_value() }, move(color_space) };
+            });
+        if (!resolved_frame.has_value())
+            resolved_frame = Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 })) } };
+        resolved_frames.unchecked_append(resolved_frame.release_value());
+    }
+    return resolved_frames;
+}
+
+void CanvasHost::execute_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
-    MUST(as_webgl(*context).execute_commands(commands, bitmaps));
+    MUST(as_webgl(*context).execute_commands(commands, resolve_webgl_image_source_frames(frames)));
 }
 
 void CanvasHost::set_webgl_shared_command_buffer(Compositing::CanvasId canvas_id, Compositing::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
@@ -184,7 +264,7 @@ void CanvasHost::set_webgl_shared_command_buffer(Compositing::CanvasId canvas_id
     as_webgl(*context).set_shared_command_buffer(move(shared_command_buffer));
 }
 
-bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
@@ -196,7 +276,7 @@ bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId
 
     // WebContent can rewrite shared bytes while they execute, so a malformed stream is
     // a misbehaving peer rather than a Compositor bug; report instead of crashing.
-    if (webgl_context.execute_commands(*commands, bitmaps).is_error())
+    if (webgl_context.execute_commands(*commands, resolve_webgl_image_source_frames(frames)).is_error())
         return false;
     webgl_context.store_executed_flush_sequence_number(flush_sequence_number);
     return true;

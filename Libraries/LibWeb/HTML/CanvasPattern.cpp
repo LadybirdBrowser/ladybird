@@ -6,13 +6,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibGC/Heap.h>
+#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
+#include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
 
@@ -24,6 +30,43 @@ CanvasPattern::CanvasPattern(Gfx::CanvasPatternPaintStyle& pattern)
 }
 
 CanvasPattern::~CanvasPattern() = default;
+
+// A pattern outlives any one video frame, so it reads the frame back instead of holding it.
+static Optional<Gfx::DecodedImageFrame> read_back_current_video_frame(HTMLVideoElement& video)
+{
+    auto captured_frame = video.capture_current_video_frame();
+    if (!captured_frame.has_value())
+        return {};
+    auto& page = video.document().page();
+    if (!page.has_compositor_host())
+        return {};
+    auto transport = page.compositor_host().create_canvas_2d_transport();
+    if (!transport)
+        return {};
+
+    Gfx::IntRect frame_rect { 0, 0, static_cast<int>(video.video_width()), static_cast<int>(video.video_height()) };
+    if (frame_rect.is_empty() || !transport->create_context(frame_rect.size(), true))
+        return {};
+
+    auto& stream = transport->shared_stream();
+    stream.commands_for(transport->canvas_id().value()).append(Gfx::CanvasCommands::DrawVideoFrame {
+        .video_sink_handle = captured_frame->sink_handle.value(),
+        .generation = captured_frame->generation,
+        .dst_rect = frame_rect.to_type<float>(),
+        .src_rect = frame_rect,
+        .scaling_mode = Gfx::ScalingMode::NearestNeighbor,
+        .filter = {},
+        .global_alpha = 1,
+        .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Copy,
+    });
+    stream.retain_video_frame_hold(*captured_frame->hold);
+    transport->flush_shared_stream();
+    auto bitmap = transport->read_back_pixels(frame_rect, Gfx::AlphaType::Premultiplied);
+    transport->destroy_context();
+    if (!bitmap)
+        return {};
+    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { bitmap.release_nonnull() } };
+}
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern
 WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(CanvasImageSource const& image, Utf16FlyString const& repetition)
@@ -60,7 +103,11 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(CanvasImageSou
         return WebIDL::SyntaxError::create("Repetition value is not valid"_utf16);
 
     // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by repetition.
-    auto frame = canvas_image_source_frame(image);
+    Optional<Gfx::DecodedImageFrame> frame;
+    if (auto const* video = image.get_pointer<GC::Ref<HTMLVideoElement>>())
+        frame = read_back_current_video_frame(*video);
+    else
+        frame = canvas_image_source_frame(image);
     auto paint_style = TRY_OR_THROW_OOM(JS::VM::the(), Gfx::CanvasPatternPaintStyle::create(frame, *repetition_value));
 
     // FIXME: 7. If image is not origin-clean, then mark pattern as not origin-clean.

@@ -51,8 +51,9 @@ public:
     void destroy_context(Web::CompositorContextId);
     // Has the Paint thread present frames through this connection from now on.
     void hand_frame_sink_to_paint_thread();
-    void add_video_sink(Media::VideoSinkHandle);
+    void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
+    void release_video_frame_hold(Media::VideoSinkHandle, u64 generation);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     Optional<Compositing::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha);
     void update_canvas_2d_stream(Compositing::Canvas2DCommandStream&);
@@ -81,9 +82,9 @@ public:
 
     Optional<Compositing::CanvasId> create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions);
     void set_webgl_command_buffer(Compositing::CanvasId, Core::AnonymousBuffer const&);
-    void send_webgl_commands_from_shared_buffer(Compositing::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps);
+    void send_webgl_commands_from_shared_buffer(Compositing::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const& frames);
     bool drain_webgl_command_buffer(Compositing::CanvasId);
-    void send_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps);
+    void send_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Compositing::WebGL::ImageSourceFrame> const& frames);
     void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
     void clear_webgl_drawing_buffer(Compositing::CanvasId);
     ByteBuffer webgl_sync_call(Compositing::CanvasId, ByteBuffer request);

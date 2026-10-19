@@ -15,6 +15,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
+#include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibCore/Forward.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
@@ -190,7 +191,7 @@ public:
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
     Optional<Media::VideoSinkHandle> video_sink_handle() const;
-    RefPtr<Media::VideoFrame> current_presented_frame() const;
+    Optional<Compositing::CapturedVideoFrame> capture_current_video_frame() const;
 
     Optional<Compositing::VideoSinkResourceId> video_sink_resource_id() const;
 

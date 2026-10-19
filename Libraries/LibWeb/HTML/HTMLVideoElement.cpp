@@ -9,7 +9,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibMediaCodecs/VideoFrame.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
@@ -393,26 +392,6 @@ HTMLVideoElement::Representation HTMLVideoElement::current_representation() cons
     //     current playback position changes such that the last frame rendered is no longer the frame corresponding to
     //     the current playback position in the video, the new frame must be rendered.
     return Representation::VideoFrame;
-}
-
-Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame() const
-{
-    auto current_frame = current_presented_frame();
-    if (!current_frame)
-        return {};
-
-    auto bitmap_or_error = current_frame->to_bitmap();
-    if (bitmap_or_error.is_error()) {
-        dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
-        return {};
-    }
-    if (!current_frame->revalidate_backing())
-        return {};
-    auto bitmap = bitmap_or_error.release_value();
-    auto color_space = Gfx::ColorSpace {};
-    if (auto color_space_result = Gfx::ColorSpace::from_cicp(current_frame->cicp()); !color_space_result.is_error())
-        color_space = color_space_result.release_value();
-    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, move(color_space) };
 }
 
 // https://w3c.github.io/picture-in-picture/#request-picture-in-picture

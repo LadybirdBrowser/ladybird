@@ -14,6 +14,10 @@
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/Forward.h>
 
+class SkImage;
+template<typename T>
+class sk_sp;
+
 namespace Gfx {
 
 class CanvasCommandPlayer {
@@ -25,11 +29,14 @@ public:
 
     using FontResolver = Function<Font const*(u64)>;
     using CanvasSurfaceResolver = Function<PaintingSurface const*(u64)>;
+    using VideoFrameImageResolver = Function<sk_sp<SkImage>(u64 video_sink_handle, u64 generation)>;
 
     CanvasCommandPlayer(RefPtr<SkiaBackendContext>, IntSize, BitmapFormat, AlphaType, CanvasSurfaceResolver = {}, FontResolver = {});
     ~CanvasCommandPlayer();
 
     NonnullRefPtr<PaintingSurface> surface() const;
+
+    void set_video_frame_image_resolver(VideoFrameImageResolver resolver) { m_video_frame_image_resolver = move(resolver); }
 
     void clear(Color);
 
@@ -41,6 +48,7 @@ private:
     void play_command(CanvasCommands::FillRect const&);
     void play_command(CanvasCommands::DrawBitmap const&);
     void play_command(CanvasCommands::DrawCanvas const&);
+    void play_command(CanvasCommands::DrawVideoFrame const&);
     void play_command(CanvasCommands::FillPath const&);
     void play_command(CanvasCommands::StrokePath const&);
     void play_command(CanvasCommands::SetTransform const&);
@@ -50,12 +58,16 @@ private:
     void play_command(CanvasCommands::Reset const&);
     void play_command(CanvasCommands::ClearCanvas const&);
 
+    template<typename Command>
+    void draw_image(SkImage const&, Command const&);
+
     NonnullRefPtr<PaintStyle> resolve_paint_style(CanvasPaintStyle const&) const;
 
     NonnullRefPtr<PaintingSurface> m_surface;
     NonnullOwnPtr<PainterSkia> m_painter;
     CanvasSurfaceResolver m_canvas_surface_resolver;
     FontResolver m_font_resolver;
+    VideoFrameImageResolver m_video_frame_image_resolver;
 };
 
 }

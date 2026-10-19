@@ -7,6 +7,8 @@
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
+#include <LibCompositing/Video/VideoFramePresentationPage.h>
+#include <LibCompositing/WebGL/ImageSourceFrame.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/CanvasCommandList.h>
@@ -22,8 +24,9 @@
 
 endpoint CompositorWebContentServer
 {
-    add_video_sink(Media::VideoSinkHandle video_sink_handle) =|
+    add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page) =|
     remove_video_sink(Media::VideoSinkHandle video_sink_handle) =|
+    release_video_frame_hold(Media::VideoSinkHandle video_sink_handle, u64 generation) =|
     set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick) =|
 
     set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id) =|
@@ -53,9 +56,9 @@ endpoint CompositorWebContentServer
 
     create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Compositing::CanvasId canvas_id, Vector<String> supported_extensions)
     webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) =|
-    webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> bitmaps) =|
+    webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> frames) =|
     webgl_drain_command_buffer(Compositing::CanvasId canvas_id) => ()
-    webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps) =|
+    webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Compositing::WebGL::ImageSourceFrame> frames) =|
     webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer) =|
     webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id) =|
     webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) => (ByteBuffer reply)
