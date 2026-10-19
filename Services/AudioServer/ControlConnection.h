@@ -31,6 +31,8 @@ private:
     virtual void capture_decided(u64 request_id, bool allowed) override;
     virtual void authorize_playback_group(u64 tab_id, Audio::PlaybackGroupId group) override;
     virtual void revoke_playback_group(u64 tab_id, Audio::PlaybackGroupId group) override;
+    virtual void mute_playback_group(u64 tab_id, Audio::PlaybackGroupId group) override;
+    virtual void unmute_playback_group(u64 tab_id, Audio::PlaybackGroupId group) override;
 };
 
 }

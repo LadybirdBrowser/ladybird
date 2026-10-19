@@ -79,6 +79,10 @@ Tabs::Tab& Tabs::tab_for(u64 tab_id)
             for (auto group : *authorized_groups)
                 mixer->set_group_authorization(group, Audio::PlaybackGroupAuthorization::Authorized);
         }
+        if (auto muted_groups = m_muted_playback_groups.get(tab_id); muted_groups.has_value()) {
+            for (auto group : *muted_groups)
+                mixer->set_group_mute_state(group, Audio::PlaybackGroupMuteState::Muted);
+        }
         return Tab { .mixer = move(mixer), .connections = {} };
     });
 }
@@ -129,6 +133,16 @@ void Tabs::set_capture_permission(u64 tab_id, bool granted)
         connection->set_capture_permitted(granted);
 }
 
+static void remove_group(HashMap<u64, HashTable<Audio::PlaybackGroupId>>& groups_by_tab, u64 tab_id, Audio::PlaybackGroupId group)
+{
+    auto groups = groups_by_tab.get(tab_id);
+    if (!groups.has_value())
+        return;
+    groups->remove(group);
+    if (groups->is_empty())
+        groups_by_tab.remove(tab_id);
+}
+
 void Tabs::set_playback_group_authorization(u64 tab_id, Audio::PlaybackGroupId group, Audio::PlaybackGroupAuthorization authorization)
 {
     switch (authorization) {
@@ -136,15 +150,25 @@ void Tabs::set_playback_group_authorization(u64 tab_id, Audio::PlaybackGroupId g
         m_authorized_playback_groups.ensure(tab_id).set(group);
         break;
     case Audio::PlaybackGroupAuthorization::Unauthorized:
-        if (auto authorized_groups = m_authorized_playback_groups.get(tab_id); authorized_groups.has_value()) {
-            authorized_groups->remove(group);
-            if (authorized_groups->is_empty())
-                m_authorized_playback_groups.remove(tab_id);
-        }
+        remove_group(m_authorized_playback_groups, tab_id, group);
         break;
     }
     if (auto tab = m_tabs.get(tab_id); tab.has_value())
         tab->mixer->set_group_authorization(group, authorization);
+}
+
+void Tabs::set_playback_group_mute_state(u64 tab_id, Audio::PlaybackGroupId group, Audio::PlaybackGroupMuteState mute_state)
+{
+    switch (mute_state) {
+    case Audio::PlaybackGroupMuteState::Muted:
+        m_muted_playback_groups.ensure(tab_id).set(group);
+        break;
+    case Audio::PlaybackGroupMuteState::Unmuted:
+        remove_group(m_muted_playback_groups, tab_id, group);
+        break;
+    }
+    if (auto tab = m_tabs.get(tab_id); tab.has_value())
+        tab->mixer->set_group_mute_state(group, mute_state);
 }
 
 void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided)

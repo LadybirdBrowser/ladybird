@@ -36,6 +36,7 @@
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
+#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
@@ -164,6 +165,9 @@ public:
     // before this returns, so a document the page goes on to run is heard from its start.
     void authorize_audio_playback(Web::PageId);
     void revoke_audio_playback(Web::PageId);
+    // Muting the page leaves its sound out whether or not it is authorized, and authorizes nothing.
+    void set_audio_playback_mute_state(Web::PageId, Web::HTML::MuteState);
+    void forget_audio_playback(Web::PageId);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::CompositorContextId compositor_context_id_for_page(WebContentPage const&);
@@ -266,8 +270,9 @@ private:
     // again whenever it relaunches, and rules on nothing itself.
     HashTable<String> m_audio_capture_grants;
     bool m_audio_capture_permitted { false };
-    // Likewise, the AudioServer is told again of the groups it may play.
+    // Likewise, the AudioServer is told again of the groups it may play, and of those the user has muted.
     HashTable<Audio::PlaybackGroupId> m_authorized_audio_playback_groups;
+    HashTable<Audio::PlaybackGroupId> m_muted_audio_playback_groups;
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     static HashTable<WebContentClient*>& clients();

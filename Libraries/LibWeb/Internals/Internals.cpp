@@ -2145,11 +2145,6 @@ void Internals::disconnect_media_server()
         client.value()->shutdown();
 }
 
-void Internals::set_page_muted(bool muted)
-{
-    window().associated_document().page().set_page_mute_state(muted ? HTML::MuteState::Muted : HTML::MuteState::Unmuted);
-}
-
 DOM::Document::StyleInvalidationCounters const& Internals::style_invalidation_counters() const
 {
     return window().associated_document().style_invalidation_counters();

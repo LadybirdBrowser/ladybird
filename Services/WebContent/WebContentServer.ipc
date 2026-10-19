@@ -18,7 +18,6 @@
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Gamepad/GamepadStateBuffer.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
@@ -304,8 +303,6 @@ endpoint WebContentServer routed by Web::PageId page_id
     toggle_media_fullscreen_state(Web::PageId page_id) =|
     toggle_media_picture_in_picture_state(Web::PageId page_id) =|
     toggle_media_controls_state(Web::PageId page_id) =|
-
-    set_page_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state) =|
 
     system_time_zone_changed() =|
     set_system_font_family(String family) =|

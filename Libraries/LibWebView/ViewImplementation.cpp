@@ -2628,7 +2628,9 @@ void ViewImplementation::insert_clipboard_item(Web::Clipboard::SystemClipboardIt
 void ViewImplementation::toggle_page_mute_state()
 {
     m_mute_state = Web::HTML::invert_mute_state(m_mute_state);
-    page().async_set_page_mute_state(m_mute_state);
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.client().set_audio_playback_mute_state(page.id(), m_mute_state);
+    });
 }
 
 void ViewImplementation::did_change_audio_play_state(Badge<WebContentPage>, Web::HTML::AudioPlayState play_state)
@@ -3206,8 +3208,8 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     page.async_set_document_cookie_version_buffer(m_document_cookie_version_buffer);
     if (m_debugger_is_attached)
         page.async_attach_debugger();
-    page.async_set_page_mute_state(m_mute_state);
-    // The page's sound plays while it hosts the tab's documents.
+    // The page's sound plays while it hosts the tab's documents, unless the tab is muted.
+    page.client().set_audio_playback_mute_state(page.id(), m_mute_state);
     page.client().authorize_audio_playback(page.id());
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
