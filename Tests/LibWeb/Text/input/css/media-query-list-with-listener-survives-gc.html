@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function listenForChange(onChange) {
+        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", onChange);
+    }
+
+    asyncTest(done => {
+        internals.setPreferredColorScheme("light");
+        let changeEvent = null;
+        listenForChange(event => {
+            changeEvent = event;
+        });
+
+        setTimeout(() => {
+            internals.gc();
+            internals.setPreferredColorScheme("dark");
+            requestAnimationFrame(() => {
+                if (changeEvent)
+                    println(`change event: media=${changeEvent.media} matches=${changeEvent.matches}`);
+                else
+                    println("no change event");
+                internals.setPreferredColorScheme("auto");
+                done();
+            });
+        });
+    });
+</script>
