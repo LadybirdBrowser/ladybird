@@ -5715,6 +5715,9 @@ asm_handler_GetLength:
     mov rax, QWORD PTR [rcx + 32]
     cmp rdi, rsi
     jne .Lasm_GetLength.ssa_block_1
+    mov edi, DWORD PTR [rcx]
+    cmp edi, 6
+    je .Lasm_GetLength.ssa_block_1
     test rax, rax
     jnz .Lasm_GetLength.ssa_block_1
     mov eax, DWORD PTR [rcx + 8]

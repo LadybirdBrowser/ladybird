@@ -3693,6 +3693,7 @@ handler GetLength(
     let shape = object.shape;
     guard let property_cache = load_property_lookup_cache(cache) else slow;
     guard property_cache.shape == shape else slow;
+    guard property_cache.entry_type != PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY else slow;
     guard property_cache.prototype == 0 else slow;
     guard property_cache.shape_dictionary_generation == shape.dictionary_generation else slow;
     let value = object.named_properties[property_cache.property_offset];

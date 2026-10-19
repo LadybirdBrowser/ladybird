@@ -20,9 +20,9 @@ use crate::bytecode::executable::{
 };
 use crate::bytecode::op;
 use crate::bytecode::property_access::{
-    self, CachePropertyAbsence, GetByIdMode, Strict, base_object_for_get, get_by_value_with_keyed_cache,
-    get_cached_property_value, get_with_property_lookup_cache, object_can_cache_property_additions,
-    property_addition_is_cacheable, put_by_property_key,
+    self, GetByIdMode, Strict, base_object_for_get, get_by_value_with_keyed_cache, get_cached_property_value,
+    get_with_property_lookup_cache, object_can_cache_property_additions, property_addition_is_cacheable,
+    put_by_property_key,
 };
 use crate::gc::class::GcCell;
 use crate::gc::class::class_of;
@@ -144,7 +144,6 @@ pub fn get_by_id(vm: &Vm, pc: u32, instruction: &op::GetById, values: &mut op::G
             base_value,
             base_value,
             cache,
-            CachePropertyAbsence::Yes,
         )
     );
     values.dst = value;
@@ -208,7 +207,6 @@ pub fn get_by_id_with_this(
             base_value,
             this_value,
             cache,
-            CachePropertyAbsence::No,
         )
     );
     values.dst = value;
@@ -300,15 +298,7 @@ fn get_by_value_with_site_cache(
     cache_key: u64,
 ) -> ThrowCompletionOr<Value> {
     if property_key.is_symbol() {
-        return get_with_property_lookup_cache(
-            vm,
-            object,
-            property_key,
-            base,
-            cache,
-            CachePropertyAbsence::Yes,
-            cache_key,
-        );
+        return get_with_property_lookup_cache(vm, object, property_key, base, cache, cache_key);
     }
     get_by_value_with_keyed_cache(vm, object, base, property_key, Some((cache, cache_key)))
 }
@@ -419,7 +409,6 @@ pub fn get_length(vm: &Vm, pc: u32, instruction: &op::GetLength, values: &mut op
             base_value,
             base_value,
             cache,
-            CachePropertyAbsence::No,
         )
     );
     values.dst = value;
@@ -447,7 +436,6 @@ pub fn get_length_with_this(
             base_value,
             this_value,
             cache,
-            CachePropertyAbsence::No,
         )
     );
     values.dst = value;

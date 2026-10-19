@@ -35,12 +35,6 @@ pub enum GetByIdMode {
     Length,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CachePropertyAbsence {
-    No,
-    Yes,
-}
-
 /// Whether the code doing a property access is strict mode code.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Strict {
@@ -305,7 +299,6 @@ pub fn base_object_for_get(
     throw_null_or_undefined_property_get(vm, base_value, get_base_identifier, property_name)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn get_by_id(
     vm: &Vm,
     mode: GetByIdMode,
@@ -314,7 +307,6 @@ pub fn get_by_id(
     base_value: Value,
     this_value: Value,
     cache: &PropertyLookupCache,
-    cache_property_absence: CachePropertyAbsence,
 ) -> ThrowCompletionOr<Value> {
     if mode == GetByIdMode::Length && base_value.is_string() {
         return Ok(Value::from_f64(
@@ -338,15 +330,7 @@ pub fn get_by_id(
         return Ok(Value::from_f64(f64::from(base_obj.indexed_array_like_size())));
     }
 
-    get_with_property_lookup_cache(
-        vm,
-        base_obj,
-        property_name,
-        this_value,
-        cache,
-        cache_property_absence,
-        0,
-    )
+    get_with_property_lookup_cache(vm, base_obj, property_name, this_value, cache, 0)
 }
 
 /// Gets the property from `base_obj` through `cache`, filling the cache on a miss. `cache_key` is the key the cache's
@@ -358,7 +342,6 @@ pub fn get_with_property_lookup_cache(
     property_name: &PropertyKey,
     this_value: Value,
     cache: &PropertyLookupCache,
-    cache_property_absence: CachePropertyAbsence,
     cache_key: u64,
 ) -> ThrowCompletionOr<Value> {
     let shape = base_obj.shape();
@@ -373,9 +356,6 @@ pub fn get_with_property_lookup_cache(
         }
         let entry_type = cache_entry.entry_type.get();
         if entry_type == PropertyLookupCacheEntryType::GetMissingProperty {
-            if cache_property_absence == CachePropertyAbsence::No {
-                continue;
-            }
             if !base_obj.is_cacheable_for_property_absence() {
                 continue;
             }
@@ -476,9 +456,7 @@ pub fn get_with_property_lookup_cache(
                     entry.shape_dictionary_generation = shape.dictionary_generation();
                 });
             }
-            CacheableGetPropertyMetadataType::GetMissingProperty
-                if cache_property_absence == CachePropertyAbsence::Yes =>
-            {
+            CacheableGetPropertyMetadataType::GetMissingProperty => {
                 cache.update(PropertyLookupCacheEntryType::GetMissingProperty, |entry| {
                     entry.key = cache_key;
                     entry.shape = Some(shape);

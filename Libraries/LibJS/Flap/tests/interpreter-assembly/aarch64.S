@@ -5633,6 +5633,9 @@ asm_handler_GetLength:
     ldp x4, x3, [x0, #24]
     cmp x4, x2
     b.ne .Lasm_GetLength.ssa_block_1
+    ldr w4, [x0]
+    cmp w4, #6
+    b.eq .Lasm_GetLength.ssa_block_1
     cbnz x3, .Lasm_GetLength.ssa_block_1
     ldp w3, w0, [x0, #4]
     ldr w9, [x2, #52]
