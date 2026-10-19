@@ -32,7 +32,7 @@ if (APPLE)
 endif()
 
 if (USE_VULKAN_DMABUF_IMAGES)
-    list(APPEND SOURCES Vulkan/VulkanVideoDevice.cpp)
+    list(APPEND SOURCES FFmpeg/FFmpegVulkanVideoDecoder.cpp Vulkan/VulkanVideoDevice.cpp)
 endif()
 
 set(GENERATED_SOURCES

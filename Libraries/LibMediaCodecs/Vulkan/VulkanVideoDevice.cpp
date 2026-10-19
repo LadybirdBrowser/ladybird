@@ -231,6 +231,11 @@ VulkanVideoDevice::~VulkanVideoDevice()
         vkDestroyInstance(m_instance, nullptr);
 }
 
+bool VulkanVideoDevice::has_enabled_extension(StringView name) const
+{
+    return any_of(m_enabled_extensions, [&](auto enabled) { return StringView { enabled, strlen(enabled) } == name; });
+}
+
 ErrorOr<void> VulkanVideoDevice::video_capabilities(VkVideoProfileInfoKHR const& profile, VkVideoCapabilitiesKHR& capabilities) const
 {
     if (m_get_physical_device_video_capabilities(m_physical_device, &profile, &capabilities) != VK_SUCCESS)

@@ -45,6 +45,7 @@ public:
     ReadonlySpan<QueueFamily> queue_families() const { return m_queue_families; }
     ReadonlySpan<char const*> enabled_extensions() const { return m_enabled_extensions; }
     VkPhysicalDeviceFeatures2 const& enabled_features() const { return m_features; }
+    bool has_enabled_extension(StringView) const;
 
     // Fills in the capabilities, and whatever codec-specific capabilities are chained to them, for a video profile.
     ErrorOr<void> video_capabilities(VkVideoProfileInfoKHR const&, VkVideoCapabilitiesKHR&) const;

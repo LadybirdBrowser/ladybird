@@ -364,12 +364,13 @@ void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
 
 void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
 {
-    auto image = raster_cache().image_for_video_sink(resource_storage(), command.video_sink_id, m_skia_backend_context);
+    Gfx::IntSize visible_size;
+    auto image = raster_cache().image_for_video_sink(resource_storage(), command.video_sink_id, m_skia_backend_context, visible_size);
     if (!image)
         return;
 
     auto dst_rect = to_skia_rect(command.dst_rect);
-    SkRect src_rect = SkRect::MakeIWH(image->width(), image->height());
+    SkRect src_rect = SkRect::MakeIWH(min(visible_size.width(), image->width()), min(visible_size.height(), image->height()));
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);

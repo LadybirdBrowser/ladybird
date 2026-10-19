@@ -8,9 +8,12 @@
 
 #include <AK/Span.h>
 #include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibMediaCodecs/DecoderError.h>
 #include <LibMediaCodecs/Export.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
+#include <LibMediaCodecs/FFmpeg/VideoFramesAwaitingOutput.h>
+#include <LibMediaCodecs/Forward.h>
 #include <LibMediaCodecs/TrackType.h>
 
 extern "C" {
@@ -145,6 +148,8 @@ static inline TrackType track_type_from_ffmpeg_media_type(AVMediaType media_type
 MEDIACODECS_API DecoderErrorOr<void> set_codec_initialization_data(FFmpegFunctions const&, AVCodecContext&, CodecID, ReadonlyBytes);
 MEDIACODECS_API DecoderErrorOr<void> add_new_extradata_to_packet(FFmpegFunctions const&, AVPacket&, ReadonlyBytes);
 
+MEDIACODECS_API DecoderErrorOr<void> send_coded_frame(FFmpegFunctions const&, AVCodecContext&, AVPacket&, CodedFrame const&, u64 key);
+MEDIACODECS_API CodingIndependentCodePoints coding_independent_code_points_of(FFmpegFunctions const&, AVCodecContext&, CodingIndependentCodePoints const& container_cicp);
 
 constexpr StringView av_error_code_to_string(int error)
 {

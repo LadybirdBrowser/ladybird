@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
@@ -15,6 +14,7 @@
 #include <LibMediaCodecs/VideoFramePool.h>
 
 #include <LibMediaCodecs/FFmpeg/FFmpegForward.h>
+#include <LibMediaCodecs/FFmpeg/VideoFramesAwaitingOutput.h>
 
 namespace Media::FFmpeg {
 
@@ -39,25 +39,15 @@ public:
     virtual void flush() override;
 
 private:
-    struct InFlightFrame {
-        AK::Duration timestamp;
-        AK::Duration duration;
-        DecodeIntent intent;
-    };
-
     DecoderErrorOr<void> copy_pending_frame_into(Gfx::YUVData&);
-    i64 codec_context_option(char const* name) const;
 
     FFmpegFunctions const& m_functions;
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;
     AVFrame* m_frame;
     NonnullRefPtr<VideoFramePool> m_frame_pool;
-    Optional<InFlightFrame> m_pending_frame;
-
-    // The decoder returns a packet's timestamp with the frame it produces, so a key stands in for it.
-    u64 m_next_frame_key { 0 };
-    HashMap<u64, InFlightFrame> m_frames_in_flight;
+    Optional<VideoFramesAwaitingOutput::Frame> m_pending_frame;
+    VideoFramesAwaitingOutput m_frames_awaiting_output;
 };
 
 }
