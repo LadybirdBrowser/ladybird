@@ -167,7 +167,8 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
         auto self = weak_self.strong_ref();
         if (!self)
             return Error::from_string_literal("The worker process is gone");
-        return connect_new_audio_server_client(self->m_audio_server_client, self->child_id(), self->m_audio_tab_id);
+        TRY(ensure_audio_server_is_running(self->m_audio_server_client, self->child_id()));
+        return connect_new_audio_server_client(*self->m_audio_server_client, self->m_audio_tab_id);
     });
     if (connection.is_error()) {
         warnln("Unable to connect a MediaServer client: {}", connection.error());
