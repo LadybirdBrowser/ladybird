@@ -1020,6 +1020,13 @@ pub struct RuntimeInfo {
     /// observable step, growing its packed elements, and returns the new
     /// length as a value.
     pub array_push: u64,
+    /// `void libjs_jit_store_holey_element(Object*, u32 index, u64 value)`:
+    /// stores `value` at `index`, below the length of the holey elements of
+    /// an array whose prototype chain has no indexed properties, growing the
+    /// elements where they have no room for it (or making them a dictionary,
+    /// where the store is sparse), and makes them packed if it filled their
+    /// last hole.
+    pub store_holey_element: u64,
     /// `u64 libjs_jit_slice_arguments(VM*, ExecutionContext* frame, i32 start)`:
     /// `Array.prototype.slice.call(arguments, start)` with the arguments
     /// object of `frame`, which the code never created, as an array value.

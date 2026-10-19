@@ -41,6 +41,8 @@ use crate::snapshot::Forwarding;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::keyed_feedback_bits::HOLEY;
 use crate::snapshot::keyed_feedback_bits::INT32_INDEX;
+use crate::snapshot::keyed_feedback_bits::KEY_KINDS_MASK;
+use crate::snapshot::keyed_feedback_bits::OTHER_ELEMENTS;
 use crate::snapshot::keyed_feedback_bits::OTHER_KEY;
 use crate::snapshot::keyed_feedback_bits::OUT_OF_BOUNDS;
 use crate::snapshot::keyed_feedback_bits::PACKED;
@@ -142,8 +144,8 @@ impl GraphBuilder<'_> {
     /// `index`, refined to be in the bounds of the packed elements of the
     /// array `object` (at `address`), taking a slow path where it is not,
     /// except for the index of the next element: there, `value` becomes the
-    /// next element where the array has room for it, like
-    /// `Array.prototype.push` would append it, and the access is done.
+    /// next element like `Array.prototype.push` would append it, growing
+    /// the elements where they have no room for it, and the access is done.
     pub(super) fn element_index_or_append(
         &mut self,
         slow_paths: &mut SlowPaths,
@@ -162,12 +164,20 @@ impl GraphBuilder<'_> {
         let capacity = self.emit(Op::LoadElementsCapacity, vec![array_address], Some(Repr::Int32));
         // NB: Lengths above i32::MAX are negative as int32 values, which an
         //     unsigned comparison keeps from passing as room for an element.
-        let next_index = self.branch_to_slow_path(
-            slow_paths,
-            BranchCondition::IndexInBounds,
-            vec![next_index, capacity],
-            true,
-        );
+        //     Appends without room grow the elements through the runtime,
+        //     which runs no code either, but at such lengths, whose keys are
+        //     no indices, which the slow path stores.
+        let room = BranchCondition::IndexInBounds;
+        let (hot, cold) = self.branch_with_cold_side(room, vec![next_index, capacity], true);
+        self.block = cold;
+        let zero = self.int32_constant(0);
+        let nonnegative = BranchCondition::Int32(Comparison::GreaterThanEquals);
+        self.branch_to_slow_path(slow_paths, nonnegative, vec![next_index, zero], true);
+        self.graph.blocks[self.block.index()].is_cold = true;
+        self.emit(Op::CallArrayPush, vec![array, value], Some(Repr::Tagged));
+        self.end_hot_path(slow_paths, Vec::new());
+        self.block = hot;
+        let next_index = self.refine(room, true, vec![next_index, capacity]);
         self.emit(
             Op::AppendElement,
             vec![array_address, next_index, value],
@@ -337,6 +347,22 @@ impl GraphBuilder<'_> {
         let kinds = self.elements_kinds_seen(bits);
         let named = bits & (STRING_KEY | SYMBOL_KEY) != 0;
         let mut slow_paths = self.start_slow_paths(None)?;
+        // NB: Stores of int32 indices into packed or holey elements fill holes and append inline, so their slow path
+        //     only stores out of bounds otherwise, which is rare, as are stores out of the bounds of typed arrays
+        //     where the feedback saw none. Exiting there instead keeps loops that store elements free of code that
+        //     may change what they read. The exits are out of bounds ones, so that taking one keeps inline appends,
+        //     which go once their check of the array exits with `ExitKind::SlowPath`. Where that happened, appends
+        //     take the slow path, which they would otherwise exit at too.
+        let appends = self.may_speculate(ExitKind::SlowPath);
+        let out_of_bounds_typed_arrays = !self.typed_array_elements_seen(bits).is_empty() && bits & OUT_OF_BOUNDS != 0;
+        if appends
+            && bits & KEY_KINDS_MASK == INT32_INDEX
+            && bits & OTHER_ELEMENTS == 0
+            && !kinds.is_empty()
+            && !out_of_bounds_typed_arrays
+        {
+            self.exit_with_instead_of_slow_path(&mut slow_paths, ExitKind::OutOfBounds);
+        }
         let object = self.read(base)?;
         let key = self.read(property)?;
         let value = self.read(src)?;
@@ -347,7 +373,6 @@ impl GraphBuilder<'_> {
         // NB: Appends and hole fills check that the prototype chain is the
         //     realm's default one. Appends exit for arrays that push could
         //     not append to, and hole fills take the slow path.
-        let appends = self.may_speculate(ExitKind::SlowPath);
         if appends || kinds.contains(&ElementsKind::Holey) {
             self.embed(self.runtime.array_prototype);
             self.embed(self.runtime.object_prototype);
@@ -368,16 +393,16 @@ impl GraphBuilder<'_> {
                     let kind = kinds[case];
                     let stored = builder.stored_element(slow_paths, kind, value);
                     let address = builder.cell_address(object);
+                    if kind == ElementsKind::Holey {
+                        builder.store_holey_element(slow_paths, address, index, stored);
+                        return;
+                    }
                     let (storage, index) = if kind == ElementsKind::Packed && appends {
                         let index = builder.element_index_or_append(slow_paths, object, address, index, stored);
                         (address, index)
                     } else {
                         builder.element_index_in_bounds(slow_paths, kind, address, index)
                     };
-                    if kind == ElementsKind::Holey {
-                        builder.store_holey_element(slow_paths, address, index, stored);
-                        return;
-                    }
                     builder.store_element(kind, storage, index, stored);
                     builder.end_hot_path(slow_paths, Vec::new());
                 },
@@ -398,30 +423,54 @@ impl GraphBuilder<'_> {
         Ok(Flow::Continue)
     }
 
-    /// Stores `value` at the checked `index` of the holey elements of the
-    /// object at `address`. A hole takes a new element, which runs no code
-    /// where the object is an array with a plain prototype chain (see
-    /// `BranchCondition::HoleFillableArray`); other holes take a slow path.
+    /// Stores `value` at `index` of the holey elements of the object at
+    /// `address`, taking a slow path unless the index is below their length.
+    /// A hole takes a new element, and elements without room for it grow,
+    /// which runs no code where the object is an array with a plain prototype
+    /// chain (see `BranchCondition::HoleFillableArray`); other holes take a
+    /// slow path.
     fn store_holey_element(&mut self, slow_paths: &mut SlowPaths, address: NodeId, index: NodeId, value: NodeId) {
         let kind = ElementsKind::Holey;
+        let in_bounds = BranchCondition::IndexInBounds;
+        let length = self.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
+        let index = self.branch_to_slow_path(slow_paths, in_bounds, vec![index, length], true);
+        // NB: Elements made with a length, like `new Array(length)`, have no room yet, and grow as they get filled.
+        let capacity = self.emit(Op::LoadElementsCapacity, vec![address], Some(Repr::Int32));
+        let (room, no_room) = self.branch_with_cold_side(in_bounds, vec![index, capacity], true);
+        self.block = no_room;
+        // NB: Lengths above i32::MAX let negative int32 keys, which are no indices, pass as below the length.
+        let zero = self.int32_constant(0);
+        let nonnegative = BranchCondition::Int32(Comparison::GreaterThanEquals);
+        let element_index = self.branch_to_slow_path(slow_paths, nonnegative, vec![index, zero], true);
+        self.graph.blocks[self.block.index()].is_cold = true;
+        let array = self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, vec![address], true);
+        self.graph.blocks[self.block.index()].is_cold = true;
+        self.emit(Op::CallStoreHoleyElement, vec![array, element_index, value], None);
+        self.end_hot_path(slow_paths, Vec::new());
+
+        self.block = room;
+        let index = self.refine(in_bounds, true, vec![index, capacity]);
         let old = self.emit(Op::LoadElementAt { kind }, vec![address, index], Some(Repr::Tagged));
         let empty = self.constant(value::EMPTY);
         let (hole, element) = self.branch_both_ways(BranchCondition::TaggedEquals { equal: true }, vec![old, empty]);
 
         self.block = hole;
-        self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, vec![address], true);
+        let array = self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, vec![address], true);
         // NB: A store to the last index may make the elements packed, which
-        //     the slow path does. The index is below the length, so the
-        //     length is not 0.
-        let length = self.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
+        //     the runtime does. The index is below the length, so the length
+        //     is not 0.
         let one = self.int32_constant(1);
         let last = self.emit(
             Op::Int32WrappingBinary { op: BinaryOp::Sub },
             vec![length, one],
             Some(Repr::Int32),
         );
-        let index_before_last =
-            self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, last], true);
+        let (before_last, at_last) = self.branch_with_cold_side(in_bounds, vec![index, last], true);
+        self.block = at_last;
+        self.emit(Op::CallStoreHoleyElement, vec![array, index, value], None);
+        self.end_hot_path(slow_paths, Vec::new());
+        self.block = before_last;
+        let index_before_last = self.refine(in_bounds, true, vec![index, last]);
         self.store_element(kind, address, index_before_last, value);
         self.end_hot_path(slow_paths, Vec::new());
 

@@ -921,6 +921,22 @@ pub extern "C" fn libjs_jit_array_push(array: &Array, value: u64) -> u64 {
     Value::from_f64(f64::from(array.indexed_array_like_size())).0
 }
 
+/// `void libjs_jit_store_holey_element(Object*, u32 index, u64 value)`: stores `value` at `index`, below the length of
+/// the holey elements of the object, growing the elements where they have no room for it (or making them a dictionary,
+/// where the store is sparse), and makes them packed if it filled their last hole.
+///
+/// JIT code calls this with a live array whose prototype chain is the realm's default one without indexed properties,
+/// so that the store runs no code.
+pub extern "C" fn libjs_jit_store_holey_element(object: &Object, index: u32, value: u64) {
+    // NB: Branches on holey elements take packed ones too.
+    assert!(matches!(
+        object.indexed_storage_kind(),
+        IndexedStorageKind::Holey | IndexedStorageKind::Packed
+    ));
+    assert!(index < object.indexed_array_like_size());
+    object.indexed_put(index, Value(value), DEFAULT_ATTRIBUTES);
+}
+
 /// `u64 libjs_jit_primitive_to_string(VM*, u64 primitive)`: `String(primitive)`, which is ToString of the primitive,
 /// but the descriptive string of a symbol.
 ///

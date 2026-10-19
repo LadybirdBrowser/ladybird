@@ -196,4 +196,24 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.move64(output, M::RETURN_GPRS[0]);
         self.emit_restore_registers(&saved, None);
     }
+
+    /// `CallStoreHoleyElement`: calls `RuntimeInfo::store_holey_element`,
+    /// saving the registers the call clobbers.
+    pub(in crate::codegen) fn emit_call_store_holey_element(&mut self, node: NodeId) {
+        let saved = slow_path_saved_registers::<M>().iter().collect::<Vec<_>>();
+        self.emit_save_registers(&saved);
+        // NB: The inputs may be in each other's argument registers, which the saves area holds the values of.
+        for (input, argument) in M::ARGUMENT_GPRS.iter().take(3).enumerate() {
+            let value = self.input(node, input);
+            match saved.iter().position(|register| *register == value) {
+                Some(index) => {
+                    let address = self.save_address(index);
+                    self.masm.load64(*argument, &address);
+                }
+                None => self.masm.move64(*argument, value),
+            }
+        }
+        self.masm.call_absolute(self.runtime.store_holey_element);
+        self.emit_restore_registers(&saved, None);
+    }
 }

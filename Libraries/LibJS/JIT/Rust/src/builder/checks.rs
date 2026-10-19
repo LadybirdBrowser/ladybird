@@ -404,7 +404,7 @@ impl GraphBuilder<'_> {
             hot: Vec::new(),
             cold: Vec::new(),
             next_case: Vec::new(),
-            exits: false,
+            exits: None,
         })
     }
 
@@ -414,7 +414,14 @@ impl GraphBuilder<'_> {
     /// other code, so it keeps what it knew before the instruction. For
     /// instructions whose slow path only handles rare cases.
     pub(super) fn exit_instead_of_slow_path(&mut self, slow_paths: &mut SlowPaths) {
-        slow_paths.exits = self.may_speculate(ExitKind::SlowPath);
+        self.exit_with_instead_of_slow_path(slow_paths, ExitKind::SlowPath);
+    }
+
+    /// Like `exit_instead_of_slow_path()`, exiting with `kind`, for
+    /// instructions whose other speculations exit with `ExitKind::SlowPath`
+    /// and should not go once such an exit was taken.
+    pub(super) fn exit_with_instead_of_slow_path(&mut self, slow_paths: &mut SlowPaths, kind: ExitKind) {
+        slow_paths.exits = self.may_speculate(kind).then_some(kind);
     }
 
     /// Ends the current block with a branch on `condition` of `inputs`,
@@ -669,15 +676,10 @@ impl GraphBuilder<'_> {
     /// edge they took jumps to, with the operands the slow path wrote, if
     /// any edge was taken.
     fn build_slow_path(&mut self, slow_paths: &SlowPaths) -> Option<(BlockId, Vec<NodeId>)> {
-        if slow_paths.exits {
+        if let Some(kind) = slow_paths.exits {
             for edge in &slow_paths.cold {
                 self.block = *edge;
-                let exit = self.set_control(
-                    Op::Exit {
-                        kind: ExitKind::SlowPath,
-                    },
-                    Vec::new(),
-                );
+                let exit = self.set_control(Op::Exit { kind }, Vec::new());
                 self.graph.nodes[exit.index()].frame_state = Some(slow_paths.frame_state);
             }
             return None;
@@ -720,9 +722,9 @@ pub(in crate::builder) struct SlowPaths {
     /// The edges that `GraphBuilder::branch_to_next_case()` took since the
     /// last case started.
     next_case: Vec<BlockId>,
-    /// Whether the cold edges exit instead (see
+    /// The kind of exit the cold edges take instead, if they exit (see
     /// `GraphBuilder::exit_instead_of_slow_path()`).
-    exits: bool,
+    exits: Option<ExitKind>,
 }
 
 impl SlowPaths {

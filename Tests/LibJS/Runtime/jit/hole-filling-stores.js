@@ -110,6 +110,18 @@ describe("Hole-filling stores in JIT code", () => {
         }
     });
 
+    test("negative keys of arrays longer than 2^31", () => {
+        warmUp();
+        const array = new Array(2 ** 32 - 1);
+        store(array, -5, "negative");
+        strictStore(array, -6, "also negative");
+        expect(array[-5]).toBe("negative");
+        expect(array[-6]).toBe("also negative");
+        expect(array[2 ** 32 - 5]).toBeUndefined();
+        expect(array.length).toBe(2 ** 32 - 1);
+        expect(Object.keys(array)).toEqual(["-5", "-6"]);
+    });
+
     test("arrays that cannot get new elements", () => {
         warmUp();
         const array = Object.preventExtensions(holeyArray(8));

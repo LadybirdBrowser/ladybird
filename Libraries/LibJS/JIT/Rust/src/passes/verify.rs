@@ -530,7 +530,7 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::ArrayCreate => Some(vec![Repr::Int32, Repr::Tagged]),
         Op::LoadStringCodeUnit => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::SingleCharacterString | Op::Int32Abs | Op::Int32ToFloat64 => Some(vec![Repr::Int32]),
-        Op::AppendElement => Some(vec![Repr::Pointer, Repr::Int32, Repr::Tagged]),
+        Op::AppendElement | Op::CallStoreHoleyElement => Some(vec![Repr::Pointer, Repr::Int32, Repr::Tagged]),
         Op::LoadElementsLength | Op::LoadElementsCapacity => Some(vec![Repr::Pointer]),
         Op::LoadPropertyIteratorKey => Some(vec![Repr::Tagged, Repr::Int32]),
         Op::OpenArrayIteration => Some(tagged(1)),
