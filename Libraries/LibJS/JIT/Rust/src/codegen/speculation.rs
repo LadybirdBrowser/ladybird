@@ -206,11 +206,35 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     ///     the double division errs by less than 2^-22 / |rhs|, and a
     ///     quotient that is not an integer is at least 1 / |rhs| away from
     ///     one.
+    ///
+    /// OPTIMIZATION: Nonnegative dividends of positive powers of two (like the sizes of ring buffers and hash
+    ///     tables) take a mask instead. A divisor that is no constant is tested for being one in a few instructions.
     fn emit_int32_remainder(&mut self, node: NodeId) {
         let (lhs, output) = (self.input(node, 0), self.output(node));
         let (scratch, quotient) = (self.pinned.scratch, self.temp(node, 0));
         let exit = self.exit_site(node);
         let rhs = self.input_value(node, 1);
+        let (divide, done) = (self.masm.new_label(), self.masm.new_label());
+        match rhs {
+            InputValue::Register(rhs) => {
+                self.masm.sub32_imm(quotient, rhs, 1);
+                self.masm.and32(scratch, quotient, rhs);
+                self.masm.branch_test32(Condition::NonZero, scratch, u32::MAX, divide);
+                self.masm.branch32_imm(Condition::LessThanOrEqual, rhs, 0, divide);
+                self.masm.branch32_imm(Condition::LessThan, lhs, 0, divide);
+                self.masm.and32(output, lhs, quotient);
+                self.masm.jump(done);
+            }
+            InputValue::Constant(bits) => {
+                let divisor = (bits as u32).cast_signed();
+                if divisor > 0 && divisor.cast_unsigned().is_power_of_two() {
+                    self.masm.branch32_imm(Condition::LessThan, lhs, 0, divide);
+                    self.masm.and32_imm(output, lhs, (divisor - 1).cast_unsigned());
+                    self.masm.jump(done);
+                }
+            }
+        }
+        self.masm.bind(divide);
         let (lhs_number, rhs_number) = (Self::lowering_fpr(0), Self::lowering_fpr(1));
         self.masm.convert_int32_to_double(lhs_number, lhs);
         match rhs {
@@ -233,11 +257,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.mul64(quotient, quotient, scratch);
         self.masm.sign_extend32_to_64(scratch, lhs);
         self.masm.sub64(scratch, scratch, quotient);
-        let done = self.masm.new_label();
-        self.masm.branch_test32(Condition::NonZero, scratch, u32::MAX, done);
+        let nonzero = self.masm.new_label();
+        self.masm.branch_test32(Condition::NonZero, scratch, u32::MAX, nonzero);
         self.masm.branch32_imm(Condition::LessThan, lhs, 0, exit);
-        self.masm.bind(done);
+        self.masm.bind(nonzero);
         self.masm.move32(output, scratch);
+        self.masm.bind(done);
     }
 
     pub(super) fn emit_int32_compare(&mut self, node: NodeId, comparison: Comparison) {
