@@ -730,20 +730,16 @@ pub unsafe extern "C" fn rust_namespace_context_release(context: *const NativeNa
     }
 }
 
-/// # Safety
-/// The name must be readable for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_keyframes_set_name(rule: &NativeRule, name: FfiUtf16View) {
+pub extern "C" fn rust_keyframes_set_name(rule: &NativeRule, name: FfiUtf16View) {
     let RulePayload::Keyframes(current) = &rule.payload else {
         unreachable!()
     };
     *current.borrow_mut() = CssString::from_utf16(&name.to_utf16().unwrap());
 }
 
-/// # Safety
-/// The selector must be readable for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_keyframes_find_rule(rule: &NativeRule, selector: FfiUtf16View) -> usize {
+pub extern "C" fn rust_keyframes_find_rule(rule: &NativeRule, selector: FfiUtf16View) -> usize {
     let Some(selectors) = selector
         .units()
         .and_then(crate::css::parser::syntax_parser::parse_keyframe_selector_list)

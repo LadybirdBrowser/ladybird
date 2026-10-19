@@ -1170,11 +1170,8 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
 /// Determines the type of the calculation rooted at `node` under the given
 /// resolve-as target. The result's valid flag is false when the tree does not
 /// type-check.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_determine_type(
+pub extern "C" fn rust_calc_node_determine_type(
     node: &CalcNode,
     has_percentages_resolve_as: bool,
     resolve_as_is_number: bool,

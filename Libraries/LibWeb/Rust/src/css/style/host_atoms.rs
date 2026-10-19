@@ -123,16 +123,8 @@ pub extern "C" fn document_host_atom_generation(host: &DocumentHost) -> u64 {
 
 /// Records the language the element `node` resolves to, or none for no element. The first time the host names a
 /// language, the engine is also given its tag: a range is not a name, so `:lang()` compares against the tag itself.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and `text` must name readable code units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_element_language(
-    host: &DocumentHost,
-    node: u32,
-    language: u32,
-    text: FfiUtf16View,
-) {
+pub extern "C" fn style_engine_set_element_language(host: &DocumentHost, node: u32, language: u32, text: FfiUtf16View) {
     let tag_is_new = language != 0
         && !text.is_empty()
         && host

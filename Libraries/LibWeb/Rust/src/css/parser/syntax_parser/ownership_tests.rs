@@ -1075,10 +1075,8 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     let mut changed = DeclarationBlock::new(original.clone());
     let independent = DeclarationBlock::new(original.clone());
     assert_eq!(changed.data().properties.len(), 4);
-    unsafe {
-        assert!(rust_declaration_block_remove(&mut changed, property_id::MARGIN_TOP));
-        assert!(rust_declaration_block_remove_custom(&mut changed, view(&utf16("--色"))));
-    }
+    assert!(rust_declaration_block_remove(&mut changed, property_id::MARGIN_TOP));
+    assert!(rust_declaration_block_remove_custom(&mut changed, view(&utf16("--色"))));
     assert_eq!(independent.data().properties.len(), 4);
     assert_eq!(independent.data().custom_properties.len(), 1);
     let third = parse(&source, &context);

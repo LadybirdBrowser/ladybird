@@ -1337,11 +1337,8 @@ pub struct FfiParsedPseudoElement {
 }
 
 /// Parses the restricted pseudo-element syntax accepted by `getComputedStyle()` and animation APIs.
-///
-/// # Safety
-/// `input` must contain readable storage for the duration of this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_parse_pseudo_element(input: FfiUtf16View) -> FfiParsedPseudoElement {
+pub extern "C" fn rust_selector_parse_pseudo_element(input: FfiUtf16View) -> FfiParsedPseudoElement {
     let Some(input) = input.units() else {
         return FfiParsedPseudoElement {
             selector: std::ptr::null_mut(),
