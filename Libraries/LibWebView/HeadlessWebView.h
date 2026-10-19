@@ -34,7 +34,6 @@ public:
     void close_child_web_views()
     {
         for (auto& child : m_child_web_views) {
-            child->close_child_web_views();
             // Children sharing a crashed WebContent process are discarded by their pending crash callbacks.
             if (!child->handle().is_empty() && child->page().is_open()) {
                 child->request_close();
@@ -48,10 +47,8 @@ public:
         // Disconnect crash handlers so child crashes don't propagate to parent.
         // We don't destroy the children because there may be pending deferred_invokes
         // that would cause use-after-free.
-        for (auto& child : m_child_web_views) {
+        for (auto& child : m_child_web_views)
             child->m_propagate_crashes_to_parent = false;
-            child->disconnect_child_crash_handlers();
-        }
     }
 
 protected:

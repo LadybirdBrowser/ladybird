@@ -212,6 +212,10 @@ void HeadlessWebView::propagate_web_content_crash(WebContentCrashReason crash_re
 
 HeadlessWebView& HeadlessWebView::adopt_child_web_view(NonnullOwnPtr<HeadlessWebView> web_view)
 {
+    // A window outlives the window that opened it, so the root view owns every window opened from its windows.
+    if (m_parent_web_view)
+        return m_parent_web_view->adopt_child_web_view(move(web_view));
+
     auto* child_web_view = web_view.ptr();
     auto weak_this = make_weak_ptr<HeadlessWebView>();
     web_view->m_parent_web_view = weak_this;
