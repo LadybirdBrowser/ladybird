@@ -130,4 +130,9 @@ bool consume_a_preloaded_resource(
     return true;
 }
 
+void discard_speculative_preloads(DOM::Document& document)
+{
+    document.map_of_preloaded_resources().remove_all_matching([](auto const&, auto const& entry) { return entry->is_speculative; });
+}
+
 }

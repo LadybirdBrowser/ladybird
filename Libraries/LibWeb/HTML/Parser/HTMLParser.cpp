@@ -53,6 +53,7 @@
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
@@ -656,6 +657,9 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     // 2. Set the insertion point to undefined.
     if (parser)
         parser->m_tokenizer.undefine_insertion_point();
+
+    // NB: The normal parser fetches nothing more.
+    discard_speculative_preloads(*document);
 
     // 3. Update the current document readiness to "interactive".
     document->update_readiness(HTML::DocumentReadyState::Interactive);
@@ -2579,6 +2583,7 @@ void HTMLParser::abort()
 
     // 2. Stop the speculative HTML parser for this HTML parser.
     stop_the_speculative_html_parser();
+    discard_speculative_preloads(*m_document);
 
     // 3. Update the current document readiness to "interactive".
     m_document->update_readiness(DocumentReadyState::Interactive);

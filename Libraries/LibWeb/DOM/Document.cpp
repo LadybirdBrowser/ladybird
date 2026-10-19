@@ -1457,6 +1457,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
         m_html_parser_end_state->cancel();
         m_html_parser_end_state = nullptr;
     }
+    HTML::discard_speculative_preloads(*this);
 
     // INTEROP: The HTML Standard leaves discarding pending scripts unspecified. Blink and WebKit discard their
     //          parser script runner's pending parsing-blocking and deferred scripts when replacing the parser, and
