@@ -15,11 +15,12 @@ use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::sparse_bitset::SparseBitSet;
 use std::cell::OnceCell;
 
 pub(super) struct ValueLiveness {
-    pub live_in: Vec<BitSet>,
-    pub live_out: Vec<BitSet>,
+    pub live_in: Vec<SparseBitSet>,
+    pub live_out: Vec<SparseBitSet>,
     /// For each node, the values whose last use (on this path) it is.
     pub dies_at: Vec<Vec<NodeId>>,
     /// Values nobody uses.
@@ -138,10 +139,10 @@ impl ValueLiveness {
         let mut defined = Vec::with_capacity(block_count);
         let mut used = Vec::new();
         for block in &block_ids {
-            let mut live = BitSet::new(value_count);
+            let mut live = SparseBitSet::new(value_count);
             Self::transfer_block(graph, &frames, *block, &mut live, &mut used, |_, _, _| {});
             used_before_defined.push(live);
-            let mut nodes = BitSet::new(value_count);
+            let mut nodes = SparseBitSet::new(value_count);
             for node in graph.block_nodes(*block) {
                 nodes.insert(node.index());
             }
@@ -162,9 +163,9 @@ impl ValueLiveness {
             })
             .collect::<Vec<_>>();
 
-        let mut live_in = vec![BitSet::new(value_count); block_count];
-        let mut live_out = vec![BitSet::new(value_count); block_count];
-        let mut entering = BitSet::new(value_count);
+        let mut live_in = vec![SparseBitSet::new(value_count); block_count];
+        let mut live_out = vec![SparseBitSet::new(value_count); block_count];
+        let mut entering = SparseBitSet::new(value_count);
         // Visit backwards initially, then only revisit predecessors whose
         // successor's live-in set changed. Acyclic regions need one visit.
         let mut worklist = block_ids.clone();
@@ -196,12 +197,12 @@ impl ValueLiveness {
         let mut dead_outputs = BitSet::new(value_count);
         let mut needs_spill = BitSet::new(value_count);
         for block in &block_ids {
-            let mut live = live_out[block.index()].clone();
+            entering.clone_from(&live_out[block.index()]);
             Self::transfer_block(
                 graph,
                 &frames,
                 *block,
-                &mut live,
+                &mut entering,
                 &mut used,
                 |node, live_after, used| {
                     if is_allocated_value(graph, node) && !live_after.contains(node.index()) {
@@ -243,7 +244,9 @@ impl ValueLiveness {
             if (predecessors.len() > 1 || predecessors.first().is_some_and(|predecessor| predecessor >= block))
                 && state_predecessor(graph, *block).is_none()
             {
-                needs_spill.union_with(&live_in[block.index()]);
+                for value in live_in[block.index()].iter() {
+                    needs_spill.insert(value);
+                }
             }
         }
 
@@ -265,9 +268,9 @@ impl ValueLiveness {
         graph: &Graph,
         frames: &[OnceCell<Vec<NodeId>>],
         block: BlockId,
-        live: &mut BitSet,
+        live: &mut SparseBitSet,
         used: &mut Vec<NodeId>,
-        mut visit: impl FnMut(NodeId, &BitSet, &[NodeId]),
+        mut visit: impl FnMut(NodeId, &SparseBitSet, &[NodeId]),
     ) {
         let block_data = graph.block(block);
         for node in block_data.body.iter().chain(&block_data.control).rev() {
@@ -330,5 +333,60 @@ mod tests {
         assert_eq!(liveness.dies_at[checks[1].index()], [value]);
         assert!(!liveness.dead_outputs.contains(value.index()));
         assert!(liveness.live_in[0].is_empty());
+    }
+
+    #[test]
+    fn many_blocks_with_short_live_ranges() {
+        let mut graph = Graph::default();
+        let block_count = 8192;
+        let mut values = Vec::new();
+        for index in 0..block_count {
+            let mut block = Block::default();
+            let value = if index == 0 {
+                graph.add_node(Node::new(Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged), 0))
+            } else {
+                block.predecessors.push(BlockId::from_index(index - 1));
+                graph.add_node(Node::new(
+                    Op::CheckObject,
+                    vec![values[index - 1]],
+                    Some(Repr::Tagged),
+                    0,
+                ))
+            };
+            values.push(value);
+            block.body.push(value);
+            block.control = Some(if index + 1 == block_count {
+                graph.add_node(Node::new(Op::Return, vec![value], None, 0))
+            } else {
+                graph.add_node(Node::new(
+                    Op::Jump {
+                        target: BlockId::from_index(index + 1),
+                    },
+                    vec![],
+                    None,
+                    0,
+                ))
+            });
+            graph.add_block(block);
+        }
+        let liveness = ValueLiveness::compute(&graph);
+        assert!(liveness.live_in[0].is_empty());
+        assert!(liveness.live_out[block_count - 1].is_empty());
+        for index in 1..block_count {
+            assert_eq!(
+                liveness.live_in[index].iter().collect::<Vec<_>>(),
+                [values[index - 1].index()]
+            );
+            assert_eq!(
+                liveness.live_out[index - 1].iter().collect::<Vec<_>>(),
+                [values[index - 1].index()]
+            );
+            assert_eq!(liveness.dies_at[values[index].index()], [values[index - 1]]);
+            assert!(!liveness.dead_outputs.contains(values[index - 1].index()));
+        }
+        assert_eq!(
+            liveness.dies_at[graph.blocks[block_count - 1].control.unwrap().index()],
+            [values[block_count - 1]]
+        );
     }
 }

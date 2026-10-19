@@ -270,7 +270,7 @@ pub struct Allocation {
     pub block_end_moves: Vec<Vec<Move>>,
     pub spill_slot_count: u32,
     /// The values live into each block, indexed by `BlockId`.
-    pub live_in: Vec<crate::bitset::BitSet>,
+    pub live_in: Vec<crate::sparse_bitset::SparseBitSet>,
 }
 
 impl Allocation {

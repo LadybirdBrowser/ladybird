@@ -25,6 +25,7 @@ pub mod options;
 pub mod passes;
 pub mod regalloc;
 pub mod snapshot;
+pub mod sparse_bitset;
 
 use bytecode::OpCode;
 use code::CompiledCode;
