@@ -307,12 +307,13 @@ function(build_rust_binary)
 endfunction()
 
 function(test_rust_crate)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME" "ENVIRONMENT")
     _rust_crate_common_setup(
         MANIFEST_PATH "${ARG_MANIFEST_PATH}"
         CRATE_NAME ${ARG_CRATE_NAME}
         TARGET_DIR "${CMAKE_BINARY_DIR}/cargo/tests/${ARG_CRATE_NAME}"
     )
+    list(APPEND cargo_env ${ARG_ENVIRONMENT})
     # cargo test accepts harness arguments after --, not rustc arguments.
     list(FIND cargo_common_flags "--" rustc_flags_start)
     list(SUBLIST cargo_common_flags 0 ${rustc_flags_start} cargo_test_flags)

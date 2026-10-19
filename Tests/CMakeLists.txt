@@ -35,6 +35,7 @@ if (NOT WIN32)
         "${CMAKE_COMMAND}" -E env
             ${rust_test_env}
             "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/cargo/build"
+            "RUST_ECHO_SERVER_ENDPOINT=${CMAKE_CURRENT_BINARY_DIR}/LibIPC/RustEchoServerEndpoint.rs"
             "${RUST_CARGO}" test --workspace
                 --manifest-path "${LADYBIRD_SOURCE_DIR}/Cargo.toml"
                 --target "${RUST_TARGET_TRIPLE}"
@@ -78,6 +79,7 @@ if (NOT WIN32)
         COMMAND_EXPAND_LISTS
     )
     add_custom_target(rust-tests ALL DEPENDS "${rust_tests_stamp}")
+    add_dependencies(rust-tests generate_RustEchoServerEndpoint.h)
 
     add_test(NAME RustWorkspace COMMAND ${rust_workspace_test_command})
     add_test(NAME Flap COMMAND ${flap_test_command})

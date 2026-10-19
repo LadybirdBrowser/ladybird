@@ -1,0 +1,14 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <AK/ByteString.h>
+#include <AK/Utf16String.h>
+#include <LibIPC/File.h>
+
+endpoint RustEchoServer
+{
+    echo(u32 number, String text, Utf16String utf16_text, Vector<Optional<i64>> values, ByteBuffer bytes) => (u32 number, String text, Utf16String utf16_text, Vector<Optional<i64>> values, ByteBuffer bytes)
+    write_to_file(IPC::File file, ByteString contents) => ()
+    echo_files(Vector<IPC::File> files) => (Vector<IPC::File> files)
+    stop() =|
+    echo_utf8([UTF8] ByteString text, [UTF8] ByteBuffer bytes) => ([UTF8] ByteString text, [UTF8] ByteBuffer bytes)
+}

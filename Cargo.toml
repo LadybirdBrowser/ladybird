@@ -20,6 +20,7 @@ members = [
     "Libraries/LibWeb/Rust",
     "Libraries/LibWeb/HTML/Parser/Rust",
     "Libraries/RustAllocator",
+    "Tests/LibIPC/RustEchoServer",
 ]
 exclude = [
     "Libraries/LibJS/Flap",
