@@ -1120,41 +1120,29 @@ bool ContextState::start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_
     return m_scroll_fling_controller.start_if_flicked(gesture_end_event, now_for_testing.value_or(MonotonicTime::now()));
 }
 
-Optional<ContextState::ScrollFlingStep> ContextState::interrupt_scroll_fling(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
+Optional<Web::MouseEvent> ContextState::interrupt_scroll_fling(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
 {
-    auto now = now_for_testing.value_or(MonotonicTime::now());
-    auto end_event = m_scroll_fling_controller.interrupt(event, now);
-    if (!end_event.has_value())
-        return {};
-    return scroll_for_fling_event(end_event.release_value(), now);
+    return m_scroll_fling_controller.interrupt(event, now_for_testing.value_or(MonotonicTime::now()));
 }
 
-Optional<ContextState::ScrollFlingStep> ContextState::take_scroll_fling_step(MonotonicTime frame_time)
+Optional<Web::MouseEvent> ContextState::take_scroll_fling_step(MonotonicTime frame_time)
 {
-    auto event = m_scroll_fling_controller.take_step(frame_time);
-    if (!event.has_value())
-        return {};
-    auto step = scroll_for_fling_event(event.release_value(), frame_time);
-
-    // If the compositor accepts the step but does not scroll, the scroller is at its edge.
-    // Alternatively, a snap scroll uses the step. The next display tick ends the fling.
-    if (step.event.scroll_gesture_phase == Web::ScrollGesturePhase::Momentum && step.result.accepted && !step.result.frame_to_present.has_value())
-        m_scroll_fling_controller.end_on_next_step();
-    return step;
+    return m_scroll_fling_controller.take_step(frame_time);
 }
 
-Optional<ContextState::ScrollFlingStep> ContextState::end_scroll_fling(MonotonicTime now)
+Optional<Web::MouseEvent> ContextState::end_scroll_fling()
 {
-    auto end_event = m_scroll_fling_controller.end();
-    if (!end_event.has_value())
-        return {};
-    return scroll_for_fling_event(end_event.release_value(), now);
+    return m_scroll_fling_controller.end();
 }
 
-ContextState::ScrollFlingStep ContextState::scroll_for_fling_event(Web::MouseEvent event, MonotonicTime now)
+ContextState::ContextUpdateResult ContextState::scroll_for_fling_step(Web::MouseEvent const& event, MonotonicTime now)
 {
-    auto result = scroll_for_wheel_event(event, now);
-    return ScrollFlingStep { move(event), move(result) };
+    return scroll_for_wheel_event(event, now);
+}
+
+void ContextState::end_scroll_fling_on_next_step()
+{
+    m_scroll_fling_controller.end_on_next_step();
 }
 
 ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::MouseEvent const& event, MonotonicTime now)

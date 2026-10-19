@@ -142,17 +142,16 @@ public:
     bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame() || m_presenter.ui_overlay_fades_need_frame(); }
 
     bool has_active_scroll_fling() const { return m_scroll_fling_controller.is_active(); }
-    struct ScrollFlingStep {
-        Web::MouseEvent event;
-        ContextUpdateResult result;
-    };
-    Optional<ScrollFlingStep> take_scroll_fling_step(MonotonicTime frame_time);
-    Optional<ScrollFlingStep> end_scroll_fling(MonotonicTime now);
+    // The wheel event of the next step of the fling, which is scrolled by like a wheel event from the UI.
+    Optional<Web::MouseEvent> take_scroll_fling_step(MonotonicTime frame_time);
+    Optional<Web::MouseEvent> end_scroll_fling();
+    ContextUpdateResult scroll_for_fling_step(Web::MouseEvent const&, MonotonicTime now);
+    void end_scroll_fling_on_next_step();
     // Starts a fling if the gesture that the event ends was a flick. Use only on platforms that send no momentum
     // scroll events.
     bool start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_end_event, Optional<MonotonicTime> now_for_testing = {});
     // Ends the fling before a wheel event from a new gesture or other input.
-    Optional<ScrollFlingStep> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
+    Optional<Web::MouseEvent> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     void set_scrolls_elastically(bool);
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
     // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
@@ -261,7 +260,6 @@ private:
     ContextUpdateResult scroll_for_wheel_event(Web::MouseEvent const&, MonotonicTime now);
     Gfx::FloatPoint wheel_event_delta_in_device_pixels(Web::MouseEvent const&) const;
     bool step_continues_touchpad_gesture_the_page_let_through(Optional<Compositing::AsyncScrollNodeID> const& latched_node_id, Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
-    ScrollFlingStep scroll_for_fling_event(Web::MouseEvent, MonotonicTime now);
     Optional<Gfx::FloatPoint> in_flight_wheel_destination(Web::AsyncScrollNodeStableID) const;
     AsyncScrollResult smooth_wheel_scroll_by(Optional<Compositing::WheelScrollTarget> const&, Gfx::IntRect viewport_rect, MonotonicTime now);
     void retarget_user_scroll(ActiveSmoothScrollAnimation&, Gfx::FloatPoint destination_offset, MonotonicTime now);

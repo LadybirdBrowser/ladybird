@@ -521,7 +521,7 @@ bool CompositorState::handle_key_event(Web::CompositorContextId context_id, Web:
     if (!context)
         return false;
     if (event.type == Web::KeyEvent::Type::KeyDown && Web::is_keyboard_scroll_key(event.key, Web::UIEvents::Mod_None))
-        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(MonotonicTime::now()));
+        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(), MonotonicTime::now());
     return apply_context_update_result(context_id, *context, context->handle_key_event(event));
 }
 
@@ -550,7 +550,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
     }
 
     if (event.type == Web::MouseEvent::Type::MouseDown)
-        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(MonotonicTime::now()));
+        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(), MonotonicTime::now());
 
     auto is_wheel_event = event.type == Web::MouseEvent::Type::MouseWheel;
     if (is_wheel_event) {
@@ -565,7 +565,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         }
 
         // A new gesture must not continue the gesture of the fling, so the fling ends first.
-        dispatch_scroll_fling_step(context_id, *context, context->interrupt_scroll_fling(event));
+        dispatch_scroll_fling_step(context_id, *context, context->interrupt_scroll_fling(event), MonotonicTime::now());
 
         // If the gesture continues as a fling, the end of the fling is the end of the gesture.
         if (m_synthesizes_scroll_momentum && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->start_scroll_fling_if_flicked(event)) {
@@ -578,7 +578,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
 
     ContextState::ContextUpdateResult result;
     if (is_wheel_event)
-        result = context->handle_wheel_event(event);
+        result = scroll_for_wheel_step(*context, event, WheelStepOrigin::UI);
     else
         result = context->handle_mouse_event(event);
     if (result.routing_decision.has_value()) {
@@ -626,16 +626,30 @@ bool CompositorState::nested_context_scrolled_since_last_frame(Web::CompositorCo
     return false;
 }
 
-void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId context_id, ContextState& context, Optional<ContextState::ScrollFlingStep> step)
+ContextState::ContextUpdateResult CompositorState::scroll_for_wheel_step(ContextState& context, Web::MouseEvent const& event, WheelStepOrigin origin, Optional<MonotonicTime> fling_step_time)
+{
+    if (origin == WheelStepOrigin::UI)
+        return context.handle_wheel_event(event);
+
+    auto result = context.scroll_for_fling_step(event, fling_step_time.value_or(MonotonicTime::now()));
+    // If the compositor accepts a momentum step of the fling but does not scroll, the scroller is at its edge.
+    // Alternatively, a snap scroll uses the step. The next display tick ends the fling.
+    if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Momentum && result.accepted && !result.frame_to_present.has_value())
+        context.end_scroll_fling_on_next_step();
+    return result;
+}
+
+void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId context_id, ContextState& context, Optional<Web::MouseEvent> event, MonotonicTime now)
 {
     // Send each fling step on the same route as a wheel event from the UI.
-    if (!step.has_value())
+    if (!event.has_value())
         return;
-    if (step->result.routing_decision.has_value())
-        context.input_trace().record({ .input_event_id = step->event.id, .stage = Web::InputTraceStage::Compositor, .decision = *step->result.routing_decision, .scroller = step->result.routed_scroller });
-    step->event.async_scroll_performed_default_action = apply_context_update_result(context_id, context, step->result);
+    auto result = scroll_for_wheel_step(context, *event, WheelStepOrigin::Fling, now);
+    if (result.routing_decision.has_value())
+        context.input_trace().record({ .input_event_id = event->id, .stage = Web::InputTraceStage::Compositor, .decision = *result.routing_decision, .scroller = result.routed_scroller });
+    event->async_scroll_performed_default_action = apply_context_update_result(context_id, context, result);
     schedule_animation_frames_if_needed(context);
-    context.dispatch_mouse_event_to_web_content(step->event);
+    context.dispatch_mouse_event_to_web_content(*event);
 }
 
 void CompositorState::handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent const& event)
@@ -760,7 +774,7 @@ void CompositorState::set_context_visibility(Web::CompositorContextId context_id
     if (!context)
         return;
     if (visibility == Compositing::ContextVisibility::Hidden)
-        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(MonotonicTime::now()));
+        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(), MonotonicTime::now());
     if (!context->set_visibility(visibility))
         return;
 
@@ -988,7 +1002,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
         auto presents_on_display = context.has_pending_present_frame_scheduled_on(display_id) || has_active_animation_on_display;
         if (presents_on_display) {
             if (display_id_for_context(context) == display_id)
-                dispatch_scroll_fling_step(context_id, context, context.take_scroll_fling_step(frame_time));
+                dispatch_scroll_fling_step(context_id, context, context.take_scroll_fling_step(frame_time), frame_time);
             if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
                 context.presenter().queue_present_frame(PendingFrame::repainting_changes(*animation_frame));
             if (auto rebound_frame = context.advance_elastic_overscroll_rebounds(frame_time); rebound_frame.has_value())

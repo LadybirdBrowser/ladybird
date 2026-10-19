@@ -214,7 +214,13 @@ private:
         ContextState&,
         ContextState::ContextUpdateResult const&);
     void schedule_animation_frames_if_needed(ContextState&);
-    void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<ContextState::ScrollFlingStep>);
+    enum class WheelStepOrigin : u8 {
+        UI,
+        Fling,
+    };
+    // A fling step is scrolled at the frame time the fling synthesized it for.
+    ContextState::ContextUpdateResult scroll_for_wheel_step(ContextState&, Web::MouseEvent const&, WheelStepOrigin, Optional<MonotonicTime> fling_step_time = {});
+    void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<Web::MouseEvent>, MonotonicTime now);
     void present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
