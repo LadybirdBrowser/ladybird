@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/kmalloc.h>
+#include <LibURL/URL.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/Page/PageId.h>
@@ -151,7 +152,7 @@ public:
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
     void duplicate_tab(Tab&);
     Tab* current_tab() const { return m_current_tab; }
-    bool activate_tab_with_url(URL::URL const&);
+    Tab* activate_tab_with_url(URL::URL const&, URL::ExcludeFragment);
     // Asks every tab's page if the window may close, without closing it, and reports the answer. Once the pages agree,
     // a close() goes straight through.
     void request_close_preflight_for_quit(Function<void(bool approved)> on_complete);

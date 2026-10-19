@@ -995,11 +995,24 @@ Vector<WebView::ViewImplementation&> Application::active_window_web_views() cons
     return web_views;
 }
 
-bool Application::activate_tab_with_url(URL::URL const& url) const
+Optional<WebView::ViewImplementation&> Application::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const
 {
-    if (!m_active_window)
-        return false;
-    return m_active_window->activate_tab_with_url(url);
+    auto is_private = m_active_window ? m_active_window->is_private() : WebView::IsPrivate::No;
+    for (auto* window : visible_browser_windows_active_first(m_active_window)) {
+        if (window->is_private() != is_private)
+            continue;
+
+        auto* tab = window->activate_tab_with_url(url, exclude_fragment);
+        if (!tab)
+            continue;
+
+        if (window->isMinimized())
+            window->setWindowState(window->windowState() & ~Qt::WindowMinimized);
+        window->raise();
+        window->activateWindow();
+        return tab->view();
+    }
+    return {};
 }
 
 Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const

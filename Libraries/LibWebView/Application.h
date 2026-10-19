@@ -268,7 +268,7 @@ public:
 
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
     virtual Vector<ViewImplementation&> active_window_web_views() const { return {}; }
-    virtual bool activate_tab_with_url(URL::URL const&) const { return false; }
+    virtual Optional<ViewImplementation&> activate_tab_with_url(URL::URL const&, URL::ExcludeFragment) const { return {}; }
 
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
@@ -279,6 +279,7 @@ public:
 
     virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback callback) const { callback(nullptr); }
 
+    void activate_or_open_tab_with_url(URL::URL const&) const;
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
     void open_bookmark_folder_in_new_tabs(String const& folder_id) const;
     void open_bookmark_in_new_window(String const& bookmark_id, IsPrivate);
