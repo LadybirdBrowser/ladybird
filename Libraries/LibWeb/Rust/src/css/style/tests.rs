@@ -7841,6 +7841,20 @@ fn cold_answer_verification_uses_committed_facts_with_pending_inputs() {
 }
 
 #[test]
+fn a_batched_state_that_moves_nothing_is_no_input() {
+    let (mut engine, nodes) = linear_document();
+    discard_transaction(&mut engine);
+
+    assert!(!engine.record_batched_state(nodes[1], StateFact::PlaceholderShown, false, false));
+    assert!(!engine.facts.has_dirty_staging());
+    assert!(engine.host.journal.is_empty());
+
+    assert!(engine.record_batched_state(nodes[1], StateFact::PlaceholderShown, true, false));
+    assert!(engine.facts.has_dirty_staging());
+    assert!(!engine.host.journal.is_empty());
+}
+
+#[test]
 fn state_input_commits_after_its_old_row_is_snapshotted() {
     let (mut engine, nodes) = linear_document();
     let class = StyleAtomID(200);

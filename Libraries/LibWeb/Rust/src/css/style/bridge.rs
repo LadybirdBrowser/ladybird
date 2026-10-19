@@ -1103,20 +1103,28 @@ impl StyleEngine {
                 node_is_arriving(node),
             );
         }
-        self.settle_batched_inputs();
+        // NB: Settling discards the answers a style pass the host is installing published for its rows still to come,
+        //     so a batch that records nothing, such as the states the host publishes as it installs a row whose states
+        //     stand, settles nothing.
+        if !tree_deltas.is_empty() || !local_feature_deltas.is_empty() {
+            self.settle_batched_inputs();
+        }
 
+        let mut states_moved = false;
         for delta in state_deltas {
             let Some(node) = StyleNodeID::from_raw(delta.node) else {
                 continue;
             };
-            self.record_batched_state(
+            states_moved |= self.record_batched_state(
                 node,
                 decode_state_fact(delta.fact),
                 delta.new_value,
                 node_is_arriving(node),
             );
         }
-        self.settle_batched_inputs();
+        if states_moved {
+            self.settle_batched_inputs();
+        }
 
         for delta in element_declaration_deltas {
             let Some(node) = StyleNodeID::from_raw(delta.node) else {

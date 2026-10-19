@@ -3170,21 +3170,26 @@ impl StyleEngine {
     ///
     /// State invalidators may conservatively republish a related group of pseudo-classes when one
     /// member changes. The settled fact is therefore the old side; assuming every publication is
-    /// a Boolean toggle would invent transitions for the unchanged members of that group.
+    /// a Boolean toggle would invent transitions for the unchanged members of that group. Such a
+    /// member is no input at all, and the answer says whether the state moved.
     pub(crate) fn record_batched_state(
         &mut self,
         node: StyleNodeID,
         fact: StateFact,
         new_value: bool,
         arriving_node: bool,
-    ) {
+    ) -> bool {
         let old_value = self.retained.facts.states_of_node(node).contains(fact);
+        if old_value == new_value && !arriving_node {
+            return false;
+        }
         self.record_batched_input(
             InputKey::State(node, fact),
             InputValue::State(old_value),
             InputValue::State(new_value),
             arriving_node,
         );
+        true
     }
 
     /// Install the fixed facts carried by one element arrival. The tree row already routes the
