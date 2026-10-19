@@ -7,6 +7,7 @@
 #include <AK/Array.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
+#include <AK/Vector.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
@@ -88,6 +89,12 @@ static void describe_node_for_bound_failure(Document& document, Layout::BegunRea
                     builder.append(",owes-input"sv);
                 if (facts.ancestor_owes_style_input)
                     builder.append(",ancestor-owes-input"sv);
+                // The record the engine holds the node on against the one the element holds, the environment the
+                // engine holds for it, whether its record has a cascade state, and the derived records the host
+                // has not taken.
+                builder.appendff(",rec:{}/{},env:{},cs:{}", facts.assigned_record, element->style_record_identity().value(), facts.environment, facts.has_cascade_state ? 1 : 0);
+                if (facts.pending_records)
+                    builder.appendff(",pending:{}({}>{})", facts.pending_records, facts.pending_old_record, facts.pending_new_record);
                 auto* flat_tree_parent_element = element->flat_tree_parent_element();
                 u32 flat_tree_parent_style_node = flat_tree_parent_element ? flat_tree_parent_element->style_node_id().value() : 0;
                 if (facts.inheritance_parent != flat_tree_parent_style_node || facts.flat_tree_parent != flat_tree_parent_style_node)
@@ -101,8 +108,39 @@ static void describe_node_for_bound_failure(Document& document, Layout::BegunRea
                     if (element->has_attribute(name))
                         builder.appendff(" {}", name);
                 }
-                // What one more targeted style update of the element answers now.
-                builder.appendff(" targeted-update:{}", document.update_style_for_element(AbstractElement { *element }) ? "styled"sv : "unstyled"sv);
+                // What one more targeted style update of the element answers now, with the engine's trace of the
+                // update and the engine counters the update moved.
+                auto& style_engine = document.style_computer().style_engine();
+                Vector<u64> counters_before;
+                for (size_t index = 0;; ++index) {
+                    StringView name;
+                    u64 value = 0;
+                    if (!style_engine.counter(read, index, name, value))
+                        break;
+                    counters_before.append(value);
+                }
+                CSS::StyleEngineFFI::style_engine_begin_bound_failure_trace(engine_host);
+                bool styled = document.update_style_for_element(AbstractElement { *element });
+                Array<u8, 512> trace_buffer;
+                auto trace_length = CSS::StyleEngineFFI::style_engine_end_bound_failure_trace(engine_host, trace_buffer.data(), trace_buffer.size());
+                builder.appendff(" targeted-update:{} trace:[{}] counters:[", styled ? "styled"sv : "unstyled"sv, StringView { reinterpret_cast<char const*>(trace_buffer.data()), trace_length });
+                bool first_counter = true;
+                for (size_t index = 0; index < counters_before.size(); ++index) {
+                    StringView name;
+                    u64 value = 0;
+                    if (!style_engine.counter(read, index, name, value))
+                        break;
+                    if (value == counters_before[index])
+                        continue;
+                    // Only the counters about deriving records and answering demands: a targeted update moves dozens
+                    // of others, which would crowd these out of the report.
+                    if (!name.contains("engineComputedRecord"sv) && !name.contains("Demand"sv) && !name.contains("Bail"sv) && !name.contains("Abandon"sv))
+                        continue;
+                    auto delta = static_cast<i64>(value) - static_cast<i64>(counters_before[index]);
+                    builder.appendff("{}{}{}{}", first_counter ? ""sv : ","sv, name, delta > 0 ? "+"sv : ""sv, delta);
+                    first_counter = false;
+                }
+                builder.append(']');
             }
         }
     }

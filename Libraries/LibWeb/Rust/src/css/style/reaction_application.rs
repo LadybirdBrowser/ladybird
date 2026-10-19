@@ -18,7 +18,9 @@ use super::bridge::{
     FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS, close_style_reactions_over_inheritance,
     sort_style_deltas_for_direct_application,
 };
-use super::engine_calls::{absorb_element_style_input, has_deferred_element_style_input, with_engine};
+use super::engine_calls::{
+    absorb_element_style_input, has_deferred_element_style_input, note_bound_failure_trace, with_engine,
+};
 use super::publication::RecordDemand;
 use super::transaction::{
     STYLE_REACTION_ANCESTOR_BECAME_VISIBLE, STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES, STYLE_REACTION_INHERITED_STYLE,
@@ -277,20 +279,32 @@ impl Application<'_> {
     /// resolved the record's environment over the parent's own; where the parent's inheritable environment differs,
     /// it takes back what the demand derived.
     fn answer_record_demand(self, element: &FfiReactionElement, node: StyleNodeID) -> Option<FfiEngineComputedRecord> {
+        let demand = RecordDemand::Element(FfiRecordDemand::TargetedElement);
+        let mut refusal = None;
         let answer = with_engine(self.read, self.host, |engine| {
-            super::bridge::answer_record_demand(engine, node, RecordDemand::Element(FfiRecordDemand::TargetedElement))
+            let answer = engine.answer_record_demand(node, demand);
+            if let Err(unanswered) = &answer {
+                refusal = Some(*unanswered);
+            }
+            super::bridge::ffi_record_demand_answer(engine, node, demand.is_read_only(), answer)
         })
         .record;
+        if let Some(unanswered) = refusal {
+            note_bound_failure_trace(self.host, || format!("unanswered:{unanswered:?}"));
+        }
         if answer.style_record == 0 {
+            note_bound_failure_trace(self.host, || "demand:none".to_string());
             return None;
         }
         if !self.record_environment_is_installable(element, node, answer.style_record) {
+            note_bound_failure_trace(self.host, || format!("demand:uninstallable:{}", answer.style_record));
             self.host
                 .queue_change(ArenaChange::Style(StyleChange::AbandonDemandedRecords {
                     node: Some(node),
                 }));
             return None;
         }
+        note_bound_failure_trace(self.host, || format!("demand:record:{}", answer.style_record));
         Some(answer)
     }
 
@@ -304,6 +318,16 @@ impl Application<'_> {
                 engine.retained.tree.inheritance_parent(ancestor)
             })
             .any(|ancestor| engine.has_deferred_element_style_input(ancestor))
+        });
+        note_bound_failure_trace(self.host, || {
+            format!(
+                "refuse:{}",
+                if ancestor_owes_style_input {
+                    "ancestor-owes"
+                } else {
+                    "consume"
+                }
+            )
         });
         if ancestor_owes_style_input {
             // SAFETY: The host lends its application for the call that applies the batch.
@@ -819,6 +843,12 @@ impl Application<'_> {
         embedding_document_layout_was_stale: bool,
     ) -> FfiTargetedStyleAnswer {
         let scan = self.scan_inheritance_chain(first, true);
+        note_bound_failure_trace(self.host, || {
+            format!(
+                "scan:{:?}/{:?}/{:?}",
+                scan.topmost_requiring_style, scan.nearest_display_none, scan.topmost_display_none
+            )
+        });
         if mode == FfiStyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style() {
             return FfiTargetedStyleAnswer::Unstyled;
         }
@@ -842,8 +872,17 @@ impl Application<'_> {
             .map(|element| element.style_node)
             .collect();
         let mut descendant_style_recompute_needed = false;
+        note_bound_failure_trace(self.host, || format!("chain:{}", chain.len()));
         for &style_node in chain.iter().rev() {
             let element = self.element(style_node);
+            note_bound_failure_trace(self.host, || {
+                format!(
+                    "node:{}:{}{}",
+                    style_node,
+                    if element.has_style { "styled" } else { "unstyled" },
+                    if element.element.is_null() { ",gone" } else { "" }
+                )
+            });
             let Some(node) = StyleNodeID::from_raw(style_node).filter(|_| !element.element.is_null()) else {
                 return FfiTargetedStyleAnswer::HeldStyle;
             };
@@ -867,6 +906,14 @@ impl Application<'_> {
 
             // The engine can refuse a first style, which leaves the rest of the chain nothing to inherit from.
             let element = self.element(style_node);
+            note_bound_failure_trace(self.host, || {
+                format!(
+                    "after:{}{}:{}",
+                    if element.has_style { "styled" } else { "unstyled" },
+                    if element.display_none { ",none" } else { "" },
+                    element.style_record
+                )
+            });
             if !element.has_style {
                 return FfiTargetedStyleAnswer::HeldStyle;
             }
