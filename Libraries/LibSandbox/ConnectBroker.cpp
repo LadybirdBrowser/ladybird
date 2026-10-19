@@ -351,10 +351,12 @@ void ConnectBroker::serve()
         if (received == ReceiveResult::Malformed)
             continue;
 
+        // The helper sees the request as finished once the reply socket closes, so that has to be the
+        // last descriptor of the request that the broker lets go of.
         ScopeGuard close_descriptors = [&] {
-            close(reply_fd);
             if (socket_fd >= 0)
                 close(socket_fd);
+            close(reply_fd);
         };
 
         if (request.magic != connect_broker_magic) {
