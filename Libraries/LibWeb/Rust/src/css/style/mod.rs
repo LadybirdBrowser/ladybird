@@ -853,6 +853,13 @@ pub struct RetainedState {
     /// declare or read through `var()`. `None` when they cannot be listed.
     custom_declaration_custom_property_reads:
         HashMap<StyleNodeID, Option<custom_property_cascade::CustomPropertyNames>>,
+    /// The custom-property environments elements resolved to over the environments they inherit, and what their
+    /// declarations read, by the match answer the declarations cascaded from: an element alike in its answer, its
+    /// tree and what it inherits resolves alike. Cleared wherever a match answer's identity may be handed out again.
+    custom_property_environments_by_answer:
+        HashMap<custom_property_cascade::EnvironmentByAnswerKey, custom_property_cascade::EnvironmentByAnswer>,
+    /// Whether the environment resolved last stands for every element alike in its inputs.
+    last_custom_property_environment_memoizable: bool,
     /// Which of a node's records read its place among its siblings, written or produced by a
     /// substitution: a bit for its own record and one per synthetic pseudo-element kind, which
     /// each record the engine derives, or admits from C++, sets or clears as it is installed. A
@@ -966,6 +973,8 @@ pub struct RetainedState {
     /// Beside them, the matches in each answer that declare custom properties, read the same way:
     /// what the node's custom-property cascade runs over while its answer is not installed.
     batch_custom_property_matches: HashMap<StyleNodeID, Vec<BatchCustomPropertyMatch>>,
+    /// The identity of the answer each node's `batch_custom_property_matches` were read from, where it has one.
+    batch_custom_property_answers: HashMap<StyleNodeID, MatchAnswerID>,
     /// Beside them, each published host's matches for the element-backed pseudo-elements, which
     /// the elements backing them cascade from while the host's answer is not installed.
     batch_backing_pseudo_matches: HashMap<StyleNodeID, Vec<RuleMatch>>,

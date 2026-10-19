@@ -20,6 +20,7 @@
         const counters = internals.styleEngineCounters();
         println(`environments resolved: ${(counters.engineCustomPropertyEnvironmentsResolved ?? 0) - (before.engineCustomPropertyEnvironmentsResolved ?? 0)}`);
         println(`environment memo hits: ${(counters.engineCustomPropertyEnvironmentMemoHits ?? 0) - (before.engineCustomPropertyEnvironmentMemoHits ?? 0)}`);
+        println(`environment answer hits: ${(counters.engineCustomPropertyEnvironmentAnswerHits ?? 0) - (before.engineCustomPropertyEnvironmentAnswerHits ?? 0)}`);
         println(`padding: ${getComputedStyle(host.firstElementChild).paddingTop}`);
 
         // An element whose values differ resolves an environment of its own, and its neighbours
