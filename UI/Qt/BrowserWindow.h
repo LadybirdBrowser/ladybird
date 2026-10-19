@@ -150,6 +150,7 @@ public:
 
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
     void duplicate_tab(Tab&);
+    void open_history_entry_in_new_tab(Tab&, int delta);
     Tab* current_tab() const { return m_current_tab; }
     bool activate_tab_with_url(URL::URL const&);
     // Asks every tab's page if the window may close, without closing it, and reports the answer. Once the pages agree,
