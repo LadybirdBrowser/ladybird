@@ -987,6 +987,11 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observers_being_notified);
     for (auto& pending_scroll_event : m_pending_scroll_events)
         visitor.visit(pending_scroll_event.event_target);
+    // A MediaQueryList with change listeners must outlive its last script reference to receive change events.
+    for (auto const& media_query_list : m_media_query_lists) {
+        if (media_query_list && media_query_list->has_event_listener(HTML::EventNames::change))
+            visitor.visit(media_query_list.ptr());
+    }
     m_scroll_state_query_containers.visit_edges(visitor);
     visitor.visit(m_list_owners_pending_item_renumber);
     visitor.visit(m_list_owners_with_stale_item_counters);
