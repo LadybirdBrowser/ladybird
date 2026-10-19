@@ -401,11 +401,11 @@ fn prepare_transition_values(
     after_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
     inherited_animation: Option<crate::css::style::InheritedAnimatedValue<'_>>,
     property: &mut TransitionProperty,
-) -> bool {
+) -> Option<bool> {
     let (before_table, before_overlay) = before_style;
     property.before_change_value = computed_value(before_table, before_overlay, property.property_id);
     if !property.has_matching_transition {
-        return false;
+        return Some(false);
     }
     // NB: A record the engine derived holds an inherited animated value in its table, where one
     //     the host computed holds the ancestor's base value and an inherited overlay entry: the
@@ -424,7 +424,7 @@ fn prepare_transition_values(
         if property.has_running_transition {
             property.current_value = computed_value(after_table, after_overlay, property.property_id);
         }
-        return originates_from_current_color;
+        return Some(originates_from_current_color);
     } else if let Some(crate::css::style::InheritedAnimatedValue::BeneathTransitions(base_value)) = inherited_animation
     {
         property.after_change_value = std::ptr::from_ref(base_value);
@@ -434,8 +434,9 @@ fn prepare_transition_values(
     if property.has_running_transition {
         property.current_value = computed_value(after_table, after_overlay, property.property_id);
     }
-    originates_from_current_color(before_table, property.property_id)
-        && originates_from_current_color(after_table, property.property_id)
+    // NB: Whether the table values originate from currentColor matters only where they differ, which the caller
+    //     knows once the before-change value is final.
+    None
 }
 
 /// A transition step's question to the style engine: what the step does to the transitions of its target as its style
@@ -556,7 +557,7 @@ impl TransitionDecision {
                             && inherits_animated_values(element)
                     })
                     .and_then(|element| engine.inherited_animated_value(element, after_table, property_id));
-                let values_originate_from_current_color = prepare_transition_values(
+                let overlay_values_originate_from_current_color = prepare_transition_values(
                     (before_table, before_overlay),
                     after_table,
                     after_overlay,
@@ -573,6 +574,15 @@ impl TransitionDecision {
                 {
                     property.before_change_value = computed_value(before_table, None, property_id);
                 }
+                // OPTIMIZATION: The values originating from currentColor only matters where they differ, and finding out
+                //               reads both tables. A shared value differs from nothing; values compared equal leave the
+                //               decision alone anyway.
+                let values_originate_from_current_color =
+                    overlay_values_originate_from_current_color.unwrap_or_else(|| {
+                        !std::ptr::eq(property.before_change_value, property.after_change_value)
+                            && originates_from_current_color(before_table, property_id)
+                            && originates_from_current_color(after_table, property_id)
+                    });
                 decide_transition(&context, &property, values_originate_from_current_color)
             })
             // A property the step leaves alone that holds no transition is one every consumer of the step leaves alone
