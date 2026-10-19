@@ -1,0 +1,4 @@
+readyState after construction: 0
+readyState after close(): 2
+error, readyState: 3
+close, readyState: 3, wasClean: false, code: 1006

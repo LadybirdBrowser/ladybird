@@ -154,7 +154,7 @@ void WebSocket::finalize()
 
     // If a WebSocket object is garbage collected while its connection is still open, the user agent must start the
     // WebSocket closing handshake, with no status code for the Close message. [WSP]
-    if (ready_state != Requests::WebSocket::ReadyState::Closing && ready_state != Requests::WebSocket::ReadyState::Closed) {
+    if (m_websocket && ready_state != Requests::WebSocket::ReadyState::Closing && ready_state != Requests::WebSocket::ReadyState::Closed) {
         // FIXME: LibProtocol does not yet support sending empty Close messages, so we use default values for now
         m_websocket->close(1000);
     }
@@ -172,6 +172,9 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 {
     // FIXME: Integrate properly with FETCH as per https://fetch.spec.whatwg.org/#websocket-opening-handshake
     //        That means following https://websockets.spec.whatwg.org/#concept-websocket-establish
+
+    if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
+        return Error::from_string_literal("The WebSocket was closed before it connected");
 
     auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(client.global_object());
     VERIFY(window_or_worker);
@@ -211,10 +214,10 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         self.on_error();
     });
     m_websocket->on_ready_state_change = GC::weak_callback(*this, [](auto& self) {
-        self.update_activity_root();
+        if (self.m_websocket->ready_state() == Requests::WebSocket::ReadyState::Closing)
+            self.on_closing_handshake_started();
     });
 
-    update_activity_root();
     return {};
 }
 
@@ -258,9 +261,13 @@ void WebSocket::event_listener_list_changed()
 // https://websockets.spec.whatwg.org/#dom-websocket-readystate
 Requests::WebSocket::ReadyState WebSocket::ready_state() const
 {
-    if (m_websocket)
-        return m_websocket->ready_state();
-    return Requests::WebSocket::ReadyState::Closed;
+    return m_ready_state;
+}
+
+void WebSocket::set_ready_state(Requests::WebSocket::ReadyState ready_state)
+{
+    m_ready_state = ready_state;
+    update_activity_root();
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-extensions
@@ -309,11 +316,11 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<Utf16Str
     // NB: All of these are handled by the WebSocket Protocol when calling close(). We still set the ready state to
     //     CLOSING now though (which every case above expects), to prevent handling any messages from the remote server
     //     in the meantime.
-    m_websocket->set_ready_state(Requests::WebSocket::ReadyState::Closing);
-    update_activity_root();
+    set_ready_state(Requests::WebSocket::ReadyState::Closing);
 
     // FIXME: LibProtocol does not yet support sending empty Close messages, so we use default values for now
-    m_websocket->close(code.value_or(1000), encoded_reason.to_byte_string());
+    if (m_websocket)
+        m_websocket->close(code.value_or(1000), encoded_reason.to_byte_string());
     return {};
 }
 
@@ -354,13 +361,18 @@ WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_open()
 {
-    update_activity_root();
-
     // When the WebSocket connection is established, the user agent must queue a task to run these steps:
     HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
-        // 1. Change the readyState attribute's value to OPEN (1).
+        // AD-HOC: Matching other engines, do not fire an open event if close() was called before this task ran.
+        if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
+            return;
+
+        // 1. Change the ready state to OPEN (1).
+        set_ready_state(Requests::WebSocket::ReadyState::Open);
+
         // 2. Change the extensions attribute's value to the extensions in use, if it is not the null value. [WSP]
         // 3. Change the protocol attribute's value to the subprotocol in use, if it is not the null value. [WSP]
+        // 4. Fire an event named open at the WebSocket object.
         dispatch_event(DOM::Event::create(HTML::EventNames::open, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
     }));
 }
@@ -371,7 +383,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
     // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
     HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, message = move(message), is_text] mutable {
         // 1. If ready state is not OPEN (1), then return.
-        if (m_websocket->ready_state() != Requests::WebSocket::ReadyState::Open)
+        if (m_ready_state != Requests::WebSocket::ReadyState::Open)
             return;
 
         auto& realm = HTML::relevant_realm(relevant_global_object());
@@ -408,10 +420,29 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
 }
 
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
+void WebSocket::on_closing_handshake_started()
+{
+    // When the WebSocket closing handshake is started, the user agent must queue a task to change the ready state to
+    // CLOSING (2). (If the close() method was called, the ready state will already be set to CLOSING (2) when this task
+    // runs.) [WSP]
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
+        // AD-HOC: Matching other engines, a WebSocket that an error event has already closed stays CLOSED.
+        if (m_ready_state == Requests::WebSocket::ReadyState::Closed)
+            return;
+        set_ready_state(Requests::WebSocket::ReadyState::Closing);
+    }));
+}
+
+// https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_error()
 {
     // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
     HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
+        // 1. Change the ready state to CLOSED (3).
+        set_ready_state(Requests::WebSocket::ReadyState::Closed);
+
+        // 2. If the user agent was required to fail the WebSocket connection, or if the WebSocket connection was
+        //    closed after being flagged as full, fire an event named error at the WebSocket object. [WSP]
         dispatch_event(DOM::Event::create(HTML::EventNames::error, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
     }));
 }
@@ -419,11 +450,11 @@ void WebSocket::on_error()
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_close(u16 code, Utf16String reason, bool was_clean)
 {
-    update_activity_root();
-
     // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
     HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, code, reason = move(reason), was_clean] {
-        // 1. Change the readyState attribute's value to CLOSED. This is handled by the Protocol's WebSocket
+        // 1. Change the ready state to CLOSED (3).
+        set_ready_state(Requests::WebSocket::ReadyState::Closed);
+
         // 2. If [needed], fire an event named error at the WebSocket object. This is handled by the Protocol's WebSocket
         HTML::CloseEventInit event_init {};
         event_init.was_clean = was_clean;
@@ -446,7 +477,7 @@ void WebSocket::make_disappear()
     //    - Do nothing.
     // NOTE: All of these are handled by the WebSocket Protocol when calling close()
     auto ready_state = this->ready_state();
-    if (ready_state == Requests::WebSocket::ReadyState::Closing || ready_state == Requests::WebSocket::ReadyState::Closed) {
+    if (!m_websocket || ready_state == Requests::WebSocket::ReadyState::Closing || ready_state == Requests::WebSocket::ReadyState::Closed) {
         m_activity_root.release();
         return;
     }

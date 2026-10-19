@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
+        println(`readyState after construction: ${ws.readyState}`);
+        ws.close();
+        println(`readyState after close(): ${ws.readyState}`);
+
+        ws.onopen = () => {
+            println("open");
+            ws.close();
+        };
+        ws.onerror = () => {
+            println(`error, readyState: ${ws.readyState}`);
+        };
+        ws.onclose = event => {
+            println(`close, readyState: ${ws.readyState}, wasClean: ${event.wasClean}, code: ${event.code}`);
+            done();
+        };
+    });
+</script>

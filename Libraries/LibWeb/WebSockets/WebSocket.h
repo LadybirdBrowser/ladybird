@@ -67,8 +67,11 @@ public:
 private:
     void on_open();
     void on_message(ByteBuffer message, bool is_text);
+    void on_closing_handshake_started();
     void on_error();
     void on_close(u16 code, Utf16String reason, bool was_clean);
+
+    void set_ready_state(Requests::WebSocket::ReadyState);
 
     JS::Object& relevant_global_object() const;
 
@@ -84,6 +87,7 @@ private:
     void update_activity_root();
 
     URL::URL m_url;
+    Requests::WebSocket::ReadyState m_ready_state { Requests::WebSocket::ReadyState::Connecting };
     Bindings::BinaryType m_binary_type { Bindings::BinaryType::Blob };
     RefPtr<Requests::WebSocket> m_websocket;
     GC::Ref<DOM::EventTarget> m_global_object;
