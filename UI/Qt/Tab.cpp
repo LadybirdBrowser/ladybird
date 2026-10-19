@@ -69,6 +69,8 @@ public:
 
     using QToolButton::QToolButton;
 
+    Function<void()> on_middle_click;
+
 protected:
     virtual void paintEvent(QPaintEvent*) override
     {
@@ -79,6 +81,25 @@ protected:
         ChromeStyle::paint_circular_control_frame(painter, *this);
 
         painter.drawComplexControl(QStyle::CC_ToolButton, option);
+    }
+
+    virtual void mousePressEvent(QMouseEvent* event) override
+    {
+        if (event->button() == Qt::MiddleButton && on_middle_click)
+            event->accept();
+        else
+            QToolButton::mousePressEvent(event);
+    }
+
+    virtual void mouseReleaseEvent(QMouseEvent* event) override
+    {
+        if (event->button() == Qt::MiddleButton && on_middle_click) {
+            if (rect().contains(event->position().toPoint()))
+                on_middle_click();
+            event->accept();
+        } else {
+            QToolButton::mouseReleaseEvent(event);
+        }
     }
 };
 
@@ -192,7 +213,7 @@ private:
 
 static constexpr int TOOLBAR_BUTTON_SIZE = 34;
 
-static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
+static ToolbarButton* create_toolbar_button(QWidget& parent, QAction& action)
 {
     auto* button = new ToolbarButton(&parent);
     button->setDefaultAction(&action);
@@ -208,9 +229,13 @@ static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
     return button;
 }
 
-static QToolButton* create_navigation_history_toolbar_button(QWidget& parent, QAction& action, WebContentView& view, int direction)
+QToolButton* Tab::create_navigation_history_toolbar_button(QWidget& parent, QAction& action, int direction)
 {
+    auto& view = this->view();
     auto* button = create_toolbar_button(parent, action);
+    button->on_middle_click = [this, direction] {
+        m_window->open_history_entry_in_new_tab(*this, direction);
+    };
     auto* menu = new QMenu(button);
     QObject::connect(menu, &QMenu::aboutToShow, button, [menu, &view, direction] {
         populate_session_history_traversal_menu(*menu, view, direction);
@@ -727,8 +752,8 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     navigation_button_layout->addWidget(m_left_toggle_vertical_tabs_expanded_button);
     m_sidebar_toggle_navigation_spacer = new QSpacerItem(0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
     navigation_button_layout->addItem(m_sidebar_toggle_navigation_spacer);
-    navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_back_action, view(), -1));
-    navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, view(), 1));
+    navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_back_action, -1));
+    navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, 1));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
 
     if constexpr (use_native_macos_window_controls())

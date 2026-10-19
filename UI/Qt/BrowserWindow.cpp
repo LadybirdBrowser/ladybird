@@ -477,6 +477,18 @@ void BrowserWindow::duplicate_tab(Tab& source_tab)
         duplicate.navigate(source_url);
 }
 
+void BrowserWindow::open_history_entry_in_new_tab(Tab& source_tab, int delta)
+{
+    auto& view = source_tab.view();
+    auto history = view.session_history_snapshot();
+    history.current_used_step_index = view.traversable().effective_current_session_history_step_index() + delta;
+    if (history.current_used_step_index >= history.used_steps.size())
+        return;
+
+    auto& tab = create_new_tab(Web::HTML::ActivateTab::No, TabLocation::after_tab(source_tab));
+    (void)tab.view().restore_session_history_from_snapshot(AK::move(history));
+}
+
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<WebView::CanonicalTraversable&> traversable)
 {
     cancel_window_close_preflight();

@@ -153,6 +153,7 @@ private:
     void recreate_toolbar_icons();
     void update_vertical_tabs_toolbar_button_placement();
     void connect_hamburger_menu();
+    QToolButton* create_navigation_history_toolbar_button(QWidget& parent, QAction&, int direction);
     void update_chrome_style();
     void update_tab_title();
     void update_downloads_button();
