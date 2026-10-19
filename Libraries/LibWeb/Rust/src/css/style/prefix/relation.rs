@@ -675,15 +675,16 @@ impl PrefixRelation {
         // memberships once per affected set; live siblings are handled by the geometry frontier.
         // Sharing the dispatch-key lookup across the batch avoids testing every possible local
         // compound again for every departed element.
+        let mut departed_keys = HashSet::default();
         for &position in &self.departures {
             let node = self.nodes[position];
             let row = old_evaluation.row_of(node).unwrap();
             row.facts
-                .for_each_dispatch_key(row.row, self.parents[position] == usize::MAX, |key| keys.push(key));
+                .for_each_dispatch_key(row.row, self.parents[position] == usize::MAX, |key| {
+                    departed_keys.insert(key);
+                });
         }
-        keys.sort_unstable();
-        keys.dedup();
-        for key in &keys {
+        for key in &departed_keys {
             let Some(compounds) = self.program.compounds_for_key(key) else {
                 continue;
             };
@@ -737,9 +738,12 @@ impl PrefixRelation {
                 continue;
             }
             keys.clear();
-            for row in [row, previous_row] {
-                row.facts
-                    .for_each_dispatch_key(row.row, evaluation.tree.parent(node).is_none(), |key| keys.push(key));
+            let is_root = evaluation.tree.parent(node).is_none();
+            row.facts.for_each_dispatch_key(row.row, is_root, |key| keys.push(key));
+            if !(std::ptr::eq(row.facts, previous_row.facts) && row.row == previous_row.row) {
+                previous_row
+                    .facts
+                    .for_each_dispatch_key(previous_row.row, is_root, |key| keys.push(key));
             }
             keys.sort_unstable();
             keys.dedup();
@@ -753,7 +757,6 @@ impl PrefixRelation {
                 counters,
             ) as usize;
             let identity = facts.dense_identity(identity, &mut next_local_identity);
-            let is_root = evaluation.tree.parent(node).is_none();
             for key in &keys {
                 let Some(compounds) = self.program.compounds_for_key(key) else {
                     continue;
@@ -1019,7 +1022,8 @@ impl PrefixRelation {
                         _ => unreachable!(),
                     }
                 }
-                affected.sort_unstable();
+                // NB: Each source of `affected` is in position order, which the stable sort merges as runs.
+                affected.sort();
                 affected.dedup();
                 if affected.is_empty() {
                     continue;
@@ -1120,7 +1124,8 @@ impl PrefixRelation {
             }
             step_changes.insert(step_index, changes);
         }
-        terminal_changes.sort_unstable();
+        // NB: Each step's changes are in position order, which the stable sort merges as runs.
+        terminal_changes.sort();
         terminal_changes.dedup();
         self.changed_answers.clear();
         let mut old = Vec::new();
