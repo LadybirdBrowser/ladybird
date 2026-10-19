@@ -111,7 +111,6 @@ impl RetainedState {
         // A declaration sourced from the element changes what wins on that element and nothing
         // else. There is no selector to transpose: the region is the element itself.
         if let InputKey::ElementDeclaration(node, _) = input.key {
-            self.record_selector_truth_refresh(node, None);
             regions.add(ImpactRegion::Node(node));
             return;
         }

@@ -1,0 +1,3 @@
+selector truth repair upqueries: 1
+candidate checks: 7
+rect height: 60px
