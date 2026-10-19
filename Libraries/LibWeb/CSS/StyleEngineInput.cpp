@@ -2729,7 +2729,8 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
 // The user-agent sheets are shared between documents, so their StyleEngine identities cannot live on
 // the sheet object the way an author sheet's does; they are held here, per document, alongside the
 // sheets they name. The user sheet is rebuilt rather than edited when content blockers change, so
-// the set is compared by identity and re-attached whole when it differs.
+// the set is compared by identity. A set that keeps the order of the sheets it had attaches only the
+// sheets new to it; any other difference re-attaches the set whole.
 void record_non_author_stylesheets(DOM::Document& document)
 {
     auto& style_computer = document.style_computer();
@@ -2764,9 +2765,6 @@ void record_non_author_stylesheets(DOM::Document& document)
         return;
 
     auto& style_engine = style_computer.style_engine();
-    for (auto const& entry : recorded)
-        StyleEngineFFI::style_engine_detach_sheet(style_engine.host(), entry.sheet_id, document_tree_scope);
-    recorded.clear();
 
     // These origins cascade before every author sheet, so each is inserted ahead of the first one
     // rather than appended. Inserting each new sheet before that same successor keeps them in the
@@ -2779,15 +2777,63 @@ void record_non_author_stylesheets(DOM::Document& document)
         }
     }
 
-    for (size_t index = 0; index < sheets.size(); ++index) {
+    auto attach_sheet = [&](size_t index, SheetID successor) {
         auto sheet_id = style_engine.add_sheet(
             static_cast<u32>(reinterpret_cast<FlatPtr>(sheets[index].ptr()) >> 3),
             origins[index]);
-        StyleEngineFFI::style_engine_attach_sheet(style_engine.host(), sheet_id, document_tree_scope, first_author_sheet);
+        StyleEngineFFI::style_engine_attach_sheet(style_engine.host(), sheet_id, document_tree_scope, successor);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
         compile_rules_into(context, *sheets[index]);
-        recorded.append({ sheets[index], sheet_id });
+        return StyleComputer::NonAuthorStyleSheet { sheets[index], sheet_id };
+    };
+
+    // OPTIMIZATION: A document takes in the MathML and SVG user-agent sheets once it first holds such an element. The
+    //               sheets recorded before keep their places among them, so only the new ones are attached, each before
+    //               the sheet that follows it, rather than detaching every sheet and routing all of their rules again.
+    auto recorded_index_of = [&](StyleSheetState const& sheet) -> Optional<size_t> {
+        for (size_t index = 0; index < recorded.size(); ++index) {
+            if (recorded[index].sheet.ptr() == &sheet)
+                return index;
+        }
+        return {};
+    };
+    auto recorded_sheets_keep_their_order = [&] {
+        size_t found = 0;
+        for (auto const& sheet : sheets) {
+            auto index = recorded_index_of(*sheet);
+            if (!index.has_value())
+                continue;
+            if (*index != found)
+                return false;
+            ++found;
+        }
+        return found == recorded.size();
+    };
+    if (recorded_sheets_keep_their_order()) {
+        Vector<StyleComputer::NonAuthorStyleSheet> updated;
+        for (size_t index = 0; index < sheets.size(); ++index) {
+            if (auto recorded_index = recorded_index_of(*sheets[index]); recorded_index.has_value()) {
+                updated.append(recorded[*recorded_index]);
+                continue;
+            }
+            auto successor = first_author_sheet;
+            for (size_t next = index + 1; next < sheets.size(); ++next) {
+                if (auto recorded_index = recorded_index_of(*sheets[next]); recorded_index.has_value()) {
+                    successor = recorded[*recorded_index].sheet_id;
+                    break;
+                }
+            }
+            updated.append(attach_sheet(index, successor));
+        }
+        recorded = move(updated);
+        return;
     }
+
+    for (auto const& entry : recorded)
+        StyleEngineFFI::style_engine_detach_sheet(style_engine.host(), entry.sheet_id, document_tree_scope);
+    recorded.clear();
+    for (size_t index = 0; index < sheets.size(); ++index)
+        recorded.append(attach_sheet(index, first_author_sheet));
 }
 
 void record_stylesheet_rule_conditions(StyleSheetState& sheet)
