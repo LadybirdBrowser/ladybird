@@ -123,6 +123,7 @@ RENDER_STATE_ALLOWED = {
             "css/rule.rs:NEXT_RULE_IDENTITY",
             "css/style/index.rs:NEXT",
             "css/style/prefix.rs:NEXT",
+            "css/style/selector.rs:NEXT",
             "css/style_sheet.rs:NEXT_SHEET_IDENTITY",
             "layout/fragment_tree.rs:NEXT_IDENTITY",
             "render_state/owner.rs:NEXT",

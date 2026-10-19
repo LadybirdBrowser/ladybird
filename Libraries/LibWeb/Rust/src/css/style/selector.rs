@@ -2595,7 +2595,11 @@ struct SharedSelectorProgram {
     program: SelectorProgram,
     hash: u64,
     _memory: MemoryLease,
-    /// Each entry's transpose entry points, walked the first time a document routes the program.
+    /// The document and rule that routed the program first, as `transpose_router` packs them, or
+    /// `UNROUTED` before any did.
+    first_transpose_router: std::sync::atomic::AtomicU64,
+    /// Each entry's transpose entry points, walked once a second rule or document routes the program. Routing copies
+    /// the sites it visits, so keeping them only pays off for a program that more than one rule or document routes.
     transpose_sites: std::sync::OnceLock<TransposeSites>,
 }
 
@@ -2709,6 +2713,7 @@ fn share_selector_program(
         program,
         hash,
         _memory: program_memory,
+        first_transpose_router: std::sync::atomic::AtomicU64::new(UNROUTED),
         transpose_sites: std::sync::OnceLock::new(),
     });
     pool.insert(hash, &program);
@@ -2856,6 +2861,13 @@ fn selector_program_pools() -> MutexGuard<'static, SelectorProgramPools> {
     SELECTOR_PROGRAM_POOLS.get_or_init(Mutex::default).lock().unwrap()
 }
 
+const UNROUTED: u64 = u64::MAX;
+
+fn next_document_router() -> u32 {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 /// One document's attachments to compiled selector programs.
 ///
 /// The immutable program payloads are interned in the process's pool. Entry identities,
@@ -2878,6 +2890,8 @@ pub struct SelectorPrograms {
     program_memory: MemoryLease,
     memory: MemoryLease,
     scope: SelectorProgramScope,
+    /// Tells this document's routing of a process-shared program apart from other documents'.
+    router: u32,
 }
 
 impl Default for SelectorPrograms {
@@ -2893,6 +2907,7 @@ impl Default for SelectorPrograms {
             program_memory: MemoryLease::new(MemoryCategory::RuleProgram),
             memory: MemoryLease::new(MemoryCategory::RuleProgram),
             scope: SelectorProgramScope::Document,
+            router: next_document_router(),
         }
     }
 }
@@ -3086,13 +3101,14 @@ impl SelectorPrograms {
             .program()
     }
 
-    /// Visit the transpose entry points of one entry of a program, as
+    /// Visit the transpose entry points of one entry of a program that `rule` routes, as
     /// `SelectorProgram::collect_transpose_entry_points` does. A program the whole process shares
-    /// is walked once, for every document that routes it.
+    /// is walked once for every later rule or document that routes it.
     pub fn for_each_transpose_entry_point(
         &self,
         program: SelectorProgramID,
         entry: usize,
+        rule: RuleID,
         mut visit: impl FnMut(TransposeSite<'_>),
     ) {
         match self.programs[program.0 as usize]
@@ -3100,6 +3116,24 @@ impl SelectorPrograms {
             .expect("a selector program identity must remain live while referenced")
         {
             SelectorProgramStorage::Process(shared) => {
+                // NB: A document rebuilding its routing routes the same rules again, which does not
+                //     make keeping the sites pay off.
+                let router = (u64::from(self.router) << 32) | u64::from(rule.0);
+                if shared.transpose_sites.get().is_none() {
+                    let first = match shared.first_transpose_router.compare_exchange(
+                        UNROUTED,
+                        router,
+                        std::sync::atomic::Ordering::Relaxed,
+                        std::sync::atomic::Ordering::Relaxed,
+                    ) {
+                        Ok(_) => router,
+                        Err(first) => first,
+                    };
+                    if first == router {
+                        shared.program.collect_transpose_entry_points(entry, visit);
+                        return;
+                    }
+                }
                 let sites = shared.transpose_sites.get_or_init(|| {
                     let by_entry: Box<[Box<[OwnedTransposeSite]>]> = (0..shared.program.entries().len())
                         .map(|entry| {
@@ -4783,7 +4817,7 @@ impl RoutingRegistry {
             let subject_required = compiled.subject_required_keys(entry);
             let subject_position = compiled.subject_position(entry);
             let mut entry_registered = false;
-            programs.for_each_transpose_entry_point(program, entry, |site| {
+            programs.for_each_transpose_entry_point(program, entry, rule, |site| {
                 if !entry_registered {
                     self.register_entry_facts(
                         entry_id,
@@ -8095,6 +8129,35 @@ mod tests {
             programs.add(make_program(40, 1));
             check(&programs);
         }
+    }
+
+    #[test]
+    fn process_programs_keep_transpose_sites_once_another_rule_or_document_routes_them() {
+        // NB: The pool is shared with every other test in the process; nothing else interns a class selector on this
+        //     atom.
+        let make_program = || single_entry(|builder| builder.push_feature(FeatureTest::Class(StyleAtomID(9301))));
+        let mut first = SelectorPrograms::shared_across_documents();
+        let mut second = SelectorPrograms::shared_across_documents();
+        let first_id = first.add(make_program());
+        let second_id = second.add(make_program());
+        let Some(SelectorProgramStorage::Process(shared)) = first.programs[first_id.0 as usize].clone() else {
+            panic!("shared selector programs must have process storage");
+        };
+        let visit = |programs: &SelectorPrograms, program, rule| {
+            let mut sites = 0;
+            programs.for_each_transpose_entry_point(program, 0, rule, |_| sites += 1);
+            sites
+        };
+
+        let sites = visit(&first, first_id, RuleID(1));
+        assert!(sites > 0);
+        // A document routing the same rule again, as rebuilding its routing does, keeps nothing.
+        assert_eq!(visit(&first, first_id, RuleID(1)), sites);
+        assert!(shared.transpose_sites.get().is_none());
+
+        assert_eq!(visit(&second, second_id, RuleID(1)), sites);
+        assert!(shared.transpose_sites.get().is_some());
+        assert_eq!(visit(&first, first_id, RuleID(2)), sites);
     }
 
     #[test]
