@@ -154,7 +154,7 @@ static Optional<CSS::PropertyID> property_id_for_presentational_attribute(Utf16F
     // https://svgwg.org/svg2-draft/styling.html#PresentationAttributes
     // The pattern and gradient elements take patternTransform and gradientTransform instead of the
     // plain transform presentation attribute.
-    if (name == "transform"_utf16_fly_string
+    if (name == SVG::AttributeNames::transform
         && (tag_name == TagNames::pattern || tag_name == TagNames::linearGradient || tag_name == TagNames::radialGradient))
         return {};
 
