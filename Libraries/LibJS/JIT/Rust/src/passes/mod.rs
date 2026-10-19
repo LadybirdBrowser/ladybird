@@ -25,6 +25,7 @@ mod facts;
 mod frame_initialization;
 mod gvn;
 mod licm;
+mod loop_rotation;
 mod representation;
 mod simplify;
 mod truncation;
@@ -44,6 +45,10 @@ struct Pass {
 
 /// The passes, in the order they run.
 const PASSES: &[Pass] = &[
+    Pass {
+        name: "loop rotation",
+        run: loop_rotation::run,
+    },
     Pass {
         name: "trivial phi removal",
         run: edit::remove_trivial_phis,

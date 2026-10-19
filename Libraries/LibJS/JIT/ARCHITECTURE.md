@@ -386,6 +386,7 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 
 | Pass | Contract |
 |---|---|
+| Loop rotation | A loop that an on-stack replacement entry enters at another block than the code before it does (the entry at a test at the bottom that does more than branch, like `i < this.length`, enters the body) has no header that dominates it. The blocks that the block entered from before the loop dominates (the test) are copied for the way in from before the loop, so that the loop has one entry, unless that would merge it with an inner loop. |
 | Trivial phi removal | Phis whose inputs are all one value (or the phi itself) become that value. |
 | Truncation | Int32 additions, subtractions and unsigned right shifts whose users only read the low 32 bits of their results (bitwise operations, shifts, wrapping arithmetic, integer typed array stores) and no frame state holds become `Int32WrappingBinary`, which never exits. Comparisons of uint32 values (`x >>> 0`) first become unsigned comparisons of the shifted values. |
 | Simplification | Constant folding and strength reduction; branches on constants become jumps; unboxing a box is the boxed value, and so is an int32 check of the boxed double of an int32; int32 operations that leave their left-hand side as it is, like `x \| 0`, become it. |
