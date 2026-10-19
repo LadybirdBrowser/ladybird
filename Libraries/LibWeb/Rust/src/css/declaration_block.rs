@@ -156,6 +156,17 @@ impl DeclarationBlockData {
         );
     }
 
+    /// Drops the growth slack of a block that is done growing. Shrinking in place may keep the whole allocation: the
+    /// allocator reuses a block for any size above half of it.
+    pub(crate) fn compact(&mut self) {
+        if self.properties.capacity() > self.properties.len() {
+            self.properties = self.properties.to_vec();
+        }
+        if self.custom_properties.capacity() > self.custom_properties.len() {
+            self.custom_properties = self.custom_properties.to_vec();
+        }
+    }
+
     fn append_normalized_property(&mut self, declaration: DeclaredProperty) {
         if let Some(index) = self
             .properties

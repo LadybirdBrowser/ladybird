@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .first {
+        width: r\61ndom(0px, 1000000px);
+    }
+    .second {
+        width: r\61ndom(0px, 1000000px);
+    }
+    .third {
+        width: random(0px, 1000000px);
+    }
+    .fourth {
+        width: random(0px, 1000000px);
+    }
+</style>
+<div id="first" class="first"></div>
+<div id="second" class="second"></div>
+<div id="third" class="third"></div>
+<div id="fourth" class="fourth"></div>
+<script>
+    // Each random() in a style sheet draws its own value, also when its name is written with an escape.
+    test(() => {
+        const width = id => getComputedStyle(document.getElementById(id)).width;
+        println(`escaped names, same width: ${width("first") === width("second")}`);
+        println(`plain names, same width: ${width("third") === width("fourth")}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+first: 'b'
+second: '<U+FFFF>b'
