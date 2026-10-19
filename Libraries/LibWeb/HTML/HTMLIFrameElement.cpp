@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
@@ -12,6 +13,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -324,12 +326,22 @@ bool HTMLIFrameElement::is_presentational_hint(Utf16FlyString const& name) const
     if (Base::is_presentational_hint(name))
         return true;
 
-    return name == HTML::AttributeNames::frameborder;
+    return first_is_one_of(name, HTML::AttributeNames::align, HTML::AttributeNames::frameborder);
 }
 
 void HTMLIFrameElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images
+    // When an embed, iframe, img, or object element, or an input element whose type attribute is in the Image Button state,
+    // has an align attribute whose value is an ASCII case-insensitive match for the string "center" or the string "middle",
+    // the user agent is expected to act as if the element's 'vertical-align' property was set to a value that aligns the
+    // vertical middle of the element with the parent element's baseline.
+    if (auto align = get_attribute(HTML::AttributeNames::align); align.has_value()) {
+        if (align->equals_ignoring_ascii_case(u"center"sv) || align->equals_ignoring_ascii_case(u"middle"sv))
+            properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::LibwebBaselineMiddle) });
+    }
 
     // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:attr-iframe-frameborder
     // When an iframe element has a frameborder attribute whose value, when parsed using the rules for parsing integers,

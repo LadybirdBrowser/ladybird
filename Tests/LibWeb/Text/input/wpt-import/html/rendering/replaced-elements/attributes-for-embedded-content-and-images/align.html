@@ -1,0 +1,71 @@
+<!doctype html>
+<title>align attribute mapping on replaced elements</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<img id="replaced" src="../../../../images/green.png">
+<something id="non-replaced"></something>
+<script>
+const kMapping = {
+  "left": ["float", "left"],
+  "right": ["float", "right"],
+
+  "top": ["vertical-align", "top"],
+
+  // These two require a magic value (`-moz-middle-with-baseline` on Gecko,
+  // `-webkit-baseline-middle` on WebKit-based browsers).
+  "middle": ["vertical-align", undefined],
+  "center": ["vertical-align", undefined],
+
+  "baseline": ["vertical-align", "baseline"],
+  "bottom": ["vertical-align", "baseline"], // *shrug*
+
+  "texttop": ["vertical-align", "text-top"],
+  "absmiddle": ["vertical-align", "middle"],
+  "abscenter": ["vertical-align", "middle"],
+  "absbottom": ["vertical-align", "bottom"],
+};
+
+const kInitialValues = {
+  "vertical-align": "baseline",
+  "float": "none",
+};
+
+const kVerticalAlignKeywords = [
+  "baseline",
+  "sub",
+  "super",
+  "text-top",
+  "text-bottom",
+  "middle",
+  "top",
+  "bottom",
+];
+
+let replaced = document.getElementById("replaced");
+let nonReplaced = document.getElementById("non-replaced");
+let t = async_test("align attribute mapping");
+onload = t.step_func_done(function() {
+  for (const attributeValue in kMapping) {
+    for (const element of [replaced, nonReplaced]) {
+      test(function() {
+        element.setAttribute("align", attributeValue);
+        let [property, expected] = kMapping[attributeValue];
+        let actual = getComputedStyle(element).getPropertyValue(property);
+        if (element == nonReplaced) {
+          assert_equals(actual, kInitialValues[property], "align shouldn't map to non-replaced elements")
+        } else {
+          if (expected) {
+            assert_equals(actual, expected, `align=${attributeValue} should map to ${property}: ${expected}`);
+          } else {
+            assert_equals(property, "vertical-align");
+            assert_false(
+              kVerticalAlignKeywords.includes(actual),
+             `align=${attributeValue} should map to a special vertical-align value`
+            );
+          }
+        }
+      }, `align=${attributeValue} on ${element == replaced ? "replaced" : "non-replaced"} elements`);
+    }
+  }
+});
+</script>
