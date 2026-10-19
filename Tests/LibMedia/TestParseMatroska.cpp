@@ -933,7 +933,8 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     // Stage 3: complete the file.
     stream->add_chunk_at(two_thirds, file_data.bytes().slice(two_thirds, CUES_START - two_thirds));
     stream->close();
-    auto ranges_3 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const& ranges) { return ranges != ranges_2; });
+    auto ranges_3 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const&) { return demuxer->scan_state().reached_end_of_stream; });
+    EXPECT(demuxer->scan_state().reached_end_of_stream);
     EXPECT_EQ(ranges_3.size(), 1u);
     EXPECT_EQ(ranges_3[0].start, start);
     EXPECT(ranges_3[0].end > ranges_2[0].end);
