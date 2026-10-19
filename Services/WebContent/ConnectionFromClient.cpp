@@ -942,6 +942,15 @@ void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent even
     enqueue_input_event({ page_id, move(event), {}, {} });
 }
 
+static bool is_discrete_input_event(Web::InputEvent const& event)
+{
+    if (event.has<Web::KeyEvent>())
+        return true;
+    if (auto const* mouse_event = event.get_pointer<Web::MouseEvent>())
+        return first_is_one_of(mouse_event->type, Web::MouseEvent::Type::MouseDown, Web::MouseEvent::Type::MouseUp);
+    return false;
+}
+
 void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
 {
     auto page_id = event.page_id;
@@ -951,8 +960,11 @@ void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
         return;
     }
 
+    auto is_discrete = is_discrete_input_event(event.event);
     m_input_event_queue.enqueue(move(event));
     page->page().client().request_frame();
+    if (is_discrete)
+        Web::HTML::main_thread_event_loop().queue_task_to_process_input_events();
 }
 
 void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request, ByteString argument)
