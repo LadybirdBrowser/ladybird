@@ -74,6 +74,9 @@ public:
     //         sync XHR send(), whose event loop is paused while it's blocked) re-targets that fetch thru this, so it
     //         delivers its response without the event loop as well; see consume_a_preloaded_resource().
     GC::Ptr<Fetch::Infrastructure::FetchController> controller;
+
+    // AD-HOC: Whether this entry offers a speculative fetch's response to the normal parser's fetch.
+    bool is_speculative { false };
 };
 
 // https://html.spec.whatwg.org/multipage/links.html#consume-a-preloaded-resource
@@ -86,6 +89,9 @@ bool consume_a_preloaded_resource(
     Utf16View integrity_metadata,
     GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available,
     Fetch::Infrastructure::TaskDestination const& consumer_task_destination);
+
+// AD-HOC: Speculative fetches' responses that the normal parser didn't use must not be handed to a later fetch.
+void discard_speculative_preloads(DOM::Document&);
 
 }
 
