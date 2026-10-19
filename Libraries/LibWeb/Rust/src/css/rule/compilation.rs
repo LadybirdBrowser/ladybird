@@ -57,6 +57,56 @@ pub struct NativeCompilationCallbacks {
     ) -> bool,
 }
 
+/// The host's compilation callbacks, which may be called with any source the host or `import_source` named.
+#[derive(Clone, Copy)]
+struct CompilationHost<'a> {
+    callbacks: &'a NativeCompilationCallbacks,
+}
+
+/// The host-side loading state of a sheet, opaque to Rust, as the host or `import_source` named it.
+#[derive(Clone, Copy)]
+struct HostSource(*const c_void);
+
+impl<'a> CompilationHost<'a> {
+    /// # Safety
+    /// The callbacks must be callable for `'a` with `source` and with each source `import_source` answers. They must not
+    /// mutate the graph, and must retain any native data they keep beyond a callback. `import_source` must answer the
+    /// host loading state of the native imported sheet it is given.
+    unsafe fn new(callbacks: &'a NativeCompilationCallbacks, source: *const c_void) -> (Self, HostSource) {
+        (Self { callbacks }, HostSource(source))
+    }
+
+    fn implicit_scope_root(self, source: HostSource) -> u32 {
+        // SAFETY: Guaranteed by the creator of the host.
+        unsafe { (self.callbacks.implicit_scope_root)(source.0) }
+    }
+
+    fn import_source(self, source: HostSource, identity: u64, imported: &NativeStyleSheet) -> HostSource {
+        // SAFETY: Guaranteed by the creator of the host.
+        HostSource(unsafe { (self.callbacks.import_source)(source.0, identity, imported) })
+    }
+
+    fn visit_rule(
+        self,
+        source: HostSource,
+        rule: RuleRef<'_>,
+        context: &NativeCompilationContext,
+        result: NativeCompilationResult,
+    ) -> bool {
+        // SAFETY: Guaranteed by the creator of the host.
+        unsafe {
+            (self.callbacks.visit_rule)(
+                self.callbacks.context,
+                source.0,
+                rule.identity(),
+                rule.rule_type(),
+                context,
+                result,
+            )
+        }
+    }
+}
+
 // These are borrowed traversal inputs, never fields of the parsed graph. Only scope roots and
 // the identity of each source's host-side loading state come from the document.
 #[derive(Clone)]
@@ -100,12 +150,12 @@ impl CompilationContext {
         }
     }
 
-    unsafe fn within(
+    fn within(
         &self,
         rule: RuleRef<'_>,
-        source: *const c_void,
+        source: HostSource,
         environment: MediaEnvironment<'_>,
-        callbacks: &NativeCompilationCallbacks,
+        host: CompilationHost<'_>,
         publication: Option<&Publisher<'_>>,
         matching: Option<std::sync::Arc<crate::css::selector_parser::RustParsedSelectorList>>,
     ) -> Self {
@@ -125,7 +175,7 @@ impl CompilationContext {
         }
         let mut implicit_root = 0;
         if rule.scope().is_some() {
-            implicit_root = unsafe { (callbacks.implicit_scope_root)(source) };
+            implicit_root = host.implicit_scope_root(source);
             context.scopes.push(NativeCompilationScope {
                 identity: rule.identity(),
                 implicit_root,
@@ -156,72 +206,56 @@ fn has_compiled_children(rule: RuleRef<'_>) -> bool {
     )
 }
 
-unsafe fn visit_rule(
+fn visit_rule(
     rule: RuleRef<'_>,
     sheet: &NativeStyleSheet,
-    source: *const c_void,
+    source: HostSource,
     context: &CompilationContext,
     environment: MediaEnvironment<'_>,
-    callbacks: &NativeCompilationCallbacks,
+    host: CompilationHost<'_>,
     publication: Option<&Publisher<'_>>,
 ) {
     let selectors = publication.and_then(|_| context.selectors.matching_selectors(rule));
     let result = publication.map_or_else(NativeCompilationResult::default, |publication| {
         publication.compile(rule, sheet, context, selectors.as_ref())
     });
-    if !unsafe {
-        (callbacks.visit_rule)(
-            callbacks.context,
-            source,
-            rule.identity(),
-            rule.rule_type(),
-            &context.view(),
-            result,
-        )
-    } || !has_compiled_children(rule)
-    {
+    if !host.visit_rule(source, rule, &context.view(), result) || !has_compiled_children(rule) {
         return;
     }
     if rule.rule_type() == NativeRuleType::Import {
         if let Some(imported) = sheet.imported_sheet(rule.identity()) {
-            let nested = unsafe { context.within(rule, source, environment, callbacks, publication, selectors) };
-            let imported_source = unsafe { (callbacks.import_source)(source, rule.identity(), &imported) };
-            unsafe {
-                visit_list(
-                    imported.rules(),
-                    &imported,
-                    imported_source,
-                    &nested,
-                    environment,
-                    callbacks,
-                    publication,
-                );
-            };
+            let nested = context.within(rule, source, environment, host, publication, selectors);
+            let imported_source = host.import_source(source, rule.identity(), &imported);
+            visit_list(
+                imported.rules(),
+                &imported,
+                imported_source,
+                &nested,
+                environment,
+                host,
+                publication,
+            );
         }
     } else {
-        let nested = unsafe { context.within(rule, source, environment, callbacks, publication, selectors) };
+        let nested = context.within(rule, source, environment, host, publication, selectors);
         let _ = rule.visit_children(&mut |child| {
-            unsafe {
-                visit_rule(child, sheet, source, &nested, environment, callbacks, publication);
-            }
+            visit_rule(child, sheet, source, &nested, environment, host, publication);
             std::ops::ControlFlow::Continue(())
         });
     }
 }
 
-unsafe fn visit_list(
+fn visit_list(
     list: &NativeRuleList,
     sheet: &NativeStyleSheet,
-    source: *const c_void,
+    source: HostSource,
     context: &CompilationContext,
     environment: MediaEnvironment<'_>,
-    callbacks: &NativeCompilationCallbacks,
+    host: CompilationHost<'_>,
     publication: Option<&Publisher<'_>>,
 ) {
     let _ = list.visit_rules(&mut |rule| {
-        unsafe {
-            visit_rule(rule, sheet, source, context, environment, callbacks, publication);
-        };
+        visit_rule(rule, sheet, source, context, environment, host, publication);
         std::ops::ControlFlow::Continue(())
     });
 }
@@ -281,17 +315,11 @@ pub(crate) unsafe fn style_sheet_visit_compilation(
     environment: FfiMediaEnvironment,
     callbacks: &NativeCompilationCallbacks,
 ) {
-    unsafe {
-        visit_compilation(
-            sheet,
-            rule_identity,
-            purpose,
-            source,
-            environment.borrow(),
-            callbacks,
-            None,
-        );
-    };
+    // SAFETY: Guaranteed by the caller.
+    let (host, source) = unsafe { CompilationHost::new(callbacks, source) };
+    // SAFETY: Guaranteed by the caller.
+    let environment = unsafe { environment.borrow() };
+    visit_compilation(sheet, rule_identity, purpose, source, environment, host, None);
 }
 
 /// Compile a native stylesheet or inserted subtree into its document's style program.
@@ -312,17 +340,19 @@ pub unsafe extern "C" fn rust_style_sheet_compile(
 ) {
     // SAFETY: Guaranteed by the caller.
     let publisher = unsafe { Publisher::new(publication) };
-    unsafe {
-        visit_compilation(
-            sheet,
-            rule_identity,
-            NativeCompilationPurpose::Rules,
-            source,
-            environment.borrow(),
-            callbacks,
-            Some(&publisher),
-        );
-    };
+    // SAFETY: Guaranteed by the caller.
+    let (host, source) = unsafe { CompilationHost::new(callbacks, source) };
+    // SAFETY: Guaranteed by the caller.
+    let environment = unsafe { environment.borrow() };
+    visit_compilation(
+        sheet,
+        rule_identity,
+        NativeCompilationPurpose::Rules,
+        source,
+        environment,
+        host,
+        Some(&publisher),
+    );
     publisher.finish();
 }
 
@@ -342,6 +372,8 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     let environment = unsafe { environment.borrow() };
     // SAFETY: Guaranteed by the caller.
     let publisher = unsafe { Publisher::new(publication) };
+    // SAFETY: Guaranteed by the caller.
+    let (host, source) = unsafe { CompilationHost::new(callbacks, source) };
     let mut path = Vec::new();
     if !find_rule_path(sheet.rules(), sheet, rule_identity, &mut path) {
         return;
@@ -354,18 +386,16 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     let mut target_sheet = sheet;
     let mut target_source = source;
     for entry in &path {
-        context = unsafe {
-            context.within(
-                RuleRef::Materialized(&entry.rule),
-                target_source,
-                environment,
-                callbacks,
-                Some(&publisher),
-                None,
-            )
-        };
+        context = context.within(
+            RuleRef::Materialized(&entry.rule),
+            target_source,
+            environment,
+            host,
+            Some(&publisher),
+            None,
+        );
         if let Some(imported) = &entry.imported {
-            target_source = unsafe { (callbacks.import_source)(target_source, entry.rule.identity, imported) };
+            target_source = host.import_source(target_source, entry.rule.identity, imported);
             target_sheet = imported;
         }
     }
@@ -378,16 +408,14 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
         if has_compiled_children(RuleRef::Materialized(&rule))
             && let Some(children) = &rule.children
         {
-            let nested = unsafe {
-                context.within(
-                    RuleRef::Materialized(&rule),
-                    target_source,
-                    environment,
-                    callbacks,
-                    Some(&publisher),
-                    selectors.clone(),
-                )
-            };
+            let nested = context.within(
+                RuleRef::Materialized(&rule),
+                target_source,
+                environment,
+                host,
+                Some(&publisher),
+                selectors.clone(),
+            );
             pending.extend(
                 children
                     .materialized_rules()
@@ -412,28 +440,26 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
         // A previously empty selector list may become matchable. Publish that newly active
         // subtree with its current conditions and source-order position.
         let subtree = publisher.before(published.successor(publisher.sheet(), sheet, rule.identity));
-        unsafe {
-            visit_compilation(
-                sheet,
-                rule.identity,
-                NativeCompilationPurpose::Rules,
-                source,
-                environment,
-                callbacks,
-                Some(&subtree),
-            );
-        }
+        visit_compilation(
+            sheet,
+            rule.identity,
+            NativeCompilationPurpose::Rules,
+            source,
+            environment,
+            host,
+            Some(&subtree),
+        );
         subtree.finish();
     }
 }
 
-unsafe fn visit_compilation(
+fn visit_compilation(
     sheet: &NativeStyleSheet,
     rule_identity: u64,
     purpose: NativeCompilationPurpose,
-    source: *const c_void,
+    source: HostSource,
     environment: MediaEnvironment<'_>,
-    callbacks: &NativeCompilationCallbacks,
+    host: CompilationHost<'_>,
     publication: Option<&Publisher<'_>>,
 ) {
     let context = CompilationContext {
@@ -441,47 +467,35 @@ unsafe fn visit_compilation(
         ..Default::default()
     };
     if rule_identity == 0 {
-        unsafe {
-            visit_list(
-                sheet.rules(),
-                sheet,
-                source,
-                &context,
-                environment,
-                callbacks,
-                publication,
-            );
-        };
+        visit_list(sheet.rules(), sheet, source, &context, environment, host, publication);
         return;
     }
     #[expect(
         clippy::too_many_arguments,
         reason = "Targeted traversal carries a rule identity in addition to the compilation inputs"
     )]
-    unsafe fn find(
+    fn find(
         rule: RuleRef<'_>,
         identity: u64,
         sheet: &NativeStyleSheet,
-        source: *const c_void,
+        source: HostSource,
         context: &CompilationContext,
         environment: MediaEnvironment<'_>,
-        callbacks: &NativeCompilationCallbacks,
+        host: CompilationHost<'_>,
         publication: Option<&Publisher<'_>>,
     ) -> std::ops::ControlFlow<()> {
         if rule.identity() == identity {
-            unsafe {
-                visit_rule(rule, sheet, source, context, environment, callbacks, publication);
-            }
+            visit_rule(rule, sheet, source, context, environment, host, publication);
             return std::ops::ControlFlow::Break(());
         }
         if !has_compiled_children(rule) {
             return std::ops::ControlFlow::Continue(());
         }
-        let nested = unsafe { context.within(rule, source, environment, callbacks, publication, None) };
+        let nested = context.within(rule, source, environment, host, publication, None);
         if rule.rule_type() == NativeRuleType::Import {
             if let Some(imported) = sheet.imported_sheet(rule.identity()) {
-                let imported_source = unsafe { (callbacks.import_source)(source, rule.identity(), &imported) };
-                return imported.rules().visit_rules(&mut |child| unsafe {
+                let imported_source = host.import_source(source, rule.identity(), &imported);
+                return imported.rules().visit_rules(&mut |child| {
                     find(
                         child,
                         identity,
@@ -489,28 +503,19 @@ unsafe fn visit_compilation(
                         imported_source,
                         &nested,
                         environment,
-                        callbacks,
+                        host,
                         publication,
                     )
                 });
             }
             std::ops::ControlFlow::Continue(())
         } else {
-            rule.visit_children(&mut |child| unsafe {
-                find(
-                    child,
-                    identity,
-                    sheet,
-                    source,
-                    &nested,
-                    environment,
-                    callbacks,
-                    publication,
-                )
+            rule.visit_children(&mut |child| {
+                find(child, identity, sheet, source, &nested, environment, host, publication)
             })
         }
     }
-    let _ = sheet.rules().visit_rules(&mut |rule| unsafe {
+    let _ = sheet.rules().visit_rules(&mut |rule| {
         find(
             rule,
             rule_identity,
@@ -518,7 +523,7 @@ unsafe fn visit_compilation(
             source,
             &context,
             environment,
-            callbacks,
+            host,
             publication,
         )
     });
