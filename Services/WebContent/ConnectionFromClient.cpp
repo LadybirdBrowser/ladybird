@@ -25,6 +25,8 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Font/Font.h>
+#include <LibGfx/FourCC.h>
 #include <LibGfx/Palette.h>
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/ConsoleObject.h>
@@ -2808,6 +2810,7 @@ static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layo
     return {
         .font_family = font.family().to_string(),
         .ui_point_size = font.pixel_size() * static_cast<float>(scale),
+        .optical_size = font.variation_settings().axes.get(Gfx::FourCC("opsz")),
         .weight = font.weight(),
         .slope = font.slope(),
     };

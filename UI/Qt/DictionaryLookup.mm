@@ -7,6 +7,7 @@
 #include <AK/String.h>
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 
+#import <CoreText/CoreText.h>
 #import <UI/Qt/DictionaryLookup.h>
 
 namespace Ladybird {
@@ -54,6 +55,16 @@ static NSFont* ns_font_from_dictionary_lookup_text_style(WebView::DictionaryLook
     return font;
 }
 
+// AppKit picks a font's optical size from its point size, which grows with zoom, and the glyph shapes and tracking of
+// that optical size would no longer cover the word as the page draws it. So use the optical size the page renders with.
+static NSFont* ns_font_with_optical_size(NSFont* font, float optical_size)
+{
+    auto* descriptor = [font.fontDescriptor fontDescriptorByAddingAttributes:@{(NSString*)kCTFontOpticalSizeAttribute : @(optical_size)}];
+    if (auto* font_with_optical_size = [NSFont fontWithDescriptor:descriptor size:font.pointSize])
+        return font_with_optical_size;
+    return font;
+}
+
 static NSAttributedString* attributed_string_for_dictionary_lookup(WebView::DictionaryLookup const& lookup)
 {
     auto* ns_text = ns_string_from_ak_string(lookup.text);
@@ -63,6 +74,8 @@ static NSAttributedString* attributed_string_for_dictionary_lookup(WebView::Dict
     auto* font = ns_font_from_dictionary_lookup_text_style(*lookup.style);
     if (!font)
         return [[NSAttributedString alloc] initWithString:ns_text];
+    if (lookup.style->optical_size.has_value())
+        font = ns_font_with_optical_size(font, *lookup.style->optical_size);
 
     return [[NSAttributedString alloc] initWithString:ns_text attributes:@ { NSFontAttributeName : font }];
 }
