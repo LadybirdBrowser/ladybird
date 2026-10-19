@@ -176,6 +176,9 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
         return Error::from_string_literal("The WebSocket was closed before it connected");
 
+    if (m_has_disappeared)
+        return Error::from_string_literal("The document of the WebSocket was unloaded before it connected");
+
     auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(client.global_object());
     VERIFY(window_or_worker);
     auto origin_string = window_or_worker->origin().to_byte_string();
