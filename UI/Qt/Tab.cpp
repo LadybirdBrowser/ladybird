@@ -891,7 +891,7 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     view().on_request_before_unload = [this](auto const& source, auto on_complete) {
         hide_hover_label();
         m_before_unload_completion = AK::move(on_complete);
-        m_window->raise_for_quit_prompt();
+        m_window->raise_for_close_prompt();
         m_javascript_dialog->show_before_unload(qstring_from_ak_string(source));
     };
 
