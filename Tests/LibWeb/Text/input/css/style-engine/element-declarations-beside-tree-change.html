@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<svg width="200" height="100"><g id="bars"></g><g id="churn"><line></line><line></line></g></svg>
+<script>
+    test(() => {
+        const namespace = "http://www.w3.org/2000/svg";
+        const bars = document.getElementById("bars");
+        const churn = document.getElementById("churn");
+        const rects = [];
+        for (let index = 0; index < 50; ++index) {
+            const rect = document.createElementNS(namespace, "rect");
+            rect.setAttribute("width", 2);
+            rect.setAttribute("height", 50);
+            bars.appendChild(rect);
+            rects.push(rect);
+        }
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        for (const rect of rects)
+            rect.setAttribute("height", 60);
+        churn.firstElementChild.remove();
+        churn.appendChild(document.createElementNS(namespace, "line"));
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`selector truth repair upqueries: ${after.selectorTruthRepairUpqueries - before.selectorTruthRepairUpqueries}`);
+        println(`candidate checks: ${after.candidateChecks - before.candidateChecks}`);
+        println(`rect height: ${getComputedStyle(rects[0]).height}`);
+    });
+</script>
