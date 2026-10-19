@@ -89,8 +89,8 @@ jit.compile(addActions);
 // CHECK-FUNCTION: addActions
 // CHECK-PASS: dead code elimination
 // CHECK: [[ELEMENT:v[0-9]+]]:float64 = LoadElementAt TypedArray(Uint32)
-// CHECK-NEXT: [[BOXED:v[0-9]+]] = BoxFloat64 ([[ELEMENT]])
-// CHECK: [[START:v[0-9]+]]:int32 = CheckInt32 ([[BOXED]])
+// CHECK-NOT: BoxFloat64
+// CHECK: [[START:v[0-9]+]]:int32 = CheckFloat64Int32 ([[ELEMENT]])
 // CHECK: loop:
 // CHECK-NEXT: [[I:v[0-9]+]]:int32 = Phi ([[START]], {{v[0-9]+}})
 // CHECK-NOT: CheckInt32 ({{v[0-9]+}})

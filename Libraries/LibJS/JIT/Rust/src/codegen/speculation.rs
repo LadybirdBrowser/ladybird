@@ -12,6 +12,7 @@ use super::Codegen;
 use super::InputValue;
 use crate::asm::Condition;
 use crate::asm::Gpr;
+use crate::asm::NegativeZero;
 use crate::asm::PortableMacroAssembler;
 use crate::code::Repr;
 use crate::ir::BinaryOp;
@@ -43,6 +44,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let (input, output, scratch) = (self.input(node, 0), self.output(node), self.pinned.scratch);
         self.branch_on_tag(Condition::NotEqual, input, value::INT32_TAG, scratch, exit);
         self.masm.move32(output, input);
+    }
+
+    pub(super) fn emit_check_float64_int32(&mut self, node: NodeId) {
+        let exit = self.exit_site(node);
+        let (input, output) = (self.float_input(node, 0), self.output(node));
+        self.masm
+            .branch_convert_double_to_int32(output, input, exit, NegativeZero::Fail);
     }
 
     pub(super) fn emit_check_identity_comparable(&mut self, node: NodeId) {
