@@ -2576,6 +2576,17 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
     Web::Painting::dump_stacking_context_tree(read, builder, *document);
 }
 
+static void append_display_list(Web::Page& page, StringBuilder& builder)
+{
+    auto document = page.local_traversable()->active_document();
+    if (!document) {
+        builder.append("(no DOM tree)"sv);
+        return;
+    }
+
+    builder.append(document->dump_display_list().to_utf8());
+}
+
 static void append_gc_graph(StringBuilder& builder)
 {
     auto gc_graph = Web::Bindings::main_thread_vm().heap().dump_graph();
@@ -2606,6 +2617,12 @@ void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebVi
         if (!builder.is_empty())
             builder.append("\n"sv);
         append_stacking_context_tree(page->page(), builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::DisplayList)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        append_display_list(page->page(), builder);
     }
 
     if (has_flag(type, WebView::PageInfoType::AccessibilityTree)) {
