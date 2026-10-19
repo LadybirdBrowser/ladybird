@@ -13,8 +13,8 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibAudio/Audibility.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebView/FileDownloader.h>
@@ -205,7 +205,7 @@ public slots:
 signals:
     void title_changed(int id, QString const&);
     void favicon_changed(int id, QIcon const&);
-    void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
+    void audibility_changed(int id, Audio::Audibility);
     void loading_changed();
     void loaded();
 

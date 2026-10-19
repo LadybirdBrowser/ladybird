@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/WeakPtr.h>
+#include <LibAudio/Audibility.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -105,6 +106,9 @@ public:
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_open() const { return m_is_open; }
+    // Whether the AudioServer has recently heard the page, muted or not.
+    Audio::Audibility audibility() const { return m_audibility; }
+    void set_audibility(Audio::Audibility);
 
     // The channel to the WebUI this page shows, if it shows one. Each page has its own, so two WebUI pages in one
     // process each keep theirs.
@@ -271,7 +275,6 @@ private:
     virtual void did_change_theme_color(Gfx::Color color) override;
     virtual void did_change_background_color(Gfx::Color color) override;
     virtual void did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item, String) override;
-    virtual void did_change_audio_play_state(Web::HTML::AudioPlayState play_state) override;
     virtual void did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state) override;
     virtual void did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state) override;
     virtual void did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) override;
@@ -369,6 +372,7 @@ private:
     virtual void did_simulate_worker_request_server_connection_loss() override;
     Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing();
     Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing();
+    Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse did_request_tab_is_playing_audio_for_testing();
     virtual void did_request_crash_of_remote_frame_processes_for_testing() override;
     virtual void did_request_stop_loading_for_testing() override;
     virtual void did_request_reload_for_testing(bool bypass_cache) override;
@@ -385,6 +389,7 @@ private:
     WeakPtr<CanonicalTraversable> m_traversable;
     bool m_is_open { true };
     RefPtr<WebUI> m_web_ui;
+    Audio::Audibility m_audibility { Audio::Audibility::Inaudible };
     Optional<PresentedBackingStores> m_presented_backing_stores;
     bool m_needs_beforeunload_check { true };
     bool m_detached_close_pending { false };

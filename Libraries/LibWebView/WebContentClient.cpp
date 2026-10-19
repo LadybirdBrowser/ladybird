@@ -915,6 +915,13 @@ ErrorOr<void> WebContentClient::initialize_audio_server_controller()
         if (self && tab_id == self->m_audio_tab_id)
             self->decide_audio_capture_request(request_id);
     };
+    m_audio_server_audibility.watch(*m_audio_server_client, [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility) {
+        auto self = weak_self.strong_ref();
+        if (!self || tab_id != self->m_audio_tab_id)
+            return false;
+        // A report of sound can trail the revocation of the page's authorization.
+        return audibility == Audio::Audibility::Inaudible || self->m_authorized_audio_playback_groups.contains(group);
+    });
     if (m_audio_capture_permitted)
         TRY(tell_audio_server_of_capture_permission());
     // A muted group is never heard: the mutes land before the authorizations.
@@ -988,6 +995,17 @@ static Audio::PlaybackGroupId audio_playback_group(Web::PageId page_id)
     return Audio::PlaybackGroupId { page_id.value() };
 }
 
+static Web::PageId page_id_of_audio_playback_group(Audio::PlaybackGroupId group)
+{
+    return Web::PageId { group.value() };
+}
+
+void WebContentClient::did_change_audio_playback_audibility(Audio::PlaybackGroupId group, Audio::Audibility audibility)
+{
+    if (auto page = m_pages.get(page_id_of_audio_playback_group(group)); page.has_value())
+        page.value()->set_audibility(audibility);
+}
+
 void WebContentClient::authorize_audio_playback(Web::PageId page_id)
 {
     auto group = audio_playback_group(page_id);
@@ -1007,6 +1025,7 @@ void WebContentClient::revoke_audio_playback(Web::PageId page_id)
         return;
     if (m_audio_server_client && m_audio_server_client->is_open())
         m_audio_server_client->async_revoke_playback_group(m_audio_tab_id, group);
+    m_audio_server_audibility.forget(group);
 }
 
 void WebContentClient::set_audio_playback_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state)

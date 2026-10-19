@@ -1787,6 +1787,13 @@ bool PageClient::page_did_request_has_populated_document_for_testing(Web::HTML::
     return false;
 }
 
+bool PageClient::page_did_request_tab_is_playing_audio_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_tab_is_playing_audio_for_testing(m_id);
+    return false;
+}
+
 String PageClient::dump_site_isolation_process_tree_for_testing()
 {
     if (auto* test_connection = client().test_connection())
@@ -1963,11 +1970,6 @@ void PageClient::page_did_complete_paste_action()
 void PageClient::page_did_update_primary_selection(Utf16String const& text)
 {
     client().async_did_update_primary_selection(m_id, text.to_utf8());
-}
-
-void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
-{
-    client().async_did_change_audio_play_state(m_id, play_state);
 }
 
 // The UI process derives the group from the page's ID too, and has the AudioServer play it while the page hosts

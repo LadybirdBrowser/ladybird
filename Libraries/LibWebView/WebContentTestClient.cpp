@@ -76,6 +76,14 @@ Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResp
     return String {};
 }
 
+Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse WebContentTestClient::did_request_tab_is_playing_audio_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->did_request_tab_is_playing_audio_for_testing();
+
+    return false;
+}
+
 Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse WebContentTestClient::did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto* page = m_client.page(page_id))

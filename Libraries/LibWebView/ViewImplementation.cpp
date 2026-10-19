@@ -2633,40 +2633,23 @@ void ViewImplementation::toggle_page_mute_state()
     });
 }
 
-void ViewImplementation::did_change_audio_play_state(Badge<WebContentPage>, Web::HTML::AudioPlayState play_state)
+void ViewImplementation::update_audibility()
 {
-    bool state_changed = false;
-
-    switch (play_state) {
-    case Web::HTML::AudioPlayState::Paused:
-        if (--m_number_of_elements_playing_audio == 0) {
-            m_audio_play_state = play_state;
-            state_changed = true;
-        }
-        break;
-
-    case Web::HTML::AudioPlayState::Playing:
-        if (m_number_of_elements_playing_audio++ == 0) {
-            m_audio_play_state = play_state;
-            state_changed = true;
-        }
-        break;
-    }
-
-    if (state_changed && on_audio_play_state_changed)
-        on_audio_play_state_changed(m_audio_play_state);
+    auto audibility = Audio::Audibility::Inaudible;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        if (page.audibility() == Audio::Audibility::Audible)
+            audibility = Audio::Audibility::Audible;
+    });
+    if (m_audibility == audibility)
+        return;
+    m_audibility = audibility;
+    if (on_audibility_changed)
+        on_audibility_changed(m_audibility);
 }
 
 void ViewImplementation::reset_page_media_state()
 {
-    auto const should_notify_audio_play_state_changed = m_audio_play_state != Web::HTML::AudioPlayState::Paused
-        || m_number_of_elements_playing_audio != 0;
-
-    m_audio_play_state = Web::HTML::AudioPlayState::Paused;
-    m_number_of_elements_playing_audio = 0;
-
-    if (should_notify_audio_play_state_changed && on_audio_play_state_changed)
-        on_audio_play_state_changed(m_audio_play_state);
+    update_audibility();
 
     if (m_screen_wake_lock_state != Web::ScreenWakeLockState::Released) {
         m_screen_wake_lock_state = Web::ScreenWakeLockState::Released;

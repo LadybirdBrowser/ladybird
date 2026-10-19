@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function play() {
+        const context = new AudioContext();
+        const oscillator = new OscillatorNode(context);
+        oscillator.connect(context.destination);
+        oscillator.start();
+        return context;
+    }
+
+    promiseTest(async () => {
+        internals.setTestTimeout(20_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const context = play();
+        println(`plays audio: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+        await context.close();
+        internals.disconnectAudioServer();
+        println(`stops playing audio: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
+
+        // The page is still authorized to play over a new connection.
+        const nextContext = play();
+        println(`plays audio again over a new connection: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+        await nextContext.close();
+    });
+</script>

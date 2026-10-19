@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(20_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+
+        const context = new AudioContext();
+        const gain = new GainNode(context, { gain: 0 });
+        const oscillator = new OscillatorNode(context);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start();
+        await waitForCondition(() => context.currentTime >= 0.5);
+        println(`while only silence plays: ${internals.tabIsPlayingAudio()}`);
+
+        gain.gain.value = 1;
+        println(`once sound plays: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+
+        gain.gain.value = 0;
+        const silencedAt = performance.now();
+        println(`stops once the sound has stopped: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
+        const silentFor = performance.now() - silencedAt;
+        println(`about three seconds later: ${silentFor >= 2500 && silentFor < 5000}`);
+
+        await context.close();
+    });
+</script>

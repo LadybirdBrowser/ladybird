@@ -26,7 +26,6 @@
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
@@ -277,7 +276,6 @@ endpoint WebContentClient routed by Web::PageId page_id
     changing_navigable_continuation_applied(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
 
-    did_change_audio_play_state(Web::PageId page_id, Web::HTML::AudioPlayState play_state) =|
     did_change_screen_wake_lock_state(Web::PageId page_id, Web::ScreenWakeLockState wake_lock_state) =|
 
     did_start_using_gamepads() =|

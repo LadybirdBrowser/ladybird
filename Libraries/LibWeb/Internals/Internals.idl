@@ -394,12 +394,16 @@ interface Internals {
     boolean mediaElementIsFetching(HTMLMediaElement element);
     boolean mediaElementIsPlayingAudio(HTMLMediaElement element);
     boolean documentIsPlayingAudio(Document document);
+    // Whether the UI process shows this window's tab as playing audio, which the AudioServer decides by what it hears.
+    boolean tabIsPlayingAudio();
     boolean mediaElementVideoSinkIsTicking(HTMLMediaElement element);
     undefined setMediaElementReadyState(HTMLMediaElement element, unsigned short readyState);
     undefined setMediaElementPaused(HTMLMediaElement element, boolean paused);
     undefined setMediaElementSeeking(HTMLMediaElement element, boolean seeking);
     // Closes this process's connection to its media server, which is what a media server crash looks like from here.
     undefined disconnectMediaServer();
+    // Closes this process's connection to its AudioServer, which is what an AudioServer crash looks like from here.
+    undefined disconnectAudioServer();
 
     DOMString viewportOverflowX();
 

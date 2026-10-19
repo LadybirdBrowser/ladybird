@@ -12,6 +12,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibAudio/ClientConnection.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
@@ -2122,6 +2123,11 @@ bool Internals::document_is_playing_audio(DOM::Document& document)
     return document.is_playing_audio();
 }
 
+bool Internals::tab_is_playing_audio()
+{
+    return window().associated_document().page().client().page_did_request_tab_is_playing_audio_for_testing();
+}
+
 bool Internals::media_element_video_sink_is_ticking(HTML::HTMLMediaElement& element)
 {
     return element.m_video_sink_is_ticking;
@@ -2148,6 +2154,12 @@ void Internals::disconnect_media_server()
 {
     if (auto client = MediaClient::Client::acquire(); !client.is_error())
         client.value()->shutdown();
+}
+
+void Internals::disconnect_audio_server()
+{
+    if (auto connection = Audio::ClientConnection::acquire(); !connection.is_error())
+        connection.value()->shutdown();
 }
 
 DOM::Document::StyleInvalidationCounters const& Internals::style_invalidation_counters() const
