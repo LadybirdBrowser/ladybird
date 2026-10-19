@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -93,18 +95,20 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
 
     // 3. Let file be a serialization of the canvas element’s bitmap as a file, using "image/png" as an argument.
-    // 4. Let data url be a data: URL representing file. [RFC2397]
-    auto data_url_result = canvas.to_data_url("image/png"sv, {});
-    if (data_url_result.is_exception())
+    auto bitmap = canvas.get_bitmap_from_surface();
+    if (!bitmap)
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
+    Gfx::PNGWriterOptions png_options;
+    png_options.compression = Gfx::PNGCompression::Fast;
+    auto file = Gfx::PNGWriter::encode(*bitmap, png_options);
+    if (file.is_error())
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to serialize canvas"sv);
-    auto data_url = data_url_result.release_value();
 
+    // 4. Let data url be a data: URL representing file. [RFC2397]
     // 5. Let index be the index of "," in data url.
-    auto index = data_url.utf16_view().find_code_unit_offset(',');
-    VERIFY(index.has_value());
-
     // 6. Let encoded string be a substring of data url using (index + 1) as the start argument.
-    auto encoded_string = MUST(data_url.utf16_view().substring_view(*index + 1).to_utf8());
+    // NB: That substring is file's base64 encoding.
+    auto encoded_string = MUST(encode_base64(file.value()));
 
     // 7. Return success with data encoded string.
     return JsonValue { move(encoded_string) };
