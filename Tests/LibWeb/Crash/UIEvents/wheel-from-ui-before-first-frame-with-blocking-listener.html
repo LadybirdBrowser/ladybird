@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<script>
+    // The blocking listener makes the compositor's wheel listener state stale before any display list reaches it.
+    addEventListener("wheel", () => {}, { passive: false });
+    internals.wheelThroughUIProcess(10, 10, 0, 10, true, "ongoing");
+</script>
