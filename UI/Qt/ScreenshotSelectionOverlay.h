@@ -1,0 +1,60 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Function.h>
+#include <AK/Optional.h>
+#include <AK/Vector.h>
+#include <AK/kmalloc.h>
+
+#include <QImage>
+#include <QPoint>
+#include <QRect>
+#include <QWidget>
+
+class QPushButton;
+
+namespace Ladybird {
+
+class ScreenshotSelectionOverlay final : public QWidget {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    static constexpr int minimum_selection_size = 8;
+
+    ScreenshotSelectionOverlay(QImage frame, QWidget* parent);
+
+    void select(QRect);
+    void use_whole_frame();
+    void skip();
+    void cancel();
+
+    Function<void(QImage)> on_finished;
+    Function<void()> on_canceled;
+
+protected:
+    virtual void paintEvent(QPaintEvent*) override;
+    virtual void mousePressEvent(QMouseEvent*) override;
+    virtual void mouseMoveEvent(QMouseEvent*) override;
+    virtual void mouseReleaseEvent(QMouseEvent*) override;
+    virtual void keyPressEvent(QKeyEvent*) override;
+    virtual bool focusNextPrevChild(bool next) override;
+    virtual void changeEvent(QEvent*) override;
+
+private:
+    QRect selection() const;
+    void finish(QImage);
+    void update_chrome_style();
+
+    QImage m_frame;
+    Optional<QPoint> m_drag_start;
+    QPoint m_drag_end;
+    QWidget* m_instructions { nullptr };
+    Vector<QPushButton*> m_buttons;
+};
+
+}

@@ -42,12 +42,7 @@ Popover::Popover(QWidget* parent)
     m_card->setFrameShape(QFrame::StyledPanel);
     m_card->setFrameShadow(QFrame::Raised);
     layout->addWidget(m_card);
-
-    auto* shadow = new QGraphicsDropShadowEffect(m_card);
-    shadow->setBlurRadius(24);
-    shadow->setOffset(0, 4);
-    shadow->setColor(QColor(0, 0, 0, 72));
-    m_card->setGraphicsEffect(shadow);
+    cast_popover_shadow(*m_card);
 }
 
 void Popover::showEvent(QShowEvent* event)
@@ -143,6 +138,16 @@ void move_popover_below(Popover& popover, QWidget& anchor)
     }
 
     popover.move(card_position - QPoint(POPOVER_SHADOW_MARGIN, POPOVER_SHADOW_MARGIN));
+}
+
+// Cards that float over other content cast the same shadow as popovers, whether they are windows of their own or not.
+void cast_popover_shadow(QWidget& card)
+{
+    auto* shadow = new QGraphicsDropShadowEffect(&card);
+    shadow->setBlurRadius(24);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 72));
+    card.setGraphicsEffect(shadow);
 }
 
 }

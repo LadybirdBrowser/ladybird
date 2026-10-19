@@ -1492,6 +1492,55 @@ QPushButton#LadybirdMessagePopoverAcceptButton:pressed {{
         text, surface, border, muted_text, control_border, hover_surface, pressed_surface, accent_color, accent_hover, accent_pressed);
 }
 
+// The instructions over a screenshot selection look like a message popover, with every action a secondary one.
+QString screenshot_selection_style_sheet(QPalette const& palette)
+{
+    auto text = style_sheet_color(chrome_text(palette));
+    auto surface = style_sheet_color(chrome_surface(palette));
+    auto border = style_sheet_color(chrome_border(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
+    auto hover_surface = style_sheet_color(chrome_surface_hover(palette));
+    auto pressed_surface = style_sheet_color(chrome_surface_pressed(palette));
+    auto accent = style_sheet_color(chrome_accent());
+
+    return qformatted(R"(
+QFrame#ScreenshotSelectionInstructions {{
+    color: {0};
+    background: {1};
+    border: 1px solid {2};
+    border-radius: 8px;
+}}
+
+QFrame#ScreenshotSelectionInstructions QLabel {{
+    color: {0};
+    background: transparent;
+    border: none;
+}}
+
+QFrame#ScreenshotSelectionInstructions QPushButton {{
+    color: {0};
+    background: {1};
+    border: 1px solid {3};
+    border-radius: 6px;
+    padding: 5px 12px;
+}}
+
+QFrame#ScreenshotSelectionInstructions QPushButton:hover {{
+    background: {4};
+}}
+
+QFrame#ScreenshotSelectionInstructions QPushButton:pressed {{
+    background: {5};
+}}
+
+QFrame#ScreenshotSelectionInstructions QPushButton:focus {{
+    border: 2px solid {6};
+    padding: 4px 11px;
+}}
+)",
+        text, surface, border, control_border, hover_surface, pressed_surface, accent);
+}
+
 QString content_blocking_popover_style_sheet(QPalette const& palette)
 {
     auto text = style_sheet_color(chrome_text(palette));
