@@ -49,6 +49,7 @@ target_sources(ladybird PRIVATE
     PerformanceMonitorWidget.cpp
     PictureInPictureWindow.cpp
     Popover.cpp
+    ReportReview.cpp
     SelectDropdown.cpp
     StringUtils.cpp
     Tab.cpp

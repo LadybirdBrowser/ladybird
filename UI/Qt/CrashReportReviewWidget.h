@@ -33,12 +33,6 @@ class CrashReportReviewWidget final : public QWidget {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // The spacing of items within a group and of the groups themselves, which the screen around the review shares.
-    static constexpr int item_spacing = 8;
-    static constexpr int group_spacing = 28;
-
-    static QLabel* create_title(QString const& text, QWidget* parent);
-
     // The exit button leaves the review, for example by reloading the crashed page.
     CrashReportReviewWidget(QString exit_text, QWidget* parent, WebView::CrashReportStore& = WebView::CrashReportStore::the());
 

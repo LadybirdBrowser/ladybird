@@ -69,6 +69,7 @@ if (APPLE OR LINUX)
     target_sources(TestCrashReportReviewWidget PRIVATE
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/CrashReportReviewWidget.cpp"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/ReportReview.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
     )
     deploy_qt_offscreen_platform_plugin(TestCrashReportReviewWidget)

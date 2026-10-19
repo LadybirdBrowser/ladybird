@@ -1075,7 +1075,7 @@ QDialog#LadybirdBookmarkDialog QPushButton:focus {{
         surface, recessed, hover, pressed, control_border, accent, text, selection, selection_text);
 }
 
-QString crash_report_review_style_sheet(QPalette const& palette)
+QString report_review_style_sheet(QPalette const& palette)
 {
     auto recessed = style_sheet_color(chrome_surface_recessed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
@@ -1086,8 +1086,8 @@ QString crash_report_review_style_sheet(QPalette const& palette)
     auto muted = style_sheet_color(chrome_muted_text(palette));
 
     return qformatted(R"(
-QWidget#LadybirdCrashReportReview QLineEdit,
-QWidget#LadybirdCrashReportReview QPlainTextEdit {{
+QWidget#LadybirdReportReview QLineEdit,
+QWidget#LadybirdReportReview QPlainTextEdit {{
     color: {3};
     background: {0};
     border: 1px solid {1};
@@ -1096,25 +1096,25 @@ QWidget#LadybirdCrashReportReview QPlainTextEdit {{
     selection-color: {6};
 }}
 
-QWidget#LadybirdCrashReportReview QLineEdit {{
+QWidget#LadybirdReportReview QLineEdit {{
     min-height: 26px;
     padding: 2px 9px;
 }}
 
-QWidget#LadybirdCrashReportReview QPlainTextEdit {{
+QWidget#LadybirdReportReview QPlainTextEdit {{
     padding: 4px 5px;
 }}
 
-QWidget#LadybirdCrashReportReview QLineEdit:focus,
-QWidget#LadybirdCrashReportReview QPlainTextEdit:focus {{
+QWidget#LadybirdReportReview QLineEdit:focus,
+QWidget#LadybirdReportReview QPlainTextEdit:focus {{
     border-color: {2};
 }}
 
-QWidget#LadybirdCrashReportReview QLineEdit:disabled {{
+QWidget#LadybirdReportReview QLineEdit:disabled {{
     color: {4};
 }}
 
-QWidget#LadybirdCrashReportReview QFrame#CrashReportDetails {{
+QWidget#LadybirdReportReview QFrame#ReportDetails {{
     background: {0};
     border: 1px solid {1};
     border-radius: 8px;
@@ -1124,7 +1124,7 @@ QWidget#LadybirdCrashReportReview QFrame#CrashReportDetails {{
 }
 
 // Placeholders hint at what to write, so they stay readable rather than taking the platform's faintest text color.
-QColor crash_report_review_placeholder_text(QPalette const& palette)
+QColor report_review_placeholder_text(QPalette const& palette)
 {
     return mix(chrome_text(palette), chrome_surface_recessed(palette), 0.45);
 }

@@ -32,6 +32,7 @@
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
+#include <UI/Qt/ReportReview.h>
 #ifdef AK_OS_MACOS
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -1318,9 +1319,9 @@ void WebContentView::set_crash_overlay_visible(bool visible)
         auto* heading = new QWidget(header);
         auto* heading_layout = new QVBoxLayout(heading);
         heading_layout->setContentsMargins(0, 0, 0, 0);
-        heading_layout->setSpacing(CrashReportReviewWidget::item_spacing);
+        heading_layout->setSpacing(ReportReview::item_spacing);
 
-        auto* title = CrashReportReviewWidget::create_title(tr("Ladybird flew off-course!"), heading);
+        auto* title = ReportReview::create_title(tr("Ladybird flew off-course!"), heading);
 
         m_crash_overlay_url = new CrashOverlayUrlLabel(heading);
 
@@ -1350,7 +1351,7 @@ void WebContentView::set_crash_overlay_visible(bool visible)
 
         auto* column_layout = new QVBoxLayout(column);
         column_layout->setContentsMargins(0, 0, 0, 0);
-        column_layout->setSpacing(CrashReportReviewWidget::group_spacing);
+        column_layout->setSpacing(ReportReview::group_spacing);
         column_layout->addWidget(header);
         column_layout->addWidget(m_crash_overlay_reload_button, 0, Qt::AlignLeft);
         if (WebView::CrashReport::is_supported()) {
