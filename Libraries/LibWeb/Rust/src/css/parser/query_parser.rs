@@ -6,7 +6,7 @@
 
 use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_pixels::CssPixels;
-use crate::css::css_tokenizer::{ParserString, ParserTokenKind, TokenizerInput, tokenize_for_parser};
+use crate::css::css_tokenizer::{ParserString, ParserTokenKind, TextDetacher, TokenizerInput, tokenize_for_parser};
 use crate::css::custom_properties::environment_variable_is_known;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{
@@ -1524,13 +1524,117 @@ impl FfiQueryHandle {
     }
 }
 
-pub(crate) fn media_query_handle(query: MediaQuery) -> Arc<FfiQueryHandle> {
+impl MediaQuery {
+    fn detach(&mut self, detacher: &mut TextDetacher) {
+        if let Some(media_type) = &mut self.media_type {
+            media_type.detach(detacher);
+        }
+        if let Some(condition) = &mut self.condition {
+            condition.detach(detacher);
+        }
+    }
+}
+
+impl Expression {
+    /// Detaches every component value and string the expression keeps (see `ComponentValue::detach`).
+    fn detach(&mut self, detacher: &mut TextDetacher) {
+        match self {
+            Self::Not(expression)
+            | Self::InParens(expression)
+            | Self::StyleFunction(expression)
+            | Self::ScrollStateFunction(expression) => expression.detach(detacher),
+            Self::And(expressions) | Self::Or(expressions) => expressions
+                .iter_mut()
+                .for_each(|expression| expression.detach(detacher)),
+            Self::GeneralEnclosed { component, .. } => component.detach(detacher),
+            Self::GeneralEnclosedValues { components, .. } => {
+                components.iter_mut().for_each(|value| value.detach(detacher));
+            }
+            Self::QueryFeature(feature) => feature.detach(detacher),
+            Self::SupportsFeature(feature) => feature.detach(detacher),
+            Self::StyleFeature(feature) => feature.detach(detacher),
+        }
+    }
+}
+
+impl QueryFeature {
+    fn detach(&mut self, detacher: &mut TextDetacher) {
+        match self {
+            Self::Boolean { .. } => {}
+            Self::Plain { value, .. } => value.components.iter_mut().for_each(|value| value.detach(detacher)),
+            Self::Range { left, right, .. } => {
+                if let Some((value, _)) = left {
+                    value.components.iter_mut().for_each(|value| value.detach(detacher));
+                }
+                if let Some((_, value)) = right {
+                    value.components.iter_mut().for_each(|value| value.detach(detacher));
+                }
+            }
+        }
+    }
+}
+
+impl SupportsFeature {
+    fn detach(&mut self, detacher: &mut TextDetacher) {
+        match self {
+            Self::Declaration { components, .. } | Self::Selector { components, .. } => {
+                components.iter_mut().for_each(|value| value.detach(detacher));
+            }
+            Self::FontTech { name, .. }
+            | Self::FontFormat { name, .. }
+            | Self::AtRule { name, .. }
+            | Self::Env { name, .. } => name.detach(detacher),
+        }
+    }
+}
+
+impl StyleRangeValue {
+    fn detach(&mut self, detacher: &mut TextDetacher) {
+        match self {
+            Self::Property(name) => name.detach(detacher),
+            Self::Components(components) => components.iter_mut().for_each(|value| value.detach(detacher)),
+        }
+    }
+}
+
+impl StyleFeature {
+    fn detach(&mut self, detacher: &mut TextDetacher) {
+        match self {
+            Self::Boolean(name) => name.detach(detacher),
+            Self::Plain {
+                name,
+                value,
+                original_source,
+                original_value_source,
+            } => {
+                name.detach(detacher);
+                value.iter_mut().for_each(|value| value.detach(detacher));
+                original_source.detach(detacher);
+                original_value_source.detach(detacher);
+            }
+            Self::Range {
+                left, middle, right, ..
+            } => {
+                left.detach(detacher);
+                middle.detach(detacher);
+                if let Some((_, right)) = right {
+                    right.detach(detacher);
+                }
+            }
+        }
+    }
+}
+
+// NB: A query outlives the parse of its sheet, so its handle detaches it from the sheet's text.
+pub(crate) fn media_query_handle(mut query: MediaQuery) -> Arc<FfiQueryHandle> {
+    TextDetacher::detach(|detacher| query.detach(detacher));
     Arc::new(FfiQueryHandle {
         tree: QueryTree::MediaQuery(query),
     })
 }
 
-pub(crate) fn expression_query_handle(expression: Expression, kind: QueryKind) -> Arc<FfiQueryHandle> {
+pub(crate) fn expression_query_handle(mut expression: Expression, kind: QueryKind) -> Arc<FfiQueryHandle> {
+    TextDetacher::detach(|detacher| expression.detach(detacher));
     Arc::new(FfiQueryHandle {
         tree: QueryTree::Expression { expression, kind },
     })

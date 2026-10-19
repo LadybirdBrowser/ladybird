@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_tokenizer::{
-    ParserSource, ParserString, ParserToken, ParserTokenKind, SmallParserTokenList, SourcePosition,
+    ParserSource, ParserString, ParserToken, ParserTokenKind, SmallParserTokenList, SourcePosition, TextDetacher,
 };
 use crate::css::serialize::{StringUnits, TextSink, serialize_a_string, serialize_an_identifier};
 use smallvec::SmallVec;
@@ -36,6 +36,23 @@ pub(crate) struct ComponentValue {
 }
 
 impl ComponentValue {
+    /// Copies the value's text out of the sheet's source and token storage, for a value that outlives its parse.
+    /// Otherwise the value keeps the text of the whole sheet alive.
+    pub(crate) fn detach(&mut self, detacher: &mut TextDetacher) {
+        self.original_source_text.detach(detacher);
+        match &mut self.kind {
+            ComponentKind::Token(token) => token.detach(detacher),
+            ComponentKind::Function { name, values } => {
+                name.detach(detacher);
+                values.iter_mut().for_each(|value| value.detach(detacher));
+            }
+            ComponentKind::SimpleBlock { opening, values } => {
+                opening.detach(detacher);
+                values.iter_mut().for_each(|value| value.detach(detacher));
+            }
+        }
+    }
+
     pub(crate) fn end_of_file() -> Self {
         Self {
             kind: ComponentKind::Token(ParserTokenKind::EndOfFile),
