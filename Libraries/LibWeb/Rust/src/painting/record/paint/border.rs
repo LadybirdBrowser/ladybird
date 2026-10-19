@@ -1084,8 +1084,14 @@ fn paint_uniform_solid_border(
 
     // Two lines of a third of the width each, as paint_border splits a double edge. The inner ring is pulled in
     // by the gap between the lines, which also takes that much off each radius, and its inner outline is the
-    // padding box either way.
-    let line_widths = widths.map(|width| split_line_width(width, 1.0 / 3.0));
+    // padding box either way. An absent edge stays absent rather than being clamped up to a 1px line.
+    let line_widths = widths.map(|width| {
+        if width > 0 {
+            split_line_width(width, 1.0 / 3.0)
+        } else {
+            0
+        }
+    });
     painter.fill_rounded_rect_ring(
         border_rect,
         corner_radii,
