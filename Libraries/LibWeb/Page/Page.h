@@ -31,6 +31,8 @@
 #include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibMedia/Forward.h>
+#include <LibMediaClient/Forward.h>
 #include <LibRequests/CacheState.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -896,6 +898,9 @@ public:
     virtual void page_did_update_primary_selection(Utf16String const&) { }
 
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
+    // Every audio context and media element gets its own, which plays its sound for this page.
+    virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory();
+    virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager();
     virtual void page_did_change_screen_wake_lock_state(ScreenWakeLockState) { }
 
     virtual void page_did_start_using_gamepads() { }

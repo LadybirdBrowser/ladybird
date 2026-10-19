@@ -2374,7 +2374,7 @@ void HTMLMediaElement::on_metadata_parsed(SourceType source_type)
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
-    m_playback_manager = MediaClient::RemotePlaybackManager::create();
+    m_playback_manager = document().page().client().create_media_playback_manager();
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
@@ -2479,7 +2479,7 @@ void HTMLMediaElement::handle_playback_manager_error(Media::DecoderError&& error
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_local(Function<void(Utf16String)> failure_callback)
 {
-    m_playback_manager = MediaClient::RemotePlaybackManager::create();
+    m_playback_manager = document().page().client().create_media_playback_manager();
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 

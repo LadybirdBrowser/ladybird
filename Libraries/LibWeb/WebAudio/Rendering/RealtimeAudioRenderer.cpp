@@ -5,21 +5,23 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
 
 namespace Web::WebAudio::Rendering {
 
-NonnullRefPtr<RealtimeAudioRenderer> RealtimeAudioRenderer::create(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size)
+NonnullRefPtr<RealtimeAudioRenderer> RealtimeAudioRenderer::create(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
 {
-    return adopt_ref(*new RealtimeAudioRenderer(move(control_message_queue), destination_node_id, sample_rate, quantum_size));
+    return adopt_ref(*new RealtimeAudioRenderer(move(control_message_queue), destination_node_id, sample_rate, quantum_size, move(audio_output_factory)));
 }
 
-RealtimeAudioRenderer::RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size)
+RealtimeAudioRenderer::RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
     : m_control_message_queue(move(control_message_queue))
     , m_destination_node_id(destination_node_id)
     , m_sample_rate(sample_rate)
     , m_quantum_size(quantum_size)
     , m_main_thread_event_loop(Core::EventLoop::current())
+    , m_audio_output_factory(move(audio_output_factory))
 {
 }
 
@@ -43,7 +45,7 @@ void RealtimeAudioRenderer::start_rendering()
 
     // The stream is created in a suspended state so the device configuration can be recorded before the first data
     // request callback runs on the audio thread.
-    auto promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime buffer_starts_playing_at) { return self->fill_output_buffer(buffer, buffer_starts_playing_at); });
+    auto promise = m_audio_output_factory->open_output(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime buffer_starts_playing_at) { return self->fill_output_buffer(buffer, buffer_starts_playing_at); });
     promise->when_resolved([self = NonnullRefPtr(*this)](NonnullRefPtr<Audio::PlaybackStream>& stream) {
         self->set_playback_stream(stream);
     });

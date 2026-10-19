@@ -19,7 +19,7 @@ struct SharedDataRequestCallback : public AtomicRefCounted<SharedDataRequestCall
     PlaybackStream::AudioDataRequestCallback callback;
 };
 
-NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, NonnullRefPtr<OutputSession> session, AudioDataRequestCallback data_request_callback)
 {
     auto promise = PlaybackStream::CreatePromise::construct();
     auto shared_callback = make_ref_counted<SharedDataRequestCallback>(move(data_request_callback));
@@ -46,7 +46,7 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState 
         fall_back_to_null(connection.error());
         return promise;
     }
-    auto remote_promise = connection.value()->create_stream(initial_output_state, target_latency_ms, make_data_request_callback());
+    auto remote_promise = connection.value()->create_stream(initial_output_state, target_latency_ms, move(session), make_data_request_callback());
     remote_promise->when_resolved([promise](NonnullRefPtr<PlaybackStream>& stream) {
         promise->resolve(stream);
     });

@@ -12,6 +12,8 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/ExternalMemory.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
+#include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
@@ -491,6 +493,16 @@ void SVGDecodedImageData::SVGPageClient::request_frame()
 
     for (auto& svg_image_data : m_svg_image_data)
         svg_image_data.did_request_frame();
+}
+
+NonnullRefPtr<Media::AudioOutputFactory> SVGDecodedImageData::SVGPageClient::create_audio_output_factory()
+{
+    return m_host_page->client().create_audio_output_factory();
+}
+
+NonnullOwnPtr<MediaClient::RemotePlaybackManager> SVGDecodedImageData::SVGPageClient::create_media_playback_manager()
+{
+    return m_host_page->client().create_media_playback_manager();
 }
 
 void SVGDecodedImageData::did_request_frame()

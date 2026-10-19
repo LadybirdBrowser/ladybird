@@ -5,6 +5,7 @@
  */
 
 #include "FakeDeviceStream.h"
+#include <AK/AnyOf.h>
 #include <AK/Atomic.h>
 #include <AK/Mutex.h>
 #include <AK/Time.h>
@@ -14,14 +15,18 @@
 #include <AudioServer/ServerConnection.h>
 #include <LibAudio/AudioDevices.h>
 #include <LibAudio/ClientConnection.h>
+#include <LibAudio/OutputSession.h>
 #include <LibAudio/RemotePlaybackStream.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibTest/TestCase.h>
 #include <math.h>
 
 static constexpr u32 CHANNEL_COUNT = FakeDeviceStream::CHANNEL_COUNT;
+static constexpr Audio::PlaybackGroupId AUTHORIZED_GROUP { 1 };
+static constexpr Audio::PlaybackGroupId OTHER_GROUP { 2 };
 
 // What the data request callback hands out. Declared before the fixture, since the pump may still be in the callback
 // when a test drops its stream.
@@ -82,6 +87,7 @@ struct RemoteFixture {
     WeakPtr<Audio::ServerConnection> server_weak;
     RefPtr<Audio::ClientConnection> client;
     WeakPtr<Audio::ClientConnection> client_weak;
+    NonnullRefPtr<Audio::OutputSession> session { Audio::OutputSession::create(AUTHORIZED_GROUP) };
     bool server_died { false };
 
     RemoteFixture()
@@ -92,6 +98,7 @@ struct RemoteFixture {
             promise->resolve(*device);
             return promise;
         });
+        mixer->set_group_authorization(AUTHORIZED_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
         auto paired = MUST(IPC::Transport::create_paired());
         server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, Audio::ServerConnection::DeviceEnumeration::Platform, Audio::CaptureDevices::create([](Audio::SampleSpecification const&, u32, StringView, Audio::RecordStream::RecordCallback) { return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("No capture in this test")); }), [](ByteString const&, Function<void(bool)> on_decided) { on_decided(false); });
         server->set_capture_permitted(true);
@@ -127,9 +134,14 @@ struct RemoteFixture {
 
     RefPtr<Audio::PlaybackStream> create_stream(Audio::OutputState initial_state, Source& source)
     {
+        return create_stream(initial_state, source, session);
+    }
+
+    RefPtr<Audio::PlaybackStream> create_stream(Audio::OutputState initial_state, Source& source, NonnullRefPtr<Audio::OutputSession> stream_session)
+    {
         RefPtr<Audio::PlaybackStream> stream;
         bool rejected = false;
-        auto promise = client->create_stream(initial_state, TARGET_LATENCY_MS, source.callback());
+        auto promise = client->create_stream(initial_state, TARGET_LATENCY_MS, move(stream_session), source.callback());
         promise->when_resolved([&](NonnullRefPtr<Audio::PlaybackStream>& created) { stream = created; });
         promise->when_rejected([&](Error&) { rejected = true; });
         EXPECT(pump_until([&] { return stream || rejected; }));
@@ -158,6 +170,27 @@ struct RemoteFixture {
             auto output = device->render(frames_per_render);
             return all_of(output, [&](float sample) { return sample == expected; });
         });
+    }
+
+    // The server answers a playing stream's resume once it has handled every message sent before it.
+    void wait_for_the_server_to_catch_up(Audio::PlaybackStream& stream)
+    {
+        bool answered = false;
+        stream.resume()->when_resolved([&] { answered = true; }).when_rejected([](Error&&) { });
+        EXPECT(pump_until([&] { return answered; }));
+    }
+
+    // Renders until the source has supplied another tenth of a second, none of which may be heard.
+    void expect_to_play_unheard(Source& source)
+    {
+        auto frames_supplied_before = source.frames_supplied.load();
+        bool heard = false;
+        EXPECT(pump_until([&] {
+            if (device->is_playing())
+                heard |= any_of(device->render(480), [](float sample) { return sample != 0.0f; });
+            return source.frames_supplied.load() > frames_supplied_before + FakeDeviceStream::SAMPLE_RATE / 10;
+        }));
+        EXPECT(!heard);
     }
 };
 
@@ -348,6 +381,71 @@ TEST_CASE(a_volume_outside_the_unit_range_disconnects_the_client)
     }
 }
 
+TEST_CASE(a_session_rebound_before_its_first_stream_is_declared_with_its_new_group)
+{
+    Source source;
+    RemoteFixture fixture;
+    auto session = Audio::OutputSession::create(OTHER_GROUP);
+    session->set_group(AUTHORIZED_GROUP);
+    auto stream = fixture.create_stream(Audio::OutputState::Suspended, source, session);
+    (void)stream->resume();
+    EXPECT(fixture.render_until_full_buffer_of(1.0f));
+}
+
+TEST_CASE(a_session_rebound_while_its_stream_is_created_takes_the_stream_along)
+{
+    Source source;
+    RemoteFixture fixture;
+    RefPtr<Audio::PlaybackStream> stream;
+    {
+        auto session = Audio::OutputSession::create(OTHER_GROUP);
+        auto promise = fixture.client->create_stream(Audio::OutputState::Playing, RemoteFixture::TARGET_LATENCY_MS, session, source.callback());
+        promise->when_resolved([&](NonnullRefPtr<Audio::PlaybackStream>& created) { stream = created; });
+        session->set_group(AUTHORIZED_GROUP);
+    }
+    // The creation holds the session's last reference until the stream takes it over.
+    EXPECT(fixture.pump_until([&] { return stream; }));
+    EXPECT(fixture.render_until_full_buffer_of(1.0f));
+}
+
+TEST_CASE(rebinding_a_session_moves_its_playing_streams)
+{
+    Source source;
+    RemoteFixture fixture;
+    auto stream = fixture.create_stream(Audio::OutputState::Suspended, source);
+    (void)stream->resume();
+    EXPECT(fixture.render_until_full_buffer_of(1.0f));
+
+    fixture.session->set_group(OTHER_GROUP);
+    fixture.wait_for_the_server_to_catch_up(*stream);
+    fixture.expect_to_play_unheard(source);
+
+    fixture.session->set_group(AUTHORIZED_GROUP);
+    EXPECT(fixture.render_until_full_buffer_of(1.0f));
+}
+
+TEST_CASE(naming_an_undeclared_session_disconnects_the_client)
+{
+    static constexpr u64 UNDECLARED_SESSION_ID = 1234;
+    Vector<Function<void(Audio::ClientConnection&)>> misbehaviours;
+    misbehaviours.append([](auto& client) { client.async_create_stream(1, UNDECLARED_SESSION_ID); });
+    misbehaviours.append([](auto& client) { client.async_rebind_session(UNDECLARED_SESSION_ID, AUTHORIZED_GROUP); });
+    misbehaviours.append([](auto& client) { client.async_destroy_session(UNDECLARED_SESSION_ID); });
+    for (auto& misbehave : misbehaviours) {
+        RemoteFixture fixture;
+        misbehave(*fixture.client);
+        EXPECT(fixture.pump_until([&] { return fixture.server_died; }));
+    }
+}
+
+TEST_CASE(declaring_a_session_twice_disconnects_the_client)
+{
+    RemoteFixture fixture;
+    fixture.client->async_declare_session(1234, OTHER_GROUP);
+    fixture.client->async_declare_session(1234, AUTHORIZED_GROUP);
+    EXPECT(fixture.pump_until([&] { return fixture.server_died; }));
+}
+
 TEST_CASE(losing_the_connection_reports_output_lost_and_settles_requests)
 {
     Source source;
@@ -499,6 +597,7 @@ struct RemoteSinkFixture {
             promise->resolve(*device);
             return promise;
         });
+        mixer->set_group_authorization(AUTHORIZED_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
         Audio::ClientConnection::set_transport_factory([this]() -> ErrorOr<NonnullOwnPtr<IPC::Transport>> {
             connections_requested++;
             if (!accepting_connections)
@@ -542,7 +641,7 @@ struct RemoteSinkFixture {
 TEST_CASE(audio_playback_sink_reopens_its_output_after_loss_with_a_seek_in_flight)
 {
     RemoteSinkFixture fixture;
-    auto remote_output_factory = Media::AudioOutputFactory::create();
+    auto remote_output_factory = Media::AudioOutputFactory::create(Audio::OutputSession::create(AUTHORIZED_GROUP));
     RefPtr<Media::AudioPlaybackSink> sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, remote_output_factory));
     sink->start();
     sink->resume();
@@ -560,5 +659,42 @@ TEST_CASE(audio_playback_sink_reopens_its_output_after_loss_with_a_seek_in_fligh
 
     fixture.close_connections_and_wait_for_the_client_to_die();
     sink = nullptr;
+    fixture.pump_until([] { return false; }, AK::Duration::from_milliseconds(10));
+}
+
+TEST_CASE(a_session_is_declared_on_a_new_connection_with_its_latest_group)
+{
+    Source source;
+    RemoteSinkFixture fixture;
+    auto session = Audio::OutputSession::create(OTHER_GROUP);
+    auto open_stream = [&] {
+        RefPtr<Audio::PlaybackStream> stream;
+        Audio::PlaybackStream::create(Audio::OutputState::Playing, RemoteFixture::TARGET_LATENCY_MS, session, source.callback())->when_resolved([&](NonnullRefPtr<Audio::PlaybackStream>& created) { stream = created; });
+        EXPECT(fixture.pump_until([&] { return stream; }));
+        return stream;
+    };
+    auto stream = open_stream();
+    session->set_group(AUTHORIZED_GROUP);
+
+    // The connection goes away, and the stream that replaces it is heard as part of the group the session has now.
+    bool output_lost = false;
+    stream->on_output_lost = [&] { output_lost = true; };
+    fixture.servers.clear();
+    EXPECT(fixture.pump_until([&] { return output_lost; }));
+    stream = open_stream();
+    EXPECT_EQ(fixture.connections_requested, 2u);
+    EXPECT(fixture.pump_until([&] {
+        if (!fixture.device->is_playing())
+            return false;
+        return all_of(fixture.device->render(480), [](float sample) { return sample == 1.0f; });
+    }));
+
+    // The client goes before the loop does.
+    output_lost = false;
+    stream->on_output_lost = [&] { output_lost = true; };
+    fixture.accepting_connections = false;
+    fixture.servers.clear();
+    EXPECT(fixture.pump_until([&] { return output_lost; }));
+    stream = nullptr;
     fixture.pump_until([] { return false; }, AK::Duration::from_milliseconds(10));
 }

@@ -16,8 +16,9 @@ static size_t frames_for_latency(u32 latency_ms, u32 sample_rate)
     return max<size_t>(1, static_cast<size_t>(latency_ms) * sample_rate / 1000);
 }
 
-RemotePlaybackStream::RemotePlaybackStream(ClientConnection& connection, u64 stream_id, SampleSpecification specification, u32 ring_latency_ms, OutputState initial_state, AudioDataRequestCallback callback)
+RemotePlaybackStream::RemotePlaybackStream(ClientConnection& connection, u64 stream_id, NonnullRefPtr<OutputSession> session, SampleSpecification specification, u32 ring_latency_ms, OutputState initial_state, AudioDataRequestCallback callback)
     : m_connection(connection)
+    , m_session(move(session))
     , m_control_loop(connection.event_loop())
     , m_stream_id(stream_id)
     , m_sample_specification(specification)
@@ -38,8 +39,9 @@ RemotePlaybackStream::~RemotePlaybackStream()
 {
     m_connection->unregister_stream({}, *this);
     // The last reference may go on the pump thread. The connection is reference counted on its own thread only, so
-    // the reference moves into the deferred call and is released there, along with the goodbye.
-    run_on_control_thread([connection = move(m_connection), stream_id = m_stream_id] {
+    // the reference moves into the deferred call and is released there, along with the goodbye. The session goes after
+    // it, so the server hears of the stream's end first.
+    run_on_control_thread([connection = move(m_connection), session = move(m_session), stream_id = m_stream_id] {
         connection->stream_destroyed({}, stream_id);
     });
 }

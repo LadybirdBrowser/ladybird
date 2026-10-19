@@ -2422,4 +2422,14 @@ void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessI
     VERIFY_NOT_REACHED();
 }
 
+NonnullRefPtr<Media::AudioOutputFactory> PageClient::create_audio_output_factory()
+{
+    VERIFY_NOT_REACHED();
+}
+
+NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playback_manager()
+{
+    VERIFY_NOT_REACHED();
+}
+
 }
