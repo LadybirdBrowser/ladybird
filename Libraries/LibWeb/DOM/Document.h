@@ -1313,7 +1313,6 @@ public:
         u64 style_update_remainder_microseconds { 0 };
         u64 relayouts_performed { 0 };
         u64 style_update_microseconds { 0 };
-        u64 style_recompute_microseconds { 0 };
         u64 custom_property_resolutions { 0 };
         u64 custom_property_elements { 0 };
         // What resolving those declared values actually walked: every entry into computing one
