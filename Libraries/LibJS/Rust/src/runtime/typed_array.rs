@@ -138,7 +138,10 @@ pub static TYPED_ARRAY_BASE_METHODS: ObjectMethods = ObjectMethods {
     internal_has_property: TypedArrayBase::internal_has_property,
     internal_define_own_property: TypedArrayBase::internal_define_own_property,
     internal_get: TypedArrayBase::internal_get,
-    is_cacheable_for_property_absence: |_| false,
+    is_cacheable_for_absence_of: |_, _, property_key| {
+        property_key.is_symbol()
+            || canonical_numeric_index_string(property_key, CanonicalIndexMode::DetectNumericRoundtrip).is_undefined()
+    },
     internal_set: TypedArrayBase::internal_set,
     internal_delete: TypedArrayBase::internal_delete,
     internal_own_property_keys: TypedArrayBase::internal_own_property_keys,

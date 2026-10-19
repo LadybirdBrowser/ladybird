@@ -2465,7 +2465,7 @@ impl Object {
         let this_value = Value::from_object(self.as_gc());
         let mut prototype = self.internal_get_prototype_of(vm)?;
         while let Some(current) = prototype {
-            if !current.is_cacheable_for_property_absence() {
+            if !current.is_cacheable_for_absence_of(vm, property_key) {
                 return current.internal_set(
                     vm,
                     property_key,
