@@ -83,6 +83,9 @@ impl GraphBuilder<'_> {
         }
         let result = if let Some(integer) = self.int32_value_of(argument) {
             self.build_int32_math_function(&mut slow_paths, op, integer)
+        } else if let Some(double) = self.float64_value_of(argument) {
+            let result = self.emit(Op::Float64Unary { op }, vec![double], Some(Repr::Float64));
+            self.emit(Op::BoxFloat64, vec![result], Some(Repr::Tagged))
         } else {
             // NB: Int32 arguments, then doubles.
             let (int32, other) = self.branch_both_ways(BranchCondition::Int32Value, vec![argument]);
@@ -167,6 +170,17 @@ impl GraphBuilder<'_> {
         match (node.repr, &node.op) {
             (Some(Repr::Int32), _) => Some(value),
             (_, Op::BoxInt32) => Some(node.inputs[0]),
+            _ => None,
+        }
+    }
+
+    /// The `Repr::Float64` value of `value`, if it is known to be a double:
+    /// itself, or what it boxes.
+    pub(super) fn float64_value_of(&self, value: NodeId) -> Option<NodeId> {
+        let node = self.graph.node(value);
+        match (node.repr, &node.op) {
+            (Some(Repr::Float64), _) => Some(value),
+            (_, Op::BoxFloat64) => Some(node.inputs[0]),
             _ => None,
         }
     }
