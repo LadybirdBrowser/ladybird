@@ -98,6 +98,7 @@ static constexpr int TAB_BUTTON_SIZE = 22;
 static constexpr int TAB_BUTTON_ICON_SIZE = 14;
 static constexpr qreal LOAD_SHEEN_FADE_PROGRESS = 0.15;
 static constexpr int LOAD_SHEEN_DURATION_MS = 400;
+static constexpr int DROP_PREVIEW_DURATION_MS = 150;
 static constexpr int TAB_TITLE_FADE_WIDTH = 24;
 static constexpr int TAB_ICON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_BUTTON_SIZE = 16;
@@ -587,6 +588,20 @@ TabBar::TabBar(TabWidget* tab_widget)
         if (m_hover_progress <= 0.0)
             m_hover_animation_tab_index = -1;
     });
+
+    m_drop_preview_animation = new QVariantAnimation(this);
+    m_drop_preview_animation->setDuration(DROP_PREVIEW_DURATION_MS);
+    m_drop_preview_animation->setEasingCurve(QEasingCurve::OutCubic);
+    m_drop_preview_animation->setStartValue(0.0);
+    m_drop_preview_animation->setEndValue(1.0);
+    connect(m_drop_preview_animation, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
+        m_drop_preview_progress = value.toReal();
+        if (m_drop_preview_start.strip_growth != m_drop_preview_target.strip_growth)
+            updateGeometry();
+        update_tab_button_geometry();
+        update();
+    });
+
     connect(this, &QTabBar::currentChanged, this, [this](int index) {
         hide_tab_preview();
         ensure_tab_visible(index);
@@ -656,7 +671,7 @@ void TabBar::recreate_icons()
 QSize TabBar::sizeHint() const
 {
     if (tab_layout() != TabLayout::Horizontal)
-        return vertical_size_hint(count());
+        return vertical_size_hint(count()) + QSize(0, qRound(current_strip_growth()));
     return QTabBar::sizeHint();
 }
 
@@ -751,9 +766,14 @@ void TabBar::paintEvent(QPaintEvent*)
     auto text_color = ChromeStyle::chrome_text(palette());
     auto is_vertical = tab_layout() != TabLayout::Horizontal;
     auto is_collapsed_vertical = tab_layout() == TabLayout::VerticalCollapsed;
+    auto dragged_index = dragged_tab_index();
 
     for (int index = 0; index < count(); ++index) {
-        auto tab_rect = visual_tab_rect(index);
+        // The tab being dragged follows the cursor as the drag's image, leaving a gap where it would be dropped.
+        if (index == dragged_index)
+            continue;
+
+        auto tab_rect = shifted_tab_rect(index);
         if (!tab_rect.isValid())
             continue;
         if (is_vertical && (tab_rect.bottom() < 0 || tab_rect.top() > height()))
@@ -880,28 +900,6 @@ void TabBar::paintEvent(QPaintEvent*)
         painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine, title);
         painter.restore();
     }
-
-    if (m_drop_indicator_index >= 0 && count() > 0) {
-        auto indicator_color = ChromeStyle::chrome_accent();
-        indicator_color.setAlpha(220);
-        painter.setPen(QPen(indicator_color, 3, Qt::SolidLine, Qt::RoundCap));
-
-        if (is_vertical) {
-            auto indicator_y = m_drop_indicator_index >= count()
-                ? visual_tab_rect(count() - 1).bottom() + 3
-                : visual_tab_rect(m_drop_indicator_index).top() + 1;
-            indicator_y = max(3, min(height() - 3, indicator_y));
-            painter.drawLine(QPointF(10, indicator_y), QPointF(width() - 10, indicator_y));
-            return;
-        }
-
-        auto indicator_x = m_drop_indicator_index >= count()
-            ? visual_tab_rect(count() - 1).right() + 3
-            : visual_tab_rect(m_drop_indicator_index).left() + 1;
-        indicator_x = max(2, min(width() - 3, indicator_x));
-
-        painter.drawLine(QPointF(indicator_x, 8), QPointF(indicator_x, height() - 6));
-    }
 }
 
 void TabBar::contextMenuEvent(QContextMenuEvent* event)
@@ -932,28 +930,19 @@ void TabBar::dragEnterEvent(QDragEnterEvent* event)
 void TabBar::dragLeaveEvent(QDragLeaveEvent* event)
 {
     hide_tab_preview();
-    m_drop_indicator_index = -1;
-    update();
+    hide_drop_preview();
     QTabBar::dragLeaveEvent(event);
 }
 
 void TabBar::dragMoveEvent(QDragMoveEvent* event)
 {
     if (!m_tab_widget || !target_can_accept_tab_drop(*m_tab_widget, *event)) {
-        if (m_drop_indicator_index != -1) {
-            m_drop_indicator_index = -1;
-            update();
-        }
+        hide_drop_preview();
         event->ignore();
         return;
     }
 
-    auto drop_indicator_index = drop_indicator_index_for_insertion_index(insertion_index_at(event->position().toPoint()));
-    if (m_drop_indicator_index != drop_indicator_index) {
-        m_drop_indicator_index = drop_indicator_index;
-        update();
-    }
-
+    update_drop_preview(event->position().toPoint());
     event->setDropAction(Qt::MoveAction);
     event->accept();
 }
@@ -962,18 +951,16 @@ void TabBar::dropEvent(QDropEvent* event)
 {
     hide_tab_preview();
     if (!m_tab_widget || !target_can_accept_tab_drop(*m_tab_widget, *event)) {
-        if (m_drop_indicator_index != -1) {
-            m_drop_indicator_index = -1;
-            update();
-        }
+        hide_drop_preview();
         event->ignore();
         return;
     }
 
     s_pending_tab_drop_target = m_tab_widget;
-    s_pending_tab_drop_index = insertion_index_at(event->position().toPoint());
-    m_drop_indicator_index = -1;
-    update();
+    s_pending_tab_drop_index = drop_index_at(event->position().toPoint());
+
+    // NB: The drop preview stays up until the tab has actually moved, so the other tabs never jump back to their old
+    //     places first.
     event->setDropAction(Qt::MoveAction);
     event->accept();
 }
@@ -1124,42 +1111,176 @@ void TabBar::wheelEvent(QWheelEvent* event)
         event->ignore();
 }
 
-int TabBar::insertion_index_at(QPoint const& position) const
+Optional<int> TabBar::dragged_tab_index() const
+{
+    if (!m_tab_widget || s_active_tab_drag_source != m_tab_widget || !s_active_tab_dragged_tab)
+        return {};
+    if (auto index = m_tab_widget->index_of(s_active_tab_dragged_tab); index >= 0)
+        return index;
+    return {};
+}
+
+// A tab dragged in from elsewhere needs a gap of its own. Vertical tabs make room by moving the tabs after the gap
+// down, while horizontal tabs narrow to fit the gap within the strip's current width.
+qreal TabBar::drop_gap_extent() const
+{
+    if (tab_layout() != TabLayout::Horizontal)
+        return VERTICAL_TAB_HEIGHT;
+    if (count() == 0)
+        return 0;
+    return static_cast<qreal>(tabRect(count() - 1).right() + 1 - tabRect(0).left()) / (count() + 1);
+}
+
+// Returns the index that a tab dropped at the given position ends up at.
+int TabBar::drop_slot_at(QPoint const& position) const
 {
     if (count() == 0)
         return 0;
 
-    if (tab_layout() != TabLayout::Horizontal) {
-        auto unscrolled_y = position.y() + m_vertical_scroll_offset;
-        if (unscrolled_y <= 0)
-            return 0;
-        if (unscrolled_y >= count() * VERTICAL_TAB_HEIGHT)
-            return count();
+    auto is_vertical = tab_layout() != TabLayout::Horizontal;
+    auto first_tab_rect = visual_tab_rect(0);
+    auto strip_start = is_vertical ? first_tab_rect.top() : first_tab_rect.left();
 
-        auto index = unscrolled_y / VERTICAL_TAB_HEIGHT;
-        if (unscrolled_y > (index * VERTICAL_TAB_HEIGHT) + (VERTICAL_TAB_HEIGHT / 2))
-            return index + 1;
-        return index;
+    if (auto dragged_index = dragged_tab_index(); dragged_index.has_value()) {
+        auto dragged_tab_rect = visual_tab_rect(*dragged_index);
+        auto extent = is_vertical ? dragged_tab_rect.height() : dragged_tab_rect.width();
+        if (extent <= 0)
+            return *dragged_index;
+
+        // Follow the center of the dragged tab rather than the cursor, so that a neighbor makes way once the dragged
+        // tab covers half of it.
+        auto dragged_tab_position = position - m_position_in_selected_tab_while_dragging;
+        auto center = (is_vertical ? dragged_tab_position.y() : dragged_tab_position.x()) + (extent / 2);
+        return clamp((center - strip_start) / extent, 0, count() - 1);
     }
 
-    auto index = tab_index_at(position);
-    if (index < 0)
-        return position.x() < visual_tab_rect(0).center().x() ? 0 : count();
-
-    if (position.x() > visual_tab_rect(index).center().x())
-        return index + 1;
-    return index;
+    auto extent = drop_gap_extent();
+    if (extent <= 0)
+        return count();
+    auto position_in_strip = (is_vertical ? position.y() : position.x()) - strip_start;
+    return clamp(static_cast<int>(position_in_strip / extent), 0, count());
 }
 
-int TabBar::drop_indicator_index_for_insertion_index(int insertion_index) const
+// Returns the index to insert a tab dropped at the given position at. It counts the dragged tab in its old place, as
+// moving it out of the way comes first.
+int TabBar::drop_index_at(QPoint const& position) const
 {
-    if (s_active_tab_drag_source == m_tab_widget && s_active_tab_dragged_tab) {
-        auto dragged_tab_index = m_tab_widget->index_of(s_active_tab_dragged_tab);
-        if (dragged_tab_index >= 0 && (insertion_index == dragged_tab_index || insertion_index == dragged_tab_index + 1))
-            return -1;
+    auto drop_slot = drop_slot_at(position);
+    auto dragged_index = dragged_tab_index();
+    return dragged_index.has_value() && drop_slot > *dragged_index ? drop_slot + 1 : drop_slot;
+}
+
+void TabBar::update_drop_preview(QPoint const& position)
+{
+    set_drop_slot(drop_slot_at(position));
+}
+
+void TabBar::hide_drop_preview()
+{
+    set_drop_slot({});
+}
+
+void TabBar::set_drop_slot(Optional<int> slot)
+{
+    if (m_drop_slot == slot)
+        return;
+
+    m_drop_slot = slot;
+    m_drop_preview_start = current_drop_preview();
+    m_drop_preview_target = drop_preview_for_slot(slot);
+    m_drop_preview_progress = 0.0;
+    m_drop_preview_animation->stop();
+    m_drop_preview_animation->start();
+}
+
+void TabBar::clear_drop_preview()
+{
+    m_drop_preview_animation->stop();
+    m_drop_slot = {};
+    m_drop_preview_start = {};
+    m_drop_preview_target = {};
+    m_drop_preview_progress = 1.0;
+    updateGeometry();
+    update_tab_button_geometry();
+    update();
+}
+
+TabBar::DropPreview TabBar::drop_preview_for_slot(Optional<int> slot) const
+{
+    DropPreview preview;
+    preview.tab_shifts.resize(count());
+    if (!slot.has_value())
+        return preview;
+
+    auto is_vertical = tab_layout() != TabLayout::Horizontal;
+
+    // The tabs between the dragged tab and its drop slot move over by one to fill the dragged tab's place.
+    if (auto dragged_index = dragged_tab_index(); dragged_index.has_value()) {
+        auto dragged_tab_rect = visual_tab_rect(*dragged_index);
+        auto extent = is_vertical ? dragged_tab_rect.height() : dragged_tab_rect.width();
+        for (int index = *dragged_index + 1; index <= *slot; ++index)
+            preview.tab_shifts[index].offset = -extent;
+        for (int index = *slot; index < *dragged_index; ++index)
+            preview.tab_shifts[index].offset = extent;
+        return preview;
     }
 
-    return insertion_index;
+    auto gap_extent = drop_gap_extent();
+    auto first_tab_rect = visual_tab_rect(0);
+    auto strip_start = is_vertical ? first_tab_rect.top() : first_tab_rect.left();
+    for (int index = 0; index < count(); ++index) {
+        auto tab_rect = visual_tab_rect(index);
+        auto slot_index = index < *slot ? index : index + 1;
+        auto& shift = preview.tab_shifts[index];
+        shift.offset = strip_start + (slot_index * gap_extent) - (is_vertical ? tab_rect.top() : tab_rect.left());
+        shift.extent_delta = gap_extent - (is_vertical ? tab_rect.height() : tab_rect.width());
+    }
+    if (is_vertical)
+        preview.strip_growth = gap_extent;
+    return preview;
+}
+
+TabBar::DropPreview TabBar::current_drop_preview() const
+{
+    DropPreview preview;
+    for (int index = 0; index < count(); ++index)
+        preview.tab_shifts.append(current_tab_shift(index));
+    preview.strip_growth = current_strip_growth();
+    return preview;
+}
+
+TabBar::TabShift TabBar::current_tab_shift(int index) const
+{
+    auto shift_in = [index](DropPreview const& preview) {
+        if (index < 0 || static_cast<size_t>(index) >= preview.tab_shifts.size())
+            return TabShift {};
+        return preview.tab_shifts[index];
+    };
+
+    auto start = shift_in(m_drop_preview_start);
+    auto target = shift_in(m_drop_preview_target);
+    return {
+        .offset = start.offset + ((target.offset - start.offset) * m_drop_preview_progress),
+        .extent_delta = start.extent_delta + ((target.extent_delta - start.extent_delta) * m_drop_preview_progress),
+    };
+}
+
+qreal TabBar::current_strip_growth() const
+{
+    auto start = m_drop_preview_start.strip_growth;
+    return start + ((m_drop_preview_target.strip_growth - start) * m_drop_preview_progress);
+}
+
+// Returns where a tab is drawn, which differs from its place in the layout while tabs move aside for a dragged tab.
+QRect TabBar::shifted_tab_rect(int index) const
+{
+    auto tab_rect = visual_tab_rect(index);
+    auto shift = current_tab_shift(index);
+    auto start_delta = qRound(shift.offset);
+    auto end_delta = qRound(shift.offset + shift.extent_delta);
+    if (tab_layout() == TabLayout::Horizontal)
+        return tab_rect.adjusted(start_delta, 0, end_delta, 0);
+    return tab_rect.adjusted(0, start_delta, 0, end_delta);
 }
 
 QPixmap TabBar::render_tab_drag_pixmap(int index) const
@@ -1199,8 +1320,11 @@ void TabBar::start_tab_drag(int index)
     s_active_tab_dragged_tab = dragged_tab;
     s_pending_tab_drop_target = nullptr;
     s_pending_tab_drop_index = -1;
+    update_tab_button_geometry();
+    update();
 
     auto action = drag->exec(Qt::MoveAction, Qt::MoveAction);
+    auto drop_target = s_pending_tab_drop_target;
 
     auto* source_window = qobject_cast<BrowserWindow*>(window());
     if (source_window && dragged_tab) {
@@ -1221,6 +1345,11 @@ void TabBar::start_tab_drag(int index)
     s_pending_tab_drop_target = nullptr;
     s_pending_tab_drop_index = -1;
     m_pressed_tab = nullptr;
+
+    // The dropped tab has taken its place in the target's layout by now, so the tabs can go back to their own places.
+    clear_drop_preview();
+    if (drop_target && drop_target != m_tab_widget)
+        drop_target->tab_bar()->clear_drop_preview();
 }
 
 void TabBar::start_hover_animation(int tab_index, qreal target_progress)
@@ -1525,9 +1654,13 @@ void TabBar::update_tab_button_geometry()
         set_button_collapsed_overlay(button, collapsed_overlay);
     };
 
+    auto dragged_index = dragged_tab_index();
+
     if (tab_layout() == TabLayout::Horizontal) {
         for (int index = 0; index < count(); ++index) {
-            auto shape_rect = horizontal_tab_card_shape_rect(QRectF(tabRect(index)));
+            auto is_dragged = index == dragged_index;
+            auto tab_rect = shifted_tab_rect(index);
+            auto shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect));
             auto* left_button = tabButton(index, QTabBar::LeftSide);
             prepare_button(left_button, false);
             // NB: The style puts a tab's left button 1pt inside the tab's pill, where its icon looks flush against the
@@ -1536,6 +1669,8 @@ void TabBar::update_tab_button_geometry()
                 auto x = qRound(shape_rect.left()) + 3;
                 if (left_button->x() != x)
                     left_button->move(x, left_button->y());
+                if (left_button->isVisible() == is_dragged)
+                    left_button->setVisible(!is_dragged);
             }
             auto* close_button = tabButton(index, QTabBar::RightSide);
             prepare_button(close_button, false);
@@ -1546,7 +1681,7 @@ void TabBar::update_tab_button_geometry()
             if (close_button->x() != close_button_x)
                 close_button->move(close_button_x, close_button->y());
             auto minimum_width = index == currentIndex() ? HORIZONTAL_ACTIVE_TAB_CLOSE_BUTTON_MIN_WIDTH : HORIZONTAL_TAB_CLOSE_BUTTON_MIN_WIDTH;
-            auto show_close_button = tabRect(index).width() >= minimum_width;
+            auto show_close_button = !is_dragged && tab_rect.width() >= minimum_width;
             if (close_button->isVisible() != show_close_button)
                 close_button->setVisible(show_close_button);
         }
@@ -1582,7 +1717,8 @@ void TabBar::update_tab_button_geometry()
             ? x - 6 >= icon_left + TAB_ICON_SIZE
             : x + button_size.width() + 6 + TAB_ICON_SIZE <= shape_rect.right() - TAB_CONTENT_HORIZONTAL_INSET;
 
-        auto should_be_visible = has_room_for_icon && (position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index);
+        auto should_be_visible = index != dragged_index && has_room_for_icon
+            && (position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index);
         auto did_update_button = false;
         if (button->isVisible() != should_be_visible) {
             button->setVisible(should_be_visible);
@@ -1606,7 +1742,7 @@ void TabBar::update_tab_button_geometry()
             return;
         prepare_button(button, true);
 
-        auto should_be_visible = position == QTabBar::LeftSide || index == m_hovered_tab_index;
+        auto should_be_visible = index != dragged_index && (position == QTabBar::LeftSide || index == m_hovered_tab_index);
         bool did_update_button = false;
         if (button->isVisible() != should_be_visible) {
             button->setVisible(should_be_visible);
@@ -1642,7 +1778,7 @@ void TabBar::update_tab_button_geometry()
     };
 
     for (int index = 0; index < count(); ++index) {
-        auto tab_rect = visual_tab_rect(index);
+        auto tab_rect = shifted_tab_rect(index);
         if (!tab_rect.isValid())
             continue;
 
@@ -2024,14 +2160,22 @@ void TabWidget::dragEnterEvent(QDragEnterEvent* event)
     accept_tab_drag(event);
 }
 
+void TabWidget::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    m_tab_bar->hide_drop_preview();
+    QWidget::dragLeaveEvent(event);
+}
+
 void TabWidget::dragMoveEvent(QDragMoveEvent* event)
 {
     accept_tab_drag(event);
 }
 
+// A tab dropped elsewhere in the tab strip's area, such as past the new tab button, lands at the nearest end of the
+// strip.
 void TabWidget::dropEvent(QDropEvent* event)
 {
-    accept_tab_drop(event, m_tab_bar->count());
+    accept_tab_drop(event, m_tab_bar->drop_index_at(m_tab_bar->mapFrom(this, event->position().toPoint())));
 }
 
 bool TabWidget::eventFilter(QObject* watched, QEvent* event)
@@ -2179,6 +2323,7 @@ void TabWidget::size_hidden_pages_like_the_current_one()
 void TabWidget::accept_tab_drag(QDragMoveEvent* event)
 {
     if (!target_can_accept_tab_drop(*this, *event)) {
+        m_tab_bar->hide_drop_preview();
         event->ignore();
         return;
     }
@@ -2186,10 +2331,12 @@ void TabWidget::accept_tab_drag(QDragMoveEvent* event)
     auto* drag_area = tab_drag_area_widget();
     auto position_in_drag_area = drag_area->mapFrom(this, event->position().toPoint());
     if (!drag_area->rect().contains(position_in_drag_area)) {
+        m_tab_bar->hide_drop_preview();
         event->ignore();
         return;
     }
 
+    m_tab_bar->update_drop_preview(m_tab_bar->mapFrom(this, event->position().toPoint()));
     event->setDropAction(Qt::MoveAction);
     event->accept();
 }
