@@ -1093,7 +1093,17 @@ impl<'pass> GridFormattingContext<'pass> {
             // A subgrid shares its parent grid's memo, so only an independent grid starts a fresh one.
             self.subgrid_block_size_memo = std::cell::OnceCell::new();
         }
-        self.available_space = Some(input.available_space);
+        // https://drafts.csswg.org/css-sizing-3/#max-content-block-size
+        // The box's “ideal” size in the block axis. Usually the block size of the content after layout.
+        // NB: So we lay the grid out with an indefinite block size when measuring its intrinsic block sizes, instead of
+        //     sizing rows under a min-content or max-content constraint. Under such a constraint, a `0fr` row would
+        //     take its items' limited min-content contributions and grow.
+        // INTEROP: Chrome, Firefox and WebKit measure a grid container's min-content block size this way too.
+        let mut available_space = input.available_space;
+        if available_space.block_size.is_intrinsic_sizing_constraint() {
+            available_space.block_size = AvailableSize::Indefinite;
+        }
+        self.available_space = Some(available_space);
         self.layout_input = Some(input);
         self.column_lines.clear();
         self.row_lines.clear();
@@ -2468,8 +2478,14 @@ impl<'pass> GridFormattingContext<'pass> {
         Some(result)
     }
 
+    // NB: The grid container's own sizing properties resolve against the space it was given, not the indefinite block
+    //     size its rows are sized with during intrinsic measurement.
+    fn container_available_space(&self) -> AvailableSpace {
+        self.layout_input.unwrap().available_space
+    }
+
     fn calculate_grid_container_maximum_size(&self, axis: Axis) -> CssPixels {
-        let available = self.available_space.unwrap();
+        let available = self.container_available_space();
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         self.sizing().calculate_inner_size_for_property(
             self.run.box_,
@@ -2481,7 +2497,8 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn grid_container_maximum_size(&self, axis: Axis) -> Option<CssPixels> {
-        let available = self.axis_available(axis);
+        let space = self.container_available_space();
+        let available = axis.select(space.inline_size, space.block_size);
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         let is_none = if axis.is_column() {
             self.sizing()
@@ -2897,13 +2914,14 @@ impl<'pass> GridFormattingContext<'pass> {
             ),
             matches!(style.align_content(), align_content::NORMAL | align_content::STRETCH),
         );
+        let available = self.axis_available(axis);
+        debug_assert!(axis.is_column() || !available.is_intrinsic_sizing_constraint());
         run_track_sizing(
             &mut tracks,
             CssPixels::default(),
             &mut contributions,
-            self.axis_available(axis),
+            available,
             || self.grid_container_maximum_size_for_maximize_tracks(axis),
-            !axis.is_column(),
             distribution_stretches,
         );
         self.store_interleaved_tracks(axis, &tracks);
@@ -3361,7 +3379,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn used_container_block_size_for_second_row_layout(&self) -> CssPixels {
         let mut block_size = self.automatic_content_block_size;
-        let available = self.available_space.unwrap();
+        let available = self.container_available_space();
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         let style = self.style(self.run.box_);
         let sizing = self.sizing();
@@ -4270,7 +4288,6 @@ pub(crate) fn resolve_intrinsic_track_sizes(
     tracks: &mut [Track<'_>],
     items: &mut [ItemContribution],
     available: AvailableSize,
-    row_axis: bool,
 ) {
     // https://www.w3.org/TR/css-grid-2/#algo-content
     // 12.5. Resolve Intrinsic Track Sizes
@@ -4425,9 +4442,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         }
         let dominated = |track: &Track| match phase {
             FlexibleMinimumPhase::Intrinsic => {
-                available == AvailableSize::MaxContent
-                    || (row_axis && available == AvailableSize::MinContent)
-                    || track.min_sizing.is_intrinsic(available)
+                available == AvailableSize::MaxContent || track.min_sizing.is_intrinsic(available)
             }
             FlexibleMinimumPhase::MinContent => track.min_sizing.is_min_content() || track.min_sizing.is_max_content(),
             FlexibleMinimumPhase::LimitedMaxContent => {
@@ -4455,11 +4470,8 @@ pub(crate) fn resolve_intrinsic_track_sizes(
             if flexible_count == 0 {
                 continue;
             }
-            // NB: Preserve the minimum-contribution behavior for min-content column sizing. Rows still need
-            //     limited min-content contributions here to account for their intrinsic height.
-            let use_limited_min_content =
-                available == AvailableSize::MaxContent || (row_axis && available == AvailableSize::MinContent);
-            let mut contribution = if use_limited_min_content {
+            // NB: Preserve the minimum-contribution behavior for min-content sizing.
+            let mut contribution = if available == AvailableSize::MaxContent {
                 if total_flex == 0.0 && item.is_scroll_container {
                     // https://drafts.csswg.org/css-grid-2/#min-size-auto
                     // A grid item's automatic minimum size is zero if its computed overflow is a scrollable
@@ -4652,7 +4664,6 @@ pub(crate) fn run_track_sizing<MaximumSize>(
     items: &mut [ItemContribution],
     available: AvailableSize,
     grid_container_maximum_size: MaximumSize,
-    row_axis: bool,
     content_distribution_is_normal_or_stretch: bool,
 ) where
     MaximumSize: FnOnce() -> Option<CssPixels>,
@@ -4663,7 +4674,7 @@ pub(crate) fn run_track_sizing<MaximumSize>(
     // 1. Initialize Track Sizes
     let has_flexible = initialize_track_sizes(tracks, available);
     // 2. Resolve Intrinsic Track Sizes
-    resolve_intrinsic_track_sizes(tracks, items, available, row_axis);
+    resolve_intrinsic_track_sizes(tracks, items, available);
     // 3. Maximize Tracks
     let saved_base_sizes = tracks
         .iter()
@@ -5413,7 +5424,7 @@ mod tests {
         let mut tracks = [Track::auto(); 3];
         let mut items = [contribution(0..1, 10), contribution(1..3, 40), contribution(0..3, 80)];
         initialize_track_sizes(&mut tracks, AvailableSize::MaxContent);
-        resolve_intrinsic_track_sizes(&mut tracks, &mut items, AvailableSize::MaxContent, false);
+        resolve_intrinsic_track_sizes(&mut tracks, &mut items, AvailableSize::MaxContent);
         assert_eq!(tracks.map(|track| track.base_size.to_int()), [20, 30, 30]);
         for track in &tracks {
             assert_eq!(track.growth_limit, Some(track.base_size));
@@ -5479,28 +5490,26 @@ mod tests {
             AvailableSize::MaxContent,
             AvailableSize::Indefinite,
         ] {
-            for row_axis in [false, true] {
-                let mut expected = None;
-                for offset in 0..items.len() {
-                    let mut items = items.clone();
-                    items.rotate_left(offset);
-                    let mut tracks = [
-                        Track::auto(),
-                        Track::gap(CssPixels::from_integer(2)),
-                        Track::auto(),
-                        Track::auto(),
-                        Track::auto(),
-                    ];
-                    tracks[2].min_sizing = TrackSizingFunction::MinContent;
-                    tracks[4].max_sizing = TrackSizingFunction::Flex(0.5);
-                    initialize_track_sizes(&mut tracks, available);
-                    resolve_intrinsic_track_sizes(&mut tracks, &mut items, available, row_axis);
-                    let sizes = tracks.map(|track| (track.base_size, track.growth_limit));
-                    if let Some(expected) = expected {
-                        assert_eq!(sizes, expected);
-                    } else {
-                        expected = Some(sizes);
-                    }
+            let mut expected = None;
+            for offset in 0..items.len() {
+                let mut items = items.clone();
+                items.rotate_left(offset);
+                let mut tracks = [
+                    Track::auto(),
+                    Track::gap(CssPixels::from_integer(2)),
+                    Track::auto(),
+                    Track::auto(),
+                    Track::auto(),
+                ];
+                tracks[2].min_sizing = TrackSizingFunction::MinContent;
+                tracks[4].max_sizing = TrackSizingFunction::Flex(0.5);
+                initialize_track_sizes(&mut tracks, available);
+                resolve_intrinsic_track_sizes(&mut tracks, &mut items, available);
+                let sizes = tracks.map(|track| (track.base_size, track.growth_limit));
+                if let Some(expected) = expected {
+                    assert_eq!(sizes, expected);
+                } else {
+                    expected = Some(sizes);
                 }
             }
         }
