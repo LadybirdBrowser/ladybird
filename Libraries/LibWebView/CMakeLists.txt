@@ -52,6 +52,7 @@ set(SOURCES
     TabPerformanceMonitor.cpp
     ProcessMonitor.cpp
     Profile.cpp
+    ReportSubmission.cpp
     RequestServerManager.cpp
     RequestServerSiteBindings.cpp
     SearchEngine.cpp

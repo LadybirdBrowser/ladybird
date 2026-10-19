@@ -26,7 +26,7 @@
 #include <unistd.h>
 
 using Ladybird::CrashReportReviewWidget;
-using WebView::CrashReportSubmission;
+using WebView::ReportSubmission;
 
 static constexpr auto report_text = "Ladybird crash report, format 1\n"
                                     "Process: WebContent\n"
@@ -123,7 +123,7 @@ TEST_CASE(the_review_offers_to_exit_before_and_after_answering)
     EXPECT_EQ(exits, 2);
 
     // A report that may still be sent offers both.
-    widget.show_failure(CrashReportSubmission::Failure::Sending, "Network error while contacting the report server."_string);
+    widget.show_failure(ReportSubmission::Failure::Sending, "Network error while contacting the report server."_string);
     EXPECT(child<QPushButton>(widget, "CrashReportRetryButton").isVisible());
     EXPECT(exit_button.isVisible());
     EXPECT(!exit_button.isDefault());
@@ -198,7 +198,7 @@ TEST_CASE(sending_shows_its_progress_and_outcome)
     auto& message = child<QLabel>(widget, "CrashReportStatusMessage");
     auto& retry = child<QPushButton>(widget, "CrashReportRetryButton");
 
-    widget.show_progress(CrashReportSubmission::Stage::SolvingProof);
+    widget.show_progress(ReportSubmission::Stage::SolvingProof);
     EXPECT_EQ(status_title(widget), "Sending crash report");
     EXPECT_EQ(message.text(), "Preparing report…");
 
@@ -206,11 +206,11 @@ TEST_CASE(sending_shows_its_progress_and_outcome)
     EXPECT_EQ(message.text(), "Report server returned 503 while sending the report. Trying again in 3 seconds (2 of 5)…");
 
     // Only a report that failed to reach the server can be sent again.
-    widget.show_failure(CrashReportSubmission::Failure::Sending, "Network error while contacting the report server."_string);
+    widget.show_failure(ReportSubmission::Failure::Sending, "Network error while contacting the report server."_string);
     EXPECT_EQ(status_title(widget), "Couldn’t send report");
     EXPECT(retry.isVisible());
 
-    widget.show_failure(CrashReportSubmission::Failure::Preparation, "Could not prepare this report."_string);
+    widget.show_failure(ReportSubmission::Failure::Preparation, "Could not prepare this report."_string);
     EXPECT(!retry.isVisible());
     EXPECT(child<QPushButton>(widget, "CrashReportExitButton").isVisible());
 

@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 using WebView::CrashReportReview;
-using WebView::CrashReportSubmission;
+using WebView::ReportSubmission;
 
 static constexpr auto report_text = "Ladybird crash report, format 1\n"
                                     "Process: WebContent\n"
@@ -231,7 +231,7 @@ TEST_CASE(a_report_changed_after_it_was_reviewed_is_not_sent)
     auto file = MUST(directory.open(name, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
     MUST(file->write_until_depleted("Ladybird crash report, format 1\nProcess: Browser\n"sv.bytes()));
 
-    Optional<CrashReportSubmission::Failure> failure;
+    Optional<ReportSubmission::Failure> failure;
     String reason;
     review.on_failed = [&](auto kind, String message) {
         failure = kind;
@@ -239,7 +239,7 @@ TEST_CASE(a_report_changed_after_it_was_reviewed_is_not_sent)
     };
 
     EXPECT(!review.send(""_string, {}).has_value());
-    EXPECT(failure == CrashReportSubmission::Failure::Preparation);
+    EXPECT(failure == ReportSubmission::Failure::Preparation);
     EXPECT_EQ(reason, "This report changed after it was reviewed, so it was not sent."sv);
     EXPECT(!review.is_sending());
 }
