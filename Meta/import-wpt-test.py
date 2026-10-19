@@ -87,7 +87,7 @@ class LinkedResourceFinder(HTMLParser):
         self._tag_stack_.append(tag)
         if ":" in tag:
             tag = tag.split(":", 1)[-1]
-        if tag in ["script", "img", "iframe"]:
+        if tag in ["script", "img", "iframe", "audio", "video", "source"]:
             attr_dict = dict(attrs)
             if "src" in attr_dict:
                 self._resources.add(attr_dict["src"])
