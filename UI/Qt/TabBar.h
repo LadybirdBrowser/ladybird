@@ -69,6 +69,10 @@ public:
     void play_load_sheen(Tab&);
     void update_loading_swirl_animation();
 
+    int drop_index_at(QPoint const&) const;
+    void update_drop_preview(QPoint const&);
+    void hide_drop_preview();
+
 private:
     virtual QSize sizeHint() const override;
     virtual QSize minimumSizeHint() const override;
@@ -92,8 +96,25 @@ private:
     virtual void mouseReleaseEvent(QMouseEvent*) override;
     virtual void wheelEvent(QWheelEvent*) override;
 
-    int insertion_index_at(QPoint const&) const;
-    int drop_indicator_index_for_insertion_index(int insertion_index) const;
+    struct TabShift {
+        qreal offset { 0 };
+        qreal extent_delta { 0 };
+    };
+    struct DropPreview {
+        Vector<TabShift> tab_shifts;
+        qreal strip_growth { 0 };
+    };
+
+    Optional<int> dragged_tab_index() const;
+    qreal drop_gap_extent() const;
+    int drop_slot_at(QPoint const&) const;
+    void set_drop_slot(Optional<int>);
+    void clear_drop_preview();
+    DropPreview drop_preview_for_slot(Optional<int>) const;
+    DropPreview current_drop_preview() const;
+    TabShift current_tab_shift(int index) const;
+    qreal current_strip_growth() const;
+    QRect shifted_tab_rect(int index) const;
     QPixmap render_tab_drag_pixmap(int index) const;
     void toggle_window_maximized();
     bool start_window_move();
@@ -127,8 +148,13 @@ private:
     int m_hover_animation_tab_index { -1 };
     int m_vertical_scroll_offset { 0 };
     qreal m_hover_progress { 0.0 };
-    int m_drop_indicator_index { -1 };
     QVariantAnimation* m_hover_animation { nullptr };
+
+    Optional<int> m_drop_slot;
+    DropPreview m_drop_preview_start;
+    DropPreview m_drop_preview_target;
+    qreal m_drop_preview_progress { 1.0 };
+    QVariantAnimation* m_drop_preview_animation { nullptr };
 
     struct LoadSheen {
         QPointer<Tab> tab;
@@ -194,6 +220,7 @@ signals:
 
 protected:
     virtual void dragEnterEvent(QDragEnterEvent*) override;
+    virtual void dragLeaveEvent(QDragLeaveEvent*) override;
     virtual void dragMoveEvent(QDragMoveEvent*) override;
     virtual void dropEvent(QDropEvent*) override;
     virtual bool event(QEvent* event) override;
