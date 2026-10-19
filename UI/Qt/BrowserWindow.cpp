@@ -1550,28 +1550,28 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     }
 }
 
-void BrowserWindow::request_close_preflight_for_quit(Function<void(bool approved)> on_complete)
+void BrowserWindow::request_close_preflight(Function<void(bool approved)> on_complete)
 {
     if (m_window_close_approved) {
         on_complete(true);
         return;
     }
 
-    // A close the user already started on this window gives way to the quit's check, which asks every page again.
+    // A close the user already started on this window gives way to the caller's check, which asks every page again.
     if (m_window_close_coordinator.is_running())
         cancel_window_close_preflight();
 
     begin_window_close_preflight(AK::move(on_complete));
 }
 
-void BrowserWindow::raise_for_quit_prompt()
+void BrowserWindow::raise_for_close_prompt()
 {
-    // Only a quit's check carries a completion; a close the user started on this window is already in front.
+    // Only an application-wide check carries a completion; a close the user started on this window is already in front.
     if (!m_window_close_coordinator.is_running() || !m_window_close_preflight_on_complete)
         return;
 
     // A page's beforeunload prompt shows inside this window, which may sit behind other windows or in the Dock while a
-    // quit asks it, so the window comes to the front first, where the user can see the prompt.
+    // close check asks it, so the window comes to the front first, where the user can see the prompt.
     if (isMinimized())
         setWindowState(windowState() & ~Qt::WindowMinimized);
     raise();
