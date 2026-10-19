@@ -114,7 +114,7 @@ void VideoPresentationServerConnection::create_registered_video_edge(VideoSinkHa
     auto remote_edge = remote_edge_or_error.release_value();
 
     m_edge_states.set(edge_id, EdgeState { remote_edge.sink, video_sink_handle });
-    async_video_edge_ready(edge_id, remote_edge.sink->edge(), remote_edge.sink->presented_frame_page(), remote_edge.time_reader);
+    async_video_edge_ready(edge_id, remote_edge.sink->edge(), remote_edge.time_reader);
     PlaybackManager::attach_video_edge({}, video_sink_handle, remote_edge.sink);
 }
 

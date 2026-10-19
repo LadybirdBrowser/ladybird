@@ -36,7 +36,7 @@ public:
     // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
     bool replace_visual_context_tree(Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
     void apply_resource_transaction(Compositing::DisplayListResourceTransaction&&);
-    void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::VideoSink>);
+    void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::DisplayingVideoSink>);
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_resource_storage.video_sink_handles(); }
 
     RefPtr<Compositing::DisplayList const> const& display_list() const { return m_display_list; }

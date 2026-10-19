@@ -31,8 +31,6 @@ public:
     virtual void set_time_reader(MediaTimeReader) = 0;
     virtual void set_state_change_handler(PipelineStateChangeHandler) = 0;
     virtual void set_resize_handler(PipelineResizeHandler) = 0;
-
-    virtual RefPtr<VideoFrame> current_frame() const = 0;
 };
 
 }

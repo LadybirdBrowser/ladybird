@@ -33,7 +33,7 @@ struct DisplayListStoredImageFrameResource {
 struct DisplayListStoredVideoSinkResource {
     AK_ALLOC_WITH_KMALLOC;
 
-    RefPtr<Media::VideoSink> sink;
+    RefPtr<Media::DisplayingVideoSink> sink;
 };
 
 bool DisplayListResourceSet::is_empty() const
@@ -440,13 +440,13 @@ DisplayListResourceSet DisplayListResourceStorage::retain_only(DisplayListResour
     return removed_resources;
 }
 
-void DisplayListResourceStorage::set_video_sink(VideoSinkResourceId id, RefPtr<Media::VideoSink> sink)
+void DisplayListResourceStorage::set_video_sink(VideoSinkResourceId id, RefPtr<Media::DisplayingVideoSink> sink)
 {
     m_has_resources_added_since_last_retain = true;
     m_video_sinks.ensure(id.value(), [] { return make<DisplayListStoredVideoSinkResource>(); })->sink = move(sink);
 }
 
-RefPtr<Media::VideoSink const> DisplayListResourceStorage::video_sink(VideoSinkResourceId id) const
+RefPtr<Media::DisplayingVideoSink const> DisplayListResourceStorage::video_sink(VideoSinkResourceId id) const
 {
     auto stored = m_video_sinks.find(id.value());
     if (stored == m_video_sinks.end())

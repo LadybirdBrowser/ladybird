@@ -8,7 +8,6 @@
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/VideoEdgeQueue.h>
-#include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
 
 namespace Media {
@@ -53,7 +52,7 @@ void VideoPresentationClientConnection::release_edge(VideoSinkHandle handle)
     async_release_video_edge(*edge_id_to_release);
 }
 
-void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, VideoEdgeQueue edge, PresentedFramePage presented_frame_page, MediaTimeReader time_reader)
+void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, VideoEdgeQueue edge, MediaTimeReader time_reader)
 {
     auto edge_state = m_edge_states.get(edge_id);
     if (!edge_state.has_value())
@@ -85,7 +84,6 @@ void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, VideoEdgeQ
 
     auto sink = MUST(DisplayingVideoSink::try_create(time_reader));
     edge_state->time_reader = time_reader;
-    sink->set_presented_frame_page(move(presented_frame_page));
     sink->set_state_change_handler([weak_connection, edge_id](PipelineStatus status) {
         weak_connection.with_target([&](auto& connection) {
             VERIFY(connection.m_owner_thread_id.is_current_thread());

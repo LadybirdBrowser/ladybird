@@ -69,7 +69,7 @@ void ContextScene::apply_resource_transaction(Compositing::DisplayListResourceTr
     m_raster_cache.evict(m_resource_storage.apply_transaction(move(resource_transaction)));
 }
 
-void ContextScene::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::VideoSink> sink)
+void ContextScene::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::DisplayingVideoSink> sink)
 {
     m_resource_storage.set_video_sink(frame_id, move(sink));
 }

@@ -432,16 +432,6 @@ void ConnectionFromClient::set_video_sink_ticking(u64 session_id, Media::VideoSi
         Media::PlaybackManager::set_video_sink_ticking(handle, ticking);
 }
 
-Messages::MediaServer::MapPresentedFrameSlotResponse ConnectionFromClient::map_presented_frame_slot(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id, u32 slot_index)
-{
-    if (!find_playback_session(session_id))
-        return { OptionalNone {}, nullptr };
-    auto storage = Media::PlaybackManager::presented_frame_slot_storage(handle, pool_id, slot_index);
-    if (!storage.has_value())
-        return { OptionalNone {}, nullptr };
-    return { move(storage->buffer), move(storage->surface) };
-}
-
 void ConnectionFromClient::create_source_buffer(u64 session_id, u64 source_buffer_id)
 {
     if (auto* session = find_playback_session(session_id))

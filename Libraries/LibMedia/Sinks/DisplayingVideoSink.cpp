@@ -9,7 +9,6 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
 
 #include "DisplayingVideoSink.h"
 
@@ -219,12 +218,8 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         }
     }
 
-    if (new_frame_available) {
-        if (m_presented_frame_page.has_value())
-            m_presented_frame_page->store(m_current_frame ? VideoFrameHandle::for_frame(*m_current_frame) : VideoFrameHandle {});
-        if (m_on_present_needed)
-            m_on_present_needed();
-    }
+    if (new_frame_available && m_on_present_needed)
+        m_on_present_needed();
 
     if (status_to_dispatch != m_last_dispatched_status) {
         // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while

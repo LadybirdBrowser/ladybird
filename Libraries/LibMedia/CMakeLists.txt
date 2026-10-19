@@ -67,7 +67,6 @@ set(SOURCES
     TimeRanges.cpp
     Track.cpp
     VideoEdgeQueue.cpp
-    VideoPresentation/PresentedFramePage.cpp
     VideoPresentation/VideoPresentationClientConnection.cpp
     VideoPresentation/VideoPresentationServerConnection.cpp
 )

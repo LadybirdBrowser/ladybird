@@ -204,7 +204,7 @@ void ContextState::update_scroll_state(Compositing::ScrollStateSnapshot&& scroll
     adopt_keyboard_scroll_state(move(keyboard_scroll_state));
 }
 
-void ContextState::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::VideoSink> sink)
+void ContextState::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::DisplayingVideoSink> sink)
 {
     m_scene.set_video_sink(frame_id, move(sink));
 }

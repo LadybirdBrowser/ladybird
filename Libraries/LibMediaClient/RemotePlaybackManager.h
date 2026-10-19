@@ -28,12 +28,9 @@
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaClient/Forward.h>
 #include <LibMediaCodecs/DecoderError.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
-#include <LibMediaCodecs/VideoFramePool.h>
 
 namespace MediaClient {
 
@@ -65,10 +62,8 @@ public:
 
     Media::VideoSinkHandle reserve_video_sink_handle(Media::Track const&);
     void disable_video_sink_by_handle(Media::VideoSinkHandle);
-    void forget_presented_frame_page(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool);
     void set_video_resize_handler(Media::VideoSinkHandle, Function<void(Gfx::Size<u32>)>);
-    RefPtr<Media::VideoFrame> current_presented_frame(Media::VideoSinkHandle);
 
     void enable_an_audio_track(Media::Track const&);
     void disable_an_audio_track(Media::Track const&);
@@ -111,8 +106,6 @@ public:
     void media_stream_scan_state_changed(Badge<Client>, u64 stream_id, Media::DemuxerScanState);
     void error(Badge<Client>, Media::DecoderError);
     void video_resized(Badge<Client>, Media::VideoSinkHandle, Gfx::Size<u32>);
-    void video_edge_attached(Badge<Client>, Media::VideoSinkHandle, Media::PresentedFramePage);
-    void video_frame_pool_retired(Badge<Client>, Media::VideoSinkHandle, Media::VideoFramePoolID);
     void source_buffer_duration_received(Badge<Client>, u64 source_buffer_id, double duration);
     void source_buffer_first_initialization_segment_received(Badge<Client>, u64 source_buffer_id, Vector<Media::Track> const& audio_tracks, Vector<Media::Track> const& video_tracks, Vector<Media::Track> const& text_tracks);
     void source_buffer_coded_frames_processed(Badge<Client>, u64 source_buffer_id, AK::Duration group_end_timestamp);
@@ -128,8 +121,6 @@ private:
         }
 
         Media::Track track;
-        Optional<Media::PresentedFramePage> presented_frame_page;
-        NonnullRefPtr<Media::VideoFrameSlotDirectory> slot_directory { Media::VideoFrameSlotDirectory::create() };
         Function<void(Gfx::Size<u32>)> on_resize;
     };
 
