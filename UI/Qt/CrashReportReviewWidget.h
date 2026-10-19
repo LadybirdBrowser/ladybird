@@ -14,6 +14,7 @@
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibWebView/CrashReportReview.h>
+#include <LibWebView/ReportSubmission.h>
 
 #include <QWidget>
 
@@ -43,11 +44,11 @@ public:
 
     ErrorOr<void> open_report(Optional<ByteString> const& name = {}, Optional<String> const& website = {});
 
-    void show_progress(WebView::CrashReportSubmission::Stage);
+    void show_progress(WebView::ReportSubmission::Stage);
     void show_retry(String const& reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds);
     void show_sent();
     void show_declined();
-    void show_failure(WebView::CrashReportSubmission::Failure, String const& reason);
+    void show_failure(WebView::ReportSubmission::Failure, String const& reason);
 
     Function<void()> on_exit;
     // The user chose to send the report or not, so the screen around the review no longer needs to ask.

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebView/ReportDetail.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
 #include <UI/Qt/StringUtils.h>
@@ -94,7 +95,7 @@ static void clear_form(QFormLayout& form)
         form.removeRow(0);
 }
 
-static void add_field(QFormLayout& form, WebView::CrashReportReview::Field const& field, QWidget* parent)
+static void add_field(QFormLayout& form, WebView::ReportDetail const& field, QWidget* parent)
 {
     // Labels stay on one line, so each value starts level with its label however far it wraps.
     auto* label = create_label(qstring_from_ak_string(field.label), parent);
@@ -256,7 +257,7 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
             on_answered();
     });
     QObject::connect(m_retry_button, &QPushButton::clicked, this, [this] {
-        show_progress(WebView::CrashReportSubmission::Stage::Preparing);
+        show_progress(WebView::ReportSubmission::Stage::Preparing);
         VERIFY(!m_review.send(m_description, m_url).has_value());
     });
     QObject::connect(m_next_button, &QPushButton::clicked, this, [this] {
@@ -379,7 +380,7 @@ void CrashReportReviewWidget::send()
     }
 
     m_validation->hide();
-    show_progress(WebView::CrashReportSubmission::Stage::Preparing);
+    show_progress(WebView::ReportSubmission::Stage::Preparing);
     if (on_answered)
         on_answered();
     VERIFY(!m_review.send(m_description, m_url).has_value());
@@ -405,9 +406,9 @@ void CrashReportReviewWidget::show_status(QString const& title, QString const& m
         primary->setFocus(Qt::OtherFocusReason);
 }
 
-void CrashReportReviewWidget::show_progress(WebView::CrashReportSubmission::Stage stage)
+void CrashReportReviewWidget::show_progress(WebView::ReportSubmission::Stage stage)
 {
-    using Stage = WebView::CrashReportSubmission::Stage;
+    using Stage = WebView::ReportSubmission::Stage;
 
     auto percent = [&] {
         switch (stage) {
@@ -451,12 +452,12 @@ void CrashReportReviewWidget::show_declined()
     show_outcome(tr("Report not sent"), tr("This report stays on your device and is not sent."));
 }
 
-void CrashReportReviewWidget::show_failure(WebView::CrashReportSubmission::Failure failure, String const& reason)
+void CrashReportReviewWidget::show_failure(WebView::ReportSubmission::Failure failure, String const& reason)
 {
     m_progress->hide();
 
     // Only sending can succeed on another attempt. A report that could not be prepared would fail the same way again.
-    if (failure == WebView::CrashReportSubmission::Failure::Sending) {
+    if (failure == WebView::ReportSubmission::Failure::Sending) {
         show_status(tr("Couldn’t send report"), qstring_from_ak_string(reason), { m_retry_button, m_exit_button },
             m_retry_button);
         return;

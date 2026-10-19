@@ -181,7 +181,7 @@ Optional<JsonValue> manifest_field(JsonObject const& manifest, StringView key)
 
 struct Outcome {
     bool sent { false };
-    Optional<WebView::CrashReportSubmission::Failure> failure;
+    Optional<WebView::ReportSubmission::Failure> failure;
     String reason;
     Vector<u32> retry_delays;
 
@@ -193,7 +193,7 @@ void track(WebView::CrashReportReview& review, Outcome& outcome)
     outcome = {};
     review.on_retry = [&outcome](String const&, u32 retry_number, u32 maximum_retries, u32 delay_seconds) {
         VERIFY(retry_number == outcome.retry_delays.size() + 1);
-        VERIFY(maximum_retries == WebView::CrashReportSubmission::maximum_attempts - 1);
+        VERIFY(maximum_retries == WebView::ReportSubmission::maximum_attempts - 1);
         outcome.retry_delays.append(delay_seconds);
     };
     review.on_sent = [&outcome] { outcome.sent = true; };
@@ -306,7 +306,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     VERIFY(!review.send(""_string, {}).has_value());
     Core::EventLoop::current().spin_until([&] { return outcome.is_finished(); });
-    VERIFY(outcome.failure == WebView::CrashReportSubmission::Failure::Sending);
+    VERIFY(outcome.failure == WebView::ReportSubmission::Failure::Sending);
     VERIFY(outcome.reason == "Report server returned 400 while requesting a challenge."sv);
     VERIFY(outcome.retry_delays.is_empty());
     VERIFY(server.requests.size() == 1);

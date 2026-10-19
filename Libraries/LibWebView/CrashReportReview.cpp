@@ -158,9 +158,9 @@ Optional<String> CrashReportReview::send(String const& description, Optional<Str
         if (auto* self = weak_this.ptr())
             self->m_prepared_manifest = manifest;
     };
-    submission->on_retry = [weak_this = make_weak_ptr()](String reason, u32 retry_number, u32 delay_seconds) {
+    submission->on_retry = [weak_this = make_weak_ptr()](String reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds) {
         if (auto* self = weak_this.ptr(); self && self->on_retry)
-            self->on_retry(move(reason), retry_number, CrashReportSubmission::maximum_attempts - 1, delay_seconds);
+            self->on_retry(move(reason), retry_number, maximum_retries, delay_seconds);
     };
     submission->on_sent = [weak_this = make_weak_ptr()] {
         if (auto* self = weak_this.ptr()) {

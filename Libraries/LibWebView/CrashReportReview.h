@@ -17,6 +17,8 @@
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/CrashReportSubmission.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/ReportDetail.h>
+#include <LibWebView/ReportSubmission.h>
 
 namespace WebView {
 
@@ -28,17 +30,10 @@ public:
     static constexpr size_t maximum_description_bytes = 16384;
     static constexpr size_t maximum_url_bytes = 4096;
 
-    struct Field {
-        String label;
-        String value;
-        // Values such as a commit hash or a source location, which read best in a fixed-width font.
-        bool is_code { false };
-    };
-
     struct Report {
         ByteString name;
         // The fields that tell crashes apart. The rest is in the report itself, which show_report() opens.
-        Vector<Field> fields;
+        Vector<ReportDetail> fields;
     };
 
     explicit CrashReportReview(CrashReportStore& = CrashReportStore::the());
@@ -60,10 +55,10 @@ public:
     Optional<String> send(String const& description, Optional<String> const& url);
     bool is_sending() const { return m_submission; }
 
-    Function<void(CrashReportSubmission::Stage)> on_progress;
+    Function<void(ReportSubmission::Stage)> on_progress;
     Function<void(String reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds)> on_retry;
     Function<void()> on_sent;
-    Function<void(CrashReportSubmission::Failure, String reason)> on_failed;
+    Function<void(ReportSubmission::Failure, String reason)> on_failed;
 
 private:
     CrashReportStore& m_store;
