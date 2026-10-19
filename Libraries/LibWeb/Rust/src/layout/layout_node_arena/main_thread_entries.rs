@@ -56,19 +56,17 @@ mod tests {
             is_direct_without_box: true,
         };
         // SAFETY: As above. This queues the removal while the host still holds the child's layout node.
-        unsafe {
-            render_state_remove_box(
-                host,
-                parent_node.raw(),
-                child_node.raw(),
-                FfiDetachedBoxFacts {
-                    parent_is_body: false,
-                    previous_sibling: sibling,
-                    next_sibling: sibling,
-                    level: FfiDetachedBoxLevel::Block,
-                },
-            );
-        }
+        render_state_remove_box(
+            host,
+            parent_node.raw(),
+            child_node.raw(),
+            FfiDetachedBoxFacts {
+                parent_is_body: false,
+                previous_sibling: sibling,
+                next_sibling: sibling,
+                level: FfiDetachedBoxLevel::Block,
+            },
+        );
         // A recording can still name the removed image. Resolving it must apply the removal before answering.
         let resolved = render_state_node_shell_if_live(host, read, child);
         let shell_was_destroyed = !host.host_tables().shells.borrow().contains_key(&child);

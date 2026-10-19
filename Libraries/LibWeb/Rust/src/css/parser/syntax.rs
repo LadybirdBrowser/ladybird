@@ -430,11 +430,8 @@ pub(crate) fn parse_with_syntax(context: &ParseContext, source: &[u16], syntax: 
 }
 
 /// Parses a complete CSS syntax definition and returns an opaque syntax tree.
-///
-/// # Safety
-/// `source` must remain readable for `source_length` UTF-16 code units during this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_custom_ident: bool) -> *const c_void {
+pub extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_custom_ident: bool) -> *const c_void {
     let Some(source) = source.to_utf16() else {
         return std::ptr::null();
     };

@@ -165,11 +165,7 @@ pub extern "C" fn rust_descriptor_block_length(block: &FfiDescriptorBlock) -> us
 
 // The block owns the returned value until its next mutation.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_descriptor_block_get(
-    block: &FfiDescriptorBlock,
-    id: u8,
-    name: FfiUtf16View,
-) -> *const c_void {
+pub extern "C" fn rust_descriptor_block_get(block: &FfiDescriptorBlock, id: u8, name: FfiUtf16View) -> *const c_void {
     let name = name.units().unwrap();
     block
         .data()
@@ -244,11 +240,7 @@ pub unsafe extern "C" fn rust_descriptor_block_set(block: &mut FfiDescriptorBloc
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_descriptor_block_remove(
-    block: &mut FfiDescriptorBlock,
-    id: u8,
-    name: FfiUtf16View,
-) -> bool {
+pub extern "C" fn rust_descriptor_block_remove(block: &mut FfiDescriptorBlock, id: u8, name: FfiUtf16View) -> bool {
     let name = name.to_utf16().unwrap();
     let Some(index) =
         block.data().descriptors.iter().position(|descriptor| {
@@ -301,7 +293,7 @@ mod tests {
             first.value = Arc::as_ptr(&data.descriptors[1].value).cast();
             assert!(unsafe { rust_descriptor_block_set(&mut block, &first) });
             let second = data.descriptors[1].view();
-            assert!(unsafe { rust_descriptor_block_remove(&mut block, second.id, second.name) });
+            assert!(rust_descriptor_block_remove(&mut block, second.id, second.name));
             assert_eq!(block.data().descriptors.len(), 1);
             assert!(Arc::ptr_eq(
                 &block.data().descriptors[0].value,
@@ -336,7 +328,7 @@ mod tests {
         assert_eq!(rust_descriptor_block_length(block), 2);
         let allocations = DESCRIPTOR_OWNER_ALLOCATIONS.get();
         let descriptor = snapshot.descriptors[0].view();
-        let value = unsafe { rust_descriptor_block_get(block, descriptor.id, descriptor.name) };
+        let value = rust_descriptor_block_get(block, descriptor.id, descriptor.name);
         assert_eq!(value, descriptor.value);
         assert_eq!(
             serialize_descriptors(&block.data()).into_utf16(),
@@ -348,7 +340,11 @@ mod tests {
         assert!(matches!(*block.state.borrow(), DescriptorBlockState::Immutable(_)));
         assert!(rust_descriptor_block_external_memory_size(block) > 0);
         let mut fork = unsafe { Box::from_raw(rust_descriptor_block_share(block)) };
-        assert!(!unsafe { rust_descriptor_block_remove(&mut fork, CUSTOM_DESCRIPTOR_ID, FfiUtf16View::default()) });
+        assert!(!rust_descriptor_block_remove(
+            &mut fork,
+            CUSTOM_DESCRIPTOR_ID,
+            FfiUtf16View::default()
+        ));
         assert!(matches!(*block.state.borrow(), DescriptorBlockState::Immutable(_)));
         assert!(matches!(*fork.state.borrow(), DescriptorBlockState::Immutable(_)));
         assert!(Arc::ptr_eq(&snapshot, &fork.data()));
@@ -356,7 +352,11 @@ mod tests {
         let mut retained = unsafe { Box::from_raw(rust_descriptor_block_retain(block)) };
         assert!(Rc::ptr_eq(&block.owner(), &retained.owner()));
         let descriptor = snapshot.descriptors[0].view();
-        assert!(unsafe { rust_descriptor_block_remove(&mut retained, descriptor.id, descriptor.name) });
+        assert!(rust_descriptor_block_remove(
+            &mut retained,
+            descriptor.id,
+            descriptor.name
+        ));
         assert_eq!(rust_descriptor_block_length(block), 1);
         // The pinned snapshot still owns the removed descriptor.
         assert_eq!(
@@ -369,7 +369,11 @@ mod tests {
         assert!(matches!(*fork.state.borrow(), DescriptorBlockState::Immutable(_)));
         drop((rule, rules));
         let first = &snapshot.descriptors[0];
-        assert!(unsafe { rust_descriptor_block_remove(&mut fork, first.id, FfiUtf16View::default()) });
+        assert!(rust_descriptor_block_remove(
+            &mut fork,
+            first.id,
+            FfiUtf16View::default()
+        ));
         assert!(matches!(*fork.state.borrow(), DescriptorBlockState::Mutable(_)));
         assert_eq!(fork.data().descriptors.len(), 1);
         assert_eq!(retained.data().descriptors.len(), 2);

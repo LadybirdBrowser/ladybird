@@ -269,17 +269,8 @@ impl BoxRemoval {
 /// far: the render state detaches the node's box from the parent's box in place, or marks the parent for the next
 /// layout tree build to rebuild, as it finds the boxes. What the drop owes the host is paid once the job that applies
 /// it is done.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_remove_box(
-    host: &DocumentHost,
-    parent: u32,
-    child: u32,
-    facts: FfiDetachedBoxFacts,
-) {
+pub extern "C" fn render_state_remove_box(host: &DocumentHost, parent: u32, child: u32, facts: FfiDetachedBoxFacts) {
     let (Some(parent), Some(child)) = (StyleNodeID::from_raw(parent), StyleNodeID::from_raw(child)) else {
         panic!("a removed box and its parent are named by their identities");
     };
@@ -291,12 +282,8 @@ pub unsafe extern "C" fn render_state_remove_box(
 
 /// Whether the box of the element `child` can leave the box of its parent `parent` in place, as a removal would find
 /// it, spending `read`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_can_detach_box_in_place(
+pub extern "C" fn render_state_can_detach_box_in_place(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     parent: u32,

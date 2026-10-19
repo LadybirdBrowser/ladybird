@@ -6258,11 +6258,8 @@ pub struct FfiSimpleColor {
 }
 
 /// Parses the allocation-free subset used by the canvas color cache.
-///
-/// # Safety
-/// The source view must contain exactly one valid pointer when non-empty.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSimpleColor {
+pub extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSimpleColor {
     let Some(source) = source.units() else {
         return FfiSimpleColor::default();
     };
@@ -6278,10 +6275,8 @@ pub unsafe extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSim
     }
 }
 
-/// # Safety
-/// The source view must contain exactly one valid pointer when non-empty.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_is_valid_animation_name_custom_ident(source: FfiUtf16View) -> bool {
+pub extern "C" fn rust_is_valid_animation_name_custom_ident(source: FfiUtf16View) -> bool {
     let Some(source) = source.units() else {
         return false;
     };

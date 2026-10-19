@@ -598,10 +598,7 @@ pub extern "C" fn rust_declaration_block_remove(block: &mut DeclarationBlock, pr
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_declaration_block_remove_custom(
-    block: &mut DeclarationBlock,
-    name: FfiUtf16View,
-) -> bool {
+pub extern "C" fn rust_declaration_block_remove_custom(block: &mut DeclarationBlock, name: FfiUtf16View) -> bool {
     let name = name.to_utf16().unwrap();
     let Some(index) = block
         .data()
@@ -657,9 +654,10 @@ mod tests {
             view.important = true;
             assert!(unsafe { rust_declaration_block_set(&mut block, &view) });
             let name = block.data().custom_properties[0].name.clone();
-            assert!(unsafe {
-                rust_declaration_block_remove_custom(&mut block, FfiUtf16View::from_utf16(name.units()))
-            });
+            assert!(rust_declaration_block_remove_custom(
+                &mut block,
+                FfiUtf16View::from_utf16(name.units())
+            ));
             assert!(block.data().properties[0].important);
             assert!(block.data().custom_properties.is_empty());
             assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
@@ -688,7 +686,10 @@ mod tests {
             }
         );
         let name: Vec<_> = "--幅".encode_utf16().collect();
-        assert!(unsafe { rust_declaration_block_remove_custom(&mut retained, FfiUtf16View::from_utf16(&name),) });
+        assert!(rust_declaration_block_remove_custom(
+            &mut retained,
+            FfiUtf16View::from_utf16(&name),
+        ));
         assert_eq!(
             rust_declaration_block_dependencies(&fork),
             FfiDeclarationBlockDependencies::default()

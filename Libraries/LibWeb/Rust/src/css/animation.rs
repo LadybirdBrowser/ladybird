@@ -7292,12 +7292,8 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
 }
 
 /// Attempt Rust-owned style value interpolation without consulting C++ or the DOM.
-///
-/// # Safety
-/// `context` must be null or point at a live `FfiAnimationContext`. `from` and `to` must point at live
-/// `StyleValueData` allocations.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
+pub extern "C" fn rust_interpolate_scalar_style_value(
     context: Option<&FfiAnimationContext>,
     property_id: u16,
     from: &StyleValueData,
@@ -7309,11 +7305,8 @@ pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
 
 /// Test-only bridge for exercising Rust-owned style value composition without constructing an
 /// animation batch. Production animation evaluation uses `evaluate_animations`.
-///
-/// # Safety
-/// `underlying` and `animated` must point at live `StyleValueData` allocations.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_test_composite_style_value(
+pub extern "C" fn rust_test_composite_style_value(
     underlying: &StyleValueData,
     animated: &StyleValueData,
     operation: FfiCompositeOperation,

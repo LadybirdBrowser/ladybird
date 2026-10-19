@@ -126,12 +126,12 @@ pub extern "C" fn rust_media_list_length(list: &MediaList) -> usize {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_set_text(list: &MediaList, source: FfiUtf16View) {
+pub extern "C" fn rust_media_list_set_text(list: &MediaList, source: FfiUtf16View) {
     list.set_text(source.units().unwrap());
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_append(list: &MediaList, source: FfiUtf16View) -> bool {
+pub extern "C" fn rust_media_list_append(list: &MediaList, source: FfiUtf16View) -> bool {
     // https://drafts.csswg.org/cssom/#dom-medialist-appendmedium
     // 1. Let m be the result of parsing the given value.
     // 2. If m is null, then return.
@@ -158,7 +158,7 @@ pub enum MediaListDeleteResult {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_delete(list: &MediaList, source: FfiUtf16View) -> MediaListDeleteResult {
+pub extern "C" fn rust_media_list_delete(list: &MediaList, source: FfiUtf16View) -> MediaListDeleteResult {
     // https://drafts.csswg.org/cssom/#dom-medialist-deletemedium
     // 1. Let m be the result of parsing the given value.
     // 2. If m is null, then return.

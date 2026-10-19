@@ -3673,11 +3673,8 @@ pub(crate) fn parse_keyframe_selector_list(source: TokenizerInput<'_>) -> Option
 }
 
 /// Parses an immutable CSS page selector list.
-///
-/// # Safety
-/// `source` must remain readable for this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_page_selector_list(source: FfiUtf16View) -> *const PageSelectorList {
+pub extern "C" fn rust_parse_page_selector_list(source: FfiUtf16View) -> *const PageSelectorList {
     let Some(source) = source.units() else {
         return std::ptr::null();
     };

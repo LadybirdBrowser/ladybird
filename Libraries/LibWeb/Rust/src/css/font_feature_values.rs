@@ -167,7 +167,7 @@ pub extern "C" fn rust_font_feature_values_count(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_font_feature_values_find(
+pub extern "C" fn rust_font_feature_values_find(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
     name: FfiUtf16View,
@@ -215,7 +215,7 @@ pub unsafe extern "C" fn rust_font_feature_values_set(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_font_feature_values_remove(
+pub extern "C" fn rust_font_feature_values_remove(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
     name: FfiUtf16View,

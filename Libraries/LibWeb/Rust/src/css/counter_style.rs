@@ -71,7 +71,7 @@ pub unsafe extern "C" fn rust_counter_style_name(rule: &FfiCounterStyle) -> FfiU
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_set_name(rule: &FfiCounterStyle, name: FfiUtf16View) -> bool {
+pub extern "C" fn rust_counter_style_set_name(rule: &FfiCounterStyle, name: FfiUtf16View) -> bool {
     let Some(mut name) = name.to_utf16() else {
         return false;
     };
