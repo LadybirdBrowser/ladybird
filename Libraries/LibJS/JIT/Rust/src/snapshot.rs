@@ -1038,6 +1038,17 @@ pub struct RuntimeInfo {
     /// Code that depends on it must list it in
     /// `CompiledCode::embedded_cells`.
     pub array_iterator_return_watchpoint_set: Option<CellId>,
+    /// The address of the cell of the realm of the compiled code that holds
+    /// the watchpoint set that stays valid while `%ArrayIteratorPrototype%`
+    /// has its builtin `next` method, if it held a valid one. Once the set
+    /// fired, the realm watches the method anew with a new set the next
+    /// time it asks, as long as it is the builtin one, and holds none from
+    /// when it is not. Code that reads the cell must list the realm in
+    /// `CompiledCode::embedded_cells`.
+    pub array_iterator_next_watchpoint_set_address: Option<u64>,
+    /// Likewise for the watchpoint set that stays valid while
+    /// `%Array.prototype%[@@iterator]` is its `%Array.prototype.values%`.
+    pub array_iterator_method_watchpoint_set_address: Option<u64>,
     /// The realm of the compiled code.
     pub realm: CellId,
     /// `%Array.prototype%` and `%Object.prototype%` of the realm of the

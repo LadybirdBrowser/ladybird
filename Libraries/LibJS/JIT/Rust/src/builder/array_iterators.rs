@@ -37,9 +37,20 @@ impl GraphBuilder<'_> {
     }
 
     /// Builds `GetIterator` (`Handling::Expanded`) of a synchronous iterator
-    /// in fast array mode, where the instruction allows it (see
-    /// `Op::OpenArrayIteration`): the index 0, the array, and not done.
-    /// Returns `None`, having built nothing, where it does not.
+    /// in fast array mode (see `Op::OpenArrayIteration`), where the
+    /// instruction allows it: the index 0, the array, and not done.
+    ///
+    /// Arrays of the realm are iterated in that mode while they inherit
+    /// `%Array.prototype.values%` as their `@@iterator` and the realm's
+    /// array iterators have the builtin `next` method. The realm holds a
+    /// valid watchpoint set for each while it knows that they do, which the
+    /// code checks inline, like that the array has no named properties, of
+    /// which an own `@@iterator` would be one. Where that fails, the code
+    /// asks the runtime, which watches the intrinsics anew where unrelated
+    /// changes fired the sets. Returns `None`, having built nothing, where
+    /// the instruction does not allow fast array mode, and where the realm
+    /// held no valid set for one when the snapshot was taken: it never holds
+    /// one again then.
     pub(super) fn try_build_get_iterator(
         &mut self,
         dst_iterator_object: Operand,
@@ -52,12 +63,41 @@ impl GraphBuilder<'_> {
         if hint != SYNC_HINT || !fast_array_mode_allowed {
             return Ok(None);
         }
+        let (Some(next_watchpoint_set_address), Some(iterator_method_watchpoint_set_address)) = (
+            self.runtime.array_iterator_next_watchpoint_set_address,
+            self.runtime.array_iterator_method_watchpoint_set_address,
+        ) else {
+            return Ok(None);
+        };
         let iterable = self.read(iterable)?;
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
-        let array = self.emit(Op::OpenArrayIteration, vec![iterable], Some(Repr::Tagged));
-        let array = self.branch_if_empty(&mut slow_paths, array);
         let first_index = self.constant(value::int32(0));
         let not_done = self.constant(value::FALSE);
+        self.embed(self.runtime.realm);
+        for watchpoint_set_address in [next_watchpoint_set_address, iterator_method_watchpoint_set_address] {
+            let watchpoint_set_address = self.typed_constant(watchpoint_set_address, Repr::Pointer);
+            self.branch_to_next_case(
+                &mut slow_paths,
+                BranchCondition::HoldsValidWatchpointSet,
+                vec![watchpoint_set_address],
+                true,
+            );
+        }
+        let array = self.branch_to_next_case(&mut slow_paths, BranchCondition::Object, vec![iterable], true);
+        let address = self.cell_address(array);
+        self.embed(self.runtime.array_prototype);
+        self.branch_to_next_case(
+            &mut slow_paths,
+            BranchCondition::ArrayWithRealmArrayPrototypeAndNoNamedProperties,
+            vec![address],
+            true,
+        );
+        self.end_hot_path(&mut slow_paths, vec![first_index, array, not_done]);
+
+        let started = self.start_next_case(&mut slow_paths);
+        debug_assert!(started, "values that fail the checks go on to the next case");
+        let array = self.emit(Op::OpenArrayIteration, vec![iterable], Some(Repr::Tagged));
+        let array = self.branch_if_empty(&mut slow_paths, array);
         let outputs = self.join_paths(slow_paths, vec![first_index, array, not_done], |_, outputs| outputs);
         self.write(dst_iterator_object, outputs[0])?;
         self.write(dst_iterator_next, outputs[1])?;

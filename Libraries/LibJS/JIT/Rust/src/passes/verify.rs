@@ -488,7 +488,9 @@ fn branch_input_reprs(condition: crate::ir::BranchCondition) -> Vec<Repr> {
         | crate::ir::BranchCondition::HoleFillableArray
         | crate::ir::BranchCondition::ArrayIterator
         | crate::ir::BranchCondition::GeneratorObject
-        | crate::ir::BranchCondition::PlainArrayPrototypeChain => vec![Repr::Pointer],
+        | crate::ir::BranchCondition::PlainArrayPrototypeChain
+        | crate::ir::BranchCondition::ArrayWithRealmArrayPrototypeAndNoNamedProperties
+        | crate::ir::BranchCondition::HoldsValidWatchpointSet => vec![Repr::Pointer],
         crate::ir::BranchCondition::Shape(_) => vec![Repr::Tagged, Repr::Pointer],
         crate::ir::BranchCondition::PropertyIteratorCacheValid => tagged(2),
         crate::ir::BranchCondition::BindingMutable { .. } | crate::ir::BranchCondition::NextBindingOfShape { .. } => {

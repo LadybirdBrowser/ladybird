@@ -170,6 +170,14 @@ impl WatchedCondition {
         self.stopped_holding.set(set.is_none());
         set.is_some()
     }
+
+    /// The address of the cell that holds the set that stays valid while the condition holds, if that set is valid.
+    fn valid_set_address(&self) -> Option<u64> {
+        self.set
+            .get()
+            .is_some_and(|set| set.is_valid())
+            .then_some(self.set.as_ptr() as u64)
+    }
 }
 
 /// A set that stays valid while `objects` keep their properties and prototypes, and the properties `slots` of them keep
@@ -261,6 +269,23 @@ pub fn arrays_have_builtin_iterator_method(vm: &Vm, realm: Gc<Realm>) -> bool {
         .storage
         .array_iterator_method
         .holds(vm, realm, watch_array_iterator_method)
+}
+
+/// The address of the cell of the realm that holds the set that stays valid while %Array.prototype%[@@iterator] of the
+/// realm is its %Array.prototype.values%, if it holds a valid one. JIT code reads the cell to tell whether that held
+/// when the realm last found out (see `arrays_have_builtin_iterator_method()`).
+pub fn array_iterator_method_watchpoint_set_address(realm: Gc<Realm>) -> Option<u64> {
+    realm.storage.array_iterator_method.valid_set_address()
+}
+
+/// The address of the cell of the realm that holds the set that stays valid while array iterators of the realm have its
+/// builtin `next` method, if it holds a valid one. JIT code reads the cell to tell whether they had it when the realm
+/// last found out (see `array_iterators_have_builtin_next()`).
+pub fn array_iterator_next_watchpoint_set_address(realm: Gc<Realm>) -> Option<u64> {
+    let cell = &realm.array_iterator_next_watchpoint_set;
+    cell.get()
+        .is_some_and(|set| set.is_valid())
+        .then_some(cell.as_ptr() as u64)
 }
 
 /// The set that stays valid while %Array.prototype%[@@iterator] of the realm is its %Array.prototype.values%, if it is.

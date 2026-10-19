@@ -2247,6 +2247,22 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             BranchCondition::PlainArrayPrototypeChain => {
                 self.emit_branch_on_plain_array_prototype_chain(node, input, target, invert);
             }
+            BranchCondition::ArrayWithRealmArrayPrototypeAndNoNamedProperties => {
+                self.emit_branch_on_array_with_realm_array_prototype_and_no_named_properties(
+                    node, input, target, invert,
+                );
+            }
+            BranchCondition::HoldsValidWatchpointSet => {
+                let other = self.masm.new_label();
+                let fail = if invert { target } else { other };
+                self.masm.load64(scratch, &Address::new(input, 0));
+                self.masm.branch_test64(Condition::Zero, scratch, u64::MAX, fail);
+                self.branch_unless_prototype_chain_valid(scratch, fail);
+                if !invert {
+                    self.masm.jump(target);
+                }
+                self.masm.bind(other);
+            }
             BranchCondition::MagicalLength | BranchCondition::Extensible => {
                 let flag = match condition {
                     BranchCondition::MagicalLength => self.runtime.layout.object_flag_has_magical_length,

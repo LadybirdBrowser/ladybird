@@ -440,6 +440,11 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
             condition: BranchCondition::PlainArrayPrototypeChain,
             ..
         } => constraints.temps = 1,
+        // The object's shape.
+        Op::Branch {
+            condition: BranchCondition::ArrayWithRealmArrayPrototypeAndNoNamedProperties,
+            ..
+        } => constraints.temps = 1,
         // The object's elements.
         Op::LoadElementsCapacity | Op::AppendElement => constraints.temps = 1,
         // The object, then its elements or element address.

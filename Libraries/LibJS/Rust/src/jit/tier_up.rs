@@ -372,9 +372,12 @@ fn compile(
     assert_eq!(executable.jit_compile_state(), CompileState::None);
     executable.set_jit_compile_state(CompileState::Queued);
 
-    // NB: The snapshot captures the set only while it is valid, and capturing it may not allocate a new one.
+    // NB: Asking the realm watches its intrinsics anew with new sets where the old ones fired, which allocates, so it
+    //     happens before the snapshot captures which valid sets the realm holds.
     let realm = function.realm().expect("an ECMAScript function has a realm");
     realm_watchpoints::array_iterators_have_no_return(vm, realm);
+    realm_watchpoints::array_iterators_have_builtin_next(vm, realm);
+    realm_watchpoints::arrays_have_builtin_iterator_method(vm, realm);
 
     // NB: Nothing may collect the cells the snapshot captured before something keeps them alive.
     let defer_gc = DeferGc::new(vm);
