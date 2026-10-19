@@ -745,20 +745,8 @@ impl Drop for RetainedString {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_css_url_text_view(text: &RetainedString) -> crate::css::ffi_support::FfiUtf16View {
-    use crate::css::ffi_support::FfiUtf16View;
-    match text.units() {
-        TokenizerInput::Ascii(bytes) => FfiUtf16View {
-            ascii: bytes.as_ptr(),
-            utf16: std::ptr::null(),
-            length: bytes.len(),
-        },
-        TokenizerInput::Utf16(units) => FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: units.as_ptr(),
-            length: units.len(),
-        },
-    }
+pub extern "C" fn rust_css_url_text_view(text: &RetainedString) -> crate::css::ffi_support::FfiUtf16View<'_> {
+    crate::css::ffi_support::FfiUtf16View::from_input(text.units())
 }
 
 /// A retained CSS request URL modifier: the modifier type and either an enum value or a retained
@@ -3257,11 +3245,11 @@ pub unsafe extern "C" fn rust_style_value_create_image(
     has_resource_base_url: bool,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Image {
-        url: unsafe { RetainedString::from_units(url.units().expect("invalid URL text")) },
+        url: RetainedString::from_units(url.units().expect("invalid URL text")),
         url_type,
         url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
         resource_context: ImageResourceContext {
-            base_url: unsafe { RetainedString::from_units(resource_base_url.units().expect("invalid base URL text")) },
+            base_url: RetainedString::from_units(resource_base_url.units().expect("invalid base URL text")),
             has_base_url: has_resource_base_url,
             has_parent_style_sheet_origin_clean: false,
             parent_style_sheet_origin_clean: false,

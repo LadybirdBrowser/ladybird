@@ -29,28 +29,24 @@ const _: () = {
 };
 
 #[repr(C)]
-pub struct FfiFunctionSignatureView {
-    pub name: FfiUtf16View,
+pub struct FfiFunctionSignatureView<'a> {
+    pub name: FfiUtf16View<'a>,
     pub parameter_count: usize,
     pub return_type: *const c_void,
 }
 
 #[repr(C)]
-pub struct FfiFunctionParameterView {
-    pub name: FfiUtf16View,
+pub struct FfiFunctionParameterView<'a> {
+    pub name: FfiUtf16View<'a>,
     pub syntax: *const c_void,
     pub default_value: *const c_void,
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_function_signature_view(signature: &FunctionSignature) -> FfiFunctionSignatureView {
+pub extern "C" fn rust_function_signature_view(signature: &FunctionSignature) -> FfiFunctionSignatureView<'_> {
     let name = signature.name.units();
     FfiFunctionSignatureView {
-        name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: name.as_ptr(),
-            length: name.len(),
-        },
+        name: FfiUtf16View::from_utf16(name),
         parameter_count: signature.parameters.len(),
         return_type: Arc::as_ptr(&signature.return_type).cast(),
     }
@@ -60,15 +56,11 @@ pub extern "C" fn rust_function_signature_view(signature: &FunctionSignature) ->
 pub extern "C" fn rust_function_signature_parameter(
     signature: &FunctionSignature,
     index: usize,
-) -> FfiFunctionParameterView {
+) -> FfiFunctionParameterView<'_> {
     let parameter = &signature.parameters[index];
     let name = parameter.name.units();
     FfiFunctionParameterView {
-        name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: name.as_ptr(),
-            length: name.len(),
-        },
+        name: FfiUtf16View::from_utf16(name),
         syntax: Arc::as_ptr(&parameter.syntax).cast(),
         default_value: parameter
             .default_value

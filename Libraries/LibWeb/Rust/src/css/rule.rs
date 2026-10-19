@@ -75,7 +75,7 @@ pub enum NativeRuleType {
 // rule. Only the fields belonging to the rule's type are populated.
 #[derive(Default)]
 #[repr(C)]
-pub struct FfiRulePayload {
+pub struct FfiRulePayload<'a> {
     pub has_source_position: bool,
     pub start_line: usize,
     pub start_column: usize,
@@ -85,7 +85,7 @@ pub struct FfiRulePayload {
     pub descriptors: *const FfiDescriptorBlock,
     pub page_selectors: *const PageSelectorList,
     pub keyframe: *const FfiKeyframe,
-    pub name: FfiUtf16View,
+    pub name: FfiUtf16View<'a>,
     pub namespace_rule: *const NamespaceRuleData,
     pub counter_style: *const FfiCounterStyle,
     pub supports: *const FfiQueryHandle,
@@ -737,15 +737,16 @@ pub unsafe extern "C" fn rust_keyframes_set_name(rule: &NativeRule, name: FfiUtf
     let RulePayload::Keyframes(current) = &rule.payload else {
         unreachable!()
     };
-    *current.borrow_mut() = CssString::from_utf16(&unsafe { name.to_utf16() }.unwrap());
+    *current.borrow_mut() = CssString::from_utf16(&name.to_utf16().unwrap());
 }
 
 /// # Safety
 /// The selector must be readable for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_keyframes_find_rule(rule: &NativeRule, selector: FfiUtf16View) -> usize {
-    let Some(selectors) =
-        (unsafe { selector.units() }).and_then(crate::css::parser::syntax_parser::parse_keyframe_selector_list)
+    let Some(selectors) = selector
+        .units()
+        .and_then(crate::css::parser::syntax_parser::parse_keyframe_selector_list)
     else {
         return usize::MAX;
     };
@@ -845,7 +846,9 @@ pub unsafe extern "C" fn rust_rule_set_selector_text(
     input: FfiUtf16View,
     sheet_rules: Option<&NativeRuleList>,
 ) -> bool {
-    unsafe { input.units() }.is_some_and(|input| rule.set_selector_text(input, sheet_rules))
+    input
+        .units()
+        .is_some_and(|input| rule.set_selector_text(input, sheet_rules))
 }
 
 #[unsafe(no_mangle)]
@@ -987,8 +990,10 @@ pub extern "C" fn rust_rule_external_memory_size(rule: &NativeRule) -> usize {
     size_of::<NativeRule>().saturating_add(payload_size)
 }
 
+/// # Safety
+/// The caller must not set a keyframes rule's name while it uses the returned name view.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_rule_payload(rule: &NativeRule) -> FfiRulePayload {
+pub unsafe extern "C" fn rust_rule_payload(rule: &NativeRule) -> FfiRulePayload<'_> {
     let mut result = FfiRulePayload::default();
     if let Some((line, column)) = rule.source_position {
         result.has_source_position = true;
@@ -1009,20 +1014,13 @@ pub extern "C" fn rust_rule_payload(rule: &NativeRule) -> FfiRulePayload {
             result.descriptors = &raw const **descriptors;
         }
         RulePayload::Keyframes(name) => {
-            let name = name.borrow();
-            result.name = FfiUtf16View {
-                utf16: name.units().as_ptr(),
-                length: name.units().len(),
-                ..Default::default()
-            };
+            // SAFETY: The caller reads the payload before it next sets the name.
+            let name = unsafe { name.try_borrow_unguarded() }.expect("the name is not being set");
+            result.name = FfiUtf16View::from_utf16(name.units());
         }
         RulePayload::Keyframe(data) => result.keyframe = &raw const **data,
         RulePayload::Margin { name, declarations } => {
-            result.name = FfiUtf16View {
-                ascii: std::ptr::null(),
-                utf16: name.units().as_ptr(),
-                length: name.units().len(),
-            };
+            result.name = FfiUtf16View::from_utf16(name.units());
             result.declarations = &raw const **declarations;
         }
         RulePayload::Namespace(data) => result.namespace_rule = Arc::as_ptr(data),
@@ -1095,13 +1093,12 @@ pub unsafe extern "C" fn rust_rule_list_visit_namespaces(
     context: *const c_void,
     callback: unsafe extern "C" fn(*const c_void, FfiUtf16View, FfiUtf16View),
 ) {
-    let view = |units: &[u16]| FfiUtf16View {
-        ascii: std::ptr::null(),
-        utf16: units.as_ptr(),
-        length: units.len(),
-    };
     list.for_each_namespace(|namespace| unsafe {
-        callback(context, view(namespace.prefix.units()), view(namespace.uri.units()));
+        callback(
+            context,
+            FfiUtf16View::from_utf16(namespace.prefix.units()),
+            FfiUtf16View::from_utf16(namespace.uri.units()),
+        );
     });
 }
 

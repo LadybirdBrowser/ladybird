@@ -1859,7 +1859,7 @@ enum ResolvedFeatureValue {
     Unknown,
 }
 
-fn media_value_parse_context(value_context: &FfiValueParsingContext) -> ParseContext {
+fn media_value_parse_context(value_context: &FfiValueParsingContext<'static>) -> ParseContext {
     ParseContext {
         in_quirks_mode: false,
         is_svg_presentation_attribute: false,
@@ -1956,11 +1956,7 @@ fn parse_feature_value_as(components: &[ComponentValue], kind: FeatureValueParse
         kind: FfiValueParsingContextKind::Special,
         value: 2, // SpecialContext::MediaCondition
         secondary_value: 0,
-        name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: std::ptr::null(),
-            length: 0,
-        },
+        name: FfiUtf16View::default(),
     };
     let context = media_value_parse_context(&value_context);
     let property = crate::css::property_metadata::property_id::CUSTOM;
@@ -2816,7 +2812,7 @@ pub unsafe extern "C" fn rust_parse_sizes_attribute(
     img_auto_width: *const f64,
 ) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeParseEntry);
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return std::ptr::null();
     };
     let Some(context) = (unsafe { context.as_ref() }) else {
@@ -2856,7 +2852,7 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
     source: FfiUtf16View,
     context: *const ParseContext,
 ) -> *const FfiQueryHandle {
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return std::ptr::null();
     };
     let Some(context) = (unsafe { context.as_ref() }) else {

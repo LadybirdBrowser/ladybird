@@ -521,10 +521,10 @@ pub unsafe extern "C" fn rust_parse_css_descriptor(
     let Some(context) = (unsafe { context.as_ref() }) else {
         return std::ptr::null();
     };
-    let Some(name) = (unsafe { name.units() }) else {
+    let Some(name) = name.units() else {
         return std::ptr::null();
     };
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return std::ptr::null();
     };
     let Ok(values) = consume_a_list_of_component_values(tokenize_for_parser(source)) else {

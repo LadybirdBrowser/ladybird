@@ -41,12 +41,8 @@ fn utf16(value: &str) -> Vec<u16> {
     value.encode_utf16().collect()
 }
 
-fn view(source: &[u16]) -> FfiUtf16View {
-    FfiUtf16View {
-        utf16: source.as_ptr(),
-        length: source.len(),
-        ..Default::default()
-    }
+fn view(source: &[u16]) -> FfiUtf16View<'_> {
+    FfiUtf16View::from_utf16(source)
 }
 
 fn parse(source: &[u16], context: &crate::css::parser::value_parser::ParseContext) -> Arc<ParsedStyleSheet> {
@@ -465,10 +461,12 @@ fn url_text_clones_share_native_storage_and_outlive_their_input() {
             let copy = text.clone();
             let original_view = rust_css_url_text_view(&text);
             let copied_view = rust_css_url_text_view(&copy);
-            assert_eq!(original_view.ascii, copied_view.ascii);
-            assert_eq!(original_view.utf16, copied_view.utf16);
-            assert_eq!(original_view.length, copied_view.length);
-            assert_eq!(original_view.utf16.is_null(), spelling.is_ascii());
+            let parts = |view: crate::css::ffi_support::FfiUtf16View<'_>| match view.units().unwrap() {
+                TokenizerInput::Ascii(units) => (units.as_ptr().addr(), units.len(), true),
+                TokenizerInput::Utf16(units) => (units.as_ptr().addr(), units.len(), false),
+            };
+            assert_eq!(parts(original_view), parts(copied_view));
+            assert_eq!(parts(original_view).2, spelling.is_ascii());
             drop((input, text));
             let mut retained = Vec::new();
             copy.units().append_to(&mut retained);

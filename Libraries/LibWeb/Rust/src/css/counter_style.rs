@@ -61,20 +61,18 @@ pub extern "C" fn rust_counter_style_descriptors(rule: &FfiCounterStyle) -> *mut
     rust_descriptor_block_retain(&rule.descriptors)
 }
 
+/// # Safety
+/// The caller must not set the rule's name while it uses the returned view.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_counter_style_name(rule: &FfiCounterStyle) -> FfiUtf16View {
-    let name = rule.name.borrow();
-    let name = name.units();
-    FfiUtf16View {
-        ascii: std::ptr::null(),
-        utf16: name.as_ptr(),
-        length: name.len(),
-    }
+pub unsafe extern "C" fn rust_counter_style_name(rule: &FfiCounterStyle) -> FfiUtf16View<'_> {
+    // SAFETY: The caller reads the name before it next sets one.
+    let name = unsafe { rule.name.try_borrow_unguarded() }.expect("the name is not being set");
+    FfiUtf16View::from_utf16(name.units())
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_counter_style_set_name(rule: &FfiCounterStyle, name: FfiUtf16View) -> bool {
-    let Some(mut name) = (unsafe { name.to_utf16() }) else {
+    let Some(mut name) = name.to_utf16() else {
         return false;
     };
     // https://drafts.csswg.org/css-counter-styles-3/#dom-csscounterstylerule-name
@@ -456,8 +454,8 @@ fn register(
 
 /// One `@counter-style` rule in effect in a tree scope.
 #[repr(C)]
-pub struct FfiCounterStyleRule {
-    pub name: FfiUtf16View,
+pub struct FfiCounterStyleRule<'a> {
+    pub name: FfiUtf16View<'a>,
     pub descriptors: *const FfiDescriptorBlock,
     /// The precedence of the rule's cascade origin: 0 user agent, 1 user, 2 author.
     pub origin: u8,
@@ -507,7 +505,7 @@ pub unsafe extern "C" fn rust_counter_styles_resolve(
             continue;
         };
         // SAFETY: The caller keeps the name alive for this synchronous call.
-        let Some(name) = (unsafe { rule.name.to_utf16() }) else {
+        let Some(name) = rule.name.to_utf16() else {
             continue;
         };
         let precedence = (rule.origin, rule.layer);

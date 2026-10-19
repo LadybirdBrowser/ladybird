@@ -429,11 +429,7 @@ pub unsafe extern "C" fn rust_style_sheet_visit_effective_rule_data(
         visit(
             context,
             &NativeRuleView { rule, containers },
-            FfiUtf16View {
-                ascii: std::ptr::null(),
-                utf16: prefix.as_ptr(),
-                length: prefix.len(),
-            },
+            FfiUtf16View::from_utf16(prefix),
         );
     });
 }

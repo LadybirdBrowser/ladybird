@@ -121,13 +121,13 @@ pub struct SvgFilterPrimitiveValues {
 /// and tables it borrows from the element for the duration of one push.
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiSvgFilterPrimitive {
+pub struct FfiSvgFilterPrimitive<'a> {
     pub values: SvgFilterPrimitiveValues,
-    pub in1: FfiUtf16View,
-    pub in2: FfiUtf16View,
-    pub result: FfiUtf16View,
+    pub in1: FfiUtf16View<'a>,
+    pub in2: FfiUtf16View<'a>,
+    pub result: FfiUtf16View<'a>,
     /// feMerge: the `in` of each feMergeNode child.
-    pub merge_inputs: *const FfiUtf16View,
+    pub merge_inputs: *const FfiUtf16View<'a>,
     pub merge_input_count: usize,
     /// feColorMatrix: the parsed `values` list.
     pub color_matrix_values: *const f32,
