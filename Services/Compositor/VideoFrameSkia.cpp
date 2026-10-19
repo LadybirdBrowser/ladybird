@@ -7,12 +7,14 @@
 #include <Compositor/VideoFrameSkia.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
+#include <core/SkCanvas.h>
 #include <core/SkImage.h>
 #include <core/SkYUVAInfo.h>
 #include <core/SkYUVAPixmaps.h>
@@ -193,6 +195,29 @@ sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<
     }
 
     return image;
+}
+
+ErrorOr<Gfx::DecodedImageFrame> decoded_image_frame_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    if (frame.surface() != nullptr && skia_backend_context) {
+        auto image = sk_image_from_video_frame(frame, skia_backend_context);
+        if (!image)
+            return Error::from_string_literal("Could not make an image of the video frame's surface");
+        auto size = frame.size().to_type<int>();
+        auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context);
+        auto rect = SkRect::MakeIWH(size.width(), size.height());
+        surface->canvas().drawImageRect(image.get(), rect, rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor), nullptr, SkCanvas::kStrict_SrcRectConstraint);
+        auto bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
+        // The pixels are read back in sRGB.
+        surface->read_into_bitmap(*bitmap);
+        return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { move(bitmap) } };
+    }
+
+    auto bitmap = TRY(frame.to_bitmap());
+    auto color_space = Gfx::ColorSpace {};
+    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame.cicp()); !color_space_result.is_error())
+        color_space = color_space_result.release_value();
+    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { move(bitmap) }, move(color_space) };
 }
 
 }

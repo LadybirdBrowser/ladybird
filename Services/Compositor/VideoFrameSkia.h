@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/RefPtr.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibMediaCodecs/Forward.h>
@@ -32,5 +34,9 @@ sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const&, Media::Co
 
 // Makes an image of the frame's pixels, on the GPU when there is a backend context, and in memory otherwise.
 sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
+
+// Reads the frame's pixels into memory. A surface is drawn on the GPU and read back from there, since only the GPU
+// can read some surfaces.
+ErrorOr<Gfx::DecodedImageFrame> decoded_image_frame_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
 
 }

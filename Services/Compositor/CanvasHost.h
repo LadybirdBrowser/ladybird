@@ -19,6 +19,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <Compositor/HostWebGLContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -44,7 +45,6 @@ class CanvasSurfaceRegistry;
 
 namespace Compositor {
 
-class HostWebGLContext;
 class VideoFrameHolds;
 
 class CanvasHost {
@@ -96,7 +96,7 @@ private:
     static HostWebGLContext& as_webgl(Context&);
     void present_canvas_2d_context(Compositing::CanvasId, Canvas2DContext&);
     sk_sp<SkImage> held_video_frame_image(Media::VideoSinkHandle, u64 generation);
-    Vector<Gfx::DecodedImageFrame> resolve_webgl_image_source_frames(Vector<Compositing::WebGL::ImageSourceFrame> const&) const;
+    Vector<HostWebGLContext::UploadSource> resolve_webgl_upload_sources(Vector<Compositing::WebGL::ImageSourceFrame> const&) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Compositing::CanvasSurfaceRegistry& m_canvas_surface_registry;

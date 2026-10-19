@@ -11,14 +11,17 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/Variant.h>
 #include <Compositor/OpenGLContext.h>
 #include <Compositor/WebGLObjectMap.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
+#include <LibMediaCodecs/Forward.h>
 
 namespace Compositing::WebGL::Commands {
 
@@ -37,7 +40,8 @@ public:
 
     static OwnPtr<HostWebGLContext> create(RefPtr<Gfx::SkiaBackendContext>, OpenGLContext::WebGLVersion, OpenGLContext::DrawingBufferOptions, Gfx::IntSize initial_size);
 
-    ErrorOr<void> execute_commands(ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps);
+    using UploadSource = Variant<Gfx::DecodedImageFrame, NonnullRefPtr<Media::VideoFrame>>;
+    ErrorOr<void> execute_commands(ReadonlyBytes, Vector<UploadSource> const&);
 
     void set_shared_command_buffer(Compositing::WebGL::WebGLSharedCommandBuffer shared_command_buffer) { m_shared_command_buffer = move(shared_command_buffer); }
     Optional<ReadonlyBytes> shared_command_buffer_range(u64 offset, u64 size_in_bytes) const;
@@ -53,16 +57,20 @@ public:
     OpenGLContext& gl_context() { return *m_gl_context; }
 
 private:
-    explicit HostWebGLContext(NonnullOwnPtr<OpenGLContext>);
+    HostWebGLContext(NonnullOwnPtr<OpenGLContext>, RefPtr<Gfx::SkiaBackendContext>);
 
     ErrorOr<void> set_drawing_buffer_size(int width, int height);
     void clear_drawing_buffer_if_needed();
-    ErrorOr<void> tex_image2d_from_bitmap(Compositing::WebGL::Commands::TexImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
-    ErrorOr<void> tex_sub_image2d_from_bitmap(Compositing::WebGL::Commands::TexSubImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
-    ErrorOr<void> tex_image3d_from_bitmap(Compositing::WebGL::Commands::TexImage3DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
-    ErrorOr<void> tex_sub_image3d_from_bitmap(Compositing::WebGL::Commands::TexSubImage3DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
+    ErrorOr<void> tex_image2d_from_bitmap(Compositing::WebGL::Commands::TexImage2DFromBitmap const&, Vector<UploadSource> const&);
+    ErrorOr<void> tex_sub_image2d_from_bitmap(Compositing::WebGL::Commands::TexSubImage2DFromBitmap const&, Vector<UploadSource> const&);
+    ErrorOr<void> tex_image3d_from_bitmap(Compositing::WebGL::Commands::TexImage3DFromBitmap const&, Vector<UploadSource> const&);
+    ErrorOr<void> tex_sub_image3d_from_bitmap(Compositing::WebGL::Commands::TexSubImage3DFromBitmap const&, Vector<UploadSource> const&);
+
+    bool define_texture_image_from_video_frame(Compositing::WebGL::Commands::TexImage2DFromBitmap const&, Media::VideoFrame const&);
+    bool update_texture_image_from_video_frame(Compositing::WebGL::Commands::TexSubImage2DFromBitmap const&, Media::VideoFrame const&);
 
     NonnullOwnPtr<OpenGLContext> m_gl_context;
+    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     WebGLObjectMap m_objects;
     Compositing::WebGL::WebGLSharedCommandBuffer m_shared_command_buffer;
     bool m_needs_clear_before_next_frame { false };

@@ -31,6 +31,11 @@ extern "C" {
 #    include <LibGfx/VulkanImage.h>
 #endif
 #include <Compositor/OpenGLContext.h>
+#include <LibGfx/SkiaBackendContext.h>
+#include <LibGfx/SkiaUtils.h>
+
+#include <core/SkCanvas.h>
+#include <core/SkImage.h>
 
 // Enable WebGL if we're on macOS and can use Metal, if Linux can use ANGLE's OpenGL backend for CPU-painting tests,
 // if Windows can use ANGLE's Direct3D 11 backend, or if we can use shareable Vulkan images.
@@ -75,6 +80,9 @@ struct OpenGLContext::Impl {
     // before the latest present may still be reading on the GPU. The CPU painting surface is a copy made when
     // presenting, so it only uses the first.
     Array<ColorBuffer, 3> color_buffers {};
+    // What Skia draws for an upload into one of the page's textures, at the size of the latest upload.
+    ColorBuffer upload_color_buffer {};
+    Gfx::IntSize upload_color_buffer_size {};
     size_t drawing_color_buffer_index { 0 };
     Optional<size_t> presented_color_buffer_index {};
 
@@ -120,6 +128,8 @@ void OpenGLContext::free_surface_resources()
 
     for (auto& color_buffer : m_impl->color_buffers)
         free_color_buffer(color_buffer);
+    free_color_buffer(m_impl->upload_color_buffer);
+    m_impl->upload_color_buffer_size = {};
     m_impl->drawing_color_buffer_index = 0;
     m_impl->presented_color_buffer_index.clear();
 #endif
@@ -378,16 +388,16 @@ static void with_texture_bound(GLenum target, GLuint texture, Callback callback)
 #endif
 
 #ifdef AK_OS_MACOS
-void OpenGLContext::allocate_iosurface_color_buffer(ColorBuffer& color_buffer)
+void OpenGLContext::allocate_iosurface_color_buffer(ColorBuffer& color_buffer, Gfx::IntSize size, Gfx::PaintingSurface::Origin origin)
 {
-    color_buffer.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(m_size));
-    color_buffer.painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*color_buffer.shared_image_buffer, *m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
+    color_buffer.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(size));
+    color_buffer.painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*color_buffer.shared_image_buffer, *m_skia_backend_context, origin);
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,
-        m_size.width(),
+        size.width(),
         EGL_HEIGHT,
-        m_size.height(),
+        size.height(),
         EGL_IOSURFACE_PLANE_ANGLE,
         0,
         EGL_TEXTURE_TARGET,
@@ -414,7 +424,7 @@ void OpenGLContext::allocate_iosurface_color_buffer(ColorBuffer& color_buffer)
 #endif
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-bool OpenGLContext::allocate_vkimage_color_buffer(ColorBuffer& color_buffer)
+bool OpenGLContext::allocate_vkimage_color_buffer(ColorBuffer& color_buffer, Gfx::IntSize size, Gfx::PaintingSurface::Origin origin)
 {
     VERIFY(m_skia_backend_context);
 
@@ -447,19 +457,19 @@ bool OpenGLContext::allocate_vkimage_color_buffer(ColorBuffer& color_buffer)
         }
     }
 
-    auto vulkan_image_or_error = Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), m_size.width(), m_size.height(), vulkan_format, renderable_modifiers);
+    auto vulkan_image_or_error = Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), size.width(), size.height(), vulkan_format, renderable_modifiers);
     if (vulkan_image_or_error.is_error()) {
         dbgln("Compositor: create_shared_vulkan_image failed ({}); falling back to a CPU painting surface", vulkan_image_or_error.error());
         return false;
     }
     auto vulkan_image = vulkan_image_or_error.release_value();
-    color_buffer.painting_surface = Gfx::PaintingSurface::create_from_vkimage(*m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
+    color_buffer.painting_surface = Gfx::PaintingSurface::create_from_vkimage(*m_skia_backend_context, vulkan_image, origin);
 
     EGLAttrib attribs[] = {
         EGL_WIDTH,
-        m_size.width(),
+        size.width(),
         EGL_HEIGHT,
-        m_size.height(),
+        size.height(),
         EGL_LINUX_DRM_FOURCC_EXT,
         drm_format,
         EGL_DMA_BUF_PLANE0_FD_EXT,
@@ -601,13 +611,13 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     if (m_impl->uses_cpu_painting_surface) {
         allocate_cpu_painting_surface(color_buffer);
     } else {
-        allocate_iosurface_color_buffer(color_buffer);
+        allocate_iosurface_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft);
     }
 #    elif defined(USE_VULKAN_DMABUF_IMAGES)
 #        if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
     if (m_impl->uses_cpu_painting_surface) {
         allocate_cpu_painting_surface(color_buffer);
-    } else if (!allocate_vkimage_color_buffer(color_buffer)) {
+    } else if (!allocate_vkimage_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft)) {
         // This driver advertises the DMABUF EGL extensions but can't actually allocate a Vulkan/DMABUF painting surface
         // (unsupported format, modifier, or image import). Fall back to a CPU painting surface.
         m_impl->uses_cpu_painting_surface = true;
@@ -615,7 +625,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
         allocate_cpu_painting_surface(color_buffer);
     }
 #        else
-    (void)allocate_vkimage_color_buffer(color_buffer);
+    (void)allocate_vkimage_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft);
 #        endif
 #    elif (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
     allocate_cpu_painting_surface(color_buffer);
@@ -726,13 +736,18 @@ void OpenGLContext::present_drawing_buffer([[maybe_unused]] bool preserve_drawin
 }
 
 #ifdef ENABLE_WEBGL
-bool OpenGLContext::allocate_color_buffer([[maybe_unused]] ColorBuffer& color_buffer)
+bool OpenGLContext::allocate_color_buffer(ColorBuffer& color_buffer)
+{
+    return allocate_shared_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft);
+}
+
+bool OpenGLContext::allocate_shared_color_buffer([[maybe_unused]] ColorBuffer& color_buffer, [[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] Gfx::PaintingSurface::Origin origin)
 {
 #    if defined(AK_OS_MACOS)
-    allocate_iosurface_color_buffer(color_buffer);
+    allocate_iosurface_color_buffer(color_buffer, size, origin);
     return true;
 #    elif defined(USE_VULKAN_DMABUF_IMAGES)
-    return allocate_vkimage_color_buffer(color_buffer);
+    return allocate_vkimage_color_buffer(color_buffer, size, origin);
 #    else
     return false;
 #    endif
@@ -764,6 +779,89 @@ bool OpenGLContext::supports_copy_texture()
     return *m_impl->supports_copy_texture;
 }
 #endif
+
+GLenum OpenGLContext::get_error()
+{
+    if (!m_stashed_errors.is_empty())
+        return m_stashed_errors.take_first();
+    return GLFunctions::get_error();
+}
+
+bool OpenGLContext::stash_errors()
+{
+    auto stashed_any_errors = false;
+    for (auto error = GLFunctions::get_error(); error != GL_NO_ERROR; error = GLFunctions::get_error()) {
+        if (!m_stashed_errors.contains_slow(error))
+            m_stashed_errors.append(error);
+        stashed_any_errors = true;
+    }
+    return stashed_any_errors;
+}
+
+void OpenGLContext::discard_errors()
+{
+    for (auto error = GLFunctions::get_error(); error != GL_NO_ERROR; error = GLFunctions::get_error())
+        dbgln("Compositor: Discarding GL error {:#x} raised by the Compositor's own work", error);
+}
+
+bool OpenGLContext::can_copy_images_into_textures()
+{
+#if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
+    return m_skia_backend_context && !m_impl->uses_cpu_painting_surface && supports_copy_texture();
+#else
+    return false;
+#endif
+}
+
+#ifdef ENABLE_WEBGL
+static Optional<GLenum> texture_binding_for_copy_destination(GLenum target)
+{
+    switch (target) {
+    case GL_TEXTURE_2D:
+        return GL_TEXTURE_BINDING_2D;
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+        return GL_TEXTURE_BINDING_CUBE_MAP;
+    default:
+        return {};
+    }
+}
+#endif
+
+bool OpenGLContext::copy_image_into_bound_texture([[maybe_unused]] SkImage const& image, [[maybe_unused]] Gfx::IntSize source_size, [[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] GLenum target, [[maybe_unused]] GLint level, [[maybe_unused]] GLint xoffset, [[maybe_unused]] GLint yoffset, [[maybe_unused]] bool flip_y, [[maybe_unused]] bool premultiply_alpha)
+{
+#ifdef ENABLE_WEBGL
+    auto destination_binding = texture_binding_for_copy_destination(target);
+    if (!destination_binding.has_value() || size.is_empty() || !can_copy_images_into_textures())
+        return false;
+
+    auto& upload_color_buffer = m_impl->upload_color_buffer;
+    if (m_impl->upload_color_buffer_size != size) {
+        free_color_buffer(upload_color_buffer);
+        m_impl->upload_color_buffer_size = {};
+        if (!allocate_shared_color_buffer(upload_color_buffer, size, Gfx::PaintingSurface::Origin::TopLeft))
+            return false;
+        m_impl->upload_color_buffer_size = size;
+    }
+
+    auto& canvas = upload_color_buffer.painting_surface->canvas();
+    canvas.clear(SK_ColorTRANSPARENT);
+    canvas.drawImageRect(&image, SkRect::MakeIWH(source_size.width(), source_size.height()), SkRect::MakeIWH(size.width(), size.height()), Gfx::to_skia_sampling_options(Gfx::ScalingMode::Bilinear), nullptr, SkCanvas::kStrict_SrcRectConstraint);
+    m_skia_backend_context->flush_and_submit(*upload_color_buffer.painting_surface);
+
+    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
+    GLint destination_texture = 0;
+    glGetIntegerv(destination_binding.value(), &destination_texture);
+    glCopySubTextureCHROMIUM(upload_color_buffer.texture, 0, target, destination_texture, level, xoffset, yoffset, 0, 0, size.width(), size.height(), flip_y, premultiply_alpha, GL_FALSE);
+    return true;
+#else
+    return false;
+#endif
+}
 
 RefPtr<Gfx::PaintingSurface> OpenGLContext::drawing_buffer_surface()
 {

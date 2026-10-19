@@ -220,41 +220,31 @@ void CanvasHost::forget_video_sink(Media::VideoSinkHandle handle)
     m_video_frame_images.remove(handle);
 }
 
-Vector<Gfx::DecodedImageFrame> CanvasHost::resolve_webgl_image_source_frames(Vector<Compositing::WebGL::ImageSourceFrame> const& frames) const
+Vector<HostWebGLContext::UploadSource> CanvasHost::resolve_webgl_upload_sources(Vector<Compositing::WebGL::ImageSourceFrame> const& frames) const
 {
-    Vector<Gfx::DecodedImageFrame> resolved_frames;
-    resolved_frames.ensure_capacity(frames.size());
+    Vector<HostWebGLContext::UploadSource> sources;
+    sources.ensure_capacity(frames.size());
     for (auto const& frame : frames) {
-        auto resolved_frame = frame.visit(
-            [](Gfx::DecodedImageFrame const& decoded_frame) -> Optional<Gfx::DecodedImageFrame> {
-                return decoded_frame;
+        frame.visit(
+            [&](Gfx::DecodedImageFrame const& decoded_frame) {
+                sources.unchecked_append(decoded_frame);
             },
-            [&](Compositing::CapturedVideoFrame const& captured_frame) -> Optional<Gfx::DecodedImageFrame> {
-                auto video_frame = m_video_frame_holds.held_frame(captured_frame.sink_handle, captured_frame.generation);
-                if (!video_frame)
-                    return {};
-                auto bitmap_or_error = video_frame->to_bitmap();
-                if (bitmap_or_error.is_error()) {
-                    dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
-                    return {};
+            [&](Compositing::CapturedVideoFrame const& captured_frame) {
+                if (auto video_frame = m_video_frame_holds.held_frame(captured_frame.sink_handle, captured_frame.generation)) {
+                    sources.unchecked_append(video_frame.release_nonnull());
+                    return;
                 }
-                auto color_space = Gfx::ColorSpace {};
-                if (auto color_space_result = Gfx::ColorSpace::from_cicp(video_frame->cicp()); !color_space_result.is_error())
-                    color_space = color_space_result.release_value();
-                return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { bitmap_or_error.release_value() }, move(color_space) };
+                sources.unchecked_append(Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 })) } });
             });
-        if (!resolved_frame.has_value())
-            resolved_frame = Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 })) } };
-        resolved_frames.unchecked_append(resolved_frame.release_value());
     }
-    return resolved_frames;
+    return sources;
 }
 
 void CanvasHost::execute_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
-    MUST(as_webgl(*context).execute_commands(commands, resolve_webgl_image_source_frames(frames)));
+    MUST(as_webgl(*context).execute_commands(commands, resolve_webgl_upload_sources(frames)));
 }
 
 void CanvasHost::set_webgl_shared_command_buffer(Compositing::CanvasId canvas_id, Compositing::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
@@ -276,7 +266,7 @@ bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId
 
     // WebContent can rewrite shared bytes while they execute, so a malformed stream is
     // a misbehaving peer rather than a Compositor bug; report instead of crashing.
-    if (webgl_context.execute_commands(*commands, resolve_webgl_image_source_frames(frames)).is_error())
+    if (webgl_context.execute_commands(*commands, resolve_webgl_upload_sources(frames)).is_error())
         return false;
     webgl_context.store_executed_flush_sequence_number(flush_sequence_number);
     return true;
