@@ -13,11 +13,18 @@
 
 namespace Gfx {
 
+enum class PNGCompression : u8 {
+    Default,
+    // Encodes much faster, at the cost of a larger file.
+    Fast,
+};
+
 // This is not a nested struct to work around https://llvm.org/PR36684
 struct PNGWriterOptions {
     // Data for the iCCP chunk.
     // FIXME: Allow writing cICP, sRGB, or gAMA instead too.
     Optional<ReadonlyBytes> icc_data;
+    PNGCompression compression { PNGCompression::Default };
 };
 
 class PNGWriter {
