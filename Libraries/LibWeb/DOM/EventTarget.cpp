@@ -301,7 +301,7 @@ static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_
     if (auto* window = as_if<HTML::Window>(event_target)) {
         auto& document = window->associated_document();
         document.set_needs_to_record_display_list();
-        document.page().invalidate_compositor_wheel_event_listener_state();
+        document.page().invalidate_compositor_wheel_event_listener_state(document);
         return;
     }
 
@@ -311,7 +311,7 @@ static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_
         node->document().set_may_have_blocking_wheel_event_listener();
         node->update_inside_blocking_wheel_event_handler_state_for_subtree();
         node->set_needs_repaint();
-        node->document().page().invalidate_compositor_wheel_event_listener_state();
+        node->document().page().invalidate_compositor_wheel_event_listener_state(node->document());
     }
 }
 
