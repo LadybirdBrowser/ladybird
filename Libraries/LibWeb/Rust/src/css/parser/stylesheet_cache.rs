@@ -166,7 +166,7 @@ fn own_text(source: TokenizerInput<'_>) -> Box<[u16]> {
 }
 
 unsafe fn own_view(view: FfiUtf16View) -> Option<Box<[u16]>> {
-    Some(own_text(unsafe { view.units() }?))
+    Some(own_text(view.units()?))
 }
 
 unsafe fn own_url(pointer: *const u8, length: usize) -> Option<Box<[u16]>> {

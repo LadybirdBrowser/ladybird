@@ -106,14 +106,14 @@ pub enum FfiValueParsingContextKind {
 /// One entry in the C++ Parser's value-context stack.
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiValueParsingContext {
+pub struct FfiValueParsingContext<'a> {
     pub kind: FfiValueParsingContextKind,
     /// PropertyID, SpecialContext, or AtRuleID, depending on `kind`.
     pub value: u16,
     /// DescriptorID when `kind` is Descriptor.
     pub secondary_value: u16,
     /// Function name when `kind` is Function.
-    pub name: FfiUtf16View,
+    pub name: FfiUtf16View<'a>,
 }
 
 /// Parser state required by CSS value parsing.
@@ -125,7 +125,8 @@ pub struct ParseContext {
     pub is_substituted_value: bool,
     pub contains_attr_tainted_values: bool,
     pub is_ua_style_sheet: bool,
-    pub value_contexts: *const FfiValueParsingContext,
+    /// Borrowed for the parse.
+    pub value_contexts: *const FfiValueParsingContext<'static>,
     pub value_context_count: usize,
     pub declared_namespaces: *const crate::css::rule::NativeNamespaceContext,
     pub document_url: *const u8,
@@ -1153,7 +1154,7 @@ fn substitution_function_context_names(context: &ParseContext) -> Option<Vec<Vec
     let names = contexts
         .iter()
         .filter(|value_context| value_context.kind == FfiValueParsingContextKind::Function)
-        .map(|function_context| unsafe { function_context.name.to_utf16() })
+        .map(|function_context| function_context.name.to_utf16())
         .collect::<Option<Vec<_>>>()?;
     (!names.is_empty()).then_some(names)
 }
@@ -3784,11 +3785,7 @@ pub(crate) fn parse_initial_value(property: u16) -> Option<Arc<StyleValueData>> 
         kind: FfiValueParsingContextKind::Property,
         value: property,
         secondary_value: 0,
-        name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: std::ptr::null(),
-            length: 0,
-        },
+        name: FfiUtf16View::default(),
     };
     let context = ParseContext {
         in_quirks_mode: false,
@@ -6007,7 +6004,7 @@ pub unsafe extern "C" fn rust_parse_css_value(
     if out_status.is_null() {
         return invalid_ffi_result();
     }
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return invalid_ffi_result();
     };
     let mut source_utf16 = Vec::with_capacity(source.len());
@@ -6063,7 +6060,7 @@ pub unsafe extern "C" fn rust_collect_arbitrary_substitution_function_presence_f
     if out_presence.is_null() {
         return false;
     }
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return false;
     };
     let Ok(values) = component_values_from_source(source) else {
@@ -6088,7 +6085,7 @@ pub unsafe extern "C" fn rust_visit_margin_components(
     context: *mut c_void,
     visit: VisitMarginComponent,
 ) -> bool {
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return false;
     };
     let Ok(values) = component_values_from_source(source) else {
@@ -6233,7 +6230,7 @@ pub unsafe extern "C" fn rust_parse_entire_css_primitive_from_source(
     let Some(context) = context else {
         return std::ptr::null();
     };
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return std::ptr::null();
     };
     let Ok(values) = component_values_from_source(source) else {
@@ -6266,7 +6263,7 @@ pub struct FfiSimpleColor {
 /// The source view must contain exactly one valid pointer when non-empty.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSimpleColor {
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return FfiSimpleColor::default();
     };
     let Some([red, green, blue, alpha]) = parse_simple_color(source) else {
@@ -6285,7 +6282,7 @@ pub unsafe extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSim
 /// The source view must contain exactly one valid pointer when non-empty.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_is_valid_animation_name_custom_ident(source: FfiUtf16View) -> bool {
-    let Some(source) = (unsafe { source.units() }) else {
+    let Some(source) = source.units() else {
         return false;
     };
     is_valid_custom_ident_matching(
@@ -7596,11 +7593,7 @@ mod tests {
                 kind: FfiValueParsingContextKind::Function,
                 value: 0,
                 secondary_value: 0,
-                name: FfiUtf16View {
-                    ascii: function_name.as_ptr(),
-                    utf16: std::ptr::null(),
-                    length: function_name.len(),
-                },
+                name: FfiUtf16View::from_ascii(function_name),
             }));
             let mut parse_context = context();
             parse_context.value_contexts = function_contexts.as_ptr();

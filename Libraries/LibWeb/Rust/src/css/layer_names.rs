@@ -24,13 +24,8 @@ pub unsafe extern "C" fn rust_layer_names_count(names: *const LayerNames) -> usi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layer_names_at(names: *const LayerNames, index: usize) -> FfiUtf16View {
-    let units = unsafe { &*names }.names[index].units();
-    FfiUtf16View {
-        ascii: std::ptr::null(),
-        utf16: units.as_ptr(),
-        length: units.len(),
-    }
+pub extern "C" fn rust_layer_names_at(names: &LayerNames, index: usize) -> FfiUtf16View<'_> {
+    FfiUtf16View::from_utf16(names.names[index].units())
 }
 
 #[unsafe(no_mangle)]

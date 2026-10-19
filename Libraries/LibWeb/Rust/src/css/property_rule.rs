@@ -25,29 +25,21 @@ const _: () = {
 };
 
 #[repr(C)]
-pub struct FfiPropertyRuleView {
-    pub name: FfiUtf16View,
-    pub syntax_source: FfiUtf16View,
+pub struct FfiPropertyRuleView<'a> {
+    pub name: FfiUtf16View<'a>,
+    pub syntax_source: FfiUtf16View<'a>,
     pub syntax: *const c_void,
     pub inherits: bool,
     pub initial_value: *const c_void,
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_property_rule_view(rule: &PropertyRuleData) -> FfiPropertyRuleView {
+pub extern "C" fn rust_property_rule_view(rule: &PropertyRuleData) -> FfiPropertyRuleView<'_> {
     let name = rule.name.units();
     let syntax_source = rule.syntax_source.units();
     FfiPropertyRuleView {
-        name: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: name.as_ptr(),
-            length: name.len(),
-        },
-        syntax_source: FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: syntax_source.as_ptr(),
-            length: syntax_source.len(),
-        },
+        name: FfiUtf16View::from_utf16(name),
+        syntax_source: FfiUtf16View::from_utf16(syntax_source),
         syntax: Arc::as_ptr(&rule.syntax).cast(),
         inherits: rule.inherits,
         initial_value: rule

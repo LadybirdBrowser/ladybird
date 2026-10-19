@@ -1397,7 +1397,7 @@ pub unsafe extern "C" fn layout_arena_paint_push_bytes(sink: *mut c_void, bytes:
 /// view must satisfy [`FfiUtf16View::units`], and each non-null component transfer table must
 /// hold 256 bytes.
 unsafe fn svg_filter_primitive_from_ffi(primitive: &FfiSvgFilterPrimitive) -> SvgFilterPrimitive {
-    let name = |view: FfiUtf16View| unsafe { view.to_utf16() }.unwrap_or_default();
+    let name = |view: FfiUtf16View| view.to_utf16().unwrap_or_default();
     SvgFilterPrimitive {
         values: primitive.values,
         in1: name(primitive.in1),

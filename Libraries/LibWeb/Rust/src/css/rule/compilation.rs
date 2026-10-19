@@ -31,8 +31,8 @@ pub struct NativeCompilationScope {
 }
 
 #[repr(C)]
-pub struct NativeCompilationContext {
-    pub layer_name: FfiUtf16View,
+pub struct NativeCompilationContext<'a> {
+    pub layer_name: FfiUtf16View<'a>,
     pub scopes: *const NativeCompilationScope,
     pub scope_count: usize,
     pub containers: *const *const ContainerConditionsData,
@@ -87,13 +87,9 @@ impl Default for CompilationContext {
 }
 
 impl CompilationContext {
-    fn view(&self) -> NativeCompilationContext {
+    fn view(&self) -> NativeCompilationContext<'_> {
         NativeCompilationContext {
-            layer_name: FfiUtf16View {
-                ascii: std::ptr::null(),
-                utf16: self.layer_name.as_ptr(),
-                length: self.layer_name.len(),
-            },
+            layer_name: FfiUtf16View::from_utf16(&self.layer_name),
             scopes: self.scopes.as_ptr(),
             scope_count: self.scopes.len(),
             containers: self.containers.as_ptr(),
@@ -1686,12 +1682,12 @@ mod tests {
         ) -> bool {
             let collection = unsafe { &*data.cast::<Collection>() };
             if rule_type == NativeRuleType::Style {
-                let layer = unsafe { std::slice::from_raw_parts(context.layer_name.utf16, context.layer_name.length) };
+                let layer = context.layer_name.to_utf16().unwrap();
                 let scopes = unsafe { std::slice::from_raw_parts(context.scopes, context.scope_count) };
                 collection.rules.borrow_mut().push(CompiledRule {
                     identity,
                     source,
-                    layer: layer.to_vec(),
+                    layer,
                     scopes: scopes
                         .iter()
                         .map(|scope| (scope.identity, scope.implicit_root))

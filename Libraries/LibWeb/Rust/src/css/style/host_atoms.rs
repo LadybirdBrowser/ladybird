@@ -134,16 +134,15 @@ pub unsafe extern "C" fn style_engine_set_element_language(
     text: FfiUtf16View,
 ) {
     let tag_is_new = language != 0
-        && text.length != 0
+        && !text.is_empty()
         && host
             .engine_memo()
             .atoms
             .borrow_mut()
             .languages_with_text
             .insert(StyleAtomID(language));
-    // SAFETY: Guaranteed by the caller.
     let text: Box<[u16]> = if tag_is_new {
-        unsafe { text.to_utf16() }.unwrap_or_default().into()
+        text.to_utf16().unwrap_or_default().into()
     } else {
         Box::default()
     };

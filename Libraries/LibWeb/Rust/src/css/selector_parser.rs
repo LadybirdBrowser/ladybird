@@ -1254,7 +1254,7 @@ pub unsafe extern "C" fn rust_selector_parse_with_namespace_context(
     is_relative: bool,
     is_forgiving: bool,
 ) -> *mut RustParsedSelectorList {
-    let Some(input) = (unsafe { input.units() }) else {
+    let Some(input) = input.units() else {
         return std::ptr::null_mut();
     };
     let namespaces = unsafe { namespaces.cast::<crate::css::rule::NativeNamespaceContext>().as_ref() };
@@ -1342,23 +1342,21 @@ pub struct FfiParsedPseudoElement {
 /// `input` must contain readable storage for the duration of this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_parse_pseudo_element(input: FfiUtf16View) -> FfiParsedPseudoElement {
-    unsafe {
-        let Some(input) = input.units() else {
-            return FfiParsedPseudoElement {
-                selector: std::ptr::null_mut(),
-                pseudo_element: u8::MAX,
-            };
+    let Some(input) = input.units() else {
+        return FfiParsedPseudoElement {
+            selector: std::ptr::null_mut(),
+            pseudo_element: u8::MAX,
         };
-        let Ok((selector, pseudo_element)) = parse_pseudo_element_selector(input) else {
-            return FfiParsedPseudoElement {
-                selector: std::ptr::null_mut(),
-                pseudo_element: u8::MAX,
-            };
+    };
+    let Ok((selector, pseudo_element)) = parse_pseudo_element_selector(input) else {
+        return FfiParsedPseudoElement {
+            selector: std::ptr::null_mut(),
+            pseudo_element: u8::MAX,
         };
-        FfiParsedPseudoElement {
-            selector: Box::into_raw(Box::new(RustSelector { selector })),
-            pseudo_element: pseudo_element as u8,
-        }
+    };
+    FfiParsedPseudoElement {
+        selector: Box::into_raw(Box::new(RustSelector { selector })),
+        pseudo_element: pseudo_element as u8,
     }
 }
 
@@ -1407,11 +1405,7 @@ mod tests {
         };
         unsafe {
             let parsed = selector_parse(
-                FfiUtf16View {
-                    utf16: units.as_ptr(),
-                    length: units.len(),
-                    ..Default::default()
-                },
+                FfiUtf16View::from_utf16(&units),
                 &prefix,
                 1,
                 false,

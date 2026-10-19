@@ -52,21 +52,17 @@ pub struct FfiDescriptorBlock {
 }
 
 #[repr(C)]
-pub struct FfiDescriptor {
-    pub name: FfiUtf16View,
+pub struct FfiDescriptor<'a> {
+    pub name: FfiUtf16View<'a>,
     pub id: u8,
     pub value: *const c_void,
 }
 
 impl DescriptorData {
     #[cfg(test)]
-    pub(crate) fn view(&self) -> FfiDescriptor {
+    pub(crate) fn view(&self) -> FfiDescriptor<'_> {
         FfiDescriptor {
-            name: FfiUtf16View {
-                utf16: self.name.units().as_ptr(),
-                length: self.name.units().len(),
-                ..Default::default()
-            },
+            name: FfiUtf16View::from_utf16(self.name.units()),
             id: self.id,
             value: Arc::as_ptr(&self.value).cast(),
         }
@@ -108,7 +104,7 @@ impl FfiDescriptorBlock {
 }
 
 unsafe fn descriptor_from_view(view: &FfiDescriptor) -> DescriptorData {
-    let name = CssString::from_utf16(&unsafe { view.name.to_utf16() }.unwrap());
+    let name = CssString::from_utf16(&view.name.to_utf16().unwrap());
     assert!(!view.value.is_null());
     let value = view.value.cast::<StyleValueData>();
     let value = unsafe {
@@ -174,7 +170,7 @@ pub unsafe extern "C" fn rust_descriptor_block_get(
     id: u8,
     name: FfiUtf16View,
 ) -> *const c_void {
-    let name = unsafe { name.units() }.unwrap();
+    let name = name.units().unwrap();
     block
         .data()
         .descriptors
@@ -253,7 +249,7 @@ pub unsafe extern "C" fn rust_descriptor_block_remove(
     id: u8,
     name: FfiUtf16View,
 ) -> bool {
-    let name = unsafe { name.to_utf16() }.unwrap();
+    let name = name.to_utf16().unwrap();
     let Some(index) =
         block.data().descriptors.iter().position(|descriptor| {
             descriptor.id == id && (id != CUSTOM_DESCRIPTOR_ID || descriptor.name.units() == name)
@@ -364,7 +360,7 @@ mod tests {
         assert_eq!(rust_descriptor_block_length(block), 1);
         // The pinned snapshot still owns the removed descriptor.
         assert_eq!(
-            unsafe { descriptor.name.to_utf16().unwrap() },
+            descriptor.name.to_utf16().unwrap(),
             "font-family".encode_utf16().collect::<Vec<_>>()
         );
         assert_eq!(fork.data().descriptors.len(), 2);

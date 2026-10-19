@@ -552,7 +552,7 @@ pub unsafe extern "C" fn layout_script_find_matching_text(
     append: unsafe extern "C" fn(*mut c_void, FfiDomTextRange),
 ) {
     // SAFETY: The host lends the query for this synchronous call.
-    let query = unsafe { query.to_utf16() }.expect("query carries no storage");
+    let query = query.to_utf16().expect("query carries no storage");
     if query.is_empty() {
         return;
     }

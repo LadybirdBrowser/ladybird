@@ -93,8 +93,11 @@ pub extern "C" fn rust_font_feature_values_data_family_count(data: &FontFeatureV
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_font_feature_values_data_family_at(data: &FontFeatureValuesData, index: usize) -> FfiUtf16View {
-    string_view(data.families[index].units())
+pub extern "C" fn rust_font_feature_values_data_family_at(
+    data: &FontFeatureValuesData,
+    index: usize,
+) -> FfiUtf16View<'_> {
+    FfiUtf16View::from_utf16(data.families[index].units())
 }
 
 #[unsafe(no_mangle)]
@@ -110,28 +113,20 @@ pub extern "C" fn rust_font_feature_values_data_at(
     data: &FontFeatureValuesData,
     kind: FontFeatureValuesRuleKind,
     index: usize,
-) -> FfiFeatureValueEntry {
+) -> FfiFeatureValueEntry<'_> {
     let entry = &data.maps[kind as usize].entries[index];
     FfiFeatureValueEntry {
-        name: string_view(&entry.name),
+        name: FfiUtf16View::from_utf16(&entry.name),
         values: entry.values.as_ptr(),
         count: entry.values.len(),
     }
 }
 
 #[repr(C)]
-pub struct FfiFeatureValueEntry {
-    pub name: FfiUtf16View,
+pub struct FfiFeatureValueEntry<'a> {
+    pub name: FfiUtf16View<'a>,
     pub values: *const u32,
     pub count: usize,
-}
-
-fn string_view(name: &[u16]) -> FfiUtf16View {
-    FfiUtf16View {
-        ascii: std::ptr::null(),
-        utf16: name.as_ptr(),
-        length: name.len(),
-    }
 }
 
 #[unsafe(no_mangle)]
@@ -139,9 +134,16 @@ pub extern "C" fn rust_font_feature_values_family_count(owner: &FontFeatureValue
     owner.data.borrow().families.len()
 }
 
+/// # Safety
+/// The caller must not change the rule's values while it uses the returned view.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_font_feature_values_family_at(owner: &FontFeatureValuesRule, index: usize) -> FfiUtf16View {
-    string_view(owner.data.borrow().families[index].units())
+pub unsafe extern "C" fn rust_font_feature_values_family_at(
+    owner: &FontFeatureValuesRule,
+    index: usize,
+) -> FfiUtf16View<'_> {
+    // SAFETY: The caller reads the family before it next changes the rule's values.
+    let data = unsafe { owner.data.try_borrow_unguarded() }.expect("the values are not being changed");
+    FfiUtf16View::from_utf16(data.families[index].units())
 }
 
 #[unsafe(no_mangle)]
@@ -170,7 +172,7 @@ pub unsafe extern "C" fn rust_font_feature_values_find(
     kind: FontFeatureValuesRuleKind,
     name: FfiUtf16View,
 ) -> usize {
-    let name = unsafe { name.to_utf16() }.unwrap();
+    let name = name.to_utf16().unwrap();
     owner.data.borrow().maps[kind as usize]
         .indices
         .get(name.as_slice())
@@ -178,16 +180,19 @@ pub unsafe extern "C" fn rust_font_feature_values_find(
         .unwrap_or(usize::MAX)
 }
 
+/// # Safety
+/// The caller must not change the rule's values while it uses the returned entry.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_font_feature_values_at(
+pub unsafe extern "C" fn rust_font_feature_values_at(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
     index: usize,
-) -> FfiFeatureValueEntry {
-    let data = owner.data.borrow();
+) -> FfiFeatureValueEntry<'_> {
+    // SAFETY: The caller reads the entry before it next changes the rule's values.
+    let data = unsafe { owner.data.try_borrow_unguarded() }.expect("the values are not being changed");
     let entry = &data.maps[kind as usize].entries[index];
     FfiFeatureValueEntry {
-        name: string_view(&entry.name),
+        name: FfiUtf16View::from_utf16(&entry.name),
         values: entry.values.as_ptr(),
         count: entry.values.len(),
     }
@@ -201,7 +206,7 @@ pub unsafe extern "C" fn rust_font_feature_values_set(
     values: *const u32,
     count: usize,
 ) {
-    let name = unsafe { name.to_utf16() }.unwrap();
+    let name = name.to_utf16().unwrap();
     // Copy borrowed inputs before COW can release or replace their storage.
     let values = (0..count)
         .map(|index| unsafe { *values.add(index) })
@@ -215,7 +220,7 @@ pub unsafe extern "C" fn rust_font_feature_values_remove(
     kind: FontFeatureValuesRuleKind,
     name: FfiUtf16View,
 ) -> bool {
-    let name = unsafe { name.to_utf16() }.unwrap();
+    let name = name.to_utf16().unwrap();
     let mut data = owner.data.borrow_mut();
     let Some(&index) = data.maps[kind as usize].indices.get(name.as_slice()) else {
         return false;
@@ -439,7 +444,8 @@ pub unsafe extern "C" fn rust_font_shape_features(
             }
             let mut count = 0;
             // SAFETY: The callback answers with `count` values that live through this call.
-            let feature_values = unsafe { lookup(family_values, kind, string_view(feature_name), &mut count) };
+            let feature_values =
+                unsafe { lookup(family_values, kind, FfiUtf16View::from_utf16(feature_name), &mut count) };
             if feature_values.is_null() || count == 0 {
                 continue;
             }

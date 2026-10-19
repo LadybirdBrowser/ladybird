@@ -247,15 +247,15 @@ impl DeclarationBlockData {
 }
 
 #[repr(C)]
-pub struct FfiDeclaredProperty {
+pub struct FfiDeclaredProperty<'a> {
     pub property_id: u16,
     pub important: bool,
     pub value: *const c_void,
-    pub name: FfiUtf16View,
+    pub name: FfiUtf16View<'a>,
 }
 
 impl DeclaredProperty {
-    fn view(&self, name: FfiUtf16View) -> FfiDeclaredProperty {
+    fn view<'a>(&'a self, name: FfiUtf16View<'a>) -> FfiDeclaredProperty<'a> {
         FfiDeclaredProperty {
             property_id: self.property_id,
             important: self.important,
@@ -467,10 +467,9 @@ pub unsafe extern "C" fn rust_declaration_block_create(
     }
     for index in 0..custom_property_count {
         let property = unsafe { &*custom_properties.add(index) };
-        data.set_custom_property(
-            CssString::from_utf16(&unsafe { property.name.to_utf16() }.unwrap()),
-            unsafe { declaration_from_view(property) },
-        );
+        data.set_custom_property(CssString::from_utf16(&property.name.to_utf16().unwrap()), unsafe {
+            declaration_from_view(property)
+        });
     }
     Box::into_raw(Box::new(DeclarationBlock::new(Arc::new(data))))
 }
@@ -537,11 +536,9 @@ pub extern "C" fn rust_declaration_data_visit(
     for property in &data.custom_properties {
         visit(
             context,
-            &property.declaration.view(FfiUtf16View {
-                utf16: property.name.units().as_ptr(),
-                length: property.name.units().len(),
-                ..Default::default()
-            }),
+            &property
+                .declaration
+                .view(FfiUtf16View::from_utf16(property.name.units())),
         );
     }
 }
@@ -587,7 +584,7 @@ pub unsafe extern "C" fn rust_declaration_block_set_custom(
     block: &mut DeclarationBlock,
     property: &FfiDeclaredProperty,
 ) {
-    let name = CssString::from_utf16(&unsafe { property.name.to_utf16() }.unwrap());
+    let name = CssString::from_utf16(&property.name.to_utf16().unwrap());
     let declaration = unsafe { declaration_from_view(property) };
     block.mutate(|data| {
         data.set_custom_property(name, declaration);
@@ -605,7 +602,7 @@ pub unsafe extern "C" fn rust_declaration_block_remove_custom(
     block: &mut DeclarationBlock,
     name: FfiUtf16View,
 ) -> bool {
-    let name = unsafe { name.to_utf16() }.unwrap();
+    let name = name.to_utf16().unwrap();
     let Some(index) = block
         .data()
         .custom_properties
@@ -661,14 +658,7 @@ mod tests {
             assert!(unsafe { rust_declaration_block_set(&mut block, &view) });
             let name = block.data().custom_properties[0].name.clone();
             assert!(unsafe {
-                rust_declaration_block_remove_custom(
-                    &mut block,
-                    FfiUtf16View {
-                        utf16: name.units().as_ptr(),
-                        length: name.units().len(),
-                        ..Default::default()
-                    },
-                )
+                rust_declaration_block_remove_custom(&mut block, FfiUtf16View::from_utf16(name.units()))
             });
             assert!(block.data().properties[0].important);
             assert!(block.data().custom_properties.is_empty());
@@ -698,16 +688,7 @@ mod tests {
             }
         );
         let name: Vec<_> = "--幅".encode_utf16().collect();
-        assert!(unsafe {
-            rust_declaration_block_remove_custom(
-                &mut retained,
-                FfiUtf16View {
-                    utf16: name.as_ptr(),
-                    length: name.len(),
-                    ..Default::default()
-                },
-            )
-        });
+        assert!(unsafe { rust_declaration_block_remove_custom(&mut retained, FfiUtf16View::from_utf16(&name),) });
         assert_eq!(
             rust_declaration_block_dependencies(&fork),
             FfiDeclarationBlockDependencies::default()

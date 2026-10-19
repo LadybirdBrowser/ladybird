@@ -85,9 +85,9 @@ impl Utf16SliceExt for [u16] {
 }
 
 #[repr(C)]
-pub struct FfiCustomPropertyStoreEntry {
+pub struct FfiCustomPropertyStoreEntry<'a> {
     pub name_raw: usize,
-    pub name: FfiUtf16View,
+    pub name: FfiUtf16View<'a>,
     pub important: bool,
     pub data: *const c_void,
 }
@@ -182,12 +182,12 @@ struct FunctionLocalScope {
 }
 
 #[repr(C)]
-pub struct FfiCustomPropertyRegistration {
-    pub name: FfiUtf16View,
+pub struct FfiCustomPropertyRegistration<'a> {
+    pub name: FfiUtf16View<'a>,
     pub syntax: *const c_void,
     pub inherits: bool,
     pub has_initial_value: bool,
-    pub initial_value: FfiUtf16View,
+    pub initial_value: FfiUtf16View<'a>,
     /// The initial value as the host computed it against the document, borrowed for the call.
     pub computed_initial_value: *const c_void,
 }
@@ -961,14 +961,7 @@ pub unsafe extern "C" fn rust_style_query_dependencies_take(
     let dependencies = unsafe { Box::from_raw(dependencies.cast::<StyleQueryDependencies>()) };
     for name in dependencies.names() {
         unsafe {
-            visit(
-                context,
-                FfiUtf16View {
-                    ascii: std::ptr::null(),
-                    utf16: name.as_ptr(),
-                    length: name.len(),
-                },
-            );
+            visit(context, FfiUtf16View::from_utf16(name));
         }
     }
 }
@@ -3811,10 +3804,15 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
             .to_vec();
     registry.registrations.reserve(registrations.len());
     for registration in registrations {
-        let name = unsafe { registration.name.to_utf16() }.expect("invalid registered custom property name");
+        let name = registration
+            .name
+            .to_utf16()
+            .expect("invalid registered custom property name");
         let initial_source = if registration.has_initial_value {
             Some(
-                unsafe { registration.initial_value.to_utf16() }
+                registration
+                    .initial_value
+                    .to_utf16()
                     .expect("invalid registered custom property initial value"),
             )
         } else {
@@ -3908,9 +3906,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     let own_values = entries
         .iter()
         .map(|entry| {
-            let name: Arc<[u16]> = unsafe { entry.name.to_utf16() }
-                .expect("invalid custom property name")
-                .into();
+            let name: Arc<[u16]> = entry.name.to_utf16().expect("invalid custom property name").into();
             own_names.insert(name.clone(), entry.name_raw);
             (
                 entry.name_raw,
@@ -3954,9 +3950,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
     };
     let base = unsafe { base.cast::<CustomPropertyStore>().as_ref() };
     let animated = entries.iter().map(|entry| {
-        let name: Arc<[u16]> = unsafe { entry.name.to_utf16() }
-            .expect("invalid custom property name")
-            .into();
+        let name: Arc<[u16]> = entry.name.to_utf16().expect("invalid custom property name").into();
         (
             entry.name_raw,
             CustomPropertyEntry {

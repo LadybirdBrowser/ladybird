@@ -18,21 +18,13 @@ const _: () = {
 };
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_namespace_rule_prefix(rule: &NamespaceRuleData) -> FfiUtf16View {
+pub extern "C" fn rust_namespace_rule_prefix(rule: &NamespaceRuleData) -> FfiUtf16View<'_> {
     let units = rule.prefix.units();
-    FfiUtf16View {
-        ascii: std::ptr::null(),
-        utf16: units.as_ptr(),
-        length: units.len(),
-    }
+    FfiUtf16View::from_utf16(units)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_namespace_rule_uri(rule: &NamespaceRuleData) -> FfiUtf16View {
+pub extern "C" fn rust_namespace_rule_uri(rule: &NamespaceRuleData) -> FfiUtf16View<'_> {
     let units = rule.uri.units();
-    FfiUtf16View {
-        ascii: std::ptr::null(),
-        utf16: units.as_ptr(),
-        length: units.len(),
-    }
+    FfiUtf16View::from_utf16(units)
 }
