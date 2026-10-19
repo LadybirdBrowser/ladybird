@@ -212,6 +212,7 @@ public:
     void set_vertical_tabs_expanded(bool);
     void set_vertical_tabs_expand_on_hover(bool);
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
+    bool can_expand_vertical_tabs_on_hover() const;
     void update_tab_button_visibility();
 
 signals:
@@ -231,7 +232,6 @@ private:
     TabLayout current_tab_layout() const;
     QWidget* tab_drag_area_widget() const;
     bool vertical_tabs_effectively_expanded() const;
-    bool can_expand_vertical_tabs_on_hover() const;
     bool cursor_is_over_vertical_tabs() const;
     bool vertical_tabs_are_on_right() const;
     int vertical_tabs_layout_width() const;
