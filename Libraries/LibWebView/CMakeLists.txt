@@ -69,6 +69,7 @@ set(SOURCES
     Utilities.cpp
     VideoDecoderServerControlClient.cpp
     ViewImplementation.cpp
+    WebCompatReport.cpp
     WebContentClient.cpp
     WebContentPage.cpp
     WebContentTestClient.cpp
