@@ -2283,10 +2283,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     auto old_style_record = style_record_identity();
     auto& counters = document().style_invalidation_counters();
     auto& style_computer = document().style_computer();
-    auto recompute_started_at = MonotonicTime::now();
-    ScopeGuard record_recompute_time = [&] {
-        counters.style_recompute_microseconds += (MonotonicTime::now() - recompute_started_at).to_microseconds();
-    };
     ++counters.engine_computed_style_records;
 
     // The engine substituted custom properties into the record's winners the way a C++

@@ -252,7 +252,6 @@ def stage_model(sample):
         [
             "styleEngineTransactionSetupMicroseconds",
             "styleEnginePlanningMicroseconds",
-            "styleRecomputeMicroseconds",
         ],
     )
     return {
@@ -342,7 +341,6 @@ def stage_model(sample):
             "style_update": style_update_microseconds,
             "transaction_setup": counter(sample, "style", "styleEngineTransactionSetupMicroseconds"),
             "planning": counter(sample, "style", "styleEnginePlanningMicroseconds"),
-            "style_recompute": counter(sample, "style", "styleRecomputeMicroseconds"),
             "cascade": counter(sample, "style", "styleCascadeMicroseconds"),
             "computed_values": counter(sample, "style", "styleValuesMicroseconds"),
             "accounted_operator_total": accounted_microseconds,

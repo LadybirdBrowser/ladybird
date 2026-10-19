@@ -1425,9 +1425,8 @@ Diagnostic transactions still contribute to the Rust ledger, but their returned
 bridge durations are not charged to the C++ style-update ledger.
 
 `styleEnginePlanningMicroseconds` remains a compatibility alias for the bridge
-clock. `styleEngineTransactionSetupMicroseconds` is a subset of submission, and
-`styleRecomputeMicroseconds` is a nested diagnostic. Neither is an extra exclusive
-phase. Timing counters never determine which work runs.
+clock. `styleEngineTransactionSetupMicroseconds` is a subset of submission, not an
+extra exclusive phase. Timing counters never determine which work runs.
 
 Physical-work counts distinguish attempted work from accepted output:
 
