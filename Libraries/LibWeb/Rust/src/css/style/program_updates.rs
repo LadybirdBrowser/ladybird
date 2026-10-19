@@ -167,14 +167,7 @@ impl RetainedState {
                 continue;
             }
             let id = ScopeProgramID(u32::try_from(index).expect("scope program identity space exhausted"));
-            let mut caches = self.prefix_caches.borrow_mut();
-            caches.states.remove(id);
-            caches.answers.remove_program(&mut self.match_answers, id);
-            drop(caches);
-            let program = self.scope_programs[id].take().unwrap();
-            self.scope_programs
-                .remove_identity(intern_table::content_hash(&program.key), id);
-            self.vacant_scope_programs.push(id);
+            self.remove_scope_program(id);
         }
         for program in self.scope_programs.iter_mut().flatten() {
             program.scope_count = 0;

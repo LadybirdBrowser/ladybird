@@ -2089,7 +2089,16 @@ impl super::intern_table::InternIdentity for ScopeProgramID {
 pub(super) struct ScopeProgram {
     pub(super) key: ScopeDispatchKey,
     pub(super) dispatch: Arc<RuleDispatch>,
+    /// The shapes the dispatch is filed under among the templates, which stay while a program has them.
+    pub(super) shapes: ScopeTemplateShapes,
     pub(super) scope_count: u32,
+}
+
+/// The shapes one scope program's dispatch is filed under among the scope templates.
+#[derive(Clone)]
+pub(super) struct ScopeTemplateShapes {
+    pub(super) dispatch: ScopeDispatchShape,
+    pub(super) cascade: ScopeCascadeShape,
 }
 
 #[derive(Clone)]

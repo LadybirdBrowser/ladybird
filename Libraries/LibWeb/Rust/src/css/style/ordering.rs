@@ -2052,6 +2052,20 @@ impl RetainedState {
             referenced[program.0 as usize] = true;
         }
         self.match_answers.mark_referenced_selector_programs(&mut referenced);
+        // NB: A scope program's shape names selector programs, and the templates follow the shapes of live scope
+        //     programs. Keep the selector programs of those scopes resolve to, and drop below the ones no scope
+        //     resolves to that name a recycled selector program, so that no live shape names a recycled identity.
+        for program in self.scope_programs.iter().flatten() {
+            if program.scope_count == 0 {
+                continue;
+            }
+            for &(selector_program, _) in program.shapes.dispatch.0.iter() {
+                if referenced.len() <= selector_program.0 as usize {
+                    referenced.resize(selector_program.0 as usize + 1, false);
+                }
+                referenced[selector_program.0 as usize] = true;
+            }
+        }
         if !self.programs.has_unreferenced_programs(&referenced) {
             self.selector_programs_need_sweep = false;
             return;
@@ -2088,8 +2102,28 @@ impl RetainedState {
                 .iter()
                 .all(|&(program, _)| referenced.get(program.0 as usize).copied().unwrap_or(false))
         });
+        let names_swept_program = |shapes: &ScopeTemplateShapes| {
+            shapes
+                .dispatch
+                .0
+                .iter()
+                .any(|&(program, _)| !referenced.get(program.0 as usize).copied().unwrap_or(false))
+        };
+        let stale_scope_programs = (0..self.scope_programs.len())
+            .filter(|&index| {
+                self.scope_programs[index]
+                    .as_ref()
+                    .is_some_and(|program| names_swept_program(&program.shapes))
+            })
+            .map(|index| ScopeProgramID(u32::try_from(index).expect("scope program identity space exhausted")))
+            .collect::<Vec<_>>();
+        for id in stale_scope_programs {
+            self.remove_scope_program(id);
+        }
         self.scope_cascade_templates.clear();
         self.ancestor_dispatch_templates.clear();
+        // NB: The retired shapes may name swept selector programs, whose identities are recycled.
+        self.retired_scope_templates.clear();
         self.programs.sweep_unreferenced(&referenced);
         self.programs.settle_memory(&mut self.memory);
         self.selector_programs_need_sweep = false;
@@ -2231,6 +2265,7 @@ impl StyleEngine {
         self.host.program_staging.clear();
         self.host.environment_move_changed_names.clear();
         self.sweep_selector_programs();
+        self.retained.drop_unused_scope_templates();
         self.shed_routing_for_detached_sheets();
     }
 

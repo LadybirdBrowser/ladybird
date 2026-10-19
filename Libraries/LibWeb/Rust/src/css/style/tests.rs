@@ -10302,6 +10302,125 @@ fn equivalent_sheet_programs_share_dispatch_topology() {
 }
 
 #[test]
+fn a_scope_template_stays_while_a_program_of_its_shape_lives() {
+    let mut engine = StyleEngine::new();
+    let shared = engine
+        .programs
+        .add(test_selector_program(".target", &[("target", StyleAtomID(200))]));
+    let other = engine
+        .programs
+        .add(test_selector_program(".other", &[("other", StyleAtomID(201))]));
+    for (scope, object, program) in [
+        (TreeScopeID(1), 1, shared),
+        (TreeScopeID(2), 2, shared),
+        (TreeScopeID(3), 3, other),
+    ] {
+        let sheet = engine.add_sheet(StyleSheetObjectID(object), CascadeOrigin::Author);
+        engine.attach_sheet(sheet, scope);
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        engine.replace_rule_version(rule, version);
+    }
+    discard_transaction(&mut engine);
+
+    // The first scope builds the template; the second rebinds it into a dispatch of its own.
+    let (_, first) = engine.prepare_scope_program(TreeScopeID(1));
+    let (_, second) = engine.prepare_scope_program(TreeScopeID(2));
+    assert!(!Arc::ptr_eq(&first, &second));
+    assert!(first.shares_topology_with(&second));
+    engine.prepare_scope_program(TreeScopeID(3));
+    drop(first);
+    engine.invalidate_scope_program(TreeScopeID(1));
+    engine.invalidate_scope_program(TreeScopeID(3));
+    discard_transaction(&mut engine);
+
+    let (_, rebuilt) = engine.prepare_scope_program(TreeScopeID(1));
+    assert!(second.shares_topology_with(&rebuilt));
+}
+
+#[test]
+fn a_selector_program_sweep_drops_scope_programs_that_name_swept_programs() {
+    let mut engine = StyleEngine::new();
+    let old = engine
+        .programs
+        .add(test_selector_program(".old", &[("old", StyleAtomID(200))]));
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(old);
+    engine.replace_rule_version(rule, version);
+    discard_transaction(&mut engine);
+    engine.prepare_scope_program(TreeScopeID::DOCUMENT);
+
+    // The program stays interned for one generation with no scope resolving to it.
+    engine.invalidate_scope_programs();
+    let replacement = engine
+        .programs
+        .add(test_selector_program(".new", &[("new", StyleAtomID(201))]));
+    engine.selector_programs_need_sweep = true;
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(replacement);
+    engine.replace_rule_version(rule, version);
+    discard_transaction(&mut engine);
+
+    assert!(engine.scope_programs.iter().flatten().all(|program| {
+        program
+            .shapes
+            .dispatch
+            .0
+            .iter()
+            .all(|&(selector_program, _)| selector_program != old)
+    }));
+}
+
+#[test]
+fn switching_back_to_a_sheet_set_rebinds_its_template() {
+    let mut engine = StyleEngine::new();
+    let mut sheets = Vec::new();
+    for (object, name) in [(1, "first"), (2, "middle"), (3, "last")] {
+        let program = engine.programs.add(test_selector_program(
+            &format!(".{name}"),
+            &[(name, StyleAtomID(200 + object))],
+        ));
+        let sheet = engine.add_sheet(StyleSheetObjectID(object), CascadeOrigin::Author);
+        engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        engine.replace_rule_version(rule, version);
+        sheets.push(sheet);
+    }
+    discard_transaction(&mut engine);
+    let (_, all) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
+    assert_eq!(all.entry_count(), 3);
+
+    // Each transaction prepares its scopes before it is released, as a style update does.
+    let change_and_prepare = |engine: &mut StyleEngine, change: &dyn Fn(&mut StyleEngine)| {
+        change(engine);
+        let transaction = engine.take_transaction();
+        let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
+        engine.release_transaction(transaction);
+        dispatch
+    };
+    let without_middle = change_and_prepare(&mut engine, &|engine| {
+        engine.detach_sheet(sheets[1], TreeScopeID::DOCUMENT)
+    });
+    assert_eq!(without_middle.entry_count(), 2);
+
+    // An unrelated program change in between removes the program of the full sheet set.
+    let empty = engine.add_sheet(StyleSheetObjectID(4), CascadeOrigin::Author);
+    change_and_prepare(&mut engine, &|engine| engine.attach_sheet(empty, TreeScopeID::DOCUMENT));
+
+    let again = change_and_prepare(&mut engine, &|engine| {
+        engine.attach_sheet_before_sheet(sheets[1], Some(sheets[2]), TreeScopeID::DOCUMENT)
+    });
+    assert_eq!(again.entry_count(), 3);
+    assert!(all.shares_topology_with(&again));
+}
+
+#[test]
 fn extending_a_scope_dispatch_skips_empty_selector_programs() {
     let mut engine = StyleEngine::new();
     let base = engine
