@@ -96,19 +96,29 @@ struct CompactionMatch {
     own_tree_priority: Option<CascadePriority>,
 }
 
+/// One part of what a remembered compaction is keyed by: a match, or a declaration of the element's own, which a
+/// compaction decides over beside the matches at the priority of the element's tree.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum CompactionKeyPart {
+    Match(CompactionMatch),
+    TreeScope(TreeScopeID),
+    ElementDeclaration(ElementDeclarationKind, DeclaredProperty),
+    ElementCustomDeclaration(CustomDeclaration),
+}
+
 /// What compacting one match list decided: the states it published and, unless compaction was
 /// blocked, which matches it kept.
 #[derive(Clone)]
 struct RememberedCompaction {
     hash: u64,
-    matches: Box<[CompactionMatch]>,
+    matches: Box<[CompactionKeyPart]>,
     states: SmallVec<[PublishedWinnerState; 2]>,
     keep: Option<Box<[bool]>>,
 }
 
-/// Compactions that depend on nothing but their match lists, by list, as decided under one program
-/// version and winner group generation. A list is remembered the second time it is compacted: most
-/// lists are one element's own, and remembering those would only fill the table.
+/// Compactions that depend on nothing but their match lists and the elements' own declarations, by both, as decided
+/// under one program version and winner group generation. A list is remembered the second time it is compacted:
+/// most lists are one element's own, and remembering those would only fill the table.
 #[derive(Clone, Default)]
 struct RememberedCompactions {
     decided_under: Option<(ProgramVersion, u64)>,
@@ -121,7 +131,7 @@ struct RememberedCompactions {
 impl RememberedCompactions {
     const LIMIT: usize = 1024;
 
-    fn hash_of(matches: &[CompactionMatch]) -> u64 {
+    fn hash_of(matches: &[CompactionKeyPart]) -> u64 {
         let mut hasher = fast_hash::fast_hasher();
         matches.hash(&mut hasher);
         hasher.finish()
@@ -141,7 +151,7 @@ impl RememberedCompactions {
         self.nested_bytes = 0;
     }
 
-    fn get(&self, hash: u64, matches: &[CompactionMatch]) -> Option<&RememberedCompaction> {
+    fn get(&self, hash: u64, matches: &[CompactionKeyPart]) -> Option<&RememberedCompaction> {
         self.by_matches.find(hash, |remembered| {
             remembered.hash == hash && *remembered.matches == *matches
         })
@@ -158,7 +168,7 @@ impl RememberedCompactions {
     fn remember(
         &mut self,
         hash: u64,
-        matches: &[CompactionMatch],
+        matches: &[CompactionKeyPart],
         states: &[PublishedWinnerState],
         keep: Option<&[bool]>,
     ) {
@@ -201,7 +211,7 @@ pub(super) struct CascadeCompactionWorkspace {
     published_targets: Vec<(Option<tree::PseudoElementTarget>, std::ops::Range<usize>)>,
     published_states: SmallVec<[PublishedWinnerState; 2]>,
     /// The match list of a compaction that depends on nothing but it, as `remembered` keys it.
-    remembered_key: Vec<CompactionMatch>,
+    remembered_key: Vec<CompactionKeyPart>,
     remembered: RememberedCompactions,
 }
 
@@ -236,7 +246,7 @@ impl CascadeCompactionWorkspace {
             } else {
                 0
             }
-            + (self.remembered_key.capacity() * size_of::<CompactionMatch>()) as u64
+            + (self.remembered_key.capacity() * size_of::<CompactionKeyPart>()) as u64
             + self.remembered.capacity_bytes()
     }
 }
@@ -709,31 +719,51 @@ impl RetainedState {
             return;
         }
 
-        // A compaction that depends on nothing but its match list is decided once per list: rows
-        // built from one template repeat their lists, and each publishes what the first decided.
+        // A compaction that depends on nothing but its match list and the element's own declarations is decided once
+        // per list: rows built from one template repeat them, and each publishes what the first decided.
         let mut remember_as = None;
         if let Some(node) = publish_winners_for
             && !has_continuations
-            && self.compaction_depends_only_on_matches(effects, node, all)
+            && self.compaction_depends_only_on_its_key(effects, node, all)
         {
             let key = &mut workspace.remembered_key;
             key.clear();
-            key.extend(all.iter().map(|entry| CompactionMatch {
-                rule: entry.rule,
-                pseudo_element: entry.pseudo_element,
-                specificity: entry.specificity,
-                scope_proximity: entry.scope_proximity,
-                own_tree_priority: (entry.tree_scope != TreeScopeID::DOCUMENT).then(|| {
-                    self.cascade_priority_of(
-                        entry.node,
-                        entry.rule,
-                        entry.tree_scope,
-                        entry.specificity,
-                        entry.scope_proximity,
-                        false,
-                    )
-                }),
+            key.extend(all.iter().map(|entry| {
+                CompactionKeyPart::Match(CompactionMatch {
+                    rule: entry.rule,
+                    pseudo_element: entry.pseudo_element,
+                    specificity: entry.specificity,
+                    scope_proximity: entry.scope_proximity,
+                    own_tree_priority: (entry.tree_scope != TreeScopeID::DOCUMENT).then(|| {
+                        self.cascade_priority_of(
+                            entry.node,
+                            entry.rule,
+                            entry.tree_scope,
+                            entry.specificity,
+                            entry.scope_proximity,
+                            false,
+                        )
+                    }),
+                })
             }));
+            // An element's own declarations cascade at the priority of its tree, which is all they read of it.
+            if self.node_has_element_declaration_input(node) {
+                key.push(CompactionKeyPart::TreeScope(self.tree.tree_scope(node)));
+                for kind in ElementDeclarationKind::ALL {
+                    key.extend(
+                        self.facts
+                            .element_declared_properties(node, kind)
+                            .iter()
+                            .map(|&declared| CompactionKeyPart::ElementDeclaration(kind, declared)),
+                    );
+                }
+                key.extend(
+                    self.facts
+                        .element_custom_declarations(node)
+                        .iter()
+                        .map(|&declared| CompactionKeyPart::ElementCustomDeclaration(declared)),
+                );
+            }
             let remembered = &mut workspace.remembered;
             remembered.settle(self.program.version(), self.winner_groups.generation());
             let hash = RememberedCompactions::hash_of(key);
@@ -1093,7 +1123,7 @@ impl RetainedState {
     /// depends on that tree alone and not on where the node is assigned or what it hosts, none
     /// waits on a container, and the node has neither declarations of its own nor pseudo-element
     /// rows its compaction would have to empty.
-    fn compaction_depends_only_on_matches(
+    fn compaction_depends_only_on_its_key(
         &self,
         effects: &AnswerEffects,
         node: StyleNodeID,
@@ -1103,13 +1133,12 @@ impl RetainedState {
         all.iter().all(|entry| {
             (entry.tree_scope == TreeScopeID::DOCUMENT || entry.tree_scope == tree_scope)
                 && !self.program.rule_is_gated_by_container_query(entry.rule)
-        }) && !self.node_has_element_declaration_input(node)
-            && effects
-                .winners
-                .view(&self.winner_groups)
-                .pseudo_states(node)
-                .next()
-                .is_none()
+        }) && effects
+            .winners
+            .view(&self.winner_groups)
+            .pseudo_states(node)
+            .next()
+            .is_none()
     }
 
     fn publish_winner_states(
