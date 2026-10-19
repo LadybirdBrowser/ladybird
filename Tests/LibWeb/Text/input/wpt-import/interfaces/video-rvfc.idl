@@ -1,0 +1,27 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: HTMLVideoElement.requestVideoFrameCallback() (https://wicg.github.io/video-rvfc/)
+
+dictionary VideoFrameCallbackMetadata {
+  required DOMHighResTimeStamp presentationTime;
+  required DOMHighResTimeStamp expectedDisplayTime;
+
+  required unsigned long width;
+  required unsigned long height;
+  required double mediaTime;
+
+  required unsigned long presentedFrames;
+  double processingDuration;
+
+  DOMHighResTimeStamp captureTime;
+  DOMHighResTimeStamp receiveTime;
+  unsigned long rtpTimestamp;
+};
+
+callback VideoFrameRequestCallback = undefined(DOMHighResTimeStamp now, VideoFrameCallbackMetadata metadata);
+
+partial interface HTMLVideoElement {
+    unsigned long requestVideoFrameCallback(VideoFrameRequestCallback callback);
+    undefined cancelVideoFrameCallback(unsigned long handle);
+};

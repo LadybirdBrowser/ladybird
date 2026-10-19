@@ -11,6 +11,8 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/SeqLock.h>
+#include <AK/Time.h>
 #include <LibCompositing/Export.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/Forward.h>
@@ -46,16 +48,35 @@ public:
     };
     ReleaseResult release_hold_if_current(u64 generation);
 
+    struct PresentedFrame {
+        u64 generation { 0 };
+        u64 presented_frame_count { 0 };
+        AK::Duration media_time { AK::Duration::zero() };
+        MonotonicTime presentation_time;
+        u32 width { 0 };
+        u32 height { 0 };
+    };
+    void publish_presented_frame(PresentedFrame const&);
+    Optional<PresentedFrame> presented_frame() const;
+    bool hold_generation(u64 generation);
+
 private:
+    struct SharedState {
+        Atomic<u64> word;
+        SeqLock<PresentedFrame> presented_frame;
+    };
+
     VideoFramePresentationPage(Core::AnonymousBuffer);
+
+    Optional<u64> hold(Optional<u64> required_generation);
 
     static u64 pack(GenerationAndHolds);
     static GenerationAndHolds unpack(u64);
 
-    Atomic<u64>& word() const { return *m_word; }
+    Atomic<u64>& word() const { return m_shared_state->word; }
 
     Core::AnonymousBuffer m_buffer;
-    Atomic<u64>* m_word { nullptr };
+    SharedState* m_shared_state { nullptr };
 };
 
 }

@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Test we can register a video.rVFC callback.
+Pass	Test video.rVFC callbacks run before window.rAF callbacks.
+Pass	Test we can cancel a video.rVFC request.
+Pass	Test invalid calls to the video.rVFC API.
+Pass	Test video.rVFC does not stop when switching sources.

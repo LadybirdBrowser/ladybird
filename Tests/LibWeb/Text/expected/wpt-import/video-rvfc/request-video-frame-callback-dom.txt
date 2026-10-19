@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Test a video outside of the DOM can still use video.rVFC.
+Pass	Test video.rVFC works with "display:none".
+Pass	Test video.rVFC works with "visibility:hidden".

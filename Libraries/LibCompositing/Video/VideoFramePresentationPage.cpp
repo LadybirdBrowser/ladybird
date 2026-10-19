@@ -16,19 +16,21 @@ static constexpr size_t max_compare_exchange_attempts_before_assuming_a_misbehav
 
 ErrorOr<NonnullRefPtr<VideoFramePresentationPage>> VideoFramePresentationPage::create()
 {
-    return create(TRY(Core::AnonymousBuffer::create_with_size(sizeof(Atomic<u64>))));
+    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(sizeof(SharedState)));
+    new (buffer.data<void>()) SharedState;
+    return create(move(buffer));
 }
 
 ErrorOr<NonnullRefPtr<VideoFramePresentationPage>> VideoFramePresentationPage::create(Core::AnonymousBuffer buffer)
 {
-    if (!buffer.is_valid() || buffer.size() < sizeof(Atomic<u64>))
+    if (!buffer.is_valid() || buffer.size() < sizeof(SharedState))
         return Error::from_string_literal("Invalid video frame presentation page buffer");
     return adopt_nonnull_ref_or_enomem(new (nothrow) VideoFramePresentationPage(move(buffer)));
 }
 
 VideoFramePresentationPage::VideoFramePresentationPage(Core::AnonymousBuffer buffer)
     : m_buffer(move(buffer))
-    , m_word(reinterpret_cast<Atomic<u64>*>(m_buffer.data<void>()))
+    , m_shared_state(reinterpret_cast<SharedState*>(m_buffer.data<void>()))
 {
 }
 
@@ -58,16 +60,38 @@ u64 VideoFramePresentationPage::current_generation() const
 
 Optional<u64> VideoFramePresentationPage::hold_current_generation()
 {
+    return hold(OptionalNone {});
+}
+
+bool VideoFramePresentationPage::hold_generation(u64 generation)
+{
+    return hold(generation).has_value();
+}
+
+Optional<u64> VideoFramePresentationPage::hold(Optional<u64> required_generation)
+{
     auto expected = word().load(AK::MemoryOrder::memory_order_relaxed);
     for (size_t attempt = 0; attempt < max_compare_exchange_attempts_before_assuming_a_misbehaving_peer; attempt++) {
         auto current = unpack(expected);
         if (current.generation == retired_generation || current.hold_count == max_hold_count)
+            return {};
+        if (required_generation.has_value() && current.generation != required_generation.value())
             return {};
         auto held = pack({ .generation = current.generation, .hold_count = current.hold_count + 1 });
         if (word().compare_exchange_strong(expected, held, AK::MemoryOrder::memory_order_relaxed))
             return current.generation;
     }
     return {};
+}
+
+void VideoFramePresentationPage::publish_presented_frame(PresentedFrame const& presented_frame)
+{
+    m_shared_state->presented_frame.store(presented_frame);
+}
+
+Optional<VideoFramePresentationPage::PresentedFrame> VideoFramePresentationPage::presented_frame() const
+{
+    return m_shared_state->presented_frame.read();
 }
 
 VideoFramePresentationPage::ReleaseResult VideoFramePresentationPage::release_hold_if_current(u64 generation)

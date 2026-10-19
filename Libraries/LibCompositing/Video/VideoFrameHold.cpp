@@ -18,6 +18,13 @@ RefPtr<VideoFrameHold> VideoFrameHold::hold_current_frame(NonnullRefPtr<VideoFra
     return adopt_ref(*new VideoFrameHold(move(page), sink_handle, generation.value(), move(release_through_compositor)));
 }
 
+RefPtr<VideoFrameHold> VideoFrameHold::hold_frame_of_generation(NonnullRefPtr<VideoFramePresentationPage> page, Media::VideoSinkHandle sink_handle, u64 generation, ReleaseThroughCompositor release_through_compositor)
+{
+    if (!page->hold_generation(generation))
+        return nullptr;
+    return adopt_ref(*new VideoFrameHold(move(page), sink_handle, generation, move(release_through_compositor)));
+}
+
 VideoFrameHold::VideoFrameHold(NonnullRefPtr<VideoFramePresentationPage> page, Media::VideoSinkHandle sink_handle, u64 generation, ReleaseThroughCompositor release_through_compositor)
     : m_page(move(page))
     , m_sink_handle(sink_handle)

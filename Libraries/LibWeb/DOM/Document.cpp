@@ -5564,6 +5564,18 @@ bool Document::append_pending_scroll_event(PendingScrollEvent event)
 }
 
 // https://drafts.csswg.org/cssom-view-1/#document-run-the-scroll-steps
+void Document::run_the_video_frame_request_callbacks(double now)
+{
+    for (auto& video_element : page().video_elements_of(*this))
+        video_element->run_the_video_frame_request_callbacks(now);
+}
+
+void Document::release_video_frames_held_for_callbacks()
+{
+    for (auto& video_element : page().video_elements_of(*this))
+        video_element->release_presented_video_frame_held_for_callbacks();
+}
+
 void Document::run_the_scroll_steps()
 {
     // AD-HOC: Process auto-scroll ticks before dispatching scroll events. This is tied to the rendering update to

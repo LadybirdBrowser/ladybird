@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface HTMLVideoElement: original interface defined
+Pass	Partial interface HTMLVideoElement: member names are unique
+Pass	Partial interface Element: member names are unique
+Pass	HTMLElement includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes ElementContentEditable: member names are unique
+Pass	HTMLElement includes HTMLOrSVGElement: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	HTMLVideoElement interface: operation requestVideoFrameCallback(VideoFrameRequestCallback)
+Pass	HTMLVideoElement interface: operation cancelVideoFrameCallback(unsigned long)
+Pass	HTMLVideoElement interface: video must inherit property "requestVideoFrameCallback(VideoFrameRequestCallback)" with the proper type
+Pass	HTMLVideoElement interface: calling requestVideoFrameCallback(VideoFrameRequestCallback) on video with too few arguments must throw TypeError
+Pass	HTMLVideoElement interface: video must inherit property "cancelVideoFrameCallback(unsigned long)" with the proper type
+Pass	HTMLVideoElement interface: calling cancelVideoFrameCallback(unsigned long) on video with too few arguments must throw TypeError

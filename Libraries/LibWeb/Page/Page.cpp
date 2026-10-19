@@ -1557,6 +1557,16 @@ void Page::for_each_media_element(Callback&& callback)
     }
 }
 
+Vector<GC::Root<HTML::HTMLVideoElement>> Page::video_elements_of(DOM::Document const& document)
+{
+    Vector<GC::Root<HTML::HTMLVideoElement>> video_elements;
+    for_each_media_element([&](auto& media_element) {
+        if (auto* video_element = as_if<HTML::HTMLVideoElement>(media_element); video_element && &video_element->document() == &document)
+            video_elements.append(*video_element);
+    });
+    return video_elements;
+}
+
 bool Page::has_media_element_playing_audio(DOM::Document const& document) const
 {
     for (auto media_id : m_media_elements) {

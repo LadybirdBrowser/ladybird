@@ -353,6 +353,7 @@ public:
     void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
     void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
     bool has_media_element_playing_audio(DOM::Document const&) const;
+    Vector<GC::Root<HTML::HTMLVideoElement>> video_elements_of(DOM::Document const&);
 
     void sync_media_element_video_sink_ticking();
     void restore_all_media_element_video_sinks();
@@ -706,6 +707,7 @@ public:
     }
     virtual HTML::CrossProcessId allocate_navigable_id() { return allocate_cross_process_id(); }
     virtual void request_frame() = 0;
+    virtual double rendering_frame_interval_in_milliseconds() const { return 1000.0 / 60.0; }
     virtual void rendering_opportunity([[maybe_unused]] i64 frame_time_nanoseconds, [[maybe_unused]] double frame_interval_milliseconds) { }
     virtual void will_begin_rendering_update() { }
     virtual bool has_rendering_opportunity() const { return true; }

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<title>Test repeatedly chaining video.rVFC() callbacks.</title>
+<body></body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../common/media.js"></script>
+<script>
+
+promise_test(async function(t) {
+    let done;
+    const promise = new Promise(resolve => done = resolve);
+
+    let video = document.createElement('video');
+    video.muted = true;
+    document.body.appendChild(video);
+
+    let firstTime;
+    video.requestVideoFrameCallback(t.step_func((time) => {
+      firstTime = time;
+
+      // Queue up a callback and make sure it's not immediately executed.
+      let secondTime;
+      video.requestVideoFrameCallback(t.step_func((time) => {
+        secondTime = time;
+        assert_greater_than(secondTime, firstTime, "Callbacks should be executed on the next frame");
+      }))
+
+      // Queue up a second callback, and make sure it's called at the same time
+      // as the one we just queued up.
+      video.requestVideoFrameCallback(t.step_func((time) => {
+        assert_equals(time, secondTime, "Callbacks queued together should be called at the same time");
+        done();
+      }))
+
+    }));
+
+    video.src = getVideoURI('/media/movie_5');
+    await video.play();
+
+    return promise;
+}, 'Test new callbacks are only called on the next frame.');
+
+promise_test(async function(t) {
+    let done;
+    const promise = new Promise(resolve => done = resolve);
+
+    let video = document.createElement('video');
+    video.muted = true;
+    document.body.appendChild(video);
+
+    let maxNumberOfCalls = 10;
+    let currentCallNumber = 0;
+    let lastMetadata;
+
+    function verifyMetadata(last, current) {
+      assert_greater_than(current.presentedFrames, last.presentedFrames, "presentedFrames should be monotonically increasing");
+      assert_greater_than(current.presentationTime, last.presentationTime, "presentationTime should be monotonically increasing");
+      assert_greater_than(current.expectedDisplayTime, last.expectedDisplayTime, "expectedDisplayTime should be monotonically increasing");
+
+      // We aren't seeking through the file, so this should be increasing from frame to frame.
+      assert_greater_than(current.mediaTime, last.mediaTime, "mediaTime should be increasing");
+
+      // The test video's size doesn't change.
+      assert_equals(current.width, last.width, "width should remain constant");
+      assert_equals(current.height, last.height, "height should remain constant");
+    }
+
+    function repeatingCallback(time, metadata) {
+      // Skip the first call to verifyMetadata.
+      if (currentCallNumber)
+        verifyMetadata(lastMetadata, metadata)
+
+      lastMetadata = metadata;
+
+      if (++currentCallNumber > maxNumberOfCalls) {
+        done()
+      } else {
+        video.requestVideoFrameCallback(t.step_func(repeatingCallback));
+      }
+    }
+
+    video.requestVideoFrameCallback(t.step_func(repeatingCallback));
+
+    video.src = getVideoURI('/media/movie_5');
+    await video.play();
+
+    return promise;
+}, 'Test chaining calls to video.rVFC, and verify the required parameters.');
+</script>
+</html>

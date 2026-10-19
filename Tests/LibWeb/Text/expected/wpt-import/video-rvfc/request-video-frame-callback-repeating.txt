@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Test new callbacks are only called on the next frame.
+Pass	Test chaining calls to video.rVFC, and verify the required parameters.
