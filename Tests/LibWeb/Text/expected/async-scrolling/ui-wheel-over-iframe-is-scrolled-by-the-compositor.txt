@@ -1,0 +1,8 @@
+#1 compositor: handed-to-nested-context
+#1 compositor: latched scroller=nested viewport
+#1 compositor: forwarded-to-page
+frame scrollY: 50
+window.scrollY: 0
+wheel events in the frame: 1
+cancelable wheel events in the frame: 0
+wheel events here: 0

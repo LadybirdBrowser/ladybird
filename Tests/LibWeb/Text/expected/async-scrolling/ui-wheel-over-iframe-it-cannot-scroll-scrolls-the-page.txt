@@ -1,0 +1,12 @@
+over a frame with nothing to scroll:
+#1 compositor: nested-context-passed-step-on
+#1 compositor: latched scroller=viewport
+#1 compositor: forwarded-to-page
+frame scrolled: false
+window.scrollY: 50
+over a frame at its edge:
+#1 compositor: nested-context-passed-step-on
+#1 compositor: latched scroller=viewport
+#1 compositor: forwarded-to-page
+frame scrolled: false
+window.scrollY: 50

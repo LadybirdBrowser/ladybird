@@ -1,0 +1,7 @@
+#1 compositor: handed-to-nested-context
+#1 compositor: latched scroller=nested viewport
+#1 compositor: forwarded-to-page
+compositor scrolled a later step: false
+frame scrolled by the first step: true
+canceled wheel events: 2
+frame scrolled by the canceled step: false

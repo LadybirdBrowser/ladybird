@@ -1,0 +1,8 @@
+#1 compositor: handed-to-nested-context
+#1 compositor: scroll-kept-by-overscroll-behavior
+#1 compositor: forwarded-to-page
+#2 compositor: scroll-kept-by-overscroll-behavior
+#2 compositor: forwarded-to-page
+#3 compositor: scroll-kept-by-overscroll-behavior
+#3 compositor: forwarded-to-page
+window.scrollY: 0

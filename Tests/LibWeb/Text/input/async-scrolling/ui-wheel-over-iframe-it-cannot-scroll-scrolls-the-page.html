@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    function createFrame(srcdoc) {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = srcdoc;
+        document.body.append(frame);
+        return frameLoaded.then(() => frame);
+    }
+
+    promiseTest(async () => {
+        const frameWithNothingToScroll = await createFrame("<body></body>");
+        const frameAtItsEdge = await createFrame("<body style='margin: 0; height: 1000px'></body>");
+        frameAtItsEdge.contentWindow.scrollTo(0, 1000);
+        // A frame that cannot take a step passes it on to this document, which the compositor scrolls by it.
+        for (const [name, frame, y] of [["with nothing to scroll", frameWithNothingToScroll, 75], ["at its edge", frameAtItsEdge, 225]]) {
+            await waitForCondition(() => frame.contentWindow.internals.compositorScrollState().document === frame.contentDocument
+                && internals.compositorWheelTargetAt(100, y, 0, 50).decision === "latched");
+            const frameScrollY = frame.contentWindow.scrollY;
+            internals.beginInputTrace();
+            await scrollSettled(document, () => internals.wheelThroughUIProcess(100, y, 0, 50));
+            println(`over a frame ${name}:`);
+            printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
+            println(`frame scrolled: ${frame.contentWindow.scrollY !== frameScrollY}`);
+            println(`window.scrollY: ${window.scrollY}`);
+            window.scrollTo(0, 0);
+            await animationFrame();
+            await animationFrame();
+        }
+    });
+</script>

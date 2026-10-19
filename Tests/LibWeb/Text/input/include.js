@@ -102,7 +102,8 @@ async function scrollSettled(target, action) {
 }
 
 function __describeNodeOfInputHook(node, documentName = "document") {
-    if (node instanceof Document) return node === document ? documentName : `nested ${documentName}`;
+    // A nested document comes from another realm, whose Document it is an instance of.
+    if (node.nodeType === Node.DOCUMENT_NODE) return node === document ? documentName : `nested ${documentName}`;
     if (node.id) return `#${node.id}`;
     return node.nodeName.toLowerCase();
 }

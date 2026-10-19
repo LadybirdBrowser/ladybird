@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = "<body style='margin: 0; height: 1000px'></body>";
+        document.body.prepend(frame);
+        await frameLoaded;
+
+        // This document's blocking listener never sees the wheel events over the iframe, so it does not hold them back.
+        let wheelEventsHere = 0;
+        window.addEventListener("wheel", () => ++wheelEventsHere, { passive: false });
+        let wheelEventsInFrame = 0;
+        let cancelableWheelEventsInFrame = 0;
+        frame.contentWindow.addEventListener("wheel", event => {
+            ++wheelEventsInFrame;
+            if (event.cancelable)
+                ++cancelableWheelEventsInFrame;
+        }, { passive: true });
+        await waitForCondition(() => internals.compositorWheelTargetAt(100, 75, 0, 50).document === frame.contentDocument);
+
+        internals.beginInputTrace();
+        await scrollSettled(frame.contentDocument, () => internals.wheelThroughUIProcess(100, 75, 0, 50));
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
+        println(`frame scrollY: ${frame.contentWindow.scrollY}`);
+        println(`window.scrollY: ${window.scrollY}`);
+        println(`wheel events in the frame: ${wheelEventsInFrame}`);
+        println(`cancelable wheel events in the frame: ${cancelableWheelEventsInFrame}`);
+        println(`wheel events here: ${wheelEventsHere}`);
+    });
+</script>

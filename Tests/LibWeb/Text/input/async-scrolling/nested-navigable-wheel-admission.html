@@ -35,11 +35,13 @@
         frame.srcdoc = "<body style='height: 1000px'></body>";
         document.body.prepend(frame);
         await frameLoaded;
-        // The compositor routes the wheel with the first frame that shows where the iframe is.
+        // The compositor routes the wheel with the first frame that shows where the iframe is, and hands it to the
+        // iframe once it holds the iframe's frame too.
         await waitForCondition(() => {
             const state = internals.compositorScrollState();
             return state.document === document && state.nestedContextWheelRegionCount > 0;
         });
+        await waitForCondition(() => frame.contentWindow.internals.compositorScrollState().document === frame.contentDocument);
 
         const state = internals.compositorScrollState();
         const output = [

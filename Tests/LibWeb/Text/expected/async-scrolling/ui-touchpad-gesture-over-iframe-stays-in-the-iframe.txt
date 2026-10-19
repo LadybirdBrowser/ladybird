@@ -1,0 +1,13 @@
+#1 compositor: blocked-by-main-thread-region
+#1 compositor: forwarded-to-page
+#2 compositor: handed-to-nested-context
+#2 compositor: latched scroller=nested viewport
+#2 compositor: forwarded-to-page
+#3 compositor: continued-latch scroller=nested viewport
+#3 compositor: forwarded-to-page
+#4 compositor: continued-latch scroller=nested viewport
+#4 compositor: forwarded-to-page
+#5 compositor: gesture-end-with-nothing-to-snap
+#5 compositor: forwarded-to-page
+frame scrollY: 150
+window.scrollY: 0

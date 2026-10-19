@@ -23,6 +23,8 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_blocking_wheel_event_regions = move(state.blocking_wheel_event_regions);
     m_scroll_chaining_barriers = move(state.scroll_chaining_barriers);
     m_has_blocking_wheel_event_region_covering_viewport = state.has_blocking_wheel_event_region_covering_viewport;
+    m_viewport_keeps_horizontal_scrolls = state.viewport_keeps_horizontal_scrolls;
+    m_viewport_keeps_vertical_scrolls = state.viewport_keeps_vertical_scrolls;
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
     m_cached_nested_context_wheel_regions.clear();
@@ -86,7 +88,9 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollN
             return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
         if (can_take_step(*node))
             return { .outcome = WheelHitTestOutcome::FoundScrollTarget, .node_id = node->node_id, .innermost_scroll_node_id = node_id };
-        if (!node_chains_scroll_to_ancestors(*node, delta) || !node->parent_node_id.has_value())
+        if (!node_chains_scroll_to_ancestors(*node, delta))
+            return { .outcome = WheelHitTestOutcome::NoScrollTarget, .innermost_scroll_node_id = node_id, .node_keeping_the_scroll = node->node_id };
+        if (!node->parent_node_id.has_value())
             break;
         node = scroll_node_for_id(*node->parent_node_id);
     }
@@ -443,7 +447,52 @@ bool AsyncScrollTree::blocks_wheel_event_at_position(Compositing::AccumulatedVis
     return false;
 }
 
-WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, WheelStepDispatch wheel_step_dispatch) const
+bool AsyncScrollTree::main_thread_wheel_event_region_contains(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position) const
+{
+    for (auto const& target : m_cached_main_thread_wheel_event_targets) {
+        if (target.viewport_rect.has_value() && !target.viewport_rect->contains(position))
+            continue;
+        if (!visual_context_tree.context_is_valid(target.context))
+            continue;
+        auto position_in_context = visual_context_tree.transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
+        if (position_in_context.has_value() && target.rect.contains(*position_in_context))
+            return true;
+    }
+    return false;
+}
+
+Optional<AsyncScrollTree::NestedContextWheelRegionHit> AsyncScrollTree::topmost_nested_context_wheel_region_at(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position) const
+{
+    for (auto const& cached_region : m_cached_nested_context_wheel_regions.in_reverse()) {
+        auto const& region = cached_region.region;
+        if (cached_region.viewport_rect.has_value() && !cached_region.viewport_rect->contains(position))
+            continue;
+        if (!visual_context_tree.context_is_valid(region.context))
+            continue;
+        auto position_in_context = visual_context_tree.transform_point_for_hit_test(region.context, position, m_scroll_state_snapshot);
+        if (position_in_context.has_value() && rounded_rect_contains_point(region.rect, region.corner_radii, *position_in_context))
+            return NestedContextWheelRegionHit { region, *position_in_context };
+    }
+    return {};
+}
+
+Optional<NestedContextWheelHit> AsyncScrollTree::nested_context_for_wheel_at(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position) const
+{
+    if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())
+        return {};
+    if (main_thread_wheel_event_region_contains(visual_context_tree, position))
+        return {};
+    auto hit = topmost_nested_context_wheel_region_at(visual_context_tree, position);
+    if (!hit.has_value() || is_covered_by_hit_test_target_painted_after(hit->region.paint_order_index, visual_context_tree, position))
+        return {};
+    return NestedContextWheelHit {
+        .child_context_id = hit->region.child_context_id,
+        .position_in_content_box = hit->position_in_context - hit->region.rect.location(),
+        .content_box_size = hit->region.rect.size(),
+    };
+}
+
+WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, WheelStepDispatch wheel_step_dispatch, NestedContextRegions nested_context_regions) const
 {
     if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())
         return { .outcome = WheelHitTestOutcome::HitTestTargetsOfAnotherVisualContextTree };
@@ -456,27 +505,10 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
     if (blocking_wheel_event_listeners_hold_the_step_back && m_has_blocking_wheel_event_region_covering_viewport)
         return { .outcome = WheelHitTestOutcome::BlockedByWheelEventRegion };
 
-    for (auto const& target : m_cached_main_thread_wheel_event_targets) {
-        if (target.viewport_rect.has_value() && !target.viewport_rect->contains(position))
-            continue;
-        if (!context_is_valid(target.context))
-            continue;
-        auto position_in_context = visual_context_tree.transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
-        if (position_in_context.has_value() && target.rect.contains(*position_in_context))
-            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
-    }
-
-    // The main thread hands a wheel over a nested context's content to the nested navigable.
-    for (auto const& cached_region : m_cached_nested_context_wheel_regions) {
-        auto const& region = cached_region.region;
-        if (cached_region.viewport_rect.has_value() && !cached_region.viewport_rect->contains(position))
-            continue;
-        if (!context_is_valid(region.context))
-            continue;
-        auto position_in_context = visual_context_tree.transform_point_for_hit_test(region.context, position, m_scroll_state_snapshot);
-        if (position_in_context.has_value() && rounded_rect_contains_point(region.rect, region.corner_radii, *position_in_context))
-            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
-    }
+    if (main_thread_wheel_event_region_contains(visual_context_tree, position))
+        return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
+    if (nested_context_regions == NestedContextRegions::LeaveToMainThread && topmost_nested_context_wheel_region_at(visual_context_tree, position).has_value())
+        return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
 
     if (blocking_wheel_event_listeners_hold_the_step_back && blocks_wheel_event_at_position(visual_context_tree, position))
         return { .outcome = WheelHitTestOutcome::BlockedByWheelEventRegion };
@@ -521,11 +553,11 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
     return hit_test_result_for_scroll_node(*viewport_node_id, delta, in_flight_destination_for, scroll_nodes_behind_scroll_chaining_barriers);
 }
 
-FirstWheelStepRoute AsyncScrollTree::route_first_wheel_step(WheelRoutingAdmission admission, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta) const
+FirstWheelStepRoute AsyncScrollTree::route_first_wheel_step(WheelRoutingAdmission admission, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, NestedContextRegions nested_context_regions) const
 {
     if (admission != WheelRoutingAdmission::Accepted)
         return { input_routing_decision_for_wheel_step_not_admitted_by(admission) };
-    auto scroll_target = hit_test_scroll_node_for_wheel(visual_context_tree, position, delta);
+    auto scroll_target = hit_test_scroll_node_for_wheel(visual_context_tree, position, delta, {}, WheelStepDispatch::NotYetDispatched, nested_context_regions);
     FirstWheelStepRoute route { input_routing_decision_for_first_wheel_step(scroll_target.outcome) };
     if (scroll_target.node_id.has_value()) {
         if (auto const* node = scroll_node_for_id(*scroll_target.node_id))
@@ -577,6 +609,11 @@ bool AsyncScrollTree::scroll_node_is_viewport(AsyncScrollNodeID node_id) const
 {
     auto const* node = scroll_node_for_id(node_id);
     return node && node->is_viewport;
+}
+
+bool AsyncScrollTree::viewport_keeps_scrolls_along_main_axis_of(Gfx::FloatPoint delta) const
+{
+    return delta_is_mainly_vertical(delta) ? m_viewport_keeps_vertical_scrolls : m_viewport_keeps_horizontal_scrolls;
 }
 
 Optional<Gfx::FloatPoint> AsyncScrollTree::set_scroll_offset(AsyncScrollNodeID node_id, Gfx::FloatPoint scroll_offset, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::ScrollStateSnapshot& scroll_state_snapshot)
