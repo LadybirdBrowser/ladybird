@@ -75,6 +75,18 @@ if (APPLE OR LINUX)
     deploy_qt_offscreen_platform_plugin(TestCrashReportReviewWidget)
 endif()
 
+ladybird_test("TestScreenshotSelectionOverlay.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+    LIBS LibURL Qt::Core Qt::Gui Qt::Widgets
+)
+target_sources(TestScreenshotSelectionOverlay PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/Popover.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ScreenshotSelectionOverlay.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
+)
+deploy_qt_offscreen_platform_plugin(TestScreenshotSelectionOverlay)
+
 ladybird_test("TestHiddenPageSizing.cpp" UI/Qt
     CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
     LIBS Qt::Core Qt::Gui Qt::Widgets

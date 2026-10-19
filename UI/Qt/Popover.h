@@ -53,5 +53,6 @@ private:
 };
 
 void move_popover_below(Popover&, QWidget& anchor);
+void cast_popover_shadow(QWidget&);
 
 }
