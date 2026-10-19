@@ -210,9 +210,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// Branches to `miss` unless the `GetMissingProperty` entry in `entry`
     /// for the shape of `object` applies to it, like
-    /// `get_with_property_lookup_cache()`: only plain objects and ECMAScript
-    /// functions (for the names their entries can be for) have no other
-    /// properties than those of their shape (see
+    /// `get_with_property_lookup_cache()`: only plain objects, ECMAScript
+    /// functions, arrays and String objects (for the names their entries can
+    /// be for) have no other properties than those of their shape (see
     /// `Object::is_cacheable_for_property_absence()`), and the property
     /// must also be missing from an unchanged prototype chain. Clobbers
     /// `shape`.
@@ -230,14 +230,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.move_imm64(scratch, plain_object_vtable);
         self.masm
             .branch64_memory(Condition::Equal, &Address::new(object, 0), scratch, cacheable);
-        let function_flag = self.runtime.dynamic_calls.object_flag_is_ecmascript_function;
-        if function_flag == 0 {
+        for class in [layout.string_object_class, layout.string_prototype_class] {
+            self.masm.move_imm64(scratch, class);
+            self.masm
+                .branch64_memory(Condition::Equal, &Address::new(object, 0), scratch, cacheable);
+        }
+        let flags =
+            self.runtime.dynamic_calls.object_flag_is_ecmascript_function | layout.object_flag_has_magical_length;
+        if flags == 0 {
             self.masm.jump(miss);
         } else {
             self.masm
                 .load16(scratch, &Address::new(object, offsets.object_flags as i32));
             self.masm
-                .branch_test32(Condition::Zero, scratch, u32::from(function_flag), miss);
+                .branch_test32(Condition::Zero, scratch, u32::from(flags), miss);
         }
         self.masm.bind(cacheable);
         let (has_chain, done) = (self.masm.new_label(), self.masm.new_label());

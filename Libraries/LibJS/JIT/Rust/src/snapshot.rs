@@ -1570,6 +1570,10 @@ pub struct RuntimeLayout {
     pub object_flag_is_extensible: u16,
     /// `Object::Flag::HasMagicalLengthProperty`, which only arrays have.
     pub object_flag_has_magical_length: u16,
+    /// The classes (pointers) of `StringObject`s and of `%String.prototype%`,
+    /// which start their cells.
+    pub string_object_class: u64,
+    pub string_prototype_class: u64,
     /// `Object::Flag::MayInterfereWithIndexedPropertyAccess`.
     pub object_flag_may_interfere: u16,
     /// `Array::length_writable` and `Array::is_proxy_target` (bools).

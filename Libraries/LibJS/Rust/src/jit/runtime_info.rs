@@ -67,6 +67,8 @@ use crate::runtime::function_environment::{
 use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::module_environment::ModuleEnvironment;
 use crate::runtime::object::{ObjectMethods, PropertyKind};
+use crate::runtime::string_object::StringObject;
+use crate::runtime::string_prototype::StringPrototype;
 
 /// The addresses of the runtime functions JIT code calls, which every compile job's runtime info has.
 pub struct RuntimeFunctionAddresses {
@@ -175,6 +177,8 @@ fn runtime_layout() -> RuntimeLayout {
         indexed_storage_kind_holey: IndexedStorageKind::Holey as u8,
         object_flag_is_extensible: object_flag::IS_EXTENSIBLE,
         object_flag_has_magical_length: object_flag::HAS_MAGICAL_LENGTH_PROPERTY,
+        string_object_class: core::ptr::from_ref(StringObject::CLASS) as u64,
+        string_prototype_class: core::ptr::from_ref(StringPrototype::CLASS) as u64,
         object_flag_may_interfere: object_flag::MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS,
         array_length_writable: offset(ARRAY_LENGTH_WRITABLE_OFFSET),
         array_is_proxy_target: offset(ARRAY_IS_PROXY_TARGET_OFFSET),

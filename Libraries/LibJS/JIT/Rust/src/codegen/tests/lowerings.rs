@@ -132,6 +132,11 @@ static NO_PROPERTY_CACHES: [u64; 16] = [0; 16];
 /// ones.
 const PLAIN_OBJECT_VTABLE: u64 = 0x7000;
 
+/// Word 0 of fake String objects and of the fake `%String.prototype%`, like
+/// the classes of real ones.
+const STRING_OBJECT_CLASS: u64 = 0x7200;
+const STRING_PROTOTYPE_CLASS: u64 = 0x7300;
+
 /// What the fake cache probes find: objects whose word 0 is 1 have the
 /// property 42 in every cache, and accept every store into their word 1.
 extern "C" fn fake_try_get_by_id_cache(base: u64, _cache: *const u64) -> u64 {
@@ -1179,6 +1184,8 @@ fn fake_object_layout() -> RuntimeLayout {
         indexed_storage_kind_holey: HOLEY,
         object_flag_is_extensible: FLAG_IS_EXTENSIBLE,
         object_flag_has_magical_length: FLAG_HAS_MAGICAL_LENGTH,
+        string_object_class: STRING_OBJECT_CLASS,
+        string_prototype_class: STRING_PROTOTYPE_CLASS,
         object_flag_may_interfere: FLAG_MAY_INTERFERE,
         array_length_writable: 0,
         array_is_proxy_target: 0,
@@ -3961,13 +3968,19 @@ fn get_by_id_of_missing_properties_through_property_caches() {
     fake.object[0] = PLAIN_OBJECT_VTABLE;
     assert_eq!(fake.get(fake.value()), value::UNDEFINED);
     // Objects of other classes may have properties their shapes do not
-    // describe: the probe, then the slow path. ECMAScript functions only
-    // do for names whose absence is never cached.
+    // describe: the probe, then the slow path. ECMAScript functions, arrays
+    // and String objects only do for names whose absence is never cached.
     fake.object[0] = 0;
     assert_eq!(fake.get(fake.value()), MARKER);
-    fake.object[1] = u64::from(FLAG_IS_ECMASCRIPT_FUNCTION);
-    assert_eq!(fake.get(fake.value()), value::UNDEFINED);
+    for flag in [FLAG_IS_ECMASCRIPT_FUNCTION, FLAG_HAS_MAGICAL_LENGTH] {
+        fake.object[1] = u64::from(flag);
+        assert_eq!(fake.get(fake.value()), value::UNDEFINED);
+    }
     fake.object[1] = 0;
+    for class in [STRING_OBJECT_CLASS, STRING_PROTOTYPE_CLASS] {
+        fake.object[0] = class;
+        assert_eq!(fake.get(fake.value()), value::UNDEFINED);
+    }
     // Shapes with a prototype need a valid prototype chain.
     fake.object[0] = PLAIN_OBJECT_VTABLE;
     fake.shape[0] = 0x8000;
