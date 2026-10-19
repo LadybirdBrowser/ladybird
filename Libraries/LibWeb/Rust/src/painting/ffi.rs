@@ -1278,12 +1278,12 @@ pub unsafe extern "C" fn compositor_animation_effect_build(
     state: *mut c_void,
     document_host: &DocumentHost,
     request: *const crate::painting::host::FfiCompositorAnimationRequest,
-    host: *const crate::painting::host::FfiCompositorAnimationHost,
+    host: &crate::painting::host::FfiCompositorAnimationHost,
 ) -> crate::painting::host::FfiCompositorAnimationBuildOutcome {
     use crate::painting::visual_animation_builder::{Host, Request, effect_state_from_handle};
     let state = unsafe { effect_state_from_handle(state) };
     let request = unsafe { Request::new(&*request) };
-    let host = Host::new(unsafe { &*host });
+    let host = Host::new(host);
     let layout_node = request.layout_node();
     state.build(&request, &host, |kind| {
         read_arena(

@@ -147,10 +147,8 @@ unsafe fn with_context<R>(context: *mut c_void, function: impl FnOnce(&ContextSt
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_webgl_context_create(
     vm: *mut c_void,
-    arguments: *const ContextCreationArguments,
+    arguments: &ContextCreationArguments,
 ) -> *mut c_void {
-    // SAFETY: The caller passes live arguments.
-    let arguments = unsafe { &*arguments };
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, arguments.realm) };
     verify_that_rust_and_cpp_agree_on_layouts_and_constants();
