@@ -914,6 +914,7 @@ public:
     void run_the_scroll_steps();
 
     void evaluate_media_queries_and_report_changes();
+    bool needs_media_query_list_evaluation() const { return m_needs_media_query_list_evaluation; }
     bool needs_media_rule_evaluation() const { return m_needs_media_rule_evaluation; }
     void evaluate_media_rules_for_style_update() { evaluate_media_rules(); }
     void set_needs_media_query_evaluation()
@@ -1155,6 +1156,7 @@ public:
 
     void register_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
     bool has_resize_observers() const { return !m_resize_observers.is_empty(); }
+    bool has_intersection_observers() const { return !m_intersection_observers.is_empty(); }
     void unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
 
     void add_shadow_root_needing_slot_assignment(Badge<ShadowRoot>, ShadowRoot&);
@@ -1195,6 +1197,7 @@ public:
     void associate_with_animation(GC::Ref<Animations::Animation>);
     void disassociate_with_animation(GC::Ref<Animations::Animation>);
     size_t associated_animation_count() const;
+    bool has_associated_animations() const { return !m_associated_animations.is_empty(); }
 
     struct PendingAnimationEvent {
         GC::Ref<DOM::Event> event;

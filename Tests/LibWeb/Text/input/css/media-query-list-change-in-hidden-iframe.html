@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" style="display: none" srcdoc="<!DOCTYPE html>"></iframe>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            internals.setPreferredColorScheme("light");
+            const query = frame.contentWindow.matchMedia("(prefers-color-scheme: dark)");
+            query.addEventListener("change", event => {
+                println(`change: matches=${event.matches}`);
+                internals.setPreferredColorScheme("auto");
+                done();
+            });
+            internals.setPreferredColorScheme("dark");
+        });
+    });
+</script>
