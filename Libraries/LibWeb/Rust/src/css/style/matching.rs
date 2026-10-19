@@ -839,7 +839,10 @@ impl RetainedState {
     }
 
     /// Build one scope's selector dispatch and rank its static cascade priorities once.
-    pub(super) fn build_ranked_scope_dispatch(&mut self, scope: TreeScopeID) -> Arc<RuleDispatch> {
+    pub(super) fn build_ranked_scope_dispatch(
+        &mut self,
+        scope: TreeScopeID,
+    ) -> (Arc<RuleDispatch>, ScopeTemplateShapes) {
         let (mut shape, mut rules) = scope_dispatch_shape_and_rules(&self.program, &self.programs, scope);
         let document_sheet_mode = if scope == TreeScopeID::DOCUMENT {
             DocumentSheetMode::None
@@ -989,15 +992,127 @@ impl RetainedState {
             dispatch_pools().dispatches.templates.insert(key, dispatch.downgrade());
         }
         self.scope_cascade_templates
-            .entry(cascade_shape)
+            .entry(cascade_shape.clone())
             .or_insert_with(|| Arc::clone(&dispatch));
         self.scope_dispatch_templates
-            .entry(shape)
+            .entry(shape.clone())
             .or_insert_with(|| Arc::clone(&dispatch));
         self.ancestor_dispatch_templates
             .entry(ancestor_shape)
             .or_insert_with(|| dispatch.ancestor_topology());
-        dispatch
+        self.scope_templates_need_sweep = true;
+        let shapes = ScopeTemplateShapes {
+            dispatch: shape,
+            cascade: cascade_shape,
+        };
+        (dispatch, shapes)
+    }
+
+    /// Drops the templates no live scope program has the shape of. Each style transaction
+    /// prepares its scopes first, so the templates a rebuild after a program change seeds from
+    /// have served by the time it ends. Sheets that arrive one at a time give every intermediate
+    /// sheet set its own shape, and each of those templates would otherwise keep a complete
+    /// dispatch alive for the rest of the document's life.
+    ///
+    /// The templates of the last removed program whose shape no live shape has or extends, the way
+    /// sheets arriving after it do, stay too, so that a page switching between two sheet sets
+    /// rebinds them. A template kept for a live shape is replaced by a live dispatch of that
+    /// shape, as an equivalent template that keeps no other dispatch alive.
+    // NB: The shapes' interior mutability is the memory charge of their shared storage, which hashing and comparing
+    //     them does not read.
+    #[allow(clippy::mutable_key_type)]
+    pub(super) fn drop_unused_scope_templates(&mut self) {
+        if !std::mem::take(&mut self.scope_templates_need_sweep) {
+            return;
+        }
+        let mut live_dispatches = HashMap::<&ScopeDispatchShape, &Arc<RuleDispatch>>::default();
+        let mut live_cascades = HashMap::<&ScopeCascadeShape, &Arc<RuleDispatch>>::default();
+        let mut live_ancestors = HashMap::<AncestorDispatchShape, Arc<index::AncestorDispatchTopology>>::default();
+        for program in self.scope_programs.iter().flatten() {
+            live_dispatches
+                .entry(&program.shapes.dispatch)
+                .or_insert(&program.dispatch);
+            live_cascades
+                .entry(&program.shapes.cascade)
+                .or_insert(&program.dispatch);
+            live_ancestors
+                .entry(program.dispatch.ancestor_dispatch_shape())
+                .or_insert_with(|| program.dispatch.ancestor_topology());
+        }
+        // NB: A program removed while another of its shape replaces it, as an unrelated change does, keeps nothing
+        //     the live templates do not, so an earlier removal keeps its templates instead.
+        let retired_index = self.retired_scope_templates.iter().rposition(|(shapes, _)| {
+            !live_dispatches
+                .keys()
+                .any(|live| live.0.len() >= shapes.dispatch.0.len() && live.0.starts_with(&shapes.dispatch.0))
+        });
+        let retired = retired_index.map(|index| &self.retired_scope_templates[index]);
+        let retired_ancestor_shape = retired.map(|(_, ancestors)| ancestors.shape());
+        self.scope_dispatch_templates
+            .retain(|shape, template| match live_dispatches.get(shape) {
+                Some(live) => {
+                    if !Arc::ptr_eq(live, template) {
+                        *template = Arc::clone(live);
+                    }
+                    true
+                }
+                None => retired.is_some_and(|(shapes, _)| shapes.dispatch == *shape),
+            });
+        self.scope_cascade_templates
+            .retain(|shape, template| match live_cascades.get(shape) {
+                Some(live) => {
+                    if !Arc::ptr_eq(live, template) {
+                        *template = Arc::clone(live);
+                    }
+                    true
+                }
+                None => retired.is_some_and(|(shapes, _)| shapes.cascade == *shape),
+            });
+        let ancestor_template_is_current =
+            |shape: &AncestorDispatchShape, template: &Arc<index::AncestorDispatchTopology>| match live_ancestors
+                .get(shape)
+            {
+                Some(live) => Arc::ptr_eq(live, template),
+                None => retired_ancestor_shape.as_ref() == Some(shape),
+            };
+        // NB: The table is shared copy-on-write with forks; only a change may unshare it.
+        if !self
+            .ancestor_dispatch_templates
+            .iter()
+            .all(|(shape, template)| ancestor_template_is_current(shape, template))
+        {
+            self.ancestor_dispatch_templates
+                .retain(|shape, template| match live_ancestors.get(shape) {
+                    Some(live) => {
+                        *template = Arc::clone(live);
+                        true
+                    }
+                    None => retired_ancestor_shape.as_ref() == Some(shape),
+                });
+        }
+        let kept = retired_index.and_then(|index| self.retired_scope_templates.drain(..).nth(index));
+        self.retired_scope_templates.clear();
+        self.retired_scope_templates.extend(kept);
+        dispatch_pools()
+            .dispatches
+            .templates
+            .retain(|_, template| template.is_alive());
+    }
+
+    /// Remove a scope program no concrete scope resolves to any more, keeping its templates as
+    /// the retired ones.
+    pub(super) fn remove_scope_program(&mut self, id: ScopeProgramID) {
+        let mut caches = self.prefix_caches.borrow_mut();
+        caches.states.remove(id);
+        caches.answers.remove_program(&mut self.match_answers, id);
+        drop(caches);
+        let program = self.scope_programs[id].take().unwrap();
+        let hash = intern_table::content_hash(&program.key);
+        self.scope_programs.remove_identity(hash, id);
+        self.vacant_scope_programs.push(id);
+        self.retired_scope_templates
+            .push((program.shapes, program.dispatch.ancestor_topology()));
+        self.scope_templates_need_sweep = true;
     }
 
     pub(super) fn scope_dispatch_key(&self, scope: TreeScopeID) -> ScopeDispatchKey {
@@ -1045,13 +1160,7 @@ impl RetainedState {
         if program.scope_count != 0 {
             return;
         }
-        let mut caches = self.prefix_caches.borrow_mut();
-        caches.states.remove(id);
-        caches.answers.remove_program(&mut self.match_answers, id);
-        let program = self.scope_programs[id].take().unwrap();
-        let hash = intern_table::content_hash(&program.key);
-        self.scope_programs.remove_identity(hash, id);
-        self.vacant_scope_programs.push(id);
+        self.remove_scope_program(id);
     }
 
     pub(super) fn intern_scope_program(&mut self, scope: TreeScopeID, key: ScopeDispatchKey) -> ScopeProgramID {
@@ -1067,10 +1176,11 @@ impl RetainedState {
         let id = self.vacant_scope_programs.pop().unwrap_or_else(|| {
             ScopeProgramID(u32::try_from(self.scope_programs.len()).expect("scope program identity space exhausted"))
         });
-        let dispatch = self.build_ranked_scope_dispatch(scope);
+        let (dispatch, shapes) = self.build_ranked_scope_dispatch(scope);
         let program = ScopeProgram {
             key,
             dispatch,
+            shapes,
             scope_count: 1,
         };
         self.scope_programs.insert(hash, id, Some(program));
@@ -1867,7 +1977,7 @@ impl RetainedState {
                 );
             }
             let truth = Arc::clone(self.selector_truth_sets.get(identity));
-            let dispatch = self.build_ranked_scope_dispatch(tree_scope);
+            let (dispatch, _) = self.build_ranked_scope_dispatch(tree_scope);
             let mut derived = RuleMatches::new();
             append_selector_truth_matches(
                 &mut derived,

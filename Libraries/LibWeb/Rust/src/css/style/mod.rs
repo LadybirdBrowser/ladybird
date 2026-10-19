@@ -1085,6 +1085,12 @@ pub struct RetainedState {
     /// unchanged. Keep only the table so sharing it cannot retain an obsolete selector dispatch.
     ancestor_dispatch_templates:
         crate::fork::ForkShared<HashMap<AncestorDispatchShape, Arc<index::AncestorDispatchTopology>>>,
+    /// The shapes of the scope programs removed since the unused templates were last dropped, oldest first, and the
+    /// ancestor table of each one's dispatch. The templates of the last one no live program has the shape of outlive
+    /// it, so a page that switches back to the sheet set it ranked rebinds them instead of building its dispatch again.
+    retired_scope_templates: Vec<(ScopeTemplateShapes, Arc<index::AncestorDispatchTopology>)>,
+    /// Whether a scope program was removed or a template was filed since the unused templates were last dropped.
+    scope_templates_need_sweep: bool,
     /// The shared program each concrete tree scope resolved to. Program changes clear the table,
     /// while a depth change replaces only this scope's identity. It uses the same direct tree-scope
     /// index as the root column.

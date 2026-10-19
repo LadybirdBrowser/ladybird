@@ -2318,6 +2318,16 @@ pub(super) struct AncestorDispatchTopology {
     residency: MemoryLease,
 }
 
+impl AncestorDispatchTopology {
+    pub(super) fn shape(&self) -> AncestorDispatchShape {
+        let mut keys = vec![DispatchKey::Universal; self.key_indices.len()];
+        for (&key, &index) in &self.key_indices {
+            keys[index as usize] = key;
+        }
+        AncestorDispatchShape(keys)
+    }
+}
+
 impl Clone for AncestorDispatchTopology {
     fn clone(&self) -> Self {
         Self {
@@ -2595,12 +2605,7 @@ impl RuleDispatch {
     }
 
     pub(super) fn ancestor_dispatch_shape(&self) -> AncestorDispatchShape {
-        let key_indices = &self.topology.ancestors.key_indices;
-        let mut keys = vec![DispatchKey::Universal; key_indices.len()];
-        for (&key, &index) in key_indices {
-            keys[index as usize] = key;
-        }
-        AncestorDispatchShape(keys)
+        self.topology.ancestors.shape()
     }
 
     pub(super) fn ancestor_topology(&self) -> Arc<AncestorDispatchTopology> {
