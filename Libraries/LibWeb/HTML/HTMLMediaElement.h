@@ -361,7 +361,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-readystate
     ReadyState m_ready_state { ReadyState::HaveNothing };
-    bool m_first_data_load_event_since_load_start { false };
+    bool m_has_fired_loadeddata { false };
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-seeking
     bool m_seeking { false };
