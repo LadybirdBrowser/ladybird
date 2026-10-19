@@ -888,6 +888,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "libipc_rust"
+version = "0.1.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "libjs_abi"
 version = "0.1.0"
 

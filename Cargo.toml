@@ -4,6 +4,7 @@ members = [
     "Libraries/LibCompositing/Rust",
     "Libraries/LibGfx/Rust",
     "Libraries/LibImageDecoders/Rust",
+    "Libraries/LibIPC/Rust",
     "Libraries/LibJS/ABI",
     "Libraries/LibJS/JIT/Rust",
     "Libraries/LibJS/Rust",
