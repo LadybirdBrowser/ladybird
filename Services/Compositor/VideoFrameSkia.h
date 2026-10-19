@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/RefPtr.h>
 #include <LibGfx/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibMediaCodecs/Forward.h>
@@ -28,5 +29,8 @@ SkYUVAPixmaps make_yuva_pixmaps(Gfx::YUVData const&);
 // Returns null for a surface whose layout is not one the platform decoder produces, or on a platform that cannot
 // sample its surfaces yet.
 sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const&, Media::CodingIndependentCodePoints, Gfx::SkiaBackendContext&);
+
+// Makes an image of the frame's pixels, on the GPU when there is a backend context, and in memory otherwise.
+sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
 
 }

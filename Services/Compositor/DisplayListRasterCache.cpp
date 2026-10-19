@@ -214,42 +214,7 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
         return cached_image.image;
     }
 
-    sk_sp<SkImage> image;
-    auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
-
-    if (surface != nullptr && skia_backend_context)
-        image = sk_image_from_video_surface(*surface, frame->cicp(), *skia_backend_context);
-
-    auto yuv_data = image ? Optional<Gfx::YUVData> {} : frame->yuv_data();
-    if (!image && !yuv_data.has_value() && surface == nullptr)
-        return nullptr;
-
-    auto color_space = Gfx::ColorSpace {};
-    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame->cicp()); !color_space_result.is_error())
-        color_space = color_space_result.release_value();
-
-    if (!image && gr_context && yuv_data.has_value()) {
-        image = SkImages::TextureFromYUVAPixmaps(
-            gr_context,
-            make_yuva_pixmaps(*yuv_data),
-            skgpu::Mipmapped::kNo,
-            false,
-            Gfx::to_skia_color_space(color_space));
-    }
-
-    if (!image) {
-        // Without a GPU to sample a surface on, its pixels have to be read back into memory to be drawn.
-        auto bitmap_or_error = frame->to_bitmap();
-        if (bitmap_or_error.is_error()) {
-            dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
-            return nullptr;
-        }
-        auto raster_image = Gfx::sk_image_adopting_bitmap(bitmap_or_error.release_value(), color_space);
-        if (gr_context)
-            image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
-        if (!image)
-            image = move(raster_image);
-    }
+    auto image = sk_image_from_video_frame(*frame, skia_backend_context);
 
     if (!frame->revalidate_backing())
         return nullptr;
