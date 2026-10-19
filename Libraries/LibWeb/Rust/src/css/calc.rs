@@ -526,12 +526,13 @@ pub enum FfiNumericTypeMatch {
 pub extern "C" fn rust_numeric_type_operate(
     operation: FfiNumericTypeOperation,
     first: &FfiNumericType,
-    second: &FfiNumericType,
+    second: Option<&FfiNumericType>,
 ) -> FfiNumericType {
     let first = first.to_calc();
+    let second = || second.expect("the operation has a second operand").to_calc();
     let result = match operation {
-        FfiNumericTypeOperation::Add => first.added_to(&second.to_calc()),
-        FfiNumericTypeOperation::Multiply => first.multiplied_by(&second.to_calc()),
+        FfiNumericTypeOperation::Add => first.added_to(&second()),
+        FfiNumericTypeOperation::Multiply => first.multiplied_by(&second()),
         FfiNumericTypeOperation::Invert => Some(first.inverted()),
     };
     FfiNumericType::from_calc(result)
