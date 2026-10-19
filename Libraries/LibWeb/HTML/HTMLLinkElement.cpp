@@ -1306,6 +1306,10 @@ void HTMLLinkElement::finish_processing_stylesheet_resource(u64 fetch_generation
 // https://html.spec.whatwg.org/multipage/links.html#rel-icon:the-link-element-3
 void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> document)
 {
+    // NB: A headless page shows no favicon.
+    if (document->page().client().is_headless())
+        return;
+
     auto& realm = document->relevant_settings_object().realm();
     // In the absence of a link with the icon keyword, for Document objects whose URL's scheme is an HTTP(S) scheme,
     // user agents may instead run these steps in parallel:
