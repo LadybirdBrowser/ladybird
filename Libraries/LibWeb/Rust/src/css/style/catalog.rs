@@ -104,6 +104,8 @@ pub(super) struct MatchAnswerCatalogEntry {
     pub(super) cascade_payload_accounted: bool,
     pub(super) retained_references: u32,
     pending_references: u32,
+    /// Whether the catalog's sweep candidates name this answer already.
+    queued_for_sweep: bool,
 }
 
 #[derive(Clone)]
@@ -117,6 +119,12 @@ pub(super) struct MatchAnswerCatalog {
     pub(super) needs_compaction: bool,
     pending_payload_bytes: u64,
     pending_memory: MemoryLease,
+    /// Every answer that may have lost its last reference without being removed since the last
+    /// sweep: each new answer, and each one whose cascade or pending count dropped to zero. A
+    /// sweep only has to look at these. Identities are never reused, so the slots of removed
+    /// answers stay behind, and walking all of them made every sweep slower than the last. Each
+    /// answer is noted once, so this holds no more entries than the catalog holds live answers.
+    sweep_candidates: Vec<MatchAnswerID>,
 }
 
 impl Default for MatchAnswerCatalog {
@@ -130,6 +138,7 @@ impl Default for MatchAnswerCatalog {
             needs_compaction: false,
             pending_payload_bytes: 0,
             pending_memory: MemoryLease::new(MemoryCategory::BatchScratch),
+            sweep_candidates: Vec::new(),
         }
     }
 }
@@ -175,6 +184,7 @@ impl MatchAnswerCatalog {
         if entry.pending_references == 0 {
             self.pending_payload_bytes -= Self::answer_payload_bytes(&entry.answer);
             self.pending_memory.shrink_to(self.pending_payload_bytes);
+            Self::queue_for_sweep(&mut self.sweep_candidates, entry, identity);
         }
         // NB: Reclamation remains at the context boundary, after every pending owner
         //     has either transferred to a retained category or been released.
@@ -262,8 +272,10 @@ impl MatchAnswerCatalog {
                 cascade_payload_accounted: false,
                 retained_references: 0,
                 pending_references: 0,
+                queued_for_sweep: true,
             }),
         );
+        self.sweep_candidates.push(identity);
         identity
     }
 
@@ -331,6 +343,9 @@ impl MatchAnswerCatalog {
             .cascade_references
             .checked_sub(1)
             .expect("releasing an unretained cascade input");
+        if entry.cascade_references == 0 {
+            Self::queue_for_sweep(&mut self.sweep_candidates, entry, identity);
+        }
         if entry.cascade_references != 0 || (entry.prefix_references == 0 && entry.retained_references == 0) {
             return;
         }
@@ -376,20 +391,41 @@ impl MatchAnswerCatalog {
         }
     }
 
+    fn queue_for_sweep(
+        sweep_candidates: &mut Vec<MatchAnswerID>,
+        entry: &mut MatchAnswerCatalogEntry,
+        identity: MatchAnswerID,
+    ) {
+        if !entry.queued_for_sweep {
+            entry.queued_for_sweep = true;
+            sweep_candidates.push(identity);
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn sweep_candidate_count(&self) -> usize {
+        self.sweep_candidates.len()
+    }
+
     pub(super) fn sweep_unreferenced(&mut self) -> u64 {
         let mut released_bytes = 0;
-        for index in 0..self.answers.len() {
-            let Some(entry) = self.answers[index].as_ref() else {
+        let mut candidates = std::mem::take(&mut self.sweep_candidates);
+        for identity in candidates.drain(..) {
+            // A candidate may have been removed since it was noted.
+            let Some(entry) = self.answers[identity].as_mut() else {
                 continue;
             };
+            entry.queued_for_sweep = false;
             if entry.prefix_references == 0
                 && entry.cascade_references == 0
                 && entry.pending_references == 0
                 && entry.retained_references == 0
             {
-                released_bytes += self.remove_unreferenced(MatchAnswerID(index as u32 + 1));
+                released_bytes += self.remove_unreferenced(identity);
             }
         }
+        // Keep the allocation for the next batch of candidates.
+        self.sweep_candidates = candidates;
         released_bytes
     }
 
@@ -478,6 +514,7 @@ impl MatchAnswerCatalog {
                 self.needs_compaction,
                 self.pending_payload_bytes,
                 self.pending_memory,
+                self.sweep_candidates,
             ];
         }
     }

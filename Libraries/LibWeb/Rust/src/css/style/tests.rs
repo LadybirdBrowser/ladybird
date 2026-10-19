@@ -1392,6 +1392,41 @@ fn cascade_input_catalog_entries_follow_retained_column_lifetimes() {
 }
 
 #[test]
+fn a_sweep_visits_only_answers_that_lost_their_last_reference_since_the_previous_sweep() {
+    let mut catalog = MatchAnswerCatalog::default();
+    let mut answers = RetainedMatchAnswers::default();
+    let mut memory = MemoryController::new();
+    let nodes: Vec<_> = (1..=8).map(StyleNodeID::element).collect();
+
+    // A new answer is a candidate until a sweep finds it referenced.
+    let identity = catalog.intern(&[]);
+    assert_eq!(catalog.sweep_candidate_count(), 1);
+    for &node in &nodes {
+        answers.remember_cascade_input(&mut catalog, node, identity, &mut memory);
+    }
+    catalog.sweep_unreferenced();
+    assert_eq!(catalog.sweep_candidate_count(), 0);
+    assert_eq!(catalog.answers.live_len(), 1);
+
+    // Releases that leave a reference behind note nothing for the next sweep.
+    for &node in &nodes[1..] {
+        answers.forget(&mut catalog, node);
+    }
+    assert_eq!(catalog.sweep_candidate_count(), 0);
+
+    // An answer that loses its last reference twice before a sweep is noted once.
+    answers.forget(&mut catalog, nodes[0]);
+    answers.remember_cascade_input(&mut catalog, nodes[0], identity, &mut memory);
+    answers.forget(&mut catalog, nodes[0]);
+    assert_eq!(catalog.sweep_candidate_count(), 1);
+
+    let released_cascade_payload_bytes = catalog.sweep_unreferenced();
+    answers.release_swept_cascade_payloads(released_cascade_payload_bytes);
+    assert_eq!(catalog.sweep_candidate_count(), 0);
+    assert!(catalog.answers.live_is_empty());
+}
+
+#[test]
 fn retained_match_answer_payloads_are_evictable_without_losing_identity() {
     assert_eq!(size_of::<RetainedRuleMatch>(), 20);
 
