@@ -913,6 +913,40 @@ TEST_CASE(network_policy_leaves_other_socket_domains_to_later_groups)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
+TEST_CASE(network_policy_refuses_incoming_connections)
+{
+    auto listener = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+    VERIFY(listener >= 0);
+    sockaddr_in address {};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    VERIFY(bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+    VERIFY(listen(listener, 1) == 0);
+
+    auto configure = [](Sandbox::SeccompPolicy& policy) {
+        policy.allow_ipc();
+        policy.allow_network();
+    };
+    for (auto number : {
+             SYS_listen,
+#ifdef SYS_accept
+             SYS_accept,
+#endif
+#ifdef SYS_accept4
+             SYS_accept4,
+#endif
+         }) {
+        auto status = run_with_policy(configure, [listener, number] {
+            (void)syscall(number, listener, nullptr, nullptr, 0);
+        });
+        EXPECT(WIFEXITED(status));
+        if (WIFEXITED(status))
+            EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+    }
+
+    VERIFY(close(listener) == 0);
+}
+
 // Waits for a descriptor to become readable. The deadline is far longer than any of this work takes,
 // so a slow machine cannot trip it; it is here so that a broker which never answers is reported as a
 // failure instead of leaving the test to hang.
