@@ -19,7 +19,7 @@ use super::bridge::{
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
 use super::instrumentation::Counter;
-use super::publication::RecordDemand;
+use super::publication::{RecordDemand, RecordDemandAnswer, Unanswered};
 use super::random_bases::ParkedBaseValues;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{HashMap, StyleAtomID};
@@ -1211,6 +1211,81 @@ pub extern "C" fn style_engine_for_each_element_custom_property_environment(
     for (node, data) in held {
         callback(context, node, data);
     }
+}
+
+/// What the engine knows of a node a layout update kept reaching without a style, for the panic that reports the
+/// update running out of passes.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiBoundFailureNodeFacts {
+    pub is_live: bool,
+    pub has_published_record: bool,
+    /// The display the node's published record holds: 0 for no record, 1 for none, 2 for contents, 3 for any other.
+    pub published_display: u8,
+    /// The style nodes the engine inherits the node's style from and places it under in the flat tree, or 0.
+    pub inheritance_parent: u32,
+    pub flat_tree_parent: u32,
+    pub owes_style_input: bool,
+    pub ancestor_owes_style_input: bool,
+    /// How a read-only demand of the node's record answers: 0 for a record, 1 for absent, 2 for refused, 3 for
+    /// suspended, 4 for a parent that holds no record yet.
+    pub read_demand_answer: u8,
+}
+
+/// Answers what the engine knows of `node` for the panic of a layout update that ran out of passes reaching it without
+/// a style. The demand it makes is read-only, so the engine is left as it was.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_bound_failure_node_facts(
+    host: &DocumentHost,
+    read: &BegunRead,
+    node: u32,
+) -> FfiBoundFailureNodeFacts {
+    with_engine(read, host, |engine| {
+        let Some(node) = StyleNodeID::from_raw(node) else {
+            return FfiBoundFailureNodeFacts {
+                is_live: false,
+                has_published_record: false,
+                published_display: 0,
+                inheritance_parent: 0,
+                flat_tree_parent: 0,
+                owes_style_input: false,
+                ancestor_owes_style_input: false,
+                read_demand_answer: 2,
+            };
+        };
+        let published_display = engine.element_published_box_facts(node).map_or(0, |facts| {
+            if facts.display.is_none() {
+                1
+            } else if facts.display.is_contents() {
+                2
+            } else {
+                3
+            }
+        });
+        let inheritance_parent = engine.retained.tree.inheritance_parent(node);
+        let ancestor_owes_style_input = std::iter::successors(inheritance_parent, |&ancestor| {
+            engine.retained.tree.inheritance_parent(ancestor)
+        })
+        .any(|ancestor| engine.host.owes_element_style_input(ancestor));
+        let read_demand_answer =
+            match engine.answer_record_demand(node, RecordDemand::Element(FfiRecordDemand::ElementRead)) {
+                Ok(RecordDemandAnswer::Record { .. }) => 0,
+                Ok(RecordDemandAnswer::Absent { .. }) => 1,
+                Err(Unanswered::Refused) => 2,
+                Err(Unanswered::Suspended(_)) => 3,
+                Err(Unanswered::AwaitsParent) => 4,
+            };
+        FfiBoundFailureNodeFacts {
+            is_live: engine.retained.tree.is_live(node),
+            has_published_record: engine.published_element_record(node).is_some(),
+            published_display,
+            inheritance_parent: inheritance_parent.map_or(0, StyleNodeID::raw),
+            flat_tree_parent: engine.retained.tree.flat_tree_parent(node).map_or(0, StyleNodeID::raw),
+            owes_style_input: engine.host.owes_element_style_input(node),
+            ancestor_owes_style_input,
+            read_demand_answer,
+        }
+    })
 }
 
 #[unsafe(no_mangle)]

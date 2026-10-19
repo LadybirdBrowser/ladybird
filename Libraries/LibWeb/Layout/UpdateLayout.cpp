@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <LibGfx/FontCascadeList.h>
@@ -11,6 +12,8 @@
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -24,8 +27,9 @@
 namespace Web::DOM {
 
 // Describes the node a style node names, for the panic of a layout update that ran out of passes: the node and its
-// flat tree ancestors, each with whether it is styled and the display of its box, as a NUL-terminated ASCII string in
-// the buffer, which the panic's message quotes.
+// flat tree ancestors, each with whether it is styled and the display of its box, what the style engine knows of it,
+// and the marks and attributes that bear on whether it can be styled, as a NUL-terminated ASCII string in the buffer,
+// which the panic's message quotes.
 static void describe_node_for_bound_failure(Document& document, Layout::BegunRead const& read, u32 style_node, Bytes buffer)
 {
     StringBuilder builder;
@@ -35,6 +39,7 @@ static void describe_node_for_bound_failure(Document& document, Layout::BegunRea
     if (!node) {
         builder.append("none"sv);
     } else {
+        auto const* engine_host = document.style_computer().style_engine().host();
         int depth = 0;
         for (Node* current = node.ptr(); current && depth < 6; current = current->flat_tree_parent(), ++depth) {
             if (depth)
@@ -60,6 +65,45 @@ static void describe_node_for_bound_failure(Document& document, Layout::BegunRea
                 builder.appendff("{{{}}}", layout_node->display().to_string());
             else
                 builder.append("{no box}"sv);
+            // The DOM-side marks that bear on styling the element, and the engine's view of it.
+            builder.append('[');
+            if (element->style_arrival_pending())
+                builder.append("arrival-pending,"sv);
+            if (element->child_style_arrivals_wait())
+                builder.append("children-wait,"sv);
+            if (element->descendant_style_arrival_pending())
+                builder.append("descendant-pending,"sv);
+            if (is<ShadowRoot>(element->root()))
+                builder.append("in-shadow,"sv);
+            if (element->has_assigned_slot())
+                builder.append("slotted,"sv);
+            if (element->style_node_id() == 0) {
+                builder.append("no-style-node"sv);
+            } else {
+                auto facts = CSS::StyleEngineFFI::style_engine_bound_failure_node_facts(engine_host, &read, element->style_node_id().value());
+                static constexpr Array displays { "-"sv, "none"sv, "contents"sv, "box"sv };
+                static constexpr Array answers { "record"sv, "absent"sv, "refused"sv, "suspended"sv, "awaits-parent"sv };
+                builder.appendff("engine:{},{},{},demand:{}", facts.is_live ? "live"sv : "dead"sv, facts.has_published_record ? "record"sv : "no-record"sv, displays[min<size_t>(facts.published_display, 3)], answers[min<size_t>(facts.read_demand_answer, 4)]);
+                if (facts.owes_style_input)
+                    builder.append(",owes-input"sv);
+                if (facts.ancestor_owes_style_input)
+                    builder.append(",ancestor-owes-input"sv);
+                auto* flat_tree_parent_element = element->flat_tree_parent_element();
+                u32 flat_tree_parent_style_node = flat_tree_parent_element ? flat_tree_parent_element->style_node_id().value() : 0;
+                if (facts.inheritance_parent != flat_tree_parent_style_node || facts.flat_tree_parent != flat_tree_parent_style_node)
+                    builder.appendff(",engine-parents:{}/{},dom-parent:{}", facts.inheritance_parent, facts.flat_tree_parent, flat_tree_parent_style_node);
+            }
+            builder.append(']');
+            if (depth == 0) {
+                if (auto style = element->get_attribute(HTML::AttributeNames::style); style.has_value())
+                    builder.appendff(" style=\"{:.60}\"", style.value());
+                for (auto const& name : { HTML::AttributeNames::hidden, HTML::AttributeNames::popover, HTML::AttributeNames::slot }) {
+                    if (element->has_attribute(name))
+                        builder.appendff(" {}", name);
+                }
+                // What one more targeted style update of the element answers now.
+                builder.appendff(" targeted-update:{}", document.update_style_for_element(AbstractElement { *element }) ? "styled"sv : "unstyled"sv);
+            }
         }
     }
     auto text = builder.string_view();
