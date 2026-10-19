@@ -9,6 +9,10 @@ const loadFeatures = features => {
 };
 
 const loadSettings = settings => {
+    if (!Object.hasOwn(settings, "browsingBehavior")) {
+        return;
+    }
+
     BROWSING_BEHAVIOR = settings.browsingBehavior || {};
 
     enableAutoscroll.checked = !!BROWSING_BEHAVIOR.enableAutoscroll;

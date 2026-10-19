@@ -2,6 +2,10 @@ const newTabPageURL = document.querySelector("#new-tab-page-url");
 const newTabPageURLReset = document.querySelector("#new-tab-page-url-reset");
 
 const loadSettings = settings => {
+    if (!Object.hasOwn(settings, "newTabPageURL")) {
+        return;
+    }
+
     newTabPageURL.classList.remove("error");
     newTabPageURL.value = settings.newTabPageURL;
 };

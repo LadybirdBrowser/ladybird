@@ -22,6 +22,10 @@ const SITE_SETTING_POLICY_OPTIONS = {
 let AUTOPLAY_SETTINGS = {};
 
 function loadSiteSettings(settings) {
+    if (!Object.hasOwn(settings, "autoplay")) {
+        return;
+    }
+
     AUTOPLAY_SETTINGS = settings.autoplay;
 
     const siteSetting = currentSiteSetting();

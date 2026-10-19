@@ -17,6 +17,10 @@ const updateVerticalTabsDependentSettings = () => {
 };
 
 const loadSettings = settings => {
+    if (!Object.hasOwn(settings, "tabs")) {
+        return;
+    }
+
     TAB_SETTINGS = settings.tabs || {};
 
     enableVerticalTabs.checked = !!TAB_SETTINGS.verticalTabsEnabled;

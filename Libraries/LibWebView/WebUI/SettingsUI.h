@@ -6,19 +6,44 @@
 
 #pragma once
 
+#include <AK/JsonObject.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/Settings.h>
 #include <LibWebView/WebUI.h>
 
 namespace WebView {
 
-class WEBVIEW_API SettingsUI : public WebUI {
+class WEBVIEW_API SettingsUI final
+    : public WebUI
+    , public SettingsObserver {
     WEB_UI(SettingsUI);
 
 private:
     virtual void register_interfaces() override;
 
+    virtual void new_tab_page_url_changed() override { broadcast_settings_change(); }
+    virtual void languages_changed() override { broadcast_settings_change(); }
+    virtual void appearance_changed() override { broadcast_settings_change(); }
+    virtual void content_settings_changed() override { broadcast_settings_change(); }
+    virtual void tab_settings_changed() override { broadcast_settings_change(); }
+    virtual void browsing_behavior_changed() override { broadcast_settings_change(); }
+    virtual void search_engine_settings_changed() override { broadcast_settings_change(); }
+    virtual void autoplay_settings_changed() override { broadcast_settings_change(); }
+    virtual void browsing_data_settings_changed() override { broadcast_settings_change(); }
+    virtual void global_privacy_control_changed() override { broadcast_settings_change(); }
+    virtual void dns_settings_changed() override { broadcast_settings_change(); }
+    virtual void config_variable_changed(ConfigVariableID) override { broadcast_settings_change(); }
+    virtual void geolocation_settings_changed() override { broadcast_settings_change(); }
+    virtual void background_networking_settings_changed() override { broadcast_settings_change(); }
+    virtual void content_blocker_settings_changed() override { broadcast_settings_change(); }
+    virtual void content_blocker_count_visibility_changed() override { broadcast_settings_change(); }
+
     void load_features();
+
+    JsonObject serialize_settings() const;
     void load_current_settings();
+    void broadcast_settings_change();
+
     void complete_first_run(JsonValue const&);
 
     void set_new_tab_page_url(JsonValue const&);
@@ -59,6 +84,9 @@ private:
     void report_content_blocker_result(String operation, String message);
 
     void set_dns_settings(JsonValue const&);
+
+    Optional<JsonObject> m_current_settings;
+    bool m_settings_change_scheduled { false };
 };
 
 }

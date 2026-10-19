@@ -80,40 +80,50 @@ function loadFeatures(features) {
 }
 
 function loadSettings(settings) {
-    const contentBlockers = settings.contentBlockers;
-    if (!contentBlockers) {
-        return;
-    }
-    enableContentBlocking.checked = contentBlockers.enabled;
-    showContentBlockerCount.checked = contentBlockers.showBlockedCount ?? true;
+    if (Object.hasOwn(settings, "contentBlockers")) {
+        const contentBlockers = settings.contentBlockers;
+        enableContentBlocking.checked = contentBlockers.enabled;
+        showContentBlockerCount.checked = contentBlockers.showBlockedCount ?? true;
 
-    for (const container of [builtInLists, languageLists, customSubscriptions, localLists]) {
-        container.replaceChildren();
-    }
-    for (const list of settings.contentBlockerLists) {
-        const container = list.builtIn
-            ? list.languageSpecific
-                ? languageLists
-                : builtInLists
-            : list.url
-              ? customSubscriptions
-              : localLists;
-        container.append(createListRow(list, !list.builtIn));
-    }
-    if (!customSubscriptions.children.length) showEmptyState(customSubscriptions, "No custom subscriptions added.");
-    if (!localLists.children.length) showEmptyState(localLists, "No local lists imported.");
+        if (customFilters.value === savedCustomFilters) {
+            customFilters.value = contentBlockers.customFilters;
+        }
 
-    if (customFilters.value === savedCustomFilters) {
-        customFilters.value = contentBlockers.customFilters;
+        savedCustomFilters = contentBlockers.customFilters;
     }
-    savedCustomFilters = contentBlockers.customFilters;
 
-    updateLists.disabled = settings.contentBlockerListUpdateInProgress;
-    updateLists.innerText = settings.contentBlockerListUpdateInProgress ? "Updating…" : "Update enabled lists";
+    if (Object.hasOwn(settings, "contentBlockerLists")) {
+        for (const container of [builtInLists, languageLists, customSubscriptions, localLists]) {
+            container.replaceChildren();
+        }
 
-    clearTimeout(updateTimer);
-    if (settings.contentBlockerListUpdateInProgress) {
-        updateTimer = setTimeout(() => ladybird.sendMessage("loadCurrentSettings"), 1000);
+        for (const list of settings.contentBlockerLists) {
+            const container = list.builtIn
+                ? list.languageSpecific
+                    ? languageLists
+                    : builtInLists
+                : list.url
+                  ? customSubscriptions
+                  : localLists;
+            container.append(createListRow(list, !list.builtIn));
+        }
+
+        if (!customSubscriptions.children.length) {
+            showEmptyState(customSubscriptions, "No custom subscriptions added.");
+        }
+        if (!localLists.children.length) {
+            showEmptyState(localLists, "No local lists imported.");
+        }
+    }
+
+    if (Object.hasOwn(settings, "contentBlockerListUpdateInProgress")) {
+        updateLists.disabled = settings.contentBlockerListUpdateInProgress;
+        updateLists.innerText = settings.contentBlockerListUpdateInProgress ? "Updating…" : "Update enabled lists";
+
+        clearInterval(updateTimer);
+        if (settings.contentBlockerListUpdateInProgress) {
+            updateTimer = setInterval(() => ladybird.sendMessage("refreshSettings"), 1000);
+        }
     }
 }
 
@@ -135,8 +145,6 @@ addSubscription.addEventListener("click", () => {
 });
 
 updateLists.addEventListener("click", () => {
-    updateLists.disabled = true;
-    updateLists.innerText = "Updating…";
     ladybird.sendMessage("updateContentBlockerLists");
 });
 

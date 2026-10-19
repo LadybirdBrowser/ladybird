@@ -1010,6 +1010,9 @@ void Settings::add_custom_search_engine(SearchEngine search_engine)
 
     m_custom_search_engines.append(move(search_engine));
     persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.search_engine_settings_changed();
 }
 
 void Settings::remove_custom_search_engine(SearchEngine const& search_engine)
@@ -1024,10 +1027,8 @@ void Settings::remove_custom_search_engine(SearchEngine const& search_engine)
 
     persist_settings();
 
-    if (reset_default_search_engine) {
-        for (auto& observer : m_observers)
-            observer.search_engine_settings_changed();
-    }
+    for (auto& observer : m_observers)
+        observer.search_engine_settings_changed();
 }
 
 Optional<SearchEngine> Settings::find_search_engine_by_name(StringView name) const

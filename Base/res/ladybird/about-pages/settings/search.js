@@ -162,6 +162,10 @@ document.addEventListener("WebUILoaded", () => {
 
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadSettings") {
+        if (!Object.hasOwn(event.detail.data, "searchEngine")) {
+            return;
+        }
+
         SEARCH_ENGINE = event.detail.data.searchEngine || {};
         renderEngineSettings();
     } else if (event.detail.name === "loadEngines") {

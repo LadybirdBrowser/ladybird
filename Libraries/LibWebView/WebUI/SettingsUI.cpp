@@ -7,6 +7,7 @@
 #include <AK/JsonArray.h>
 #include <AK/Platform.h>
 #include <AK/Utf16String.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibCore/Promise.h>
 #include <LibURL/Parser.h>
@@ -55,6 +56,9 @@ void SettingsUI::register_interfaces()
     });
     register_interface("loadCurrentSettings"sv, [this](auto const&) {
         load_current_settings();
+    });
+    register_interface("refreshSettings"sv, [this](auto const&) {
+        broadcast_settings_change();
     });
     register_interface("loadAvailableEngines"sv, [this](auto const&) {
         load_available_engines();
@@ -191,7 +195,7 @@ void SettingsUI::load_features()
     async_send_message("loadFeatures"sv, move(features));
 }
 
-void SettingsUI::load_current_settings()
+JsonObject SettingsUI::serialize_settings() const
 {
     auto settings = Application::settings().serialize_json();
 
@@ -232,7 +236,46 @@ void SettingsUI::load_current_settings()
     settings.as_object().set("contentBlockerLists"sv, move(lists));
     settings.as_object().set("contentBlockerListUpdateInProgress"sv, Application::the().content_blocker_list_update_in_progress());
 
-    async_send_message("loadSettings"sv, settings);
+    return move(settings.as_object());
+}
+
+void SettingsUI::load_current_settings()
+{
+    m_current_settings = serialize_settings();
+    async_send_message("loadSettings"sv, *m_current_settings);
+}
+
+void SettingsUI::broadcast_settings_change()
+{
+    if (!m_current_settings.has_value() || m_settings_change_scheduled)
+        return;
+    m_settings_change_scheduled = true;
+
+    // Defer to allow the current handler to finish, including any downloads started after changing a setting.
+    Core::deferred_invoke([weak_this = make_weak_ptr<SettingsUI>()] {
+        auto* self = weak_this.ptr();
+        if (!self)
+            return;
+
+        auto settings = self->serialize_settings();
+        JsonObject changes;
+
+        settings.for_each_member([&](auto const& name, auto const& value) {
+            auto previous = self->m_current_settings->get(name);
+            if (!previous.has_value() || !previous->equals(value))
+                changes.set(name, value);
+        });
+
+        self->m_current_settings->for_each_member([&](auto const& name, auto const&) {
+            if (!settings.has(name))
+                changes.set(name, JsonValue {});
+        });
+        self->m_current_settings = move(settings);
+        self->m_settings_change_scheduled = false;
+
+        if (!changes.is_empty())
+            self->async_send_message("loadSettings"sv, changes);
+    });
 }
 
 void SettingsUI::complete_first_run(JsonValue const&)
@@ -263,16 +306,12 @@ void SettingsUI::set_languages(JsonValue const& languages)
 {
     auto parsed_languages = Settings::parse_json_languages(languages);
     Application::settings().set_languages(move(parsed_languages));
-
-    load_current_settings();
 }
 
 void SettingsUI::set_appearance(JsonValue const& appearance)
 {
     auto parsed_appearance = Settings::parse_appearance(appearance);
     Application::settings().set_appearance(parsed_appearance);
-
-    load_current_settings();
 }
 
 void SettingsUI::set_content_settings(JsonValue const& content_settings)
@@ -285,7 +324,6 @@ void SettingsUI::set_content_settings(JsonValue const& content_settings)
     parsed_content_settings.zoom_per_host = current_content_settings.zoom_per_host;
 
     Application::settings().set_content_settings(move(parsed_content_settings));
-    load_current_settings();
 }
 
 void SettingsUI::set_tab_settings(JsonValue const& tab_settings)
@@ -299,15 +337,12 @@ void SettingsUI::set_tab_settings(JsonValue const& tab_settings)
     parsed_tab_settings.vertical_tabs_expanded_width = current_tab_settings.vertical_tabs_expanded_width;
 
     settings.set_tab_settings(parsed_tab_settings);
-    load_current_settings();
 }
 
 void SettingsUI::set_browsing_behavior(JsonValue const& browsing_behavior)
 {
     auto parsed_browsing_behavior = Settings::parse_browsing_behavior(browsing_behavior);
     Application::settings().set_browsing_behavior(parsed_browsing_behavior);
-
-    load_current_settings();
 }
 
 void SettingsUI::set_config_variable(JsonValue const& variable)
@@ -321,8 +356,6 @@ void SettingsUI::set_config_variable(JsonValue const& variable)
         return;
 
     Application::settings().set_config_variable(*name, *value);
-
-    load_current_settings();
 }
 
 void SettingsUI::load_available_engines()
@@ -357,23 +390,18 @@ void SettingsUI::set_search_engine_settings(JsonValue const& data)
         search_engine_settings.engine = settings.find_search_engine_by_name(engine->as_string());
     search_engine_settings.suggestions = *suggestions;
     settings.set_search_engine_settings(move(search_engine_settings));
-    load_current_settings();
 }
 
 void SettingsUI::add_custom_search_engine(JsonValue const& search_engine)
 {
     if (auto custom_engine = Settings::parse_custom_search_engine(search_engine); custom_engine.has_value())
         Application::settings().add_custom_search_engine(custom_engine.release_value());
-
-    load_current_settings();
 }
 
 void SettingsUI::remove_custom_search_engine(JsonValue const& search_engine)
 {
     if (auto custom_engine = Settings::parse_custom_search_engine(search_engine); custom_engine.has_value())
         Application::settings().remove_custom_search_engine(*custom_engine);
-
-    load_current_settings();
 }
 
 enum class SiteSettingType {
@@ -430,8 +458,6 @@ void SettingsUI::set_site_setting_policy(JsonValue const& site_setting)
             Application::settings().set_autoplay_policy(*parsed);
         break;
     }
-
-    load_current_settings();
 }
 
 void SettingsUI::add_site_setting_filter(JsonValue const& site_setting)
@@ -449,8 +475,6 @@ void SettingsUI::add_site_setting_filter(JsonValue const& site_setting)
         Application::settings().add_autoplay_site_filter(*filter);
         break;
     }
-
-    load_current_settings();
 }
 
 void SettingsUI::remove_site_setting_filter(JsonValue const& site_setting)
@@ -468,8 +492,6 @@ void SettingsUI::remove_site_setting_filter(JsonValue const& site_setting)
         Application::settings().remove_autoplay_site_filter(*filter);
         break;
     }
-
-    load_current_settings();
 }
 
 void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
@@ -483,8 +505,6 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
         Application::settings().remove_all_autoplay_site_filters();
         break;
     }
-
-    load_current_settings();
 }
 
 void SettingsUI::set_geolocation_enabled(JsonValue const& enabled)
@@ -493,7 +513,6 @@ void SettingsUI::set_geolocation_enabled(JsonValue const& enabled)
         return;
 
     Application::settings().set_geolocation_enabled(enabled.as_bool());
-    load_current_settings();
 }
 
 void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)
@@ -530,7 +549,6 @@ void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)
 void SettingsUI::set_browsing_data_settings(JsonValue const& settings)
 {
     Application::settings().set_browsing_data_settings(Settings::parse_browsing_data_settings(settings));
-    load_current_settings();
 }
 
 void SettingsUI::clear_browsing_data(JsonValue const& options)
@@ -585,7 +603,6 @@ void SettingsUI::set_services_network_access_enabled(JsonValue const& enabled)
         return;
 
     Application::settings().set_background_networking_enabled(enabled.as_bool());
-    load_current_settings();
 }
 
 void SettingsUI::set_filter_list_updates_enabled(JsonValue const& enabled)
@@ -594,27 +611,27 @@ void SettingsUI::set_filter_list_updates_enabled(JsonValue const& enabled)
         return;
 
     Application::settings().set_filter_list_updates_enabled(enabled.as_bool());
-    load_current_settings();
 }
 
 void SettingsUI::update_content_blocker_lists(JsonValue const&)
 {
     Application::the().update_content_blocker_lists({});
-    load_current_settings();
+    broadcast_settings_change();
 }
 
 void SettingsUI::set_content_blocker_enabled(JsonValue const& enabled)
 {
     if (!enabled.is_bool())
         return;
+
     Application::settings().set_content_blocker_enabled(enabled.as_bool());
+
     if (enabled.as_bool()) {
         for (auto const& list : Application::settings().content_blocker_lists()) {
             if (list.enabled)
                 Application::the().download_content_blocker_list_if_needed({}, list.identifier);
         }
     }
-    load_current_settings();
 }
 
 void SettingsUI::set_show_content_blocker_count(JsonValue const& show)
@@ -623,7 +640,6 @@ void SettingsUI::set_show_content_blocker_count(JsonValue const& show)
         return;
 
     Application::settings().set_show_content_blocker_count(show.as_bool());
-    load_current_settings();
 }
 
 void SettingsUI::set_content_blocker_list_enabled(JsonValue const& value)
@@ -639,7 +655,6 @@ void SettingsUI::set_content_blocker_list_enabled(JsonValue const& value)
     Application::settings().set_content_blocker_list_enabled(*identifier, *enabled);
     if (*enabled && Application::settings().content_blocker_enabled())
         Application::the().download_content_blocker_list_if_needed({}, *identifier);
-    load_current_settings();
 }
 
 void SettingsUI::add_custom_content_blocker_subscription(JsonValue const& value)
@@ -656,7 +671,6 @@ void SettingsUI::add_custom_content_blocker_subscription(JsonValue const& value)
     for (auto const& subscription : Application::settings().content_blocker_lists()) {
         if (!subscription.built_in && subscription.url == url) {
             report_content_blocker_result("subscription"_string, "Subscription already added."_string);
-            load_current_settings();
             return;
         }
     }
@@ -664,7 +678,6 @@ void SettingsUI::add_custom_content_blocker_subscription(JsonValue const& value)
     auto identifier = Application::settings().add_content_blocker_list(url->serialize(), url);
     Application::the().download_content_blocker_list_if_needed({}, identifier);
     report_content_blocker_result("subscription"_string, "Subscription added."_string);
-    load_current_settings();
 }
 
 void SettingsUI::remove_content_blocker_list(JsonValue const& value)
@@ -673,7 +686,6 @@ void SettingsUI::remove_content_blocker_list(JsonValue const& value)
         return;
 
     Application::the().remove_content_blocker_list({}, value.as_string());
-    load_current_settings();
 }
 
 void SettingsUI::import_local_content_blocker_list(JsonValue const& value)
@@ -690,8 +702,6 @@ void SettingsUI::import_local_content_blocker_list(JsonValue const& value)
         report_content_blocker_result("import"_string, MUST(String::formatted("Unable to import list: {}", result.error())));
     else
         report_content_blocker_result("import"_string, MUST(String::formatted("{} imported.", *name)));
-
-    load_current_settings();
 }
 
 void SettingsUI::set_custom_content_blocker_filters(JsonValue const& value)
@@ -700,7 +710,6 @@ void SettingsUI::set_custom_content_blocker_filters(JsonValue const& value)
         return;
 
     Application::settings().set_custom_content_blocker_filters(value.as_string());
-    load_current_settings();
 }
 
 void SettingsUI::report_content_blocker_result(String operation, String message)
@@ -714,7 +723,6 @@ void SettingsUI::report_content_blocker_result(String operation, String message)
 void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
 {
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
-    load_current_settings();
 }
 
 }
