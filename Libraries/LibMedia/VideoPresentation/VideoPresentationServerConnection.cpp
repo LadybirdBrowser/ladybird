@@ -27,6 +27,7 @@ void VideoPresentationServerConnection::die()
     for (auto& entry : m_edge_states)
         PlaybackManager::release_video_edge({}, entry.value.handle, *entry.value.pump);
     m_edge_states.clear();
+    m_released_edge_pumps_with_lent_slots.clear();
 }
 
 void VideoPresentationServerConnection::create_video_edge(VideoSinkHandle video_sink_handle, u64 edge_id)
@@ -127,6 +128,10 @@ void VideoPresentationServerConnection::release_video_edge(u64 edge_id)
     auto pump = it->value.pump;
     m_edge_states.remove(it);
     PlaybackManager::release_video_edge({}, handle, *pump);
+
+    pump->stop_and_reclaim_unconsumed_frames();
+    if (pump->has_lent_slots())
+        m_released_edge_pumps_with_lent_slots.set(edge_id, move(pump));
 }
 
 void VideoPresentationServerConnection::request_start(u64 edge_id)
@@ -143,8 +148,16 @@ void VideoPresentationServerConnection::request_seek(u64 edge_id, AK::Duration t
 
 void VideoPresentationServerConnection::release_slot(u64 edge_id, VideoFramePoolID pool_id, u32 slot_index)
 {
-    if (auto it = m_edge_states.find(edge_id); it != m_edge_states.end())
+    if (auto it = m_edge_states.find(edge_id); it != m_edge_states.end()) {
         it->value.pump->release_slot(pool_id, slot_index);
+        return;
+    }
+    auto released_pump = m_released_edge_pumps_with_lent_slots.get(edge_id);
+    if (!released_pump.has_value())
+        return;
+    (*released_pump)->release_slot(pool_id, slot_index);
+    if (!(*released_pump)->has_lent_slots())
+        m_released_edge_pumps_with_lent_slots.remove(edge_id);
 }
 
 void VideoPresentationServerConnection::notify_space_available(u64 edge_id)

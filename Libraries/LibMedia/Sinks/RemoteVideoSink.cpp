@@ -20,6 +20,7 @@ namespace Media {
 class RemoteVideoSink::ThreadData : public AtomicRefCounted<RemoteVideoSink::ThreadData> {
 public:
     ThreadData(VideoEdgeQueue, Delegates, PresentedFramePage);
+    ~ThreadData();
 
     VideoEdgeQueue const& edge() const { return m_edge; }
     PresentedFramePage const& presented_frame_page() const { return m_presented_frame_page; }
@@ -40,6 +41,8 @@ public:
 
     void pump_thread_loop();
     void request_exit();
+    void stop_and_reclaim_unconsumed_frames();
+    bool has_lent_slots() const;
     void release_all_lends();
 
 private:
@@ -61,10 +64,11 @@ private:
     ConditionVariable m_wait_condition { m_mutex };
     RefPtr<VideoProducer> m_input;
     bool m_exit_requested { false };
+    bool m_pump_thread_exited { false };
     bool m_wake_pending { false };
     u32 m_actual_seek_id { 0 };
 
-    Mutex m_lent_pools_mutex;
+    mutable Mutex m_lent_pools_mutex;
     HashMap<VideoFramePoolID, LentPool> m_lent_pools;
     Function<void(VideoFramePoolID)> m_pool_retired_observer;
     PresentedFramePage m_presented_frame_page;
@@ -143,12 +147,19 @@ void RemoteVideoSink::notify_space_available() { m_thread_data->notify_space_ava
 void RemoteVideoSink::release_slot(VideoFramePoolID pool_id, u32 slot_index) { m_thread_data->release_slot(pool_id, slot_index); }
 Optional<RemoteVideoSink::SlotStorage> RemoteVideoSink::lent_slot_storage(VideoFramePoolID pool_id, u32 slot_index) { return m_thread_data->lent_slot_storage(pool_id, slot_index); }
 void RemoteVideoSink::set_pool_retired_observer(Function<void(VideoFramePoolID)> observer) { m_thread_data->set_pool_retired_observer(move(observer)); }
+void RemoteVideoSink::stop_and_reclaim_unconsumed_frames() { m_thread_data->stop_and_reclaim_unconsumed_frames(); }
+bool RemoteVideoSink::has_lent_slots() const { return m_thread_data->has_lent_slots(); }
 
 RemoteVideoSink::ThreadData::ThreadData(VideoEdgeQueue edge, Delegates delegates, PresentedFramePage presented_frame_page)
     : m_edge(move(edge))
     , m_delegates(move(delegates))
     , m_presented_frame_page(move(presented_frame_page))
 {
+}
+
+RemoteVideoSink::ThreadData::~ThreadData()
+{
+    release_all_lends();
 }
 
 ErrorOr<void> RemoteVideoSink::ThreadData::connect_input(NonnullRefPtr<VideoProducer> const& producer)
@@ -231,6 +242,27 @@ void RemoteVideoSink::ThreadData::request_exit()
         input->set_wake_handler(nullptr);
 }
 
+void RemoteVideoSink::ThreadData::stop_and_reclaim_unconsumed_frames()
+{
+    request_exit();
+    {
+        MutexLocker locker { m_mutex };
+        while (!m_pump_thread_exited)
+            m_wait_condition.wait();
+    }
+
+    for (auto item = m_edge.peek(); item.has_value(); item = m_edge.peek()) {
+        release_slot(item->handle.pool_id, item->handle.slot_index);
+        m_edge.consume();
+    }
+}
+
+bool RemoteVideoSink::ThreadData::has_lent_slots() const
+{
+    MutexLocker locker { m_lent_pools_mutex };
+    return !m_lent_pools.is_empty();
+}
+
 void RemoteVideoSink::ThreadData::wait_on_pump_thread(MutexLocker<Mutex>&)
 {
     while (!m_wake_pending && !m_exit_requested)
@@ -308,7 +340,9 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
         wait_on_pump_thread(locker);
     }
 
-    release_all_lends();
+    MutexLocker locker { m_mutex };
+    m_pump_thread_exited = true;
+    m_wait_condition.broadcast();
 }
 
 void RemoteVideoSink::ThreadData::enqueue_frame(VideoFrame const& frame, u32 seek_id)

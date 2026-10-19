@@ -9,6 +9,15 @@
 
 namespace Media {
 
+struct RemoteVideoProducer::LentSlotReleaser : public AtomicRefCounted<LentSlotReleaser> {
+    explicit LentSlotReleaser(Function<void(VideoFramePoolID, u32 slot_index)> release_slot)
+        : release_slot(move(release_slot))
+    {
+    }
+
+    Function<void(VideoFramePoolID, u32 slot_index)> release_slot;
+};
+
 NonnullRefPtr<RemoteVideoProducer> RemoteVideoProducer::create(VideoEdgeQueue edge, NonnullRefPtr<VideoFrameSlotDirectory> slot_directory, Delegates delegates)
 {
     VERIFY(delegates.request_start);
@@ -27,12 +36,26 @@ NonnullRefPtr<RemoteVideoProducer> RemoteVideoProducer::create(VideoEdgeQueue ed
 RemoteVideoProducer::RemoteVideoProducer(VideoEdgeQueue edge, NonnullRefPtr<VideoFrameSlotDirectory> slot_directory, Delegates delegates)
     : m_edge(move(edge))
     , m_slot_directory(move(slot_directory))
-    , m_delegates(move(delegates))
+    , m_lent_slot_releaser(adopt_ref(*new LentSlotReleaser(move(delegates.release_slot))))
 {
+    m_delegates = move(delegates);
+}
+
+RemoteVideoProducer::~RemoteVideoProducer() = default;
+
+void RemoteVideoProducer::stop_consuming()
+{
+    if (m_current_frame) {
+        m_current_frame = nullptr;
+        m_edge.consume();
+    }
+    m_has_stopped_consuming = true;
 }
 
 void RemoteVideoProducer::notify_data_available()
 {
+    if (m_has_stopped_consuming)
+        return;
     release_ring_contents_if_suspended();
     m_wake_handler.dispatch();
 }
@@ -97,6 +120,8 @@ void RemoteVideoProducer::set_wake_handler(PipelineWakeHandler handler)
 
 void RemoteVideoProducer::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
+    if (m_has_stopped_consuming)
+        return;
     discard_stale_ring_heads();
 
     // Announced before the ring is consulted, paired with the fence in the pump before it consumes an enqueued frame
@@ -131,6 +156,8 @@ bool RemoteVideoProducer::can_satisfy_seek_locally(AK::Duration timestamp) const
 
 VideoProducerOutput RemoteVideoProducer::peek()
 {
+    if (m_has_stopped_consuming)
+        return { nullptr, PipelineStatus::Pending };
     discard_stale_ring_heads();
     auto head = m_edge.peek();
     if (!head.has_value()) {
@@ -149,6 +176,8 @@ VideoProducerOutput RemoteVideoProducer::peek()
 
 void RemoteVideoProducer::consume()
 {
+    if (m_has_stopped_consuming)
+        return;
     m_current_frame = nullptr;
     m_edge.consume();
     m_delegates.notify_space_available();
@@ -156,14 +185,13 @@ void RemoteVideoProducer::consume()
 
 void RemoteVideoProducer::release_lent_slot(VideoFramePoolID pool_id, u32 slot_index) const
 {
-    m_delegates.release_slot(pool_id, slot_index);
+    m_lent_slot_releaser->release_slot(pool_id, slot_index);
 }
 
 RefPtr<VideoFrame> RemoteVideoProducer::resolve(VideoFrameHandle const& handle)
 {
-    return m_slot_directory->resolve_frame(handle, [weak = make_weak_ref(), pool_id = handle.pool_id, slot_index = handle.slot_index] {
-        if (auto producer = weak.strong_ref())
-            producer->release_lent_slot(pool_id, slot_index);
+    return m_slot_directory->resolve_frame(handle, [releaser = m_lent_slot_releaser, pool_id = handle.pool_id, slot_index = handle.slot_index] {
+        releaser->release_slot(pool_id, slot_index);
     });
 }
 

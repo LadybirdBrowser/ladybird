@@ -79,6 +79,9 @@ public:
     // Observes the retire_pool delegate, for a host that maps slots for readers beyond the far-end consumer.
     void set_pool_retired_observer(Function<void(VideoFramePoolID)>);
 
+    void stop_and_reclaim_unconsumed_frames();
+    bool has_lent_slots() const;
+
 private:
     class ThreadData;
 

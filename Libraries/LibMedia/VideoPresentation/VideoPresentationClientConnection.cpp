@@ -47,6 +47,8 @@ void VideoPresentationClientConnection::release_edge(VideoSinkHandle handle)
     }
     if (!edge_id_to_release.has_value())
         return;
+    if (auto consumer = m_edge_states.get(*edge_id_to_release)->consumer)
+        consumer->stop_consuming();
     m_edge_states.remove(*edge_id_to_release);
     async_release_video_edge(*edge_id_to_release);
 }
