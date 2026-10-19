@@ -8,7 +8,7 @@
 //! answer geometry queries or paint. The steps that touch the DOM stay on the C++ host and
 //! answer through a callback table registered once per arena.
 
-use super::commit::CommitNotifications;
+use super::commit::{CommitNotifications, FfiCommitMessageKind};
 use super::formatting_context::{FfiLayoutHostCallbacks, LayoutStageFacts, lay_out_boundary, lay_out_root};
 use super::layout_changes::LayoutChange;
 use super::layout_node_arena::{OwedImageResources, sync_enrolled_content_for_layout};
@@ -92,8 +92,10 @@ pub struct FfiLayoutUpdateHostCallbacks {
     note_full_layout_performed: extern "C" fn(*mut c_void),
     evaluate_pending_container_queries: extern "C" fn(*mut c_void, &BegunRead),
     /// Records that a layout update ran out of its exact bound, and answers what the document still has pending, for
-    /// the panic that reports the failure.
-    record_stabilization_bound_failure: extern "C" fn(*mut c_void, &BegunRead) -> FfiStabilizationBoundFailureHostFacts,
+    /// the panic that reports the failure, describing the elements the last unstyled-element report and the last
+    /// rebuild request named, or 0 for none.
+    record_stabilization_bound_failure:
+        extern "C" fn(*mut c_void, &BegunRead, u32, u32) -> FfiStabilizationBoundFailureHostFacts,
     /// Attaches the image resources a box's style asks for. The flag says the box replaces its
     /// element's contents with a single image, whose provider it owns.
     attach_style_resources: extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, bool, FfiStyleImageFacts),
@@ -149,6 +151,17 @@ pub struct FfiStabilizationBoundFailureHostFacts {
     pub top_layer_membership_changes_pending: bool,
     pub document_needs_layout_tree_update: bool,
     pub document_child_needs_layout_tree_update: bool,
+    /// The element the last unstyled-element report of the update named, with its flat tree ancestors, as the host
+    /// describes them: a NUL-terminated ASCII string.
+    pub last_unstyled_element: [u8; 160],
+    /// As above, for the element the last rebuild request of the update named.
+    pub last_rebuild_request: [u8; 160],
+}
+
+/// The text of a NUL-terminated string the host wrote into `bytes`.
+fn host_text(bytes: &[u8]) -> String {
+    let end = bytes.iter().position(|&byte| byte == 0).unwrap_or(bytes.len());
+    String::from_utf8_lossy(&bytes[..end]).into_owned()
 }
 
 /// What one layout update was asked for.
@@ -246,8 +259,10 @@ impl FfiLayoutUpdateHostCallbacks {
         &self,
         _: &MainThread,
         read: &BegunRead,
+        last_unstyled_element: u32,
+        last_rebuild_request: u32,
     ) -> FfiStabilizationBoundFailureHostFacts {
-        (self.record_stabilization_bound_failure)(self.context, read)
+        (self.record_stabilization_bound_failure)(self.context, read, last_unstyled_element, last_rebuild_request)
     }
 
     /// Hands the boxes the tree builds of the update stamped the image resources they are owed,
@@ -351,9 +366,37 @@ struct StabilizationTrace {
     full_layouts_leaving_top_layer: u64,
     /// Full layouts that left layout to do.
     full_layouts_leaving_layout: u64,
+    /// Elements the builds reached without a style, and the style node of the last of them.
+    unstyled_elements_reached: u64,
+    last_unstyled_element: u32,
+    /// Rebuilds the builds requested for a box that escaped its rebuild root, and the style node of the last of them.
+    rebuild_requests: u64,
+    last_rebuild_request: u32,
+    /// The builds' other reports.
+    other_build_reports: u64,
 }
 
 impl StabilizationTrace {
+    /// Counts what the build of `answer` reports, where the round built the tree.
+    fn note_build_reports(&mut self, answer: &LayoutRoundAnswer) {
+        let Some((_, built)) = &answer.build else {
+            return;
+        };
+        for report in &built.reports {
+            match report.kind {
+                FfiCommitMessageKind::UnstyledElementReached => {
+                    self.unstyled_elements_reached += 1;
+                    self.last_unstyled_element = report.style_node;
+                }
+                FfiCommitMessageKind::LayoutTreeRebuildRequested => {
+                    self.rebuild_requests += 1;
+                    self.last_rebuild_request = report.style_node;
+                }
+                _ => self.other_build_reports += 1,
+            }
+        }
+    }
+
     /// Describes the update for the panic that reports it: the passes it ran against its bound, how they ended, and
     /// what the document and its render state still have pending.
     fn describe(
@@ -410,7 +453,8 @@ impl StabilizationTrace {
         format!(
             "{passes} passes for {connected_elements} connected elements of a {} document: {} flown, {} builds asking \
              another pass, {} counter reconciles, partial layouts leaving style {}/layout {}, full layouts leaving \
-             style {}/top layer {}/layout {}; {} boundary roots, {} deferred insertions; facts: {}",
+             style {}/top layer {}/layout {}; {} boundary roots, {} deferred insertions; facts: {}; build reports: {} \
+             unstyled elements (last: {}), {} rebuild requests (last: {}), {} other",
             if host_facts.document_is_top_level {
                 "top-level"
             } else {
@@ -431,6 +475,11 @@ impl StabilizationTrace {
             } else {
                 facts_that_hold.join(", ")
             },
+            self.unstyled_elements_reached,
+            host_text(&host_facts.last_unstyled_element),
+            self.rebuild_requests,
+            host_text(&host_facts.last_rebuild_request),
+            self.other_build_reports,
         )
     }
 }
@@ -1181,6 +1230,7 @@ unsafe fn update_layout(
                 NextRound::Flown(answer) => answer,
                 NextRound::Job(job) => run_layout_round_job(document_host, read, job),
             };
+            trace.note_build_reports(&answer);
             unsafe { answer.pay(main_thread, document_host, read) };
             if matches!(answer.end, LayoutRoundEnd::NeedsDocumentStyle) {
                 let facts = host.document_facts(main_thread, read);
@@ -1274,7 +1324,12 @@ unsafe fn update_layout(
     if host.needs_style_update_after_layout(main_thread, read)
         || !host_layout_is_up_to_date(document_host, read, &host.document_facts(main_thread, read))
     {
-        let host_facts = host.record_stabilization_bound_failure(main_thread, read);
+        let host_facts = host.record_stabilization_bound_failure(
+            main_thread,
+            read,
+            trace.last_unstyled_element,
+            trace.last_rebuild_request,
+        );
         unreachable!(
             "the layout update did not stabilize within its exact bound: {}",
             trace.describe(main_thread, document_host, read, &host, layout_pass, host_facts)
