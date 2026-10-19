@@ -153,6 +153,7 @@ public:
     virtual bool is_headless() const override { return m_host_page->client().is_headless(); }
     virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory() override;
     virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager() override;
+    virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&) override;
 
     void register_svg_image_data(SVGDecodedImageData&);
     void prune_cached_display_list_resources() const;

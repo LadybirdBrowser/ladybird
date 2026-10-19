@@ -90,6 +90,7 @@ public:
 
     void set_volume(double);
     void set_playback_rate(float);
+    void set_audio_group(Audio::PlaybackGroupId);
 
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
