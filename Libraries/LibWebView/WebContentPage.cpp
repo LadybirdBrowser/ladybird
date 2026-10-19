@@ -623,8 +623,10 @@ void WebContentPage::close()
     m_is_open = false;
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
-    if (m_client)
+    if (m_client) {
         m_client->update_audio_capture_permission();
+        m_client->revoke_audio_playback(m_id);
+    }
     auto owed_replies = move(m_owed_replies);
     for (auto owed : owed_replies)
         owe_reply(owed);

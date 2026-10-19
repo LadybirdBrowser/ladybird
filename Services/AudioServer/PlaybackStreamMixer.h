@@ -9,10 +9,12 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibAudio/PlaybackStream.h>
 #include <LibAudio/SharedAudioFrameRing.h>
 #include <LibCore/Forward.h>
@@ -20,6 +22,11 @@
 namespace Audio {
 
 using MixerClientId = u64;
+
+enum class PlaybackGroupAuthorization : u8 {
+    Unauthorized,
+    Authorized,
+};
 
 // Mixes the shared rings of one tab's client streams into one output device stream, which plays only while some
 // client is playing or draining.
@@ -37,8 +44,11 @@ public:
     Optional<SampleSpecification> const& device_sample_specification() const { return m_device_sample_specification; }
     u32 device_target_latency_ms() const { return m_device_target_latency_ms; }
 
-    // Control thread. Rings must be in the device format.
-    void add_client(MixerClientId, SharedAudioFrameRing, float gain);
+    // Control thread. Rings must be in the device format. A client is mixed only while its group is authorized; until
+    // then, and while it has no group, its frames are consumed into nothing.
+    void add_client(MixerClientId, SharedAudioFrameRing, float gain, Optional<PlaybackGroupId>);
+    void set_client_group(MixerClientId, Optional<PlaybackGroupId>);
+    void set_group_authorization(PlaybackGroupId, PlaybackGroupAuthorization);
     void remove_client(MixerClientId);
     void resume_client(MixerClientId);
     // on_drained runs on the control thread once the ring has played out, or at once if the drain is made moot.
@@ -61,6 +71,7 @@ private:
     struct Client {
         SharedAudioFrameRing ring;
         float gain { 1 };
+        Optional<PlaybackGroupId> group;
         ClientState state { ClientState::Suspended };
         Function<void()> on_drained;
         // When the device will have played the last frame consumed from this ring.
@@ -83,6 +94,7 @@ private:
 
         Mutex m_mutex;
         HashMap<MixerClientId, Client> m_clients;
+        HashTable<PlaybackGroupId> m_authorized_groups;
     };
 
     PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms);

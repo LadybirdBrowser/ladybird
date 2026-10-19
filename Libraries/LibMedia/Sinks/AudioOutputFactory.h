@@ -10,19 +10,20 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibAudio/NullPlaybackStream.h>
+#include <LibAudio/OutputSession.h>
 #include <LibAudio/PlaybackStream.h>
 
 namespace Media {
 
-// Opens the audio outputs that a playback manager's sinks play into. The manager's owner decides how they open, the
-// manager hands the factory to every sink it creates, and a sink opens another output with it after losing one.
+// Opens the audio outputs of one source of sound. A playback manager hands its factory to every sink it creates, and a
+// sink opens another output with it after losing one.
 class AudioOutputFactory final : public AtomicRefCounted<AudioOutputFactory> {
 public:
-    // The outputs play through the AudioServer when this process can reach one.
-    static NonnullRefPtr<AudioOutputFactory> create()
+    // The outputs play as part of the session.
+    static NonnullRefPtr<AudioOutputFactory> create(NonnullRefPtr<Audio::OutputSession> session)
     {
-        return adopt_ref(*new AudioOutputFactory([](Audio::OutputState initial_output_state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback data_request_callback) {
-            return Audio::PlaybackStream::create(initial_output_state, target_latency_ms, move(data_request_callback));
+        return adopt_ref(*new AudioOutputFactory([session = move(session)](Audio::OutputState initial_output_state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback data_request_callback) {
+            return Audio::PlaybackStream::create(initial_output_state, target_latency_ms, session, move(data_request_callback));
         }));
     }
 

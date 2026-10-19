@@ -13,6 +13,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Track.h>
@@ -30,7 +31,7 @@ class PlaybackSession {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    PlaybackSession(ConnectionFromClient&, u64 id);
+    PlaybackSession(ConnectionFromClient&, u64 id, Audio::PlaybackGroupId audio_group);
     ~PlaybackSession();
 
     u64 id() const { return m_id; }

@@ -12,6 +12,8 @@
 
 static constexpr u32 SAMPLE_RATE = FakeDeviceStream::SAMPLE_RATE;
 static constexpr u32 CHANNEL_COUNT = FakeDeviceStream::CHANNEL_COUNT;
+static constexpr Audio::PlaybackGroupId AUTHORIZED_GROUP { 1 };
+static constexpr Audio::PlaybackGroupId OTHER_GROUP { 2 };
 
 struct MixerFixture {
     Core::EventLoop loop;
@@ -28,15 +30,22 @@ struct MixerFixture {
         });
         EXPECT(device);
         EXPECT(mixer->device_sample_specification().has_value());
+        mixer->set_group_authorization(AUTHORIZED_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
     }
 
     // The client side of a ring, registered with the mixer under `id`.
-    Audio::SharedAudioFrameRing add_client(Audio::MixerClientId id, float gain = 1.0f)
+    Audio::SharedAudioFrameRing add_client(Audio::MixerClientId id, float gain = 1.0f, Optional<Audio::PlaybackGroupId> group = AUTHORIZED_GROUP)
     {
         auto producer = MUST(Audio::SharedAudioFrameRing::create(SAMPLE_RATE, CHANNEL_COUNT, 1024));
         auto consumer = MUST(Audio::SharedAudioFrameRing::create(producer.buffer()));
-        mixer->add_client(id, move(consumer), gain);
+        mixer->add_client(id, move(consumer), gain, group);
         return producer;
+    }
+
+    void expect_render_of(size_t frame_count, float expected)
+    {
+        for (auto sample : device->render(frame_count))
+            EXPECT_EQ(sample, expected);
     }
 
     void pump()
@@ -89,6 +98,53 @@ TEST_CASE(playing_clients_are_summed_with_their_gain)
         EXPECT_EQ(sample, 0.25f + 0.5f);
     EXPECT_EQ(first.frames_free(), 1024u);
     EXPECT_EQ(second.frames_free(), 1024u);
+}
+
+TEST_CASE(clients_outside_an_authorized_group_are_consumed_into_silence)
+{
+    MixerFixture fixture;
+    auto authorized = fixture.add_client(1, 1.0f, AUTHORIZED_GROUP);
+    auto unauthorized = fixture.add_client(2, 1.0f, OTHER_GROUP);
+    auto ungrouped = fixture.add_client(3, 1.0f, OptionalNone {});
+    EXPECT_EQ(authorized.try_push(constant_frames(32, 0.25f)), 32u);
+    EXPECT_EQ(unauthorized.try_push(constant_frames(32, 1.0f)), 32u);
+    EXPECT_EQ(ungrouped.try_push(constant_frames(32, 1.0f)), 32u);
+
+    fixture.mixer->resume_client(1);
+    fixture.mixer->resume_client(2);
+    fixture.mixer->resume_client(3);
+    fixture.expect_render_of(32, 0.25f);
+    // They play on unheard, at the device's pace.
+    EXPECT_EQ(unauthorized.frames_free(), 1024u);
+    EXPECT_EQ(ungrouped.frames_free(), 1024u);
+}
+
+TEST_CASE(a_group_is_heard_from_the_render_after_its_authorization_until_its_revocation)
+{
+    MixerFixture fixture;
+    auto client = fixture.add_client(1, 1.0f, OTHER_GROUP);
+    EXPECT_EQ(client.try_push(constant_frames(96, 1.0f)), 96u);
+    fixture.mixer->resume_client(1);
+
+    fixture.expect_render_of(32, 0.0f);
+    fixture.mixer->set_group_authorization(OTHER_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
+    fixture.expect_render_of(32, 1.0f);
+    fixture.mixer->set_group_authorization(OTHER_GROUP, Audio::PlaybackGroupAuthorization::Unauthorized);
+    fixture.expect_render_of(32, 0.0f);
+}
+
+TEST_CASE(a_client_moved_to_another_group_is_heard_as_part_of_it)
+{
+    MixerFixture fixture;
+    auto client = fixture.add_client(1, 1.0f, OTHER_GROUP);
+    EXPECT_EQ(client.try_push(constant_frames(96, 1.0f)), 96u);
+    fixture.mixer->resume_client(1);
+
+    fixture.expect_render_of(32, 0.0f);
+    fixture.mixer->set_client_group(1, AUTHORIZED_GROUP);
+    fixture.expect_render_of(32, 1.0f);
+    fixture.mixer->set_client_group(1, OptionalNone {});
+    fixture.expect_render_of(32, 0.0f);
 }
 
 TEST_CASE(suspended_clients_are_not_consumed)

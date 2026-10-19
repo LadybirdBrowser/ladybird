@@ -76,15 +76,35 @@ void PlaybackStreamMixer::run_device_ready_callbacks()
     }
 }
 
-void PlaybackStreamMixer::add_client(MixerClientId id, SharedAudioFrameRing ring, float gain)
+void PlaybackStreamMixer::add_client(MixerClientId id, SharedAudioFrameRing ring, float gain, Optional<PlaybackGroupId> group)
 {
     VERIFY(m_device_sample_specification.has_value());
     VERIFY(ring.sample_rate() == m_device_sample_specification->sample_rate());
     VERIFY(ring.channel_count() == m_device_sample_specification->channel_count());
 
     MutexLocker locker(m_state->m_mutex);
-    auto result = m_state->m_clients.set(id, Client { .ring = move(ring), .gain = gain, .state = ClientState::Suspended, .on_drained = nullptr });
+    auto result = m_state->m_clients.set(id, Client { .ring = move(ring), .gain = gain, .group = group, .state = ClientState::Suspended, .on_drained = nullptr });
     VERIFY(result == HashSetResult::InsertedNewEntry);
+}
+
+void PlaybackStreamMixer::set_client_group(MixerClientId id, Optional<PlaybackGroupId> group)
+{
+    MutexLocker locker(m_state->m_mutex);
+    if (auto client = m_state->m_clients.get(id); client.has_value())
+        client->group = group;
+}
+
+void PlaybackStreamMixer::set_group_authorization(PlaybackGroupId group, PlaybackGroupAuthorization authorization)
+{
+    MutexLocker locker(m_state->m_mutex);
+    switch (authorization) {
+    case PlaybackGroupAuthorization::Authorized:
+        m_state->m_authorized_groups.set(group);
+        break;
+    case PlaybackGroupAuthorization::Unauthorized:
+        m_state->m_authorized_groups.remove(group);
+        break;
+    }
 }
 
 void PlaybackStreamMixer::remove_client(MixerClientId id)
@@ -251,7 +271,10 @@ ReadonlySpan<float> PlaybackStreamMixer::MixState::mix_into(Span<float> buffer, 
         for (auto& [id, client] : m_clients) {
             if (client.state == ClientState::Suspended || client.state == ClientState::Drained)
                 continue;
-            auto consumed_frames = client.ring.pop_mixing_into(buffer, client.gain);
+            auto is_authorized = client.group.has_value() && m_authorized_groups.contains(*client.group);
+            auto consumed_frames = is_authorized
+                ? client.ring.pop_mixing_into(buffer, client.gain)
+                : client.ring.discard(buffer.size() / client.ring.channel_count());
             if (consumed_frames > 0)
                 client.played_at_ns = (buffer_starts_playing_at + AK::Duration::from_time_units(static_cast<i64>(consumed_frames), 1, client.ring.sample_rate())).nanoseconds();
             if (client.state == ClientState::Draining && client.ring.frames_available() == 0) {

@@ -1,7 +1,13 @@
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibAudio/SharedAudioFrameRing.h>
 
 endpoint AudioServer {
-    create_stream(u64 stream_id) =|
+    // The streams of a session play as part of its group, and follow it when it changes.
+    declare_session(u64 session_id, Audio::PlaybackGroupId group) =|
+    rebind_session(u64 session_id, Audio::PlaybackGroupId group) =|
+    destroy_session(u64 session_id) =|
+
+    create_stream(u64 stream_id, u64 session_id) =|
     destroy_stream(u64 stream_id) =|
 
     attach_stream_ring(u64 stream_id, Audio::SharedAudioFrameRing ring) =|

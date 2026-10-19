@@ -3,6 +3,7 @@ set(SOURCES
     AudioFrameRingBase.cpp
     ClientConnection.cpp
     NullPlaybackStream.cpp
+    OutputSession.cpp
     PlaybackStream.cpp
     RecordStream.cpp
     RemotePlaybackStream.cpp

@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Time.h>
 #include <LibAudio/Export.h>
+#include <LibAudio/Forward.h>
 #include <LibAudio/SampleSpecification.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
@@ -32,10 +33,10 @@ public:
     using AudioDataRequestCallback = Function<ReadonlySpan<float>(Span<float> buffer, MonotonicTime buffer_starts_playing_at)>;
 
     // Begins creating a new audio output and returns a promise that is resolved when it is ready. The output is the
-    // AudioServer when this process can reach one, and otherwise a null stream that discards what it is given. The
-    // initial output state determines whether playback begins immediately. The data callback is only invoked on one
-    // thread at a time.
-    static NonnullRefPtr<CreatePromise> create(OutputState, u32 target_latency_ms, AudioDataRequestCallback);
+    // AudioServer when this process can reach one, which plays it as part of the session, and otherwise a null stream
+    // that discards what it is given. The initial output state determines whether playback begins immediately. The data
+    // callback is only invoked on one thread at a time.
+    static NonnullRefPtr<CreatePromise> create(OutputState, u32 target_latency_ms, NonnullRefPtr<OutputSession>, AudioDataRequestCallback);
 
     virtual SampleSpecification sample_specification() const = 0;
 

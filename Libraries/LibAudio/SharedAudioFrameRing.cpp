@@ -128,6 +128,15 @@ size_t SharedAudioFrameRing::pop_mixing_into(Span<float> mix, float gain)
     return frames_to_read;
 }
 
+size_t SharedAudioFrameRing::discard(size_t maximum_frame_count)
+{
+    auto head = m_header->head.load(AK::MemoryOrder::memory_order_relaxed);
+    auto tail = m_header->tail.load(AK::MemoryOrder::memory_order_acquire);
+    auto frames_to_drop = min<u64>(maximum_frame_count, tail - head);
+    m_header->head.store(head + frames_to_drop, AK::MemoryOrder::memory_order_release);
+    return frames_to_drop;
+}
+
 void SharedAudioFrameRing::discard_all()
 {
     auto tail = m_header->tail.load(AK::MemoryOrder::memory_order_acquire);
