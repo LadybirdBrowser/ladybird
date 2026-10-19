@@ -80,6 +80,13 @@ if (TARGET TestCrashReport AND cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
     target_compile_definitions(TestCrashReport PRIVATE TEST_HAS_CPPTRACE=1)
 endif()
 
+if (TARGET TestCrashReport AND LINUX AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    add_library(CrashReportLateLibrary SHARED CrashReportLateLibrary.cpp)
+    add_dependencies(TestCrashReport CrashReportLateLibrary)
+    target_compile_definitions(TestCrashReport PRIVATE TEST_CRASH_REPORT_LATE_LIBRARY="$<TARGET_FILE:CrashReportLateLibrary>")
+    target_link_libraries(TestCrashReport PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
 if (APPLE OR LINUX)
     foreach(panic_strategy abort unwind)
         set(rust_test_library "${CMAKE_CURRENT_BINARY_DIR}/librust_crash_report_${panic_strategy}.a")
