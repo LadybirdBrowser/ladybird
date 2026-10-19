@@ -797,7 +797,7 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
 // https://html.spec.whatwg.org/multipage/media.html#media-element-load-algorithm
 WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
-    m_first_data_load_event_since_load_start = true;
+    m_has_fired_loadeddata = false;
 
     // FIXME: 1. Set this element's is currently stalled to false.
 
@@ -2500,8 +2500,8 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     if (old_ready_state == ReadyState::HaveMetadata && ready_state >= ReadyState::HaveCurrentData) {
         // If this is the first time this occurs for this media element since the load() algorithm was last invoked, the user agent must queue a media
         // element task given the media element to fire an event named loadeddata at the element.
-        if (m_first_data_load_event_since_load_start) {
-            m_first_data_load_event_since_load_start = false;
+        if (!m_has_fired_loadeddata) {
+            m_has_fired_loadeddata = true;
 
             queue_a_media_element_task([](HTMLMediaElement& self) {
                 self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::loadeddata));
