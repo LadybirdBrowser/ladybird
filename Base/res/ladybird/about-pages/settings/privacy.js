@@ -32,12 +32,15 @@ const GiB = MiB * 1024;
 let BROWSING_DATA = {};
 
 function loadSettings(settings) {
-    BROWSING_DATA = settings.browsingData || {};
+    if (Object.hasOwn(settings, "globalPrivacyControl")) {
+        globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
+    }
 
-    globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
-
-    showBrowsingDataSettings();
-    estimateBrowsingDataSizes();
+    if (Object.hasOwn(settings, "browsingData")) {
+        BROWSING_DATA = settings.browsingData;
+        showBrowsingDataSettings();
+        estimateBrowsingDataSizes();
+    }
 }
 
 function updateBrowsingDataSizes(sizes) {

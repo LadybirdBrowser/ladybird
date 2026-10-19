@@ -62,6 +62,7 @@ def run_test(webdriver_binary, graphical):
                         const done = parameters.pop();
                         document.addEventListener('WebUIMessage', function listener(event) {{
                             if (event.detail.name !== 'loadSettings') return;
+                            if (!Object.hasOwn(event.detail.data, 'searchEngine')) return;
                             const settings = event.detail.data;
                             if (!({condition})) return;
                             document.removeEventListener('WebUIMessage', listener);

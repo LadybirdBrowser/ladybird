@@ -98,6 +98,8 @@ with tempfile.TemporaryDirectory() as directory:
                 const [name, data, waitForIdle, done] = arguments;
                 const receive = event => {
                     if (event.detail.name !== 'loadSettings') return;
+                    // Wait for the requested full snapshot rather than a partial broadcast.
+                    if (!Object.hasOwn(event.detail.data, 'firstRunComplete')) return;
                     if (waitForIdle && event.detail.data.contentBlockerListUpdateInProgress) {
                         setTimeout(() => ladybird.sendMessage('loadCurrentSettings'), 50);
                         return;
@@ -107,6 +109,7 @@ with tempfile.TemporaryDirectory() as directory:
                 };
                 document.addEventListener('WebUIMessage', receive);
                 ladybird.sendMessage(name, data);
+                if (name !== 'loadCurrentSettings') ladybird.sendMessage('loadCurrentSettings');
             """,
                     "args": [name, data, wait_for_idle],
                 },

@@ -4,6 +4,10 @@ const enableForceDark = document.querySelector("#enable-force-dark");
 let CONTENT = {};
 
 const loadSettings = settings => {
+    if (!Object.hasOwn(settings, "content")) {
+        return;
+    }
+
     CONTENT = settings.content || {};
 
     const snapped = snapToClosestFactor(CONTENT.defaultZoomLevelFactor);

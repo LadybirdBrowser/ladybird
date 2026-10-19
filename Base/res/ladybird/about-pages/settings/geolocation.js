@@ -10,7 +10,12 @@ document.addEventListener("WebUIMessage", event => {
         return;
     }
 
-    if (event.detail.name !== "loadSettings") return;
+    if (event.detail.name !== "loadSettings") {
+        return;
+    }
+    if (!Object.hasOwn(event.detail.data, "geolocationEnabled")) {
+        return;
+    }
 
     enableGeolocation.checked = event.detail.data.geolocationEnabled === true;
 });

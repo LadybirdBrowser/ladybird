@@ -9,6 +9,10 @@ const loadFeatures = features => {
 };
 
 const loadSettings = settings => {
+    if (!Object.hasOwn(settings, "appearance")) {
+        return;
+    }
+
     APPEARANCE = settings.appearance || {};
 
     showMenuBar.checked = !!APPEARANCE.showMenuBar;

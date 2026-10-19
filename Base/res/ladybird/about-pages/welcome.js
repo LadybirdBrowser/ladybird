@@ -131,14 +131,46 @@ document.addEventListener("WebUILoaded", () => {
 
 document.addEventListener("WebUIMessage", event => {
     const { name, data } = event.detail;
-    if (name === "loadSettings") settings = data;
-    else if (name === "loadEngines") engines = data;
-    else if (name === "loadFeatures") features = data;
-    else if (name === "firstRunCompleted") location.replace(data);
-    else if (name === "firstRunError") {
+
+    if (name === "loadSettings") {
+        settings = { ...settings, ...data };
+
+        if (initialized) {
+            if (Object.hasOwn(data, "tabs")) {
+                const mode = settings.tabs.verticalTabsEnabled ? "vertical" : "horizontal";
+                document.querySelector(`input[name="tab-mode"][value="${mode}"]`).checked = true;
+            }
+            if (Object.hasOwn(data, "searchEngine")) {
+                populateSearchEngineSelect(searchEngine, engines.search, settings.searchEngine);
+                searchSuggestions.checked = settings.searchEngine.suggestions;
+                updateSearchSuggestionsControl(searchEngine, searchSuggestions, searchSuggestionsDescription);
+            }
+            if (Object.hasOwn(data, "contentBlockers")) {
+                enableContentBlocking.checked = settings.contentBlockers.enabled;
+                updateBlockingOptions();
+            }
+            if (Object.hasOwn(data, "contentBlockerLists")) {
+                for (const checkbox of contentBlockerLists.querySelectorAll("input")) {
+                    const list = settings.contentBlockerLists.find(
+                        list => list.identifier === checkbox.dataset.identifier
+                    );
+                    if (list) {
+                        checkbox.checked = list.enabled;
+                    }
+                }
+            }
+        }
+    } else if (name === "loadEngines") {
+        engines = data;
+    } else if (name === "loadFeatures") {
+        features = data;
+    } else if (name === "firstRunCompleted") {
+        location.replace(data);
+    } else if (name === "firstRunError") {
         saveStatus.textContent = data;
         setupOptions.disabled = false;
         startBrowsing.disabled = false;
     }
+
     initialize();
 });

@@ -10,6 +10,10 @@ const languagesSettings = document.querySelector("#languages-settings");
 let LANGUAGES = [];
 
 function loadSettings(settings) {
+    if (!Object.hasOwn(settings, "languages")) {
+        return;
+    }
+
     LANGUAGES = settings.languages;
 
     if (languagesDialog.open) {

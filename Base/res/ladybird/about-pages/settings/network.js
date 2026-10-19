@@ -11,6 +11,10 @@ const dnssecToggle = document.querySelector("#dnssec-toggle");
 let DNS_SETTINGS = {};
 
 function loadSettings(settings) {
+    if (!Object.hasOwn(settings, "dnsSettings")) {
+        return;
+    }
+
     DNS_SETTINGS = settings.dnsSettings || {};
     loadDnsSettings();
 }

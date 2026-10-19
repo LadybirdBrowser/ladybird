@@ -9,7 +9,13 @@ filterListUpdates.addEventListener("change", () => {
 });
 
 document.addEventListener("WebUIMessage", event => {
-    if (event.detail.name !== "loadSettings") return;
+    if (event.detail.name !== "loadSettings") {
+        return;
+    }
+    if (!Object.hasOwn(event.detail.data, "backgroundNetworking")) {
+        return;
+    }
+
     const settings = event.detail.data.backgroundNetworking;
     allowServicesNetworkAccess.checked = settings.enabled;
     filterListUpdates.checked = settings.features.contentBlockerSubscriptionUpdates;
