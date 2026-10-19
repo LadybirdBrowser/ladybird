@@ -5,11 +5,19 @@
  */
 
 #include <Compositor/VideoFrameSkia.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
+#include <LibGfx/SkiaBackendContext.h>
+#include <LibGfx/SkiaUtils.h>
 #include <LibGfx/YUVData.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
+#include <core/SkImage.h>
 #include <core/SkYUVAInfo.h>
 #include <core/SkYUVAPixmaps.h>
+#include <gpu/ganesh/GrDirectContext.h>
+#include <gpu/ganesh/SkImageGanesh.h>
 
 namespace Compositor {
 
@@ -142,6 +150,49 @@ SkYUVAPixmaps make_yuva_pixmaps(Gfx::YUVData const& yuv_data)
     SkPixmap plane_pixmaps[SkYUVAInfo::kMaxPlanes] = { y_pixmap, u_pixmap, v_pixmap, {} };
 
     return SkYUVAPixmaps::FromExternalPixmaps(yuva_info, plane_pixmaps);
+}
+
+sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    sk_sp<SkImage> image;
+    auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
+    auto surface = frame.surface();
+
+    if (surface != nullptr && skia_backend_context)
+        image = sk_image_from_video_surface(*surface, frame.cicp(), *skia_backend_context);
+
+    auto yuv_data = image ? Optional<Gfx::YUVData> {} : frame.yuv_data();
+    if (!image && !yuv_data.has_value() && surface == nullptr)
+        return nullptr;
+
+    auto color_space = Gfx::ColorSpace {};
+    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame.cicp()); !color_space_result.is_error())
+        color_space = color_space_result.release_value();
+
+    if (!image && gr_context && yuv_data.has_value()) {
+        image = SkImages::TextureFromYUVAPixmaps(
+            gr_context,
+            make_yuva_pixmaps(*yuv_data),
+            skgpu::Mipmapped::kNo,
+            false,
+            Gfx::to_skia_color_space(color_space));
+    }
+
+    if (!image) {
+        // Without a GPU to sample a surface on, its pixels have to be read back into memory to be drawn.
+        auto bitmap_or_error = frame.to_bitmap();
+        if (bitmap_or_error.is_error()) {
+            dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+            return nullptr;
+        }
+        auto raster_image = Gfx::sk_image_adopting_bitmap(bitmap_or_error.release_value(), color_space);
+        if (gr_context)
+            image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
+        if (!image)
+            image = move(raster_image);
+    }
+
+    return image;
 }
 
 }
