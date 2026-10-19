@@ -2022,6 +2022,7 @@ impl StyleEngine {
                 custom_property_environments_by_answer: HashMap::default(),
                 last_custom_property_environment_memoizable: false,
                 custom_declaration_custom_property_reads: HashMap::default(),
+                custom_property_reads_by_declarations: Default::default(),
                 nodes_with_tree_counting_records: HashMap::default(),
                 nodes_with_rolled_back_records: HashMap::default(),
                 nodes_with_element_relative_substitutions: HashMap::default(),
@@ -3430,6 +3431,8 @@ impl RetainedState {
             custom_property_environments_by_answer: _,
             last_custom_property_environment_memoizable: _,
             custom_declaration_custom_property_reads,
+            // Keyed by the values and names it holds.
+            custom_property_reads_by_declarations: _,
             nodes_with_tree_counting_records,
             nodes_with_rolled_back_records,
             nodes_with_element_relative_substitutions,
