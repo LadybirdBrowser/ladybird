@@ -19,8 +19,8 @@ const _: () = {
 };
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layer_names_count(names: *const LayerNames) -> usize {
-    unsafe { &*names }.names.len()
+pub extern "C" fn rust_layer_names_count(names: &LayerNames) -> usize {
+    names.names.len()
 }
 
 #[unsafe(no_mangle)]

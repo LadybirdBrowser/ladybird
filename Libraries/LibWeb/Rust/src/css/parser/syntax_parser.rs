@@ -3745,15 +3745,11 @@ pub extern "C" fn rust_css_syntax_parse_declaration_block(
 }
 
 /// Retains parsed descriptor lists from block contents, ignoring rules.
-///
-/// # Safety
-/// `parse` must be a live result of `rust_parse_css_block_syntax`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_css_syntax_parse_descriptor_block(
-    parse: *const ParsedStyleSheet,
+pub extern "C" fn rust_css_syntax_parse_descriptor_block(
+    parsed: &ParsedStyleSheet,
 ) -> *mut crate::css::descriptor_block::FfiDescriptorBlock {
     use crate::css::descriptor_block::FfiDescriptorBlock;
-    let parsed = unsafe { &*parse };
     // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
     // 2. Let parsed declarations be a new empty list.
     let mut descriptors: Option<Arc<DescriptorBlockData>> = None;

@@ -70,8 +70,8 @@ pub unsafe extern "C" fn rust_container_conditions_release(conditions: *const Co
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_container_conditions_count(conditions: *const ContainerConditionsData) -> usize {
-    unsafe { &*conditions }.conditions.len()
+pub extern "C" fn rust_container_conditions_count(conditions: &ContainerConditionsData) -> usize {
+    conditions.conditions.len()
 }
 
 #[unsafe(no_mangle)]
@@ -85,11 +85,11 @@ pub extern "C" fn rust_container_conditions_name(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_container_conditions_query(
-    conditions: *const ContainerConditionsData,
+pub extern "C" fn rust_container_conditions_query(
+    conditions: &ContainerConditionsData,
     index: usize,
 ) -> *const FfiQueryHandle {
-    unsafe { &*conditions }.conditions[index]
+    conditions.conditions[index]
         .query
         .as_ref()
         .map_or(std::ptr::null(), Arc::as_ptr)

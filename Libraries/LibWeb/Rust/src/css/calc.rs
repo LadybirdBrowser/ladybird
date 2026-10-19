@@ -522,16 +522,13 @@ pub enum FfiNumericTypeMatch {
 }
 
 /// Applies one numeric type algebra operation for C++ callers.
-///
-/// # Safety
-/// `first` must be valid. `second` must also be valid for binary operations.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_numeric_type_operate(
+pub extern "C" fn rust_numeric_type_operate(
     operation: FfiNumericTypeOperation,
-    first: *const FfiNumericType,
+    first: &FfiNumericType,
     second: &FfiNumericType,
 ) -> FfiNumericType {
-    let first = unsafe { &*first }.to_calc();
+    let first = first.to_calc();
     let result = match operation {
         FfiNumericTypeOperation::Add => first.added_to(&second.to_calc()),
         FfiNumericTypeOperation::Multiply => first.multiplied_by(&second.to_calc()),
@@ -541,18 +538,15 @@ pub unsafe extern "C" fn rust_numeric_type_operate(
 }
 
 /// Tests a numeric type against one of the CSS numeric matching categories.
-///
-/// # Safety
-/// `numeric_type` must be valid.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_numeric_type_matches(
+pub extern "C" fn rust_numeric_type_matches(
     match_kind: FfiNumericTypeMatch,
-    numeric_type: *const FfiNumericType,
+    numeric_type: &FfiNumericType,
     base_type: u8,
     has_percentages_resolve_as: bool,
     percentages_resolve_as: u8,
 ) -> bool {
-    let numeric_type = unsafe { &*numeric_type }.to_calc();
+    let numeric_type = numeric_type.to_calc();
     let resolve_as = resolve_as_for_value_type(has_percentages_resolve_as.then_some(percentages_resolve_as));
     match match_kind {
         FfiNumericTypeMatch::Dimension => numeric_type.matches_dimension(base_type as usize, resolve_as),
