@@ -290,8 +290,6 @@ private:
 
     virtual void set_page_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state) override;
 
-    virtual void set_user_style(Web::PageId page_id, String) override;
-
     virtual void take_document_screenshot(Web::PageId page_id) override;
     virtual void take_dom_node_screenshot(Web::PageId page_id, Web::UniqueNodeID node_id) override;
 

@@ -1360,11 +1360,6 @@ void PageClient::toggle_media_controls_state()
     page().toggle_media_controls_state();
 }
 
-void PageClient::set_user_style(String source)
-{
-    page().set_user_style(Utf16String::from_utf8(source));
-}
-
 void PageClient::page_did_request_accept_dialog()
 {
     client().async_did_request_accept_dialog(m_id);
