@@ -37,6 +37,7 @@ class UTF8Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode) override;
+    virtual ErrorOr<Utf16String> to_utf16(StringView) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 };
 
@@ -544,6 +545,14 @@ ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)
 ErrorOr<String> UTF8Decoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
 {
     return rust_decode_to_utf8("UTF-8"sv, input, ignore_bom, error_mode);
+}
+
+ErrorOr<Utf16String> UTF8Decoder::to_utf16(StringView input)
+{
+    // NB: Valid input decodes to the same code units as through process(), without a callback per code point.
+    if (Utf8View { input }.validate(AllowLonelySurrogates::No))
+        return Utf16String::from_utf8_without_validation(input);
+    return Decoder::to_utf16(input);
 }
 
 ErrorOr<size_t> UTF8Decoder::length_in_utf16_code_units(StringView input)

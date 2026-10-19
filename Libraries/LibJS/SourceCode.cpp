@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/UnicodeUtils.h>
-#include <AK/Utf16StringBuilder.h>
 #include <LibJS/ScriptAndModuleABIConversions.h>
 #include <LibJS/SourceCode.h>
 #include <LibTextCodec/Decoder.h>
@@ -31,39 +29,13 @@ static Utf16String decode_source_bytes(ReadonlyBytes source_bytes, StringView so
     if (length_in_code_units == 0)
         return {};
 
-    StringView input { source_bytes };
     auto decoder = TextCodec::decoder_for(source_encoding);
     VERIFY(decoder.has_value());
-    TextCodec::Decoder* actual_decoder = &decoder.value();
 
-    auto unicode_decoder = TextCodec::bom_sniff_to_decoder(input);
-    if (unicode_decoder.has_value()) {
-        auto input_bytes = input.bytes();
-        auto byte_order_mark_size = input_bytes.size() >= 3 && input_bytes[0] == 0xEF && input_bytes[1] == 0xBB && input_bytes[2] == 0xBF ? 3 : 2;
-        actual_decoder = &unicode_decoder.value();
-        input = input.substring_view(byte_order_mark_size);
-    }
-
-    Utf16StringBuilder builder(length_in_code_units);
-    size_t current_offset = 0;
-    auto result = actual_decoder->process_code_points(input, [&](auto code_point) -> ErrorOr<void> {
-        char16_t code_units[2];
-        size_t code_point_length_in_code_units = 0;
-        (void)AK::UnicodeUtils::code_point_to_utf16(code_point, [&](auto code_unit) {
-            code_units[code_point_length_in_code_units++] = code_unit;
-        });
-
-        for (size_t i = 0; i < code_point_length_in_code_units; ++i) {
-            if (current_offset + i < length_in_code_units)
-                builder.append_code_unit(code_units[i]);
-        }
-
-        current_offset += code_point_length_in_code_units;
-        return {};
-    });
-    result.release_value_but_fixme_should_propagate_errors();
-
-    return builder.to_string();
+    auto code = MUST(TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, StringView { source_bytes }));
+    if (code.length_in_code_units() > length_in_code_units)
+        return Utf16String::from_utf16(code.utf16_view().substring_view(0, length_in_code_units));
+    return code;
 }
 
 NonnullRefPtr<SourceCode const> SourceCode::create(Utf16String filename, Utf16String code)
