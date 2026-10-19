@@ -39,6 +39,7 @@ pub const MACH_SEND_MSG: i32 = 0x1;
 pub const MACH_RCV_MSG: i32 = 0x2;
 pub const MACH_RCV_LARGE: i32 = 0x4;
 pub const MACH_SEND_TIMEOUT: i32 = 0x10;
+pub const MACH_RCV_TIMEOUT: i32 = 0x100;
 
 pub const MACH_MSG_SUCCESS: KernReturn = 0;
 const MACH_MSG_MASK: KernReturn = 0x0000_3e00;
@@ -60,6 +61,7 @@ const MACH_SEND_INVALID_CONTEXT: KernReturn = 0x1000_0012;
 const MACH_SEND_INVALID_OPTIONS: KernReturn = 0x1000_0013;
 const MACH_SEND_NO_GRANT_DEST: KernReturn = 0x1000_0016;
 const MACH_SEND_MSG_FILTERED: KernReturn = 0x1000_0017;
+const MACH_RCV_TIMED_OUT: KernReturn = 0x1000_4003;
 pub const MACH_RCV_TOO_LARGE: KernReturn = 0x1000_4004;
 
 pub const MACH_MSG_TIMEOUT_NONE: u32 = 0;
@@ -72,7 +74,7 @@ const MACH_PORT_RIGHT_PORT_SET: u32 = 3;
 
 const MACH_PORT_LIMITS_INFO: i32 = 1;
 const MACH_PORT_LIMITS_INFO_COUNT: u32 = 1;
-const MACH_PORT_QLIMIT_MAX: i32 = 1024;
+pub(crate) const MACH_PORT_QLIMIT_MAX: i32 = 1024;
 
 pub fn msgh_bits(remote: u32, local: u32) -> u32 {
     remote | (local << 8)
@@ -132,6 +134,33 @@ pub fn error_string(error: KernReturn) -> String {
     unsafe { CStr::from_ptr(mach_error_string(error)) }
         .to_string_lossy()
         .into_owned()
+}
+
+/// A Mach call's failure, for an `std::io::Error` to carry.
+#[derive(Debug)]
+pub struct KernelError(pub KernReturn);
+
+impl std::fmt::Display for KernelError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&error_string(self.0))
+    }
+}
+
+impl std::error::Error for KernelError {}
+
+impl From<KernelError> for std::io::Error {
+    fn from(error: KernelError) -> Self {
+        Self::other(error)
+    }
+}
+
+/// Runs the calling thread at the user-interactive quality of service, as `Threading::Thread::set_qos()` does.
+pub fn set_current_thread_qos_to_user_interactive() {
+    // NB: The call only changes how the calling thread is scheduled. A thread that keeps its default quality of
+    //     service still works, so a failure is not an error.
+    unsafe {
+        libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE, 0);
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -615,12 +644,27 @@ pub enum ReceiveError {
 
 /// Receives the next message from a port or port set, growing the buffer for a large one.
 pub fn receive_message(buffer: &mut MessageBuffer, from: &MachPort) -> Result<ReceivedMessage, ReceiveError> {
-    let mut result = receive_into(buffer, from, MACH_RCV_LARGE);
+    receive(buffer, from, 0)
+}
+
+/// Receives the next message if one is already queued, without waiting for one.
+pub fn try_receive_message(
+    buffer: &mut MessageBuffer,
+    from: &MachPort,
+) -> Result<Option<ReceivedMessage>, ReceiveError> {
+    match receive(buffer, from, MACH_RCV_TIMEOUT) {
+        Err(ReceiveError::Kernel(MACH_RCV_TIMED_OUT)) => Ok(None),
+        result => result.map(Some),
+    }
+}
+
+fn receive(buffer: &mut MessageBuffer, from: &MachPort, options: i32) -> Result<ReceivedMessage, ReceiveError> {
+    let mut result = receive_into(buffer, from, MACH_RCV_LARGE | options);
     if result == MACH_RCV_TOO_LARGE {
         // NB: The message stays queued; its header says how large a buffer it needs.
         let needed = read_u32(buffer.bytes(), 4).unwrap_or(0) as usize + TRAILER_SIZE;
         buffer.ensure_size(needed);
-        result = receive_into(buffer, from, 0);
+        result = receive_into(buffer, from, options);
     }
     let message = if result != MACH_MSG_SUCCESS {
         Err(ReceiveError::Kernel(result))
