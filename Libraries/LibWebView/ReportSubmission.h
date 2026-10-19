@@ -74,6 +74,7 @@ public:
     };
 
     static ByteString build_manifest(Contents const&, ReadonlySpan<Attachment>);
+    static NonnullRefPtr<ReportSubmission> create(Payload);
 
     virtual ~ReportSubmission();
 
@@ -89,7 +90,7 @@ public:
 protected:
     ReportSubmission();
 
-    virtual ErrorOr<Payload, String> prepare() = 0;
+    virtual ErrorOr<Payload, String> prepare();
     virtual void did_send() { }
 
 private:

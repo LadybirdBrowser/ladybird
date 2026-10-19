@@ -169,6 +169,19 @@ static Optional<int> retry_after_ms(HTTP::HeaderList const& headers)
 // It can outlive whatever started it.
 ReportSubmission::ReportSubmission() = default;
 
+// A submission of a payload prepared in advance sends that payload, so a retry of it keeps its submission ID.
+NonnullRefPtr<ReportSubmission> ReportSubmission::create(Payload payload)
+{
+    auto submission = adopt_ref(*new ReportSubmission);
+    submission->m_payload = move(payload);
+    return submission;
+}
+
+ErrorOr<ReportSubmission::Payload, String> ReportSubmission::prepare()
+{
+    VERIFY_NOT_REACHED();
+}
+
 ReportSubmission::~ReportSubmission()
 {
     m_proof_cancelled.store(true);
