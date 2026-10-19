@@ -91,7 +91,9 @@ pub struct FfiLayoutUpdateHostCallbacks {
     after_layout_commit: extern "C" fn(*mut c_void, &BegunRead, bool),
     note_full_layout_performed: extern "C" fn(*mut c_void),
     evaluate_pending_container_queries: extern "C" fn(*mut c_void, &BegunRead),
-    record_stabilization_bound_failure: extern "C" fn(*mut c_void),
+    /// Records that a layout update ran out of its exact bound, and answers what the document still has pending, for
+    /// the panic that reports the failure.
+    record_stabilization_bound_failure: extern "C" fn(*mut c_void, &BegunRead) -> FfiStabilizationBoundFailureHostFacts,
     /// Attaches the image resources a box's style asks for. The flag says the box replaces its
     /// element's contents with a single image, whose provider it owns.
     attach_style_resources: extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, bool, FfiStyleImageFacts),
@@ -129,6 +131,24 @@ pub struct FfiLayoutUpdateDocumentFacts {
     /// The document holds list owners whose item counters went stale without changing what they
     /// render, which it reconciles with what a layout tree build rebuilt before the tree lays out.
     pub has_stale_list_item_counters: bool,
+}
+
+/// What the document still has pending when a layout update runs out of its exact bound, as far as the host knows
+/// without the render state: the work that can keep the update's passes going, named for the panic that reports the
+/// failure.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiStabilizationBoundFailureHostFacts {
+    pub document_is_top_level: bool,
+    pub needs_animated_style_update: bool,
+    pub has_pending_style_transaction: bool,
+    pub has_flown_style_transaction: bool,
+    pub size_containers_await_evaluation: bool,
+    pub list_items_await_renumbering: bool,
+    pub top_layer_zone_rebuild_pending: bool,
+    pub top_layer_membership_changes_pending: bool,
+    pub document_needs_layout_tree_update: bool,
+    pub document_child_needs_layout_tree_update: bool,
 }
 
 /// What one layout update was asked for.
@@ -222,8 +242,12 @@ impl FfiLayoutUpdateHostCallbacks {
         (self.evaluate_pending_container_queries)(self.context, read);
     }
 
-    fn record_stabilization_bound_failure(&self, _: &MainThread) {
-        (self.record_stabilization_bound_failure)(self.context);
+    fn record_stabilization_bound_failure(
+        &self,
+        _: &MainThread,
+        read: &BegunRead,
+    ) -> FfiStabilizationBoundFailureHostFacts {
+        (self.record_stabilization_bound_failure)(self.context, read)
     }
 
     /// Hands the boxes the tree builds of the update stamped the image resources they are owed,
@@ -306,6 +330,110 @@ fn host_layout_is_up_to_date(host: &DocumentHost, read: &BegunRead, facts: &FfiL
 }
 
 const ORDINARY_STABILIZATION_ROUND_LIMIT: u64 = 8;
+
+/// How the passes of a layout update ended, counted for the panic that reports an update that ran out of its exact
+/// bound: which of the loop's exits kept sending it around.
+#[derive(Default)]
+struct StabilizationTrace {
+    /// Rounds the update took in from a frame that flew.
+    flown_rounds: u64,
+    /// Passes whose build asked for another pass before anything was laid out.
+    builds_asking_another_pass: u64,
+    /// Passes whose stale list item counters marked more of the tree for a rebuild.
+    counter_reconciles: u64,
+    /// Partial relayouts that left style to update.
+    partial_layouts_leaving_style: u64,
+    /// Partial relayouts that left layout to do.
+    partial_layouts_leaving_layout: u64,
+    /// Full layouts that left style to update.
+    full_layouts_leaving_style: u64,
+    /// Full layouts that left top layer work to do.
+    full_layouts_leaving_top_layer: u64,
+    /// Full layouts that left layout to do.
+    full_layouts_leaving_layout: u64,
+}
+
+impl StabilizationTrace {
+    /// Describes the update for the panic that reports it: the passes it ran against its bound, how they ended, and
+    /// what the document and its render state still have pending.
+    fn describe(
+        &self,
+        main_thread: &MainThread,
+        document_host: &DocumentHost,
+        read: &BegunRead,
+        host: &FfiLayoutUpdateHostCallbacks,
+        passes: u64,
+        host_facts: FfiStabilizationBoundFailureHostFacts,
+    ) -> String {
+        let facts = host.document_facts(main_thread, read);
+        let connected_elements = host.connected_element_count(main_thread, read);
+        let (root_is_invalid, root_needs_layout, needs_full_tree_update, boundary_roots, updates_escaped, deferred) =
+            read_arena(document_host, read, (), |arena, ()| {
+                let root = arena.layout_root();
+                (
+                    root.is_invalid(),
+                    !root.is_invalid() && arena.node_needs_layout_update(root),
+                    arena.needs_full_layout_tree_update(),
+                    arena.partial_relayout_boundary_roots.borrow().roots().len(),
+                    arena.pending_updates_escape_partial_relayout.get(),
+                    arena.deferred_child_list_insertion_parents.borrow().len(),
+                )
+            });
+        let facts_that_hold: Vec<&str> = [
+            (facts.top_layer_work_pending, "top layer work"),
+            (facts.has_stale_list_item_counters, "stale list item counters"),
+            (facts.should_collect_devtools_layout_data, "devtools layout data"),
+            (!facts.document_is_active, "document inactive"),
+            (root_is_invalid, "no layout root"),
+            (root_needs_layout, "root needs layout"),
+            (needs_full_tree_update, "full tree update"),
+            (updates_escaped, "updates escaped partial relayout"),
+            (host_facts.needs_animated_style_update, "animated style"),
+            (host_facts.has_pending_style_transaction, "style transaction"),
+            (host_facts.has_flown_style_transaction, "flown style transaction"),
+            (host_facts.size_containers_await_evaluation, "size containers"),
+            (host_facts.list_items_await_renumbering, "list item renumbering"),
+            (host_facts.top_layer_zone_rebuild_pending, "top layer zone rebuild"),
+            (host_facts.top_layer_membership_changes_pending, "top layer membership"),
+            (
+                host_facts.document_needs_layout_tree_update,
+                "document tree update mark",
+            ),
+            (
+                host_facts.document_child_needs_layout_tree_update,
+                "document child tree update mark",
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(holds, name)| holds.then_some(name))
+        .collect();
+        format!(
+            "{passes} passes for {connected_elements} connected elements of a {} document: {} flown, {} builds asking \
+             another pass, {} counter reconciles, partial layouts leaving style {}/layout {}, full layouts leaving \
+             style {}/top layer {}/layout {}; {} boundary roots, {} deferred insertions; facts: {}",
+            if host_facts.document_is_top_level {
+                "top-level"
+            } else {
+                "nested"
+            },
+            self.flown_rounds,
+            self.builds_asking_another_pass,
+            self.counter_reconciles,
+            self.partial_layouts_leaving_style,
+            self.partial_layouts_leaving_layout,
+            self.full_layouts_leaving_style,
+            self.full_layouts_leaving_top_layer,
+            self.full_layouts_leaving_layout,
+            boundary_roots,
+            deferred,
+            if facts_that_hold.is_empty() {
+                "none".to_string()
+            } else {
+                facts_that_hold.join(", ")
+            },
+        )
+    }
+}
 
 /// One round of a layout update past its style, which the host sends its document's render state: the layout tree
 /// build, where the tree needs one, then a partial relayout of the boundaries the round plans or else a full layout,
@@ -1010,6 +1138,7 @@ unsafe fn update_layout(
     // resolves against a container with no box.
     let mut inspection_round_pending = inputs.reason_is_inspect_devtools_layout_data;
     let mut layout_pass: u64 = 0;
+    let mut trace = StabilizationTrace::default();
     while layout_pass <= ORDINARY_STABILIZATION_ROUND_LIMIT
         || layout_pass
             < ORDINARY_STABILIZATION_ROUND_LIMIT + u64::from(host.connected_element_count(main_thread, read)) + 1
@@ -1021,7 +1150,10 @@ unsafe fn update_layout(
         // anything else of the update reads the layout.
         document_host.take_frame_in_with(read);
         let (rebuilds_tree, mut next) = match document_host.take_flown_round() {
-            Some(FlownRound { answer, rebuilds_tree }) => (rebuilds_tree, NextRound::Flown(answer)),
+            Some(FlownRound { answer, rebuilds_tree }) => {
+                trace.flown_rounds += 1;
+                (rebuilds_tree, NextRound::Flown(answer))
+            }
             None => {
                 host.process_pending_list_item_renumbers(main_thread, read);
                 host.process_pending_top_layer_layout_changes(main_thread, read);
@@ -1086,15 +1218,25 @@ unsafe fn update_layout(
         };
 
         match end {
-            None | Some(LayoutRoundEnd::Built { .. }) => continue,
+            None => {
+                trace.counter_reconciles += 1;
+                continue;
+            }
+            Some(LayoutRoundEnd::Built { .. }) => {
+                trace.builds_asking_another_pass += 1;
+                continue;
+            }
             Some(LayoutRoundEnd::NeedsDocumentStyle) => unreachable!("a round that needs the style runs again with it"),
             Some(LayoutRoundEnd::PartialLayout) => {
                 // A round that built the tree changed it, whichever of its jobs ran the build.
                 host.after_layout_commit(main_thread, read, rebuilds_tree);
-                if inspection_round_pending
-                    || host.needs_style_update_after_layout(main_thread, read)
-                    || !host_layout_is_up_to_date(document_host, read, &host.document_facts(main_thread, read))
-                {
+                let leaves_style = !inspection_round_pending && host.needs_style_update_after_layout(main_thread, read);
+                let leaves_layout = !inspection_round_pending
+                    && !leaves_style
+                    && !host_layout_is_up_to_date(document_host, read, &host.document_facts(main_thread, read));
+                if inspection_round_pending || leaves_style || leaves_layout {
+                    trace.partial_layouts_leaving_style += u64::from(leaves_style);
+                    trace.partial_layouts_leaving_layout += u64::from(leaves_layout);
                     continue;
                 }
                 return;
@@ -1108,26 +1250,35 @@ unsafe fn update_layout(
         host.evaluate_pending_container_queries(main_thread, read);
 
         if host.needs_style_update_after_layout(main_thread, read) {
+            trace.full_layouts_leaving_style += 1;
             continue;
         }
 
         let facts = host.document_facts(main_thread, read);
         // A zone rebuild requested during layout tree construction runs as another pass.
         if facts.top_layer_work_pending {
+            trace.full_layouts_leaving_top_layer += 1;
             continue;
         }
 
         // Layout-only invalidations still need to be flushed before we can exit.
-        if host_layout_is_up_to_date(document_host, read, &facts) && !inspection_round_pending {
-            break;
+        if host_layout_is_up_to_date(document_host, read, &facts) {
+            if !inspection_round_pending {
+                break;
+            }
+        } else {
+            trace.full_layouts_leaving_layout += 1;
         }
     }
 
     if host.needs_style_update_after_layout(main_thread, read)
         || !host_layout_is_up_to_date(document_host, read, &host.document_facts(main_thread, read))
     {
-        host.record_stabilization_bound_failure(main_thread);
-        unreachable!("the layout update did not stabilize within its exact bound");
+        let host_facts = host.record_stabilization_bound_failure(main_thread, read);
+        unreachable!(
+            "the layout update did not stabilize within its exact bound: {}",
+            trace.describe(main_thread, document_host, read, &host, layout_pass, host_facts)
+        );
     }
 }
 
