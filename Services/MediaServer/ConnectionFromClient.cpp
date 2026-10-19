@@ -396,6 +396,12 @@ void ConnectionFromClient::set_playback_rate(u64 session_id, float rate)
         session->manager().set_playback_rate(rate);
 }
 
+void ConnectionFromClient::set_audio_group(u64 session_id, Audio::PlaybackGroupId audio_group)
+{
+    if (auto* session = find_playback_session(session_id))
+        session->set_audio_group(audio_group);
+}
+
 void ConnectionFromClient::set_duration(u64 session_id, AK::Duration duration)
 {
     if (auto* session = find_playback_session(session_id))

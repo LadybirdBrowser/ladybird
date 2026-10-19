@@ -626,6 +626,15 @@ struct RemoteSinkFixture {
         return true;
     }
 
+    bool render_until_full_buffer_of(float expected)
+    {
+        return pump_until([&] {
+            if (!device || !device->is_playing())
+                return false;
+            return all_of(device->render(480), [&](float sample) { return sample == expected; });
+        });
+    }
+
     // Closing every server end makes the client connection die. Done with the sink still alive, so that its reopen
     // asks for a connection and is refused: the sign that the client is gone, before the loop is.
     void close_connections_and_wait_for_the_client_to_die()
@@ -662,19 +671,30 @@ TEST_CASE(audio_playback_sink_reopens_its_output_after_loss_with_a_seek_in_fligh
     fixture.pump_until([] { return false; }, AK::Duration::from_milliseconds(10));
 }
 
-TEST_CASE(a_session_is_declared_on_a_new_connection_with_its_latest_group)
+TEST_CASE(a_session_rebound_while_playing_keeps_its_new_group_through_output_loss)
 {
     Source source;
     RemoteSinkFixture fixture;
+    fixture.mixer->set_group_authorization(OTHER_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
     auto session = Audio::OutputSession::create(OTHER_GROUP);
+    // Outputs open the way a sink opens them, again after losing one.
+    auto output_factory = Media::AudioOutputFactory::create(session);
     auto open_stream = [&] {
         RefPtr<Audio::PlaybackStream> stream;
-        Audio::PlaybackStream::create(Audio::OutputState::Playing, RemoteFixture::TARGET_LATENCY_MS, session, source.callback())->when_resolved([&](NonnullRefPtr<Audio::PlaybackStream>& created) { stream = created; });
+        output_factory->open_output(Audio::OutputState::Playing, RemoteFixture::TARGET_LATENCY_MS, source.callback())->when_resolved([&](NonnullRefPtr<Audio::PlaybackStream>& created) { stream = created; });
         EXPECT(fixture.pump_until([&] { return stream; }));
         return stream;
     };
     auto stream = open_stream();
+    EXPECT(fixture.render_until_full_buffer_of(1.0f));
+
+    // Once the rebinding lands, the stream is heard with no group but its new one authorized.
     session->set_group(AUTHORIZED_GROUP);
+    bool rebound = false;
+    stream->resume()->when_resolved([&] { rebound = true; }).when_rejected([](Error&&) { });
+    EXPECT(fixture.pump_until([&] { return rebound; }));
+    fixture.mixer->set_group_authorization(OTHER_GROUP, Audio::PlaybackGroupAuthorization::Unauthorized);
+    EXPECT(fixture.render_until_full_buffer_of(1.0f));
 
     // The connection goes away, and the stream that replaces it is heard as part of the group the session has now.
     bool output_lost = false;
@@ -683,11 +703,7 @@ TEST_CASE(a_session_is_declared_on_a_new_connection_with_its_latest_group)
     EXPECT(fixture.pump_until([&] { return output_lost; }));
     stream = open_stream();
     EXPECT_EQ(fixture.connections_requested, 2u);
-    EXPECT(fixture.pump_until([&] {
-        if (!fixture.device->is_playing())
-            return false;
-        return all_of(fixture.device->render(480), [](float sample) { return sample == 1.0f; });
-    }));
+    EXPECT(fixture.render_until_full_buffer_of(1.0f));
 
     // The client goes before the loop does.
     output_lost = false;

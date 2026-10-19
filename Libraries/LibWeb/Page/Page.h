@@ -901,6 +901,8 @@ public:
     // Every audio context and media element gets its own, which plays its sound for this page.
     virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory();
     virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager();
+    // A media element adopted from another page's document plays its sound for this page from then on.
+    virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&);
     virtual void page_did_change_screen_wake_lock_state(ScreenWakeLockState) { }
 
     virtual void page_did_start_using_gamepads() { }

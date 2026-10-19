@@ -204,6 +204,12 @@ void RemotePlaybackManager::set_playback_rate(float rate)
         m_client->async_set_playback_rate(m_session_id, rate);
 }
 
+void RemotePlaybackManager::set_audio_group(Audio::PlaybackGroupId audio_group)
+{
+    if (can_send())
+        m_client->async_set_audio_group(m_session_id, audio_group);
+}
+
 void RemotePlaybackManager::dispatch_state_change() const
 {
     if (on_playback_state_change)
