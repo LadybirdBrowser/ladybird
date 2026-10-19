@@ -151,6 +151,7 @@ RENDER_STATE_ALLOWED = {
             "css/css_string.rs:EMPTY",
             "css/custom_properties.rs:EMPTY",
             "css/parser/stylesheet_cache.rs:HASHER",
+            "css/parser/stylesheet_cache.rs:KEYS",
             "css/style/publication.rs:REMAINING",
             "css/style_compute.rs:KINDS",
             "css/style_compute.rs:LONGHANDS",

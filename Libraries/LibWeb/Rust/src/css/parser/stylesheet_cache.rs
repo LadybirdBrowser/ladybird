@@ -242,8 +242,59 @@ impl ContextKey {
     }
 }
 
+/// Identifies a sheet's text without keeping a copy of it: its length and two keyed hashes of its code units. The
+/// keys are random for each process, so a page cannot make two different texts collide.
+#[derive(PartialEq, Eq, Hash)]
+struct TextDigest {
+    length: usize,
+    hashes: [u64; 2],
+}
+
+impl TextDigest {
+    fn new(source: TokenizerInput<'_>) -> Self {
+        const CHUNK_BYTES: usize = 4096;
+        static KEYS: OnceLock<[RandomState; 2]> = OnceLock::new();
+        let mut hashers = KEYS
+            .get_or_init(|| [RandomState::new(), RandomState::new()])
+            .each_ref()
+            .map(RandomState::build_hasher);
+        let mut write = |bytes: &[u8]| hashers.iter_mut().for_each(|hasher| hasher.write(bytes));
+        // NB: Equal texts hash equally whether they arrive as ASCII or as UTF-16, so UTF-16 text that is all ASCII is
+        //     hashed as ASCII. The first byte keeps the two forms apart otherwise.
+        let mut chunk = [0u8; CHUNK_BYTES];
+        match source {
+            TokenizerInput::Ascii(units) => {
+                write(&[0]);
+                write(units);
+            }
+            TokenizerInput::Utf16(units) if units.iter().all(|&unit| unit < 0x80) => {
+                write(&[0]);
+                for part in units.chunks(CHUNK_BYTES) {
+                    for (byte, &unit) in chunk.iter_mut().zip(part) {
+                        *byte = unit as u8;
+                    }
+                    write(&chunk[..part.len()]);
+                }
+            }
+            TokenizerInput::Utf16(units) => {
+                write(&[1]);
+                for part in units.chunks(CHUNK_BYTES / 2) {
+                    for (bytes, &unit) in chunk.as_chunks_mut::<2>().0.iter_mut().zip(part) {
+                        bytes.copy_from_slice(&unit.to_ne_bytes());
+                    }
+                    write(&chunk[..part.len() * 2]);
+                }
+            }
+        }
+        Self {
+            length: source.len(),
+            hashes: hashers.map(|hasher| hasher.finish()),
+        }
+    }
+}
+
 struct StyleSheetKey {
-    text: Box<[u16]>,
+    text: TextDigest,
     context: Option<ContextKey>,
 }
 
@@ -343,7 +394,7 @@ pub(super) unsafe fn parse_with_cache(
         None => None,
     };
     let key = StyleSheetKey {
-        text: own_text(source),
+        text: TextDigest::new(source),
         context: context_key,
     };
     static HASHER: OnceLock<RandomState> = OnceLock::new();
@@ -418,4 +469,24 @@ pub(super) unsafe fn parse_with_cache(
     drop(cache);
     drop(in_flight);
     sheet
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_digests_agree_for_ascii_and_utf16_forms_of_one_text() {
+        let utf16 = |text: &str| text.encode_utf16().collect::<Vec<_>>();
+        let long = "a { color: red }\n".repeat(1000);
+        for text in ["", "a{}", long.as_str()] {
+            let ascii = TextDigest::new(TokenizerInput::Ascii(text.as_bytes()));
+            assert!(ascii == TextDigest::new(TokenizerInput::Utf16(&utf16(text))));
+        }
+        let ascii = TextDigest::new(TokenizerInput::Ascii(b"a{}"));
+        assert!(ascii != TextDigest::new(TokenizerInput::Ascii(b"b{}")));
+        let wide = TextDigest::new(TokenizerInput::Utf16(&utf16("\u{e9}{}")));
+        assert!(wide == TextDigest::new(TokenizerInput::Utf16(&utf16("\u{e9}{}"))));
+        assert!(wide != TextDigest::new(TokenizerInput::Utf16(&utf16("\u{e8}{}"))));
+    }
 }
