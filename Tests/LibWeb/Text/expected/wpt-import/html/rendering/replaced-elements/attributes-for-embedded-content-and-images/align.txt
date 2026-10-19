@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 23 tests
+
+21 Pass
+2 Fail
+Pass	align attribute mapping
+Pass	align=left on replaced elements
+Pass	align=left on non-replaced elements
+Pass	align=right on replaced elements
+Pass	align=right on non-replaced elements
+Pass	align=top on replaced elements
+Pass	align=top on non-replaced elements
+Pass	align=middle on replaced elements
+Pass	align=middle on non-replaced elements
+Pass	align=center on replaced elements
+Pass	align=center on non-replaced elements
+Pass	align=baseline on replaced elements
+Pass	align=baseline on non-replaced elements
+Fail	align=bottom on replaced elements
+Pass	align=bottom on non-replaced elements
+Pass	align=texttop on replaced elements
+Pass	align=texttop on non-replaced elements
+Pass	align=absmiddle on replaced elements
+Pass	align=absmiddle on non-replaced elements
+Pass	align=abscenter on replaced elements
+Pass	align=abscenter on non-replaced elements
+Fail	align=absbottom on replaced elements
+Pass	align=absbottom on non-replaced elements

@@ -44,10 +44,8 @@ void HTMLEmbedElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
             // has an align attribute whose value is an ASCII case-insensitive match for the string "center" or the string "middle",
             // the user agent is expected to act as if the element's 'vertical-align' property was set to a value that aligns the
             // vertical middle of the element with the parent element's baseline.
-            // FIXME: This should use legacy baseline-middle alignment instead of CSS vertical-align: middle,
-            //        as Firefox and Chrome do with engine-specific legacy values.
             if (value.equals_ignoring_ascii_case(u"center"sv) || value.equals_ignoring_ascii_case(u"middle"sv))
-                properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Middle) });
+                properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::LibwebBaselineMiddle) });
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
                 properties.append({ .property_id = CSS::PropertyID::Height, .value = *parsed_value });

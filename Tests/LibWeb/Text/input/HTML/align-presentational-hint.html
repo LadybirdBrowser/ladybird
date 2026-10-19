@@ -2,21 +2,34 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
+        const elements = [];
         for (const align of ["center", "middle"]) {
             for (const [label, element] of [
                 ["object", document.createElement("object")],
                 ["embed", document.createElement("embed")],
                 ["input image", document.createElement("input")],
+                ["iframe", document.createElement("iframe")],
+                ["img", document.createElement("img")],
             ]) {
                 element.setAttribute("align", align);
                 if (element.localName === "input")
                     element.type = "image";
 
                 document.body.appendChild(element);
-
-                const style = getComputedStyle(element);
-                println(`${label} align=${align}: ${style.verticalAlign}`);
+                elements.push([`${label} align=${align}`, element]);
             }
         }
+
+        const printVerticalAlign = () => {
+            for (const [label, element] of elements)
+                println(`${label}: ${getComputedStyle(element).verticalAlign}`);
+        };
+
+        println("Without a user style:");
+        printVerticalAlign();
+
+        internals.setUserStyle("embed, iframe, img, input, object { vertical-align: top; }");
+        println("With a user style:");
+        printVerticalAlign();
     });
 </script>

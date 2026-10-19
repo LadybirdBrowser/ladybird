@@ -686,6 +686,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                         - metrics.block_size)
                         / 2
             }
+            vertical_align::_LIBWEB_BASELINE_MIDDLE => {
+                self.current_block_offset
+                    + line_box_baseline
+                    + (metrics.effective_box_block_start_offset
+                        - metrics.effective_box_block_end_offset
+                        - metrics.block_size)
+                        / 2
+            }
             vertical_align::SUB => alphabetic + self.containing_style().font_size() / 5,
             vertical_align::SUPER => alphabetic - self.containing_style().font_size() / 3,
             // A top- or bottom-aligned box is the root of an aligned subtree, laid out on the baseline here and

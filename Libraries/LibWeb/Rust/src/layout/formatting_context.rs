@@ -606,6 +606,10 @@ pub(crate) fn box_baseline_with_content_baselines(
                 return used.margin_box_block_size(collapsed) / 2
                     + CssPixels::nearest_value_for_f32(containing_style.font_x_height() / 2.0);
             }
+            vertical_align::_LIBWEB_BASELINE_MIDDLE => {
+                // NB: The vertical midpoint of the box is aligned with the baseline of the parent box.
+                return used.margin_box_block_size(collapsed) / 2;
+            }
             vertical_align::BOTTOM => {
                 // Bottom: Align the bottom of the aligned subtree with the bottom of the line box.
                 return used.content_block_size.get() + used.margin_box_top(collapsed);
