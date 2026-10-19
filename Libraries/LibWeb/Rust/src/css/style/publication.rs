@@ -1356,6 +1356,24 @@ impl RetainedState {
         self.mark_published_answer_observed(node);
     }
 
+    /// The records the engine derived for `node`'s element that the host has not taken, for the
+    /// panic of a layout update that ran out of passes: how many, and the records the last of the
+    /// element's own moves between.
+    pub(crate) fn bound_failure_pending_records(&self, node: StyleNodeID) -> (u8, u64, u64) {
+        let Some(pending_records) = self.engine_computed_records_pending.get(&node) else {
+            return (0, 0, 0);
+        };
+        let last = pending_records
+            .iter()
+            .rev()
+            .find(|pending| pending.pseudo_kind == u8::MAX);
+        (
+            u8::try_from(pending_records.len()).unwrap_or(u8::MAX),
+            last.map_or(0, |pending| pending.old_style_record.raw()),
+            last.map_or(0, |pending| pending.new_style_record.raw()),
+        )
+    }
+
     /// The host computed the target's record itself: the record the engine derived for it is not
     /// installed, and a composition the derivation detached gives way to what the host published.
     pub(super) fn forget_engine_computed_record(&mut self, target: computed::ComputedStyleTarget) {

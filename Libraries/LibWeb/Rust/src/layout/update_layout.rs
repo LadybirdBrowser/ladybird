@@ -153,7 +153,7 @@ pub struct FfiStabilizationBoundFailureHostFacts {
     pub document_child_needs_layout_tree_update: bool,
     /// The element the last unstyled-element report of the update named, with its flat tree ancestors, as the host
     /// describes them: a NUL-terminated ASCII string.
-    pub last_unstyled_element: [u8; 640],
+    pub last_unstyled_element: [u8; 2048],
     /// As above, for the element the last rebuild request of the update named.
     pub last_rebuild_request: [u8; 640],
 }

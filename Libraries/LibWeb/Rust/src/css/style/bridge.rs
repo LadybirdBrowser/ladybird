@@ -2592,8 +2592,18 @@ pub(crate) fn answer_record_demand(
     style_node: StyleNodeID,
     demand: super::publication::RecordDemand,
 ) -> FfiRecordDemandAnswer {
-    let read_only = demand.is_read_only();
-    match engine.answer_record_demand(style_node, demand) {
+    let answer = engine.answer_record_demand(style_node, demand);
+    ffi_record_demand_answer(engine, style_node, demand.is_read_only(), answer)
+}
+
+/// The FFI form of `answer`, what a demand of `style_node`'s record answered.
+pub(in crate::css::style) fn ffi_record_demand_answer(
+    engine: &mut StyleEngine,
+    style_node: StyleNodeID,
+    read_only: bool,
+    answer: Result<super::publication::RecordDemandAnswer, super::publication::Unanswered>,
+) -> FfiRecordDemandAnswer {
+    match answer {
         Ok(super::publication::RecordDemandAnswer::Record {
             record,
             uses_substitution,
