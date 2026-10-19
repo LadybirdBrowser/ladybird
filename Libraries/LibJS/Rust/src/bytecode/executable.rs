@@ -29,7 +29,6 @@ use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
-use crate::jit::code::CompileState;
 use crate::jit::code::ExecutableJitState;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
@@ -1823,11 +1822,11 @@ impl Executable {
         matches!(self.bytecode, ExecutableBytecode::InBytecodeCacheBlob(_))
     }
 
-    /// Takes over the feedback and the tier of `other`, an executable with the same bytecode that this one replaces, so
-    /// that a function that warmed up goes on from where it was rather than start over. Its JIT code is tied to the
-    /// executable it was compiled for, so an executable that had code compiles again at its next tier-up check, from the
-    /// feedback.
+    /// Takes over the feedback, the tier and the tier-up budget of `other`, an executable with the same bytecode that
+    /// this one replaces, so that a function that warmed up goes on from where it was rather than start over, and
+    /// whether the JIT refused it.
     fn take_over_warm_up_from(executable: Gc<Executable>, other: &Executable) {
+        executable.take_over_jit_refusal_from(other);
         let Some(other_feedback) = other.feedback() else {
             return;
         };
@@ -1836,12 +1835,7 @@ impl Executable {
         }
         executable.ensure_feedback().copy_from(other_feedback);
         executable.set_interpreter_tier(other.interpreter_tier());
-        let budget = if other.jit_compile_state() == CompileState::None {
-            other.head.tier_up_budget.get()
-        } else {
-            1
-        };
-        executable.head.tier_up_budget.set(budget);
+        executable.head.tier_up_budget.set(other.head.tier_up_budget.get());
     }
 
     /// Executable::copy_runtime_caches_from(): makes `executable` take over what the inline caches of `other`, an

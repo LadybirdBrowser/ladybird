@@ -428,6 +428,25 @@ impl Executable {
         self.head.jit_compile_state.set(state as u8);
     }
 
+    /// Whether the executable has JIT code, or a compile on its way, which is tied to the executable.
+    pub fn has_jit_code_or_compile(&self) -> bool {
+        matches!(
+            self.jit_compile_state(),
+            CompileState::Queued | CompileState::Installed | CompileState::Discarding
+        )
+    }
+
+    /// Makes the executable never compile, with the tier and the tier-up budget of `other`, if `other` was refused,
+    /// as replacing an executable with one of the same bytecode does not change whether it can compile.
+    pub fn take_over_jit_refusal_from(&self, other: &Executable) {
+        if other.jit_compile_state() != CompileState::Refused {
+            return;
+        }
+        self.set_jit_compile_state(CompileState::Refused);
+        self.set_interpreter_tier(other.interpreter_tier());
+        self.head.tier_up_budget.set(other.head.tier_up_budget.get());
+    }
+
     /// The executable's slot in the JIT entry table of `vm`, the VM whose heap the executable lives in, and the table,
     /// if it has one.
     fn jit_entry_table_slot<'vm>(&self, vm: &'vm Vm) -> Option<(&'vm JitEntryTable, u32)> {

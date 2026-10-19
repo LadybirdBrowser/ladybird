@@ -121,6 +121,12 @@ pub mod code {
             CompileState::None
         }
 
+        pub fn has_jit_code_or_compile(&self) -> bool {
+            false
+        }
+
+        pub fn take_over_jit_refusal_from(&self, _other: &Executable) {}
+
         pub fn discard_jit_code(&self, _vm: &Vm) {
             unreachable!("no executable has JIT code");
         }

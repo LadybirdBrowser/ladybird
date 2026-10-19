@@ -10,7 +10,8 @@
 //! The executables made from a blob run their bytecode in place in it and keep it alive. A function's executable stays
 //! in the blob until the function is first called. Installing a blob into a running record matches every function the
 //! record has created to a function of the blob, then gives each one that ran an executable from the blob, which takes
-//! over the inline caches of the one it replaces, and each one that did not its executable in the blob.
+//! over the inline caches, feedback and tier of the one it replaces, and each one that did not its executable in the
+//! blob. A function whose executable has JIT code keeps it.
 
 use core::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -192,6 +193,8 @@ pub fn materialize_cached_function_executable(
 enum Replacement {
     CachedExecutable(DecodedCachedExecutableRecord),
     Executable(Gc<Executable>),
+    /// The function keeps the executable it has, which has JIT code, or a compile on its way.
+    KeepExecutable,
 }
 
 /// What installing a blob gives one function, once every function turned out to have its counterpart in the blob.
@@ -276,6 +279,16 @@ impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
         let existing_function = self.take_matching_function(function, outer_strict)?;
         let replacement = match existing_function.executable() {
             None => Replacement::CachedExecutable(function.cached_executable()),
+            // NB: JIT code is tied to the executable it was compiled for, and an executable from the blob would compile
+            //     again from scratch, so a function with code keeps its executable. The functions it creates still
+            //     match functions of the blob, and get what they would otherwise.
+            Some(existing_executable) if existing_executable.has_jit_code_or_compile() => {
+                let record = function.cached_executable().decode_executable()?;
+                for nested_function in record.functions()? {
+                    self.prepare_function(&nested_function, record.is_strict())?;
+                }
+                Replacement::KeepExecutable
+            }
             Some(existing_executable) => {
                 let record = function.cached_executable().decode_executable()?;
                 Replacement::Executable(self.prepare_executable(&record, Some(existing_executable))?)
@@ -320,6 +333,7 @@ impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
                 Replacement::Executable(executable) => install
                     .function
                     .install_bytecode_cache_executable(executable, &install.metadata),
+                Replacement::KeepExecutable => install.function.clear_compile_inputs(),
             }
         }
         drop(self.new_executables);
