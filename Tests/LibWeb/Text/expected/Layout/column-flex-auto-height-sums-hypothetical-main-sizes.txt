@@ -1,0 +1,13 @@
+sidebar: 200x300
+sidebar-content: 100x300
+sidebar-footer: 200x40
+zero-basis-scroller: 100x1050
+zero-basis-visible: 100x1050
+percentage-min-height: 100x1050
+small-basis-scroller: 100x1050
+mixed-grow: 100x350
+min-max-clamped: 100x180
+max-content-with-gap: 100x347
+min-content-wrap: 100x60
+inline-column: 10x340
+row-unaffected: 340x10

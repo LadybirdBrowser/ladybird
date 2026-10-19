@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    * { margin: 0; }
+    .grid { display: grid; grid-template-rows: 0fr; width: 100px; }
+    .item { min-height: 0; }
+    .content { height: 84px; }
+</style>
+<!-- A collapsed `0fr` row stays empty however the grid container gets its block size. -->
+<div class="grid" id="in-flow"><div class="item"><div class="content"></div></div></div>
+<div style="display: flex; flex-direction: column; height: 500px">
+    <div class="grid" id="column-flex-item-in-definite-container"><div class="item"><div class="content"></div></div></div>
+</div>
+<div style="display: flex; flex-direction: column">
+    <div class="grid" id="column-flex-item-in-auto-container"><div class="item"><div class="content"></div></div></div>
+</div>
+<div style="height: max-content">
+    <div class="grid" id="in-max-content-block"><div class="item"><div class="content"></div></div></div>
+</div>
+<div style="display: flex">
+    <div class="grid" id="row-flex-item" style="align-self: start"><div class="item"><div class="content"></div></div></div>
+</div>
+<!-- A `1fr` row still grows to its content when the grid is measured. -->
+<div class="grid" id="one-fr-min-content" style="grid-template-rows: 1fr; height: min-content"><div class="item"><div class="content"></div></div></div>
+<div style="display: flex; flex-direction: column">
+    <div class="grid" id="one-fr-column-flex-item" style="grid-template-rows: 1fr"><div class="item"><div class="content"></div></div></div>
+</div>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".grid")) {
+            const rect = element.getBoundingClientRect();
+            println(`${element.id}: ${rect.width}x${rect.height} rows=${getComputedStyle(element).gridTemplateRows}`);
+        }
+    });
+</script>
