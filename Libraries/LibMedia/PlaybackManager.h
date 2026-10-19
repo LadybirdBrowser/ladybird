@@ -30,7 +30,6 @@
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaCodecs/DecoderError.h>
 #include <LibMediaCodecs/VideoFrameHandle.h>
@@ -126,15 +125,11 @@ public:
     static bool has_video_sink_handle(Badge<VideoPresentationServerConnection>, VideoSinkHandle);
     static ErrorOr<RemoteVideoEdge> create_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, RemoteVideoSink::Delegates);
     static void attach_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, NonnullRefPtr<RemoteVideoSink> const&);
-    static RefPtr<VideoFrame> current_presented_frame(VideoSinkHandle);
-    static Optional<RemoteVideoSink::SlotStorage> presented_frame_slot_storage(VideoSinkHandle, VideoFramePoolID, u32 slot_index);
     static void release_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, VideoSink const& released_sink);
 
     // For a process hosting playback on behalf of an owner in another process; not owner API.
     struct HostHooks {
         Function<void(MediaTimeReader const&)> on_clock_changed;
-        Function<void(VideoSinkHandle, PresentedFramePage const&)> on_video_edge_attached;
-        Function<void(VideoSinkHandle, VideoFramePoolID)> on_video_frame_pool_retired;
     };
     void set_host_hooks(HostHooks);
     MediaTimeReader const& time_reader() const { return m_time_reader; }

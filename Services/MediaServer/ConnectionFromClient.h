@@ -75,7 +75,6 @@ private:
     virtual void reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) override;
     virtual void disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle) override;
     virtual void set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking) override;
-    virtual Messages::MediaServer::MapPresentedFrameSlotResponse map_presented_frame_slot(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id, u32 slot_index) override;
 
     virtual void create_source_buffer(u64 session_id, u64 source_buffer_id) override;
     virtual void destroy_source_buffer(u64 session_id, u64 source_buffer_id) override;

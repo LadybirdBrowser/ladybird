@@ -151,7 +151,7 @@ public:
         Compositing::ScrollStateSnapshot&&);
     void update_visual_context_tree(Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
     void update_scroll_state(Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState);
-    void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::VideoSink>);
+    void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::DisplayingVideoSink>);
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_scene.video_sink_handles(); }
 
     void invalidate_wheel_event_listener_state(u64 generation);

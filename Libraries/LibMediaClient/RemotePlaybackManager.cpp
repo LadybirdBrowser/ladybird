@@ -11,7 +11,6 @@
 #include <LibMediaClient/RemoteMediaStream.h>
 #include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibMediaClient/RemoteSourceBuffer.h>
-#include <LibMediaCodecs/VideoFrame.h>
 
 namespace MediaClient {
 
@@ -110,12 +109,6 @@ void RemotePlaybackManager::disable_video_sink_by_handle(Media::VideoSinkHandle 
     dispatch_buffered_ranges_change();
 }
 
-void RemotePlaybackManager::forget_presented_frame_page(Media::VideoSinkHandle handle)
-{
-    if (auto sink = m_video_sinks.get(handle); sink.has_value())
-        sink->presented_frame_page.clear();
-}
-
 void RemotePlaybackManager::set_video_sink_ticking(Media::VideoSinkHandle handle, bool ticking)
 {
     if (can_send())
@@ -126,30 +119,6 @@ void RemotePlaybackManager::set_video_resize_handler(Media::VideoSinkHandle hand
 {
     if (auto sink = m_video_sinks.get(handle); sink.has_value())
         sink->on_resize = move(handler);
-}
-
-RefPtr<Media::VideoFrame> RemotePlaybackManager::current_presented_frame(Media::VideoSinkHandle handle)
-{
-    auto sink = m_video_sinks.get(handle);
-    if (!sink.has_value() || !sink->presented_frame_page.has_value())
-        return nullptr;
-    auto frame_handle = sink->presented_frame_page->read();
-    if (!frame_handle.has_value())
-        return nullptr;
-
-    // The slot's storage is mapped on first sight and kept until the server retires the pool. No hold is taken:
-    // the resolved frame validates the slot's acquisition ID around its reads, so a recycled slot fails the read.
-    auto frame = sink->slot_directory->resolve_frame(*frame_handle, [] { });
-    if (frame)
-        return frame;
-    if (!can_send())
-        return nullptr;
-
-    auto response = m_client->send_sync_but_allow_failure<Messages::MediaServer::MapPresentedFrameSlot>(m_session_id, handle, frame_handle->pool_id, frame_handle->slot_index);
-    if (!response || !response->slot_buffer().has_value())
-        return nullptr;
-    sink->slot_directory->notify_slot_announced(frame_handle->pool_id, frame_handle->slot_index, response->take_slot_buffer().release_value(), response->take_surface());
-    return sink->slot_directory->resolve_frame(*frame_handle, [] { });
 }
 
 void RemotePlaybackManager::enable_an_audio_track(Media::Track const& track)
@@ -399,18 +368,6 @@ void RemotePlaybackManager::video_resized(Badge<Client>, Media::VideoSinkHandle 
     auto sink = m_video_sinks.get(handle);
     if (sink.has_value() && sink->on_resize)
         sink->on_resize(size);
-}
-
-void RemotePlaybackManager::video_edge_attached(Badge<Client>, Media::VideoSinkHandle handle, Media::PresentedFramePage presented_frame_page)
-{
-    if (auto sink = m_video_sinks.get(handle); sink.has_value())
-        sink->presented_frame_page = move(presented_frame_page);
-}
-
-void RemotePlaybackManager::video_frame_pool_retired(Badge<Client>, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id)
-{
-    if (auto sink = m_video_sinks.get(handle); sink.has_value())
-        sink->slot_directory->notify_pool_retired(pool_id);
 }
 
 void RemotePlaybackManager::source_buffer_duration_received(Badge<Client>, u64 source_buffer_id, double duration)

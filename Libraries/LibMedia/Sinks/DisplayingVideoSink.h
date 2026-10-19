@@ -18,7 +18,6 @@
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/VideoPresentation/PresentedFramePage.h>
 
 namespace Media {
 
@@ -46,10 +45,9 @@ public:
     virtual void notify_clock_resumed() override;
 
     DisplayingVideoSinkUpdateResult update(MonotonicTime now);
-    virtual RefPtr<VideoFrame> current_frame() const override;
+    RefPtr<VideoFrame> current_frame() const;
 
     void set_on_present_needed(Function<void()> handler) { m_on_present_needed = move(handler); }
-    void set_presented_frame_page(PresentedFramePage page) { m_presented_frame_page = move(page); }
 
 private:
     void dispatch_state_if_changed(PipelineStatus);
@@ -77,7 +75,6 @@ private:
 
     Function<void()> m_on_present_needed;
     bool m_last_update_may_require_updates { false };
-    Optional<PresentedFramePage> m_presented_frame_page;
 };
 
 }

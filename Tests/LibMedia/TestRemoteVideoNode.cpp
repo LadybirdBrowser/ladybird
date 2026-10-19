@@ -26,7 +26,6 @@
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoEdgeQueue.h>
-#include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
 #include <LibMedia/VideoPresentation/VideoPresentationServerConnection.h>
 #include <LibMediaCodecs/VideoFrame.h>
@@ -581,56 +580,6 @@ TEST_CASE(pump_resumes_after_a_withdrawn_seek_request)
     sink->notify_space_available();
     EXPECT(spin_until(loop, [&] { return consumer_edge.peek().has_value(); }));
     EXPECT_EQ(consumer_edge.peek()->seek_id, 0u);
-}
-
-// A presented-frame handle can outlive its lend when a newer frame's release is processed before the
-// page rewrite is read. Resolving such a handle must fall back to the superseding one, never crash.
-TEST_CASE(current_frame_ignores_handles_whose_lend_was_released)
-{
-    auto& loop = never_destroyed_event_loop();
-
-    RemoteVideoSink::Delegates delegates;
-    delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [](InvalidateHeldData) { };
-    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
-    delegates.retire_pool = [](VideoFramePoolID) { };
-    auto sink = MUST(RemoteVideoSink::create(move(delegates)));
-
-    auto pool = MUST(VideoFramePool::create());
-    auto producer = ScriptedVideoProducer::create();
-    producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
-    producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
-
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
-
-    MUST(sink->connect_input(producer));
-    sink->start_input();
-
-    Vector<VideoFrameHandle> handles;
-    EXPECT(spin_until(loop, [&] {
-        while (handles.size() < 2) {
-            auto item = consumer_edge.peek();
-            if (!item.has_value())
-                break;
-            handles.append(item->handle);
-            consumer_edge.consume();
-        }
-        return handles.size() == 2;
-    }));
-
-    PresentedFramePage page = sink->presented_frame_page();
-
-    // While its lend is live, the presented handle resolves.
-    page.store(handles[0]);
-    EXPECT(sink->current_frame() != nullptr);
-
-    // Present the second frame and release its lend, as a newer present racing the page read would;
-    // the page now holds a stale handle while the pool keeps the first frame's lend.
-    page.store(handles[1]);
-    sink->release_slot(handles[1].pool_id, handles[1].slot_index);
-    EXPECT(sink->current_frame() == nullptr);
 }
 
 TEST_CASE(stopped_pump_reclaims_only_the_frames_left_in_the_ring)

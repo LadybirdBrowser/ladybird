@@ -34,8 +34,6 @@ PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id)
     };
     m_manager->set_host_hooks({
         .on_clock_changed = [this](Media::MediaTimeReader const& time_reader) { m_connection.async_playback_session_clock_changed(m_id, time_reader); },
-        .on_video_edge_attached = [this](Media::VideoSinkHandle handle, Media::PresentedFramePage const& presented_frame_page) { m_connection.async_playback_session_video_edge_attached(m_id, handle, presented_frame_page); },
-        .on_video_frame_pool_retired = [this](Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id) { m_connection.async_playback_session_video_frame_pool_retired(m_id, handle, pool_id); },
     });
 
     m_connection.async_playback_session_clock_changed(m_id, m_manager->time_reader());

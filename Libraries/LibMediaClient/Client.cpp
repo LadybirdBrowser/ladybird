@@ -342,18 +342,6 @@ void Client::playback_session_video_resized(u64 session_id, Media::VideoSinkHand
         playback_manager->video_resized({}, handle, Gfx::Size<u32> { width, height });
 }
 
-void Client::playback_session_video_edge_attached(u64 session_id, Media::VideoSinkHandle handle, Media::PresentedFramePage presented_frame_page)
-{
-    if (auto* playback_manager = find_playback_manager(session_id))
-        playback_manager->video_edge_attached({}, handle, move(presented_frame_page));
-}
-
-void Client::playback_session_video_frame_pool_retired(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id)
-{
-    if (auto* playback_manager = find_playback_manager(session_id))
-        playback_manager->video_frame_pool_retired({}, handle, pool_id);
-}
-
 void Client::source_buffer_duration_received(u64 session_id, u64 source_buffer_id, double duration)
 {
     if (auto* playback_manager = find_playback_manager(session_id))

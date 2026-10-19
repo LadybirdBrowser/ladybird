@@ -6,9 +6,7 @@
 #include <LibMedia/MediaSupport.h>
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/Track.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
 #include <LibMedia/VideoSinkHandle.h>
-#include <LibMediaCodecs/VideoSurface.h>
 
 endpoint MediaServer
 {
@@ -43,7 +41,6 @@ endpoint MediaServer
     reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) =|
     disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle) =|
     set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking) =|
-    map_presented_frame_slot(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id, u32 slot_index) => (Optional<Core::AnonymousBuffer> slot_buffer, RefPtr<Media::VideoSurface> surface)
 
     create_source_buffer(u64 session_id, u64 source_buffer_id) =|
     destroy_source_buffer(u64 session_id, u64 source_buffer_id) =|

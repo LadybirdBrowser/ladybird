@@ -101,8 +101,6 @@ private:
     virtual void playback_session_media_stream_scan_state_changed(u64 session_id, u64 stream_id, Media::DemuxerScanState scan_state) override;
     virtual void playback_session_error(u64 session_id, Media::DecoderError error) override;
     virtual void playback_session_video_resized(u64 session_id, Media::VideoSinkHandle handle, u32 width, u32 height) override;
-    virtual void playback_session_video_edge_attached(u64 session_id, Media::VideoSinkHandle handle, Media::PresentedFramePage presented_frame_page) override;
-    virtual void playback_session_video_frame_pool_retired(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id) override;
 
     virtual void source_buffer_duration_received(u64 session_id, u64 source_buffer_id, double duration) override;
     virtual void source_buffer_first_initialization_segment_received(u64 session_id, u64 source_buffer_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Vector<Media::Track> text_tracks) override;

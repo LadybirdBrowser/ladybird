@@ -21,7 +21,6 @@
 
 namespace Media {
 
-class PresentedFramePage;
 class VideoEdgeQueue;
 
 // The pump end of a cross-process video edge. Video frames are converted to handles and sent over a shared-memory
@@ -47,7 +46,6 @@ public:
     virtual ~RemoteVideoSink() override;
 
     VideoEdgeQueue const& edge() const;
-    PresentedFramePage const& presented_frame_page() const;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
@@ -58,7 +56,6 @@ public:
     virtual void set_time_reader(MediaTimeReader) override;
     virtual void set_state_change_handler(PipelineStateChangeHandler) override;
     virtual void set_resize_handler(PipelineResizeHandler) override;
-    virtual RefPtr<VideoFrame> current_frame() const override;
     void start_input();
 
     void report_remote_status(PipelineStatus);
@@ -67,17 +64,6 @@ public:
     // Callable from any thread.
     void notify_space_available();
     void release_slot(VideoFramePoolID, u32 slot_index);
-
-    // The storage of a slot that is lent to the far-end consumer, for a reader in another process to map. The reader
-    // takes no hold: it validates the slot's acquisition ID around its reads instead, so a recycled slot fails its read.
-    struct SlotStorage {
-        Core::AnonymousBuffer buffer;
-        RefPtr<VideoSurface> surface;
-    };
-    Optional<SlotStorage> lent_slot_storage(VideoFramePoolID, u32 slot_index);
-
-    // Observes the retire_pool delegate, for a host that maps slots for readers beyond the far-end consumer.
-    void set_pool_retired_observer(Function<void(VideoFramePoolID)>);
 
     void stop_and_reclaim_unconsumed_frames();
     bool has_lent_slots() const;

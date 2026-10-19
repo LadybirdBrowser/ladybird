@@ -1901,8 +1901,6 @@ void HTMLMediaElement::detach_video_sink_edge()
     if (!m_active_video_sink)
         return;
     m_active_video_sink->unregister();
-    if (m_playback_manager)
-        m_playback_manager->forget_presented_frame_page(m_active_video_sink->handle());
 }
 
 void HTMLMediaElement::release_active_video_sink()

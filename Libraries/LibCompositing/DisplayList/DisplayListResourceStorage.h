@@ -26,7 +26,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
-#include <LibMedia/Sinks/VideoSink.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaCodecs/VideoFrame.h>
 
@@ -120,7 +120,7 @@ public:
     // Returns the resources that were removed.
     DisplayListResourceSet retain_only(DisplayListResourceSet const&);
     bool has_resources_added_since_last_retain() const { return m_has_resources_added_since_last_retain; }
-    void set_video_sink(VideoSinkResourceId, RefPtr<Media::VideoSink>);
+    void set_video_sink(VideoSinkResourceId, RefPtr<Media::DisplayingVideoSink>);
 
     bool has_font(FontResourceId id) const { return m_fonts.contains(id.value()); }
     bool has_image_frame(ImageFrameResourceId id) const { return m_image_frames.contains(id.value()); }
@@ -131,7 +131,7 @@ public:
     // Whether reusing a raster of the display list could show other pixels than a replay in place, worked out once
     // and cached.
     bool display_list_requires_direct_replay(DisplayListResourceId) const;
-    RefPtr<Media::VideoSink const> video_sink(VideoSinkResourceId id) const;
+    RefPtr<Media::DisplayingVideoSink const> video_sink(VideoSinkResourceId id) const;
     Optional<Media::VideoSinkHandle> video_sink_handle(VideoSinkResourceId id) const { return m_video_sink_handles.get(id.value()); }
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_video_sink_handles; }
     DisplayListResource const& display_list_resource(DisplayListResourceId id) const { return m_display_lists.get(id.value()).value(); }
