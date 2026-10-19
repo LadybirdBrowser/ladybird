@@ -31,6 +31,7 @@ private:
         NonnullRefPtr<Compositing::VideoFramePresentationPage> page;
         u64 generation { 0 };
         RefPtr<Media::VideoFrame> frame;
+        u64 presented_frame_count { 0 };
     };
     struct RetainedFrame {
         RefPtr<Media::VideoFrame> frame;

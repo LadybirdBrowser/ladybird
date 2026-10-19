@@ -920,6 +920,10 @@ public:
     void run_the_resize_steps();
     void run_the_scroll_steps();
 
+    u32 increment_video_frame_request_callback_identifier() { return ++m_video_frame_request_callback_identifier; }
+    void run_the_video_frame_request_callbacks(double now);
+    void release_video_frames_held_for_callbacks();
+
     void evaluate_media_queries_and_report_changes();
     bool needs_media_query_list_evaluation() const { return m_needs_media_query_list_evaluation; }
     bool needs_media_rule_evaluation() const { return m_needs_media_rule_evaluation; }
@@ -1863,6 +1867,9 @@ private:
 
     GC::Ptr<HTML::HTMLParser> m_parser;
     u64 m_parser_generation { 0 };
+
+    // https://wicg.github.io/video-rvfc/#video-frame-request-callback-identifier
+    u32 m_video_frame_request_callback_identifier { 0 };
     bool m_active_parser_was_aborted { false };
 
     bool m_has_been_destroyed { false };

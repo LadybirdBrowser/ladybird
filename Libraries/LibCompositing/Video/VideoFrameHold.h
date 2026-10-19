@@ -24,6 +24,7 @@ public:
     using ReleaseThroughCompositor = Function<void(Media::VideoSinkHandle, u64 generation)>;
 
     static RefPtr<VideoFrameHold> hold_current_frame(NonnullRefPtr<VideoFramePresentationPage>, Media::VideoSinkHandle, ReleaseThroughCompositor);
+    static RefPtr<VideoFrameHold> hold_frame_of_generation(NonnullRefPtr<VideoFramePresentationPage>, Media::VideoSinkHandle, u64 generation, ReleaseThroughCompositor);
     ~VideoFrameHold();
 
     Media::VideoSinkHandle sink_handle() const { return m_sink_handle; }

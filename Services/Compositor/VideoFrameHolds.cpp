@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <Compositor/VideoFrameHolds.h>
 #include <LibMediaCodecs/VideoFrame.h>
 
@@ -37,6 +38,16 @@ void VideoFrameHolds::present_frame(Media::VideoSinkHandle handle, RefPtr<Media:
     retire_current_generation(handle, *sink, next_generation);
     sink->generation = next_generation;
     sink->frame = move(frame);
+
+    Compositing::VideoFramePresentationPage::PresentedFrame presented_frame { .generation = next_generation, .presentation_time = MonotonicTime::now() };
+    if (sink->frame) {
+        sink->presented_frame_count++;
+        presented_frame.media_time = sink->frame->timestamp();
+        presented_frame.width = sink->frame->width();
+        presented_frame.height = sink->frame->height();
+    }
+    presented_frame.presented_frame_count = sink->presented_frame_count;
+    sink->page->publish_presented_frame(presented_frame);
 }
 
 void VideoFrameHolds::retire_current_generation(Media::VideoSinkHandle handle, Sink& sink, u64 next_generation)

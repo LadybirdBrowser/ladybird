@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<title>Test the basics of the video.requestVideoFrameCallback() API.</title>
+<body></body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../common/media.js"></script>
+<script>
+var testVideo = {
+  url: getVideoURI('/media/movie_5'),
+  height: 240,
+  width: 320,
+}
+
+var altTestVideo = {
+  url: getVideoURI('/media/counting'),
+  height: 240,
+  width: 320,
+}
+
+promise_test(async function(t) {
+    let done;
+    const promise = new Promise(resolve => done = resolve);
+
+    let video = document.createElement('video');
+    video.muted = true;
+    document.body.appendChild(video);
+
+    let id = video.requestVideoFrameCallback(
+      t.step_func((time, metadata) => {
+        assert_true(time > 0);
+        assert_equals(metadata.height, testVideo.height);
+        assert_equals(metadata.width, testVideo.width);
+        done();
+      })
+    );
+
+    assert_true(id > 0);
+
+    video.src = testVideo.url;
+    await video.play();
+
+    return promise;
+}, 'Test we can register a video.rVFC callback.');
+
+promise_test(async function(t) {
+    let done;
+    const promise = new Promise(resolve => done = resolve);
+
+    let video = document.createElement('video');
+    video.muted = true;
+    document.body.appendChild(video);
+
+    video.requestVideoFrameCallback(
+      t.step_func(video_now => {
+        // Queue a call to window.rAF, and make sure it is executed within the
+        // same turn of the event loop (with the same 'time' parameter).
+        window.requestAnimationFrame( t.step_func( window_now => {
+          assert_equals(video_now, window_now);
+          done();
+        }));
+      })
+    );
+
+    video.src = testVideo.url;
+    await video.play();
+
+    return promise;
+}, 'Test video.rVFC callbacks run before window.rAF callbacks.');
+
+
+promise_test(async function(t) {
+    let done;
+    const promise = new Promise(resolve => done = resolve);
+
+    let video = document.createElement('video');
+    video.muted = true;
+    document.body.appendChild(video);
+
+    let id = video.requestVideoFrameCallback(
+      t.step_func(_ => {
+        assert_unreached("Cancelled callbacks shouldn't be executed")
+      })
+    );
+
+    video.cancelVideoFrameCallback(id);
+
+    video.requestVideoFrameCallback(
+      t.step_func(_ => {
+        // At this point, the other callback shouldn't have fired, but
+        // give it some more time and really make sure it doesn't, by going
+        // throught the event loop once more.
+        t.step_timeout(() => { done(); }, 0);
+      })
+    );
+
+    video.src = testVideo.url;
+    await video.play();
+
+    return promise;
+}, 'Test we can cancel a video.rVFC request.');
+
+test(function(t) {
+    let video = document.createElement('video');
+    video.muted = true;
+    document.body.appendChild(video);
+
+    // requestVideoFrameCallback() expects 1 function as a parameter.
+    assert_throws_js(TypeError, _ => { video.requestVideoFrameCallback() } );
+    assert_throws_js(TypeError, _ => { video.requestVideoFrameCallback(0) });
+    assert_throws_js(TypeError, _ => { video.requestVideoFrameCallback("foo") });
+
+    // cancelVideoFrameCallback() expects 1 number as a parameter
+    assert_throws_js(TypeError, _ => { video.cancelVideoFrameCallback() } );
+
+    // Invalid calls are just no-ops
+    video.cancelVideoFrameCallback(_ => {});
+    video.cancelVideoFrameCallback(NaN);
+    video.cancelVideoFrameCallback("foo");
+    video.cancelVideoFrameCallback(12345);
+    video.cancelVideoFrameCallback(-1);
+
+}, 'Test invalid calls to the video.rVFC API.');
+
+promise_test(async function(t) {
+    let video = document.createElement('video');
+    video.muted = true;
+    video.autoplay = true;
+    document.body.appendChild(video);
+
+    let first_width = 0;
+    let first_height = 0;
+
+    video.src = testVideo.url;
+
+    await video.play();
+
+    // Switch to and from a second video, and make sure we get rVFC calls at
+    // each step.
+    return new Promise((resolve, reject) => {
+      let onReturnToOriginalVideo = t.step_func((now, metadata) => {
+        assert_equals(first_width, metadata.width);
+        assert_equals(first_height, metadata.height);
+
+        resolve();
+      });
+
+      let onAltVideoFirstFrame = t.step_func((now, metadata) => {
+        // The videos have different sizes, and shouldn't match.
+        assert_not_equals(first_width, metadata.width);
+        assert_not_equals(first_height, metadata.height);
+
+        // Swith back to the original video.
+        video.requestVideoFrameCallback(onReturnToOriginalVideo);
+        video.src = testVideo.url;
+      });
+
+      let onFirstFrame = t.step_func((now, metadata) => {
+        first_width = metadata.width;
+        first_height = metadata.height;
+
+        // Callbacks should persist after changing the source to the alt video.
+        video.requestVideoFrameCallback(onAltVideoFirstFrame);
+        video.src = altTestVideo.url;
+      })
+
+      video.requestVideoFrameCallback(onFirstFrame);
+    });
+}, 'Test video.rVFC does not stop when switching sources.');
+
+</script>
+</html>

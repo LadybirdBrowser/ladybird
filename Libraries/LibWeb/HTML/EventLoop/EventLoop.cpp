@@ -925,11 +925,22 @@ void EventLoop::update_the_rendering()
 
     // FIXME: 13. For each doc of docs, if the user agent detects that the backing storage associated with a CanvasRenderingContext2D or an OffscreenCanvasRenderingContext2D, context, has been lost, then it must run the context lost steps for each such context:
 
+    // https://wicg.github.io/video-rvfc/#video-rvfc-rendering-step
+    // For each fully active Document in docs, for each associated video element for that Document, run the video
+    // frame request callbacks passing now as the timestamp.
+    for (auto& document : docs)
+        document->run_the_video_frame_request_callbacks(relative_frame_timestamp_for(*document));
+
     // 14. For each doc of docs, run the animation frame callbacks for doc, passing in the relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp.
     for (auto& document : docs) {
         auto now = relative_frame_timestamp_for(*document);
         run_animation_frame_callbacks(*document, now);
     }
+
+    // AD-HOC: Captures in this update's video frame and animation frame callbacks draw the frame that the video frame
+    //         callbacks' metadata described. Later captures draw whatever frame is presented then.
+    for (auto& document : docs)
+        document->release_video_frames_held_for_callbacks();
 
     // FIXME: 15. Let unsafeStyleAndLayoutStartTime be the unsafe shared current time.
 

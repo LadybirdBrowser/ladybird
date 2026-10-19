@@ -226,6 +226,7 @@ private:
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
     virtual void request_frame() override;
     virtual void rendering_opportunity(i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
+    virtual double rendering_frame_interval_in_milliseconds() const override { return m_last_rendering_opportunity_frame_interval; }
     virtual void will_begin_rendering_update() override;
     virtual bool has_rendering_opportunity() const override;
     virtual void did_finish_rendering_update() override;

@@ -70,6 +70,12 @@ public:
     void for_each_visual_clone(Function<void(HTMLVideoElement&)> const&) const;
     void clear_visual_clones();
 
+    WebIDL::UnsignedLong request_video_frame_callback(GC::Ref<WebIDL::CallbackType>);
+    void cancel_video_frame_callback(WebIDL::UnsignedLong handle);
+    bool has_video_frame_request_callbacks() const { return !m_list_of_video_frame_request_callbacks.is_empty(); }
+    void run_the_video_frame_request_callbacks(HighResolutionTime::DOMHighResTimeStamp now);
+    virtual void request_rendering_update_for_video_frame_callbacks() override;
+
     WebIDL::CallbackType* onenterpictureinpicture();
     void set_onenterpictureinpicture(WebIDL::CallbackType*);
     WebIDL::CallbackType* onleavepictureinpicture();
@@ -112,6 +118,17 @@ private:
 
     GC::Ptr<HTMLVideoElement> m_visual_source;
     Vector<GC::Weak<HTMLVideoElement>> m_visual_clones;
+
+    struct VideoFrameRequestCallback {
+        WebIDL::UnsignedLong handle { 0 };
+        GC::Ptr<WebIDL::CallbackType> callback;
+    };
+    // https://wicg.github.io/video-rvfc/#list-of-video-frame-request-callbacks
+    Vector<VideoFrameRequestCallback> m_list_of_video_frame_request_callbacks;
+    // NB: The callbacks being run, which cancelVideoFrameCallback() also cancels by clearing their callback.
+    Vector<VideoFrameRequestCallback> m_running_video_frame_request_callbacks;
+    // https://wicg.github.io/video-rvfc/#last-presented-frame-identifier
+    u64 m_last_presented_frame_identifier { 0 };
 };
 
 }

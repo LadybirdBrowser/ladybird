@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Test callbacks get the same information.
+Pass	Test we can cancel callbacks from callbacks.

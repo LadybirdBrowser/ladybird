@@ -6,9 +6,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
@@ -25,6 +27,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
@@ -36,6 +39,7 @@
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/PictureInPicture/PictureInPictureWindow.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -63,6 +67,10 @@ void HTMLVideoElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_picture_in_picture_window);
     visitor.visit(m_pending_picture_in_picture_promises);
     visitor.visit(m_visual_source);
+    for (auto const& entry : m_list_of_video_frame_request_callbacks)
+        visitor.visit(entry.callback);
+    for (auto const& entry : m_running_video_frame_request_callbacks)
+        visitor.visit(entry.callback);
 }
 
 void HTMLVideoElement::set_visual_source(GC::Ptr<HTMLVideoElement> source)
@@ -118,6 +126,8 @@ void HTMLVideoElement::adopted_from(DOM::Document& old_document)
 
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());
+
+    release_presented_video_frame_held_for_callbacks();
 }
 
 void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -516,6 +526,123 @@ WebIDL::CallbackType* HTMLVideoElement::onleavepictureinpicture()
 void HTMLVideoElement::set_onleavepictureinpicture(WebIDL::CallbackType* event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::leavepictureinpicture, event_handler);
+}
+
+// https://wicg.github.io/video-rvfc/#dom-htmlvideoelement-requestvideoframecallback
+WebIDL::UnsignedLong HTMLVideoElement::request_video_frame_callback(GC::Ref<WebIDL::CallbackType> callback)
+{
+    // 1. Let video be the HTMLVideoElement on which requestVideoFrameCallback is invoked.
+    // 2. Increment video's ownerDocument's video frame request callback identifier by one.
+    // 3. Let callbackId be video's ownerDocument's video frame request callback identifier
+    auto callback_id = document().increment_video_frame_request_callback_identifier();
+
+    // AD-HOC: Callbacks are "fired the next time a frame is presented to the compositor", so to ensure we don't invoke
+    //         the callback on a frame that was presented before the request, update the identifier here.
+    if (m_list_of_video_frame_request_callbacks.is_empty())
+        m_last_presented_frame_identifier = presented_video_frame_count();
+
+    // 4. Append callback to video's list of video frame request callbacks, associated with callbackId.
+    m_list_of_video_frame_request_callbacks.append({ .handle = callback_id, .callback = callback });
+
+    // AD-HOC: A video that is not shown still presents frames while it has callbacks waiting for them.
+    if (m_list_of_video_frame_request_callbacks.size() == 1)
+        sync_video_sink_ticking();
+
+    request_rendering_update_for_video_frame_callbacks();
+
+    // 5. Return callbackId.
+    return callback_id;
+}
+
+// https://wicg.github.io/video-rvfc/#dom-htmlvideoelement-cancelvideoframecallback
+void HTMLVideoElement::cancel_video_frame_callback(WebIDL::UnsignedLong handle)
+{
+    // 1. Let video be the target HTMLVideoElement object on which cancelVideoFrameCallback is invoked.
+    // 2. Find the entry in video's list of video frame request callbacks that is associated with the value handle.
+    // 3. If there is such an entry, set its canceled boolean to true and remove it from video's list of video frame
+    //    request callbacks.
+    m_list_of_video_frame_request_callbacks.remove_first_matching([&](auto const& entry) { return entry.handle == handle; });
+    if (m_list_of_video_frame_request_callbacks.is_empty())
+        video_sink_ticking_inputs_changed();
+    // NB: A canceled entry that is already being run keeps its place without its callback.
+    for (auto& entry : m_running_video_frame_request_callbacks) {
+        if (entry.handle == handle)
+            entry.callback = nullptr;
+    }
+}
+
+// https://wicg.github.io/video-rvfc/#run-the-video-frame-request-callbacks
+void HTMLVideoElement::run_the_video_frame_request_callbacks(HighResolutionTime::DOMHighResTimeStamp now)
+{
+    // 1. If video's list of video frame request callbacks is empty, abort these steps.
+    if (m_list_of_video_frame_request_callbacks.is_empty())
+        return;
+
+    // NB: The video may present the frame for the callbacks in a later rendering update.
+    ScopeGuard request_rendering_update_for_pending_callbacks = [&] {
+        request_rendering_update_for_video_frame_callbacks();
+    };
+
+    // 2. Let metadata be the VideoFrameCallbackMetadata dictionary built from video's latest presented frame.
+    // AD-HOC: The frame stays held until the rendering update has run its animation frame callbacks, so that the
+    //         callbacks capture the frame that metadata describes.
+    auto presented_frame = hold_presented_video_frame_for_callbacks();
+    if (!presented_frame.has_value())
+        return;
+
+    // 3. Let presentedFrames be the value of metadata's presentedFrames field.
+    auto presented_frames = presented_frame->presented_frames;
+
+    // 4. If the last presented frame identifier is equal to presentedFrames, abort these steps.
+    if (m_last_presented_frame_identifier == presented_frames) {
+        release_presented_video_frame_held_for_callbacks();
+        return;
+    }
+
+    // 5. Set the last presented frame identifier to presentedFrames.
+    m_last_presented_frame_identifier = presented_frames;
+
+    auto& realm = relevant_realm(*this);
+    auto& global = relevant_global_object(*this);
+    auto metadata = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    auto presentation_time = HighResolutionTime::relative_high_resolution_time(presented_frame->presentation_time.to_seconds_f64() * 1000.0, global);
+    MUST(metadata->create_data_property_or_throw("presentationTime"_utf16_fly_string, JS::Value(max(0.0, presentation_time))));
+    MUST(metadata->create_data_property_or_throw("expectedDisplayTime"_utf16_fly_string, JS::Value(now + document().page().client().rendering_frame_interval_in_milliseconds())));
+    MUST(metadata->create_data_property_or_throw("width"_utf16_fly_string, JS::Value(presented_frame->width)));
+    MUST(metadata->create_data_property_or_throw("height"_utf16_fly_string, JS::Value(presented_frame->height)));
+    MUST(metadata->create_data_property_or_throw("mediaTime"_utf16_fly_string, JS::Value(presented_frame->media_time.to_seconds_f64())));
+    MUST(metadata->create_data_property_or_throw("presentedFrames"_utf16_fly_string, JS::Value(static_cast<double>(presented_frames))));
+
+    // 6. Let callbacks be the list of video frame request callbacks.
+    // 7. Set video's list of video frame request callbacks to be empty.
+    m_running_video_frame_request_callbacks = move(m_list_of_video_frame_request_callbacks);
+    ScopeGuard clear_running_callbacks = [&] {
+        m_running_video_frame_request_callbacks.clear();
+        if (m_list_of_video_frame_request_callbacks.is_empty())
+            video_sink_ticking_inputs_changed();
+    };
+
+    // 8. For each entry of callbacks:
+    for (size_t index = 0; index < m_running_video_frame_request_callbacks.size(); index++) {
+        // 1. If entry's canceled boolean is true, continue.
+        auto callback = m_running_video_frame_request_callbacks[index].callback;
+        if (!callback)
+            continue;
+
+        // 2. Invoke entry with « now, metadata » and "report".
+        auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now), metadata } });
+        if (result.is_error())
+            report_exception(result, realm);
+    }
+}
+
+void HTMLVideoElement::request_rendering_update_for_video_frame_callbacks()
+{
+    if (m_list_of_video_frame_request_callbacks.is_empty())
+        return;
+    auto may_present_a_frame = potentially_playing() || seeking() || ready_state() < ReadyState::HaveCurrentData;
+    if (may_present_a_frame)
+        document().page().client().request_frame();
 }
 
 }
