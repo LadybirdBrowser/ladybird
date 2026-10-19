@@ -722,11 +722,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             //       We use that inline size as the input here to ensure that margins get resolved.
             replaced_inline_size
         } else if facts.is_table_wrapper() {
+            // NB: An auto-width table shrinks to fit the space next to floats. A table with a specified width does not,
+            //     so clamp it against the containing block instead. That way a table which is too wide for the space
+            //     next to floats reports its real size and gets placed below the floats.
+            let table_has_specified_inline_size = !self.style(sizing.table_box_inside_wrapper(node)).width().is_auto();
             Some(sizing.compute_table_box_inline_size_inside_wrapper(
                 node,
                 remaining_available_space,
                 constraints,
-                None,
+                table_has_specified_inline_size.then_some(available_inline_size),
                 formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
             ))
         } else if facts.uses_button_layout() && style.width().is_auto() {
