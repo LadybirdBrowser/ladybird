@@ -324,7 +324,6 @@ public:
     void set_media_element_paused(HTML::HTMLMediaElement&, bool paused);
     void set_media_element_seeking(HTML::HTMLMediaElement&, bool seeking);
     void disconnect_media_server();
-    void set_page_muted(bool muted);
     String viewport_overflow_x();
 
     GC::Ref<Streams::ReadableStream> create_stream_pulling_from_bytes(String const& bytes, WebIDL::UnsignedLong pull_size);

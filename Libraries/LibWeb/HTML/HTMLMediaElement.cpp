@@ -810,19 +810,12 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
     update_audio_play_state();
 }
 
-void HTMLMediaElement::page_mute_state_changed(Badge<Page>)
-{
-    update_volume();
-    update_audio_play_state();
-}
-
 // https://html.spec.whatwg.org/multipage/media.html#effective-media-volume
 double HTMLMediaElement::effective_media_volume() const
 {
     // 1. If the user has indicated that the user agent is to override the volume of the element, then return the
     //    volume desired by the user.
-    if (document().page().page_mute_state() == MuteState::Muted)
-        return 0.0;
+    // NB: The user mutes a tab in the AudioServer, which a compromised renderer can't bypass.
 
     // 2. If the element's audio output is muted, then return zero.
     if (m_muted)

@@ -917,6 +917,9 @@ ErrorOr<void> WebContentClient::initialize_audio_server_controller()
     };
     if (m_audio_capture_permitted)
         TRY(tell_audio_server_of_capture_permission());
+    // A muted group is never heard: the mutes land before the authorizations.
+    for (auto group : m_muted_audio_playback_groups)
+        m_audio_server_client->async_mute_playback_group(m_audio_tab_id, group);
     for (auto group : m_authorized_audio_playback_groups)
         TRY(tell_audio_server_of_playback_authorization(group));
     return {};
@@ -1004,6 +1007,31 @@ void WebContentClient::revoke_audio_playback(Web::PageId page_id)
         return;
     if (m_audio_server_client && m_audio_server_client->is_open())
         m_audio_server_client->async_revoke_playback_group(m_audio_tab_id, group);
+}
+
+void WebContentClient::set_audio_playback_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state)
+{
+    auto group = audio_playback_group(page_id);
+    switch (mute_state) {
+    case Web::HTML::MuteState::Muted:
+        if (m_muted_audio_playback_groups.set(group) != HashSetResult::InsertedNewEntry)
+            return;
+        if (m_audio_server_client && m_audio_server_client->is_open())
+            m_audio_server_client->async_mute_playback_group(m_audio_tab_id, group);
+        break;
+    case Web::HTML::MuteState::Unmuted:
+        if (!m_muted_audio_playback_groups.remove(group))
+            return;
+        if (m_audio_server_client && m_audio_server_client->is_open())
+            m_audio_server_client->async_unmute_playback_group(m_audio_tab_id, group);
+        break;
+    }
+}
+
+void WebContentClient::forget_audio_playback(Web::PageId page_id)
+{
+    revoke_audio_playback(page_id);
+    set_audio_playback_mute_state(page_id, Web::HTML::MuteState::Unmuted);
 }
 
 ErrorOr<void> WebContentClient::tell_audio_server_of_playback_authorization(Audio::PlaybackGroupId group)

@@ -19,4 +19,8 @@ endpoint AudioServerControl
     // Authorizing is synchronous, so a group may play before a document of its page runs.
     authorize_playback_group(u64 tab_id, Audio::PlaybackGroupId group) => ()
     revoke_playback_group(u64 tab_id, Audio::PlaybackGroupId group) =|
+
+    // The playback groups the user has muted: their streams play into nothing, whether or not they are authorized.
+    mute_playback_group(u64 tab_id, Audio::PlaybackGroupId group) =|
+    unmute_playback_group(u64 tab_id, Audio::PlaybackGroupId group) =|
 }

@@ -399,7 +399,6 @@ interface Internals {
     undefined setMediaElementSeeking(HTMLMediaElement element, boolean seeking);
     // Closes this process's connection to its media server, which is what a media server crash looks like from here.
     undefined disconnectMediaServer();
-    undefined setPageMuted(boolean muted);
 
     DOMString viewportOverflowX();
 

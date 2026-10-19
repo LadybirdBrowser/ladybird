@@ -420,9 +420,6 @@ public:
     void toggle_media_controls_state();
     void set_picture_in_picture_window_controls_in_use(bool);
 
-    HTML::MuteState page_mute_state() const { return m_mute_state; }
-    void set_page_mute_state(HTML::MuteState);
-
     Optional<Utf16String> const& user_style() const { return m_user_style_sheet_source; }
     void set_user_style(Utf16String source);
     void invalidate_user_style();
@@ -596,8 +593,6 @@ private:
     Vector<UniqueNodeID> m_canvas_elements;
     Vector<GC::Ref<HTML::OffscreenCanvas>> m_offscreen_canvases_pending_placeholder_commit;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
-
-    Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     Optional<ContextMenuRequest> m_context_menu_request;
     InputTraceRecorder m_input_trace;

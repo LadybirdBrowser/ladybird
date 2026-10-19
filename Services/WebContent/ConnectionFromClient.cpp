@@ -3512,12 +3512,6 @@ void ConnectionFromClient::toggle_media_controls_state(Web::PageId page_id)
         page->page().toggle_media_controls_state();
 }
 
-void ConnectionFromClient::set_page_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().set_page_mute_state(mute_state);
-}
-
 void ConnectionFromClient::system_time_zone_changed()
 {
     JS::clear_system_time_zone_cache();

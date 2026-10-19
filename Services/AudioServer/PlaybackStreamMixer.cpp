@@ -107,6 +107,19 @@ void PlaybackStreamMixer::set_group_authorization(PlaybackGroupId group, Playbac
     }
 }
 
+void PlaybackStreamMixer::set_group_mute_state(PlaybackGroupId group, PlaybackGroupMuteState mute_state)
+{
+    MutexLocker locker(m_state->m_mutex);
+    switch (mute_state) {
+    case PlaybackGroupMuteState::Muted:
+        m_state->m_muted_groups.set(group);
+        break;
+    case PlaybackGroupMuteState::Unmuted:
+        m_state->m_muted_groups.remove(group);
+        break;
+    }
+}
+
 void PlaybackStreamMixer::remove_client(MixerClientId id)
 {
     bool was_active = false;
@@ -271,8 +284,8 @@ ReadonlySpan<float> PlaybackStreamMixer::MixState::mix_into(Span<float> buffer, 
         for (auto& [id, client] : m_clients) {
             if (client.state == ClientState::Suspended || client.state == ClientState::Drained)
                 continue;
-            auto is_authorized = client.group.has_value() && m_authorized_groups.contains(*client.group);
-            auto consumed_frames = is_authorized
+            auto is_heard = client.group.has_value() && m_authorized_groups.contains(*client.group) && !m_muted_groups.contains(*client.group);
+            auto consumed_frames = is_heard
                 ? client.ring.pop_mixing_into(buffer, client.gain)
                 : client.ring.discard(buffer.size() / client.ring.channel_count());
             if (consumed_frames > 0)
