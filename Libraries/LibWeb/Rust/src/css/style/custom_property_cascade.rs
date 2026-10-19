@@ -529,12 +529,17 @@ pub(super) fn value_reads_inherited_values(value: &StyleValueData) -> bool {
     )
 }
 
-/// Whether a written value substitutes `if()`, whose conditions read the document's media
-/// features and the element's lengths beside its custom-property environment.
+/// Whether a written value may substitute `if()`, directly or through an attribute's value.
+/// Its conditions read the document's media features and the element's lengths beside its
+/// custom-property environment.
 pub(super) fn value_reads_conditions(value: &StyleValueData) -> bool {
     matches!(
         substituted_tokens(value),
         StyleValueData::Unresolved { presence_if: true, .. }
+            | StyleValueData::Unresolved {
+                presence_attr: true,
+                ..
+            }
     )
 }
 
