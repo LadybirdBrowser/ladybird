@@ -484,9 +484,11 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         store_holey_element: super::calls::libjs_jit_store_holey_element as *const () as u64,
         slice_arguments: super::calls::libjs_jit_slice_arguments as *const () as u64,
         open_array_iteration: super::intrinsics::libjs_jit_open_array_iteration as *const () as u64,
-        // NB: Filled in by capture_snapshot(), which lists it as an embedded cell.
+        // NB: Filled in by capture_snapshot(), which lists the cells as embedded cells.
         array_iterator_next: None,
         array_iterator_return_watchpoint_set: None,
+        array_iterator_next_watchpoint_set_address: None,
+        array_iterator_method_watchpoint_set_address: None,
         jit_exit: super::entry_exit::libjs_jit_exit as *const () as u64,
         to_boolean: addresses.to_boolean,
         primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,

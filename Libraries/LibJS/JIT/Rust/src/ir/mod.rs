@@ -149,6 +149,13 @@ pub enum BranchCondition {
     /// interfere with indexed property access, so that indices it has no
     /// element at read undefined?
     PlainArrayPrototypeChain,
+    /// The input is the `Repr::Pointer` of an object: is it an array whose
+    /// shape has the realm's `%Array.prototype%` as its prototype and no
+    /// named properties, so that it has no own `@@iterator`?
+    ArrayWithRealmArrayPrototypeAndNoNamedProperties,
+    /// The input is the `Repr::Pointer` address of a cell that holds an
+    /// optional watchpoint set: does it hold one that is still valid?
+    HoldsValidWatchpointSet,
     /// Input 0 is an object and input 1 its address: does it have the
     /// shape, like `Op::ShapeSwitch` cases test it? Only the refinements of
     /// those cases have this condition; no branch does.

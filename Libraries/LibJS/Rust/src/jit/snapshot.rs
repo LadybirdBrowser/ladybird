@@ -56,6 +56,7 @@ use crate::runtime::object_constructor::ObjectConstructor;
 use crate::runtime::object_prototype;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::shape::Shape;
 use crate::runtime::shared_function_instance_data::ClosureCount;
 use crate::runtime::shared_function_instance_data::ConstructorKind;
@@ -1207,6 +1208,12 @@ pub fn capture_snapshot(
             .get()
             .filter(|set| set.is_valid()),
     );
+    // NB: Code that reads the cells of the realm embeds the realm.
+    builder.cell(realm);
+    runtime.array_iterator_next_watchpoint_set_address =
+        realm_watchpoints::array_iterator_next_watchpoint_set_address(realm);
+    runtime.array_iterator_method_watchpoint_set_address =
+        realm_watchpoints::array_iterator_method_watchpoint_set_address(realm);
     let options = &vm.jit.options;
     let snapshot = Snapshot {
         executables,

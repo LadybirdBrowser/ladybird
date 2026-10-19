@@ -13,7 +13,7 @@ if (sumPair([3, 4]) !== 7) throw new Error("wrong sum");
 
 // CHECK-FUNCTION: sumPair
 // CHECK-PASS: graph building
-// CHECK: OpenArrayIteration
+// CHECK: BranchArrayWithRealmArrayPrototypeAndNoNamedProperties
 // CHECK-NOT: Allocate
 // CHECK: CallSlowPath IteratorNextUnpack
 // CHECK-NOT: Allocate

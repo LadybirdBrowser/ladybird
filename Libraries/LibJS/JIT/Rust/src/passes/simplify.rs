@@ -284,6 +284,8 @@ fn constant_condition(graph: &Graph, condition: BranchCondition, input: NodeId, 
         | BranchCondition::ArrayIterator
         | BranchCondition::GeneratorObject
         | BranchCondition::PlainArrayPrototypeChain
+        | BranchCondition::ArrayWithRealmArrayPrototypeAndNoNamedProperties
+        | BranchCondition::HoldsValidWatchpointSet
         | BranchCondition::Shape(_) => None,
     }
 }

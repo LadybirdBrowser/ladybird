@@ -110,6 +110,50 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(other);
     }
 
+    /// A branch on `BranchCondition::ArrayWithRealmArrayPrototypeAndNoNamedProperties`:
+    /// to `target` where the object at `object` is an array whose shape has
+    /// the realm's `%Array.prototype%` as its prototype and no named
+    /// properties, or where it is not, with `invert`.
+    pub(in crate::codegen) fn emit_branch_on_array_with_realm_array_prototype_and_no_named_properties(
+        &mut self,
+        node: NodeId,
+        object: Gpr,
+        target: Label,
+        invert: bool,
+    ) {
+        let shape = self.temp(node, 0);
+        let scratch = self.pinned.scratch;
+        let offsets = self.runtime.offsets;
+        let layout = self.runtime.layout;
+        let other = self.masm.new_label();
+        let fail = if invert { target } else { other };
+        self.masm
+            .load16(scratch, &Address::new(object, offsets.object_flags as i32));
+        self.masm.branch_test32(
+            Condition::Zero,
+            scratch,
+            u32::from(layout.object_flag_has_magical_length),
+            fail,
+        );
+        self.masm
+            .load64(shape, &Address::new(object, offsets.object_shape as i32));
+        self.masm
+            .load64(scratch, &Address::new(shape, layout.shape_prototype as i32));
+        self.masm.branch64_imm(
+            Condition::NotEqual,
+            scratch,
+            self.runtime.array_prototype.0 as i64,
+            fail,
+        );
+        self.masm
+            .load32(scratch, &Address::new(shape, layout.shape_property_count as i32));
+        self.masm.branch_test32(Condition::NonZero, scratch, u32::MAX, fail);
+        if !invert {
+            self.masm.jump(target);
+        }
+        self.masm.bind(other);
+    }
+
     /// `LoadElementsCapacity`: the capacity of packed or holey indexed
     /// storage, and 0 without storage.
     pub(in crate::codegen) fn emit_load_elements_capacity(&mut self, node: NodeId) {
