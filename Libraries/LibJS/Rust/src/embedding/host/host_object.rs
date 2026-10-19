@@ -41,7 +41,8 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{
-    JS_HOST_CLASS_IMMUTABLE_PROTOTYPE, JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE,
+    JS_HOST_CLASS_IMMUTABLE_PROTOTYPE, JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE,
+    JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE,
     JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH, JS_HOST_CLASS_OBJECT, JS_PD_CONFIGURABLE,
     JS_PD_ENUMERABLE, JS_PD_HAS_CONFIGURABLE, JS_PD_HAS_ENUMERABLE, JS_PD_HAS_VALUE, JS_PD_HAS_WRITABLE, JS_PD_PRESENT,
     JS_PD_WRITABLE, JSHostClass, JSHostObjectHooks, JSObject, JSPropertyDescriptor, JSVM, JSValue, JSValueSink,
@@ -133,6 +134,8 @@ fn host_object_methods(table: &'static JSHostClass) -> ObjectMethods {
     }
     if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE) {
         methods.is_cacheable_for_property_absence = |_| false;
+    } else if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE) {
+        methods.is_cacheable_for_absence_of = |_, _, property_key| !property_key.is_number();
     }
     if hooks.is_cacheable_for_inherited_property.is_some() {
         methods.is_cacheable_for_inherited_property = is_cacheable_for_inherited_property_through_hook;
