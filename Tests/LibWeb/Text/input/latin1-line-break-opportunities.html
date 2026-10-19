@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    div {
+        width: 0;
+        font: 16px serif;
+        line-height: 100px;
+    }
+    .pre-wrap {
+        white-space: pre-wrap;
+    }
+    .break-spaces {
+        white-space: break-spaces;
+    }
+</style>
+<div id="container"></div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const strings = [
+            "été déjà vu",
+            "l'été (voir p. 12) ¿Qué? ¡Hola!",
+            "(  été [ été { été ¡ été ¿ été",
+            "«\u00a0Oui\u00a0» dit-il, « non\u00a0».",
+            "«  Oui  » dit-il «\u00a0 é",
+            "café, thé; été: là! où? ça) çà] ça}",
+            "é\"é\" é'é é' 'é",
+            "Müller-Lüdenscheidt x-é é-1 -é",
+            "50\u00a0% de café, prix\u00a0: 12\u00a0€",
+            "é\u00a0 é é \u00a0é é\u00a0é",
+            "a\u2028 b é\u2028 é é\u2029 é é\u0085 é",
+            "naïve µm ß ÿ é×é é÷é ª º",
+            "1é2 3é é4 ½é",
+            "#\ufe0f é *\ufe0e é 3\ufe0f é ©é ®\ufe0f é",
+            "é\u0301e\u0301 o\u0308 ç\u0327",
+            "é  !é é ) é é , é",
+            "é/é é/ é é /é",
+            "é»é «é é« »é",
+        ];
+
+        const container = document.getElementById("container");
+        const escape = string =>
+            Array.from(string)
+                .map(character => {
+                    const code = character.codePointAt(0);
+                    if (code >= 0x20 && code < 0x7f) return character;
+                    return `\\u{${code.toString(16)}}`;
+                })
+                .join("");
+
+        for (const [index, string] of strings.entries()) {
+            for (const className of ["", "pre-wrap", "break-spaces"]) {
+                const div = document.createElement("div");
+                div.className = className;
+                div.textContent = string;
+                container.appendChild(div);
+                const text = div.firstChild;
+                // Lines are much taller than any glyph box, so a new line moves the next box down by more than any
+                // fallback font with a taller box can.
+                const lines = [];
+                let previousTop = null;
+                for (let offset = 0; offset < string.length; ++offset) {
+                    const range = document.createRange();
+                    range.setStart(text, offset);
+                    range.setEnd(text, offset + 1);
+                    const rects = range.getClientRects();
+                    const rect = rects.length > 0 ? rects[0] : null;
+                    if (lines.length === 0 || (rect && previousTop !== null && rect.top > previousTop + 50)) lines.push("");
+                    if (rect) previousTop = rect.top;
+                    lines[lines.length - 1] += string[offset];
+                }
+                println(`${index}${className ? " " + className : ""}: ${lines.map(escape).join(" | ")}`);
+                div.remove();
+            }
+        }
+    });
+</script>
