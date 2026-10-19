@@ -123,7 +123,6 @@ public:
     static ErrorOr<NonnullRefPtr<Requests::RequestClient>> request_server_client(IsPrivate = IsPrivate::No);
     // The control connection of the default session's RequestServer with no site.
     static Requests::RequestControlClient& request_server_control_client();
-    static bool has_request_server_control_client() { return the().m_request_server_manager; }
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     static WasmCompilerClient::Client& wasm_compiler_client() { return *the().m_wasm_compiler_client; }
 #endif
@@ -156,7 +155,6 @@ public:
     static BookmarkStore& bookmark_store() { return *the().m_bookmark_store; }
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
-    void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
 
     void background_networking_settings_changed(Badge<ApplicationSettingsObserver>);
 
