@@ -47,6 +47,8 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
@@ -751,6 +753,15 @@ void HTMLParserEndState::schedule_progress_check()
     }));
 }
 
+static bool navigable_container_is_rendered(DOM::Document& document)
+{
+    auto navigable = document.navigable();
+    if (!navigable || !navigable->container())
+        return true;
+    auto& container = *navigable->container();
+    return container.document().update_style_for_element(DOM::AbstractElement { container }, DOM::Document::StyleUpdateMode::StopAtDisplayNone);
+}
+
 void HTMLParserEndState::check_progress()
 {
     if (m_phase == Phase::Cancelled)
@@ -806,7 +817,8 @@ void HTMLParserEndState::check_progress()
         // 8. Spin the event loop until there is nothing that delays the load event in the Document.
         // AD-HOC: Update layout first so font loads selected by text shaping can delay the load event.
         // INTEROP: Gecko also flushes layout before firing the load event — so lazily-started font loads hold it back.
-        m_document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
+        if (navigable_container_is_rendered(*m_document))
+            m_document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
         if (m_document->anything_is_delaying_the_load_event())
             return;
 
@@ -943,7 +955,8 @@ void HTMLParserEndState::complete()
         //         layout otherwise wait for the next rendering update, and a load handler that
         //         changes style would fold its change into the document's very first style pass,
         //         where a transition it expects to start has no before-change style to start from.
-        document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
+        if (navigable_container_is_rendered(*document))
+            document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
 
         // 3. Let window be the Document's relevant global object.
         auto& window = relevant_window(*document);
