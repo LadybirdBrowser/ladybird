@@ -52,4 +52,14 @@ void ControlConnection::revoke_playback_group(u64 tab_id, Audio::PlaybackGroupId
     Tabs::the().set_playback_group_authorization(tab_id, group, Audio::PlaybackGroupAuthorization::Unauthorized);
 }
 
+void ControlConnection::mute_playback_group(u64 tab_id, Audio::PlaybackGroupId group)
+{
+    Tabs::the().set_playback_group_mute_state(tab_id, group, Audio::PlaybackGroupMuteState::Muted);
+}
+
+void ControlConnection::unmute_playback_group(u64 tab_id, Audio::PlaybackGroupId group)
+{
+    Tabs::the().set_playback_group_mute_state(tab_id, group, Audio::PlaybackGroupMuteState::Unmuted);
+}
+
 }

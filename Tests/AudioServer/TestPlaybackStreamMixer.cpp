@@ -147,6 +147,41 @@ TEST_CASE(a_client_moved_to_another_group_is_heard_as_part_of_it)
     fixture.expect_render_of(32, 0.0f);
 }
 
+TEST_CASE(a_muted_group_is_consumed_into_silence_until_it_is_unmuted)
+{
+    MixerFixture fixture;
+    auto client = fixture.add_client(1);
+    EXPECT_EQ(client.try_push(constant_frames(64, 1.0f)), 64u);
+    fixture.mixer->resume_client(1);
+
+    fixture.mixer->set_group_mute_state(AUTHORIZED_GROUP, Audio::PlaybackGroupMuteState::Muted);
+    fixture.expect_render_of(32, 0.0f);
+    EXPECT_EQ(client.frames_free(), 1024u - 32u);
+    fixture.mixer->set_group_mute_state(AUTHORIZED_GROUP, Audio::PlaybackGroupMuteState::Unmuted);
+    fixture.expect_render_of(32, 1.0f);
+}
+
+TEST_CASE(muting_and_authorizing_a_group_are_independent)
+{
+    MixerFixture fixture;
+    auto client = fixture.add_client(1, 1.0f, OTHER_GROUP);
+    EXPECT_EQ(client.try_push(constant_frames(128, 1.0f)), 128u);
+    fixture.mixer->resume_client(1);
+
+    // Authorizing a muted group leaves it muted.
+    fixture.mixer->set_group_mute_state(OTHER_GROUP, Audio::PlaybackGroupMuteState::Muted);
+    fixture.mixer->set_group_authorization(OTHER_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
+    fixture.expect_render_of(32, 0.0f);
+    fixture.mixer->set_group_mute_state(OTHER_GROUP, Audio::PlaybackGroupMuteState::Unmuted);
+    fixture.expect_render_of(32, 1.0f);
+
+    // Unmuting a revoked group leaves it unauthorized.
+    fixture.mixer->set_group_authorization(OTHER_GROUP, Audio::PlaybackGroupAuthorization::Unauthorized);
+    fixture.mixer->set_group_mute_state(OTHER_GROUP, Audio::PlaybackGroupMuteState::Muted);
+    fixture.mixer->set_group_mute_state(OTHER_GROUP, Audio::PlaybackGroupMuteState::Unmuted);
+    fixture.expect_render_of(32, 0.0f);
+}
+
 TEST_CASE(suspended_clients_are_not_consumed)
 {
     MixerFixture fixture;

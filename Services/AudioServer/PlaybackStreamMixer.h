@@ -28,6 +28,11 @@ enum class PlaybackGroupAuthorization : u8 {
     Authorized,
 };
 
+enum class PlaybackGroupMuteState : u8 {
+    Unmuted,
+    Muted,
+};
+
 // Mixes the shared rings of one tab's client streams into one output device stream, which plays only while some
 // client is playing or draining.
 class PlaybackStreamMixer : public AtomicRefCounted<PlaybackStreamMixer> {
@@ -44,11 +49,12 @@ public:
     Optional<SampleSpecification> const& device_sample_specification() const { return m_device_sample_specification; }
     u32 device_target_latency_ms() const { return m_device_target_latency_ms; }
 
-    // Control thread. Rings must be in the device format. A client is mixed only while its group is authorized; until
-    // then, and while it has no group, its frames are consumed into nothing.
+    // Control thread. Rings must be in the device format. A client is mixed only while its group is authorized and
+    // unmuted; otherwise, and while it has no group, its frames are consumed into nothing.
     void add_client(MixerClientId, SharedAudioFrameRing, float gain, Optional<PlaybackGroupId>);
     void set_client_group(MixerClientId, Optional<PlaybackGroupId>);
     void set_group_authorization(PlaybackGroupId, PlaybackGroupAuthorization);
+    void set_group_mute_state(PlaybackGroupId, PlaybackGroupMuteState);
     void remove_client(MixerClientId);
     void resume_client(MixerClientId);
     // on_drained runs on the control thread once the ring has played out, or at once if the drain is made moot.
@@ -95,6 +101,7 @@ private:
         Mutex m_mutex;
         HashMap<MixerClientId, Client> m_clients;
         HashTable<PlaybackGroupId> m_authorized_groups;
+        HashTable<PlaybackGroupId> m_muted_groups;
     };
 
     PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms);
