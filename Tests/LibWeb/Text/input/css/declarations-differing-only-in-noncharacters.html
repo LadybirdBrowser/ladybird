@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="first"></div>
+<div id="second"></div>
+<script>
+    // Declarations whose names and values differ only in where a U+FFFF falls still parse on their own.
+    test(() => {
+        const style = document.createElement("style");
+        style.textContent = "#first { --a\uFFFF: b; } #second { --a: \uFFFFb; }";
+        document.head.appendChild(style);
+        const value = (id, name) =>
+            getComputedStyle(document.getElementById(id)).getPropertyValue(name).replaceAll("\uFFFF", "<U+FFFF>");
+        println(`first: '${value("first", "--a\uFFFF")}'`);
+        println(`second: '${value("second", "--a")}'`);
+    });
+</script>

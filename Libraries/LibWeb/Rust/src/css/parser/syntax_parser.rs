@@ -2144,6 +2144,64 @@ struct SyntaxParseBuilder {
     namespace_rules_valid: bool,
     parse_context: *const ParseContext,
     preserve_property_source_text: bool,
+    dedup: DeclarationDedup,
+}
+
+/// What was parsed for each key, by the key's hash.
+type DedupBuckets<T> = std::collections::HashMap<u64, Vec<(std::ops::Range<usize>, T)>>;
+
+/// Lets the declarations and declaration blocks a sheet repeats share one parse, for the length of the sheet's parse.
+/// Most of a large sheet's declarations repeat earlier ones: of YouTube's 83k declarations, 11k are distinct, and so
+/// are 13k of its 24k blocks. Within one sheet, the same text parses the same way.
+#[derive(Default)]
+struct DeclarationDedup {
+    /// Each declaration's name and value, each after its length, then whether it is important. The lengths keep the
+    /// keys of two different declarations, or runs of declarations, from being equal.
+    keys: Vec<u16>,
+    /// The range of `keys` for each declaration, by index; `None` for one that is never shared.
+    declaration_keys: Vec<Option<std::ops::Range<usize>>>,
+    values: DedupBuckets<ParsedDeclarationValue>,
+    blocks: DedupBuckets<Arc<DeclarationBlockData>>,
+    /// Keyed at random, so that a page cannot make many keys fall into one bucket.
+    hasher: std::collections::hash_map::RandomState,
+}
+
+impl DeclarationDedup {
+    fn hash(&self, key: &std::ops::Range<usize>) -> u64 {
+        use std::hash::BuildHasher;
+        self.hasher.hash_one(&self.keys[key.clone()])
+    }
+
+    fn push_with_length(&mut self, units: &[u16]) {
+        let length = u32::try_from(units.len()).expect("declaration text length exceeds u32");
+        self.keys.push((length >> 16) as u16);
+        self.keys.push(length as u16);
+        self.keys.extend_from_slice(units);
+    }
+
+    fn find<'a, T>(&self, candidates: &'a DedupBuckets<T>, hash: u64, key: &std::ops::Range<usize>) -> Option<&'a T> {
+        candidates
+            .get(&hash)?
+            .iter()
+            .find(|(candidate, _)| self.keys[candidate.clone()] == self.keys[key.clone()])
+            .map(|(_, value)| value)
+    }
+}
+
+type ParsedDeclarationValue = (u16, u8, FfiDeclarationRejection, Option<Arc<StyleValueData>>);
+
+/// Whether parsing `values` may do more than produce a value, which sharing the result would skip: `attr()` records
+/// the attribute names it reads, and `random()` values have an identity of their own.
+fn value_may_not_be_shared(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Function { name, values } => {
+            equals_ascii_case_insensitive(name, b"attr")
+                || equals_ascii_case_insensitive(name, b"random")
+                || value_may_not_be_shared(values)
+        }
+        ComponentKind::SimpleBlock { values, .. } => value_may_not_be_shared(values),
+        ComponentKind::Token(_) => false,
+    })
 }
 
 // The shared graph owns typed Rust payloads, independently of any FFI views.
@@ -2805,6 +2863,7 @@ impl SyntaxParseBuilder {
             namespace_rules_valid: true,
             parse_context,
             preserve_property_source_text,
+            dedup: DeclarationDedup::default(),
         }
     }
 
@@ -2873,8 +2932,40 @@ impl SyntaxParseBuilder {
     ) -> usize {
         let (name_offset, name_length) = self.append_value(declaration.name.as_ref());
         let value_source = component_list_source(&declaration.value);
-        let (property_id, descriptor_id, rejection, parsed_value) =
-            self.parse_declaration_value(declaration, value_source.as_ref());
+        let shareable = declaration.is_property && !value_may_not_be_shared(&declaration.value);
+        let value_key = shareable.then(|| {
+            let start = self.dedup.keys.len();
+            self.dedup.push_with_length(declaration.name.as_ref());
+            self.dedup.push_with_length(value_source.as_ref());
+            let key = start..self.dedup.keys.len();
+            (self.dedup.hash(&key), key)
+        });
+        let shared_value = value_key
+            .as_ref()
+            .and_then(|(hash, key)| self.dedup.find(&self.dedup.values, *hash, key).cloned());
+        let (property_id, descriptor_id, rejection, parsed_value) = match shared_value {
+            Some(value) => value,
+            None => {
+                let value = self.parse_declaration_value(declaration, value_source.as_ref());
+                if let Some((hash, key)) = &value_key {
+                    self.dedup
+                        .values
+                        .entry(*hash)
+                        .or_default()
+                        .push((key.clone(), value.clone()));
+                }
+                value
+            }
+        };
+        let declaration_key = value_key.map(|(_, key)| {
+            self.dedup.keys.push(u16::from(declaration.important));
+            key.start..self.dedup.keys.len()
+        });
+        let declaration_index = self.declarations.len();
+        if self.dedup.declaration_keys.len() < declaration_index {
+            self.dedup.declaration_keys.resize(declaration_index, None);
+        }
+        self.dedup.declaration_keys.push(declaration_key);
         let font_feature_values = font_feature_maximum_value_count
             .and_then(|maximum_value_count| parse_font_feature_values(declaration, maximum_value_count));
         let (font_feature_values_start, font_feature_value_count) = if let Some(values) = font_feature_values {
@@ -3074,6 +3165,25 @@ impl SyntaxParseBuilder {
                 block.append_in_specified_order(property);
             }
         }
+    }
+
+    /// The range of dedup keys spanning `count` declarations from `start`, when all of them may be shared.
+    fn declaration_block_key(&self, start: usize, count: usize) -> Option<std::ops::Range<usize>> {
+        if count == 0 {
+            return None;
+        }
+        let keys = self.dedup.declaration_keys.get(start..start + count)?;
+        let first = keys.first()?.as_ref()?.start;
+        let mut end = first;
+        for key in keys {
+            let key = key.as_ref()?;
+            // The keys of one block are appended one after the other.
+            if key.start != end {
+                return None;
+            }
+            end = key.end;
+        }
+        Some(first..end)
     }
 
     fn next_identity(&mut self) -> u64 {
@@ -3395,22 +3505,44 @@ impl SyntaxParseBuilder {
             ParsedRulePrelude::FontFeatureValuesRule(_) => {}
         }
         let declaration_block = if let Rule::Qualified(qualified_rule) = rule {
-            let mut block = DeclarationBlockData::default();
-            self.append_declaration_block(
-                &mut block,
-                declarations_start,
-                declaration_count,
-                !qualified_rule.prelude_is_selector,
-            );
-            if !qualified_rule.prelude_is_selector {
-                for item in &children {
-                    if let ParsedRuleChild::Declarations(item) = item {
-                        let range = &self.declaration_ranges[item.local_identity as usize];
-                        self.append_declaration_block(&mut block, range.start, range.len(), true);
+            // NB: A style rule's block is its own declarations, so the same text gives the same block.
+            let block_key = qualified_rule
+                .prelude_is_selector
+                .then(|| self.declaration_block_key(declarations_start, declaration_count))
+                .flatten()
+                .map(|key| (self.dedup.hash(&key), key));
+            if let Some(shared) = block_key
+                .as_ref()
+                .and_then(|(hash, key)| self.dedup.find(&self.dedup.blocks, *hash, key))
+            {
+                Some(Arc::clone(shared))
+            } else {
+                let mut block = DeclarationBlockData::default();
+                self.append_declaration_block(
+                    &mut block,
+                    declarations_start,
+                    declaration_count,
+                    !qualified_rule.prelude_is_selector,
+                );
+                if !qualified_rule.prelude_is_selector {
+                    for item in &children {
+                        if let ParsedRuleChild::Declarations(item) = item {
+                            let range = &self.declaration_ranges[item.local_identity as usize];
+                            self.append_declaration_block(&mut block, range.start, range.len(), true);
+                        }
                     }
                 }
+                block.compact();
+                let block = Arc::new(block);
+                if let Some((hash, key)) = block_key {
+                    self.dedup
+                        .blocks
+                        .entry(hash)
+                        .or_default()
+                        .push((key, Arc::clone(&block)));
+                }
+                Some(block)
             }
-            Some(Arc::new(block))
         } else if rule_kind == ParsedRuleKind::Margin {
             Some(declaration_block_from_blocks(children.iter().filter_map(
                 |item| match item {
