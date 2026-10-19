@@ -9,3 +9,7 @@ if (APPLE)
 endif()
 ladybird_test("TestConnection.cpp" LibIPC LIBS LibIPC LibThreading)
 ladybird_test("TestDecoder.cpp" LibIPC LIBS LibIPC)
+
+if (NOT WIN32)
+    test_rust_crate(MANIFEST_PATH ../../Libraries/LibIPC/Rust/Cargo.toml CRATE_NAME libipc_rust)
+endif()
