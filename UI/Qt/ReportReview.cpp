@@ -14,6 +14,7 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -117,6 +118,31 @@ void set_details(QFormLayout& form, ReadonlySpan<WebView::ReportDetail> details,
             value->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
         form.addRow(label, value);
     }
+}
+
+// The full report is read in place of the review that offers to send it, exactly as it would be sent.
+ReportTextPage create_report_text_page(QWidget* parent)
+{
+    auto* page = new QWidget(parent);
+    auto* layout = create_group_layout(page);
+    layout->addWidget(create_heading(QObject::tr("Full report"), 1, page));
+
+    auto* text = new QPlainTextEdit(page);
+    text->setObjectName("ReportText");
+    text->setReadOnly(true);
+    text->setLineWrapMode(QPlainTextEdit::NoWrap);
+    text->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    text->setMinimumHeight(text->fontMetrics().lineSpacing() * 24);
+    layout->addWidget(text);
+
+    auto* back_button = new QPushButton(QObject::tr("Back"), page);
+    back_button->setObjectName("ReportTextBackButton");
+    back_button->setAutoDefault(false);
+    layout->addSpacing(item_spacing);
+    layout->addWidget(back_button, 0, Qt::AlignLeft);
+
+    page->hide();
+    return { page, text, back_button };
 }
 
 // Only the fields get a stronger placeholder color. The muted lines keep the color the screen around the review uses

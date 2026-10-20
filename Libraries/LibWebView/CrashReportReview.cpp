@@ -108,10 +108,10 @@ bool CrashReportReview::has_next_report() const
     return any_of(pending.value(), [&](auto const& name) { return name != m_report_name; });
 }
 
-ErrorOr<void> CrashReportReview::show_report() const
+ErrorOr<ByteString> CrashReportReview::report_text() const
 {
     VERIFY(!m_report_name.is_empty());
-    return m_store.show_report(m_report_name);
+    return TRY(m_store.saved_report(m_report_name)).text;
 }
 
 Optional<String> CrashReportReview::validate(StringView description, Optional<StringView> url)

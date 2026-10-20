@@ -16,6 +16,7 @@
 class QFormLayout;
 class QFrame;
 class QLabel;
+class QPlainTextEdit;
 class QPushButton;
 class QVBoxLayout;
 class QWidget;
@@ -37,6 +38,13 @@ QVBoxLayout* create_group_layout(QWidget* group);
 QFrame* create_details_panel(QWidget* parent);
 QFormLayout* create_details_form();
 void set_details(QFormLayout&, ReadonlySpan<WebView::ReportDetail>, QWidget* parent);
+
+struct ReportTextPage {
+    QWidget* page { nullptr };
+    QPlainTextEdit* text { nullptr };
+    QPushButton* back_button { nullptr };
+};
+ReportTextPage create_report_text_page(QWidget* parent);
 
 void apply_style(QWidget& review, ReadonlySpan<QWidget*> fields);
 bool focus_next_control(QWidget& review, bool next);
