@@ -1,0 +1,10 @@
+seek: readyState is at least HAVE_CURRENT_DATA: true
+seek: networkState is NETWORK_IDLE: true
+seek: entire resource is buffered: false
+seek: fetch stopped
+seek: download resumed
+play: readyState is at least HAVE_CURRENT_DATA: true
+play: networkState is NETWORK_IDLE: true
+play: entire resource is buffered: false
+play: fetch stopped
+play: download resumed

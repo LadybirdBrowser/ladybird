@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script>
+    // A paused media element in the Metadata preload state (the missing value default) suspends its download once it
+    // has the current frame, instead of fetching the entire resource. Seeking or playing resumes the download.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // Build a constant-bitrate MP3 of about 2 MiB by repeating the audio frames of tone.mp3 (all but its leading ID3
+        // tag and Info frame).
+        const tone = new Uint8Array(await (await fetch(server.getStaticURL("Assets/tone.mp3"))).arrayBuffer());
+        const audioFrames = tone.subarray(226);
+        const repetitions = Math.ceil((2 * 1024 * 1024) / audioFrames.length);
+        const mediaBytes = new Uint8Array(audioFrames.length * repetitions);
+        for (let i = 0; i < repetitions; ++i)
+            mediaBytes.set(audioFrames, i * audioFrames.length);
+        let binary = "";
+        for (let i = 0; i < mediaBytes.length; i += 0x8000)
+            binary += String.fromCharCode(...mediaBytes.subarray(i, i + 0x8000));
+        const body = btoa(binary);
+
+        async function loadUntilSuspended(name) {
+            const testID = crypto.randomUUID();
+            const mediaURL = new URL(await server.createEcho("GET", `/echo/preload-metadata-${testID}.mp3`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "audio/mpeg",
+                    "Content-Length": String(mediaBytes.length),
+                    "Cache-Control": "no-store",
+                },
+                body,
+                body_encoding: "base64",
+            }));
+
+            // Deliver the head of the resource, then hold the rest back until the download resumes, so that the download
+            // is still going on once the current frame is available.
+            const token = `preload-metadata-${testID}`;
+            const unblockURL = new URL(`/unblock/${token}`, mediaURL);
+            unblockURL.hostname = uniqueLocalhostHostname("preload-metadata-unblock");
+            mediaURL.search = `?chunks=262144&chunk_unblock_tokens=${token}`;
+
+            const audio = document.createElement("audio");
+            audio.src = mediaURL;
+            document.body.append(audio);
+
+            await new Promise(resolve => audio.addEventListener("suspend", resolve, { once: true }));
+            println(`${name}: readyState is at least HAVE_CURRENT_DATA: ${audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA}`);
+            println(`${name}: networkState is NETWORK_IDLE: ${audio.networkState === HTMLMediaElement.NETWORK_IDLE}`);
+            const bufferedEnd = audio.buffered.length ? audio.buffered.end(audio.buffered.length - 1) : 0;
+            println(`${name}: entire resource is buffered: ${bufferedEnd >= audio.duration}`);
+
+            while (internals.mediaElementIsFetching(audio))
+                await new Promise(resolve => setTimeout(resolve, 10));
+            println(`${name}: fetch stopped`);
+            return { audio, unblockURL };
+        }
+
+        // Once the held back data is released, a resumed download completes, which fires a progress event.
+        async function releaseDataAndWaitForProgress({ audio, unblockURL }, name) {
+            const progress = new Promise(resolve => audio.addEventListener("progress", resolve, { once: true }));
+            await fetch(unblockURL);
+            await progress;
+            println(`${name}: download resumed`);
+        }
+
+        // Seeking past the buffered data has to fetch it.
+        const seeking = await loadUntilSuspended("seek");
+        seeking.audio.currentTime = seeking.audio.duration / 2;
+        await releaseDataAndWaitForProgress(seeking, "seek");
+
+        // Playing resumes the download.
+        const playing = await loadUntilSuspended("play");
+        playing.audio.play().catch(() => {});
+        await releaseDataAndWaitForProgress(playing, "play");
+        playing.audio.pause();
+
+        done();
+    });
+</script>

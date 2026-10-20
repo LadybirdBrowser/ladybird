@@ -122,6 +122,8 @@ struct HTMLMediaElement::RemoteFetchData {
     bool accepts_byte_ranges { false };
     u64 offset { 0 };
     bool resource_was_complete { false };
+    bool download_is_suspended { false };
+    bool may_suspend_after_first_frame { true };
 
     ~RemoteFetchData()
     {
@@ -183,9 +185,10 @@ void HTMLMediaElement::initialize_element()
     });
 
     m_document_observer->set_document_became_active([this]() {
-        // AD-HOC: Now that the document is active again, let the stream notify us when to start fetching again.
+        // AD-HOC: Now that the document is active again, let the stream notify us when to start fetching again, unless
+        //         the download is suspended.
         if (m_remote_fetch_data)
-            m_remote_fetch_data->stream->set_may_idle(false);
+            m_remote_fetch_data->stream->set_may_idle(m_remote_fetch_data->download_is_suspended);
 
         add_current_video_sink();
     });
@@ -288,6 +291,7 @@ void HTMLMediaElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
             //     wait_for_an_implementation_defined_event_before_fetching_the_resource().
             continue_fetching_the_resource_after_an_implementation_defined_event();
         }
+        update_download_suspension();
     }
 }
 
@@ -491,6 +495,7 @@ void HTMLMediaElement::set_seeking(bool seeking)
         return;
     m_seeking = seeking;
     CSS::Invalidation::invalidate_style_after_media_seeking_state_change(*this, seeking);
+    update_download_suspension();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-load
@@ -1328,6 +1333,9 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
     }));
     m_remote_fetch_data->failure_callback = move(failure_callback);
 
+    // AD-HOC: If the poster is cleared, that means we've started playing or seeked, so continue the download.
+    m_remote_fetch_data->may_suspend_after_first_frame = m_show_poster;
+
     load_remote_resource(EntireResource {});
 }
 
@@ -1336,6 +1344,89 @@ bool HTMLMediaElement::preload_attribute_is_in_none_state() const
 {
     auto preload = attribute(HTML::AttributeNames::preload);
     return preload.has_value() && preload->equals_ignoring_ascii_case(u"none"sv);
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#attr-media-preload
+bool HTMLMediaElement::preload_attribute_is_in_automatic_state() const
+{
+    // The attribute's empty value default is the Automatic state.
+    // NB: The missing value default and invalid value default are the Metadata state, as the spec suggests.
+    auto preload = attribute(HTML::AttributeNames::preload);
+    return preload.has_value() && (preload->is_empty() || preload->equals_ignoring_ascii_case(u"auto"sv));
+}
+
+bool HTMLMediaElement::should_suspend_the_download() const
+{
+    if (!m_remote_fetch_data || m_remote_fetch_data->resource_was_complete || m_error)
+        return false;
+
+    // NB: Once the media has been played, seeked or had its tracks changed, it is likely to be played again, so we
+    //     keep fetching for the rest of the load. Gecko and Blink do the same.
+    if (!m_remote_fetch_data->may_suspend_after_first_frame)
+        return false;
+
+    // NB: The Metadata state hints that fetching the resource metadata, and maybe even the first few frames, is
+    //     reasonable. Once something made us fetch in the None state anyway, the same amount is enough there too.
+    if (preload_attribute_is_in_automatic_state())
+        return false;
+
+    // NB: A media element that is playing, seeking or about to autoplay needs data regardless of the hint. As with the
+    //     None state, autoplay that isn't allowed to play doesn't keep the download going.
+    if (!paused() || seeking())
+        return false;
+    if (is_eligible_for_autoplay() && is_allowed_to_play())
+        return false;
+
+    return m_ready_state >= ReadyState::HaveCurrentData;
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#concept-media-load-resource
+void HTMLMediaElement::update_download_suspension()
+{
+    if (!m_remote_fetch_data)
+        return;
+
+    auto should_suspend = should_suspend_the_download();
+    if (m_remote_fetch_data->download_is_suspended == should_suspend)
+        return;
+    m_remote_fetch_data->download_is_suspended = should_suspend;
+
+    // NB: The stream lets any reads that are waiting finish before it stops the fetch, and when the download resumes,
+    //     it fetches what reads are waiting on. An inactive document's stream stays idle until it becomes active.
+    if (document().is_fully_active())
+        m_remote_fetch_data->stream->set_may_idle(should_suspend);
+
+    // NB: When the download resumes, processing the next media data sets the networkState back to NETWORK_LOADING.
+    if (!should_suspend)
+        return;
+
+    // When a media element's download has been suspended, the user agent must queue a media element task given the
+    // media element to set the networkState to NETWORK_IDLE and fire an event named suspend at the element.
+    queue_a_media_element_task([fetch_data_id = m_remote_fetch_data->id](HTMLMediaElement& self) {
+        if (!self.m_remote_fetch_data || self.m_remote_fetch_data->id != fetch_data_id || !self.m_remote_fetch_data->download_is_suspended)
+            return;
+        self.m_network_state = NetworkState::Idle;
+        self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::suspend));
+    });
+
+    // NB: The spec also stops delaying the load event when a download is suspended, but we only suspend at
+    //     HAVE_CURRENT_DATA, and reaching that state already stopped delaying it.
+}
+
+void HTMLMediaElement::stop_suspending_the_download_after_first_frame()
+{
+    if (!m_remote_fetch_data)
+        return;
+    m_remote_fetch_data->may_suspend_after_first_frame = false;
+    update_download_suspension();
+}
+
+void HTMLMediaElement::stop_suspending_the_download_after_a_track_change()
+{
+    // NB: The initial track selection happens before the first frame is available, and doesn't count as a change.
+    if (m_ready_state < ReadyState::HaveCurrentData)
+        return;
+    stop_suspending_the_download_after_first_frame();
 }
 
 bool HTMLMediaElement::should_wait_for_an_implementation_defined_event_before_fetching_the_resource() const
@@ -1818,6 +1909,7 @@ void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::
             m_playback_manager->enable_an_audio_track(audio_track->track_in_playback_manager());
         else
             m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
+        stop_suspending_the_download_after_a_track_change();
     }
 
     update_audio_play_state();
@@ -1906,6 +1998,7 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         return;
 
     m_selected_video_track = video_track;
+    stop_suspending_the_download_after_a_track_change();
     if (video_track) {
         attach_selected_video_track_sink(video_track->track_in_playback_manager());
         if (auto* video_element = as_if<HTMLVideoElement>(this)) {
@@ -2304,6 +2397,7 @@ void HTMLMediaElement::maybe_complete_remote_fetch()
         return;
     // NB: Record the transition before dispatching events, which can synchronously start another load.
     fetch_data.resource_was_complete = resource_is_complete;
+    update_download_suspension();
     if (resource_is_complete)
         process_media_data(FetchingStatus::Complete);
 }
@@ -2333,6 +2427,10 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
             // NB: Once an error has been set in the meantime, the network state stays where that error left it.
             if (self.m_error)
                 return;
+            // NB: Data that arrives after we suspended the download only satisfies reads that were already waiting for
+            //     it, so the download stays suspended.
+            if (self.m_remote_fetch_data && self.m_remote_fetch_data->download_is_suspended)
+                return;
             self.m_network_state = NetworkState::Loading;
         });
 
@@ -2340,12 +2438,14 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
         // least frequent, queue a media element task given the media element to:
         auto now = MonotonicTime::now();
         if (!m_last_progress_event_time.has_value() || now - m_last_progress_event_time.value() > AK::Duration::from_milliseconds(350)) {
-            m_last_progress_event_time = now;
-            queue_a_media_element_task([](HTMLMediaElement& self) {
-                // FIXME: 1. Set the element's is currently stalled to false.
-                // 2. Fire an event named progress at the element.
-                self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::progress));
-            });
+            if (!m_remote_fetch_data || !m_remote_fetch_data->download_is_suspended) {
+                m_last_progress_event_time = now;
+                queue_a_media_element_task([](HTMLMediaElement& self) {
+                    // FIXME: 1. Set the element's is currently stalled to false.
+                    // 2. Fire an event named progress at the element.
+                    self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::progress));
+                });
+            }
 
             update_ready_state();
         }
@@ -2478,6 +2578,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
         upon_has_ended_playback_possibly_changed();
         update_screen_wake_lock();
         update_representation();
+        update_download_suspension();
     } };
 
     // When the ready state of a media element whose networkState is not NETWORK_EMPTY changes, the user agent must
@@ -2589,6 +2690,9 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
             if (m_show_poster) {
                 set_show_poster(false);
                 time_marches_on();
+
+                // AD-HOC: Playing indicates user interaction that should allow loading data ahead.
+                stop_suspending_the_download_after_first_frame();
             }
 
             // Queue a media element task given the element to fire an event named play at the element.
@@ -2799,6 +2903,9 @@ void HTMLMediaElement::play_element()
         if (m_show_poster) {
             set_show_poster(false);
             time_marches_on();
+
+            // AD-HOC: Playing indicates user interaction that should allow loading data ahead.
+            stop_suspending_the_download_after_first_frame();
         }
 
         // 3. Queue a media element task given the media element to fire an event named play at the element.
@@ -2873,6 +2980,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
 
     // 1. Set the media element's show poster flag to false.
     set_show_poster(false);
+
+    // AD-HOC: A seek that clears the poster indicates user interaction that should allow loading data ahead.
+    stop_suspending_the_download_after_first_frame();
 
     // 2. If the media element's readyState is HAVE_NOTHING, return.
     if (m_ready_state == ReadyState::HaveNothing)
