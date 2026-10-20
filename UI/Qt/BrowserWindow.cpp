@@ -742,8 +742,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
             m_session->session_store->active_tab_changed(*session_tab_id);
     }
 
-    WebView::Application::the().update_bookmark_action_for_current_web_view();
-    WebView::Application::the().update_editing_history_actions();
+    WebView::Application::the().update_actions_for_active_web_view();
 }
 
 void BrowserWindow::activate_tab(int index)
@@ -1167,6 +1166,7 @@ bool BrowserWindow::event(QEvent* event)
 
     if (event->type() == QEvent::WindowActivate) {
         Application::the().set_active_window(*this);
+        WebView::Application::the().update_actions_for_active_web_view();
         QTimer::singleShot(0, this, [this] {
             refresh_resize_cursor_at_current_position(true);
             Application::the().crash_report_notifier().show_pending();
