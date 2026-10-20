@@ -21,7 +21,9 @@ use crate::css::calc::CanonicalNumericType;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::function_signature::FunctionSignature;
-use crate::css::parser::arbitrary_substitution::{arbitrary_substitution_function, arguments_are_valid};
+use crate::css::parser::arbitrary_substitution::{
+    arbitrary_substitution_function, arguments_are_valid, collect_arbitrary_substitution_function_presence,
+};
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
     consume_a_counted_list_of_component_values, trim_whitespace,
@@ -3082,6 +3084,11 @@ fn replace_attr_function(
             let Some(values) = parse_substitution_values(attribute_value) else {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             };
+
+            if collect_arbitrary_substitution_function_presence(&values, &mut Default::default()).is_err() {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            }
+
             let substituted = match substitute_arbitrary_substitution_functions(
                 store,
                 registry,
@@ -3162,12 +3169,12 @@ fn substitute_tokens<'a>(
         };
         token_count -= 2 + contents.token_count;
         let substitutes = name.is_some_and(is_substitution_function);
-        // Step 2.3: Parse the function's argument grammar before running its replacement algorithm.
-        if let Some(function) = name.and_then(arbitrary_substitution_function)
-            && !arguments_are_valid(function, contents)
-        {
-            return TokenResolution::Invalid;
-        }
+
+        // All ASFs should have been validated against their argument grammars at parse time.
+        debug_assert!(name.is_none_or(|name| {
+            arbitrary_substitution_function(name).is_none_or(|function| arguments_are_valid(function, contents))
+        }));
+
         let tainted_before = std::mem::take(&mut context.contains_attr_tainted_values);
         let in_url_function = context.in_url_function;
         context.in_url_function |= name.is_some_and(function_takes_a_url);
@@ -3469,23 +3476,6 @@ mod tests {
             0,
         );
         (result, context.contains_attr_tainted_values)
-    }
-
-    #[test]
-    fn validates_argument_grammar_before_replacement() {
-        for source in ["attr()", "attr(, fallback)"] {
-            assert!(matches!(
-                substitute_without_custom_properties(source),
-                TokenResolution::Invalid
-            ));
-        }
-
-        let (TokenResolution::Resolved(tokens), _) =
-            substitute_with_attributes("attr(data-value, attr())", &[("data-value", "hello")])
-        else {
-            panic!("expected an unused fallback to remain unsubstituted");
-        };
-        assert_eq!(serialize_tokens(&tokens), utf16("\"hello\""));
     }
 
     #[test]
