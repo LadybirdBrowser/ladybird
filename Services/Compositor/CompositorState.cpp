@@ -349,7 +349,7 @@ void CompositorState::present_contexts_drawing_video_sink(CompositorStateWebCont
         for (auto const& resource_entry : context.video_sink_handles()) {
             if (resource_entry.value == handle) {
                 if (auto rect = context.presenter().self_present_rect(); rect.has_value())
-                    schedule_present_frame(context_entry.key, context, *rect);
+                    schedule_present_frame(context_entry.key, context, PendingFrame::repainting_changes(*rect));
                 break;
             }
         }
