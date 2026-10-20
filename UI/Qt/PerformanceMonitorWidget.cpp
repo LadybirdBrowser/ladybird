@@ -15,8 +15,8 @@
 
 namespace Ladybird {
 
-static constexpr Array<char const*, 5> s_labels { "CPU ", "MEM ", "↓ ", "↑ ", "FPS " };
-static constexpr Array<char const*, 5> s_value_templates { "9999%", "999.9 MB", "999.9 MB/s", "999.9 MB/s", "999" };
+static constexpr Array<char const*, 6> s_labels { "CPU ", "MEM ", "PEAK ", "↓ ", "↑ ", "FPS " };
+static constexpr Array<char const*, 6> s_value_templates { "9999%", "999.9 MB", "999.9 MB", "999.9 MB/s", "999.9 MB/s", "999" };
 static constexpr int metric_spacing = 8;
 static constexpr int text_start = 48;
 static constexpr int trailing_padding = 4;
@@ -50,6 +50,7 @@ QStringList PerformanceMonitorWidget::text_segments() const
     return {
         m_stats.cpu_percent.has_value() ? QString("%1%").arg(*m_stats.cpu_percent, 0, 'f', 0) : QString("—"),
         m_stats.memory_bytes.has_value() ? qstring_from_ak_string(WebView::format_performance_bytes(*m_stats.memory_bytes)) : QString("—"),
+        m_stats.peak_memory_bytes.has_value() ? qstring_from_ak_string(WebView::format_performance_bytes(*m_stats.peak_memory_bytes)) : QString("—"),
         QString("%1/s").arg(qstring_from_ak_string(WebView::format_performance_bytes(m_stats.download_bytes_per_second))),
         QString("%1/s").arg(qstring_from_ak_string(WebView::format_performance_bytes(m_stats.upload_bytes_per_second))),
         m_stats.frames_per_second.has_value() ? QString("%1").arg(*m_stats.frames_per_second, 0, 'f', 0) : QString("—"),
@@ -68,12 +69,12 @@ void PerformanceMonitorWidget::paintEvent(QPaintEvent*)
     QString accessible_text;
     auto segments = text_segments();
     auto dark = ChromeStyle::is_dark(palette());
-    Array<QColor, 5> colors { neutral, neutral, QColor(dark ? BrandColors::SlateBlue100 : BrandColors::SlateBlue900), QColor(dark ? BrandColors::Violet50 : BrandColors::Violet900), neutral };
+    Array<QColor, 6> colors { neutral, neutral, neutral, QColor(dark ? BrandColors::SlateBlue100 : BrandColors::SlateBlue900), QColor(dark ? BrandColors::Violet50 : BrandColors::Violet900), neutral };
     for (size_t i = 0; i < s_labels.size(); ++i) {
         QString label = s_labels[i];
         auto label_width = fontMetrics().horizontalAdvance(label);
         auto value_width = fontMetrics().horizontalAdvance(s_value_templates[i]);
-        painter.setPen(i == 2 || i == 3 ? colors[i] : label_color);
+        painter.setPen(i == 3 || i == 4 ? colors[i] : label_color);
         painter.drawText(QRect(x, 0, label_width, height()), Qt::AlignVCenter | Qt::AlignLeft, label);
         painter.setPen(colors[i]);
         painter.save();

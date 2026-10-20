@@ -21,6 +21,7 @@ int main(int argc, char** argv)
         stats.cpu_percent = value;
         stats.frames_per_second = value;
         stats.memory_bytes = value;
+        stats.peak_memory_bytes = value;
         stats.download_bytes_per_second = value;
         stats.upload_bytes_per_second = value;
         widget.set_stats(stats);
@@ -33,6 +34,7 @@ int main(int argc, char** argv)
     WebView::TabPerformanceStats stats;
     stats.cpu_percent = 37;
     stats.memory_bytes = 412'000'000;
+    stats.peak_memory_bytes = 655'000'000;
     stats.download_bytes_per_second = 1'800'000;
     stats.upload_bytes_per_second = 12'000;
     stats.frames_per_second = 120;
