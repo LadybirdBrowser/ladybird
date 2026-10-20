@@ -372,9 +372,7 @@ pub(crate) fn parse_substituted_value(
 pub(crate) struct CascadeResolutionContext<'a> {
     pub(crate) inputs: crate::css::custom_properties::VarResolutionInputs<'a>,
     pub(crate) attributes: &'a [crate::css::custom_properties::SubstitutionAttribute<'a>],
-    pub(crate) custom_functions: &'a [crate::css::custom_properties::SubstitutionFunctionDefinition],
-    pub(crate) custom_function_scope_identity: usize,
-    pub(crate) custom_function_visibilities: &'a [crate::css::custom_properties::CustomFunctionVisibility],
+    pub(crate) custom_functions: &'a crate::css::custom_properties::CustomFunctionRegistry<'a>,
     /// Where the custom properties and sibling position style queries read are kept, if anywhere.
     pub(crate) style_query_dependencies:
         Option<&'a mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
@@ -422,8 +420,6 @@ pub(crate) fn resolve_declared_custom_properties(
     let mut environment = crate::css::custom_properties::prepare_var_resolution_environment(
         resolution_context.attributes,
         resolution_context.custom_functions,
-        resolution_context.custom_function_scope_identity,
-        resolution_context.custom_function_visibilities,
     );
     let (outputs, reads) = crate::css::custom_properties::resolve_element_custom_properties(
         &resolution_context.inputs,

@@ -149,21 +149,30 @@ struct RegisteredCustomProperty {
 
 type CustomFunctionIdentity = u64;
 
-#[derive(Clone)]
-struct CustomFunctionDefinition {
-    identity: CustomFunctionIdentity,
-    scope_identity: usize,
-    signature: Arc<FunctionSignature>,
-    parameter_defaults: Vec<Option<Vec<ComponentValue>>>,
-    declarations: Vec<(Vec<u16>, Vec<ComponentValue>, bool)>,
+pub(crate) struct PreparedCustomFunction<'a> {
+    pub(crate) identity: CustomFunctionIdentity,
+    pub(crate) scope_identity: usize,
+    pub(crate) signature: &'a FunctionSignature,
+    pub(crate) parameter_defaults: &'a [Option<Vec<ComponentValue>>],
+    pub(crate) declarations: Vec<&'a SubstitutionFunctionDeclaration>,
 }
 
-struct CustomFunctionRegistry {
-    caller_scope_identity: usize,
-    definitions: Vec<CustomFunctionDefinition>,
+pub(crate) struct CustomFunctionRegistry<'a> {
+    pub(crate) caller_scope_identity: usize,
+    pub(crate) definitions: Vec<PreparedCustomFunction<'a>>,
     /// Which definition a call names from each scope that sees one: the caller scope and the
     /// index of the definition its name resolves to there.
-    visible: Vec<CustomFunctionVisibility>,
+    pub(crate) visible: &'a [CustomFunctionVisibility],
+}
+
+impl CustomFunctionRegistry<'_> {
+    pub(crate) const fn empty() -> Self {
+        Self {
+            caller_scope_identity: 0,
+            definitions: Vec::new(),
+            visible: &[],
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -213,16 +222,9 @@ pub(crate) struct SubstitutionAttribute<'a> {
 
 /// One declaration in the body of a custom function, as its conditions select it.
 pub(crate) struct SubstitutionFunctionDeclaration {
-    pub(crate) name: crate::css::style_value::CssString,
-    pub(crate) value: Arc<StyleValueData>,
-}
-
-/// A custom function a call may reach, with the declarations its conditions select.
-pub(crate) struct SubstitutionFunctionDefinition {
-    pub(crate) identity: u64,
-    pub(crate) scope_identity: usize,
-    pub(crate) signature: Arc<FunctionSignature>,
-    pub(crate) declarations: Vec<SubstitutionFunctionDeclaration>,
+    name: Vec<u16>,
+    tokens: Vec<ComponentValue>,
+    includes_substitution: bool,
 }
 
 /// A definition visible to a caller scope, indexed in the prepared definition list.
@@ -938,7 +940,7 @@ struct ASFResolutionContext<'a> {
     in_url_function: bool,
     /// Whether an attr-tainted value was substituted into a URL, or substituted one.
     uses_attr_tainted_url: bool,
-    custom_functions: Option<&'a CustomFunctionRegistry>,
+    custom_functions: Option<&'a CustomFunctionRegistry<'a>>,
     parse_context: Option<&'a ParseContext<'a>>,
     media_environment: Option<&'a FfiMediaEnvironment<'a>>,
     /// What lengths in a style query resolve against: the element's last computed style.
@@ -1025,9 +1027,9 @@ pub unsafe extern "C" fn rust_style_query_dependencies_take(
 
 type CustomPropertyTokenCache = HashMap<*const StyleValueData, Arc<[ComponentValue]>>;
 
-pub(crate) struct VarResolutionEnvironment {
+pub(crate) struct VarResolutionEnvironment<'a> {
     attributes: HashMap<Vec<u16>, Vec<u16>>,
-    custom_functions: CustomFunctionRegistry,
+    custom_functions: &'a CustomFunctionRegistry<'a>,
     token_cache: CustomPropertyTokenCache,
 }
 
@@ -1113,7 +1115,8 @@ fn resolve_typed_custom_property_value(
     TokenResolution::Resolved(tokens.to_vec())
 }
 
-fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, bool) {
+/// Tokens, substitution-function presence, and attribute reads for a function value.
+fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, bool, bool) {
     if let StyleValueData::Unresolved {
         components,
         presence_attr,
@@ -1133,68 +1136,64 @@ fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, boo
                 || *presence_env
                 || *presence_if
                 || *presence_inherit,
+            *presence_attr,
         );
     }
     let source = crate::css::serialize::serialize_style_value_to_utf16(data);
     (
         parse_substitution_values(&source).expect("serialized style values form valid component values"),
         false,
+        false,
     )
 }
 
-fn custom_function_registry(
-    definitions: &[SubstitutionFunctionDefinition],
-    caller_scope_identity: usize,
-    visibilities: &[CustomFunctionVisibility],
-) -> CustomFunctionRegistry {
-    let mut parsed_definitions = Vec::with_capacity(definitions.len());
-    for definition in definitions {
-        let signature = definition.signature.clone();
-        let mut parameter_defaults = Vec::with_capacity(signature.parameters.len());
-        for parameter in &signature.parameters {
-            parameter_defaults.push(
-                parameter
-                    .default_value
-                    .as_ref()
-                    .map(|data| tokens_for_function_value(data).0),
-            );
-        }
-        let mut parsed_declarations = Vec::with_capacity(definition.declarations.len());
-        for declaration in &definition.declarations {
-            let (tokens, includes_substitution) = tokens_for_function_value(&declaration.value);
-            parsed_declarations.push((declaration.name.units().to_vec(), tokens, includes_substitution));
-        }
-        parsed_definitions.push(CustomFunctionDefinition {
-            identity: definition.identity,
-            scope_identity: definition.scope_identity,
-            signature,
-            parameter_defaults,
-            declarations: parsed_declarations,
+pub(crate) fn prepare_function_parameter_defaults(
+    signature: &FunctionSignature,
+) -> (Vec<Option<Vec<ComponentValue>>>, bool) {
+    let mut parameter_defaults = Vec::with_capacity(signature.parameters.len());
+    let mut reads_attributes = false;
+
+    for parameter in &signature.parameters {
+        parameter_defaults.push(parameter.default_value.as_ref().map(|data| {
+            let (tokens, _, value_reads_attributes) = tokens_for_function_value(data);
+            reads_attributes |= value_reads_attributes;
+            tokens
+        }));
+    }
+
+    (parameter_defaults, reads_attributes)
+}
+
+pub(crate) fn prepare_function_declarations(
+    descriptor_block: &crate::css::descriptor_block::DescriptorBlockData,
+) -> (Vec<SubstitutionFunctionDeclaration>, bool) {
+    let mut declarations = Vec::with_capacity(descriptor_block.descriptors.len());
+    let mut reads_attributes = false;
+
+    for declaration in &descriptor_block.descriptors {
+        let (tokens, includes_substitution, value_reads_attributes) = tokens_for_function_value(&declaration.value);
+
+        reads_attributes |= value_reads_attributes;
+
+        declarations.push(SubstitutionFunctionDeclaration {
+            name: declaration.name.units().to_vec(),
+            tokens,
+            includes_substitution,
         });
     }
-    CustomFunctionRegistry {
-        caller_scope_identity,
-        definitions: parsed_definitions,
-        visible: visibilities.to_vec(),
-    }
+
+    (declarations, reads_attributes)
 }
 
 /// Builds the element-wide immutable substitution inputs once for all declarations in a cascade.
-pub(crate) fn prepare_var_resolution_environment(
+pub(crate) fn prepare_var_resolution_environment<'a>(
     attributes: &[SubstitutionAttribute],
-    custom_functions: &[SubstitutionFunctionDefinition],
-    custom_function_scope_identity: usize,
-    custom_function_visibilities: &[CustomFunctionVisibility],
-) -> VarResolutionEnvironment {
+    custom_functions: &'a CustomFunctionRegistry<'a>,
+) -> VarResolutionEnvironment<'a> {
     let attributes = attributes
         .iter()
         .map(|attribute| (attribute.name.to_vec(), attribute.value.to_vec()))
         .collect();
-    let custom_functions = custom_function_registry(
-        custom_functions,
-        custom_function_scope_identity,
-        custom_function_visibilities,
-    );
     VarResolutionEnvironment {
         attributes,
         custom_functions,
@@ -1326,7 +1325,7 @@ fn compute_element_custom_property(
 /// Computes the element's declared custom properties, reusing completed values across declarations.
 pub(crate) fn resolve_element_custom_properties(
     inputs: &VarResolutionInputs,
-    environment: &mut VarResolutionEnvironment,
+    environment: &mut VarResolutionEnvironment<'_>,
     style_query_dependencies: Option<&mut Option<Box<StyleQueryDependencies>>>,
     finalization: CustomPropertyFinalization,
 ) -> (Vec<RetainedStyleValueData>, RegisteredValueReads) {
@@ -1338,7 +1337,7 @@ pub(crate) fn resolve_element_custom_properties(
         attributes: Some(&environment.attributes),
         inheritance_store: inputs.inheritance_store,
         attribute_names_are_ascii_case_insensitive: inputs.attribute_names_are_ascii_case_insensitive,
-        custom_functions: Some(&environment.custom_functions),
+        custom_functions: Some(environment.custom_functions),
         parse_context: inputs.parse_context,
         media_environment: inputs.media_environment,
         style_query_length_resolution_context: inputs.style_query_inputs.map(|inputs| &inputs.length),
@@ -2575,7 +2574,7 @@ fn resolve_function_styles<'a, 'names>(
 fn evaluate_a_custom_function<'a>(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    custom_function: &'a CustomFunctionDefinition,
+    custom_function: &'a PreparedCustomFunction<'a>,
     arguments: Vec<TokenResolution>,
     context: &mut ASFResolutionContext<'a>,
     recursion_depth: u32,
@@ -2732,12 +2731,12 @@ fn evaluate_a_custom_function<'a>(
 
     // NB: Function declarations are inserted after the parameter values to emulate prepending those parameter values
     //     to the body rule.
-    for (name, tokens, includes_substitution) in &custom_function.declarations {
+    for declaration in &custom_function.declarations {
         body_rule.insert(
-            name.clone(),
+            declaration.name.clone(),
             FunctionLocalValue {
-                tokens: Cow::Borrowed(tokens),
-                includes_substitution: *includes_substitution,
+                tokens: Cow::Borrowed(&declaration.tokens),
+                includes_substitution: declaration.includes_substitution,
             },
         );
     }
@@ -2756,7 +2755,7 @@ fn evaluate_a_custom_function<'a>(
         custom_function
             .declarations
             .iter()
-            .map(|(name, _, _)| name.as_slice())
+            .map(|declaration| declaration.name.as_slice())
             .filter(|name| *name != result_name.as_slice())
             .chain(std::iter::once(result_name.as_slice())),
         context,
@@ -3322,7 +3321,7 @@ pub(crate) fn resolve_vars(
     property_id: u16,
     root_custom_property_name: &[u16],
     value_data: &StyleValueData,
-    environment: &mut VarResolutionEnvironment,
+    environment: &mut VarResolutionEnvironment<'_>,
     style_query_dependencies: Option<&mut Option<Box<StyleQueryDependencies>>>,
 ) -> NativeVarResolution {
     let VarResolutionInputs {
@@ -3599,29 +3598,19 @@ mod tests {
 
     #[test]
     fn substitutes_custom_functions_from_a_snapshot() {
+        let definitions =
+            crate::css::rule::compile_functions_for_testing("@function --echo(--value) { result: var(--value); }");
+        let function = &definitions[0];
         let functions = CustomFunctionRegistry {
             caller_scope_identity: 1,
-            definitions: vec![CustomFunctionDefinition {
-                identity: 2,
+            definitions: vec![PreparedCustomFunction {
+                identity: function.identity,
                 scope_identity: 1,
-                signature: Arc::new(FunctionSignature {
-                    name: crate::css::css_string::CssString::from_utf16(&utf16("--echo")),
-                    parameters: vec![crate::css::function_signature::FunctionParameterData {
-                        name: crate::css::css_string::CssString::from_utf16(&utf16("--value")),
-                        syntax: Arc::new(SyntaxNode::Universal),
-                        default_value: None,
-                    }]
-                    .into_boxed_slice(),
-                    return_type: Arc::new(SyntaxNode::Universal),
-                }),
-                parameter_defaults: vec![None],
-                declarations: vec![(
-                    utf16("result"),
-                    parse_substitution_values(b"var(--value)").unwrap(),
-                    true,
-                )],
+                signature: &function.signature,
+                parameter_defaults: &function.parameter_defaults,
+                declarations: function.inputs.iter().flat_map(|input| &input.declarations).collect(),
             }],
-            visible: vec![CustomFunctionVisibility {
+            visible: &[CustomFunctionVisibility {
                 caller_scope_identity: 1,
                 definition_index: 0,
             }],
@@ -3644,28 +3633,28 @@ mod tests {
 
     #[test]
     fn a_nested_call_names_the_function_its_caller_s_scope_sees() {
-        let definition = |identity, scope_identity, name: &str, result: &[u8]| CustomFunctionDefinition {
-            identity,
-            scope_identity,
-            signature: Arc::new(FunctionSignature {
-                name: crate::css::css_string::CssString::from_utf16(&utf16(name)),
-                parameters: Box::default(),
-                return_type: Arc::new(SyntaxNode::Universal),
-            }),
-            parameter_defaults: Vec::new(),
-            declarations: vec![(utf16("result"), parse_substitution_values(result).unwrap(), true)],
-        };
         // The document (scope 1) defines --inner, a shadow tree (scope 2) defines --outer and an
         // --inner of its own. A call from the document reaches --outer, whose body calls --inner
         // as the shadow tree names it.
+        let definitions = crate::css::rule::compile_functions_for_testing(
+            "@function --outer() { result: --inner(); }
+            @function --inner() { result: 2px; }
+            @function --inner() { result: 1px; }",
+        );
         let functions = CustomFunctionRegistry {
             caller_scope_identity: 1,
-            definitions: vec![
-                definition(10, 2, "--outer", b"--inner()"),
-                definition(11, 2, "--inner", b"2px"),
-                definition(12, 1, "--inner", b"1px"),
-            ],
-            visible: vec![
+            definitions: definitions
+                .iter()
+                .zip([2, 2, 1])
+                .map(|(function, scope_identity)| PreparedCustomFunction {
+                    identity: function.identity,
+                    scope_identity,
+                    signature: &function.signature,
+                    parameter_defaults: &function.parameter_defaults,
+                    declarations: function.inputs.iter().flat_map(|input| &input.declarations).collect(),
+                })
+                .collect(),
+            visible: &[
                 CustomFunctionVisibility {
                     caller_scope_identity: 1,
                     definition_index: 0,
@@ -3852,7 +3841,8 @@ mod tests {
             style_query_inputs: None,
         };
 
-        let mut environment = prepare_var_resolution_environment(&[], &[], 0, &[]);
+        let functions = CustomFunctionRegistry::empty();
+        let mut environment = prepare_var_resolution_environment(&[], &functions);
 
         CUSTOM_PROPERTY_COMPUTATIONS.with(|count| count.set(0));
 
