@@ -1,0 +1,6 @@
+after a forced break and preserved whitespace: 200,16 200x20
+last item past the column cap: 103896,20100 88x20
+input with columns sized like an input: true
+textarea with columns sized like a textarea: true
+fieldset: 150x30, last child 100,0 50x30
+button: 150x30, last child 100,0 50x30

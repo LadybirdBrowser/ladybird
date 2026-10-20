@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .mc { columns: 2; column-gap: 0; width: 200px; }
+    .item { height: 40px; }
+</style>
+<div class="mc" id="min-content" style="min-height: min-content"><div class="item"></div><div class="item"></div><div class="item"></div></div>
+<div class="mc" id="max-content" style="max-height: max-content"><div class="item"></div><div class="item"></div><div class="item"></div></div>
+<div class="mc" id="fit-content" style="max-height: fit-content; column-fill: auto"><div class="item"></div><div class="item"></div><div class="item"></div></div>
+<div style="display: flex"><div class="mc" id="flex-item" style="min-height: min-content"><div class="item"></div><div class="item"></div><div class="item"></div></div></div>
+<div style="display: grid; grid-template-columns: 200px"><div class="mc" id="grid-item" style="max-height: max-content"><div class="item"></div><div class="item"></div><div class="item"></div></div></div>
+<div><div class="mc" id="inline-block" style="display: inline-block; min-height: min-content"><div class="item"></div><div class="item"></div><div class="item"></div></div></div>
+<script>
+    test(() => {
+        for (const id of ["min-content", "max-content", "fit-content", "flex-item", "grid-item", "inline-block"])
+            println(`${id}: ${document.getElementById(id).offsetHeight}`);
+    });
+</script>

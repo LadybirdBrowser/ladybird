@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Combining column-span and inline-block on the same element</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#column-span" title="6.1. column-span">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="column-span:all only applies to block-level elements, i.e. not inline-blocks, for instance">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:4; column-gap:0; width:400px;">
+  <div style="column-span:all; display:inline-block;">
+    <div style="float:left; width:100px; height:50px; background:green;"></div>
+    <div style="float:left; width:100px; height:50px; background:green;"></div>
+  </div>
+</div>

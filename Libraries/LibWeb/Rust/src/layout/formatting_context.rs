@@ -204,7 +204,7 @@ pub(crate) fn run_fragmentainer(
         root_containing_block,
         None,
         FormattingContextType::Block,
-        LayoutMode::Normal,
+        outer.layout_mode,
         outer.should_collect_devtools_layout_data,
         outer.callbacks,
         input,
@@ -1700,15 +1700,18 @@ pub(super) fn run_formatting_context(
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let memoizes_measurement = purpose.is_measurement()
         && callbacks.scratch().memoizes_measurements()
-        && fc_run_cache::can_describe_run(
+        && fc_run_cache::can_describe_run_in_any_layout_mode(
             box_,
             parent_grid.is_some(),
-            layout_mode,
             should_collect_devtools_layout_data,
             &callbacks,
             &cache_key,
         );
-    if memoizes_measurement && let Some(outputs) = callbacks.scratch().memoized_measurement(box_, purpose, &cache_key) {
+    if memoizes_measurement
+        && let Some(outputs) = callbacks
+            .scratch()
+            .memoized_measurement(box_, purpose, layout_mode, &cache_key)
+    {
         return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false);
     }
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
@@ -1775,7 +1778,7 @@ pub(super) fn run_formatting_context(
     if memoizes_measurement {
         callbacks
             .scratch()
-            .memoize_measurement(box_, purpose, cache_key, &outputs);
+            .memoize_measurement(box_, purpose, layout_mode, cache_key, &outputs);
     }
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)

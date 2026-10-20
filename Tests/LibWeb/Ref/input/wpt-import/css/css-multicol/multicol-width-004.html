@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test width:min-content for a multi-column container with column-span:all children</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="help" href="https://drafts.csswg.org/css-sizing-3/#sizing-properties">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-width-004-ref.html">
+  <meta name="assert" content="This test checks the width:min-content for a multi-column container is calculated correctly.">
+
+  <style>
+  article {
+    width: min-content;
+    border: 1px solid black;
+    column-gap: 10px;
+  }
+  .block {
+    width: 100px;
+    background-color: yellow;
+  }
+  .spanner {
+    column-span: all;
+    background-color: lime;
+  }
+  </style>
+
+  <!-- Case 1: column-width is specified, and spanner's width is less than
+       column-width, so <article>'s expected width is 80px. -->
+  <article style="column-width: 80px;">
+    <div class="block">block1</div>
+    <div class="spanner" style="width: 50px;">spanner</div>
+    <div class="block">block2</div>
+  </article>
+  <br>
+
+  <!-- Case 2: like case 1, but spanner's width is larger than column-width.
+       Thus <article>'s expected width is 150px; -->
+  <article style="column-width: 80px;">
+    <div class="block">block1</div>
+    <div class="spanner" style="width: 150px;">spanner</div>
+    <div class="block">block2</div>
+  </article>
+  <br>
+
+  <!-- Case 3: column-count is specified. Thus <article>'s expected width is two
+       column boxes wide plus the column-gap, i.e. 100px*2 + 10px = 210px. -->
+  <article style="column-count: 2;">
+    <div class="block">block1</div>
+    <div class="spanner">spanner</div>
+    <div class="block">block2</div>
+  </article>
+  <br>
+
+  <!-- Case 4: like case 3, but the spanner's width is larger. Thus <article>'s
+       expected width is 250px. -->
+  <article style="column-count: 2;">
+    <div class="block">block1</div>
+    <div class="spanner" style="width: 250px;">spanner</div>
+    <div class="block">block2</div>
+  </article>
+</html>

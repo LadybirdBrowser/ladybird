@@ -1,0 +1,8 @@
+flex-item: 100
+grid-item: 100
+fit-content: 100
+size-contained: scroll width 500
+size-container: scroll width 500
+max-content: 230
+min-content: 140
+min-content-width: 30

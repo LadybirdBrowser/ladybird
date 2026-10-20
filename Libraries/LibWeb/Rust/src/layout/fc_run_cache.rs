@@ -676,10 +676,26 @@ pub(super) fn can_describe_run(
     callbacks: &LayoutPass<'_>,
     key: &FcRunCacheKey,
 ) -> bool {
+    layout_mode == LayoutMode::Normal
+        && can_describe_run_in_any_layout_mode(
+            box_,
+            parent_grid_is_present,
+            should_collect_devtools_layout_data,
+            callbacks,
+            key,
+        )
+}
+
+pub(super) fn can_describe_run_in_any_layout_mode(
+    box_: Node,
+    parent_grid_is_present: bool,
+    should_collect_devtools_layout_data: bool,
+    callbacks: &LayoutPass<'_>,
+    key: &FcRunCacheKey,
+) -> bool {
     let fc_type = key.fc_type;
     let input = &key.input;
-    if layout_mode != LayoutMode::Normal
-        || should_collect_devtools_layout_data
+    if should_collect_devtools_layout_data
         || input.participation == ParticipationInParentFormattingContext::Root
         || matches!(
             fc_type,
