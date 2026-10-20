@@ -177,9 +177,9 @@ private:
     bool initiate_character_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect, bool shift_held);
     bool initiate_word_selection(Layout::BegunRead const& read, DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool initiate_paragraph_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
-    bool select_context_menu_text(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);
-    Optional<Editing::ContextMenuMisspelling> select_context_menu_misspelling(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);
-    bool select_context_menu_url_token(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
+    bool select_context_menu_text(Layout::BegunRead const& read, DOM::Document&, MouseEventCoordinates const&);
+    Optional<Editing::ContextMenuMisspelling> select_context_menu_misspelling(Layout::BegunRead const& read, DOM::Document&, MouseEventCoordinates const&);
+    static GC::Ptr<DOM::Range> context_menu_url_token_range(DOM::Text&, size_t offset);
 #if defined(AK_OS_MACOS)
     bool select_word_at_position(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);
     void start_selection_from_preserved_mousedown(Layout::BegunRead const& read, DOM::Document&);
