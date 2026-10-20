@@ -330,9 +330,23 @@ void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandS
     if (stream.is_empty() || !can_send_message_to_compositor())
         return;
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), stream.take_fonts()));
-    if (post_message(encoded_message).is_error())
+    Vector<Compositing::FontResourceId> kept_font_ids;
+    Vector<Compositing::DisplayListFontResource> added_fonts;
+    HashTable<Compositing::FontResourceId> font_ids_of_this_batch;
+    for (auto& font : stream.take_fonts()) {
+        font_ids_of_this_batch.set(font.id);
+        if (m_canvas_font_ids_held_by_compositor.contains(font.id))
+            kept_font_ids.append(font.id);
+        else
+            added_fonts.append(move(font));
+    }
+
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), move(kept_font_ids), move(added_fonts)));
+    if (post_message(encoded_message).is_error()) {
         did_lose_compositor();
+        return;
+    }
+    m_canvas_font_ids_held_by_compositor = move(font_ids_of_this_batch);
 }
 
 void CompositorConnection::destroy_canvas_context(Compositing::CanvasId canvas_id)

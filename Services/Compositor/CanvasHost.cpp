@@ -140,10 +140,12 @@ void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canv
     context.has_uncommitted_commands = false;
 }
 
-void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::DisplayListFontResource> const& fonts)
+void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::FontResourceId> const& kept_font_ids, Vector<Compositing::DisplayListFontResource> const& added_fonts)
 {
     Compositing::DisplayListResourceSet resources;
-    for (auto const& font : fonts) {
+    for (auto font_id : kept_font_ids)
+        resources.fonts.set(font_id);
+    for (auto const& font : added_fonts) {
         // NB: Font IDs are immutable. Keep the typeface that Skia's glyph caches were built for.
         if (!m_text_resources.has_font(font.id))
             m_text_resources.set_font(font.id, font.font);
