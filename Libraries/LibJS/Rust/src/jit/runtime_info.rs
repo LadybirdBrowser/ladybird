@@ -368,6 +368,7 @@ fn runtime_layout() -> RuntimeLayout {
         keyed_lookup_cache_dictionary_generation: 0,
         keyed_lookup_cache_shape: 0,
         keyed_lookup_cache_name: 0,
+        keyed_lookup_cache_prototype_chain_validity: 0,
     }
 }
 
@@ -456,6 +457,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
     layout.keyed_lookup_cache_dictionary_generation = keyed_lookup_cache.shape_dictionary_generation;
     layout.keyed_lookup_cache_shape = keyed_lookup_cache.shape;
     layout.keyed_lookup_cache_name = keyed_lookup_cache.property_name;
+    layout.keyed_lookup_cache_prototype_chain_validity = keyed_lookup_cache.prototype_chain_validity;
     layout.single_ascii_character_strings = vm.single_ascii_character_strings_address();
     layout.fly_string_cache = vm.fly_string_cache().as_ptr().expose_provenance() as u64;
     layout.numeric_string_cache = vm.numeric_string_cache().as_ptr().expose_provenance() as u64;

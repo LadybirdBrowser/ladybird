@@ -208,16 +208,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         Address::indexed(registers.shape, scratch, Scale::Eight, 0)
     }
 
-    /// Branches to `miss` unless the `GetMissingProperty` entry in `entry`
-    /// for the shape of `object` applies to it, like
-    /// `get_with_property_lookup_cache()`: only objects whose class keeps the
-    /// default `ObjectMethods::is_cacheable_for_property_absence` have no
-    /// other properties than those of their shape (for the names their
-    /// entries can be for), and the property must also be missing from an
-    /// unchanged prototype chain. Plain objects, ECMAScript functions, arrays
-    /// and String objects are told apart without loading the hook. Clobbers
+    /// Branches to `miss` unless a `GetMissingProperty` entry for the shape
+    /// of `object`, whose prototype chain validity is at `validity`, applies
+    /// to it, like `get_with_property_lookup_cache()`: only objects whose
+    /// class keeps the default
+    /// `ObjectMethods::is_cacheable_for_property_absence` have no other
+    /// properties than those of their shape (for the names their entries can
+    /// be for), and the property must also be missing from an unchanged
+    /// prototype chain. Plain objects, ECMAScript functions, arrays and
+    /// String objects are told apart without loading the hook. Clobbers
     /// `shape`.
-    pub(super) fn branch_unless_property_absence_applies(&mut self, object: Gpr, shape: Gpr, entry: Gpr, miss: Label) {
+    pub(super) fn branch_unless_property_absence_applies(
+        &mut self,
+        object: Gpr,
+        shape: Gpr,
+        validity: &Address,
+        miss: Label,
+    ) {
         let scratch = self.pinned.scratch;
         let layout = self.runtime.layout;
         let offsets = self.runtime.offsets;
@@ -262,13 +269,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
         self.masm.bind(cacheable);
         let (has_chain, done) = (self.masm.new_label(), self.masm.new_label());
-        self.masm.load64(
-            shape,
-            &Address::new(
-                entry,
-                layout.property_lookup_cache_entry_prototype_chain_validity as i32,
-            ),
-        );
+        self.masm.load64(shape, validity);
         self.masm.branch_test64(Condition::NonZero, shape, u64::MAX, has_chain);
         // Entries without a prototype chain validity are for shapes without
         // a prototype.
@@ -355,7 +356,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             layout.property_lookup_cache_entry_type_get_missing_property as i32,
             present,
         );
-        self.branch_unless_property_absence_applies(object, shape, entry, probe);
+        let validity = Address::new(
+            entry,
+            layout.property_lookup_cache_entry_prototype_chain_validity as i32,
+        );
+        self.branch_unless_property_absence_applies(object, shape, &validity, probe);
         self.masm.move_imm64(output, value::UNDEFINED);
         self.masm.jump(done);
 
