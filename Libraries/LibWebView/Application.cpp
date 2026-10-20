@@ -2958,6 +2958,13 @@ void Application::update_bookmark_action_for_current_web_view()
     m_toggle_bookmark_action->set_engaged(is_bookmarked);
 }
 
+// The shared actions that depend on the page follow the active view, whichever tab or window made it the active one.
+void Application::update_actions_for_active_web_view()
+{
+    update_bookmark_action_for_current_web_view();
+    update_editing_history_actions();
+}
+
 void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
 {
     if (m_autocomplete_service)
