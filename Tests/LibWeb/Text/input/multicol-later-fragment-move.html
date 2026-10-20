@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .mc { columns: 2; column-gap: 0; column-fill: auto; height: 100px; width: 200px; }
+    .square { height: 50px; width: 50px; background: green; }
+</style>
+<div class="mc" id="clipped"><div style="height: 150px"><div style="height: 100px"></div><div style="overflow: hidden"><div class="square" id="clipped-square"></div></div></div></div>
+<div class="mc" id="transformed"><div style="height: 150px"><div style="height: 100px"></div><div style="transform: scale(0.5)"><div class="square" id="transformed-square"></div></div></div></div>
+<script>
+    asyncTest(async done => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await frame();
+        for (const id of ["clipped", "transformed"]) {
+            const container = document.getElementById(id);
+            container.style.width = "300px";
+            container.style.columnGap = "100px";
+        }
+        await frame();
+        for (const id of ["clipped", "transformed"]) {
+            const square = document.getElementById(`${id}-square`);
+            const rect = square.getBoundingClientRect();
+            const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === square;
+            println(`${id}: ${rect.x},${rect.y} ${rect.width}x${rect.height}, hit ${hit}`);
+        }
+        done();
+    });
+</script>

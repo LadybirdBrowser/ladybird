@@ -1,0 +1,24 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <div.multicol> at [0,0] [0+0+0 220 0+0+580] [0+0+0 100 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [0,0] [0+0+0 100 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.outer> at [5,5] [0+5+0 90 0+5+0] [0+5+0 95 0+0+0] fragment at [125,0] [90 85] children: not-inline
+          BlockContainer <(anonymous)> at [5,5] [0+0+0 90 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [5,5] [0+0+0 90 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+          BlockContainer <div> at [5,35] [0+0+0 90 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+          BlockContainer <div> at [5,65] [0+0+0 90 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+          BlockContainer <div> at [5,95] [0+0+0 90 0+0+0] [0+0+0 5 0+0+0] fragment at [125,0] [90 25] children: not-inline
+          BlockContainer <div> at [125,25] [0+0+0 90 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+          BlockContainer <div> at [125,55] [0+0+0 90 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+          BlockContainer <(anonymous)> at [125,85] [0+0+0 90 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [120,90] [0+0+0 100 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,100] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x100] (z-index: auto)

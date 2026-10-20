@@ -1,0 +1,3 @@
+at 400px: auto-height=0 auto-height-child=0 percentage-height=400 percentage-height-child=100
+at 200px: auto-height=0 auto-height-child=0 percentage-height=200 percentage-height-child=50
+back at 400px: auto-height=0 auto-height-child=0 percentage-height=400 percentage-height-child=100

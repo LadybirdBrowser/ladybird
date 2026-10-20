@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-break-fixed-height-blocks-ref.html">
+<style>
+body { margin: 0; }
+.multicol { columns: 3; column-gap: 10px; column-fill: auto; height: 100px; width: 320px; background: lightgray; }
+.multicol > div { height: 40px; }
+</style>
+<div class="multicol">
+    <div style="background: red"></div>
+    <div style="background: orange"></div>
+    <div style="background: yellow"></div>
+    <div style="background: green"></div>
+    <div style="background: blue; height: 60px"></div>
+    <div style="background: purple"></div>
+</div>

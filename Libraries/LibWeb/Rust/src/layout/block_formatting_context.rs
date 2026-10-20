@@ -13,34 +13,41 @@ const MAXIMUM_BALANCING_ROUNDS: usize = 16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FragmentationStep {
     LayOut,
-    Skip,
     Stop,
 }
 
 struct FragmentationState {
-    resume_child: Option<Node>,
+    container_block_offset_in_root: CssPixels,
+    resume: Option<fragmentation::BlockResume>,
+    is_resumed: bool,
+    fragmentainer_had_content_before_container: bool,
     has_in_flow_content: bool,
+    fragmentainer_had_content_before_child: bool,
     truncate_next_block_start_margin: bool,
     previous_in_flow_child_forces_break_after: bool,
 }
 
 impl FragmentationState {
-    fn new(fragmentainer: &fragmentation::FragmentainerContext) -> Self {
-        let (resume_child, after_forced_break) = match fragmentainer.incoming.as_deref() {
-            Some(fragmentation::BlockBreakToken {
-                resume:
-                    fragmentation::BlockResume::BeforeChild {
-                        child,
-                        after_forced_break,
-                    },
+    fn new(
+        incoming: Option<&fragmentation::BlockBreakToken>,
+        container_block_offset_in_root: CssPixels,
+        fragmentainer_had_content_before_container: bool,
+    ) -> Self {
+        let truncate_next_block_start_margin = matches!(
+            incoming.map(|token| &token.resume),
+            Some(fragmentation::BlockResume::BeforeChild {
+                after_forced_break: false,
                 ..
-            }) => (Some(*child), *after_forced_break),
-            None => (None, false),
-        };
+            })
+        );
         Self {
-            resume_child,
+            container_block_offset_in_root,
+            resume: incoming.map(|token| token.resume.clone()),
+            is_resumed: incoming.is_some(),
+            fragmentainer_had_content_before_container,
             has_in_flow_content: false,
-            truncate_next_block_start_margin: resume_child.is_some() && !after_forced_break,
+            fragmentainer_had_content_before_child: false,
+            truncate_next_block_start_margin,
             previous_in_flow_child_forces_break_after: false,
         }
     }
@@ -227,8 +234,13 @@ pub(crate) struct BlockFormattingContext<'pass> {
     automatic_line_clamp_max_lines: Cell<Option<usize>>,
     automatic_line_clamp_block_size_exceeded: Cell<bool>,
     laying_out_invisible_line_clamp_content: Cell<bool>,
+    children_laid_out_in_fragmentainer: RefCell<HashMap<Node, (Node, Node)>>,
     multicol_automatic_content_block_size: Cell<Option<CssPixels>>,
     discard_block_start_margin_of_next_child: Cell<bool>,
+    fragmentainer_has_content: Cell<bool>,
+    pending_continuation_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
+    incoming_container_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
+    broken_child_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
@@ -281,8 +293,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             automatic_line_clamp_max_lines: Cell::new(None),
             automatic_line_clamp_block_size_exceeded: Cell::new(false),
             laying_out_invisible_line_clamp_content: Cell::new(false),
+            children_laid_out_in_fragmentainer: RefCell::new(HashMap::default()),
             multicol_automatic_content_block_size: Cell::new(None),
             discard_block_start_margin_of_next_child: Cell::new(false),
+            fragmentainer_has_content: Cell::new(false),
+            pending_continuation_token: RefCell::new(None),
+            incoming_container_token: RefCell::new(None),
+            broken_child_token: RefCell::new(None),
         }
     }
 
@@ -380,6 +397,31 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.run
             .callbacks
             .children(node)
+            .filter(|&child| self.facts(child).is_box())
+    }
+
+    fn children_laid_out_in_fragmentainer(&self, node: Node) -> Option<(Node, Node)> {
+        self.run.fragmentainer.as_ref()?;
+        self.children_laid_out_in_fragmentainer.borrow().get(&node).copied()
+    }
+
+    fn laid_out_children(&self, node: Node) -> impl Iterator<Item = Node> + '_ {
+        let (first, last) = self
+            .children_laid_out_in_fragmentainer(node)
+            .unwrap_or_else(|| (self.run.callbacks.first_child(node), Node::INVALID));
+        self.run
+            .callbacks
+            .siblings_from(first, last)
+            .filter(|&child| self.facts(child).is_box())
+    }
+
+    fn laid_out_children_rev(&self, node: Node) -> impl Iterator<Item = Node> + '_ {
+        let (first, last) = self
+            .children_laid_out_in_fragmentainer(node)
+            .unwrap_or_else(|| (Node::INVALID, self.run.callbacks.last_child(node)));
+        self.run
+            .callbacks
+            .siblings_from_rev(last, first)
             .filter(|&child| self.facts(child).is_box())
     }
 
@@ -1424,6 +1466,9 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn margins_collapse_through(&self, node: Node) -> bool {
+        if self.run.records.used_values_if_owned(node).is_none() {
+            return true;
+        }
         let facts = self.facts(node);
         let style = self.style(node);
         // https://drafts.csswg.org/css2/#adjoining-margins
@@ -1824,6 +1869,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         let containing_block_position_in_root = input
             .content_box_position_in_bfc_root
             .expect("block layout requires its containing block position in the BFC root");
+        let continuation = self
+            .pending_continuation_token
+            .borrow_mut()
+            .take_if(|token| token.node == node);
+        if continuation.is_some() {
+            used.margin_top.set(CssPixels::default());
+            used.border_top.set(CssPixels::default());
+            used.padding_top.set(CssPixels::default());
+            used.continues_from_previous_fragment.set(true);
+        }
 
         if facts.is_floating() {
             let block_offset = self
@@ -1912,6 +1967,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let margin_top = self.margin_state.borrow().pending_margin_for_next_box();
 
         let box_opens_top_margin_group = !has_independent_formatting_context
+            && continuation.is_none()
             && self.used(node).border_top.get() == CssPixels::default()
             && self.used(node).padding_top.get() == CssPixels::default()
             && !self.margin_state.borrow().has_open_top_margin_group();
@@ -2013,6 +2069,15 @@ impl<'pass> BlockFormattingContext<'pass> {
                     None,
                 );
             }
+        }
+
+        if let Some(continuation) = &continuation
+            && self.used(node).has_definite_block_size()
+        {
+            let used = self.used(node);
+            used.set_content_block_size(
+                (used.content_block_size.get() - continuation.consumed_block_size).max(CssPixels::default()),
+            );
         }
 
         // Before we insert the children of a list item we need to know the location of the marker.
@@ -2121,6 +2186,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             if facts.children_are_inline() {
                 self.layout_inline_children(run, node, inside_layout_input, space_available_for_children);
             } else {
+                self.incoming_container_token.replace(continuation.clone());
                 self.layout_block_level_children(run, node, inside_layout_input, space_available_for_children);
             }
             if box_opens_top_margin_group {
@@ -2186,8 +2252,66 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
 
+        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+            let content_block_start_in_root = pending_position.map(|position| {
+                containing_block_position_in_root.y
+                    + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
+                    + position.y
+            });
+            let broken_token = self
+                .broken_child_token
+                .borrow()
+                .as_ref()
+                .filter(|token| token.node == node)
+                .cloned()
+                .or_else(|| {
+                    let block_size = fragmentainer.block_size?;
+                    let content_block_start_in_root = content_block_start_in_root?;
+                    let breaks_inside = !has_independent_formatting_context
+                        && facts.is_block_container()
+                        && (!facts.children_are_inline() || !self.has_lines(node))
+                        && content_block_start_in_root < block_size
+                        && content_block_start_in_root + self.used(node).content_block_size.get() > block_size;
+                    breaks_inside.then(|| {
+                        std::rc::Rc::new(fragmentation::BlockBreakToken {
+                            node,
+                            consumed_block_size: CssPixels::default(),
+                            resume: fragmentation::BlockResume::AfterChildren,
+                        })
+                    })
+                });
+            if let Some(token) = broken_token {
+                let used = self.used(node);
+                if let (Some(block_size), Some(content_block_start_in_root)) =
+                    (fragmentainer.block_size, content_block_start_in_root)
+                {
+                    let content_block_size = used.content_block_size.get();
+                    let remaining_block_size = (block_size - content_block_start_in_root).max(CssPixels::default());
+                    fragmentainer.note_space_shortage(content_block_start_in_root + content_block_size);
+                    used.set_content_block_size(if used.has_definite_block_size() {
+                        content_block_size.min(remaining_block_size)
+                    } else {
+                        remaining_block_size
+                    });
+                }
+                used.padding_bottom.set(CssPixels::default());
+                used.border_bottom.set(CssPixels::default());
+                used.margin_bottom.set(CssPixels::default());
+                used.continues_in_next_fragment.set(true);
+                let consumed_block_size = continuation
+                    .as_ref()
+                    .map_or(CssPixels::default(), |continuation| continuation.consumed_block_size)
+                    + used.content_block_size.get();
+                self.broken_child_token
+                    .replace(Some(std::rc::Rc::new(fragmentation::BlockBreakToken {
+                        consumed_block_size,
+                        ..(*token).clone()
+                    })));
+            }
+        }
+
         // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-        if is_list_item_box && !has_independent_formatting_context {
+        if is_list_item_box && !has_independent_formatting_context && continuation.is_none() {
             let list_item_used = self.used(node);
             let list_item_first_baseline = list_item_used
                 .has_first_baseline
@@ -2228,7 +2352,9 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         if has_independent_formatting_context || !self.margins_collapse_through(node) {
             let mut margin_state = self.margin_state.borrow_mut();
-            if !margin_state.box_last_in_flow_child_margin_bottom_collapsed {
+            if !margin_state.box_last_in_flow_child_margin_bottom_collapsed
+                || self.used(node).continues_in_next_fragment.get()
+            {
                 margin_state.reset();
             }
             drop(margin_state);
@@ -2267,9 +2393,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         let facts = self.facts(node);
         let container_facts = self.facts(block_container);
         self.run.purpose == formatting_context::LayoutPurpose::Commit
+            && self.run.fragmentainer.is_none()
             && self.run.layout_mode == LayoutMode::Normal
             && self.run.fragments.is_some()
-            && self.run.fragmentainer.is_none()
             && !self.run.should_collect_devtools_layout_data
             && containing_line_box_fragment.is_none()
             && self.floats.borrow().is_empty()
@@ -2492,20 +2618,47 @@ impl<'pass> BlockFormattingContext<'pass> {
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
-        let fragmentainer = self
+        let fragmentainer = self.run.fragmentainer.clone();
+        let mut fragmentation_state = fragmentainer.as_deref().map(|fragmentainer| {
+            let incoming = if block_container == self.run.box_ {
+                fragmentainer.incoming.clone()
+            } else {
+                self.incoming_container_token.take()
+            };
+            let container_block_offset_in_root = input
+                .content_box_position_in_bfc_root
+                .map_or(CssPixels::default(), |position| position.y)
+                + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container);
+            FragmentationState::new(
+                incoming.as_deref(),
+                container_block_offset_in_root,
+                self.fragmentainer_has_content.get(),
+            )
+        });
+        let first_child = fragmentation_state
+            .as_ref()
+            .and_then(|state| match &state.resume {
+                Some(
+                    fragmentation::BlockResume::BeforeChild { child, .. }
+                    | fragmentation::BlockResume::InsideChild { child, .. },
+                ) => Some(*child),
+                _ => None,
+            })
+            .unwrap_or_else(|| self.run.callbacks.first_child(block_container));
+        let mut laid_out_children: Option<(Node, Node)> = None;
+        for child in self
             .run
-            .fragmentainer
-            .clone()
-            .filter(|_| block_container == self.run.box_);
-        let mut fragmentation_state = fragmentainer.as_deref().map(FragmentationState::new);
-        for child in self.children(block_container) {
+            .callbacks
+            .siblings_from(first_child, Node::INVALID)
+            .filter(|&child| self.facts(child).is_box())
+        {
             if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_deref(), fragmentation_state.as_mut()) {
                 match self.fragmentation_step_before_child(fragmentainer, state, block_container, child) {
-                    FragmentationStep::Skip => continue,
                     FragmentationStep::Stop => break,
                     FragmentationStep::LayOut => {}
                 }
             }
+            laid_out_children = Some((laid_out_children.map_or(child, |(first, _)| first), child));
             let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
             let previous_bottom = bottom_of_lowest_margin_box;
             if invisible {
@@ -2530,6 +2683,16 @@ impl<'pass> BlockFormattingContext<'pass> {
                 break;
             }
         }
+        if fragmentation_state.is_some() {
+            self.children_laid_out_in_fragmentainer.borrow_mut().insert(
+                block_container,
+                laid_out_children.unwrap_or((Node::INVALID, Node::INVALID)),
+            );
+        } else if self.run.fragmentainer.is_some() {
+            self.children_laid_out_in_fragmentainer
+                .borrow_mut()
+                .remove(&block_container);
+        }
         self.block_offset_of_current_block_container.set(saved);
         self.finish_block_level_children_layout(block_container, input, available_space, bottom_of_lowest_margin_box);
     }
@@ -2541,30 +2704,45 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_container: Node,
         child: Node,
     ) -> FragmentationStep {
-        if let Some(resume_child) = state.resume_child {
-            if resume_child != child {
-                return FragmentationStep::Skip;
+        match &state.resume {
+            Some(fragmentation::BlockResume::BeforeChild {
+                child: resume_child, ..
+            }) => {
+                debug_assert_eq!(*resume_child, child);
+                state.resume = None;
             }
-            state.resume_child = None;
+            Some(fragmentation::BlockResume::AfterChildren) => return FragmentationStep::Stop,
+            Some(fragmentation::BlockResume::InsideChild {
+                child: resume_child,
+                token,
+            }) => {
+                debug_assert_eq!(*resume_child, child);
+                self.pending_continuation_token.replace(Some(token.clone()));
+                state.resume = None;
+                state.fragmentainer_had_content_before_child = self.fragmentainer_has_content.get();
+                return FragmentationStep::LayOut;
+            }
+            None => {}
         }
         let facts = self.facts(child);
         if !facts.is_flow_layout_participant() || facts.is_floating() {
             return FragmentationStep::LayOut;
         }
         if fragmentainer.early_break_before == Some(child) {
-            self.break_before_child(fragmentainer, block_container, child, false);
+            self.break_before_child(fragmentainer, state, block_container, child, false);
             return FragmentationStep::Stop;
         }
         let forced = state.previous_in_flow_child_forces_break_after
             || fragmentation::is_forced_column_break(self.style(child).break_before());
-        if forced && state.has_in_flow_content {
-            self.break_before_child(fragmentainer, block_container, child, true);
+        if forced && self.fragmentainer_has_content.get() {
+            self.break_before_child(fragmentainer, state, block_container, child, true);
             return FragmentationStep::Stop;
         }
         if state.truncate_next_block_start_margin {
             self.margin_state.borrow_mut().reset();
             self.discard_block_start_margin_of_next_child.set(true);
         }
+        state.fragmentainer_had_content_before_child = self.fragmentainer_has_content.get();
         FragmentationStep::LayOut
     }
 
@@ -2572,7 +2750,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         &self,
         fragmentainer: &fragmentation::FragmentainerContext,
         state: &mut FragmentationState,
-        _block_container: Node,
+        block_container: Node,
         child: Node,
     ) -> FragmentationStep {
         self.discard_block_start_margin_of_next_child.set(false);
@@ -2581,38 +2759,109 @@ impl<'pass> BlockFormattingContext<'pass> {
             return FragmentationStep::LayOut;
         }
         state.truncate_next_block_start_margin = false;
-        let used = self.used(child);
+        let broken_child_token = self
+            .broken_child_token
+            .borrow_mut()
+            .take_if(|token| token.node == child);
+        if let Some(token) = broken_child_token {
+            self.fragmentainer_has_content.set(true);
+            self.stop_fragmentainer(
+                fragmentainer,
+                block_container,
+                fragmentation::BlockResume::InsideChild { child, token },
+            );
+            return FragmentationStep::Stop;
+        }
+        let Some(used) = self.run.records.used_values_if_owned(child) else {
+            return FragmentationStep::LayOut;
+        };
         let collapsed = used.uses_collapsing_borders_model.get();
-        let border_box_block_end =
-            used.content_offset.get().y + used.content_block_size.get() + used.border_box_bottom(collapsed);
-        fragmentainer.note_unbreakable_block_size(used.border_box_block_size(collapsed));
-        if fragmentainer.exceeds(border_box_block_end) {
-            fragmentainer.note_space_shortage(border_box_block_end);
-            if state.has_in_flow_content {
+        let content_block_end =
+            state.container_block_offset_in_root + used.content_offset.get().y + used.content_block_size.get();
+        let border_box_block_size = used.border_box_block_size(collapsed);
+        let is_breakable = self.child_is_breakable(child);
+        if !is_breakable {
+            fragmentainer.note_unbreakable_block_size(border_box_block_size);
+        }
+        let block_end = if is_breakable {
+            content_block_end
+        } else {
+            content_block_end + used.border_box_bottom(collapsed)
+        };
+        if fragmentainer.exceeds(block_end) {
+            fragmentainer.note_space_shortage(block_end);
+            if state.fragmentainer_had_content_before_child {
                 fragmentainer.outcome_mut().needs_early_break_before = Some(child);
                 return FragmentationStep::Stop;
             }
         }
         state.has_in_flow_content = true;
+        self.fragmentainer_has_content.set(true);
         state.previous_in_flow_child_forces_break_after =
             fragmentation::is_forced_column_break(self.style(child).break_after());
         FragmentationStep::LayOut
     }
 
+    fn child_is_breakable(&self, child: Node) -> bool {
+        let facts = self.facts(child);
+        facts.is_block_container()
+            && formatting_context::formatting_context_type_created_by_box(facts).is_none()
+            && (!facts.children_are_inline() || !self.has_lines(child))
+            && !facts.is_fieldset_box()
+            && !facts.is_table_wrapper()
+    }
+
+    fn has_lines(&self, node: Node) -> bool {
+        self.run
+            .records
+            .used_values_if_owned(node)
+            .and_then(|used| used.line_data_ref())
+            .is_some_and(|data| data.last_line().is_some())
+    }
+
     fn break_before_child(
         &self,
         fragmentainer: &fragmentation::FragmentainerContext,
+        state: &FragmentationState,
         block_container: Node,
         child: Node,
         after_forced_break: bool,
     ) {
-        fragmentainer.outcome_mut().outgoing = Some(std::rc::Rc::new(fragmentation::BlockBreakToken {
-            node: block_container,
-            resume: fragmentation::BlockResume::BeforeChild {
+        if block_container != self.run.box_
+            && !state.is_resumed
+            && !state.has_in_flow_content
+            && !after_forced_break
+            && state.fragmentainer_had_content_before_container
+        {
+            fragmentainer.outcome_mut().needs_early_break_before = Some(block_container);
+            return;
+        }
+        self.stop_fragmentainer(
+            fragmentainer,
+            block_container,
+            fragmentation::BlockResume::BeforeChild {
                 child,
                 after_forced_break,
             },
-        }));
+        );
+    }
+
+    fn stop_fragmentainer(
+        &self,
+        fragmentainer: &fragmentation::FragmentainerContext,
+        block_container: Node,
+        resume: fragmentation::BlockResume,
+    ) {
+        let token = std::rc::Rc::new(fragmentation::BlockBreakToken {
+            node: block_container,
+            consumed_block_size: CssPixels::default(),
+            resume,
+        });
+        if block_container == self.run.box_ {
+            fragmentainer.outcome_mut().outgoing = Some(token);
+        } else {
+            self.broken_child_token.replace(Some(token));
+        }
     }
 
     fn is_multicol_container(&self) -> bool {
@@ -2856,6 +3105,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 fc_run_cache_store.begin_store_journal();
             }
             let outputs = formatting_context::run_fragmentainer(&self.run, purpose, input, fragmentainer.clone());
+            if outputs.result.depends_on_percentage_block_size {
+                self.used(self.run.box_)
+                    .has_descendant_that_depends_on_percentage_block_size
+                    .set(true);
+            }
             let mut outcome = fragmentainer.take_outcome();
             let retries = outcome
                 .needs_early_break_before
@@ -3201,15 +3455,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         if collapsed_margin != CssPixels::default() {
             let flow_children_bottom_up = if root_facts.is_table_wrapper() {
                 table_wrapper_flow_children(self.run.callbacks, self.run.box_)
+                    .into_iter()
+                    .rev()
+                    .collect()
             } else {
-                self.children(self.run.box_).collect()
+                self.laid_out_children_rev(self.run.box_).collect::<Vec<_>>()
             };
-            for child in flow_children_bottom_up.into_iter().rev() {
+            for child in flow_children_bottom_up {
                 let facts = self.facts(child);
                 if facts.is_absolutely_positioned() || facts.is_floating() {
-                    continue;
-                }
-                if self.run.records.used_values_if_owned(child).is_none() {
                     continue;
                 }
                 if self.margins_collapse_through(child) {
@@ -3709,12 +3963,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin does not collapse with the element's bottom margin
         // 3. the bottom border edge of the last in-flow child whose top margin doesn't collapse with the element's bottom margin
         if !facts.children_are_inline() {
-            for child in self
-                .run
-                .callbacks
-                .children_rev(node)
-                .filter(|&child| self.facts(child).is_box())
-            {
+            for child in self.laid_out_children_rev(node) {
                 let child_facts = self.facts(child);
                 if child_facts.is_absolutely_positioned() || child_facts.is_floating() {
                     continue;
@@ -3722,7 +3971,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 if child_facts.is_list_item_marker_box() {
                     continue;
                 }
-                let child_used = self.used(child);
+                let Some(child_used) = self.run.records.used_values_if_owned(child) else {
+                    continue;
+                };
                 // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
                 // If a block container contains a clamp point, within itself or in any of its descendants, its
                 // automatic block size will not take into account any invisible boxes, nor any clipped float.
@@ -3849,7 +4100,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         } else {
             drop(floats);
-            for child in self.children(node) {
+            for child in self.laid_out_children(node) {
                 if !self.facts(child).is_flow_layout_participant() {
                     continue;
                 }
@@ -3971,6 +4222,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.run.records,
             self.run.callbacks,
             self.run.box_,
+            self.children_laid_out_in_fragmentainer(self.run.box_),
+            self.run.fragmentainer.is_none(),
             (!line_clamp_reached)
                 .then_some(self.lowest_floating_descendant_bottom_margin_edge.get())
                 .flatten(),
@@ -4070,13 +4323,15 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     records: &RunRecords,
     callbacks: LayoutPass<'_>,
     root: Node,
+    laid_out_children: Option<(Node, Node)>,
+    honors_size_containment: bool,
     lowest_floating_descendant_bottom_margin_edge: Option<CssPixels>,
     trailing_collapsed_margin: Option<(Node, CssPixels)>,
 ) -> CssPixels {
     let facts = NodeFacts::new(&callbacks, root);
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // A size-contained box is sized as if it had no contents.
-    if facts.node_has_size_containment() {
+    if honors_size_containment && facts.node_has_size_containment() {
         return CssPixels::default();
     }
     let mut bottom = None;
@@ -4103,11 +4358,8 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             // the table box, so the wrapper considers its flow children instead of tree children.
             table_wrapper_flow_children(callbacks, root)
         } else {
-            let mut children = Vec::new();
-            for child in callbacks.children(root) {
-                children.push(child);
-            }
-            children
+            let (first, last) = laid_out_children.unwrap_or_else(|| (callbacks.first_child(root), Node::INVALID));
+            callbacks.siblings_from(first, last).collect()
         };
         for child in flow_children {
             let child_facts = NodeFacts::new(&callbacks, child);

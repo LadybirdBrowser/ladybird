@@ -203,6 +203,18 @@ impl<'arena> LayoutPass<'arena> {
         })
     }
 
+    pub(crate) fn siblings_from(self, first: Node, last: Node) -> impl Iterator<Item = Node> + 'arena {
+        std::iter::successors(link(first), move |&child| {
+            (child != last).then(|| link(self.next_sibling(child))).flatten()
+        })
+    }
+
+    pub(crate) fn siblings_from_rev(self, last: Node, first: Node) -> impl Iterator<Item = Node> + 'arena {
+        std::iter::successors(link(last), move |&child| {
+            (child != first).then(|| link(self.previous_sibling(child))).flatten()
+        })
+    }
+
     /// The children of `node`, last first.
     pub(crate) fn children_rev(self, node: Node) -> impl Iterator<Item = Node> + 'arena {
         std::iter::successors(link(self.last_child(node)), move |&child| {

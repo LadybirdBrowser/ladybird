@@ -1,0 +1,4 @@
+over text before the editable: before, caret in before
+over the editable in column 1: editable, caret in editable
+over the editable in column 2: editable, caret in editable
+over text after the editable: editable, caret in editable
