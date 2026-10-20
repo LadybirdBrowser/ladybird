@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const port = internals.getEchoServerPort();
+        document.addEventListener("securitypolicyviolation", event => {
+            println(`violation: ${event.effectiveDirective}, ${event.disposition}, ${event.blockedURI.replace(port, "PORT")}`);
+        });
+
+        const ws = new WebSocket(`ws://localhost:${port}/`);
+        ws.onopen = () => {
+            println("open");
+            ws.close();
+        };
+        ws.onerror = () => {
+            println(`error, readyState: ${ws.readyState}`);
+        };
+        ws.onclose = event => {
+            println(`close, readyState: ${ws.readyState}, wasClean: ${event.wasClean}, code: ${event.code}`);
+            done();
+        };
+    });
+</script>

@@ -1,0 +1,3 @@
+violation: connect-src, enforce, http://localhost:PORT/
+error, readyState: 3
+close, readyState: 3, wasClean: false, code: 1006
