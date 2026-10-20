@@ -1271,19 +1271,28 @@ public:
         column_row->addWidget(m_column, 1);
         column_row->addStretch();
 
-        auto* layout = new QVBoxLayout(m_content);
-        layout->setContentsMargins(PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN);
-        layout->addStretch();
-        layout->addLayout(column_row);
-        layout->addStretch();
+        m_layout = new QVBoxLayout(m_content);
+        m_layout->setContentsMargins(PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN);
+        m_layout->addStretch();
+        m_layout->addLayout(column_row);
+        m_layout->addStretch();
     }
 
     QWidget& content() { return *m_content; }
     QWidget& column() { return *m_column; }
 
+    // The column takes all of the tab rather than being centered in it, so a review's full report gets as much room as
+    // the tab has.
+    void set_fills_tab(bool fills_tab)
+    {
+        m_layout->setStretch(1, fills_tab ? 1 : 0);
+        m_column->setMaximumWidth(fills_tab ? QWIDGETSIZE_MAX : PAGE_OVERLAY_MAXIMUM_WIDTH);
+    }
+
 private:
     QWidget* m_content { nullptr };
     QWidget* m_column { nullptr };
+    QVBoxLayout* m_layout { nullptr };
 };
 
 class CrashOverlayUrlLabel final : public QLabel {
@@ -1398,6 +1407,7 @@ void WebContentView::set_crash_overlay_visible(bool visible)
     if (m_crash_report_review) {
         delete m_crash_report_review;
         m_crash_report_review = nullptr;
+        m_crash_overlay->set_fills_tab(false);
     }
     if (m_crash_report_container)
         m_crash_report_container->hide();
@@ -1460,6 +1470,9 @@ void WebContentView::show_crash_report_review(Optional<ByteString> const& hidden
             return;
         }
         reload();
+    };
+    m_crash_report_review->on_report_text_visibility_change = [this](bool visible) {
+        m_crash_overlay->set_fills_tab(visible);
     };
     auto answered_message = is_hidden_crash ? tr("Part of Ladybird stopped unexpectedly.") : crash_screen_message();
     m_crash_report_review->on_answered = [this, answered_message] {

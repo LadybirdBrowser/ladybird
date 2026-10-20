@@ -32,7 +32,7 @@ public:
 
     struct Report {
         ByteString name;
-        // The fields that tell crashes apart. The rest is in the report itself, which show_report() opens.
+        // The fields that tell crashes apart. The rest is in the report itself, which report_text() reads.
         Vector<ReportDetail> fields;
     };
 
@@ -44,8 +44,8 @@ public:
     ErrorOr<Report> open(Optional<ByteString> const& name = {});
     bool has_next_report() const;
 
-    // Opens the open report's text, exactly as it would be attached, in the system's application for text files.
-    ErrorOr<void> show_report() const;
+    // The open report's text, exactly as it would be attached.
+    ErrorOr<ByteString> report_text() const;
 
     // A message for the user when these choices cannot be sent.
     static Optional<String> validate(StringView description, Optional<StringView> url);

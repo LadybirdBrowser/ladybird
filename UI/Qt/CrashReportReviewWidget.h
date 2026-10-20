@@ -47,6 +47,7 @@ public:
     Function<void()> on_exit;
     // The user chose to send the report or not, so the screen around the review no longer needs to ask.
     Function<void()> on_answered;
+    Function<void(bool)> on_report_text_visibility_change;
 
 protected:
     virtual bool event(QEvent*) override;
@@ -56,6 +57,7 @@ private:
     void send();
     void update_chrome_style();
     void show_page(QWidget&);
+    void show_report_text();
     // Shows the given actions of the status page, with the primary one as the default and focused action.
     void show_status(QString const& title, QString const& message, Vector<QPushButton*> const& actions = {},
         QPushButton* primary = nullptr);
@@ -68,6 +70,7 @@ private:
 
     QWidget* m_review_page { nullptr };
     QWidget* m_status_page { nullptr };
+    QWidget* m_report_text_page { nullptr };
 
     QPlainTextEdit* m_description_edit { nullptr };
     QWidget* m_website_option { nullptr };
@@ -75,6 +78,8 @@ private:
     QLineEdit* m_website { nullptr };
     QFrame* m_details { nullptr };
     QFormLayout* m_fields { nullptr };
+    QPushButton* m_show_report_button { nullptr };
+    QPlainTextEdit* m_report_text { nullptr };
     QLabel* m_validation { nullptr };
 
     QLabel* m_status_title { nullptr };

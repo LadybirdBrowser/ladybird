@@ -80,17 +80,14 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
     m_fields = create_details_form();
     details_layout->addLayout(m_fields);
     details_layout->addSpacing(item_spacing);
-    auto* show_report_button = new QPushButton(tr("Open full report (.txt)"), m_details);
-    show_report_button->setAutoDefault(false);
-    show_report_button->setObjectName("CrashReportShowReportButton");
-    QObject::connect(show_report_button, &QPushButton::clicked, this, [this] {
-        if (auto result = m_review.show_report(); result.is_error())
-            warnln("Could not open the crash report: {}", result.error());
-    });
-    details_layout->addWidget(show_report_button, 0, Qt::AlignLeft);
+    m_show_report_button = new QPushButton(tr("View full report"), m_details);
+    m_show_report_button->setAutoDefault(false);
+    m_show_report_button->setObjectName("CrashReportShowReportButton");
+    QObject::connect(m_show_report_button, &QPushButton::clicked, this, [this] { show_report_text(); });
+    details_layout->addWidget(m_show_report_button, 0, Qt::AlignLeft);
     auto* details_toggle = create_disclosure(tr("Report details"), m_details, contents);
     // The toggle comes before what it shows, although it is created after it.
-    QWidget::setTabOrder(details_toggle, show_report_button);
+    QWidget::setTabOrder(details_toggle, m_show_report_button);
     contents_layout->addWidget(details_toggle);
     contents_layout->addWidget(m_details);
     review_layout->addWidget(contents);
@@ -158,6 +155,15 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
     m_status_page->hide();
     layout->addWidget(m_status_page);
 
+    auto report_text_page = create_report_text_page(this);
+    m_report_text_page = report_text_page.page;
+    m_report_text = report_text_page.text;
+    QObject::connect(report_text_page.back_button, &QPushButton::clicked, this, [this] {
+        show_page(*m_review_page);
+        m_show_report_button->setFocus(Qt::OtherFocusReason);
+    });
+    layout->addWidget(m_report_text_page);
+
     QObject::connect(send_button, &QPushButton::clicked, this, [this] { send(); });
     QObject::connect(decline_button, &QPushButton::clicked, this, [this] {
         show_declined();
@@ -213,7 +219,7 @@ void CrashReportReviewWidget::update_chrome_style()
         return;
     m_is_updating_chrome_style = true;
 
-    QWidget* fields[] = { m_description_edit, m_website };
+    QWidget* fields[] = { m_description_edit, m_website, m_report_text };
     apply_style(*this, fields);
 
     m_is_updating_chrome_style = false;
@@ -267,6 +273,24 @@ void CrashReportReviewWidget::show_page(QWidget& page)
 {
     m_review_page->setVisible(&page == m_review_page);
     m_status_page->setVisible(&page == m_status_page);
+    m_report_text_page->setVisible(&page == m_report_text_page);
+    if (on_report_text_visibility_change)
+        on_report_text_visibility_change(&page == m_report_text_page);
+}
+
+void CrashReportReviewWidget::show_report_text()
+{
+    auto text = m_review.report_text();
+    if (text.is_error()) {
+        m_validation->setText(tr("The crash report could not be read."));
+        m_validation->show();
+        warnln("Could not read the crash report: {}", text.error());
+        return;
+    }
+
+    m_report_text->setPlainText(qstring_from_ak_string(String::from_utf8_with_replacement_character(text.value().view())));
+    show_page(*m_report_text_page);
+    m_report_text->setFocus(Qt::OtherFocusReason);
 }
 
 void CrashReportReviewWidget::show_status(QString const& title, QString const& message,

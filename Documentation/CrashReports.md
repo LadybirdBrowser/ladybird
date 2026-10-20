@@ -42,8 +42,8 @@ browser UI, so it does not depend on a web content process.
 
 The review asks what the user was doing and lets them choose whether to send the
 report. Report details lists its main fields, such as the failure, signal,
-version and commit, and opens the full report, exactly as it would be attached,
-in the system's text viewer. Submissions omit the website URL by default; when
+version and commit, and shows the full report, exactly as it would be attached,
+in place of the review. Submissions omit the website URL by default; when
 the crashed page had one, the user can explicitly include it and edit it first.
 Ladybird does not collect contact information. Network errors, timeouts, rate
 limits and server errors are retried a few times, honoring the server's

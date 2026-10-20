@@ -6,6 +6,7 @@
 
 #include <AK/LexicalPath.h>
 #include <AK/ScopeGuard.h>
+#include <AK/Vector.h>
 #include <LibCore/Directory.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
@@ -217,6 +218,33 @@ TEST_CASE(sending_shows_its_progress_and_outcome)
     widget.show_sent();
     EXPECT_EQ(status_title(widget), "Report sent");
     EXPECT_EQ(message.text(), "Thank you for helping Ladybird.");
+}
+
+TEST_CASE(the_full_report_is_shown_in_place_of_the_review)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto name = write_report("2026-10-01T12-00-00Z"sv);
+    WebView::CrashReportStore store { test_directory() };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
+    MUST(widget.open_report(name));
+    Vector<bool> text_visibility;
+    widget.on_report_text_visibility_change = [&](bool visible) { text_visibility.append(visible); };
+    widget.show();
+
+    auto& send = child<QPushButton>(widget, "CrashReportSendButton");
+    child<QPushButton>(widget, "CrashReportShowReportButton").click();
+    EXPECT_EQ(text_visibility, (Vector<bool> { true }));
+    auto& text = child<QPlainTextEdit>(widget, "ReportText");
+    EXPECT(text.isVisible());
+    EXPECT(!send.isVisible());
+    EXPECT_EQ(text.toPlainText(), QString::fromUtf8(report_text.characters_without_null_termination(), report_text.length()));
+
+    child<QPushButton>(widget, "ReportTextBackButton").click();
+    EXPECT(!text.isVisible());
+    EXPECT(send.isVisible());
+    EXPECT_EQ(text_visibility, (Vector<bool> { true, false }));
 }
 
 TEST_CASE(the_details_toggle_is_written_like_the_text_around_it)
