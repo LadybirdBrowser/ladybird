@@ -330,10 +330,8 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
     auto result = Directives::Directive::Result::Allowed;
 
     // FIXME: File spec issue stating that the request can be null (e.g. from a srcdoc resource).
-    if (!navigation_request) {
-        dbgln("FIXME: Handle null navigation_request in navigation response Content Security Policy check.");
+    if (!navigation_request)
         return result;
-    }
 
     // 2. For each policy of response CSP list:
     for (auto policy : response_csp_list->policies()) {
