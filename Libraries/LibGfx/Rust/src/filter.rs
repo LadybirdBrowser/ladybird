@@ -19,7 +19,8 @@
 use std::ffi::c_void;
 
 use crate::{
-    Color, ColorFilterType, CompositingAndBlendingOperator, IntRect, IntSize, InterpolationColorSpace, ScalingMode,
+    Color, ColorFilterType, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, InterpolationColorSpace,
+    ScalingMode,
 };
 
 /// Which channel of a displacement map input drives the displacement along one axis.
@@ -376,6 +377,156 @@ impl Filter {
         node(&mut reader).is_none_or(|affects_bounds| affects_bounds || reader.offset != bytes.len())
     }
 
+    /// The bounds the graph paints within when its source graphic paints within `source`, in the
+    /// same space, or `None` when the graph can paint everywhere.
+    pub fn output_bounds(&self, source: FloatRect) -> Option<FloatRect> {
+        self.bounds_for_source(OutputBounds::Rect(source), BoundsQuestion::Output)
+            .into()
+    }
+
+    /// The bounds of the output that can change when the source graphic changes only within
+    /// `changed_source`, together with everything the graph paints whatever its source, so that
+    /// the graph appearing or disappearing is covered too. `None` means everywhere.
+    ///
+    /// Unlike the output bounds, these hold for a change in parts: the bounds of a change are the
+    /// union of the bounds of its parts. An operation that keeps only where two of its inputs
+    /// overlap paints within the overlap, but a change to either input can show anywhere the
+    /// other one paints.
+    pub fn changed_output_bounds(&self, changed_source: FloatRect) -> Option<FloatRect> {
+        self.bounds_for_source(OutputBounds::Rect(changed_source), BoundsQuestion::Change)
+            .into()
+    }
+
+    /// [`Self::output_bounds`] for a serialized graph. Bytes that do not hold a graph are assumed
+    /// to paint everywhere.
+    pub fn serialized_output_bounds(bytes: &[u8], source: FloatRect) -> Option<FloatRect> {
+        Self::deserialize(bytes)?.output_bounds(source)
+    }
+
+    /// [`Self::changed_output_bounds`] for a serialized graph. Bytes that do not hold a graph are
+    /// assumed to change everywhere.
+    pub fn serialized_changed_output_bounds(bytes: &[u8], changed_source: FloatRect) -> Option<FloatRect> {
+        Self::deserialize(bytes)?.changed_output_bounds(changed_source)
+    }
+
+    fn bounds_for_source(&self, source: OutputBounds, question: BoundsQuestion) -> OutputBounds {
+        let input_bounds = |input: &Option<Box<Filter>>| {
+            input
+                .as_deref()
+                .map_or(source, |input| input.bounds_for_source(source, question))
+        };
+        let painted_inputs = |painted_inputs: PaintedInputs| match (question, painted_inputs) {
+            (BoundsQuestion::Change, PaintedInputs::Neither) | (BoundsQuestion::Output, _) => painted_inputs,
+            (BoundsQuestion::Change, _) => PaintedInputs::Either,
+        };
+        match self {
+            Self::Compose { outer, inner } => {
+                outer.bounds_for_source(inner.bounds_for_source(source, question), question)
+            }
+            Self::ColorFilter { input, .. }
+            | Self::Saturate { input, .. }
+            | Self::HueRotate { input, .. }
+            | Self::ColorSpaceConversion { input, .. } => input_bounds(input),
+            // Erosion paints within its input, but a change spreads as far as dilation spreads it.
+            Self::Erode {
+                radius_x,
+                radius_y,
+                input,
+            } => match question {
+                BoundsQuestion::Output => input_bounds(input),
+                BoundsQuestion::Change => {
+                    input_bounds(input).outset(radius_x.max(0.0).ceil(), radius_y.max(0.0).ceil())
+                }
+            },
+            // Only the alpha offset can turn transparent black into something visible.
+            Self::ColorMatrix { matrix, input } => {
+                if matrix[19] > 0.0 {
+                    OutputBounds::Unbounded
+                } else {
+                    input_bounds(input)
+                }
+            }
+            Self::ColorTable { a, input, .. } => {
+                if a.as_ref().is_some_and(|alpha_table| alpha_table[0] != 0) {
+                    OutputBounds::Unbounded
+                } else {
+                    input_bounds(input)
+                }
+            }
+            Self::Blur {
+                radius_x,
+                radius_y,
+                input,
+            } => input_bounds(input).outset(gaussian_reach(*radius_x), gaussian_reach(*radius_y)),
+            Self::DropShadow {
+                offset_x,
+                offset_y,
+                radius,
+                input,
+                ..
+            } => {
+                let shape = input_bounds(input);
+                let reach = gaussian_reach(*radius);
+                shape.united(shape.outset(reach, reach).translated(*offset_x, *offset_y))
+            }
+            Self::Offset { dx, dy, input } => input_bounds(input).translated(*dx, *dy),
+            Self::Dilate {
+                radius_x,
+                radius_y,
+                input,
+            } => input_bounds(input).outset(radius_x.max(0.0).ceil(), radius_y.max(0.0).ceil()),
+            Self::DisplacementMap {
+                color,
+                displacement,
+                scale,
+                ..
+            } => {
+                let reach = (scale.abs() / 2.0).ceil();
+                let displaced_color = input_bounds(color).outset(reach, reach);
+                match question {
+                    BoundsQuestion::Output => displaced_color,
+                    // A change to the displacement moves what is sampled where it changed.
+                    BoundsQuestion::Change => displaced_color.united(input_bounds(displacement)),
+                }
+            }
+            Self::Merge { inputs } => inputs.iter().fold(OutputBounds::EMPTY, |bounds, input| {
+                bounds.united(
+                    input
+                        .as_ref()
+                        .map_or(source, |input| input.bounds_for_source(source, question)),
+                )
+            }),
+            Self::Blend {
+                background,
+                foreground,
+                mode,
+            } => blended_output_bounds(
+                painted_inputs(PaintedInputs::of_blend_mode(*mode)),
+                input_bounds(foreground),
+                input_bounds(background),
+            ),
+            Self::Arithmetic {
+                background,
+                foreground,
+                k1,
+                k2,
+                k3,
+                k4,
+            } => {
+                if *k4 != 0.0 {
+                    return OutputBounds::Unbounded;
+                }
+                blended_output_bounds(
+                    painted_inputs(PaintedInputs::of_arithmetic(*k1, *k2, *k3)),
+                    input_bounds(foreground),
+                    input_bounds(background),
+                )
+            }
+            Self::Image { dest_rect, .. } => OutputBounds::Rect(dest_rect.to_float()),
+            Self::Flood { .. } | Self::Turbulence { .. } => OutputBounds::Unbounded,
+        }
+    }
+
     pub fn serialize(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
         Writer { bytes: &mut bytes }.filter(self);
@@ -388,6 +539,125 @@ impl Filter {
         let mut reader = Reader { bytes, offset: 0 };
         let filter = reader.filter()?;
         (reader.offset == bytes.len()).then_some(filter)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum OutputBounds {
+    Rect(FloatRect),
+    Unbounded,
+}
+
+impl From<OutputBounds> for Option<FloatRect> {
+    fn from(bounds: OutputBounds) -> Self {
+        match bounds {
+            OutputBounds::Rect(rect) => Some(rect),
+            OutputBounds::Unbounded => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BoundsQuestion {
+    // Where the output paints, for a source painting within the rect.
+    Output,
+    // Where the output can change, for a source changing within the rect.
+    Change,
+}
+
+impl OutputBounds {
+    const EMPTY: Self = Self::Rect(FloatRect::new(0.0, 0.0, 0.0, 0.0));
+
+    fn united(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Rect(rect), Self::Rect(other)) => Self::Rect(rect.united(other)),
+            _ => Self::Unbounded,
+        }
+    }
+
+    fn intersected(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Rect(rect), Self::Rect(other)) => {
+                let left = rect.x.max(other.x);
+                let top = rect.y.max(other.y);
+                let right = rect.right().min(other.right());
+                let bottom = rect.bottom().min(other.bottom());
+                if left >= right || top >= bottom {
+                    return Self::EMPTY;
+                }
+                Self::Rect(FloatRect::new(left, top, right - left, bottom - top))
+            }
+            (Self::Unbounded, bounds) | (bounds, Self::Unbounded) => bounds,
+        }
+    }
+
+    fn outset(self, x: f32, y: f32) -> Self {
+        match self {
+            Self::Rect(rect) if !rect.is_empty() => Self::Rect(FloatRect::new(
+                rect.x - x,
+                rect.y - y,
+                rect.width + 2.0 * x,
+                rect.height + 2.0 * y,
+            )),
+            bounds => bounds,
+        }
+    }
+
+    fn translated(self, dx: f32, dy: f32) -> Self {
+        match self {
+            Self::Rect(rect) => Self::Rect(rect.translated(dx, dy)),
+            Self::Unbounded => Self::Unbounded,
+        }
+    }
+}
+
+/// How far a Gaussian with this standard deviation spreads its input, matching the kernel extent
+/// the Skia player uses.
+fn gaussian_reach(sigma: f32) -> f32 {
+    (3.0 * sigma.max(0.0)).ceil()
+}
+
+/// Which inputs a two-input operation can paint outside of transparent black over.
+#[derive(Clone, Copy)]
+enum PaintedInputs {
+    Neither,
+    Both,
+    ForegroundOnly,
+    BackgroundOnly,
+    Either,
+}
+
+impl PaintedInputs {
+    fn of_blend_mode(mode: CompositingAndBlendingOperator) -> Self {
+        use CompositingAndBlendingOperator as Operator;
+        match mode {
+            Operator::Clear => Self::Neither,
+            Operator::SourceIn | Operator::DestinationIn => Self::Both,
+            Operator::Copy | Operator::SourceOut | Operator::DestinationATop => Self::ForegroundOnly,
+            Operator::DestinationOut | Operator::SourceATop => Self::BackgroundOnly,
+            _ => Self::Either,
+        }
+    }
+
+    /// For `k1 * foreground * background + k2 * foreground + k3 * background`.
+    fn of_arithmetic(k1: f32, k2: f32, k3: f32) -> Self {
+        match (k2 != 0.0, k3 != 0.0) {
+            (false, false) if k1 != 0.0 => Self::Both,
+            (false, false) => Self::Neither,
+            (true, false) => Self::ForegroundOnly,
+            (false, true) => Self::BackgroundOnly,
+            (true, true) => Self::Either,
+        }
+    }
+}
+
+fn blended_output_bounds(painted: PaintedInputs, foreground: OutputBounds, background: OutputBounds) -> OutputBounds {
+    match painted {
+        PaintedInputs::Neither => OutputBounds::EMPTY,
+        PaintedInputs::Both => foreground.intersected(background),
+        PaintedInputs::ForegroundOnly => foreground,
+        PaintedInputs::BackgroundOnly => background,
+        PaintedInputs::Either => foreground.united(background),
     }
 }
 
@@ -1056,6 +1326,335 @@ mod tests {
         let mut padded = color().serialize();
         padded.push(0);
         assert!(Filter::serialized_may_affect_output_bounds(&padded));
+    }
+
+    #[test]
+    fn every_operation_reports_the_bounds_it_paints_within() {
+        let source = FloatRect::new(10.0, 20.0, 30.0, 40.0);
+        let flood = || Filter::Flood {
+            color: Color::from_rgba(0, 0, 0, 0xff),
+            opacity: 1.0,
+        };
+        let offset = |dx, dy| Filter::Offset { dx, dy, input: None };
+        let blend = |mode| Filter::Blend {
+            background: boxed(offset(100.0, 0.0)),
+            foreground: None,
+            mode,
+        };
+        let arithmetic = |k1, k2, k3, k4| Filter::Arithmetic {
+            background: boxed(offset(15.0, 0.0)),
+            foreground: None,
+            k1,
+            k2,
+            k3,
+            k4,
+        };
+        let mut alpha_table = Box::new([0u8; 256]);
+        let cases: Vec<(Filter, Option<FloatRect>)> = vec![
+            (Filter::color(ColorFilterType::Opacity, 0.5, None), Some(source)),
+            (Filter::hue_rotate(45.0, None), Some(source)),
+            (
+                Filter::ColorMatrix {
+                    matrix: [0.0; 20],
+                    input: None,
+                },
+                Some(source),
+            ),
+            (
+                Filter::ColorMatrix {
+                    matrix: std::array::from_fn(|index| if index == 19 { 1.0 } else { 0.0 }),
+                    input: None,
+                },
+                None,
+            ),
+            (
+                Filter::ColorTable {
+                    a: Some(alpha_table.clone()),
+                    r: None,
+                    g: None,
+                    b: None,
+                    input: None,
+                },
+                Some(source),
+            ),
+            (
+                Filter::ColorTable {
+                    a: Some({
+                        alpha_table[0] = 1;
+                        alpha_table
+                    }),
+                    r: None,
+                    g: None,
+                    b: None,
+                    input: None,
+                },
+                None,
+            ),
+            (
+                Filter::blur(2.0, 0.5, None),
+                Some(FloatRect::new(4.0, 18.0, 42.0, 44.0)),
+            ),
+            (
+                Filter::drop_shadow(5.0, 50.0, 1.0, Color::from_rgba(0, 0, 0, 0xff), None),
+                Some(FloatRect::new(10.0, 20.0, 38.0, 93.0)),
+            ),
+            (offset(-5.0, 2.5), Some(FloatRect::new(5.0, 22.5, 30.0, 40.0))),
+            (
+                Filter::Dilate {
+                    radius_x: 1.5,
+                    radius_y: 0.0,
+                    input: None,
+                },
+                Some(FloatRect::new(8.0, 20.0, 34.0, 40.0)),
+            ),
+            (
+                Filter::Erode {
+                    radius_x: 3.0,
+                    radius_y: 3.0,
+                    input: None,
+                },
+                Some(source),
+            ),
+            (
+                Filter::DisplacementMap {
+                    color: None,
+                    displacement: boxed(flood()),
+                    scale: -5.0,
+                    x_channel_selector: ChannelSelector::Red,
+                    y_channel_selector: ChannelSelector::Green,
+                },
+                Some(FloatRect::new(7.0, 17.0, 36.0, 46.0)),
+            ),
+            (
+                Filter::Merge {
+                    inputs: vec![None, Some(offset(0.0, 100.0))],
+                },
+                Some(FloatRect::new(10.0, 20.0, 30.0, 140.0)),
+            ),
+            (Filter::Merge { inputs: vec![] }, Some(FloatRect::default())),
+            (blend(CompositingAndBlendingOperator::Clear), Some(FloatRect::default())),
+            (
+                blend(CompositingAndBlendingOperator::SourceIn),
+                Some(FloatRect::default()),
+            ),
+            (blend(CompositingAndBlendingOperator::Copy), Some(source)),
+            (
+                blend(CompositingAndBlendingOperator::SourceATop),
+                Some(source.translated(100.0, 0.0)),
+            ),
+            (
+                blend(CompositingAndBlendingOperator::Multiply),
+                Some(FloatRect::new(10.0, 20.0, 130.0, 40.0)),
+            ),
+            (
+                blend(CompositingAndBlendingOperator::PlusLighter),
+                Some(FloatRect::new(10.0, 20.0, 130.0, 40.0)),
+            ),
+            (
+                arithmetic(1.0, 0.0, 0.0, 0.0),
+                Some(FloatRect::new(25.0, 20.0, 15.0, 40.0)),
+            ),
+            (arithmetic(1.0, 1.0, 0.0, 0.0), Some(source)),
+            (arithmetic(0.0, 0.0, 1.0, 0.0), Some(source.translated(15.0, 0.0))),
+            (
+                arithmetic(0.0, 1.0, 1.0, 0.0),
+                Some(FloatRect::new(10.0, 20.0, 45.0, 40.0)),
+            ),
+            (arithmetic(0.0, 0.0, 0.0, 0.0), Some(FloatRect::default())),
+            (arithmetic(0.0, 0.0, 0.0, 0.5), None),
+            (
+                Filter::Image {
+                    frame_id: IMAGE_FRAME_ID,
+                    src_rect: IntRect::default(),
+                    dest_rect: IntRect {
+                        x: 1,
+                        y: 2,
+                        width: 3,
+                        height: 4,
+                    },
+                    scaling_mode: ScalingMode::None,
+                },
+                Some(FloatRect::new(1.0, 2.0, 3.0, 4.0)),
+            ),
+            (flood(), None),
+            (
+                Filter::Turbulence {
+                    kind: TurbulenceType::Turbulence,
+                    base_frequency_x: 0.1,
+                    base_frequency_y: 0.1,
+                    num_octaves: 1,
+                    seed: 0.0,
+                    tile_stitch_size: IntSize::default(),
+                },
+                None,
+            ),
+            (
+                Filter::compose(offset(1.0, 0.0), Filter::blur(1.0, 1.0, None)),
+                Some(FloatRect::new(8.0, 17.0, 36.0, 46.0)),
+            ),
+            // An unbounded flood masked by the blurred source alpha, as SVG lowers feDropShadow.
+            (
+                Filter::Blend {
+                    background: boxed(Filter::blur(1.0, 1.0, None)),
+                    foreground: boxed(flood()),
+                    mode: CompositingAndBlendingOperator::SourceIn,
+                },
+                Some(FloatRect::new(7.0, 17.0, 36.0, 46.0)),
+            ),
+            (every_operation_filter(), None),
+        ];
+        for (graph, expected) in cases {
+            assert_eq!(graph.output_bounds(source), expected, "{graph:?}");
+        }
+    }
+
+    #[test]
+    fn a_change_shows_wherever_any_input_carries_it() {
+        let changed_source = FloatRect::new(50.0, 10.0, 20.0, 20.0);
+        let offset = |dx| Filter::Offset {
+            dx,
+            dy: 0.0,
+            input: None,
+        };
+        // The source masked by a copy of itself shifted right: a change shows where either copy is.
+        let masked_by_shifted_copy = Filter::Blend {
+            background: boxed(offset(40.0)),
+            foreground: None,
+            mode: CompositingAndBlendingOperator::SourceIn,
+        };
+        assert_eq!(
+            masked_by_shifted_copy.output_bounds(changed_source),
+            Some(FloatRect::default())
+        );
+        assert_eq!(
+            masked_by_shifted_copy.changed_output_bounds(changed_source),
+            Some(FloatRect::new(50.0, 10.0, 60.0, 20.0))
+        );
+        let overlap_only = Filter::Arithmetic {
+            background: boxed(offset(40.0)),
+            foreground: None,
+            k1: 1.0,
+            k2: 0.0,
+            k3: 0.0,
+            k4: 0.0,
+        };
+        assert_eq!(
+            overlap_only.changed_output_bounds(changed_source),
+            Some(FloatRect::new(50.0, 10.0, 60.0, 20.0))
+        );
+        assert_eq!(
+            Filter::Erode {
+                radius_x: 2.0,
+                radius_y: 0.5,
+                input: None,
+            }
+            .changed_output_bounds(changed_source),
+            Some(FloatRect::new(48.0, 9.0, 24.0, 22.0))
+        );
+        assert_eq!(
+            Filter::blur(1.0, 1.0, None).changed_output_bounds(changed_source),
+            Filter::blur(1.0, 1.0, None).output_bounds(changed_source)
+        );
+        // The source shifted far away and displaced by the source itself: a change moves what is
+        // sampled where the change is, not only around the shifted copy.
+        let displaced_by_source = Filter::DisplacementMap {
+            color: boxed(offset(100.0)),
+            displacement: None,
+            scale: 10.0,
+            x_channel_selector: ChannelSelector::Red,
+            y_channel_selector: ChannelSelector::Green,
+        };
+        assert_eq!(
+            displaced_by_source.output_bounds(changed_source),
+            Some(FloatRect::new(145.0, 5.0, 30.0, 30.0))
+        );
+        assert_eq!(
+            displaced_by_source.changed_output_bounds(changed_source),
+            Some(FloatRect::new(50.0, 5.0, 125.0, 30.0))
+        );
+        let cleared = Filter::Blend {
+            background: None,
+            foreground: None,
+            mode: CompositingAndBlendingOperator::Clear,
+        };
+        assert_eq!(
+            cleared.changed_output_bounds(changed_source),
+            Some(FloatRect::default())
+        );
+        // What a graph paints whatever its source is part of the change too.
+        let flood = Filter::Flood {
+            color: Color::from_rgba(0, 0, 0, 0xff),
+            opacity: 1.0,
+        };
+        assert_eq!(flood.changed_output_bounds(changed_source), None);
+        let image = Filter::Image {
+            frame_id: IMAGE_FRAME_ID,
+            src_rect: IntRect::default(),
+            dest_rect: IntRect {
+                x: 1,
+                y: 2,
+                width: 3,
+                height: 4,
+            },
+            scaling_mode: ScalingMode::None,
+        };
+        assert_eq!(
+            Filter::Merge {
+                inputs: vec![Some(image), None],
+            }
+            .changed_output_bounds(changed_source),
+            Some(FloatRect::new(1.0, 2.0, 69.0, 28.0))
+        );
+        for graph in [
+            masked_by_shifted_copy,
+            overlap_only,
+            displaced_by_source,
+            every_operation_filter(),
+        ] {
+            assert_eq!(
+                Filter::serialized_changed_output_bounds(&graph.serialize(), changed_source),
+                graph.changed_output_bounds(changed_source),
+                "{graph:?}"
+            );
+        }
+        assert_eq!(Filter::serialized_changed_output_bounds(&[0xff], changed_source), None);
+    }
+
+    #[test]
+    fn an_empty_source_stays_empty_through_spreading_operations() {
+        let empty = FloatRect::default();
+        assert_eq!(Filter::blur(5.0, 5.0, None).output_bounds(empty), Some(empty));
+        assert_eq!(
+            Filter::Dilate {
+                radius_x: 5.0,
+                radius_y: 5.0,
+                input: None,
+            }
+            .output_bounds(empty),
+            Some(empty)
+        );
+    }
+
+    #[test]
+    fn the_serialized_output_bounds_agree_with_the_graph() {
+        let source = FloatRect::new(10.0, 20.0, 30.0, 40.0);
+        let graphs = [
+            every_operation_filter(),
+            Filter::blur(2.0, 3.0, None),
+            Filter::compose(
+                Filter::drop_shadow(1.0, 2.0, 3.0, Color::from_rgba(0, 0, 0, 0xff), None),
+                Filter::hue_rotate(45.0, None),
+            ),
+        ];
+        for graph in graphs {
+            assert_eq!(
+                Filter::serialized_output_bounds(&graph.serialize(), source),
+                graph.output_bounds(source),
+                "{graph:?}"
+            );
+        }
+        assert_eq!(Filter::serialized_output_bounds(&[], source), None);
+        assert_eq!(Filter::serialized_output_bounds(&[0xff], source), None);
     }
 
     #[test]
