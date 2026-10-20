@@ -13,6 +13,8 @@
 #include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
+#include <AK/Weakable.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
 
@@ -51,9 +53,12 @@ public:
     virtual ~BookmarkStoreObserver();
 
     virtual void bookmarks_changed() { }
+
+private:
+    WeakPtr<BookmarkStore> m_bookmark_store;
 };
 
-class WEBVIEW_API BookmarkStore {
+class WEBVIEW_API BookmarkStore : public Weakable<BookmarkStore> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -82,8 +87,8 @@ public:
     JsonValue serialize_items(Optional<FaviconStore&> favicon_store = {}) const;
     HashTable<String> favicon_hashes() const;
 
-    static void add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
-    static void remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
+    void add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
+    void remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
 
 private:
     explicit BookmarkStore(ByteString bookmarks_path);

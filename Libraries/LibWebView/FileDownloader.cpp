@@ -1668,25 +1668,27 @@ void FileDownloader::notify_download_removed(u64 id, IsPrivate is_private)
 
 void FileDownloader::add_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver& observer)
 {
-    Application::the().file_downloader().m_observers.append(observer);
+    m_observers.append(observer);
 }
 
 void FileDownloader::remove_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver& observer)
 {
-    auto was_removed = Application::the().file_downloader().m_observers.remove_first_matching([&](auto const& candidate) {
+    auto was_removed = m_observers.remove_first_matching([&](auto const& candidate) {
         return &candidate == &observer;
     });
     VERIFY(was_removed);
 }
 
 FileDownloaderObserver::FileDownloaderObserver()
+    : m_file_downloader(Application::the().file_downloader())
 {
-    FileDownloader::add_observer({}, *this);
+    m_file_downloader->add_observer({}, *this);
 }
 
 FileDownloaderObserver::~FileDownloaderObserver()
 {
-    FileDownloader::remove_observer({}, *this);
+    if (m_file_downloader)
+        m_file_downloader->remove_observer({}, *this);
 }
 
 }

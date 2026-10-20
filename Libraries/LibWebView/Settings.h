@@ -11,6 +11,8 @@
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
+#include <AK/WeakPtr.h>
+#include <AK/Weakable.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
@@ -144,9 +146,12 @@ public:
     virtual void background_networking_settings_changed() { }
     virtual void content_blocker_settings_changed() { }
     virtual void content_blocker_count_visibility_changed() { }
+
+private:
+    WeakPtr<Settings> m_settings;
 };
 
-class WEBVIEW_API Settings {
+class WEBVIEW_API Settings : public Weakable<Settings> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -261,8 +266,8 @@ public:
         return value.value_or_lazy_evaluated([&] { return variable.default_value.get_integer<T>().value(); });
     }
 
-    static void add_observer(Badge<SettingsObserver>, SettingsObserver&);
-    static void remove_observer(Badge<SettingsObserver>, SettingsObserver&);
+    void add_observer(Badge<SettingsObserver>, SettingsObserver&);
+    void remove_observer(Badge<SettingsObserver>, SettingsObserver&);
 
 private:
     explicit Settings(ByteString settings_path);

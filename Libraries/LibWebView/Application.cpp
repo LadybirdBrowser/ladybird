@@ -210,15 +210,12 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 Application::~Application()
 {
 #if defined(AK_OS_MACOS)
-    // NB: Stop bootstrap callbacks before destroying the state they use.
+    // Stop bootstrap callbacks before destroying the state they use.
     m_mach_port_server.clear();
 #endif
 
     m_autocomplete_service.clear();
 
-    // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
-    m_settings_observer.clear();
-    m_bookmark_store_observer.clear();
     if (m_compositor_client)
         m_compositor_client->on_death = nullptr;
 
@@ -244,7 +241,7 @@ Application::~Application()
 
     m_spare_web_content_process = nullptr;
 
-    // NB: Connection die() handlers use the process manager, so destroy the processes while it is still reachable.
+    // Connection die() handlers use the process manager, so destroy the processes while it is still reachable.
     if (m_process_manager)
         m_process_manager->remove_all_processes();
     m_process_manager = nullptr;
