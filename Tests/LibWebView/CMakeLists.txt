@@ -139,6 +139,7 @@ endif()
 
 set(TEST_SOURCES
     TestAccessibilityTreeManager.cpp
+    TestAudibilityHold.cpp
     TestAudioServerAudibility.cpp
     TestBackgroundNetworking.cpp
     TestAutocompleteMuxer.cpp

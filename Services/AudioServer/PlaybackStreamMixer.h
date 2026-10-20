@@ -39,8 +39,6 @@ enum class PlaybackGroupMuteState : u8 {
 // The peak, about -72 dBFS, at which an authorized group's combined sound counts as audible, after its streams' gain
 // and whether or not the group is muted.
 static constexpr float AUDIBLE_PEAK = 1.0f / 4096;
-// How long a group goes on counting as audible after its sound stops.
-static constexpr AK::Duration AUDIBILITY_LINGER = AK::Duration::from_seconds(3);
 
 // Mixes the shared rings of one tab's client streams into one output device stream, which plays only while some
 // client is playing or draining.

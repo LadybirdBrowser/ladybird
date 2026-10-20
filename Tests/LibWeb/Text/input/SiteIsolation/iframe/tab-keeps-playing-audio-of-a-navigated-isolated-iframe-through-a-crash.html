@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(30_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const httpServer = httpTestServer();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const echo = async (name, body) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", `/${name}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body: `<!DOCTYPE html><script>${body}<\/script>`,
+                })
+            );
+            url.hostname = uniqueLocalhostHostname(name);
+            return url;
+        };
+
+        const playingUrl = await echo("tab-keeps-playing-audio-through-a-crash-playing", `
+            const context = new AudioContext();
+            const oscillator = new OscillatorNode(context);
+            oscillator.connect(context.destination);
+            oscillator.start();
+        `);
+        const nextUrl = await echo("tab-keeps-playing-audio-through-a-crash-next", `parent.postMessage("arrived", "*");`);
+
+        const iframe = document.createElement("iframe");
+        iframe.src = playingUrl;
+        document.body.appendChild(iframe);
+        println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+
+        // The iframe's page leaves the tab while it is heard, as the iframe navigates to another site. Losing the process
+        // of the iframe's next document doesn't end the hold.
+        const changes = internals.tabAudibilityChangeCount();
+        const arrived = nextMessage();
+        const navigatedAt = performance.now();
+        iframe.src = nextUrl;
+        await arrived;
+        internals.crashRemoteFrameProcesses();
+        println(`the iframe's next process is gone: ${await waitForCondition(() => remoteFrameCount() === 0)}`);
+        println(`plays audio: ${internals.tabIsPlayingAudio()}`);
+        println(`stops playing audio a while later: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
+        const heldFor = performance.now() - navigatedAt;
+        println(`about three seconds after navigating: ${heldFor >= 2500 && heldFor < 5000}`);
+        println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
+    });
+</script>
