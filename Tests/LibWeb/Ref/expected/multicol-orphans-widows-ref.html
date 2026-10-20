@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+.container { position: relative; height: 60px; width: 220px; margin-bottom: 10px; }
+.line { position: absolute; width: 20px; height: 20px; background: green; }
+.block { position: absolute; left: 0; top: 0; width: 100px; height: 40px; background: blue; }
+</style>
+<div class="container">
+    <div class="line" style="left: 0; top: 0"></div>
+    <div class="line" style="left: 0; top: 20px"></div>
+    <div class="line" style="left: 120px; top: 0"></div>
+    <div class="line" style="left: 120px; top: 20px"></div>
+</div>
+<div class="container">
+    <div class="block"></div>
+    <div class="line" style="left: 120px; top: 0"></div>
+    <div class="line" style="left: 120px; top: 20px"></div>
+    <div class="line" style="left: 120px; top: 40px"></div>
+</div>
+<div class="container">
+    <div class="block"></div>
+    <div class="line" style="left: 0; top: 40px"></div>
+    <div class="line" style="left: 120px; top: 0"></div>
+    <div class="line" style="left: 120px; top: 20px"></div>
+</div>

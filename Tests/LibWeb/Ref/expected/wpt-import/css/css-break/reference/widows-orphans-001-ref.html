@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fragmentation level 3 Test Reference File</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<style>
+div {
+  position: absolute;
+  columns: 2;
+  column-fill: balance-all;
+  column-gap: 0;
+}
+</style>
+<body>
+  <p>Test passes if there are 4 “X” characters <strong>arranged in a 2 by 2 square</strong> below.
+
+  <div>X<br>X<br>X<br>X</div>
+</body>

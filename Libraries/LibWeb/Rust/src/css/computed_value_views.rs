@@ -446,6 +446,10 @@ scalar_accessors! {
         border_bottom_color: u32 => border_bottom.color,
         border_left_color: u32 => border_left.color,
     }
+    inherited_text: {
+        orphans: u64 => orphans,
+        widows: u64 => widows,
+    }
     inherited_box: {
         writing_mode: u8 => writing_mode,
         direction: u8 => direction,

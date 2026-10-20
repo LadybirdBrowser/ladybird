@@ -140,6 +140,7 @@ pub(crate) struct LineRootFragmentation {
     pub(crate) block_size: Option<CssPixels>,
     pub(crate) resume: Option<LinePosition>,
     pub(crate) fragmentainer_had_content: bool,
+    pub(crate) break_before_is_avoided: bool,
 }
 
 #[derive(Clone, Debug, Default)]

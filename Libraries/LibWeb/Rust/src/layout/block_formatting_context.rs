@@ -268,6 +268,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     broken_child_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
     unbreakable_line_roots: RefCell<HashSet<Node>>,
     fragmentation_suppression_depth: Cell<usize>,
+    break_before_child_is_avoided: Cell<Option<Node>>,
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
@@ -332,6 +333,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             broken_child_token: RefCell::new(None),
             unbreakable_line_roots: RefCell::new(HashSet::default()),
             fragmentation_suppression_depth: Cell::new(0),
+            break_before_child_is_avoided: Cell::new(None),
         }
     }
 
@@ -2846,6 +2848,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.discard_block_start_margin_of_next_child.set(true);
         }
         state.fragmentainer_had_content_before_child = self.fragmentainer_has_content.get();
+        self.break_before_child_is_avoided
+            .set(self.break_between_is_avoided(state, child).then_some(child));
         FragmentationStep::LayOut
     }
 
@@ -3090,6 +3094,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_size: fragmentainer.block_size,
             resume,
             fragmentainer_had_content: self.fragmentainer_has_content.get(),
+            break_before_is_avoided: self.break_before_child_is_avoided.get() == Some(line_root),
         })
     }
 

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#filling-columns">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#widows-orphans">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<style>
+  .multicol {
+      columns: 2;
+      orphans: 4;
+      widows: 4;
+      width: 100px;
+      column-gap: 80px;
+      column-rule: 80px solid green;
+      line-height: 0;
+      background: red;
+  }
+  span {
+      display: inline-block;
+      width: 100%;
+      height: 10px;
+      background: green;
+  }
+  span.tall {
+      height: 40px;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <span></span><br>
+  <span></span><br>
+  <span class="tall"></span><br>
+  <span class="tall"></span><br>
+  <span class="tall"></span><br>
+  <span class="tall"></span><br>
+  <span></span><br>
+  <span></span><br>
+</div>
