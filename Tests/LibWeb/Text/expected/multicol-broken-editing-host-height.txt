@@ -1,0 +1,2 @@
+in-columns: fragments 20
+unbroken: fragments 20

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .mc { columns: 2; column-gap: 0; width: 400px; }
+</style>
+<div class="mc"><div id="fit-content" style="height: fit-content"><div style="height: 100px"></div></div><p id="fit-content-after" style="margin: 0; height: 10px"></p></div>
+<div class="mc"><div id="max-content" style="height: max-content"><div style="height: 100px"></div></div></div>
+<ul class="mc" style="margin: 0; padding: 0 0 0 40px; width: 360px"><li id="list-item"><div style="height: 5px"></div></li></ul>
+<div class="mc"><div id="editable" contenteditable></div></div>
+<script>
+    test(() => {
+        for (const id of ["fit-content", "fit-content-after", "max-content", "list-item", "editable"]) {
+            const element = document.getElementById(id);
+            println(`${id}: ${element.getClientRects().length} fragments`);
+        }
+    });
+</script>

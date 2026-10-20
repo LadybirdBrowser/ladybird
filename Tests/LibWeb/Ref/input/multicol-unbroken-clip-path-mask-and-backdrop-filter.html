@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-unbroken-clip-path-mask-and-backdrop-filter-ref.html">
+<style>
+    body { margin: 0; }
+    .multicol { columns: 2; column-gap: 20px; width: 420px; column-fill: auto; height: 100px; margin-bottom: 10px; }
+    .lead { height: 60px; background: gray; }
+</style>
+<div class="multicol"><div class="lead"></div><div style="clip-path: inset(0); height: 80px; background: green"></div></div>
+<div class="multicol"><div class="lead"></div><div style="mask-image: linear-gradient(black, black); height: 80px; background: blue"></div></div>
+<div class="multicol"><div class="lead"></div><div style="backdrop-filter: invert(1); height: 80px; background: green"></div></div>

@@ -31,6 +31,12 @@ pub(crate) fn used_column_gap(style: StyleValues<'_>, percentage_basis: CssPixel
 
 pub(crate) const MAXIMUM_COLUMN_COUNT: usize = 1000;
 
+pub(crate) fn effects_need_unbroken_box(style: ComputedValuesView<'_>) -> bool {
+    crate::painting::style_queries::clip_path_has_value(style.mask())
+        || crate::painting::style_queries::mask_layers_have_image(style.mask())
+        || style.effects().backdrop_filter.operations.length != 0
+}
+
 pub(crate) fn resolved_column_count(style: StyleValues<'_>) -> usize {
     (style.column_count().max(1) as usize).min(MAXIMUM_COLUMN_COUNT)
 }
@@ -116,6 +122,13 @@ pub(crate) enum BlockResume {
 pub(crate) struct LinePosition {
     pub(crate) item_index: usize,
     pub(crate) offset_in_node: usize,
+}
+
+impl LinePosition {
+    pub(crate) const AFTER_LAST_LINE: Self = Self {
+        item_index: usize::MAX,
+        offset_in_node: 0,
+    };
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
