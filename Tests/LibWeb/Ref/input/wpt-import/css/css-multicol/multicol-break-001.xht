@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: break-before: column (basic)</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-09-14 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#break-before-break-after-break-inside" title="5.1. 'break-before', 'break-after', 'break-inside'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-break-001-ref.xht" />
+  <meta name="flags" content="ahem image" />
+  <meta name="assert" content="This test checks that basic support of 'break-before: column'." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#test, div#reference
+  {
+  background-color: yellow;
+  margin-bottom: 0.5em;
+  font: 1.25em/1 Ahem;
+  height: 3em;
+  width: 10em;
+  }
+
+  div#test
+  {
+  column-fill: auto;
+  column-gap: 0;
+  column-width: 2em;
+
+  /*
+
+  N == 5;
+
+  W == 2em;
+
+  */
+  }
+
+  div#test > div {break-before: column;}
+
+  img {vertical-align: top;}
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 2 horizontal bars are <strong>identical</strong>.</p>
+
+  <div id="test">
+      <div>A</div>
+      <div>B</div>
+      <div>C</div>
+  </div>
+
+  <div id="reference"><img src="support/black20x20.png" alt="Image download support must be enabled" /> <img src="support/black20x20.png" alt="Image download support must be enabled" /> <img src="support/black20x20.png" alt="Image download support must be enabled" /></div>
+
+ </body>
+</html>

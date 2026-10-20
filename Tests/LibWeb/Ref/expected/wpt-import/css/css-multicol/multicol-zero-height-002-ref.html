@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Multi-column Reference: Test an unbreakble block element in a zero height multi-column container</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+
+<style>
+.child {
+  font: 100px/1 Ahem;
+  color: green;
+  inline-size: 100px;
+  outline: 3px solid green;
+}
+</style>
+
+<p>There shouldn't be a green strip in the second column.</p>
+<div class="child">X</div>

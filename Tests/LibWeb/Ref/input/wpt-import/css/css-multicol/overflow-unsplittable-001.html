@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>
+  Test that a scrollable container isn't split across multiple columns.
+</title>
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#possible-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/overflow-unsplittable-001-ref.html">
+<div style="columns:2; column-gap:0; width:100px; height:100px;">
+  <div style="overflow:scroll; width:50px; background:green;">
+    <div style="height:200px;"></div>
+  </div>
+</div>

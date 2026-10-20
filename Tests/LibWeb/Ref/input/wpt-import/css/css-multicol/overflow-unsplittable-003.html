@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>
+  Test that a scrollable container isn't split across multiple columns.
+</title>
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#possible-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:2; column-gap:0; width:200px; height:50px;">
+  <div style="overflow:hidden; width:100px; background:green;">
+    <div style="height:100px;"></div>
+  </div>
+</div>
