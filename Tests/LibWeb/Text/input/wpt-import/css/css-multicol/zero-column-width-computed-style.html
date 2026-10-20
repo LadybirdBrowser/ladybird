@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>column-width:0</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#cw" title="3.1. column-width">
+<div id="longhand" style="column-width:0;"></div>
+<div id="shorthand" style="columns:0;"></div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(longhand).columnWidth, "0px");
+  assert_equals(getComputedStyle(shorthand).columnWidth, "0px");
+}, "column-width:0 is a valid CSS declaration");
+</script>

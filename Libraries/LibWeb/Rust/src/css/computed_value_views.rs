@@ -993,7 +993,14 @@ impl<'a> ComputedValuesView<'a> {
     // multi-column layout.
     pub(crate) fn establishes_multi_column_container(self) -> bool {
         let box_values = self.box_values();
-        box_values.column_width.kind != ComputedSizeKind::Auto || box_values.column_count_has_value
+        if box_values.column_width.kind == ComputedSizeKind::Auto && !box_values.column_count_has_value {
+            return false;
+        }
+        let display = box_values.display;
+        (display.is_flow_inside() && !display.is_inline_outside())
+            || display.is_flow_root_inside()
+            || display.is_table_cell()
+            || display.is_table_caption()
     }
 
     pub(crate) fn x(self) -> LengthPercentageRef<'a> {

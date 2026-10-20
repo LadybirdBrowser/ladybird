@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['column-width'] = "auto" should set the property value
+Pass	e.style['column-width'] = "0" should set the property value
+Pass	e.style['column-width'] = "10px" should set the property value

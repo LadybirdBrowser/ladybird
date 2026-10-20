@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Multi-column Layout properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#property-index">
+<meta name="assert" content="Properties should not inherit.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="reference"></div>
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  #reference {
+    border-style: dotted; /* Avoid border-top-width computed style 0 */
+    border-top-width: medium;
+  }
+  #container {
+    color: rgba(42, 53, 64, 0.75);
+    column-rule-style: dotted; /* Avoid column-rule-width computed style 0 */
+  }
+  #target {
+    column-rule-style: dotted;
+  }
+</style>
+<script>
+const mediumWidth = getComputedStyle(reference).borderTopWidth; // e.g. 3px
+reference.style.display = 'none';
+
+assert_not_inherited('column-count', 'auto', '2');
+assert_not_inherited('column-fill', 'balance', 'auto');
+assert_not_inherited('column-rule-color', 'rgba(42, 53, 64, 0.75)', 'rgba(2, 3, 5, 0.5)');
+assert_not_inherited('column-rule-style', 'none', 'dashed');
+assert_not_inherited('column-rule-width', mediumWidth, '10px');
+assert_not_inherited('column-span', 'none', 'all');
+assert_not_inherited('column-width', 'auto', '10px');
+</script>
+</body>
+</html>
