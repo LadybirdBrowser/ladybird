@@ -45,7 +45,7 @@ public:
     void show_failure(WebView::ReportSubmission::Failure, String const& reason);
 
     Function<void()> on_exit;
-    // The user chose to send the report or not, so the screen around the review no longer needs to ask.
+    // The report was sent, declined or cannot be sent, so the screen around the review no longer needs to ask.
     Function<void()> on_answered;
     Function<void(bool)> on_report_text_visibility_change;
 
@@ -86,6 +86,7 @@ private:
     QProgressBar* m_progress { nullptr };
     QLabel* m_status_message { nullptr };
     QPushButton* m_retry_button { nullptr };
+    QPushButton* m_cancel_button { nullptr };
     QPushButton* m_next_button { nullptr };
     QPushButton* m_exit_button { nullptr };
 

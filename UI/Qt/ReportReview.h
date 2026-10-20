@@ -50,6 +50,7 @@ void apply_style(QWidget& review, ReadonlySpan<QWidget*> fields);
 bool focus_next_control(QWidget& review, bool next);
 
 int progress_percent(WebView::ReportSubmission::Stage);
+void show_actions(ReadonlySpan<QPushButton*> all_actions, ReadonlySpan<QPushButton*> actions, QPushButton* primary);
 QString retry_message(String const& reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds);
 
 }

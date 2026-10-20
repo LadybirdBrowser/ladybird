@@ -54,6 +54,7 @@ public:
     // the review is destroyed, which then only stops hearing about it.
     Optional<String> send(String const& description, Optional<String> const& url);
     bool is_sending() const { return m_submission; }
+    void cancel_sending();
 
     Function<void(ReportSubmission::Stage)> on_progress;
     Function<void(String reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds)> on_retry;
@@ -65,6 +66,8 @@ private:
     ByteString m_report_name;
     ByteString m_text_digest;
     ByteString m_prepared_manifest;
+    String m_prepared_description;
+    Optional<String> m_prepared_url;
     RefPtr<CrashReportSubmission> m_submission;
 };
 

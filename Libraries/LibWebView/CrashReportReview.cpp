@@ -40,6 +40,8 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> 
     m_report_name = {};
     m_text_digest = {};
     m_prepared_manifest = {};
+    m_prepared_description = {};
+    m_prepared_url = {};
 
     auto report_name = name.value_or({});
     if (report_name.is_empty()) {
@@ -141,6 +143,14 @@ Optional<String> CrashReportReview::send(String const& description, Optional<Str
     if (auto error = validate(description, url_view); error.has_value())
         return error;
 
+    // Sending the same choices again, after a failed or canceled attempt, sends the same submission, which the server
+    // recognizes if the earlier attempt reached it. Other choices make a new submission, carrying only those.
+    if (description != m_prepared_description || url != m_prepared_url) {
+        m_prepared_manifest = {};
+        m_prepared_description = description;
+        m_prepared_url = url;
+    }
+
     auto submission = CrashReportSubmission::create(m_store,
         {
             .report_name = m_report_name,
@@ -180,6 +190,14 @@ Optional<String> CrashReportReview::send(String const& description, Optional<Str
     m_submission = submission;
     submission->start();
     return {};
+}
+
+// The report stays on the device, and sending it again sends the same submission, which the server recognizes if the
+// canceled one reached it after all.
+void CrashReportReview::cancel_sending()
+{
+    if (auto submission = move(m_submission))
+        submission->cancel();
 }
 
 }

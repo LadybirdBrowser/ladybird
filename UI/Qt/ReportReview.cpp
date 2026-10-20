@@ -206,6 +206,16 @@ int progress_percent(WebView::ReportSubmission::Stage stage)
     VERIFY_NOT_REACHED();
 }
 
+void show_actions(ReadonlySpan<QPushButton*> all_actions, ReadonlySpan<QPushButton*> actions, QPushButton* primary)
+{
+    for (auto* button : all_actions) {
+        button->setVisible(actions.contains_slow(button));
+        button->setDefault(button == primary);
+    }
+    if (auto* focused = primary ? primary : (actions.is_empty() ? nullptr : actions.first()))
+        focused->setFocus(Qt::OtherFocusReason);
+}
+
 QString retry_message(String const& reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds)
 {
     return QObject::tr("%1 Trying again in %2 seconds (%3 of %4)…")

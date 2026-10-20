@@ -47,8 +47,9 @@ in place of the review. Submissions omit the website URL by default; when
 the crashed page had one, the user can explicitly include it and edit it first.
 Ladybird does not collect contact information. Network errors, timeouts, rate
 limits and server errors are retried a few times, honoring the server's
-`Retry-After`; a report the server rejects is not. A report that changed on disk
-after it was reviewed is not sent. A successful submission removes the local
+`Retry-After`; a report the server rejects is not. Until a report is sent,
+**Cancel** stops sending it and returns to the review. A report that changed on
+disk after it was reviewed is not sent. A successful submission removes the local
 copy. A report that is declined or could not be sent stays on the device, but is
 not offered again.
 

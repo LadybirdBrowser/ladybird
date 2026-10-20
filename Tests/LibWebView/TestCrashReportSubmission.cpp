@@ -324,6 +324,29 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!manifest_field(manifest, "description"sv).has_value());
     VERIFY(!manifest_field(manifest, "url"sv).has_value());
 
+    // Other choices than those of a failed or canceled attempt make a new submission, which carries only those.
+    server.requests.clear();
+    track(review, outcome);
+    name = write_report(reports_directory, "2026-10-01T13-30-00Z-WebContent-abc123.txt"sv);
+    MUST(review.open(name));
+    server.respond_with({ 400, "{}", {} });
+    VERIFY(!review.send("I clicked a link"_string, "https://example.com/"_string).has_value());
+    Core::EventLoop::current().spin_until([&] { return outcome.is_finished(); });
+    VERIFY(outcome.failure == WebView::ReportSubmission::Failure::Sending);
+
+    track(review, outcome);
+    server.respond_with(challenge("changed"sv));
+    server.respond_with({ 200, R"({"receipt":"receipt-changed"})", {} });
+    VERIFY(!review.send("I opened a menu"_string, {}).has_value());
+    Core::EventLoop::current().spin_until([&] { return outcome.is_finished(); });
+    VERIFY(outcome.sent);
+    VERIFY(server.requests.size() == 3);
+    VERIFY(server.requests[0].body != server.requests[1].body);
+    manifest = JsonValue::from_string(multipart_part(server.requests[2].body, "manifest"sv)).release_value().as_object();
+    VERIFY(manifest_field(manifest, "description"sv)->as_string() == "I opened a menu"sv);
+    VERIFY(!manifest_field(manifest, "url"sv).has_value());
+    VERIFY(manifest.get_string("submission_id"sv).value() != submission_id);
+
     // A report on its way keeps going when the screen that showed its review goes away, along with the store it was
     // given.
     server.requests.clear();

@@ -183,6 +183,33 @@ void ReportSubmission::start()
     begin_attempt();
 }
 
+// A canceled submission stops wherever it is and reports nothing more. A report that reached the server before then may
+// still be stored there.
+void ReportSubmission::cancel()
+{
+    // Letting go of the submission can release the last reference to it.
+    NonnullRefPtr protector = *this;
+
+    on_progress = nullptr;
+    on_prepared = nullptr;
+    on_retry = nullptr;
+    on_sent = nullptr;
+    on_failed = nullptr;
+
+    m_proof_cancelled.store(true);
+    if (m_retry_timer) {
+        m_retry_timer->stop();
+        m_retry_timer = nullptr;
+    }
+    if (m_request_timeout) {
+        m_request_timeout->stop();
+        m_request_timeout = nullptr;
+    }
+    if (auto request = move(m_request))
+        request->stop();
+    m_self_while_in_flight = nullptr;
+}
+
 void ReportSubmission::begin_attempt()
 {
     if (on_progress)
@@ -265,7 +292,7 @@ void ReportSubmission::solve_proof(ByteString token, u64 expected_work)
             main_thread_event_loop.deferred_invoke(
                 [weak_this = move(weak_this), attempt, token = move(token), nonce]() mutable {
                     auto self = weak_this.strong_ref();
-                    if (!self || self->m_attempt != attempt)
+                    if (!self || self->m_attempt != attempt || self->m_proof_cancelled.load())
                         return;
                     if (!nonce.has_value()) {
                         self->fail("Could not compute the report's proof of work."_string, ShouldRetry::No);
