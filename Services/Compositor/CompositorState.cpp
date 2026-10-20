@@ -365,7 +365,7 @@ void CompositorState::present_contexts_drawing_canvas(CompositorStateWebContentC
         if (!context_is_effectively_visible(context) || !context.presenter().draws_canvas(canvas_id))
             continue;
         if (auto rect = context.presenter().self_present_rect(); rect.has_value())
-            schedule_present_frame(context_entry.key, context, *rect);
+            schedule_present_frame(context_entry.key, context, PendingFrame::repainting_changes(*rect));
     }
 }
 
