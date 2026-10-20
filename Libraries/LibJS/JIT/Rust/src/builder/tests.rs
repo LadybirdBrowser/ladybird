@@ -1221,6 +1221,24 @@ pub(crate) mod property_access {
     }
 
     #[test]
+    fn constant_indices_of_strings_read_characters_inline() {
+        use crate::snapshot::keyed_feedback_bits::{OTHER_ELEMENTS, OTHER_KEY};
+
+        // `return a0[10]` where the feedback saw indices of strings.
+        let program = assemble(|_| vec![get_by_value(r(5), a(0), c(1)), Instruction::Return { value: r(5) }]);
+        let mut snapshot = snapshot_for(&program, test_layout());
+        snapshot.executables[0].feedback.keyed = vec![crate::snapshot::KeyedFeedbackSnapshot {
+            bits: OTHER_KEY | OTHER_ELEMENTS,
+        }];
+        snapshot.runtime.layout.single_ascii_character_strings = 0x1000;
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        assert!(
+            text.contains("LoadStringCodeUnit") && text.contains("SingleCharacterString"),
+            "{text}"
+        );
+    }
+
+    #[test]
     fn keyed_feedback_of_one_elements_kind_loads_elements_directly() {
         // Int32 indices into Uint16Arrays: the kind, the length and the
         // bounds checked once, loaded unboxed.
@@ -1412,7 +1430,7 @@ pub(crate) mod property_access {
                 _ => assert!(text.contains("Float64ToInt32"), "{text}"),
             }
             assert!(!text.contains("CallSlowPath"), "{text}");
-            snapshot.executables[0].exit_sites = vec![(0, ExitKind::BadType)];
+            snapshot.executables[0].exit_sites = vec![(0, ExitKind::BadType), (0, ExitKind::OutOfBounds)];
             let text = dump(&optimized_graph(&snapshot), &test_layout());
             assert!(!text.contains("CheckNumber"), "{text}");
             assert!(text.contains("CallSlowPath PutByValue"), "{text}");
