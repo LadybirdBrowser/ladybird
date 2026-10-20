@@ -210,11 +210,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// Branches to `miss` unless the `GetMissingProperty` entry in `entry`
     /// for the shape of `object` applies to it, like
-    /// `get_with_property_lookup_cache()`: only plain objects, ECMAScript
-    /// functions, arrays and String objects (for the names their entries can
-    /// be for) have no other properties than those of their shape (see
-    /// `Object::is_cacheable_for_property_absence()`), and the property
-    /// must also be missing from an unchanged prototype chain. Clobbers
+    /// `get_with_property_lookup_cache()`: only objects whose class keeps the
+    /// default `ObjectMethods::is_cacheable_for_property_absence` have no
+    /// other properties than those of their shape (for the names their
+    /// entries can be for), and the property must also be missing from an
+    /// unchanged prototype chain. Plain objects, ECMAScript functions, arrays
+    /// and String objects are told apart without loading the hook. Clobbers
     /// `shape`.
     pub(super) fn branch_unless_property_absence_applies(&mut self, object: Gpr, shape: Gpr, entry: Gpr, miss: Label) {
         let scratch = self.pinned.scratch;
@@ -237,13 +238,27 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
         let flags =
             self.runtime.dynamic_calls.object_flag_is_ecmascript_function | layout.object_flag_has_magical_length;
-        if flags == 0 {
-            self.masm.jump(miss);
-        } else {
+        if flags != 0 {
             self.masm
                 .load16(scratch, &Address::new(object, offsets.object_flags as i32));
             self.masm
-                .branch_test32(Condition::Zero, scratch, u32::from(flags), miss);
+                .branch_test32(Condition::NonZero, scratch, u32::from(flags), cacheable);
+        }
+        if layout.default_is_cacheable_for_property_absence == 0 || layout.class_object_methods == 0 {
+            self.masm.jump(miss);
+        } else {
+            // NB: Objects start with their class.
+            self.masm.load64(shape, &Address::new(object, 0));
+            self.masm
+                .load64(shape, &Address::new(shape, layout.class_object_methods as i32));
+            self.masm
+                .move_imm64(scratch, layout.default_is_cacheable_for_property_absence);
+            self.masm.branch64_memory(
+                Condition::NotEqual,
+                &Address::new(shape, layout.object_methods_is_cacheable_for_property_absence as i32),
+                scratch,
+                miss,
+            );
         }
         self.masm.bind(cacheable);
         let (has_chain, done) = (self.masm.new_label(), self.masm.new_label());

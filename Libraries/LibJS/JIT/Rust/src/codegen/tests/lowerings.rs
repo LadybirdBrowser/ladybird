@@ -1308,6 +1308,8 @@ fn fake_object_layout() -> RuntimeLayout {
         property_lookup_cache_entry_type_change_own_property: 2,
         class_object_methods: 8,
         object_methods_get_prototype_of: 0,
+        object_methods_is_cacheable_for_property_absence: 0,
+        default_is_cacheable_for_property_absence: 0,
         // NB: Tests that look in the VM's keyed lookup cache set its entries.
         keyed_lookup_cache_entries: 0,
         keyed_store_cache_entries: 0,
