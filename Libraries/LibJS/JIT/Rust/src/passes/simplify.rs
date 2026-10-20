@@ -49,6 +49,28 @@ fn int32_of(graph: &Graph, node: NodeId) -> Option<i32> {
     graph.int32_constant(node)
 }
 
+/// The value of `node`, if it is a `Repr::Float64` constant.
+fn float64_of(graph: &Graph, node: NodeId) -> Option<f64> {
+    let bits = graph.constant_value(node)?;
+    (graph.node(graph.unrefined(node)).repr == Some(Repr::Float64)).then(|| f64::from_bits(bits))
+}
+
+/// ToInt32 of a number.
+fn to_int32(number: f64) -> i32 {
+    if !number.is_finite() {
+        return 0;
+    }
+    (number.trunc().rem_euclid(4_294_967_296.0) as u32).cast_signed()
+}
+
+/// ToUint8Clamp of a number.
+fn to_uint8_clamp(number: f64) -> i32 {
+    if number.is_nan() {
+        return 0;
+    }
+    number.clamp(0.0, 255.0).round_ties_even() as i32
+}
+
 fn fold_int32_binary(op: BinaryOp, lhs: i32, rhs: i32) -> Option<i32> {
     let shift = (rhs & 31) as u32;
     match op {
@@ -345,6 +367,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                     | Op::CheckBounds
                     | Op::Int32ToFloat64
                     | Op::Float64ToInt32
+                    | Op::Float64ToUint8Clamped
                     | Op::BoxInt32
                     | Op::BoxBool
                     | Op::CheckInt32
@@ -420,6 +443,12 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                     Op::CheckFloat64Int32 => Some(graph.node(inputs[0]).inputs[0]),
                     _ => dissolved_double(graph, inputs[0]),
                 },
+                Op::Float64ToInt32 if let Some(number) = float64_of(graph, inputs[0]) => {
+                    Some(constants.get_typed(graph, u64::from(to_int32(number).cast_unsigned()), Repr::Int32))
+                }
+                Op::Float64ToUint8Clamped => float64_of(graph, inputs[0]).map(|number| {
+                    constants.get_typed(graph, u64::from(to_uint8_clamp(number).cast_unsigned()), Repr::Int32)
+                }),
                 // NB: Both signed and unsigned int32 values are exactly
                 //     representable as doubles. ToInt32 recovers their bits.
                 Op::Float64ToInt32 => match graph.node(inputs[0]).op {
