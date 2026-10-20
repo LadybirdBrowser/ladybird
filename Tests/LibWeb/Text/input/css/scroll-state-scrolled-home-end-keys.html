@@ -68,10 +68,9 @@
         // Home and End are absolute scrolls, so they keep the most recent relative scroll direction, even when they
         // scroll the other way.
         const step = async (label, target, scrollingBox, queryTarget, keys) => {
-            for (const key of keys) {
-                internals.sendKey(target, key);
-                await scrollOffsetStopsChanging(() => scrollingBox.scrollTop);
-            }
+            const scrollendTarget = scrollingBox === document.documentElement ? document : scrollingBox;
+            for (const key of keys)
+                await scrollSettled(scrollendTarget, () => internals.sendKey(target, key));
             await frames();
             report(label, scrollingBox, queryTarget);
         };
