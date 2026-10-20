@@ -21,10 +21,13 @@
         await animationFrame();
 
         // Mouse wheel ticks in quick succession at one spot are one gesture, which the compositor keeps with the
-        // nested scroller once it reaches its extent.
-        await internals.wheel(50, 50, 0, 150);
-        await internals.wheel(50, 50, 0, 150);
-        await internals.wheel(50, 50, 0, 100);
+        // nested scroller once it reaches its extent. The ticks are sent at once rather than each after the scroll of
+        // the one before has finished, as a tick more than 500 ms after the previous one starts a gesture of its own.
+        await Promise.all([
+            internals.wheel(50, 50, 0, 150),
+            internals.wheel(50, 50, 0, 150),
+            internals.wheel(50, 50, 0, 100),
+        ]);
         println(`nested.scrollTop after three ticks: ${nested.scrollTop}`);
         println(`window.scrollY after three ticks: ${window.scrollY}`);
 
