@@ -1,0 +1,11 @@
+<script>
+    const textarea = document.createElement("textarea");
+    textarea.contentEditable = "true";
+    const list = textarea.appendChild(document.createElement("ol"));
+    list.append("q", document.createElement("li"));
+    document.documentElement.append(textarea);
+    document.designMode = "on";
+    getSelection().collapse(list, 1);
+    document.designMode = "off";
+    document.execCommand("outdent");
+</script>

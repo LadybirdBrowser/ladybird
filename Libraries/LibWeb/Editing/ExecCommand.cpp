@@ -201,6 +201,12 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
             deletion_range->end_container(), deletion_range->end_offset()));
     }
 
+    // NB: Moving the caret above focuses its editing host, and focusing an editing host such as a contenteditable
+    //     textarea can remove the selection. Commands with an affected editing host require an active range, so stop
+    //     here if it is gone.
+    if (affected_editing_host && !Editing::active_range(*this))
+        return false;
+
     // 5. Take the action for command, passing value to the instructions as an argument.
     auto command_result = [&] {
         TemporaryChange running_action { m_running_editing_command_action, true };
