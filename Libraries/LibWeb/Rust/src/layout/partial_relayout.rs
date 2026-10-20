@@ -430,7 +430,7 @@ impl LayoutNodeArena {
         let committed = if node_facts::node_style_view(data).is_some_and(|style| style.is_absolutely_positioned()) {
             self.saved_abspos_layout_inputs(data)?.containing_block
         } else {
-            self.with_committed_fragment_link_during_layout(node, |link| link.map(|link| link.containing_block))?
+            self.with_committed_fragment_link(node, |link| link.map(|link| link.containing_block))?
         };
         (!committed.is_invalid() && committed == self.containing_block_by_walking_ancestors(node)).then_some(committed)
     }

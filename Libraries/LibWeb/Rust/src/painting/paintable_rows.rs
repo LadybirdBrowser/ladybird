@@ -554,8 +554,12 @@ where
 }
 
 impl CommittedFragmentLinkSlot {
-    pub(crate) fn link(&self) -> Option<&fragment_tree::FragmentLink> {
-        self.link.as_ref()
+    /// The link this slot holds for the box with the given layout slot generation, if it holds
+    /// one for that box and not for a box that held the slot before.
+    pub(crate) fn link_for(&self, layout_slot_generation: u8) -> Option<&fragment_tree::FragmentLink> {
+        (self.layout_slot_generation == layout_slot_generation)
+            .then_some(self.link.as_ref())
+            .flatten()
     }
 }
 
@@ -626,8 +630,7 @@ impl PaintableRowStore {
         read(
             slots
                 .get(layout_slot_index as usize)
-                .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
-                .and_then(|slot| slot.link.as_ref()),
+                .and_then(|slot| slot.link_for(layout_slot_generation)),
         )
     }
 
@@ -797,21 +800,9 @@ impl LayoutNodeArena {
         PaintableRows { arena: self }
     }
 
+    /// The fragment link committed for `node`. A layout reaches boxes whose paintable row is not populated yet, and a
+    /// slot can still hold the link of the box that held it before, which belongs to no box of this generation.
     pub(crate) fn with_committed_fragment_link<R>(
-        &self,
-        node: NodeSlotId,
-        read: impl FnOnce(Option<&fragment_tree::FragmentLink>) -> R,
-    ) -> R {
-        debug_assert!(self.paintable_row_is_populated(node));
-        let slots = self.paintable_rows.committed_fragment_links.borrow();
-        read(
-            slots
-                .get(node.slot_index() as usize)
-                .and_then(|entry| entry.link.as_ref()),
-        )
-    }
-
-    pub(crate) fn with_committed_fragment_link_during_layout<R>(
         &self,
         node: NodeSlotId,
         read: impl FnOnce(Option<&fragment_tree::FragmentLink>) -> R,
