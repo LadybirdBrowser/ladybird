@@ -25,6 +25,11 @@
 //! merges whose other predecessors do not jump to them start with every value
 //! in its stack slot (see `liveness::state_predecessor()`).
 //!
+//! Loops (see `loops`) keep their registers for what they use: a loop header
+//! leaves the values that the loop only carries through in their stack slots
+//! where they have them already, and inside a loop, the values it reads again
+//! in its next iteration are evicted after those used only after it.
+//!
 //! Cold blocks (see `Block::is_cold`) come last in linear order and cost the
 //! other blocks nothing: they start with the register state of the block
 //! they branch off from, and move their values into place where they rejoin
@@ -40,6 +45,7 @@
 
 mod coalescing;
 mod liveness;
+mod loops;
 mod moves;
 mod verify;
 
@@ -57,6 +63,7 @@ use crate::ir::Op;
 use liveness::ValueLiveness;
 use liveness::is_allocated_value;
 use liveness::state_predecessor;
+use loops::Loops;
 
 /// The number of the first floating point register in `Location`s and
 /// `RegisterMask`s: floating point register `n` is register `FPR_BASE + n`.
@@ -508,6 +515,7 @@ struct Allocator<'a> {
     /// slot of each class that has one.
     slot_classes: Vec<u32>,
     class_slots: Vec<Option<u32>>,
+    loops: Loops,
 }
 
 impl<'a> Allocator<'a> {
@@ -516,6 +524,7 @@ impl<'a> Allocator<'a> {
         assert!(!registers.allocatable_gprs.contains(registers.scratch_gpr));
         let liveness = ValueLiveness::compute(graph);
         let slot_classes = coalescing::spill_slot_classes(graph, &liveness);
+        let loops = Loops::compute(graph, &liveness);
         Self {
             graph,
             registers,
@@ -532,6 +541,7 @@ impl<'a> Allocator<'a> {
             position: 0,
             slot_classes,
             class_slots: vec![None; graph.nodes.len()],
+            loops,
         }
     }
 
@@ -668,12 +678,26 @@ impl<'a> Allocator<'a> {
         contents
     }
 
+    /// Whether the loop with the header `block`, if it is one, leaves `value` in its stack slot: a value that has one
+    /// from its definition on and that the loop only carries through, so that its register is free for the loop.
+    fn loop_leaves_in_stack(&self, block: BlockId, value: NodeId) -> bool {
+        self.loops
+            .headed_by(block)
+            .is_some_and(|loop_| loop_.carries_through(value.index()))
+            && self.liveness.needs_spill.contains(value.index())
+    }
+
     /// The register contents a merge with a state predecessor starts with:
-    /// those at the end of that predecessor, live into the merge, and the
-    /// phis in their registers.
+    /// those at the end of that predecessor, live into the merge (but those
+    /// a loop leaves in their stack slots), and the phis in their registers.
     fn merge_contents(&self, block: BlockId) -> Option<Vec<Option<NodeId>>> {
         let predecessor = state_predecessor(self.graph, block)?;
         let mut contents = self.contents_entering(predecessor, block);
+        for value in &mut contents {
+            if value.is_some_and(|value| self.loop_leaves_in_stack(block, value)) {
+                *value = None;
+            }
+        }
         for phi in &self.graph.block(block).phis {
             if let Some(Location::Register(register)) = self.allocation.nodes[phi.index()].output {
                 debug_assert!(contents[register as usize].is_none());
@@ -736,10 +760,25 @@ impl<'a> Allocator<'a> {
         }
     }
 
-    fn next_use(&self, value: NodeId) -> u32 {
+    /// How soon `value` is needed again, as a key that orders the values by it (smaller is sooner). Inside a loop,
+    /// the uses later in the iteration come first, then the values the next iteration reads (live into the loop and
+    /// used in it before here), in the order it reads them, then the values used after the loop.
+    fn next_use(&self, value: NodeId) -> (u8, u32) {
         let uses = &self.liveness.use_positions[value.index()];
         let index = uses.partition_point(|position| *position <= self.position);
-        uses.get(index).copied().unwrap_or(u32::MAX)
+        let next = uses.get(index).copied();
+        let Some(loop_) = self.loops.innermost_at(self.position) else {
+            return next.map_or((3, 0), |position| (0, position));
+        };
+        if let Some(position) = self.loops.first_use_in(loop_, uses, index..uses.len()) {
+            return (0, position);
+        }
+        if self.liveness.live_in[loop_.header.index()].contains(value.index())
+            && let Some(position) = self.loops.first_use_in(loop_, uses, 0..index)
+        {
+            return (1, position - loop_.start);
+        }
+        next.map_or((3, 0), |position| (2, position))
     }
 
     /// A register of `class` that is not `blocked`, freeing one if necessary
@@ -963,7 +1002,7 @@ impl<'a> Allocator<'a> {
         let live_in = &self.liveness.live_in[join.index()];
         let mut taken = RegisterMask::default();
         for (register, value) in self.contents.iter().enumerate() {
-            if value.is_some_and(|value| live_in.contains(value.index())) {
+            if value.is_some_and(|value| live_in.contains(value.index()) && !self.loop_leaves_in_stack(join, value)) {
                 taken = taken.with(u8::try_from(register).expect("register numbers fit in u8"));
             }
         }
