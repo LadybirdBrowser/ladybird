@@ -1435,6 +1435,13 @@ void WebContentView::review_hidden_crash_report(ByteString const& report_name)
         set_crash_overlay_visible(false);
 }
 
+// A tab opened only for a review lets go of what it showed over its page once the user takes the tab elsewhere.
+void WebContentView::leave_report_review()
+{
+    if (m_crash_overlay && !m_crash_overlay->isHidden() && !crash_overlay_active())
+        set_crash_overlay_visible(false);
+}
+
 // Overlays are painted by Qt, underneath whatever presents the page on some platforms, which has to step aside for them.
 bool WebContentView::is_page_covered_by_overlay() const
 {

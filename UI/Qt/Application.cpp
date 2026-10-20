@@ -891,9 +891,8 @@ void Application::review_crash_report(ByteString const& report_name)
     // The tab is blank, so no web content runs behind the review, and it closes once the review is left.
     auto* current_tab = m_active_window->current_tab();
     auto& tab = m_active_window->new_tab_from_url(URL::about_blank(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
-    if (current_tab)
-        tab.set_tab_to_activate_on_close(*current_tab);
     tab.view().review_hidden_crash_report(report_name);
+    tab.enter_report_review(current_tab);
 }
 
 void Application::open_file()
