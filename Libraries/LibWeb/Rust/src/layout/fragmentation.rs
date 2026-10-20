@@ -193,7 +193,10 @@ impl FragmentainerContext {
         if !self.allows_early_break_requests {
             return false;
         }
-        self.outcome.borrow_mut().needs_early_break_before = Some(node);
+        let mut outcome = self.outcome.borrow_mut();
+        if outcome.needs_early_break_before.is_none() {
+            outcome.needs_early_break_before = Some(node);
+        }
         true
     }
 

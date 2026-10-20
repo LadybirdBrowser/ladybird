@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px monospace; }
+    .multicol { columns: 2; column-gap: 20px; width: 220px; margin-bottom: 10px; }
+    h2, h3 { margin: 0; font-size: 20px; height: 20px; break-after: avoid; }
+    figure { margin: 0; height: 50px; break-inside: avoid; }
+</style>
+<div class="multicol" id="fill" style="column-fill: auto; height: 100px"><div style="height: 40px"></div><h2>A</h2><h3>B</h3><figure></figure></div>
+<div class="multicol" id="balance"><div style="height: 40px"></div><h2>A</h2><h3>B</h3><figure></figure></div>
+<script>
+    test(() => {
+        for (const multicol of document.querySelectorAll(".multicol")) {
+            const origin = multicol.getBoundingClientRect();
+            const children = Array.from(multicol.children).map(child => {
+                const rect = child.getBoundingClientRect();
+                return `${rect.x - origin.x},${rect.y - origin.y}`;
+            });
+            println(`${multicol.id}: height ${origin.height}, children ${children.join(" ")}`);
+        }
+    });
+</script>
