@@ -2492,11 +2492,15 @@ impl<'context> InlineFormattingContext<'context> {
                     && !fragmentation.break_before_is_avoided
                 {
                     self.parent.request_early_break_before(self.containing_block);
+                } else {
+                    self.parent.note_violated_break_avoidance();
                 }
             } else if !stopped_at_line_limit && content_line_count.saturating_sub(stop) < widows {
                 let stop_keeping_widows = content_line_count.saturating_sub(widows);
                 if stop_keeping_widows >= orphans {
                     stop = stop_keeping_widows;
+                } else {
+                    self.parent.note_violated_break_avoidance();
                 }
             }
         }
