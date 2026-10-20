@@ -384,7 +384,7 @@ fn shape_text_uncached(
         } else {
             // SAFETY: The C++ side hands a pointer to glyph_count glyphs that
             // outlive the callback.
-            Arc::from(unsafe { std::slice::from_raw_parts(glyphs, glyph_count) })
+            Arc::from(unsafe { ak::slice_from_raw_parts(glyphs, glyph_count) })
         };
         *shape = Some(CachedShape {
             glyphs,
@@ -498,7 +498,7 @@ pub unsafe extern "C" fn ladybird_gfx_shape_text_cached(
     let text = if length == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(text, length) }
+        unsafe { ak::slice_from_raw_parts(text, length) }
     };
     let params = ShapeParams {
         text_type,

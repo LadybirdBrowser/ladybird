@@ -1013,7 +1013,7 @@ pub unsafe extern "C" fn rust_list_style_type_depends_on_counter_value(
     let (list_style_type, scopes) = unsafe {
         (
             &*list_style_type.cast::<StyleValueData>(),
-            std::slice::from_raw_parts(scopes, scope_count),
+            ak::slice_from_raw_parts(scopes, scope_count),
         )
     };
     match list_style_type {

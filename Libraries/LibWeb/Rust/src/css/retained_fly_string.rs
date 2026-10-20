@@ -149,7 +149,7 @@ impl RetainedUtf16FlyStringList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 
     /// The list viewed as raw fly-string words; fly strings are interned, so
@@ -159,7 +159,7 @@ impl RetainedUtf16FlyStringList {
             return &[];
         }
         // SAFETY: `RetainedUtf16FlyString` is represented by its single raw word.
-        unsafe { std::slice::from_raw_parts(self.pointer.cast::<usize>(), self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer.cast::<usize>(), self.length) }
     }
 }
 

@@ -36,7 +36,7 @@ pub unsafe extern "C" fn js_bigint_create_from_magnitude(
         &[]
     } else {
         // SAFETY: The caller passes `word_count` words.
-        unsafe { core::slice::from_raw_parts(words, word_count) }
+        unsafe { ak::slice_from_raw_parts(words, word_count) }
     };
     let sign = if is_negative { Sign::Minus } else { Sign::Plus };
     cell_into_abi(BigInt::create(vm, SignedBigInteger::from_slice(sign, words)))
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn js_bigint_copy_magnitude_words(bigint: *mut JSBigInt, w
         return;
     }
     // SAFETY: The caller passes room for `word_count` words.
-    let words = unsafe { core::slice::from_raw_parts_mut(words, word_count) };
+    let words = unsafe { ak::slice_from_raw_parts_mut(words, word_count) };
     for (word, magnitude_word) in words.iter_mut().zip(magnitude) {
         *word = magnitude_word;
     }

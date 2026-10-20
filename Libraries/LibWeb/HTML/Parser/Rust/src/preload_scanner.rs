@@ -88,7 +88,7 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan(
     let input = if input.is_null() || input_len == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
 
     scan(input, scripting_enabled, |entry| unsafe {
@@ -112,7 +112,7 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
     let input = if input.is_null() || input_len == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
 
     scan_utf16(input, scripting_enabled, |entry| unsafe {
@@ -588,7 +588,7 @@ mod tests {
     fn collect_with_scripting(input: &str, scripting_enabled: bool) -> Vec<ScannedEntry> {
         let mut entries = Vec::new();
         scan(input.as_bytes(), scripting_enabled, |entry| {
-            let url = unsafe { std::slice::from_raw_parts(entry.url_ptr, entry.url_len) };
+            let url = unsafe { ak::slice_from_raw_parts(entry.url_ptr, entry.url_len) };
             entries.push(ScannedEntry {
                 action: entry.action,
                 url: std::str::from_utf8(url).unwrap().to_string(),
@@ -604,7 +604,7 @@ mod tests {
         let input = input.encode_utf16().collect::<Vec<_>>();
         let mut entries = Vec::new();
         scan_utf16(&input, true, |entry| {
-            let url = unsafe { std::slice::from_raw_parts(entry.url_ptr, entry.url_len) };
+            let url = unsafe { ak::slice_from_raw_parts(entry.url_ptr, entry.url_len) };
             entries.push(ScannedEntry {
                 action: entry.action,
                 url: std::str::from_utf8(url).unwrap().to_string(),
@@ -850,7 +850,7 @@ mod tests {
             true,
             |entry| {
                 let string = |pointer, length| {
-                    let bytes = unsafe { std::slice::from_raw_parts(pointer, length) };
+                    let bytes = unsafe { ak::slice_from_raw_parts(pointer, length) };
                     std::str::from_utf8(bytes).unwrap().to_string()
                 };
                 options = Some((

@@ -2957,7 +2957,7 @@ impl SyntaxParseBuilder {
             Vec::new()
         } else {
             // SAFETY: C++ keeps the context storage live for the complete syntax parse call.
-            unsafe { std::slice::from_raw_parts(parse_context.value_contexts, parse_context.value_context_count) }
+            unsafe { ak::slice_from_raw_parts(parse_context.value_contexts, parse_context.value_context_count) }
                 .to_vec()
         };
         value_contexts.push(FfiValueParsingContext {
@@ -3963,7 +3963,7 @@ mod tests {
         assert_eq!(names, [utf16("未知"), utf16("width")]);
         let parse = parsed;
         extern "C" fn diagnostic(values: *const u16, count: usize, diagnostic: &FfiSyntaxDiagnostic) {
-            let values = unsafe { std::slice::from_raw_parts(values, count) };
+            let values = unsafe { ak::slice_from_raw_parts(values, count) };
             assert_eq!(diagnostic.code, FfiSyntaxDiagnosticCode::UnknownRule);
             assert_eq!(
                 &values[diagnostic.primary_offset..diagnostic.primary_offset + diagnostic.primary_length],
@@ -3971,7 +3971,7 @@ mod tests {
             );
         }
         extern "C" fn declaration(values: *const u16, count: usize, declaration: &FfiSyntaxDeclaration) {
-            let values = unsafe { std::slice::from_raw_parts(values, count) };
+            let values = unsafe { ak::slice_from_raw_parts(values, count) };
             let value = &values
                 [declaration.value_source_offset..declaration.value_source_offset + declaration.value_source_length];
             match declaration.rejection {
@@ -4010,7 +4010,7 @@ mod tests {
             declaration: &FfiSyntaxDeclaration,
         ) {
             let names = unsafe { &mut *context.cast::<Vec<Vec<u16>>>() };
-            let values = unsafe { std::slice::from_raw_parts(values, count) };
+            let values = unsafe { ak::slice_from_raw_parts(values, count) };
             assert!(declaration.preserve_source_text);
             names.push(values[declaration.name_offset..declaration.name_offset + declaration.name_length].to_vec());
         }

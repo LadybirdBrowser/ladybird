@@ -273,7 +273,7 @@ impl FontCatalog {
             return None;
         }
         // SAFETY: parse() validated this range and the snapshot outlives the catalog.
-        Some(unsafe { std::slice::from_raw_parts(self.data.add(face.family_offset), face.family_length) })
+        Some(unsafe { ak::slice_from_raw_parts(self.data.add(face.family_offset), face.family_length) })
     }
 
     fn family_face_count(&self, family: &[u8]) -> usize {
@@ -342,7 +342,7 @@ pub unsafe extern "C" fn font_catalog_builder_add_face(
     if input.family.is_null() {
         return false;
     }
-    let family = unsafe { std::slice::from_raw_parts(input.family, input.family_length) };
+    let family = unsafe { ak::slice_from_raw_parts(input.family, input.family_length) };
     if !valid_face(
         input.face_id,
         family,
@@ -413,7 +413,7 @@ pub unsafe extern "C" fn font_catalog_parse(
     if data.is_null() {
         return std::ptr::null_mut();
     }
-    let data = unsafe { std::slice::from_raw_parts(data, data_length) };
+    let data = unsafe { ak::slice_from_raw_parts(data, data_length) };
     FontCatalog::parse(data, expected_generation)
         .map(|catalog| Box::into_raw(Box::new(catalog)))
         .unwrap_or(std::ptr::null_mut())
@@ -476,7 +476,7 @@ pub unsafe extern "C" fn font_catalog_family_face_count(
     if family.is_null() {
         return 0;
     }
-    let family = unsafe { std::slice::from_raw_parts(family, family_length) };
+    let family = unsafe { ak::slice_from_raw_parts(family, family_length) };
     catalog.family_face_count(family)
 }
 
@@ -497,7 +497,7 @@ pub unsafe extern "C" fn font_catalog_family_face_at(
     if family.is_null() {
         return false;
     }
-    let family = unsafe { std::slice::from_raw_parts(family, family_length) };
+    let family = unsafe { ak::slice_from_raw_parts(family, family_length) };
     let Some(face_index) = catalog.family_face_index_at(family, index) else {
         return false;
     };
@@ -548,7 +548,7 @@ pub unsafe extern "C" fn font_catalog_match_style(
     if family.is_null() {
         return false;
     }
-    let family = unsafe { std::slice::from_raw_parts(family, family_length) };
+    let family = unsafe { ak::slice_from_raw_parts(family, family_length) };
     let Some(index) = catalog.match_style_index(family, weight, width, slope) else {
         return false;
     };

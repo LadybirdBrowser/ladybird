@@ -135,7 +135,7 @@ pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -
     match descriptor.kind {
         FfiEasingKind::Linear => {
             assert!(descriptor.linear_point_count > 0);
-            let points = unsafe { std::slice::from_raw_parts(descriptor.linear_points, descriptor.linear_point_count) };
+            let points = unsafe { ak::slice_from_raw_parts(descriptor.linear_points, descriptor.linear_point_count) };
             stops = points
                 .iter()
                 .map(|point| {

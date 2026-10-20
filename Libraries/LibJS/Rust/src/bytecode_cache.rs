@@ -474,11 +474,11 @@ impl DecodedUtf16String {
             #[cfg(target_endian = "little")]
             // SAFETY: The record this string was reached through keeps the blob alive, and the decoder checked that
             //         the code units lie within it and are aligned.
-            Self::Foreign { data, length } => Cow::Borrowed(unsafe { std::slice::from_raw_parts(*data, *length) }),
+            Self::Foreign { data, length } => Cow::Borrowed(unsafe { ak::slice_from_raw_parts(*data, *length) }),
             #[cfg(not(target_endian = "little"))]
             // SAFETY: As above.
             Self::Foreign { data, length } => Cow::Owned(unsafe {
-                std::slice::from_raw_parts(*data, *length)
+                ak::slice_from_raw_parts(*data, *length)
                     .iter()
                     .map(|code_unit| u16::from_le(*code_unit))
                     .collect()
@@ -529,7 +529,7 @@ impl DecodedBytecodeBytes {
     pub fn as_slice(&self) -> &[u8] {
         debug_assert!(self.range.end <= self.blob.length);
         // SAFETY: The decoder checked that the range lies within the blob, which the Rc keeps alive.
-        unsafe { std::slice::from_raw_parts(self.blob.data.add(self.range.start), self.range.len()) }
+        unsafe { ak::slice_from_raw_parts(self.blob.data.add(self.range.start), self.range.len()) }
     }
 
     fn decoder(&self) -> Decoder<'_> {
@@ -3123,7 +3123,7 @@ mod tests {
             std::ptr::copy_nonoverlapping(bytes.as_ptr(), storage.words.as_mut_ptr().cast::<u8>(), bytes.len());
         }
         // SAFETY: The owner keeps the words alive until the decoded blob releases it.
-        let view = unsafe { std::slice::from_raw_parts(storage.words.as_ptr().cast::<u8>(), bytes.len()) };
+        let view = unsafe { ak::slice_from_raw_parts(storage.words.as_ptr().cast::<u8>(), bytes.len()) };
         let owner = BytecodeCacheBlobOwner::Foreign {
             owner: Box::into_raw(storage).cast(),
             free_owner: release_test_blob,

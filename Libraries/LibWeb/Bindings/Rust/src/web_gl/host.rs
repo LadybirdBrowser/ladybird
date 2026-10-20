@@ -172,7 +172,7 @@ unsafe extern "C" fn append_reply(reply_sink: *mut c_void, reply: *const u8, rep
     // SAFETY: sync_call() passes its vector as the sink, and the transport passes the bytes of its reply.
     unsafe {
         let reply_sink = &mut *reply_sink.cast::<Vec<u8>>();
-        reply_sink.extend_from_slice(core::slice::from_raw_parts(reply, reply_size));
+        reply_sink.extend_from_slice(ak::slice_from_raw_parts(reply, reply_size));
     }
 }
 

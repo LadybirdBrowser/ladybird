@@ -155,7 +155,7 @@ impl HoverPlan {
             Vec::new()
         } else {
             // SAFETY: Guaranteed by the caller.
-            unsafe { std::slice::from_raw_parts(inputs.scroll_offsets, inputs.scroll_offset_count) }.to_vec()
+            unsafe { ak::slice_from_raw_parts(inputs.scroll_offsets, inputs.scroll_offset_count) }.to_vec()
         };
         let effect_timings = if inputs.effect_timing_count == 0 {
             Vec::new()
@@ -163,9 +163,9 @@ impl HoverPlan {
             // SAFETY: Guaranteed by the caller.
             let (nodes, identities, timings) = unsafe {
                 (
-                    std::slice::from_raw_parts(inputs.effect_timing_nodes, inputs.effect_timing_count),
-                    std::slice::from_raw_parts(inputs.effect_timing_identities, inputs.effect_timing_count),
-                    std::slice::from_raw_parts(
+                    ak::slice_from_raw_parts(inputs.effect_timing_nodes, inputs.effect_timing_count),
+                    ak::slice_from_raw_parts(inputs.effect_timing_identities, inputs.effect_timing_count),
+                    ak::slice_from_raw_parts(
                         inputs.effect_timings.cast::<FfiEffectTiming>(),
                         inputs.effect_timing_count,
                     ),

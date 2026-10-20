@@ -68,7 +68,7 @@ const EMPTY_CALENDAR_DATE: FfiCalendarDate = FfiCalendarDate {
 
 /// SAFETY: All FFI string inputs are ASCII calendar names (e.g. "chinese") or month codes (e.g. "M01").
 fn ascii_string_from_ffi<'a>(string: *const u8, length: usize) -> &'a str {
-    let bytes = unsafe { std::slice::from_raw_parts(string, length) };
+    let bytes = unsafe { ak::slice_from_raw_parts(string, length) };
     debug_assert!(bytes.is_ascii(), "Expected ASCII input from FFI");
     unsafe { std::str::from_utf8_unchecked(bytes) }
 }

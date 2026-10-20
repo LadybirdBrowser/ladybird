@@ -176,7 +176,7 @@ unsafe impl<T: Copy + Trace> Trace for InterpreterBuffer<T> {
             return;
         }
         // SAFETY: The first `size` elements are initialized, and nothing writes them while they are visited.
-        let elements = unsafe { core::slice::from_raw_parts(self.data.get(), self.size()) };
+        let elements = unsafe { ak::slice_from_raw_parts(self.data.get(), self.size()) };
         T::trace_slice(elements, visitor);
     }
 }

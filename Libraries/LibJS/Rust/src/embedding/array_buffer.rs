@@ -225,7 +225,7 @@ pub unsafe extern "C" fn js_array_buffer_create_from_bytes(
         &[]
     } else {
         // SAFETY: The caller passes `length` readable bytes.
-        unsafe { core::slice::from_raw_parts(bytes, length) }
+        unsafe { ak::slice_from_raw_parts(bytes, length) }
     };
     object_into_abi(ArrayBuffer::create_from_bytes(
         vm,

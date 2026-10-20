@@ -2319,7 +2319,7 @@ unsafe fn ffi_media_environment(
         if environment.values.is_null() {
             return None;
         }
-        unsafe { std::slice::from_raw_parts(environment.values, environment.value_count) }
+        unsafe { ak::slice_from_raw_parts(environment.values, environment.value_count) }
     };
     let length_context = unsafe {
         environment

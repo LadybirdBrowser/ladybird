@@ -471,7 +471,7 @@ pub unsafe extern "C" fn render_state_detach_remaining_rows_for_removal(
         return;
     }
     // SAFETY: Guaranteed by the caller.
-    let style_nodes = unsafe { std::slice::from_raw_parts(style_nodes, count) };
+    let style_nodes = unsafe { ak::slice_from_raw_parts(style_nodes, count) };
     host.queue_change(ArenaChange::DetachForRemoval(style_nodes.into()));
 }
 
@@ -509,7 +509,7 @@ pub unsafe extern "C" fn render_state_style_node_changed(
         SmallVec::new()
     } else {
         // SAFETY: Guaranteed by the caller.
-        SmallVec::from_slice(unsafe { std::slice::from_raw_parts(generated_for, count) })
+        SmallVec::from_slice(unsafe { ak::slice_from_raw_parts(generated_for, count) })
     };
     let new = StyleNodeID::from_raw(new);
     let change = LayoutChange::StyleNodeChanged {
@@ -539,7 +539,7 @@ pub unsafe extern "C" fn render_state_set_anchor_name_elements(
         &[]
     } else {
         // SAFETY: Guaranteed by the caller.
-        unsafe { std::slice::from_raw_parts(elements, count) }
+        unsafe { ak::slice_from_raw_parts(elements, count) }
     };
     let change = LayoutChange::SetAnchorNameElements {
         scope_host: StyleNodeID::from_raw(scope_host),
@@ -605,7 +605,7 @@ pub unsafe extern "C" fn render_state_set_svg_attribute_facts(
         &[][..]
     } else {
         // SAFETY: Guaranteed by the caller.
-        unsafe { std::slice::from_raw_parts(points, count) }
+        unsafe { ak::slice_from_raw_parts(points, count) }
     };
     let change = LayoutChange::SvgAttributeFacts {
         element,

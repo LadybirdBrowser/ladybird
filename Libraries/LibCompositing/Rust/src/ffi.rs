@@ -14,20 +14,6 @@ use std::ffi::c_void;
 
 /// # Safety
 ///
-/// `data` must point at `length` readable values for the duration of the borrow, or be null with
-/// a `length` of zero.
-pub unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
-    assert!(!data.is_null() || length == 0);
-    if length == 0 {
-        return &[];
-    }
-    // SAFETY: The caller guarantees `data` points at `length` valid values for
-    // the duration of the borrow.
-    unsafe { std::slice::from_raw_parts(data, length) }
-}
-
-/// # Safety
-///
 /// `tree` must be a live retained tree handle.
 pub unsafe fn tree_from_handle<'a>(tree: *const c_void) -> &'a crate::visual_context::VisualContextTree {
     // SAFETY: The caller guarantees `tree` is a live retained handle.
@@ -49,7 +35,7 @@ pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
         return false;
     }
     // Color is repr(transparent) over u32, so the buffer needs no copy to be read as colors.
-    let colors = unsafe { std::slice::from_raw_parts(samples.cast::<libgfx_rust::Color>(), count) };
+    let colors = unsafe { ak::slice_from_raw_parts(samples.cast::<libgfx_rust::Color>(), count) };
     let features = crate::force_dark::features_from_samples(colors, transparency_ratio);
     crate::force_dark::should_filter(&features)
 }
@@ -78,10 +64,10 @@ pub unsafe extern "C" fn display_list_compute_damage(
         (
             storage_from_handle(old_storage),
             tree_from_handle(old_tree),
-            ffi_slice(old_scroll_offsets, old_scroll_offsets_len),
+            ak::slice_from_raw_parts(old_scroll_offsets, old_scroll_offsets_len),
             storage_from_handle(new_storage),
             tree_from_handle(new_tree),
-            ffi_slice(new_scroll_offsets, new_scroll_offsets_len),
+            ak::slice_from_raw_parts(new_scroll_offsets, new_scroll_offsets_len),
         )
     };
     let damage = crate::display_list::damage::compute_display_list_damage(
@@ -129,7 +115,7 @@ pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
             storage.bytes(),
             storage.command_runs(),
             tree_from_handle(tree),
-            ffi_slice(scroll_offsets, scroll_offsets_len),
+            ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len),
             viewport_rect,
             sample_time_ns,
         )
@@ -155,7 +141,7 @@ pub unsafe extern "C" fn display_list_replay(
         (
             tree_from_handle(tree),
             storage_from_handle(storage),
-            ffi_slice(scroll_offsets, scroll_offsets_len),
+            ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len),
         )
     };
     // SAFETY: The caller guarantees `callbacks` is live for the call.
@@ -188,8 +174,8 @@ pub unsafe extern "C" fn display_list_replay_records(
     // SAFETY: The caller guarantees the slices address the stated number of values.
     let (records, scroll_offsets) = unsafe {
         (
-            ffi_slice(records, records_size),
-            ffi_slice(scroll_offsets, scroll_offsets_len),
+            ak::slice_from_raw_parts(records, records_size),
+            ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len),
         )
     };
     // SAFETY: The caller guarantees `callbacks` is live for the call.
@@ -249,7 +235,7 @@ pub unsafe extern "C" fn visual_context_tree_serialize(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_deserialize(bytes: *const u8, length: usize) -> *const c_void {
     // SAFETY: The caller guarantees `bytes` addresses `length` readable bytes.
-    let bytes = unsafe { ffi_slice(bytes, length) };
+    let bytes = unsafe { ak::slice_from_raw_parts(bytes, length) };
     match crate::visual_context::VisualContextTree::from_bytes(bytes) {
         Some(tree) => std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
         None => std::ptr::null(),
@@ -317,7 +303,7 @@ pub unsafe extern "C" fn visual_context_tree_transform_point_for_hit_test(
 ) -> bool {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
-    let scroll_offsets = unsafe { ffi_slice(scroll_offsets, scroll_offsets_len) };
+    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
     let clip_behavior = crate::visual_context::ClipBehavior::from_respect_clip(respect_clip);
     match tree.transform_point_for_hit_test(context, screen_point, scroll_offsets, clip_behavior) {
         Some(local_point) => {
@@ -365,7 +351,7 @@ pub unsafe extern "C" fn visual_context_tree_transform_rect_to_viewport(
 ) {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
-    let scroll_offsets = unsafe { ffi_slice(scroll_offsets, scroll_offsets_len) };
+    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
     *out = tree.transform_rect_to_viewport(
         spatial,
         rect,
@@ -387,7 +373,7 @@ pub unsafe extern "C" fn visual_context_tree_cumulative_scroll_chain_offset(
 ) {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
-    let scroll_offsets = unsafe { ffi_slice(scroll_offsets, scroll_offsets_len) };
+    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
     *out = tree.cumulative_scroll_chain_offset(spatial, scroll_offsets);
 }
 
@@ -404,7 +390,7 @@ pub unsafe extern "C" fn visual_context_tree_accumulated_matrix(
 ) -> libgfx_rust::FloatMatrix4x4 {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
-    let scroll_offsets = unsafe { ffi_slice(scroll_offsets, scroll_offsets_len) };
+    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
     tree.accumulated_matrix(
         spatial,
         scroll_offsets,
@@ -428,7 +414,7 @@ pub unsafe extern "C" fn visual_context_tree_resolve_sticky_offsets(
         let tree = unsafe { tree_from_handle(tree) };
         // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points, and the
         // borrow ends before the sink may grow the same storage.
-        let scroll_offsets = unsafe { ffi_slice(scroll_offsets, scroll_offsets_len) };
+        let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
         tree.resolve_sticky_offsets(scroll_offsets)
     };
     for (node_index, offset) in resolved_sticky_entries {
@@ -582,7 +568,7 @@ pub unsafe extern "C" fn visual_context_tree_mark_spatial_subtrees(
 ) {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the roots address `root_count` indices.
-    let roots = unsafe { ffi_slice(roots, root_count) };
+    let roots = unsafe { ak::slice_from_raw_parts(roots, root_count) };
     let in_subtree = tree.spatial_nodes_in_subtrees_of(roots);
     assert_eq!(in_subtree.len(), flag_count);
     // SAFETY: The caller guarantees `out_flags` addresses `flag_count` writable flags.
@@ -801,7 +787,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_path(
 ) -> u32 {
     let tree = unsafe { test_builder_tree(builder) };
     // SAFETY: The caller guarantees `path_bytes` addresses `path_bytes_length` readable bytes.
-    let path_bytes = unsafe { ffi_slice(path_bytes, path_bytes_length) };
+    let path_bytes = unsafe { ak::slice_from_raw_parts(path_bytes, path_bytes_length) };
     let path = libgfx_rust::path::OwnedPath::from_serialized_bytes(path_bytes);
     tree.append_clip(
         crate::visual_context::ClipNodeData::Path(crate::visual_context::ClipPathData {

@@ -86,7 +86,7 @@ unsafe fn linear_points(descriptor: &FfiEasingDescriptor) -> &[FfiLinearEasingPo
         return &[];
     }
     // SAFETY: The caller guarantees the point range is live for a linear descriptor.
-    unsafe { std::slice::from_raw_parts(descriptor.linear_points, descriptor.linear_point_count) }
+    unsafe { ak::slice_from_raw_parts(descriptor.linear_points, descriptor.linear_point_count) }
 }
 
 impl Easing {

@@ -93,18 +93,17 @@ impl FfiRecordingInputs {
             CaretPaint, CaretTarget, FocusedAreaOutline, FocusedTextControlSelection, GridOverlays, InspectorHighlight,
             RecordingInputs, UnframedRecordingInputs,
         };
-        use libcompositing_rust::ffi::ffi_slice;
 
         // SAFETY: The caller lends these arrays and buffers for this call.
         let (grid_overlays, flex_overlays, outline_path, text_fragment_indications) = unsafe {
             (
-                ffi_slice(self.grid_overlays, self.grid_overlay_count),
-                ffi_slice(self.flex_overlays, self.flex_overlay_count),
-                ffi_slice(
+                ak::slice_from_raw_parts(self.grid_overlays, self.grid_overlay_count),
+                ak::slice_from_raw_parts(self.flex_overlays, self.flex_overlay_count),
+                ak::slice_from_raw_parts(
                     self.focused_area_outline.path_bytes,
                     self.focused_area_outline.path_byte_count,
                 ),
-                ffi_slice(self.text_fragment_indications, self.text_fragment_indication_count),
+                ak::slice_from_raw_parts(self.text_fragment_indications, self.text_fragment_indication_count),
             )
         };
         let caret = self.caret;
@@ -168,7 +167,7 @@ impl FfiRecordingInputs {
                 // SAFETY: The caller lends the label bytes and supplies live fonts for this overlay.
                 let (text, fonts) = unsafe {
                     (
-                        ffi_slice(
+                        ak::slice_from_raw_parts(
                             self.inspector_highlight_label.text,
                             self.inspector_highlight_label.text_byte_count,
                         ),

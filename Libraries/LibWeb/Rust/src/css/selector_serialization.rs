@@ -301,7 +301,7 @@ pub unsafe extern "C" fn rust_selector_serialize(
             &[]
         } else {
             assert!(!prefixes_mapping_to_default.is_null());
-            std::slice::from_raw_parts(prefixes_mapping_to_default, prefix_count)
+            ak::slice_from_raw_parts(prefixes_mapping_to_default, prefix_count)
         };
         let prefixes = prefix_views
             .iter()
@@ -310,7 +310,7 @@ pub unsafe extern "C" fn rust_selector_serialize(
                     &[][..]
                 } else {
                     assert!(!prefix.data.is_null());
-                    std::slice::from_raw_parts(prefix.data, prefix.length)
+                    ak::slice_from_raw_parts(prefix.data, prefix.length)
                 }
             })
             .collect::<Vec<_>>();

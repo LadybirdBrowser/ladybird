@@ -76,7 +76,7 @@ impl ExecutableFeedback {
         };
         // SAFETY: new() laid out `count` initialized elements of type T, aligned for T, at `offset` in the storage,
         //         which lives as long as the feedback. Its elements are cells, which allow shared mutation.
-        unsafe { core::slice::from_raw_parts(storage.data().add(offset).cast::<T>(), count as usize) }
+        unsafe { ak::slice_from_raw_parts(storage.data().add(offset).cast::<T>(), count as usize) }
     }
 
     /// Takes over what `other`, the feedback of an executable with the same bytecode, observed.

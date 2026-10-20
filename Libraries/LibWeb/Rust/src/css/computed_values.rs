@@ -500,7 +500,7 @@ impl RetainedTextDecorationLineList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 }
 
@@ -570,7 +570,7 @@ macro_rules! impl_retained_computed_list {
                 if self.pointer.is_null() {
                     return &[];
                 }
-                unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+                unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
             }
         }
 
@@ -923,7 +923,7 @@ impl RetainedComputedResolvedTransformList {
         }
         // SAFETY: A non-null pointer/length pair always comes from
         // from_vec's boxed slice.
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 }
 
@@ -1053,7 +1053,7 @@ macro_rules! impl_retained_grid_list {
                 }
                 // SAFETY: A non-null pointer/length pair always comes from
                 // from_vec's boxed slice.
-                unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+                unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
             }
         }
 

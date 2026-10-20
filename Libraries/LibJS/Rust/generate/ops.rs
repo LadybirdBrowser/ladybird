@@ -101,7 +101,7 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
             let ty = rust_type(&array_field.ty);
             let _ = writeln!(
                 out,
-                "impl {op_name} {{\n    /// The elements the instruction holds after its fixed fields, within the length it records.\n    pub fn {name}(&self) -> &[{ty}] {{\n        let count = self.{count_field} as usize;\n        assert!(core::mem::offset_of!({op_name}, {name}) + count * size_of::<{ty}>() <= self.length() as usize);\n        // SAFETY: The instruction is a view of bytecode that holds the length it records, which the elements are\n        //         within.\n        unsafe {{ core::slice::from_raw_parts(self.{name}.as_ptr(), count) }}\n    }}\n}}",
+                "impl {op_name} {{\n    /// The elements the instruction holds after its fixed fields, within the length it records.\n    pub fn {name}(&self) -> &[{ty}] {{\n        let count = self.{count_field} as usize;\n        assert!(core::mem::offset_of!({op_name}, {name}) + count * size_of::<{ty}>() <= self.length() as usize);\n        // SAFETY: The instruction is a view of bytecode that holds the length it records, which the elements are\n        //         within.\n        unsafe {{ ak::slice_from_raw_parts(self.{name}.as_ptr(), count) }}\n    }}\n}}",
                 op_name = op.name
             );
         }

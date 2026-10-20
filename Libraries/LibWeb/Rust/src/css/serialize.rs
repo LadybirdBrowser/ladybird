@@ -2263,7 +2263,7 @@ fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: Seria
 /// Literal pieces are produced from static ASCII strings in calc.rs.
 fn literal_piece_text(bytes: *const u8, length: usize) -> &'static str {
     // SAFETY: Literal pieces borrow 'static ASCII strings.
-    unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(bytes, length)) }
+    unsafe { std::str::from_utf8_unchecked(ak::slice_from_raw_parts(bytes, length)) }
 }
 
 /// Port of Web::CSS::serialize_a_positional_value_list: 2 or 4 values with equal-serialization

@@ -311,10 +311,10 @@ impl JSUtf16View {
         assert!(!self.data.is_null(), "a view of code units has its data");
         if self.has_ascii_storage {
             // SAFETY: The caller guarantees that the data is this many ASCII bytes.
-            Utf16View::Ascii(unsafe { core::slice::from_raw_parts(self.data.cast(), self.length_in_code_units) })
+            Utf16View::Ascii(unsafe { ak::slice_from_raw_parts(self.data.cast(), self.length_in_code_units) })
         } else {
             // SAFETY: The caller guarantees that the data is this many UTF-16 code units.
-            Utf16View::Utf16(unsafe { core::slice::from_raw_parts(self.data.cast(), self.length_in_code_units) })
+            Utf16View::Utf16(unsafe { ak::slice_from_raw_parts(self.data.cast(), self.length_in_code_units) })
         }
     }
 }

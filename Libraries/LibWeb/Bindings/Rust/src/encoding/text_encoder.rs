@@ -125,7 +125,7 @@ impl TextEncoder {
                 //         which nothing else accesses while this runs, as the buffer is not shared, and which the
                 //         encoding fits.
                 let written = unsafe {
-                    let output = core::slice::from_raw_parts_mut(
+                    let output = ak::slice_from_raw_parts_mut(
                         destination_bytes.cast::<MaybeUninit<u8>>(),
                         destination_byte_length,
                     );
@@ -169,7 +169,7 @@ impl TextEncoder {
             })
         } else {
             // SAFETY: Nothing else accesses the bytes of a buffer that is not shared while this runs.
-            let output = unsafe { core::slice::from_raw_parts_mut(destination_bytes, destination_byte_length) };
+            let output = unsafe { ak::slice_from_raw_parts_mut(destination_bytes, destination_byte_length) };
             utf8::encode_into(&units, destination_byte_length, |offset, bytes| {
                 output[offset..offset + bytes.len()].copy_from_slice(bytes);
             })

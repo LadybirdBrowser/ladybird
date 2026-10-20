@@ -22,7 +22,7 @@ use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::svg_filter::SvgFilterPrimitive;
 use crate::render_state::{DocumentHost, RenderWait};
-use libcompositing_rust::ffi::{ffi_slice, tree_from_handle};
+use libcompositing_rust::ffi::tree_from_handle;
 use libgfx_rust::filter::Filter;
 use std::ffi::c_void;
 
@@ -588,7 +588,7 @@ pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_pattern(
         crate::painting::svg_paint_resources::PublishedSvgPattern {
             description: unsafe { *description },
             css_transform: unsafe {
-                ffi_slice(
+                ak::slice_from_raw_parts(
                     css_transform_entries.cast::<crate::css::computed_value_types::ComputedResolvedTransform>(),
                     css_transform_count,
                 )
@@ -785,7 +785,7 @@ pub(crate) unsafe fn rect_to_viewport_transform_from_ffi(
     }
     Some(RectToViewportTransform {
         visual_context_tree: unsafe { tree_from_handle(transform.visual_context_tree) },
-        scroll_offsets: unsafe { ffi_slice(transform.scroll_offsets, transform.scroll_offsets_len) },
+        scroll_offsets: unsafe { ak::slice_from_raw_parts(transform.scroll_offsets, transform.scroll_offsets_len) },
         device_pixels_per_css_pixel: transform.device_pixels_per_css_pixel,
     })
 }
@@ -1387,7 +1387,7 @@ pub unsafe extern "C" fn layout_arena_paint_push_bytes(sink: *mut c_void, bytes:
     // guarantees the byte range.
     let vec = unsafe { &mut *sink.cast::<Vec<u8>>() };
     if length > 0 {
-        vec.extend_from_slice(unsafe { std::slice::from_raw_parts(bytes, length) });
+        vec.extend_from_slice(unsafe { ak::slice_from_raw_parts(bytes, length) });
     }
 }
 
@@ -1403,15 +1403,17 @@ unsafe fn svg_filter_primitive_from_ffi(primitive: &FfiSvgFilterPrimitive) -> Sv
         in1: name(primitive.in1),
         in2: name(primitive.in2),
         result: name(primitive.result),
-        merge_inputs: unsafe { ffi_slice(primitive.merge_inputs, primitive.merge_input_count) }
+        merge_inputs: unsafe { ak::slice_from_raw_parts(primitive.merge_inputs, primitive.merge_input_count) }
             .iter()
             .map(|view| name(*view))
             .collect(),
-        color_matrix_values: unsafe { ffi_slice(primitive.color_matrix_values, primitive.color_matrix_value_count) }
-            .to_vec(),
+        color_matrix_values: unsafe {
+            ak::slice_from_raw_parts(primitive.color_matrix_values, primitive.color_matrix_value_count)
+        }
+        .to_vec(),
         component_transfer_tables: primitive.component_transfer_tables.map(|table| {
             (!table.is_null()).then(|| {
-                let table = unsafe { ffi_slice(table, 256) };
+                let table = unsafe { ak::slice_from_raw_parts(table, 256) };
                 Box::new(<[u8; 256]>::try_from(table).expect("a component transfer table holds 256 entries"))
             })
         }),
@@ -1460,7 +1462,7 @@ pub unsafe extern "C" fn layout_arena_filter_functions_serialize(
     append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
     context: *mut c_void,
 ) -> bool {
-    let functions = unsafe { ffi_slice(functions, count) };
+    let functions = unsafe { ak::slice_from_raw_parts(functions, count) };
     let Some(graph) = filter_functions_graph(functions.iter().copied().map(Filter::from)) else {
         return false;
     };

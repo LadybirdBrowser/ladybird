@@ -48,7 +48,7 @@ unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
     if bytes.is_null() {
         return None;
     }
-    Some(unsafe { std::slice::from_raw_parts(bytes, len) })
+    Some(unsafe { ak::slice_from_raw_parts(bytes, len) })
 }
 
 unsafe fn string_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a str> {

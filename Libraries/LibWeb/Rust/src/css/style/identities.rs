@@ -107,7 +107,7 @@ pub unsafe extern "C" fn style_node_id_allocator_mint(
         return;
     }
     // SAFETY: Guaranteed by the caller.
-    let (allocator, out) = unsafe { (&mut *allocator, std::slice::from_raw_parts_mut(out, count)) };
+    let (allocator, out) = unsafe { (&mut *allocator, ak::slice_from_raw_parts_mut(out, count)) };
     for slot in out {
         *slot = if text {
             allocator.mint_text()

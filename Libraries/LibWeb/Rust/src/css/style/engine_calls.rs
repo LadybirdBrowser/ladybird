@@ -1477,9 +1477,7 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
 ) {
     crate::css::ffi_stats::note_transition_decision();
     // SAFETY: Guaranteed by the caller.
-    let existing = unsafe {
-        crate::css::custom_properties::ffi_slice(input.existing_transitions, input.existing_transition_count)
-    };
+    let existing = unsafe { ak::slice_from_raw_parts(input.existing_transitions, input.existing_transition_count) };
     // SAFETY: As above.
     let hand_over = |actions: &[FfiTransitionAction]| unsafe { on_actions(context, actions.as_ptr(), actions.len()) };
     let decision = TransitionDecision {

@@ -9,7 +9,7 @@
 //! format, which reads what this writes.
 
 use core::mem::size_of;
-use core::{ptr, slice};
+use core::ptr;
 
 use super::vocabulary::{CommandType, SyncCallType};
 
@@ -59,7 +59,7 @@ pub(crate) unsafe trait WireStruct: Copy + 'static {
 
     fn as_bytes(&self) -> &[u8] {
         // SAFETY: Per the contract of the trait every byte of the struct is initialized.
-        unsafe { slice::from_raw_parts(ptr::from_ref(self).cast::<u8>(), size_of::<Self>()) }
+        unsafe { ak::slice_from_raw_parts(ptr::from_ref(self).cast::<u8>(), size_of::<Self>()) }
     }
 }
 

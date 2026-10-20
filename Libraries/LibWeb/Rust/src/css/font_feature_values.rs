@@ -328,7 +328,7 @@ pub unsafe extern "C" fn rust_font_shape_features(
     use crate::css::css_enums::keyword::*;
     use crate::css::style::bridge::{FONT_RESOLUTION_FEATURE_INPUT_COUNT, FontResolutionFeatureInput as Input};
     // SAFETY: Guaranteed by the caller.
-    let values = unsafe { std::slice::from_raw_parts(values, FONT_RESOLUTION_FEATURE_INPUT_COUNT) };
+    let values = unsafe { ak::slice_from_raw_parts(values, FONT_RESOLUTION_FEATURE_INPUT_COUNT) };
     let value = |input: Input| unsafe { values[input as usize].cast::<StyleValueData>().as_ref() };
     let mut shape = ShapeFeatures::default();
 
@@ -449,7 +449,7 @@ pub unsafe extern "C" fn rust_font_shape_features(
             if feature_values.is_null() || count == 0 {
                 continue;
             }
-            let feature_values = unsafe { std::slice::from_raw_parts(feature_values, count) };
+            let feature_values = unsafe { ak::slice_from_raw_parts(feature_values, count) };
             let first = feature_values[0];
             match kind {
                 // https://drafts.csswg.org/css-fonts/#multi-value-features

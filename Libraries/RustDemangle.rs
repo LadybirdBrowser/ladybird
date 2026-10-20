@@ -39,7 +39,7 @@ impl Write for Output {
 
 extern "C" fn demangle(name: *const c_char, name_length: usize, append: Append, context: *mut c_void) -> bool {
     // SAFETY: AK passes a name of the given length that outlives this call.
-    let name = unsafe { std::slice::from_raw_parts(name.cast::<u8>(), name_length) };
+    let name = unsafe { ak::slice_from_raw_parts(name.cast::<u8>(), name_length) };
     let Ok(name) = std::str::from_utf8(name) else {
         return false;
     };

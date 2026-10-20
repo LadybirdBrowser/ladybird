@@ -36,7 +36,7 @@ unsafe fn extension_names(names: *const ByteSpan, name_count: usize) -> Vec<Vec<
         return Vec::new();
     }
     // SAFETY: The caller passes `name_count` live spans.
-    let names = unsafe { core::slice::from_raw_parts(names, name_count) };
+    let names = unsafe { ak::slice_from_raw_parts(names, name_count) };
     names
         .iter()
         .map(|name| {
@@ -44,7 +44,7 @@ unsafe fn extension_names(names: *const ByteSpan, name_count: usize) -> Vec<Vec<
                 return Vec::new();
             }
             // SAFETY: The caller passes the bytes of a string.
-            unsafe { core::slice::from_raw_parts(name.data, name.size) }.to_vec()
+            unsafe { ak::slice_from_raw_parts(name.data, name.size) }.to_vec()
         })
         .collect()
 }

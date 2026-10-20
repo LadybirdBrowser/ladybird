@@ -55,7 +55,7 @@ impl RetainedComponentValueList {
             return &[];
         }
         // SAFETY: The allocation is owned by this handle and has `length` initialized elements.
-        unsafe { std::slice::from_raw_parts(self.pointer.cast(), self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer.cast(), self.length) }
     }
 }
 
@@ -421,7 +421,7 @@ impl RetainedStyleValueData {
         // SAFETY: This repr(C) type has exactly one field, a *const c_void, so its
         //         size, alignment and layout match that pointer. The shared slice
         //         borrows the handles and cannot outlive or modify their storage.
-        unsafe { std::slice::from_raw_parts(values.as_ptr().cast(), values.len()) }
+        unsafe { ak::slice_from_raw_parts(values.as_ptr().cast(), values.len()) }
     }
 
     pub(crate) fn pointer(&self) -> *const StyleValueData {
@@ -503,7 +503,7 @@ impl RetainedStyleValueDataList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 
     pub(crate) fn from_retained_values(values: Vec<RetainedStyleValueData>) -> Self {
@@ -599,7 +599,7 @@ macro_rules! retained_list {
                         length: 0,
                     };
                 }
-                let elements = unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+                let elements = unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
                     .to_vec()
                     .into_boxed_slice();
                 let length = elements.len();
@@ -631,7 +631,7 @@ impl RetainedPropertyIdList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 }
 
@@ -876,7 +876,7 @@ impl RetainedByteList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 }
 
@@ -1060,7 +1060,7 @@ macro_rules! retained_list_as_slice {
                 if self.pointer.is_null() {
                     return &[];
                 }
-                unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+                unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
             }
         }
     };
@@ -1155,7 +1155,7 @@ impl RetainedColorStopList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 }
 
@@ -1305,7 +1305,7 @@ impl RetainedGridTrackEntryList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer.cast(), self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer.cast(), self.length) }
     }
 
     pub(crate) fn from_retained_entries(entries: Vec<RetainedGridTrackEntry>) -> Self {
@@ -1473,7 +1473,7 @@ impl RetainedNumericRangeList {
         if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 
     pub(crate) fn clone_owned(&self) -> Self {
@@ -1501,7 +1501,7 @@ macro_rules! retained_list_partial_eq {
                     if list.pointer.is_null() {
                         &[]
                     } else {
-                        unsafe { std::slice::from_raw_parts(list.pointer.cast::<$element>(), list.length) }
+                        unsafe { ak::slice_from_raw_parts(list.pointer.cast::<$element>(), list.length) }
                     }
                 };
                 as_slice(self) == as_slice(other)

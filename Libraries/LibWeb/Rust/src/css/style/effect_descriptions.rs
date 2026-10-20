@@ -594,8 +594,7 @@ unsafe fn easing_is(easing: &Easing, descriptor: &FfiEasingDescriptor) -> bool {
         (Easing::Linear(points), FfiEasingKind::Linear) => {
             points.len() == descriptor.linear_point_count
                 && (points.is_empty()
-                    || points.as_slice()
-                        == unsafe { std::slice::from_raw_parts(descriptor.linear_points, points.len()) })
+                    || points.as_slice() == unsafe { ak::slice_from_raw_parts(descriptor.linear_points, points.len()) })
         }
         (Easing::CubicBezier { x1, y1, x2, y2 }, FfiEasingKind::CubicBezier) => {
             [*x1, *y1, *x2, *y2] == [descriptor.x1, descriptor.y1, descriptor.x2, descriptor.y2]

@@ -89,7 +89,7 @@ impl JSHostClass {
         }
         assert!(!self.name.is_null(), "a host class with a name points to it");
         // SAFETY: The name of a table is static data of the given length, like the table itself.
-        let name = unsafe { core::slice::from_raw_parts(self.name.cast::<u8>(), self.name_length) };
+        let name = unsafe { ak::slice_from_raw_parts(self.name.cast::<u8>(), self.name_length) };
         core::str::from_utf8(name).expect("the name of a host class is UTF-8")
     }
 

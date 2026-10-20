@@ -113,8 +113,8 @@ pub unsafe extern "C" fn rust_font_matching_order(
     // SAFETY: Guaranteed by the caller.
     let (candidates, order) = unsafe {
         (
-            std::slice::from_raw_parts(candidates, count),
-            std::slice::from_raw_parts_mut(order, count),
+            ak::slice_from_raw_parts(candidates, count),
+            ak::slice_from_raw_parts_mut(order, count),
         )
     };
     font_matching_order(candidates, weight, width, slope, order)

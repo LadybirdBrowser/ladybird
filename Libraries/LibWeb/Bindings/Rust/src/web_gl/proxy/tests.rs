@@ -37,7 +37,7 @@ impl MockMemory {
     fn bytes(&self, offset: usize, size: usize) -> Vec<u8> {
         assert!(offset + size <= self.size);
         // SAFETY: The range is inside the memory, which nothing else reads or writes while the test runs this.
-        unsafe { core::slice::from_raw_parts(self.as_ptr().add(offset), size) }.to_vec()
+        unsafe { ak::slice_from_raw_parts(self.as_ptr().add(offset), size) }.to_vec()
     }
 
     fn fill(&self, bytes: &[u8]) {

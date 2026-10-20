@@ -33,9 +33,9 @@ impl RustUrlInput {
             return UrlInput::Utf8("");
         }
         if !self.utf16.is_null() {
-            UrlInput::Utf16(unsafe { std::slice::from_raw_parts(self.utf16, self.length) })
+            UrlInput::Utf16(unsafe { ak::slice_from_raw_parts(self.utf16, self.length) })
         } else {
-            UrlInput::Utf8(unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.utf8, self.length)) })
+            UrlInput::Utf8(unsafe { std::str::from_utf8_unchecked(ak::slice_from_raw_parts(self.utf8, self.length)) })
         }
     }
 }
@@ -61,7 +61,7 @@ impl RustUrlByteSlice {
         if self.data.is_null() {
             return None;
         }
-        let bytes = unsafe { std::slice::from_raw_parts(self.data, self.length) };
+        let bytes = unsafe { ak::slice_from_raw_parts(self.data, self.length) };
         Some(std::str::from_utf8(bytes).expect("URL strings should be valid UTF-8"))
     }
 }
@@ -329,7 +329,7 @@ pub unsafe extern "C" fn rust_url_set_path(
         let segments = if segment_count == 0 {
             &[]
         } else {
-            std::slice::from_raw_parts(segments, segment_count)
+            ak::slice_from_raw_parts(segments, segment_count)
         };
         modify_url(url, ctx, on_complete, |url| {
             url.set_path(segments.iter().map(|segment| segment.borrow().unwrap_or("")))

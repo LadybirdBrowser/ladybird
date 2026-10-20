@@ -97,13 +97,13 @@ fn fly_string_from_utf16(units: &[u16]) -> usize {
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
     // SAFETY: The frontend passes `length` readable code units.
-    fly_string_from_utf16(unsafe { std::slice::from_raw_parts(data, length) })
+    fly_string_from_utf16(unsafe { ak::slice_from_raw_parts(data, length) })
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_from_utf8(data: *const u8, length: usize) -> usize {
     // SAFETY: The frontend passes `length` readable bytes of UTF-8.
-    let string = std::str::from_utf8(unsafe { std::slice::from_raw_parts(data, length) }).expect("valid UTF-8");
+    let string = std::str::from_utf8(unsafe { ak::slice_from_raw_parts(data, length) }).expect("valid UTF-8");
     fly_string_from_utf16(&string.encode_utf16().collect::<Vec<_>>())
 }
 

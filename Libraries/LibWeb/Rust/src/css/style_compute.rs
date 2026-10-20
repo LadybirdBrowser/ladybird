@@ -2796,7 +2796,7 @@ impl FfiEffectiveColorSchemeInput {
                 &[][..]
             } else {
                 unsafe {
-                    std::slice::from_raw_parts(
+                    ak::slice_from_raw_parts(
                         self.document_supported_scheme_codes,
                         self.document_supported_scheme_count,
                     )
@@ -3346,18 +3346,18 @@ pub(crate) unsafe fn drive_property_computation(
     let random_base_values = if environment.random_base_value_count == 0 {
         &[][..]
     } else {
-        unsafe { std::slice::from_raw_parts(environment.random_base_values, environment.random_base_value_count) }
+        unsafe { ak::slice_from_raw_parts(environment.random_base_values, environment.random_base_value_count) }
     };
     let document_base_url = if environment.document_base_url_length == 0 {
         &[][..]
     } else {
-        unsafe { std::slice::from_raw_parts(environment.document_base_url, environment.document_base_url_length) }
+        unsafe { ak::slice_from_raw_parts(environment.document_base_url, environment.document_base_url_length) }
     };
     let style_sheet_resource_contexts = if environment.style_sheet_resource_context_count == 0 {
         &[][..]
     } else {
         unsafe {
-            std::slice::from_raw_parts(
+            ak::slice_from_raw_parts(
                 environment.style_sheet_resource_contexts,
                 environment.style_sheet_resource_context_count,
             )
@@ -3594,7 +3594,7 @@ pub(crate) unsafe fn drive_property_computation(
                     let base_url = if context.base_url_length == 0 {
                         &[][..]
                     } else {
-                        unsafe { std::slice::from_raw_parts(context.base_url, context.base_url_length) }
+                        unsafe { ak::slice_from_raw_parts(context.base_url, context.base_url_length) }
                     };
                     crate::css::absolutize::StyleSheetResourceContext {
                         base_url,
@@ -5652,10 +5652,7 @@ impl FfiHostAnimationSample {
             (
                 &*self.longhand_table.cast::<ComputedLonghandTable>(),
                 self.animated_overlay.cast::<AnimatedOverlay>().as_ref(),
-                HostSampledEffects::new(crate::css::custom_properties::ffi_slice(
-                    self.effects,
-                    self.effect_count,
-                )),
+                HostSampledEffects::new(ak::slice_from_raw_parts(self.effects, self.effect_count)),
                 &*self.environment,
             )
         };
@@ -5733,7 +5730,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects_each(
     use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
 
     // SAFETY: Guaranteed by the caller.
-    let inputs = unsafe { crate::css::custom_properties::ffi_slice(inputs, count) };
+    let inputs = unsafe { ak::slice_from_raw_parts(inputs, count) };
     let Some(first) = inputs.first() else {
         return;
     };
@@ -7300,7 +7297,7 @@ pub(crate) mod ffi_test_stubs {
             reserved: u32,
         }
         const _: () = assert!(size_of::<Header>() == 24);
-        let units = unsafe { std::slice::from_raw_parts(data, length) };
+        let units = unsafe { ak::slice_from_raw_parts(data, length) };
         static FLY_STRINGS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<Vec<u16>, Box<[u64]>>>> =
             std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
         {
@@ -7389,7 +7386,7 @@ pub(crate) mod ffi_test_stubs {
     ) {
         // The style tests only need ASCII URL hosts. The production build uses LibUnicode's C++
         // implementation for the full IDNA algorithm.
-        let domain = unsafe { std::slice::from_raw_parts(domain, domain_length) };
+        let domain = unsafe { ak::slice_from_raw_parts(domain, domain_length) };
         if domain.is_ascii() {
             unsafe { on_success(context, domain.as_ptr(), domain.len()) };
         }

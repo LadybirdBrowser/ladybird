@@ -446,9 +446,9 @@ unsafe extern "C" fn append_date_time_format_part(
     let (parts, type_, value, source) = unsafe {
         (
             &mut *context.cast::<Vec<DateTimeFormatPartition>>(),
-            core::slice::from_raw_parts(type_, type_length),
-            core::slice::from_raw_parts(value, value_length),
-            core::slice::from_raw_parts(source, source_length),
+            ak::slice_from_raw_parts(type_, type_length),
+            ak::slice_from_raw_parts(value, value_length),
+            ak::slice_from_raw_parts(source, source_length),
         )
     };
     parts.push(DateTimeFormatPartition {

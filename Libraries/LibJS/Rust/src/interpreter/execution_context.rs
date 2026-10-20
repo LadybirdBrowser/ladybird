@@ -70,7 +70,7 @@ impl ExecutionContext {
     pub fn slots(&self) -> &[Cell<Value>] {
         let count = self.registers_and_constants_and_locals_and_arguments_count.get() as usize;
         // SAFETY: Contexts are only ever allocated with their slots following them.
-        unsafe { core::slice::from_raw_parts(core::ptr::from_ref(self).add(1).cast::<Cell<Value>>(), count) }
+        unsafe { ak::slice_from_raw_parts(core::ptr::from_ref(self).add(1).cast::<Cell<Value>>(), count) }
     }
 
     pub fn register(&self, index: u32) -> &Cell<Value> {
@@ -178,7 +178,7 @@ unsafe impl Trace for ExecutionContext {
 
 fn trace_slots(slots: &[Cell<Value>], visitor: &mut Visitor) {
     // SAFETY: Cell<Value> has the same layout as Value, and nothing writes the slots while they are visited.
-    let values = unsafe { core::slice::from_raw_parts(slots.as_ptr().cast::<Value>(), slots.len()) };
+    let values = unsafe { ak::slice_from_raw_parts(slots.as_ptr().cast::<Value>(), slots.len()) };
     visitor.visit_values(values);
 }
 

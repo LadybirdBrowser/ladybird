@@ -78,7 +78,7 @@ pub(crate) unsafe fn values_from_abi<'values>(values: *const JSValue, count: usi
         return &[];
     }
     // SAFETY: Value is a transparent JSValue, and the caller passes `count` of them.
-    unsafe { core::slice::from_raw_parts(values.cast::<Value>(), count) }
+    unsafe { ak::slice_from_raw_parts(values.cast::<Value>(), count) }
 }
 
 const ABSENT_PROPERTY_DESCRIPTOR: JSPropertyDescriptor = JSPropertyDescriptor {

@@ -212,7 +212,7 @@ impl CssStringList {
         if self.length == 0 {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 }
 

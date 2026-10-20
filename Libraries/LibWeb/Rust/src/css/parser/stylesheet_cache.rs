@@ -174,7 +174,7 @@ unsafe fn own_url(pointer: *const u8, length: usize) -> Option<Box<[u16]>> {
         return Some(Box::default());
     }
     // The legacy URL context is UTF-8. Keep the cache's owned strings in native UTF-16.
-    let bytes = unsafe { std::slice::from_raw_parts(pointer, length) };
+    let bytes = unsafe { ak::slice_from_raw_parts(pointer, length) };
     Some(std::str::from_utf8(bytes).ok()?.encode_utf16().collect())
 }
 

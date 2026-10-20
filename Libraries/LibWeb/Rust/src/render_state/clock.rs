@@ -1591,7 +1591,7 @@ pub unsafe extern "C" fn clock_ticks_tick(
     // SAFETY: Guaranteed by the caller, whose reference this borrows.
     let ticks = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(ticks) });
     // SAFETY: Guaranteed by the caller.
-    let scroll_offsets = unsafe { crate::css::custom_properties::ffi_slice(scroll_offsets, scroll_offset_count) };
+    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offset_count) };
     ticks.tick(frame_time_nanoseconds, scroll_offsets)
 }
 

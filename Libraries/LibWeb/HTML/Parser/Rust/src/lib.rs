@@ -137,7 +137,7 @@ pub unsafe extern "C" fn rust_html_tokenizer_create_from_utf16(
     let code_units = if input.is_null() || len == 0 {
         Vec::new()
     } else {
-        unsafe { std::slice::from_raw_parts(input, len) }.to_vec()
+        unsafe { ak::slice_from_raw_parts(input, len) }.to_vec()
     };
 
     make_handle(HtmlTokenizer::new(code_units))
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn rust_html_tokenizer_create_from_ascii(
     let code_units = if input.is_null() || len == 0 {
         Vec::new()
     } else {
-        unsafe { std::slice::from_raw_parts(input, len) }
+        unsafe { ak::slice_from_raw_parts(input, len) }
             .iter()
             .map(|byte| u16::from(*byte))
             .collect()
@@ -360,7 +360,7 @@ pub unsafe extern "C" fn rust_html_tokenizer_insert_utf16_input(
     let code_units = if input.is_null() || len == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(input, len) }
+        unsafe { ak::slice_from_raw_parts(input, len) }
     };
     handle.tokenizer.insert_input_at_insertion_point(code_units);
 }
@@ -381,7 +381,7 @@ pub unsafe extern "C" fn rust_html_tokenizer_insert_ascii_input(
     let input = if input.is_null() || len == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(input, len) }
+        unsafe { ak::slice_from_raw_parts(input, len) }
     };
     handle.tokenizer.insert_ascii_input_at_insertion_point(input);
 }
@@ -402,7 +402,7 @@ pub unsafe extern "C" fn rust_html_tokenizer_append_utf16_input(
     let code_units = if input.is_null() || len == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(input, len) }
+        unsafe { ak::slice_from_raw_parts(input, len) }
     };
     handle.tokenizer.append_input(code_units);
 }
@@ -423,7 +423,7 @@ pub unsafe extern "C" fn rust_html_tokenizer_append_ascii_input(
     let input = if input.is_null() || len == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(input, len) }
+        unsafe { ak::slice_from_raw_parts(input, len) }
     };
     handle.tokenizer.append_ascii_input(input);
 }

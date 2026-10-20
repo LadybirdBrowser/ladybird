@@ -288,7 +288,7 @@ fn describe_node(
 ) -> String {
     unsafe extern "C" fn append(sink: *mut c_void, bytes: *const u8, length: usize) {
         // SAFETY: describe receives this live vector and supplies bytes valid for this call.
-        unsafe { &mut *sink.cast::<Vec<u8>>() }.extend_from_slice(unsafe { std::slice::from_raw_parts(bytes, length) });
+        unsafe { &mut *sink.cast::<Vec<u8>>() }.extend_from_slice(unsafe { ak::slice_from_raw_parts(bytes, length) });
     }
     let mut bytes = Vec::<u8>::new();
     // SAFETY: The pass is over, and the rows it ran for are live; describe copies the row's description synchronously

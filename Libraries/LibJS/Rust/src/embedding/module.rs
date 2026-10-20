@@ -89,7 +89,7 @@ pub unsafe extern "C" fn js_module_request_create(
         &[]
     } else {
         // SAFETY: The embedder passes that many attributes.
-        unsafe { core::slice::from_raw_parts(attributes, attribute_count) }
+        unsafe { ak::slice_from_raw_parts(attributes, attribute_count) }
     };
     // SAFETY: See the module documentation.
     let module_request = unsafe {

@@ -497,7 +497,7 @@ unsafe fn borrowed_or_copied_bytes_of_buffer(buffer: &ArrayBuffer, bytes: Range<
     assert!(!data.is_null());
     // SAFETY: The buffer is not detached and has the bytes, which nothing writes while they are borrowed, as the
     //         buffer is not shared and the caller keeps script from running.
-    Some(Cow::Borrowed(unsafe { core::slice::from_raw_parts(data, bytes.len()) }))
+    Some(Cow::Borrowed(unsafe { ak::slice_from_raw_parts(data, bytes.len()) }))
 }
 
 impl ArrayBufferView {

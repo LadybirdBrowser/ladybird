@@ -553,12 +553,12 @@ unsafe impl PlainNumber for i64 {}
 
 pub(crate) fn bytes_of<N: PlainNumber>(numbers: &[N]) -> &[u8] {
     // SAFETY: Per the contract of PlainNumber the numbers are their bytes, all of which are initialized.
-    unsafe { core::slice::from_raw_parts(numbers.as_ptr().cast::<u8>(), size_of_val(numbers)) }
+    unsafe { ak::slice_from_raw_parts(numbers.as_ptr().cast::<u8>(), size_of_val(numbers)) }
 }
 
 pub(super) fn bytes_of_mut<N: PlainNumber>(numbers: &mut [N]) -> &mut [u8] {
     // SAFETY: Per the contract of PlainNumber the numbers are their bytes, and any bytes written are numbers.
-    unsafe { core::slice::from_raw_parts_mut(numbers.as_mut_ptr().cast::<u8>(), size_of_val(numbers)) }
+    unsafe { ak::slice_from_raw_parts_mut(numbers.as_mut_ptr().cast::<u8>(), size_of_val(numbers)) }
 }
 
 pub(super) fn copy_reply_data(reply: &[u8], span: DataSpan, destination: &mut [u8]) {

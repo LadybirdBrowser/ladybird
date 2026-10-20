@@ -1526,7 +1526,7 @@ pub unsafe extern "C" fn rust_computed_longhand_table_copy_from_values(
     values: *const *const c_void,
     count: usize,
 ) {
-    let values = unsafe { std::slice::from_raw_parts(values, count) };
+    let values = unsafe { ak::slice_from_raw_parts(values, count) };
     table.copy_from_values(values);
 }
 
@@ -1583,8 +1583,8 @@ pub unsafe extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
     inheritance_count: usize,
 ) {
     table.load_flag_bitmaps(
-        unsafe { std::slice::from_raw_parts(importance, importance_count) },
-        unsafe { std::slice::from_raw_parts(inheritance, inheritance_count) },
+        unsafe { ak::slice_from_raw_parts(importance, importance_count) },
+        unsafe { ak::slice_from_raw_parts(inheritance, inheritance_count) },
     );
 }
 

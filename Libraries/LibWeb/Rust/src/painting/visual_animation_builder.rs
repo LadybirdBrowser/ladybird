@@ -38,7 +38,6 @@ use crate::painting::host::{
 use crate::painting::visual_animation::{
     VisualAnimation, VisualAnimationKeyframe, VisualAnimationTransformOperation, VisualAnimationValue,
 };
-use libcompositing_rust::ffi::ffi_slice;
 use libgfx_rust::{Color, ColorFilterType};
 
 const TARGET_KIND_COUNT: usize = 4;
@@ -142,7 +141,7 @@ impl<'a> Request<'a> {
         Self {
             ffi,
             // SAFETY: The caller guarantees the keyframe range is live.
-            keyframes: unsafe { ffi_slice(ffi.keyframes, ffi.keyframe_count) },
+            keyframes: unsafe { ak::slice_from_raw_parts(ffi.keyframes, ffi.keyframe_count) },
         }
     }
 

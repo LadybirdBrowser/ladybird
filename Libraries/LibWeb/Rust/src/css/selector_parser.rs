@@ -1297,7 +1297,7 @@ pub(crate) unsafe fn parse_selector_list_from_ffi(
             &[]
         } else {
             assert!(!namespaces.is_null());
-            std::slice::from_raw_parts(namespaces, namespace_count)
+            ak::slice_from_raw_parts(namespaces, namespace_count)
         };
         let namespace_storage = namespace_views
             .iter()
@@ -1306,7 +1306,7 @@ pub(crate) unsafe fn parse_selector_list_from_ffi(
                     TokenizerInput::Utf16(&[])
                 } else {
                     assert!(!namespace.data.is_null());
-                    TokenizerInput::Utf16(std::slice::from_raw_parts(namespace.data, namespace.length))
+                    TokenizerInput::Utf16(ak::slice_from_raw_parts(namespace.data, namespace.length))
                 }
             })
             .collect::<Vec<_>>();

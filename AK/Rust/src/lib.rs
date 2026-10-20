@@ -7,8 +7,10 @@
 //! Rust views of shared AK data structures.
 
 mod scope_guard;
+mod slice;
 
 pub use scope_guard::ScopeGuard;
+pub use slice::{slice_from_raw_parts, slice_from_raw_parts_mut};
 
 use core::mem::MaybeUninit;
 use std::num::NonZeroUsize;
@@ -339,7 +341,7 @@ impl Utf16String {
         // SAFETY: The allocation has space for exactly `length` ASCII bytes, which are zeroed before they are lent out.
         let storage = unsafe {
             std::ptr::write_bytes(result.long_storage(), 0, length);
-            std::slice::from_raw_parts_mut(result.long_storage(), length)
+            crate::slice_from_raw_parts_mut(result.long_storage(), length)
         };
         fill(storage);
         assert!(storage.is_ascii(), "an ASCII string holds ASCII bytes");
@@ -802,7 +804,7 @@ pub unsafe fn utf16_string_units(raw: &usize) -> Utf16StringUnits<'_> {
 
         // SAFETY: The short-string bytes are stored inline in `raw` and `length`
         // is constrained to the remaining bytes in the word.
-        return Utf16StringUnits::Ascii(unsafe { std::slice::from_raw_parts(pointer, length) });
+        return Utf16StringUnits::Ascii(unsafe { crate::slice_from_raw_parts(pointer, length) });
     }
 
     // SAFETY: The caller guarantees that `raw` points to a live long string allocation.
@@ -813,10 +815,10 @@ pub unsafe fn utf16_string_units(raw: &usize) -> Utf16StringUnits<'_> {
         .wrapping_add(size_of::<Utf16StringDataHeader>());
     if header.flags.load(Ordering::Acquire) & HAS_UTF16_STORAGE == 0 {
         // SAFETY: Long ASCII storage starts immediately after the header and contains `length` bytes.
-        Utf16StringUnits::Ascii(unsafe { std::slice::from_raw_parts(storage, length) })
+        Utf16StringUnits::Ascii(unsafe { crate::slice_from_raw_parts(storage, length) })
     } else {
         // SAFETY: Long UTF-16 storage starts immediately after the aligned header and contains
         // `length` u16 code units.
-        Utf16StringUnits::Utf16(unsafe { std::slice::from_raw_parts(storage.cast::<u16>(), length) })
+        Utf16StringUnits::Utf16(unsafe { crate::slice_from_raw_parts(storage.cast::<u16>(), length) })
     }
 }

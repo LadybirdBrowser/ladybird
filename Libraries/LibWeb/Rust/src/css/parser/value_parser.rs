@@ -1138,7 +1138,7 @@ pub(crate) fn context_allows_tree_counting_functions(context: &ParseContext) -> 
     } else if context.value_contexts.is_null() {
         return false;
     } else {
-        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
     };
     !contexts.iter().any(|value_context| {
         value_context.kind == FfiValueParsingContextKind::Descriptor
@@ -1150,7 +1150,7 @@ fn substitution_function_context_names(context: &ParseContext) -> Option<Vec<Vec
     if context.value_context_count == 0 || context.value_contexts.is_null() {
         return None;
     }
-    let contexts = unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) };
+    let contexts = unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) };
     let names = contexts
         .iter()
         .filter(|value_context| value_context.kind == FfiValueParsingContextKind::Function)
@@ -3674,7 +3674,7 @@ fn context_allows_quirky_color(context: &ParseContext, property: u16) -> bool {
     } else if context.value_contexts.is_null() {
         return false;
     } else {
-        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
     };
     value_contexts.iter().all(|value_context| {
         value_context.kind == FfiValueParsingContextKind::Property
@@ -3688,7 +3688,7 @@ pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
     } else if context.value_contexts.is_null() {
         return false;
     } else {
-        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
     };
 
     if value_contexts.first().is_some_and(|value_context| {
@@ -6128,7 +6128,7 @@ fn parse_css_primitive_values(
     let property = if context.value_context_count == 0 || context.value_contexts.is_null() {
         property_id::WIDTH
     } else {
-        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
             .iter()
             .find(|value_context| {
                 value_context.kind == FfiValueParsingContextKind::Property && value_context.value != property_id::CUSTOM
