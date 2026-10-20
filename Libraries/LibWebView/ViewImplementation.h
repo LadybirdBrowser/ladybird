@@ -464,6 +464,15 @@ public:
 
     Function<void()> on_ready_to_paint;
     Function<void(TabPerformanceStats const&)> on_performance_stats;
+    enum class NewWindowType {
+        Tab,
+        Window,
+    };
+    struct NewWebDriverWindow {
+        ViewImplementation& view;
+        NewWindowType type;
+    };
+    Function<NewWebDriverWindow(NewWindowType)> on_new_webdriver_window;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, CanonicalTraversable&)> on_new_web_view;
     Function<void()> on_activate_tab;
     Function<void()> on_close;

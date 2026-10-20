@@ -178,6 +178,77 @@ void WebDriverBrowserConnection::run_content_command(u64 command_id, String wind
     view->run_webdriver_content_command(command_id, browsing_context, name, move(payload), move(arguments));
 }
 
+// 11.5 New Window, https://w3c.github.io/webdriver/#dfn-new-window
+void WebDriverBrowserConnection::new_window(u64 command_id, String window_handle, JsonValue payload)
+{
+    // 1. If the implementation does not support creating new top-level browsing contexts, return error with error code unsupported operation.
+
+    // 2. If session's current top-level browsing context is no longer open, return error with error code no such window.
+    auto view = ViewImplementation::find_view_by_handle(window_handle);
+    if (!view.has_value()) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+    if (!view->on_new_webdriver_window) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Creating windows is not supported"sv));
+        return;
+    }
+
+    // 3. Try to handle any user prompts with session.
+    view->run_webdriver_user_prompt_handling([strong_this = NonnullRefPtr { *this }, command_id, view_id = view->view_id(), payload = move(payload)](Web::WebDriver::Response response) {
+        if (response.is_error()) {
+            strong_this->async_command_complete(command_id, move(response));
+            return;
+        }
+        auto view = ViewImplementation::find_view_by_id(view_id);
+        if (!view.has_value()) {
+            strong_this->async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+            return;
+        }
+
+        // 4. Let type hint be the result of getting the property "type" from parameters.
+        if (!payload.is_object()) {
+            strong_this->async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv));
+            return;
+        }
+        auto type_hint = payload.as_object().get("type"sv);
+        if (type_hint.has_value() && !type_hint->is_null() && !type_hint->is_string()) {
+            strong_this->async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload property 'type' must be null or a string"sv));
+            return;
+        }
+
+        // 5. Create a new top-level browsing context by running the window open steps with URL set to "about:blank",
+        //    target set to the empty string, and features set to "noopener" and the user agent configured to create a new
+        //    browsing context. This must be done without invoking the focusing steps for the created browsing context.
+        //    If type hint has the value "tab", and the implementation supports multiple browsing context in the same OS
+        //    window, the new browsing context should share an OS window with session's current browsing context. If type hint
+        //    is "window", and the implementation supports multiple browsing contexts in separate OS windows, the created
+        //    browsing context should be in a new OS window. In all other cases the details of how the browsing context is
+        //    presented to the user are implementation defined.
+        // NB: The UI's new tab path creates an independent traversable with no opener and an initial about:blank document
+        //     in its own WebContent process, rather than opening a popup in the current page's process.
+        using NewWindowType = ViewImplementation::NewWindowType;
+        auto requested_type = type_hint.has_value() && type_hint->is_string() && type_hint->as_string() == "window"sv
+            ? NewWindowType::Window
+            : NewWindowType::Tab;
+        auto new_window = view->on_new_webdriver_window(requested_type);
+
+        // 6. Let handle be the associated window handle of the newly created window.
+        auto handle = new_window.view.handle();
+
+        // 7. Let type be "tab" if the newly created window shares an OS-level window with session's current browsing context, or "window" otherwise.
+        auto type = new_window.type == NewWindowType::Tab ? "tab"sv : "window"sv;
+
+        // 8. Let result be a new JSON Object initialized with:
+        JsonObject result;
+        result.set("handle"sv, move(handle));
+        result.set("type"sv, type);
+
+        // 9. Return success with data result.
+        strong_this->async_command_complete(command_id, JsonValue { move(result) });
+    });
+}
+
 // 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
 void WebDriverBrowserConnection::switch_to_window(u64 command_id, String window_handle)
 {
