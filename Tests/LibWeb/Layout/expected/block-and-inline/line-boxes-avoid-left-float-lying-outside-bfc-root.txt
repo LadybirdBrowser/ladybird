@@ -11,7 +11,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> at [0,0] [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div> at [-20,0] [-20+0+0 320 0+0+0] [0+0+0 20 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [-20,0 40.1875x20] baseline: 16
+          frag 0 from TextNode start: 0, length: 4, rect: [-5,0 40.1875x20] baseline: 16
               "text"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [0,20] [0+0+0 300 0+0+0] [0+0+0 0 0+0+0] children: inline
