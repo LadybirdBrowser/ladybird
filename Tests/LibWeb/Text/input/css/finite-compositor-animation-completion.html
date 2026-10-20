@@ -34,9 +34,11 @@
         let animationEndEvents = 0;
         let eventHandlerSawTerminalStyle = false;
         let animationUpdatesAtEndEvent = 0;
+        let renderingUpdatesAtEndEvent = 0;
         opacity.addEventListener("animationend", () => {
             ++animationEndEvents;
             animationUpdatesAtEndEvent = internals.getStyleInvalidationCounters().animationTimelineAssociatedAnimationUpdates;
+            renderingUpdatesAtEndEvent = internals.getRenderingSchedulerCounters().updatesRun;
             eventHandlerSawTerminalStyle = getComputedStyle(opacity).opacity === "0.8";
         });
         transform.addEventListener("animationend", () => ++animationEndEvents);
@@ -48,6 +50,7 @@
         println(`finite effects use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 3}`);
 
         internals.resetStyleInvalidationCounters();
+        internals.resetRenderingSchedulerCounters();
         let finishedPromises = 0;
         await Promise.all(animations.map(animation => animation.finished.then(() => ++finishedPromises)));
         await new Promise(requestAnimationFrame);
@@ -56,7 +59,7 @@
         println(`animationend events fire: ${animationEndEvents === 2}`);
         println(`animationend sees terminal style: ${eventHandlerSawTerminalStyle}`);
         println(`finite effects request one end frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
-        println(`wake-up timer leaves animation updates to frames: ${animationUpdatesAtEndEvent === 2}`);
+        println(`wake-up timer leaves animation updates to frames: ${animationUpdatesAtEndEvent === renderingUpdatesAtEndEvent}`);
         println(`forwards fill retains opacity: ${getComputedStyle(opacity).opacity === "0.8"}`);
         println(`no fill restores transform: ${getComputedStyle(transform).transform === "matrix(1, 0, 0, 1, 7, 0)"}`);
         println(`no fill restores opacity: ${getComputedStyle(opacityWithoutFill).opacity === "0.3"}`);
