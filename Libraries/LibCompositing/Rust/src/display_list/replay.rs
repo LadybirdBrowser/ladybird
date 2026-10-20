@@ -6,8 +6,8 @@
 
 use crate::display_list::builder::{for_each_command, inline_clips_of, inline_transform_of, read_command};
 use crate::display_list::commands::{
-    ClipNodeIndex, DisplayListCommandRun, DisplayListCommandType, EffectNodeIndex, InlineClipKind, PaintScrollBar,
-    ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
+    ClipNodeIndex, DisplayListCommandRun, DisplayListCommandType, EffectNodeIndex, InlineClipKind, OptionalFloatRect,
+    PaintScrollBar, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
@@ -21,8 +21,8 @@ use crate::visual_context::{
 };
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{
-    AffineTransform, CornerRadii, FloatMatrix4x4, FloatPoint, FloatVector3, IntRect, WindingRule, enclosing_int_rect,
-    translation_matrix,
+    AffineTransform, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
+    enclosing_int_rect, translation_matrix,
 };
 use std::cell::RefCell;
 
@@ -125,6 +125,10 @@ impl SpaceMatrices for &ReplayPaletteStorage {
     }
 }
 
+// Recorded bounds are whole device pixels around geometry that antialiasing and glyph rounding
+// can push past them by up to this much, and a layer's bounds clip what is drawn into it.
+const LAYER_CONTENT_MARGIN_IN_DEVICE_PIXELS: f32 = 2.0;
+
 // One entry of the canvas save stack: a clip or an effect the replay has entered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Applied {
@@ -213,7 +217,11 @@ fn replay_clip_of(clip: &crate::visual_context::ClipData) -> ReplayClip {
     }
 }
 
-fn replay_layer_of(effects: &crate::visual_context::EffectsData, effect: EffectNodeIndex) -> ReplayLayer {
+fn replay_layer_of(
+    effects: &crate::visual_context::EffectsData,
+    effect: EffectNodeIndex,
+    content_bounds: Option<FloatRect>,
+) -> ReplayLayer {
     let (filter_bytes, filter_bytes_size) = match &effects.filter {
         Some(bytes) => (bytes.as_ptr(), bytes.len()),
         None => (std::ptr::null(), 0),
@@ -238,6 +246,7 @@ fn replay_layer_of(effects: &crate::visual_context::EffectsData, effect: EffectN
         backdrop_region,
         backdrop_corner_radii,
         effect,
+        content_bounds: OptionalFloatRect::from(content_bounds),
     }
 }
 
@@ -395,6 +404,31 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         self.effect_geometry[effect.0 as usize]
     }
 
+    // The bounds hint for an effect's layer, in the effect's space.
+    fn layer_content_bounds(&mut self, effect: EffectNodeIndex, space: SpatialNodeIndex) -> Option<FloatRect> {
+        let Extent::Within(content) = self.effect_geometry(effect).content else {
+            return None;
+        };
+        let to_root_matrix = (&self.palette).to_root_matrix(space);
+        if !to_root_matrix.is_2d_affine() {
+            return None;
+        }
+        let root_to_layer = to_root_matrix.extract_2d_affine().inverse()?;
+        let margin_x = LAYER_CONTENT_MARGIN_IN_DEVICE_PIXELS * (root_to_layer.a().abs() + root_to_layer.c().abs());
+        let margin_y = LAYER_CONTENT_MARGIN_IN_DEVICE_PIXELS * (root_to_layer.b().abs() + root_to_layer.d().abs());
+        let bounds = FloatRect::new(
+            content.x - margin_x,
+            content.y - margin_y,
+            content.width + 2.0 * margin_x,
+            content.height + 2.0 * margin_y,
+        );
+        // Bounds that overflowed would clip away everything drawn into the layer.
+        [bounds.x, bounds.y, bounds.right(), bounds.bottom()]
+            .into_iter()
+            .all(f32::is_finite)
+            .then_some(bounds)
+    }
+
     // Merge the clip and effect chains from leaf to root. Each effect goes immediately
     // inside its output clip; reversing once produces the canvas stack in linear time.
     fn build_target(&mut self, context: ContextRef) {
@@ -549,7 +583,9 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                         EffectNodeData::Effects(effects) => {
                             if tree.effect_pushes_layer_at_replay(effect) {
                                 self.ensure_ctm_space(node.spatial);
-                                self.painter.push_layer(&replay_layer_of(effects, effect));
+                                let content_bounds = self.layer_content_bounds(effect, node.spatial);
+                                self.painter
+                                    .push_layer(&replay_layer_of(effects, effect, content_bounds));
                             }
                         }
                         EffectNodeData::Mask(mask) => {
@@ -837,6 +873,7 @@ mod tests {
         events: Vec<PainterEvent>,
         base_matrix: FloatMatrix4x4,
         fully_clipped_x: i32,
+        layer_content_bounds: Vec<Option<FloatRect>>,
     }
 
     impl RecordingPainter {
@@ -845,6 +882,7 @@ mod tests {
                 events: Vec::new(),
                 base_matrix: translation_matrix(100.0, 200.0, 0.0),
                 fully_clipped_x: i32::MIN,
+                layer_content_bounds: Vec::new(),
             }
         }
     }
@@ -867,6 +905,7 @@ mod tests {
         }
         fn push_layer(&mut self, layer: &ReplayLayer) {
             self.events.push(PainterEvent::PushLayer(layer.opacity));
+            self.layer_content_bounds.push(layer.content_bounds.get());
         }
         fn push_mask(&mut self, mask: &ReplayMask) {
             self.events.push(PainterEvent::PushMask(mask.rect));
@@ -1155,6 +1194,94 @@ mod tests {
                 PainterEvent::SetMatrix(base),
             ]
         );
+    }
+
+    fn effect_context(effect: EffectNodeIndex) -> ContextRef {
+        ContextRef {
+            clip: ClipNodeIndex::NONE,
+            effect,
+            ..ContextRef::default()
+        }
+    }
+
+    // A layer's bounds are its content plus the margin it keeps for antialiasing, in its own units.
+    fn with_margin(rect: FloatRect, margin: f32) -> FloatRect {
+        FloatRect::new(
+            rect.x - margin,
+            rect.y - margin,
+            rect.width + 2.0 * margin,
+            rect.height + 2.0 * margin,
+        )
+    }
+
+    #[test]
+    fn a_layer_is_bounded_by_everything_drawn_into_it() {
+        let mut tree = identity_tree();
+        let outer = effect_under(&mut tree, effects(0.5), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        let blur = effect_under(
+            &mut tree,
+            EffectNodeData::Effects(EffectsData {
+                opacity: 1.0,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: Some(std::sync::Arc::new(
+                    libgfx_rust::filter::Filter::blur(1.0, 1.0, None).serialize(),
+                )),
+                backdrop_filter: None,
+            }),
+            outer,
+            ClipNodeIndex::NONE,
+        );
+        let runs = [
+            run(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                effect_context(blur),
+                IntRect::new(0, 0, 10, 10),
+            ),
+            run(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                effect_context(outer),
+                IntRect::new(20, 5, 10, 10),
+            ),
+        ];
+        let mut painter = RecordingPainter::new();
+        replay(&tree, &runs, &mut painter);
+        assert_eq!(
+            painter.layer_content_bounds,
+            [
+                Some(with_margin(FloatRect::new(-3.0, -3.0, 33.0, 18.0), 2.0)),
+                Some(with_margin(FloatRect::new(0.0, 0.0, 10.0, 10.0), 2.0)),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_scaled_layer_widens_its_margin_to_keep_two_device_pixels() {
+        let mut tree = identity_tree();
+        let half = tree.append_spatial(transform(scale_matrix(0.5, 0.5, 1.0), None), VISUAL_VIEWPORT_NODE_INDEX);
+        let double = tree.append_spatial(transform(scale_matrix(4.0, 4.0, 1.0), None), half);
+        let layer = tree.append_effect(effects(0.5), EffectNodeIndex::NONE, half, ClipNodeIndex::NONE);
+        let runs = [run(double, effect_context(layer), IntRect::new(0, 0, 10, 10))];
+        let mut painter = RecordingPainter::new();
+        replay(&tree, &runs, &mut painter);
+        assert_eq!(
+            painter.layer_content_bounds,
+            [Some(with_margin(FloatRect::new(0.0, 0.0, 40.0, 40.0), 4.0))]
+        );
+    }
+
+    #[test]
+    fn a_layer_whose_content_can_land_anywhere_has_no_bounds() {
+        let mut tree = identity_tree();
+        let tilted = tree.append_spatial(transform(rotate_y(30.0), None), VISUAL_VIEWPORT_NODE_INDEX);
+        let flat_layer = effect_under(&mut tree, effects(0.5), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        let tilted_layer = tree.append_effect(effects(0.5), EffectNodeIndex::NONE, tilted, ClipNodeIndex::NONE);
+        let runs = [
+            run(tilted, effect_context(flat_layer), IntRect::new(0, 0, 10, 10)),
+            run(tilted, effect_context(tilted_layer), IntRect::new(0, 0, 10, 10)),
+        ];
+        let mut painter = RecordingPainter::new();
+        replay(&tree, &runs, &mut painter);
+        assert_eq!(painter.layer_content_bounds, [None, None]);
     }
 
     #[test]
@@ -1494,7 +1621,7 @@ mod tests {
                 corner_radii: radii,
             }),
         };
-        let layer = replay_layer_of(&with_backdrop, EffectNodeIndex(3));
+        let layer = replay_layer_of(&with_backdrop, EffectNodeIndex(3), None);
         assert_eq!(layer.opacity, 0.5);
         assert_eq!(layer.backdrop_filter_bytes, filter.as_ptr());
         assert_eq!(layer.backdrop_filter_bytes_size, 3);
@@ -1505,7 +1632,7 @@ mod tests {
         let EffectNodeData::Effects(without_backdrop) = effects(0.5) else {
             unreachable!()
         };
-        let layer = replay_layer_of(&without_backdrop, EffectNodeIndex(4));
+        let layer = replay_layer_of(&without_backdrop, EffectNodeIndex(4), None);
         assert!(layer.backdrop_filter_bytes.is_null());
         assert_eq!(layer.backdrop_filter_bytes_size, 0);
         assert_eq!(layer.backdrop_region, IntRect::default());

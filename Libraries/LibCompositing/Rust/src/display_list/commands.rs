@@ -211,6 +211,8 @@ pub struct ReplayLayer {
     pub backdrop_region: IntRect,
     pub backdrop_corner_radii: CornerRadii,
     pub effect: EffectNodeIndex,
+    /// Bounds of everything replay draws into the layer, in the effect's space, when known.
+    pub content_bounds: OptionalFloatRect,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

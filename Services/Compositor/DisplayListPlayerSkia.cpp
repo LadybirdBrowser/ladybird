@@ -1495,7 +1495,12 @@ void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
     }
 
     if (!layer.backdrop_filter_bytes_size) {
-        canvas.saveLayer(nullptr, &paint);
+        if (layer.content_bounds.has_value()) {
+            auto content_bounds = to_skia_rect(*layer.content_bounds);
+            canvas.saveLayer(&content_bounds, &paint);
+        } else {
+            canvas.saveLayer(nullptr, &paint);
+        }
         return;
     }
 
