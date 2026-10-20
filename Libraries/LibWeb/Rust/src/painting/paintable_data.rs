@@ -185,6 +185,12 @@ pub struct PaintableSideData {
         Option<std::sync::Arc<crate::painting::fragment_ownership::FragmentOwnershipFilter>>,
 }
 
+#[derive(Clone)]
+pub(crate) struct CommittedBoxFragment {
+    pub(crate) link: crate::layout::fragment_tree::FragmentLink,
+    pub(crate) containing_block_fragment: u32,
+}
+
 /// What a row committed beside its geometry that painting reads with it: its inline content, the
 /// pieces an inline box has in its line root's content, its measured scrollable overflow, and what
 /// paint preparation adds for the recording. Shared records are held by `Arc`, so copying a row
@@ -203,6 +209,8 @@ pub(crate) struct CommittedSideData {
     pub(crate) fragment_ownership: Option<std::sync::Arc<crate::painting::fragment_ownership::FragmentOwnershipFilter>>,
     /// The paint-order decisions paint preparation gathered for the row, if it gathered them.
     pub(crate) order_inputs: crate::painting::paint_order_plan::PaintOrderInputs,
+    pub(crate) containing_block_fragment: u32,
+    pub(crate) box_fragments: Option<std::sync::Arc<[CommittedBoxFragment]>>,
 }
 
 /// Rows are the same when they hold equal records; a shared record is compared only when the rows
@@ -223,6 +231,14 @@ impl PartialEq for CommittedSideData {
             && same_payload(self.inline_content.as_ref(), other.inline_content.as_ref(), |a, b| {
                 a == b
             })
+            && self.containing_block_fragment == other.containing_block_fragment
+            && same_payload(self.box_fragments.as_ref(), other.box_fragments.as_ref(), |a, b| {
+                a.len() == b.len()
+                    && a.iter().zip(b.iter()).all(|(left, right)| {
+                        left.containing_block_fragment == right.containing_block_fragment
+                            && left.link.places_same_fragment_identically_to(&right.link)
+                    })
+            })
     }
 }
 
@@ -234,6 +250,10 @@ impl CommittedSideData {
     pub(crate) fn clear_committed_records(&mut self) {
         self.inline_content = None;
         self.piece_indices = None;
+    }
+
+    pub(crate) fn box_fragments(&self) -> &[CommittedBoxFragment] {
+        self.box_fragments.as_deref().unwrap_or_default()
     }
 
     /// The indices of an inline box's pieces in its line root's inline content.

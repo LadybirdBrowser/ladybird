@@ -870,7 +870,6 @@ pub extern "C" fn render_state_inline_paintable_first_piece_position(
             let Some(root) = paintable_rows.inline_pieces_root(inline_paintable) else {
                 return result;
             };
-            let root_position = crate::painting::paintable_geometry::absolute_position(&paintable_rows, root);
             let border_widths = crate::painting::paintable_geometry::committed_border(arena, inline_paintable);
             let padding_widths = crate::painting::paintable_geometry::committed_padding(arena, inline_paintable);
             with_inline_pieces(&paintable_rows, inline_paintable, |piece, _data| {
@@ -881,6 +880,11 @@ pub extern "C" fn render_state_inline_paintable_first_piece_position(
                     let padding_rect = piece.shrunken_by_present_edges(border_rect, border_widths);
                     piece.shrunken_by_present_edges(padding_rect, padding_widths)
                 };
+                let root_position = crate::painting::paintable_geometry::absolute_line_root_position(
+                    &paintable_rows,
+                    root,
+                    piece.line_index as usize,
+                );
                 result.has_value = true;
                 result.x = rect.x + root_position.x;
                 result.y = rect.y + root_position.y;

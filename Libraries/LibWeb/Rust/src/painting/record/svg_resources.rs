@@ -249,6 +249,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             border_radii: crate::painting::border_radii::BorderRadii::default(),
             image_rendering: crate::css::css_enums::image_rendering::AUTO,
             is_root_element,
+            visible_device_rect: None,
         };
         crate::painting::record::paint::background::paint_resolved_background(self, paintable, &inputs);
         self.recorder.restore_force_dark(suspended_force_dark);

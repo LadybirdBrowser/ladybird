@@ -134,9 +134,17 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             if display.is_table_column() || display.is_table_column_group() {
                 return;
             }
+            let context = self.data(paintable).accumulated_visual_context;
+            let fragment_count = paintable_geometry::fragment_count(self.source, paintable);
+            if fragment_count > 1 {
+                for index in 0..fragment_count {
+                    let (rect, radii) = self.fragment_border_box(paintable, index);
+                    self.append_box(paintable, rect, context, radii);
+                }
+                return;
+            }
             let rect = paintable_geometry::absolute_border_box_rect(self.source, paintable);
             let radii = self.border_radii(paintable);
-            let context = self.data(paintable).accumulated_visual_context;
             self.append_box(paintable, rect, context, radii);
             return;
         }
@@ -181,7 +189,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         for target in targets {
             self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
         }
-        let empty_lines_ended_by_forced_breaks: Vec<(usize, NodeSlotId, CssPixelRect)> = {
+        let empty_lines_ended_by_forced_breaks: Vec<(usize, NodeSlotId, CssPixelRect, u32)> = {
             let side = self.source.committed_side_data(paintable);
             if side.fragments().is_empty() {
                 return;
@@ -192,12 +200,22 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
                 .filter(|(_, line)| {
                     line.fragment_count == 0 && self.forced_break_node_is_caret_target(line.forced_break_node)
                 })
-                .map(|(line_index, line)| (line_index, line.forced_break_node, CssPixelRect::from(line.rect)))
+                .map(|(line_index, line)| {
+                    (
+                        line_index,
+                        line.forced_break_node,
+                        CssPixelRect::from(line.rect),
+                        line.box_fragment,
+                    )
+                })
                 .collect()
         };
-        let block_position = paintable_geometry::absolute_position(self.source, paintable);
-        for (line_index, forced_break_node, line_rect) in empty_lines_ended_by_forced_breaks {
-            let line_rect = line_rect.translated_by(block_position);
+        if empty_lines_ended_by_forced_breaks.is_empty() {
+            return;
+        }
+        let positions = paintable_geometry::LineRootPositions::new(self.source, paintable);
+        for (line_index, forced_break_node, line_rect, box_fragment) in empty_lines_ended_by_forced_breaks {
+            let line_rect = line_rect.translated_by(positions.of_fragment(box_fragment));
             self.append_empty_line_for_node(paintable, forced_break_node, line_index, line_rect, context);
         }
     }
@@ -288,7 +306,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let Some(root) = self.inline_root(paintable) else {
             return;
         };
-        let root_position = paintable_geometry::absolute_position(self.source, root);
+        let root_positions = self.line_root_positions(root);
         let layout_arena = self.source;
         let context = self.data(paintable).accumulated_visual_context;
         for piece_index in layout_arena.committed_side_data(paintable).piece_indices() {
@@ -297,6 +315,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             if piece.is_geometry_only_placeholder {
                 continue;
             }
+            let root_position = root_positions.of_line(side.lines(), piece.line_index as usize);
             let rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
             let radii = self.piece_border_radii(paintable, piece);
             self.append_box(paintable, rect, context, radii);

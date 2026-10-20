@@ -50,25 +50,33 @@ pub(crate) fn committed_margin(arena: &impl GeometryRead, slot: NodeSlotId) -> F
     })
 }
 
+fn border_of(fragment: &crate::layout::fragment_tree::Fragment) -> FfiPixelBox {
+    FfiPixelBox {
+        top: fragment.border_top,
+        right: fragment.border_right,
+        bottom: fragment.border_bottom,
+        left: fragment.border_left,
+    }
+}
+
+fn padding_of(fragment: &crate::layout::fragment_tree::Fragment) -> FfiPixelBox {
+    FfiPixelBox {
+        top: fragment.padding_top,
+        right: fragment.padding_right,
+        bottom: fragment.padding_bottom,
+        left: fragment.padding_left,
+    }
+}
+
 pub(crate) fn committed_border(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
-            top: link.fragment.border_top,
-            right: link.fragment.border_right,
-            bottom: link.fragment.border_bottom,
-            left: link.fragment.border_left,
-        })
+        link.map_or_else(FfiPixelBox::default, |link| border_of(&link.fragment))
     })
 }
 
 pub(crate) fn committed_padding(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
-            top: link.fragment.padding_top,
-            right: link.fragment.padding_right,
-            bottom: link.fragment.padding_bottom,
-            left: link.fragment.padding_left,
-        })
+        link.map_or_else(FfiPixelBox::default, |link| padding_of(&link.fragment))
     })
 }
 
@@ -271,7 +279,12 @@ pub(crate) fn absolute_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssP
         return rect;
     }
     let mut block = data.containing_block;
+    let mut block_fragment = arena.committed_side_data(slot).containing_block_fragment;
     while !block.is_invalid() && arena.paintable_row_is_populated(block) {
+        if block_fragment != 0 {
+            rect = rect.translated_by(absolute_fragment_rect(arena, block, block_fragment as usize).location());
+            break;
+        }
         let block_data = arena.paintable_data(block);
         let block_kind = arena.node_kind_if_live(block);
         if block_kind == Some(crate::layout::node_data::NodeKind::SVGSVGBox)
@@ -289,10 +302,195 @@ pub(crate) fn absolute_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssP
             break;
         }
         rect = rect.translated_by(committed_offset(arena, block).into());
+        block_fragment = arena.committed_side_data(block).containing_block_fragment;
         block = block_data.containing_block;
     }
     arena.memoize_absolute_rect(slot, rect);
     rect
+}
+
+pub(crate) fn fragment_count(arena: &impl GeometryRead, slot: NodeSlotId) -> usize {
+    1 + arena.committed_side_data(slot).box_fragments().len()
+}
+
+pub(crate) fn absolute_fragment_rect(arena: &impl GeometryRead, slot: NodeSlotId, index: usize) -> CssPixelRect {
+    if index == 0 {
+        return absolute_rect(arena, slot);
+    }
+    let Some((rect, containing_block_fragment)) = with_later_box_fragment(arena, slot, index, |fragment| {
+        let link = &fragment.link;
+        (
+            CssPixelRect::new(
+                link.committed_offset.x,
+                link.committed_offset.y,
+                link.fragment.content_inline_size,
+                link.fragment.content_block_size,
+            ),
+            fragment.containing_block_fragment,
+        )
+    }) else {
+        return absolute_rect(arena, slot);
+    };
+    let block = arena.paintable_data(slot).containing_block;
+    if block.is_invalid() || !arena.paintable_row_is_populated(block) {
+        return rect;
+    }
+    rect.translated_by(absolute_fragment_rect(arena, block, containing_block_fragment as usize).location())
+}
+
+fn with_later_box_fragment<R>(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+    index: usize,
+    read: impl FnOnce(&CommittedBoxFragment) -> R,
+) -> Option<R> {
+    arena.committed_side_data(slot).box_fragments().get(index - 1).map(read)
+}
+
+pub(crate) fn unbroken_content_size(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
+    let mut size = committed_content_size(arena, slot);
+    for fragment in arena.committed_side_data(slot).box_fragments() {
+        size.height += fragment.link.fragment.content_block_size;
+    }
+    size
+}
+
+pub(crate) fn unbroken_box_model(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+) -> (FfiPixelBox, FfiPixelBox, FfiPixelBox) {
+    let (mut margin, mut padding, mut border) = (
+        committed_margin(arena, slot),
+        committed_padding(arena, slot),
+        committed_border(arena, slot),
+    );
+    if let Some(last) = arena.committed_side_data(slot).box_fragments().last() {
+        let fragment = &last.link.fragment;
+        margin.bottom = fragment.margin_bottom;
+        padding.bottom = fragment.padding_bottom;
+        border.bottom = fragment.border_bottom;
+    }
+    (margin, padding, border)
+}
+
+pub(crate) fn unbroken_border_box_size(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
+    let first_fragment = first_fragment_border_box_rect(arena, slot);
+    if fragment_count(arena, slot) == 1 {
+        return used_values::FfiCssPixelSize {
+            width: first_fragment.width,
+            height: first_fragment.height,
+        };
+    }
+    let content = unbroken_content_size(arena, slot);
+    let (_, padding, border) = unbroken_box_model(arena, slot);
+    used_values::FfiCssPixelSize {
+        width: first_fragment.width,
+        height: content.height + padding.top + padding.bottom + border.top + border.bottom,
+    }
+}
+
+pub(crate) fn committed_fragment_padding(arena: &impl GeometryRead, slot: NodeSlotId, index: usize) -> FfiPixelBox {
+    if index == 0 {
+        return committed_padding(arena, slot);
+    }
+    with_later_box_fragment(arena, slot, index, |fragment| padding_of(&fragment.link.fragment)).unwrap_or_default()
+}
+
+pub(crate) fn committed_fragment_border(arena: &impl GeometryRead, slot: NodeSlotId, index: usize) -> FfiPixelBox {
+    if index == 0 {
+        return committed_border_box_edges(arena, slot);
+    }
+    with_later_box_fragment(arena, slot, index, |fragment| border_of(&fragment.link.fragment)).unwrap_or_default()
+}
+
+pub(crate) fn committed_fragment_present_edges(arena: &impl GeometryRead, slot: NodeSlotId, index: usize) -> u8 {
+    let edges_of = |fragment: &crate::layout::fragment_tree::Fragment| {
+        let mut edges = PIECE_EDGE_LEFT | PIECE_EDGE_RIGHT;
+        if !fragment.continues_from_previous_fragment {
+            edges |= PIECE_EDGE_TOP;
+        }
+        if !fragment.continues_in_next_fragment {
+            edges |= PIECE_EDGE_BOTTOM;
+        }
+        edges
+    };
+    if index == 0 {
+        return arena.with_committed_fragment_link(slot, |link| {
+            link.map_or(crate::painting::record::paint::border::ALL_PIECE_EDGES, |link| {
+                edges_of(&link.fragment)
+            })
+        });
+    }
+    with_later_box_fragment(arena, slot, index, |fragment| edges_of(&fragment.link.fragment)).unwrap_or(0)
+}
+
+pub(crate) fn absolute_fragment_padding_box_rect(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+    index: usize,
+) -> CssPixelRect {
+    if index == 0 {
+        return first_fragment_padding_box_rect(arena, slot);
+    }
+    let padding = committed_fragment_padding(arena, slot, index);
+    absolute_fragment_rect(arena, slot, index).inflated(padding.top, padding.right, padding.bottom, padding.left)
+}
+
+pub(crate) fn absolute_fragment_border_box_rect(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+    index: usize,
+) -> CssPixelRect {
+    if index == 0 {
+        return first_fragment_border_box_rect(arena, slot);
+    }
+    let border = committed_fragment_border(arena, slot, index);
+    absolute_fragment_padding_box_rect(arena, slot, index).inflated(
+        border.top,
+        border.right,
+        border.bottom,
+        border.left,
+    )
+}
+
+pub(crate) struct LineRootPositions(smallvec::SmallVec<[CssPixelPoint; 1]>);
+
+impl LineRootPositions {
+    pub(crate) fn new(arena: &impl GeometryRead, root: NodeSlotId) -> Self {
+        Self(
+            (0..fragment_count(arena, root))
+                .map(|index| absolute_fragment_rect(arena, root, index).location())
+                .collect(),
+        )
+    }
+
+    pub(crate) fn of_fragment(&self, box_fragment: u32) -> CssPixelPoint {
+        self.0.get(box_fragment as usize).copied().unwrap_or(self.0[0])
+    }
+
+    pub(crate) fn of_line(
+        &self,
+        lines: &[crate::layout::inline_content::LineRecord],
+        line_index: usize,
+    ) -> CssPixelPoint {
+        if self.0.len() == 1 {
+            return self.0[0];
+        }
+        self.of_fragment(box_fragment_of_line(lines, line_index))
+    }
+}
+
+fn box_fragment_of_line(lines: &[crate::layout::inline_content::LineRecord], line_index: usize) -> u32 {
+    lines.get(line_index).map_or(0, |line| line.box_fragment)
+}
+
+pub(crate) fn absolute_line_root_position(
+    arena: &impl GeometryRead,
+    root: NodeSlotId,
+    line_index: usize,
+) -> CssPixelPoint {
+    let box_fragment = box_fragment_of_line(arena.committed_side_data(root).lines(), line_index);
+    absolute_fragment_rect(arena, root, box_fragment as usize).location()
 }
 
 pub(crate) fn absolute_position(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelPoint {
@@ -300,10 +498,21 @@ pub(crate) fn absolute_position(arena: &impl GeometryRead, slot: NodeSlotId) -> 
 }
 
 pub(crate) fn absolute_padding_box_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
-    let data = arena.paintable_data(slot);
+    let mut rect = first_fragment_padding_box_rect(arena, slot);
+    if node_painting::is_fragmented_inline(arena, slot) {
+        return rect;
+    }
+    for index in 1..fragment_count(arena, slot) {
+        rect.unite(absolute_fragment_padding_box_rect(arena, slot, index));
+    }
+    rect
+}
+
+pub(crate) fn first_fragment_padding_box_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
     let absolute = absolute_rect(arena, slot);
     if node_painting::is_fragmented_inline(arena, slot) {
-        return CssPixelRect::from(data.local_padding_box_union).translated_by(absolute.location());
+        return CssPixelRect::from(arena.paintable_data(slot).local_padding_box_union)
+            .translated_by(absolute.location());
     }
     let padding = committed_padding(arena, slot);
     let content_size = committed_content_size(arena, slot);
@@ -338,11 +547,22 @@ pub(crate) fn committed_border_box_edges(arena: &impl GeometryRead, slot: NodeSl
 }
 
 pub(crate) fn absolute_border_box_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
-    let data = arena.paintable_data(slot);
+    let mut rect = first_fragment_border_box_rect(arena, slot);
     if node_painting::is_fragmented_inline(arena, slot) {
-        return CssPixelRect::from(data.local_border_box_union).translated_by(absolute_rect(arena, slot).location());
+        return rect;
     }
-    let padded = absolute_padding_box_rect(arena, slot);
+    for index in 1..fragment_count(arena, slot) {
+        rect.unite(absolute_fragment_border_box_rect(arena, slot, index));
+    }
+    rect
+}
+
+pub(crate) fn first_fragment_border_box_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
+    if node_painting::is_fragmented_inline(arena, slot) {
+        return CssPixelRect::from(arena.paintable_data(slot).local_border_box_union)
+            .translated_by(absolute_rect(arena, slot).location());
+    }
+    let padded = first_fragment_padding_box_rect(arena, slot);
     let border = committed_border_box_edges(arena, slot);
     CssPixelRect::new(
         padded.x - border.left,
@@ -363,7 +583,7 @@ pub(crate) fn scrollable_overflow_rect(arena: &impl GeometryRead, slot: NodeSlot
     }
     Some(
         CssPixelRect::from(cache.overflow_relative_to_padding_box.rect)
-            .translated_by(absolute_padding_box_rect(arena, slot).location()),
+            .translated_by(first_fragment_padding_box_rect(arena, slot).location()),
     )
 }
 

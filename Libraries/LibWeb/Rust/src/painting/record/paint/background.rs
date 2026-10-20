@@ -80,6 +80,8 @@ pub(crate) fn paint_background_within<O: Observer>(
     paintable: NodeSlotId,
     background_rect: CssPixelRect,
     border_radii: BorderRadii,
+    edges: Option<(FfiPixelBox, FfiPixelBox)>,
+    visible_rect: Option<CssPixelRect>,
 ) {
     let layout_arena = recorder.source;
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
@@ -94,12 +96,14 @@ pub(crate) fn paint_background_within<O: Observer>(
         style.background().background_color_clip,
         background_rect,
         border_radii,
+        edges,
     );
     let inputs = BackgroundPaintInputs {
         resolved,
         border_radii,
         image_rendering: style.image_rendering(),
         is_root_element: false,
+        visible_device_rect: visible_rect.map(|rect| recorder.converter.rounded_device_rect(rect)),
     };
     paint_resolved_background(recorder, paintable, &inputs);
 }
@@ -192,8 +196,8 @@ fn paint_background_layers<O: Observer>(
         rect: background_rect,
         radii: inputs.border_radii,
     };
-    let padding = crate::painting::paintable_geometry::committed_padding(recorder.source, paintable);
-    let border = crate::painting::paintable_geometry::committed_border_box_edges(recorder.source, paintable);
+    let padding = resolved.padding;
+    let border = resolved.border;
 
     if is_root_element {
         recorder.recorder.fill_animated_background_color(
@@ -296,6 +300,7 @@ fn paint_background_layers<O: Observer>(
                         clip_rect,
                         CompositingAndBlendingOperator::Normal,
                         backdrop,
+                        inputs.visible_device_rect,
                     );
                 }
             });
@@ -319,6 +324,7 @@ fn paint_background_layers<O: Observer>(
                     clip_rect,
                     compositing_and_blending_operator,
                     backdrop,
+                    inputs.visible_device_rect,
                 );
             }
         };
@@ -450,6 +456,7 @@ fn paint_image_layer<O: Observer>(
     clip_rect: IntRect,
     compositing_and_blending_operator: CompositingAndBlendingOperator,
     backdrop: LayerBackdrop,
+    visible_device_rect: Option<IntRect>,
 ) {
     let converter = recorder.converter;
     let image = layer.image.expect("an imageless layer never reaches the image paint");
@@ -601,7 +608,9 @@ fn paint_image_layer<O: Observer>(
                 if image_device_rect.height == 0 {
                     image_device_rect.height = 1;
                 }
-                rects.push(image_device_rect);
+                if visible_device_rect.is_none_or(|visible| !visible.intersected(image_device_rect).is_empty()) {
+                    rects.push(image_device_rect);
+                }
                 if !repeat_x {
                     break;
                 }

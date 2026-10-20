@@ -122,6 +122,10 @@ pub struct PaintRecorder<'a, O: Observer> {
     list: HitTestList,
     pub(crate) scratch: &'a mut scratch::RecordingScratch,
     pub(crate) resources: resources::RecordingResourceManifest,
+    line_root_positions: Option<(
+        NodeSlotId,
+        std::rc::Rc<crate::painting::paintable_geometry::LineRootPositions>,
+    )>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -139,6 +143,23 @@ pub(crate) struct BasePaintFacts {
 impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn mark_live_producer(&mut self) {
         self.live_producer = true;
+    }
+
+    pub(crate) fn line_root_positions(
+        &mut self,
+        root: NodeSlotId,
+    ) -> std::rc::Rc<crate::painting::paintable_geometry::LineRootPositions> {
+        if let Some((cached_root, positions)) = &self.line_root_positions
+            && *cached_root == root
+        {
+            return positions.clone();
+        }
+        let positions = std::rc::Rc::new(crate::painting::paintable_geometry::LineRootPositions::new(
+            self.source,
+            root,
+        ));
+        self.line_root_positions = Some((root, positions.clone()));
+        positions
     }
 
     pub(crate) fn data(&self, paintable: NodeSlotId) -> &PaintableData {
@@ -525,6 +546,25 @@ impl<O: Observer> PaintRecorder<'_, O> {
             piece.border_box_rect.height,
             piece.present_edges,
         )
+    }
+
+    pub(crate) fn fragment_border_box(
+        &mut self,
+        paintable: NodeSlotId,
+        index: usize,
+    ) -> (crate::css::css_pixels::CssPixelRect, BorderRadii) {
+        let rect =
+            crate::painting::paintable_geometry::absolute_fragment_border_box_rect(self.source, paintable, index);
+        let Some(style) = self.source.node_style_if_live(paintable) else {
+            return (rect, BorderRadii::default());
+        };
+        let radii = crate::painting::visual_context::node_values::piece_border_radii_data(
+            style,
+            rect.width,
+            rect.height,
+            crate::painting::paintable_geometry::committed_fragment_present_edges(self.source, paintable, index),
+        );
+        (rect, radii)
     }
 
     pub(crate) fn base_paint_facts(&mut self, paintable: NodeSlotId) -> BasePaintFacts {

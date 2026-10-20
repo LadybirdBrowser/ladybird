@@ -144,7 +144,7 @@ fn padding_inflated_scrollable_overflow(
     in_flow_and_floated_content_bounds: CssPixelRect,
 ) -> CssPixelRect {
     let content_box = paintable_geometry::absolute_rect(layout_arena, box_paintable);
-    let padding_box = paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable);
+    let padding_box = paintable_geometry::first_fragment_padding_box_rect(layout_arena, box_paintable);
     let padding = paintable_geometry::committed_padding(layout_arena, box_paintable);
     let overflow_directions = physical_overflow_directions(layout_arena, box_node);
 
@@ -285,15 +285,17 @@ fn measure_scrollable_overflow_impl(
             .overflow_measured_this_commit
             .get();
         if measured_this_commit && data.overflow_valid_across_recommits {
-            return CssPixelRect::from(data.overflow_relative_to_padding_box.rect)
-                .translated_by(paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable).location());
+            return CssPixelRect::from(data.overflow_relative_to_padding_box.rect).translated_by(
+                paintable_geometry::first_fragment_padding_box_rect(layout_arena, box_paintable).location(),
+            );
         }
         data.overflow_valid_across_recommits
             .then_some(data.overflow_relative_to_padding_box)
     };
 
     let box_node = box_paintable;
-    let paintable_absolute_padding_box = paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable);
+    let paintable_absolute_padding_box =
+        paintable_geometry::first_fragment_padding_box_rect(layout_arena, box_paintable);
     let paintable_absolute_content_box = paintable_geometry::absolute_rect(layout_arena, box_paintable);
 
     if let Some(still_valid_overflow) = still_valid_overflow {
@@ -334,10 +336,15 @@ fn measure_scrollable_overflow_impl(
     // - All line boxes it directly contains.
     if crate::painting::node_painting::has_lines(layout_arena, box_paintable) {
         let side_data = layout_arena.committed_side_data(box_paintable);
-        let absolute_position = paintable_geometry::absolute_position(layout_arena, box_paintable);
-        let line_rects = side_data.lines().iter().map(|line| line.rect);
-        for line_rect in line_rects.chain(side_data.lines_after_clamp_point_rect()) {
-            let line_rect = CssPixelRect::from(line_rect).translated_by(absolute_position);
+        let positions = paintable_geometry::LineRootPositions::new(layout_arena, box_paintable);
+        let line_rects = side_data
+            .lines()
+            .iter()
+            .map(|line| CssPixelRect::from(line.rect).translated_by(positions.of_fragment(line.box_fragment)));
+        let lines_after_clamp_point = side_data
+            .lines_after_clamp_point_rect()
+            .map(|rect| CssPixelRect::from(rect).translated_by(positions.of_fragment(0)));
+        for line_rect in line_rects.chain(lines_after_clamp_point) {
             scrollable_overflow_rect.unite(line_rect);
             in_flow_and_floated_content_bounds.unite(line_rect);
         }
@@ -348,7 +355,8 @@ fn measure_scrollable_overflow_impl(
                 text_fragment::containing_block_paintable(layout_arena, fragment)
                     .is_none_or(|block| block == box_paintable)
             );
-            let mut fragment_rect = text_fragment::rect_in_containing_block(fragment).translated_by(absolute_position);
+            let mut fragment_rect = text_fragment::rect_in_containing_block(fragment)
+                .translated_by(positions.of_line(side_data.lines(), fragment.line_index as usize));
             if layout_arena.node_is_in_focused_text_control(fragment.layout_node)
                 && let Some(style_source_style) =
                     layout_arena.node_style_if_live(text_fragment::style_source(layout_arena, fragment))

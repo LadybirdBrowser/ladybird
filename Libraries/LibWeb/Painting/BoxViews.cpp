@@ -105,6 +105,20 @@ CSSPixelRect absolute_border_box_rect(Layout::Node const& node)
     return rect;
 }
 
+CSSPixelRect border_box_rect_of_fragments(Layout::Node const& node)
+{
+    CSSPixelRect rect;
+    Layout::RustFFI::layout_script_paintable_border_box_rect_of_fragments(node.document_host(), committed_row_slot(node), &rect);
+    return rect;
+}
+
+CSSPixelSize unbroken_border_box_size(Layout::Node const& node)
+{
+    CSSPixelSize size;
+    Layout::RustFFI::layout_script_paintable_unbroken_border_box_size(node.document_host(), committed_row_slot(node), &size);
+    return size;
+}
+
 CSSPixelPoint absolute_position(Layout::Node const& node)
 {
     return absolute_rect(node).location();

@@ -349,7 +349,7 @@ pub extern "C" fn layout_script_paintable_absolute_padding_box_rect(
         if !paintable_rows.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
-        crate::painting::paintable_geometry::absolute_padding_box_rect(paintable_rows, slot).into()
+        crate::painting::paintable_geometry::first_fragment_padding_box_rect(paintable_rows, slot).into()
     });
 }
 
@@ -364,7 +364,35 @@ pub extern "C" fn layout_script_paintable_absolute_border_box_rect(
         if !paintable_rows.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
-        crate::painting::paintable_geometry::absolute_border_box_rect(paintable_rows, slot).into()
+        crate::painting::paintable_geometry::first_fragment_border_box_rect(paintable_rows, slot).into()
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_script_paintable_border_box_rect_of_fragments(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+    out: &mut FfiCssPixelRect,
+) {
+    *out = read_rows(host, |arena| {
+        if !arena.paintable_row_is_populated(slot) {
+            return FfiCssPixelRect::default();
+        }
+        crate::painting::paintable_geometry::absolute_border_box_rect(arena, slot).into()
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_script_paintable_unbroken_border_box_size(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+    out: &mut FfiCssPixelSize,
+) {
+    *out = read_rows(host, |arena| {
+        if !arena.paintable_row_is_populated(slot) {
+            return FfiCssPixelSize::default();
+        }
+        crate::painting::paintable_geometry::unbroken_border_box_size(arena, slot)
     });
 }
 
@@ -378,10 +406,11 @@ pub extern "C" fn layout_script_paintable_box_model(
         if !arena.paintable_row_is_populated(slot) {
             return FfiBoxModelMetrics::default();
         }
+        let (margin, padding, border) = crate::painting::paintable_geometry::unbroken_box_model(arena, slot);
         FfiBoxModelMetrics {
-            margin: crate::painting::paintable_geometry::committed_margin(arena, slot),
-            padding: crate::painting::paintable_geometry::committed_padding(arena, slot),
-            border: crate::painting::paintable_geometry::committed_border(arena, slot),
+            margin,
+            padding,
+            border,
             inset: crate::painting::paintable_geometry::committed_inset(arena, slot),
         }
     });
@@ -398,7 +427,7 @@ pub extern "C" fn layout_script_paintable_content_size(
         if !paintable_rows.paintable_row_is_populated(slot) {
             return FfiCssPixelSize::default();
         }
-        crate::painting::paintable_geometry::committed_content_size(paintable_rows, slot)
+        crate::painting::paintable_geometry::unbroken_content_size(paintable_rows, slot)
     });
 }
 

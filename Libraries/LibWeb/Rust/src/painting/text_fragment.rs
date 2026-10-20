@@ -34,7 +34,11 @@ pub(crate) fn containing_block_paintable(
 pub(crate) fn absolute_rect(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> CssPixelRect {
     let rect = rect_in_containing_block(fragment);
     match containing_block_paintable(layout_arena, fragment) {
-        Some(block) => rect.translated_by(paintable_geometry::absolute_position(layout_arena, block)),
+        Some(block) => rect.translated_by(paintable_geometry::absolute_line_root_position(
+            layout_arena,
+            block,
+            fragment.line_index as usize,
+        )),
         None => rect,
     }
 }
@@ -63,7 +67,11 @@ pub(crate) fn absolute_line_box_rect(
     };
     let mut rect = CssPixelRect::from(line.rect);
     if let Some(block) = containing_block_paintable(layout_arena, fragment) {
-        rect = rect.translated_by(paintable_geometry::absolute_position(layout_arena, block));
+        rect = rect.translated_by(paintable_geometry::absolute_line_root_position(
+            layout_arena,
+            block,
+            fragment.line_index as usize,
+        ));
     }
     rect
 }

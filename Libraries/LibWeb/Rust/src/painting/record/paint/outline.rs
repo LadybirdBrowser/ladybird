@@ -134,7 +134,7 @@ pub(crate) fn paint_outline<O: Observer>(
     );
 }
 
-fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
+pub(crate) fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
     // The shapes of area elements in an image map associated with an img element that is being rendered and is not
     // inert.

@@ -1197,7 +1197,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::Height: {
         auto maybe_used_height = used_size_for_property(
             [](auto const& box_layout_node) { return Painting::content_height(box_layout_node); },
-            [](auto const& box_layout_node) { return Painting::absolute_border_box_rect(box_layout_node).height(); });
+            [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).height(); });
         if (maybe_used_height.has_value())
             return style_value_for_size(Size::make_px(maybe_used_height.release_value()));
         return style_value_for_size(layout_node.height());
@@ -1237,7 +1237,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::Width: {
         auto maybe_used_width = used_size_for_property(
             [](auto const& box_layout_node) { return Painting::content_width(box_layout_node); },
-            [](auto const& box_layout_node) { return Painting::absolute_border_box_rect(box_layout_node).width(); });
+            [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).width(); });
         if (maybe_used_width.has_value())
             return style_value_for_size(Size::make_px(maybe_used_width.release_value()));
         return style_value_for_size(layout_node.width());

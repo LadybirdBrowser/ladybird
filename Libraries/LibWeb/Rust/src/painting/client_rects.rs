@@ -66,11 +66,13 @@ fn for_each_inline_piece_border_box_rect(
     let Some(root) = arena.inline_pieces_root(inline_paintable) else {
         return;
     };
-    let root_position = paintable_geometry::absolute_position(arena, root);
+    let root_positions = paintable_geometry::LineRootPositions::new(arena, root);
+    let root_side = arena.committed_side_data(root);
     with_inline_pieces(arena, inline_paintable, |piece, _| {
         if piece.is_geometry_only_placeholder {
             return true;
         }
+        let root_position = root_positions.of_line(root_side.lines(), piece.line_index as usize);
         push_rect(CssPixelRect::from(piece.border_box_rect).translated_by(root_position));
         true
     });
@@ -119,7 +121,13 @@ pub(crate) fn for_each_client_rect(
     }
 
     if row_is_populated {
-        push_rect_in_viewport_space(paintable_geometry::absolute_border_box_rect(arena, layout_node));
+        for index in 0..paintable_geometry::fragment_count(arena, layout_node) {
+            push_rect_in_viewport_space(paintable_geometry::absolute_fragment_border_box_rect(
+                arena,
+                layout_node,
+                index,
+            ));
+        }
     }
 }
 

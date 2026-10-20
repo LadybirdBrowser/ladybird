@@ -180,13 +180,14 @@ pub(crate) fn empty_line_caret_targets(layout_arena: &impl PaintRead, block: Nod
         }
     }
 
-    let content_position = paintable_geometry::absolute_position(layout_arena, block);
     let content_width = paintable_geometry::committed_content_size(layout_arena, block).width;
+    let root_positions = paintable_geometry::LineRootPositions::new(layout_arena, block);
     let mut targets = Vec::new();
     for (i, line) in lines.iter().enumerate() {
         if line.has_fragments {
             continue;
         }
+        let content_position = root_positions.of_line(side.lines(), i.min(side.lines().len() - 1));
         let rect = if i < side.lines().len() {
             CssPixelRect::from(side.lines()[i].rect).translated_by(content_position)
         } else {
@@ -259,7 +260,11 @@ pub(crate) fn caret_inline_coordinate(
         clamped_offset,
         clamped_offset,
     );
-    let block_position = crate::painting::paintable_geometry::absolute_position(layout_arena, block);
+    let block_position = crate::painting::paintable_geometry::absolute_line_root_position(
+        layout_arena,
+        block,
+        fragment.line_index as usize,
+    );
     let (coordinate, block_coordinate) = if text_fragment::fragment_is_horizontal(fragment) {
         (rect.x, block_position.x)
     } else {

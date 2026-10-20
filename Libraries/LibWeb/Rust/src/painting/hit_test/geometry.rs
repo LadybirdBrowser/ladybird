@@ -51,7 +51,13 @@ fn absolute_containing_line_box_rect(rows: &impl PaintRead, paintable: NodeSlotI
     }
     let side_data = rows.committed_side_data(block);
     let line = side_data.lines().get(containing_line_box_index)?;
-    Some(CssPixelRect::from(line.rect).translated_by(paintable_geometry::absolute_position(rows, block)))
+    Some(
+        CssPixelRect::from(line.rect).translated_by(paintable_geometry::absolute_line_root_position(
+            rows,
+            block,
+            containing_line_box_index,
+        )),
+    )
 }
 
 /// The line box the item's caret belongs to, for items whose line root is another row.
