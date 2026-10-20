@@ -3006,7 +3006,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             } = self.layout_column(
                 self.run.purpose,
                 column_input,
-                column_block_size,
+                Some(column_block_size),
                 incoming,
                 column_origin(column_index),
                 root_line_count,
@@ -3036,7 +3036,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 &root_line_data_of_columns,
             ));
         }
-        let row_block_size = column_block_size.unwrap_or(content_block_size);
+        let row_block_size = if style.column_fill() == column_fill::AUTO {
+            content_block_size
+        } else {
+            column_block_size
+        };
         root_used.rare_data_mut().multicol_layout_data = Some(std::sync::Arc::new(fragmentation::MulticolLayoutData {
             column_inline_size: geometry.inline_size,
             column_gap: geometry.gap,
@@ -3056,7 +3060,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         column_input: LayoutInput,
         geometry: fragmentation::ColumnGeometry,
         definite_block_size: Option<CssPixels>,
-    ) -> Option<CssPixels> {
+    ) -> CssPixels {
         let root = self.run.box_;
         let style = self.style(root);
         let sizing = self.sizing();
@@ -3082,9 +3086,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         // https://drafts.csswg.org/css-multicol-1/#cf
         // auto: Fills columns sequentially.
         if style.column_fill() == column_fill::AUTO {
-            return maximum_block_size;
+            return maximum_block_size.unwrap_or_else(|| {
+                let (runs, _) = self.measure_runs_between_forced_breaks(column_input);
+                runs.into_iter().max().unwrap_or_default()
+            });
         }
-        Some(self.balanced_column_block_size(column_input, geometry, maximum_block_size))
+        self.balanced_column_block_size(column_input, geometry, maximum_block_size)
     }
 
     fn balanced_column_block_size(
