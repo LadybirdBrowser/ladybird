@@ -3138,15 +3138,7 @@ fn component_contains_url(value: &ComponentValue) -> bool {
 
 /// Count the underlying tokens, including the delimiters of functions and blocks.
 fn component_token_count(values: &[ComponentValue]) -> usize {
-    values
-        .iter()
-        .map(|value| match &value.kind {
-            ComponentKind::Token(_) => 1,
-            ComponentKind::Function { values, .. } | ComponentKind::SimpleBlock { values, .. } => {
-                2 + component_token_count(values)
-            }
-        })
-        .sum()
+    values.iter().map(ComponentValue::token_count).sum()
 }
 
 // Step 2 of https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
@@ -3242,11 +3234,11 @@ fn substitute_tokens(
             let kind = match &value.kind {
                 ComponentKind::Function { name, .. } => ComponentKind::Function {
                     name: name.clone(),
-                    values: resolved.into_boxed_slice(),
+                    values: resolved.into_boxed_slice().into(),
                 },
                 ComponentKind::SimpleBlock { opening, .. } => ComponentKind::SimpleBlock {
                     opening: opening.clone(),
-                    values: resolved.into_boxed_slice(),
+                    values: resolved.into_boxed_slice().into(),
                 },
                 ComponentKind::Token(_) => unreachable!(),
             };
