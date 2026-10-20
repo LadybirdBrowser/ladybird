@@ -678,12 +678,13 @@ fn simplification_tests_the_truthiness_of_boxed_int32_values_unboxed() {
 fn simplification_keeps_double_integer_round_trips() {
     let mut graph = Graph::default();
     graph.add_block(Block::default());
-    let double = node(&mut graph, Op::Constant(1.5_f64.to_bits()), vec![], Some(Repr::Float64));
+    let load = node(&mut graph, Op::LoadSlot { slot: 5 }, vec![], Some(Repr::Tagged));
+    let double = node(&mut graph, Op::UnboxDouble, vec![load], Some(Repr::Float64));
     let integer = node(&mut graph, Op::Float64ToInt32, vec![double], Some(Repr::Int32));
     let converted = node(&mut graph, Op::Int32ToFloat64, vec![integer], Some(Repr::Float64));
     let boxed = node(&mut graph, Op::BoxFloat64, vec![converted], Some(Repr::Tagged));
     let ret = node(&mut graph, Op::Return, vec![boxed], None);
-    graph.blocks[0].body = vec![integer, converted, boxed];
+    graph.blocks[0].body = vec![load, double, integer, converted, boxed];
     graph.blocks[0].control = Some(ret);
     verify(&graph).unwrap();
 
@@ -691,6 +692,44 @@ fn simplification_keeps_double_integer_round_trips() {
     verify(&graph).unwrap();
     assert_eq!(graph.node(converted).inputs, vec![integer]);
     assert!(graph.blocks[0].body.contains(&integer));
+}
+
+#[test]
+fn simplification_converts_constant_doubles_to_integers() {
+    for (op, number, expected) in [
+        (Op::Float64ToInt32, 1.5, 1),
+        (Op::Float64ToInt32, -1.5, -1),
+        (Op::Float64ToInt32, -0.0, 0),
+        (Op::Float64ToInt32, f64::NAN, 0),
+        (Op::Float64ToInt32, f64::INFINITY, 0),
+        (Op::Float64ToInt32, 4_294_967_301.0, 5),
+        (Op::Float64ToInt32, 2_147_483_648.0, i32::MIN),
+        (Op::Float64ToInt32, -2_147_483_649.0, i32::MAX),
+        (Op::Float64ToUint8Clamped, 2.5, 2),
+        (Op::Float64ToUint8Clamped, 3.5, 4),
+        (Op::Float64ToUint8Clamped, 254.9, 255),
+        (Op::Float64ToUint8Clamped, 300.0, 255),
+        (Op::Float64ToUint8Clamped, -1.0, 0),
+        (Op::Float64ToUint8Clamped, f64::NAN, 0),
+    ] {
+        let mut graph = Graph::default();
+        graph.add_block(Block::default());
+        let double = node(&mut graph, Op::Constant(number.to_bits()), vec![], Some(Repr::Float64));
+        let integer = node(&mut graph, op.clone(), vec![double], Some(Repr::Int32));
+        let boxed = node(&mut graph, Op::BoxInt32, vec![integer], Some(Repr::Tagged));
+        let ret = node(&mut graph, Op::Return, vec![boxed], None);
+        graph.blocks[0].body = vec![integer, boxed];
+        graph.blocks[0].control = Some(ret);
+        verify(&graph).unwrap();
+
+        super::simplify::run(&mut graph);
+        verify(&graph).unwrap();
+        assert_eq!(
+            graph.constant_value(graph.node(ret).inputs[0]),
+            Some(crate::ir::value::int32(expected)),
+            "{op:?} of {number}"
+        );
+    }
 }
 
 #[test]
