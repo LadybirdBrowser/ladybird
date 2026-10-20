@@ -266,9 +266,9 @@ void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId ca
     (void)m_canvas_host.create_2d_context(canvas_id, size, alpha);
 }
 
-void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontResource> fonts)
+void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts)
 {
-    m_canvas_host.execute_canvas_2d_stream(segments, fonts);
+    m_canvas_host.execute_canvas_2d_stream(segments, kept_font_ids, added_fonts);
 }
 
 void ConnectionFromWebContent::destroy_canvas_context(Compositing::CanvasId canvas_id)

@@ -126,6 +126,8 @@ private:
     NonnullRefPtr<CompositorConnectionFrameSink> m_frame_sink;
     u64 m_next_reserved_canvas_id { 0 };
     u64 m_reserved_canvas_ids_remaining { 0 };
+    // The compositor holds exactly the fonts of the latest canvas 2D stream batch.
+    HashTable<Compositing::FontResourceId> m_canvas_font_ids_held_by_compositor;
 
     HashMap<Compositing::ScreenshotRequestId, PendingScreenshot> m_screenshots;
     // What the compositor process scrolled since the last rendering update adopted it, per context.
