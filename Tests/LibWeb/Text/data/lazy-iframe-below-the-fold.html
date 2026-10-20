@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<body style="margin: 0">
+<div style="height: 3000px"></div>
+<script>
+    document.write(`<iframe loading="lazy" src="${new URLSearchParams(location.search).get("src")}"></iframe>`);
+    const iframe = document.querySelector("iframe");
+    iframe.addEventListener("load", () => parent.postMessage("lazy iframe loaded", "*"));
+    addEventListener("load", () => parent.postMessage("loaded", "*"));
+    addEventListener("message", async event => {
+        if (event.data !== "scroll to the lazy iframe")
+            return;
+        scrollTo(0, iframe.getBoundingClientRect().top + scrollY);
+        for (let i = 0; i < 5; ++i)
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        parent.postMessage("scrolled", "*");
+    });
+</script>

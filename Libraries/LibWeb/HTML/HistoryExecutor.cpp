@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
@@ -317,10 +318,21 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     //     Mirror its result here.
     // AD-HOC: A push or replace leaves a newer navigation's ID in place, as that navigation goes on and commits after
     //         this one, and nulls the ID of the navigation it finalizes. See https://github.com/whatwg/html/issues/12581.
-    if (ongoing_navigation_is_traversal)
+    if (ongoing_navigation_is_traversal) {
         navigable->set_ongoing_navigation_without_informing_navigation_api(HTML::LocalNavigable::Traversal::Tag);
-    else if (finalized_navigation_id.has_value() && navigable->ongoing_navigation() == *finalized_navigation_id)
+
+        // AD-HOC: Only step 11 of navigate stops an iframe's lazy loading, but the update for a navigable's creation
+        //         also traverses a child that a repopulated document created, to the entry its restored nested history
+        //         holds. That entry's document takes the place of the one the iframe's src would load, so the iframe
+        //         stops lazy loading here too — or its lazy load resumption steps would navigate the restored
+        //         document away once the iframe is scrolled into view.
+        if (!navigation_type.has_value()) {
+            if (auto container = navigable->container(); container && container->is_html_iframe_element())
+                static_cast<HTMLIFrameElement&>(*container).stop_lazy_loading();
+        }
+    } else if (finalized_navigation_id.has_value() && navigable->ongoing_navigation() == *finalized_navigation_id) {
         navigable->set_ongoing_navigation_without_informing_navigation_api(Empty {});
+    }
 
     operation.changing_navigable_jobs.ensure(navigable_id);
 

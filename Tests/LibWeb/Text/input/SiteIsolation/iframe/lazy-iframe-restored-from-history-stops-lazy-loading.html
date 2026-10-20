@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Going back to a document repopulates it, and the session history restores the entry its lazy iframe had. That
+    // entry's document loads at once, in another process, so scrolling the iframe into view later has nothing to load.
+    promiseTest(async () => {
+        const lazyUrl = new URL(
+            await httpTestServer().createEcho("GET", "/lazy-iframe-restored-from-history", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>lazy",
+            })
+        );
+        lazyUrl.hostname = uniqueLocalhostHostname("lazy-iframe-restored-from-history");
+
+        const nextMessage = expected =>
+            new Promise(resolve => {
+                addEventListener("message", function listener(event) {
+                    if (event.data !== expected)
+                        return;
+                    removeEventListener("message", listener);
+                    resolve();
+                });
+            });
+
+        const iframe = document.createElement("iframe");
+        let message = nextMessage("loaded");
+        iframe.src = `../../../data/lazy-iframe-below-the-fold.html?src=${encodeURIComponent(lazyUrl)}`;
+        document.body.appendChild(iframe);
+        await message;
+
+        message = nextMessage("lazy iframe loaded");
+        iframe.contentWindow.postMessage("scroll to the lazy iframe", "*");
+        await message;
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        message = nextMessage("message from test iframe (1)");
+        iframe.src = "../../../data/iframe-test-content-1.html";
+        await message;
+
+        message = nextMessage("lazy iframe loaded");
+        history.back();
+        await message;
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        let loadsAfterScrolling = 0;
+        addEventListener("message", event => {
+            if (event.data === "lazy iframe loaded")
+                ++loadsAfterScrolling;
+        });
+        message = nextMessage("scrolled");
+        iframe.contentWindow.postMessage("scroll to the lazy iframe", "*");
+        await message;
+        await timeout(500);
+        println(`loads after scrolling into view: ${loadsAfterScrolling}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
