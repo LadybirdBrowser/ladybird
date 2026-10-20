@@ -232,12 +232,11 @@ void HTMLIFrameElement::stop_lazy_loading()
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#iframe-load-event-steps
 void run_iframe_load_event_steps(HTMLIFrameElement& element)
 {
-    // FIXME: 1. Assert: element's content navigable is not null.
-    if (!element.content_navigable()) {
-        // FIXME: For some reason, we sometimes end up here in the middle of SunSpider.
-        dbgln("FIXME: run_iframe_load_event_steps called with null nested browsing context");
+    // 1. Assert: element's content navigable is not null.
+    // AD-HOC: The steps run from a queued task, and the iframe can be removed from its document before the task runs,
+    //         which destroys its content navigable. There is no load event to fire then.
+    if (!element.content_navigable())
         return;
-    }
 
     // The iframe load event is queued by the child document's completely-finish-loading
     // steps, but the parent's load event must continue to wait while anything in the
