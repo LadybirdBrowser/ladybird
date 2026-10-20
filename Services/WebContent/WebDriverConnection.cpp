@@ -2723,15 +2723,26 @@ public:
     {
     }
 
+    void complete(Web::WebDriver::Response result)
+    {
+        if (m_completed)
+            return;
+        m_completed = true;
+        m_timer->stop();
+        m_on_complete->function()(move(result));
+    }
+
     void search_for_element()
     {
+        // https://w3c.github.io/webdriver/#dfn-find
+        // 7. While elements returned is empty and timer's timeout fired flag is not set:
+        if (m_completed || m_timer->is_timed_out())
+            return;
+
         if (auto result = perform_search(); result.has_value()) {
-            m_on_complete->function()(result.release_value());
+            complete(result.release_value());
             return;
         }
-
-        if (m_timer->is_timed_out())
-            return;
 
         Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
             search_for_element();
@@ -2785,6 +2796,7 @@ private:
     WebDriverConnection::OnFindComplete m_on_complete;
 
     GC::Ref<GC::Timer> m_timer;
+    bool m_completed { false };
 };
 
 GC_DEFINE_ALLOCATOR(ElementLocator);
@@ -2801,25 +2813,26 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
     // 4. Let timer be a new timer.
     auto timer = GC::Heap::the().allocate<GC::Timer>();
 
-    auto wrapped_on_complete = GC::create_function(GC::Heap::the(), [this, on_complete, timer](Web::WebDriver::Response result) {
+    auto wrapped_on_complete = GC::create_function(GC::Heap::the(), [this, on_complete](Web::WebDriver::Response result) {
         m_element_locator = nullptr;
-        timer->stop();
 
         on_complete->function()(move(result));
     });
 
+    auto locator = GC::Heap::the().allocate<ElementLocator>(current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
+    m_element_locator = locator;
+
     // 5. If timeout is not null:
     if (timeout.has_value()) {
         // 1. Start the timer with timer and timeout.
-        timer->start(*timeout, GC::create_function(GC::Heap::the(), [wrapped_on_complete]() {
-            wrapped_on_complete->function()({ JsonArray {} });
+        timer->start(*timeout, GC::create_function(GC::Heap::the(), [locator]() {
+            locator->complete(JsonValue { JsonArray {} });
         }));
     }
 
     // 6. Let elements returned be an empty List.
     // 7. While elements returned is empty and timer's timeout fired flag is not set:
-    m_element_locator = GC::Heap::the().allocate<ElementLocator>(current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
-    m_element_locator->search_for_element();
+    locator->search_for_element();
 }
 
 // https://w3c.github.io/webdriver/#dfn-extract-the-script-arguments-from-a-request
