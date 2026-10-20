@@ -105,6 +105,10 @@ impl GraphBuilder<'_> {
             return indexed.then_some(paths);
         }
         let key = self.tagged(key);
+        if let Some(index) = self.graph.constant_value(key).and_then(value::as_int32) {
+            paths.indexed = Some((self.block, self.int32_constant(index)));
+            return indexed.then_some(paths);
+        }
         if self.graph.constant_value(key).is_some() {
             paths.named = Some((self.block, key));
             return named.then_some(paths);
