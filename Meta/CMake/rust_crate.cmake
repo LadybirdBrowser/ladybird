@@ -388,6 +388,12 @@ function(_rust_crate_common_setup)
 
     list(APPEND cargo_env "CARGO_TARGET_${target_upper}_RUSTFLAGS=${RUSTC_TARGET_FLAGS}")
 
+    # The optimized builds otherwise leave out every debug assertion, which then runs only in unit tests. A sanitizer
+    # build is one that is run to find bugs, so it checks them too.
+    if (ENABLE_ADDRESS_SANITIZER OR ENABLE_UNDEFINED_SANITIZER)
+        list(APPEND cargo_env "CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true")
+    endif()
+
     if (RUSTC_WRAPPER)
         list(APPEND cargo_env
             "RUSTC_WRAPPER=${RUSTC_WRAPPER}"
