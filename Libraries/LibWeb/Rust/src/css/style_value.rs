@@ -15,7 +15,9 @@ use std::ffi::c_void;
 use std::sync::Arc;
 
 use crate::css::css_tokenizer::{ParserSource, ParserTokenKind, SourcePosition, TokenizerInput};
-use crate::css::parser::component_value::{ComponentKind, ComponentSerializationMode, ComponentValue};
+use crate::css::parser::component_value::{
+    ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
+};
 
 pub(crate) use crate::css::css_string::{CssString, CssStringList};
 
@@ -25,6 +27,7 @@ pub(crate) use crate::css::css_string::{CssString, CssStringList};
 pub struct RetainedComponentValueList {
     pointer: *mut c_void,
     length: usize,
+    token_count: usize,
 }
 
 // SAFETY: This handle owns an immutable boxed slice. The bounds cover the erased element type.
@@ -32,22 +35,29 @@ unsafe impl Send for RetainedComponentValueList where ComponentValue: Send {}
 unsafe impl Sync for RetainedComponentValueList where ComponentValue: Sync {}
 
 impl RetainedComponentValueList {
-    pub(crate) fn from_values(values: Vec<ComponentValue>) -> Self {
-        let mut values = values.into_boxed_slice();
+    pub(crate) fn from_values(values: impl Into<ComponentValueList>) -> Self {
+        let values = values.into();
+        let token_count = values.token_count;
+        let mut values = values.into_vec().into_boxed_slice();
         let result = Self {
             pointer: values.as_mut_ptr().cast(),
             length: values.len(),
+            token_count,
         };
         std::mem::forget(values);
         result
     }
 
     pub(crate) fn from_source(source: &[u16]) -> Self {
-        let values = crate::css::parser::component_value::consume_a_list_of_component_values(
+        let values = crate::css::parser::component_value::consume_a_counted_list_of_component_values(
             crate::css::css_tokenizer::tokenize_for_parser(source),
         )
         .unwrap_or_default();
         Self::from_values(values)
+    }
+
+    pub(crate) fn as_counted_slice(&self) -> ComponentValueSlice<'_> {
+        ComponentValueSlice::with_token_count(self.as_slice(), self.token_count)
     }
 
     pub(crate) fn as_slice(&self) -> &[ComponentValue] {
@@ -308,7 +318,7 @@ mod unresolved_component_tests {
 
 impl Clone for RetainedComponentValueList {
     fn clone(&self) -> Self {
-        Self::from_values(self.as_slice().to_vec())
+        Self::from_values(self.as_counted_slice().to_owned())
     }
 }
 

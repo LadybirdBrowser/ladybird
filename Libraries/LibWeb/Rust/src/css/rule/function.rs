@@ -12,7 +12,7 @@ use crate::css::custom_properties::{
 };
 use crate::css::function_signature::FunctionSignature;
 use crate::css::media_list::MediaListData;
-use crate::css::parser::component_value::ComponentValue;
+use crate::css::parser::component_value::ComponentValueList;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
@@ -31,7 +31,7 @@ pub(crate) struct FunctionDeclarationInput {
 pub struct CompiledFunction {
     pub(crate) identity: u64,
     pub(crate) signature: Arc<FunctionSignature>,
-    pub(crate) parameter_defaults: Vec<Option<Vec<ComponentValue>>>,
+    pub(crate) parameter_defaults: Vec<Option<ComponentValueList>>,
     pub(crate) parameter_defaults_read_attributes: bool,
     pub(crate) inputs: Vec<FunctionDeclarationInput>,
 }

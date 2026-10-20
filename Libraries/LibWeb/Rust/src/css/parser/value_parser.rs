@@ -5715,14 +5715,16 @@ pub(crate) fn unresolved_value_from_string(
     } else {
         comparison_source
     };
-    let values = consume_a_list_of_component_values(tokenize_for_parser(component_source)).unwrap_or_default();
+    let values =
+        super::component_value::consume_a_counted_list_of_component_values(tokenize_for_parser(component_source))
+            .unwrap_or_default();
     unresolved_value(source_text, comparison_source, values, presence)
 }
 
 pub(crate) fn unresolved_value(
     unresolved_source: &[u16],
     comparison_source: &[u16],
-    values: Vec<ComponentValue>,
+    values: impl Into<super::component_value::ComponentValueList>,
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
     let source_text = trim_ascii_whitespace(unresolved_source);

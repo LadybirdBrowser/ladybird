@@ -23,7 +23,8 @@ use crate::css::ffi_support::FfiUtf16View;
 use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::arbitrary_substitution::{arbitrary_substitution_function, arguments_are_valid};
 use crate::css::parser::component_value::{
-    ComponentKind, ComponentSerializationMode, ComponentValue, consume_a_list_of_component_values, trim_whitespace,
+    ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
+    consume_a_counted_list_of_component_values, trim_whitespace,
 };
 use crate::css::parser::query_parser::{
     FeatureComparison, FfiMediaEnvironment, MatchResult, StyleFeature, StyleRangeValue as ParsedStyleRangeValue,
@@ -153,7 +154,7 @@ pub(crate) struct PreparedCustomFunction<'a> {
     pub(crate) identity: CustomFunctionIdentity,
     pub(crate) scope_identity: usize,
     pub(crate) signature: &'a FunctionSignature,
-    pub(crate) parameter_defaults: &'a [Option<Vec<ComponentValue>>],
+    pub(crate) parameter_defaults: &'a [Option<ComponentValueList>],
     pub(crate) declarations: Vec<&'a SubstitutionFunctionDeclaration>,
 }
 
@@ -178,19 +179,19 @@ impl CustomFunctionRegistry<'_> {
 #[derive(Clone)]
 struct FunctionLocalRegistration<'a> {
     syntax: &'a SyntaxNode,
-    initial_tokens: Option<Vec<ComponentValue>>,
+    initial_tokens: Option<ComponentValueList>,
     is_result: bool,
 }
 
 #[derive(Clone)]
 struct FunctionLocalValue<'a> {
-    tokens: Cow<'a, [ComponentValue]>,
+    tokens: Cow<'a, ComponentValueList>,
     includes_substitution: bool,
 }
 
 struct FunctionLocalScope<'a> {
     function_identity: CustomFunctionIdentity,
-    resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, Vec<ComponentValue>>>>,
+    resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, ComponentValueList>>>,
     values: HashMap<Vec<u16>, FunctionLocalValue<'a>>,
     registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration<'a>>>,
 }
@@ -223,7 +224,7 @@ pub(crate) struct SubstitutionAttribute<'a> {
 /// One declaration in the body of a custom function, as its conditions select it.
 pub(crate) struct SubstitutionFunctionDeclaration {
     name: Vec<u16>,
-    tokens: Vec<ComponentValue>,
+    tokens: ComponentValueList,
     includes_substitution: bool,
 }
 
@@ -852,12 +853,12 @@ pub(crate) enum NativeVarResolution {
     NotHandled,
 }
 
-fn parse_substitution_values<'a>(input: impl Into<TokenizerInput<'a>>) -> Option<Vec<ComponentValue>> {
-    consume_a_list_of_component_values(tokenize_for_parser(input)).ok()
+fn parse_substitution_values<'a>(input: impl Into<TokenizerInput<'a>>) -> Option<ComponentValueList> {
+    consume_a_counted_list_of_component_values(tokenize_for_parser(input)).ok()
 }
 
 enum TokenResolution {
-    Resolved(Vec<ComponentValue>),
+    Resolved(ComponentValueList),
     Invalid,
     Cyclic,
     NotHandled,
@@ -1025,7 +1026,7 @@ pub unsafe extern "C" fn rust_style_query_dependencies_take(
     }
 }
 
-type CustomPropertyTokenCache = HashMap<*const StyleValueData, Arc<[ComponentValue]>>;
+type CustomPropertyTokenCache = HashMap<*const StyleValueData, Arc<ComponentValueList>>;
 
 pub(crate) struct VarResolutionEnvironment<'a> {
     attributes: HashMap<Vec<u16>, Vec<u16>>,
@@ -1059,7 +1060,7 @@ fn single_css_wide_keyword(tokens: &[ComponentValue]) -> Option<&[u16]> {
     .then_some(keyword)
 }
 
-fn tokens_for_unresolved_custom_property_value(data: &StyleValueData) -> (&[ComponentValue], bool, bool) {
+fn tokens_for_unresolved_custom_property_value(data: &StyleValueData) -> (ComponentValueSlice<'_>, bool, bool) {
     let StyleValueData::Unresolved {
         components,
         presence_attr,
@@ -1076,13 +1077,11 @@ fn tokens_for_unresolved_custom_property_value(data: &StyleValueData) -> (&[Comp
         unreachable!("expected an unresolved custom property value");
     };
 
-    let mut values = components.as_slice();
+    let mut values = components.as_counted_slice();
 
     // Discard trailing comments
     if source_ends_with_comment(TokenizerInput::from(source_text)) {
-        while values.last().is_some_and(ComponentValue::is_whitespace) {
-            values = &values[..values.len() - 1];
-        }
+        values = values.trim_end_whitespace();
     }
 
     (
@@ -1103,20 +1102,20 @@ fn resolve_typed_custom_property_value(
 ) -> TokenResolution {
     let key = std::ptr::from_ref(data);
     if let Some(tokens) = context.token_cache.as_deref().and_then(|cache| cache.get(&key)) {
-        return TokenResolution::Resolved(tokens.to_vec());
+        return TokenResolution::Resolved(tokens.as_ref().clone());
     }
     let source = crate::css::serialize::serialize_style_value_to_utf16(data);
-    let tokens: Arc<[ComponentValue]> = parse_substitution_values(&source)
+    let tokens: Arc<ComponentValueList> = parse_substitution_values(&source)
         .expect("serialized style values tokenize correctly")
         .into();
     if let Some(cache) = context.token_cache.as_deref_mut() {
         cache.insert(key, Arc::clone(&tokens));
     }
-    TokenResolution::Resolved(tokens.to_vec())
+    TokenResolution::Resolved(tokens.as_ref().clone())
 }
 
 /// Tokens, substitution-function presence, and attribute reads for a function value.
-fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, bool, bool) {
+fn tokens_for_function_value(data: &StyleValueData) -> (ComponentValueList, bool, bool) {
     if let StyleValueData::Unresolved {
         components,
         presence_attr,
@@ -1129,7 +1128,7 @@ fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, boo
     } = data
     {
         return (
-            trim_whitespace(components.as_slice()).to_vec(),
+            components.as_counted_slice().trim_whitespace().to_owned(),
             *presence_var
                 || *presence_attr
                 || *presence_dashed_function
@@ -1149,7 +1148,7 @@ fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, boo
 
 pub(crate) fn prepare_function_parameter_defaults(
     signature: &FunctionSignature,
-) -> (Vec<Option<Vec<ComponentValue>>>, bool) {
+) -> (Vec<Option<ComponentValueList>>, bool) {
     let mut parameter_defaults = Vec::with_capacity(signature.parameters.len());
     let mut reads_attributes = false;
 
@@ -1244,7 +1243,7 @@ fn compute_element_custom_property(
     let entry = &store.own_values[&name_raw];
     let (tokens, includes_substitution, tainted) = match entry.value.data() {
         data @ StyleValueData::Unresolved { .. } => tokens_for_unresolved_custom_property_value(data),
-        _ => (&[][..], false, false),
+        _ => (ComponentValueSlice::new(&[]), false, false),
     };
 
     let value = if includes_substitution {
@@ -1385,7 +1384,7 @@ fn computed_property_tokens(value: &RetainedStyleValueData, context: &mut ASFRes
         data @ StyleValueData::Unresolved { .. } => {
             let (tokens, _, tainted) = tokens_for_unresolved_custom_property_value(data);
             context.contains_attr_tainted_values |= tainted;
-            TokenResolution::Resolved(tokens.to_vec())
+            TokenResolution::Resolved(tokens.to_owned())
         }
         data => resolve_typed_custom_property_value(data, context),
     }
@@ -1470,10 +1469,10 @@ fn resolve_css_wide_keyword(
 fn normalize_function_tokens(
     registry: Option<&CustomPropertyRegistry>,
     syntax: &SyntaxNode,
-    tokens: &[ComponentValue],
+    tokens: &ComponentValueList,
 ) -> TokenResolution {
     if matches!(syntax, SyntaxNode::Universal) {
-        return TokenResolution::Resolved(tokens.to_vec());
+        return TokenResolution::Resolved(tokens.clone());
     }
     let Some(registry) = registry else {
         return TokenResolution::NotHandled;
@@ -1512,7 +1511,7 @@ fn resolve_function_local_property(
         substitute_arbitrary_substitution_functions(
             store,
             registry,
-            &value.tokens,
+            value.tokens.as_slice(),
             context,
             recursion_depth + 1,
             Some(SubstitutionContextDependency::Property(
@@ -1696,7 +1695,7 @@ fn resolve_custom_property_with_lookup(
                 Some(substitution_context),
             )
         } else {
-            TokenResolution::Resolved(source.to_vec())
+            TokenResolution::Resolved(source.to_owned())
         }
     } else {
         resolve_typed_custom_property_value(data, context)
@@ -1743,7 +1742,7 @@ fn replace_var_function(
     //    property on el. Otherwise, let result be the guaranteed-invalid value.
     let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
         TokenResolution::Resolved(tokens) => tokens,
-        TokenResolution::Invalid | TokenResolution::Cyclic => Vec::new(),
+        TokenResolution::Invalid | TokenResolution::Cyclic => ComponentValueList::default(),
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let name = match trim_whitespace(&substituted_first) {
@@ -1777,7 +1776,7 @@ fn replace_inherit_function(
     let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
     let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
         TokenResolution::Resolved(tokens) => tokens,
-        TokenResolution::Invalid | TokenResolution::Cyclic => Vec::new(),
+        TokenResolution::Invalid | TokenResolution::Cyclic => ComponentValueList::default(),
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let name = match trim_whitespace(&substituted_first) {
@@ -2144,6 +2143,7 @@ fn evaluate_style_range_value(
             resolve_custom_property(store, registry, name, context, recursion_depth + 1)
         }
         ParsedStyleRangeValue::Components(values) => {
+            let values = values.as_slice();
             substitute_arbitrary_substitution_functions(store, registry, values, context, recursion_depth + 1, None)
         }
     };
@@ -2666,7 +2666,7 @@ fn evaluate_a_custom_function<'a>(
             }),
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
             TokenResolution::Invalid | TokenResolution::Cyclic => default_value.map(|tokens| FunctionLocalValue {
-                tokens: Cow::Borrowed(trim_whitespace(tokens)),
+                tokens: Cow::Borrowed(tokens),
                 includes_substitution: true,
             }),
         };
@@ -2821,16 +2821,18 @@ fn replace_a_dashed_function(
     // Note: This may leave some (or all) arguments as the guaranteed-invalid value, triggering default values (if any).
     let mut substituted_arguments = Vec::with_capacity(argument_slices.len());
     for arg in argument_slices {
-        let mut argument = trim_whitespace(arg);
+        let argument = trim_whitespace(arg);
         // NB: Braces disambiguate an argument that contains a top-level comma; they are not part of the argument value.
-        if let [value] = argument
+        let argument = if let [value] = argument
             && let ComponentKind::SimpleBlock {
                 opening: ParserTokenKind::OpenCurly,
                 values,
             } = &value.kind
         {
-            argument = values;
-        }
+            values.as_slice()
+        } else {
+            ComponentValueSlice::new(argument)
+        };
 
         substituted_arguments.push(substitute_tokens(
             store,
@@ -2880,7 +2882,7 @@ fn replace_if_function(
         };
         let condition = match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
             TokenResolution::Resolved(tokens) => tokens,
-            TokenResolution::Invalid | TokenResolution::Cyclic => branch[..colon].to_vec(),
+            TokenResolution::Invalid | TokenResolution::Cyclic => branch[..colon].to_vec().into(),
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
         match evaluate_if_condition(store, registry, &condition, context, recursion_depth + 1) {
@@ -2893,7 +2895,7 @@ fn replace_if_function(
         }
         branch_start = branch_end + 1;
     }
-    TokenResolution::Resolved(Vec::new())
+    TokenResolution::Resolved(ComponentValueList::default())
 }
 
 enum AttrSyntax {
@@ -2957,17 +2959,13 @@ fn parse_attr_value_with_syntax(
     registry: Option<&CustomPropertyRegistry>,
     values: &[ComponentValue],
     syntax: &SyntaxNode,
-) -> Option<Vec<ComponentValue>> {
+) -> Option<ComponentValueList> {
     let registry = registry?;
     let random_function_index = RandomFunctionIndex::default();
-    let parsed = parse_with_syntax_component_values(
-        &registry.parse_context(&random_function_index),
-        values,
-        syntax,
-        None,
-    )?;
+    let parsed =
+        parse_with_syntax_component_values(&registry.parse_context(&random_function_index), values, syntax, None)?;
     if let StyleValueData::Unresolved { components, .. } = parsed {
-        return Some(components.as_slice().to_vec());
+        return Some(components.as_counted_slice().to_owned());
     }
     let serialized = crate::css::serialize::serialize_style_value_to_utf16(&parsed);
     parse_substitution_values(&serialized)
@@ -3136,37 +3134,33 @@ fn component_contains_url(value: &ComponentValue) -> bool {
     }
 }
 
-/// Count the underlying tokens, including the delimiters of functions and blocks.
-fn component_token_count(values: &[ComponentValue]) -> usize {
-    values.iter().map(ComponentValue::token_count).sum()
-}
-
 // Step 2 of https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
-fn substitute_tokens(
+fn substitute_tokens<'a>(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    values: &[ComponentValue],
+    values: impl Into<ComponentValueSlice<'a>>,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
+    let values = values.into();
     if recursion_depth > MAX_SUBSTITUTION_RECURSION_DEPTH {
         context.substitution_limit_hits += 1;
         return TokenResolution::Invalid;
     }
 
     let mut output = Vec::new();
-    let mut token_count = component_token_count(values);
+    let mut token_count = values.token_count;
     let mut is_cyclic = false;
-    for value in values {
+    for value in values.iter() {
         let (name, contents) = match &value.kind {
             ComponentKind::Token(_) => {
                 output.push(value.clone());
                 continue;
             }
-            ComponentKind::Function { name, values } => (Some(name.as_ref()), values.as_ref()),
-            ComponentKind::SimpleBlock { values, .. } => (None, values.as_ref()),
+            ComponentKind::Function { name, values } => (Some(name.as_ref()), values),
+            ComponentKind::SimpleBlock { values, .. } => (None, values),
         };
-        token_count -= 2 + component_token_count(contents);
+        token_count -= 2 + contents.token_count;
         let substitutes = name.is_some_and(is_substitution_function);
         // Step 2.3: Parse the function's argument grammar before running its replacement algorithm.
         if let Some(function) = name.and_then(arbitrary_substitution_function)
@@ -3226,19 +3220,19 @@ fn substitute_tokens(
                 && output.last().is_some_and(ComponentValue::is_whitespace)
                 && resolved.first().is_some_and(ComponentValue::is_whitespace),
         );
-        token_count += component_token_count(&resolved[resolved_start..]);
+        token_count += resolved.token_count - resolved_start;
         if substitutes {
-            output.extend(resolved.into_iter().skip(resolved_start));
+            output.extend(resolved.into_vec().into_iter().skip(resolved_start));
         } else {
             token_count += 2;
             let kind = match &value.kind {
                 ComponentKind::Function { name, .. } => ComponentKind::Function {
                     name: name.clone(),
-                    values: resolved.into_boxed_slice().into(),
+                    values: resolved.into_boxed(),
                 },
                 ComponentKind::SimpleBlock { opening, .. } => ComponentKind::SimpleBlock {
                     opening: opening.clone(),
-                    values: resolved.into_boxed_slice().into(),
+                    values: resolved.into_boxed(),
                 },
                 ComponentKind::Token(_) => unreachable!(),
             };
@@ -3256,15 +3250,15 @@ fn substitute_tokens(
     if is_cyclic {
         TokenResolution::Cyclic
     } else {
-        TokenResolution::Resolved(output)
+        TokenResolution::Resolved(ComponentValueList::with_token_count(output, token_count))
     }
 }
 
 // https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
-fn substitute_arbitrary_substitution_functions(
+fn substitute_arbitrary_substitution_functions<'a>(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    tokens: &[ComponentValue],
+    tokens: impl Into<ComponentValueSlice<'a>>,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
     substitution_context: Option<SubstitutionContextDependency>,
@@ -3748,6 +3742,19 @@ mod tests {
     }
 
     #[test]
+    fn substitution_updates_list_token_counts() {
+        let TokenResolution::Resolved(values) =
+            substitute_without_custom_properties("outer([var(--missing, inner(x))])")
+        else {
+            panic!("expected fallback substitution");
+        };
+        assert_eq!(values.token_count, 8);
+        assert_eq!(values[0].token_count(), 8);
+        let (_, children) = values[0].function().unwrap();
+        assert_eq!(children[0].token_count(), 6);
+    }
+
+    #[test]
     fn substitution_limit_counts_tokens_inside_components() {
         // The contents reach the token limit; the block's delimiters put it over.
         let source = format!("[{}]", "a ".repeat(MAX_SUBSTITUTED_TOKEN_COUNT / 2));
@@ -3755,6 +3762,28 @@ mod tests {
             substitute_without_custom_properties(&source),
             TokenResolution::Invalid
         ));
+    }
+
+    #[test]
+    fn substitution_limit_preserves_intermediate_counts() {
+        let limit = "a ".repeat(MAX_SUBSTITUTED_TOKEN_COUNT / 2);
+        for (source, valid) in [
+            (format!("var(--missing,{limit})"), true),
+            (format!("var(--missing,{limit})b"), false),
+            (format!("var(--missing,{limit})var(--missing,)"), false),
+            (
+                format!(" var(--missing, {}a)", "a ".repeat(MAX_SUBSTITUTED_TOKEN_COUNT / 2 - 1)),
+                true,
+            ),
+        ] {
+            assert_eq!(
+                matches!(
+                    substitute_without_custom_properties(&source),
+                    TokenResolution::Resolved(_)
+                ),
+                valid
+            );
+        }
     }
 
     #[test]
@@ -3780,7 +3809,7 @@ mod tests {
             .enumerate()
             .map(|(name_raw, (name, source))| {
                 let source = utf16(source);
-                let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
+                let values = consume_a_counted_list_of_component_values(tokenize_for_parser(&source)).unwrap();
                 let crate::css::parser::value_parser::ParseOutcome::Parsed(value) =
                     crate::css::parser::value_parser::parse_css_value_with_source(
                         parse_context,
