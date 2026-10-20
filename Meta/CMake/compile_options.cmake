@@ -223,12 +223,28 @@ if(CMAKE_CXX_LINK_PIE_SUPPORTED)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
+include(CheckCXXSourceCompiles)
 if (LINUX)
     add_cxx_compile_definitions(_FORTIFY_SOURCE=3)
     add_cxx_compile_definitions(_FILE_OFFSET_BITS=64)
     add_cxx_compile_options(-fstack-clash-protection)
     add_cxx_link_option_if_supported(LINKER:-z,relro)
     add_cxx_link_option_if_supported(LINKER:-z,now)
+
+    # glibc older than 2.36 cannot load binaries with packed relative relocations, but linkers can still produce them.
+    # The checks are nested because __GLIBC_PREREQ(2, 36) does not parse in an #if where the macro is not defined.
+    check_cxx_source_compiles("
+        #include <features.h>
+        #ifdef __GLIBC__
+        #    if !__GLIBC_PREREQ(2, 36)
+        #        error glibc is too old to load packed relative relocations
+        #    endif
+        #endif
+        int main() { }
+    " LAGOM_LIBC_SUPPORTS_PACKED_RELATIVE_RELOCS)
+    if (LAGOM_LIBC_SUPPORTS_PACKED_RELATIVE_RELOCS)
+        add_cxx_link_option_if_supported(LINKER:-z,pack-relative-relocs)
+    endif()
 endif()
 
 if (APPLE)
