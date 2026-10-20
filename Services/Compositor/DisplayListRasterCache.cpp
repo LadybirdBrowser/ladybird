@@ -393,7 +393,7 @@ static u64 text_blob_glyph_hash(ReadonlySpan<DisplayListGlyph> glyphs)
     return hash;
 }
 
-static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs, [[maybe_unused]] u8 font_smoothing, TextRasterizationMode rasterization_mode)
+static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs, [[maybe_unused]] u8 font_smoothing)
 {
     if (font.is_invisible())
         return nullptr;
@@ -416,12 +416,6 @@ static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, Read
         break;
     }
 #endif
-    if (rasterization_mode == TextRasterizationMode::Unhinted) {
-        // NB: Preserve canvas text's fractional baseline and unhinted outline geometry.
-        sk_font.setHinting(SkFontHinting::kNone);
-        sk_font.setForceAutoHinting(false);
-        sk_font.setBaselineSnap(false);
-    }
     SkTextBlobBuilder builder;
     auto const& run = builder.allocRunPos(sk_font, glyphs.size());
 
@@ -434,13 +428,13 @@ static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, Read
     return builder.make();
 }
 
-sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(DisplayListResourceStorage const& resource_storage, FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs, u8 font_smoothing, TextRasterizationMode rasterization_mode)
+sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(DisplayListResourceStorage const& resource_storage, FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs, u8 font_smoothing)
 {
     constexpr size_t max_text_blob_cache_bytes = 16 * MiB;
     constexpr auto text_blob_idle_duration = AK::Duration::from_milliseconds(250);
 
     ReadonlyBytes glyph_bytes { reinterpret_cast<u8 const*>(glyphs.data()), glyphs.size() * sizeof(DisplayListGlyph) };
-    TextBlobCacheKey key { font_id.value(), bit_cast<u32>(scale), font_smoothing, text_blob_glyph_hash(glyphs), rasterization_mode };
+    TextBlobCacheKey key { font_id.value(), bit_cast<u32>(scale), font_smoothing, text_blob_glyph_hash(glyphs) };
     auto now = MonotonicTime::now();
 
     if (auto cached = m_text_blobs.find(key); cached != m_text_blobs.end()) {
@@ -453,7 +447,7 @@ sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(DisplayListResourceStorage c
         m_text_blobs.remove(cached);
     }
 
-    auto blob = make_text_blob(resource_storage.font(font_id), scale, glyphs, font_smoothing, rasterization_mode);
+    auto blob = make_text_blob(resource_storage.font(font_id), scale, glyphs, font_smoothing);
     if (!blob)
         return nullptr;
 

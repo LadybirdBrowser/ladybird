@@ -8,17 +8,19 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
 
-class SkTextBlob;
-
 namespace Gfx {
+
+struct CanvasGlyph;
 
 class PainterSkia final {
 public:
@@ -34,7 +36,7 @@ public:
     void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset);
     void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
     void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule);
-    void draw_text_blob(SkTextBlob const&, FloatPoint, PaintStyle const&, Optional<Filter>, float global_alpha, CompositingAndBlendingOperator);
+    void draw_glyph_run(Font const&, ReadonlySpan<CanvasGlyph>, FloatPoint translation, PaintStyle const&, Optional<Filter>, float global_alpha, CompositingAndBlendingOperator);
     void set_transform(Gfx::AffineTransform const&);
     void save();
     void restore();

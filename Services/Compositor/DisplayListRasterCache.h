@@ -27,17 +27,11 @@ class sk_sp;
 
 namespace Compositor {
 
-enum class TextRasterizationMode : u8 {
-    Normal,
-    Unhinted,
-};
-
 struct TextBlobCacheKey {
     u64 font_id { 0 };
     u32 scale_bits { 0 };
     u8 font_smoothing { 0 };
     u64 glyph_hash { 0 };
-    TextRasterizationMode rasterization_mode { TextRasterizationMode::Normal };
 
     bool operator==(TextBlobCacheKey const&) const = default;
 };
@@ -50,7 +44,7 @@ template<>
 struct Traits<Compositor::TextBlobCacheKey> : public DefaultTraits<Compositor::TextBlobCacheKey> {
     static unsigned hash(Compositor::TextBlobCacheKey const& key)
     {
-        return pair_int_hash(pair_int_hash(u64_hash(key.font_id ^ key.glyph_hash), key.scale_bits), pair_int_hash(key.font_smoothing, static_cast<u8>(key.rasterization_mode)));
+        return pair_int_hash(pair_int_hash(u64_hash(key.font_id ^ key.glyph_hash), key.scale_bits), key.font_smoothing);
     }
 };
 
@@ -78,7 +72,7 @@ public:
     sk_sp<SkImage> nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space);
     bool has_rasterized_nested_display_list(Compositing::DisplayListResourceId) const;
     sk_sp<SkImage> create_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, Function<sk_sp<SkImage>()> const& rasterize);
-    sk_sp<SkTextBlob> text_blob(Compositing::DisplayListResourceStorage const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing, TextRasterizationMode = TextRasterizationMode::Normal);
+    sk_sp<SkTextBlob> text_blob(Compositing::DisplayListResourceStorage const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing);
 
 private:
     struct ImageFrameImage;
