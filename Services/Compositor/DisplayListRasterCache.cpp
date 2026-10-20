@@ -6,6 +6,7 @@
 
 #include <AK/BitCast.h>
 #include <AK/ByteBuffer.h>
+#include <AK/ScopeGuard.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
@@ -106,7 +107,6 @@ struct DisplayListRasterCache::NestedDisplayListRasters {
     }
 
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
-    bool was_painted { false };
 
     // The same display list can be painted at several places in one frame (repeated SVG images, atlas-style
     // lists painted in many small slices), each with its own visible sub-rectangle, so a single list keeps a
@@ -328,9 +328,13 @@ sk_sp<SkImage> DisplayListRasterCache::nested_display_list_raster(DisplayListRes
     return {};
 }
 
-void DisplayListRasterCache::add_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_list_space, sk_sp<SkImage> image)
+bool DisplayListRasterCache::has_rasterized_nested_display_list(DisplayListResourceId id) const
 {
-    VERIFY(image);
+    return m_nested_display_list_rasters.contains(id.value());
+}
+
+sk_sp<SkImage> DisplayListRasterCache::create_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_list_space, Function<sk_sp<SkImage>()> const& rasterize)
+{
     auto& rasters = *m_nested_display_list_rasters.ensure(id.value(), [&] {
         return make<NestedDisplayListRasters>(skia_backend_context);
     });
@@ -346,7 +350,8 @@ void DisplayListRasterCache::add_nested_display_list_raster(DisplayListResourceI
     // the overflow instead of thrashing the whole cache. Additions are rare by design, so the total is simply
     // recomputed here instead of being tracked incrementally.
     constexpr size_t max_nested_raster_cache_bytes = 512 * MiB;
-    auto total_bytes = static_cast<size_t>(rect_in_list_space.width()) * rect_in_list_space.height() * 4;
+    auto raster_bytes = static_cast<size_t>(rect_in_list_space.width()) * rect_in_list_space.height() * 4;
+    auto total_bytes = raster_bytes + m_nested_raster_cache_reserved_bytes;
     for (auto const& it : m_nested_display_list_rasters)
         total_bytes += it.value->total_byte_size();
     if (total_bytes > max_nested_raster_cache_bytes) {
@@ -360,25 +365,20 @@ void DisplayListRasterCache::add_nested_display_list_raster(DisplayListResourceI
             });
         }
         if (total_bytes > max_nested_raster_cache_bytes)
-            return;
+            return {};
     }
+
+    // Reserve before rasterizing: a nested list can create other cached rasters while it is painted.
+    m_nested_raster_cache_reserved_bytes += raster_bytes;
+    ScopeGuard release_reservation = [&] { m_nested_raster_cache_reserved_bytes -= raster_bytes; };
+    auto image = rasterize();
+    if (!image)
+        return {};
 
     if (rasters.rasters.size() == NestedDisplayListRasters::max_rasters)
         rasters.rasters.take_last();
-    rasters.rasters.prepend({ rect_in_list_space, move(image) });
-}
-
-bool DisplayListRasterCache::should_cache_nested_display_list_raster(DisplayListResourceStorage const& resource_storage, DisplayListResourceId id)
-{
-    // Only rasterize a list that has been painted before: content that is re-recorded for every update gets a
-    // fresh id each time and would waste a full rasterization per recording, while anything replayed more than
-    // once converges to cache hits after its second paint.
-    auto& rasters = *m_nested_display_list_rasters.ensure(id.value(), [&] {
-        return make<NestedDisplayListRasters>(nullptr);
-    });
-    if (!exchange(rasters.was_painted, true))
-        return false;
-    return !resource_storage.display_list_requires_direct_replay(id);
+    rasters.rasters.prepend({ rect_in_list_space, image });
+    return image;
 }
 
 static u64 text_blob_glyph_hash(ReadonlySpan<DisplayListGlyph> glyphs)

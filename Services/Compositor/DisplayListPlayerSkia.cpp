@@ -1299,18 +1299,14 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
     auto& canvas = surface().canvas();
     auto const& nested_display_list = resource_storage().display_list_resource(command.display_list_id);
 
-    // Nested display lists (used for SVG images and mask contents) are immutable and are replayed with identical
-    // commands on every compositor frame between content updates; some carry huge command streams (thousands of
-    // paths, dozens of layers) and can be far larger than the viewport. Rasterize a list into an offscreen surface
-    // at list resolution and reuse the snapshot, instead of re-encoding the entire vector command stream on every
-    // frame. Each list keeps a small set of rasters in the per-client resource storage, keyed by display list id
-    // and removed together with the display list itself; the same list can be painted at several places in one
-    // frame (repeated SVG images, atlases), and each place then hits its own raster. A placement matching the list
-    // resolution at near-integer device offsets blits the raster pixel-identically to replaying the commands; any
-    // other axis-aligned placement resamples it through the placement matrix with linear filtering. Lists that are
-    // painted for the first time, whose blending could read page content painted underneath them (see
-    // should_cache_nested_display_list_raster), or that sit under a rotated/skewed/mirrored transform replay
-    // directly.
+    // Rasterize immutable nested lists (SVG images and masks) at list resolution and reuse their snapshots.
+    // The first paint of a list rasterizes only the visible portion, so lists replaced every frame do not paint
+    // clipped content. Later cache misses rasterize small lists whole, so scrolled or sliced lists hit one raster.
+    // NB: Use this path from the first paint. Direct replay and a cached raster can produce different pixels,
+    //     especially when a screenshot targets a CPU bitmap while the cached raster is rendered on the GPU.
+    //     The number of previous paints must not change how the list is rendered.
+    // Lists with destination-reading blends or live content, or under rotated/skewed/mirrored transforms,
+    // replay directly. Near-integer placements at list resolution avoid filtering; other placements resample.
     auto total_matrix = canvas.getTotalMatrix();
     auto list_bounds = Gfx::IntRect { {}, command.list_size };
     if (m_skia_backend_context && total_matrix.isScaleTranslate() && total_matrix.getScaleX() > 0 && total_matrix.getScaleY() > 0
@@ -1340,31 +1336,28 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
 
             Gfx::IntRect raster_rect;
             auto cached_image = raster_cache().nested_display_list_raster(command.display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect);
-            if (!cached_image && raster_cache().should_cache_nested_display_list_raster(resource_storage(), command.display_list_id)) {
-                // Small lists are rasterized whole, so lists painted as many little slices (atlases, repeated
-                // images) hit one raster for every slice. Larger lists are rasterized at the visible portion.
+            if (!cached_image && !resource_storage().display_list_requires_direct_replay(command.display_list_id)) {
                 constexpr size_t max_full_list_raster_bytes = 16 * MiB;
                 constexpr int max_full_list_raster_dimension = 16384;
-                auto full_list_bytes = static_cast<size_t>(list_bounds.width()) * list_bounds.height() * 4;
-                bool rasterize_whole_list = full_list_bytes <= max_full_list_raster_bytes
+                constexpr size_t max_raster_bytes = 128 * MiB;
+                auto byte_size = [](Gfx::IntRect const& rect) { return static_cast<size_t>(rect.width()) * rect.height() * 4; };
+                bool rasterize_whole_list = raster_cache().has_rasterized_nested_display_list(command.display_list_id)
+                    && byte_size(list_bounds) <= max_full_list_raster_bytes
                     && list_bounds.width() <= max_full_list_raster_dimension
                     && list_bounds.height() <= max_full_list_raster_dimension;
                 auto raster_candidate_rect = rasterize_whole_list ? list_bounds : visible_rect_in_list_space;
-                constexpr size_t max_raster_bytes = 128 * MiB;
-                if (static_cast<size_t>(raster_candidate_rect.width()) * raster_candidate_rect.height() * 4 <= max_raster_bytes) {
-                    auto offscreen_surface = Gfx::PaintingSurface::create_with_size(
-                        raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
-                    offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
-                    offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
-                    execute_display_list_into_surface(
-                        *nested_display_list.display_list, nested_display_list.visual_context_tree, *offscreen_surface);
-                    offscreen_surface->canvas().resetMatrix();
-                    auto image = offscreen_surface->sk_surface().makeImageSnapshot();
-                    if (image) {
-                        raster_cache().add_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, image);
-                        cached_image = move(image);
-                        raster_rect = raster_candidate_rect;
-                    }
+                if (byte_size(raster_candidate_rect) <= max_raster_bytes) {
+                    cached_image = raster_cache().create_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, [&] {
+                        auto offscreen_surface = Gfx::PaintingSurface::create_with_size(
+                            raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+                        offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
+                        offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
+                        execute_display_list_into_surface(
+                            *nested_display_list.display_list, nested_display_list.visual_context_tree, *offscreen_surface);
+                        offscreen_surface->canvas().resetMatrix();
+                        return offscreen_surface->sk_surface().makeImageSnapshot();
+                    });
+                    raster_rect = raster_candidate_rect;
                 }
             }
             if (cached_image) {
