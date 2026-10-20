@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Append a block containing a spanner kid. The spanner kid should correctly span across all columns</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body>
+    <article id="column">
+      <div>block1
+        <div>
+          <h3>spanner</h3>
+          block2
+        </div>
+      </div>
+    </article>
+  </body>
+</html>

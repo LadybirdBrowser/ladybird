@@ -3903,6 +3903,25 @@ impl LayoutNodeArena {
             self.derive_containing_block_establishment_flags_of_children(slot);
         }
         self.refresh_ancestor_facts_of_anonymous_children(slot);
+        let mut first_styled_child = self.data(slot).first_child.get();
+        while !first_styled_child.is_invalid()
+            && super::node_facts::has_flag(self.data(first_styled_child), NodeFlag::Anonymous)
+        {
+            first_styled_child = self.data(first_styled_child).next_sibling.get();
+        }
+        if !first_styled_child.is_invalid()
+            && super::node_facts::has_ancestor_fact(self.data(first_styled_child), AncestorFact::ParentLaysOutInColumns)
+                != super::node_facts::node_style_view(self.data(slot))
+                    .is_some_and(|style| super::node_facts::node_lays_out_in_columns(self.data(slot), style))
+        {
+            let mut child = first_styled_child;
+            while !child.is_invalid() {
+                if self.derive_ancestor_facts_for_node(child) {
+                    self.bump_fragment_cache_epoch_of_self_and_ancestors(child);
+                }
+                child = self.data(child).next_sibling.get();
+            }
+        }
     }
 
     pub(crate) fn enroll_text_node_for_content_sync(&self, node: NodeSlotId) {
@@ -4553,6 +4572,9 @@ impl LayoutNodeArena {
             let parent_style = super::node_facts::node_style_view(parent_data);
             if super::node_facts::node_is_flex_or_grid_container(parent_style) {
                 facts |= AncestorFact::ParentIsFlexOrGridContainer as u8;
+            }
+            if parent_style.is_some_and(|style| super::node_facts::node_lays_out_in_columns(parent_data, style)) {
+                facts |= AncestorFact::ParentLaysOutInColumns as u8;
             }
             if parent_style.is_none_or(|style| {
                 !style.is_floating() && (style.display().is_flow_inside() || style.display().is_flow_root_inside())

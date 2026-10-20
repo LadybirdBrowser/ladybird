@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-span: all' element and width exceeding available multi-column width (complex)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-18 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-span" title="6.1. 'column-span'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-margin-001-ref.xht" />
+  <meta name="flags" content="ahem may" />
+  <meta name="assert" content="This test checks that when 'overflow' is set to 'hidden' on a multi-column element, then any spanning ('column-span: all') element exceeding the available width of the multi-column should be clipped accordingly." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: navy;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  overflow: hidden;
+  widows: 1;
+  width: 8em;
+
+  column-count: 4;
+  column-gap: 0em;
+
+  /*
+
+  N == 4;
+
+  W == 2;
+
+  */
+  }
+
+  h4
+  {
+  background: black;
+  color: black;
+  font: inherit;
+  margin: 1em 0;
+  width: 11em;
+
+  column-span: all;
+
+  /*
+  This is the target of the test: the spanning element's
+  width (11em) exceeds the available width of the
+  multi-column element. The 3em exceeding such
+  width is first clipped at column box boundary.
+  */
+  }
+
+  span {color: blue;}
+
+  span + span {color: pink;}
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+    <span> bl ue bl ue </span>
+    <span> Pi nk Pi nk </span>
+    <h4> black </h4>
+    <h4> black </h4>
+    na vy na vy
+    na vy na vy
+  </div>
+
+ </body>
+</html>

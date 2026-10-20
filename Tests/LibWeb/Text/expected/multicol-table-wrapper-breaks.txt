@@ -1,0 +1,3 @@
+spanner-table: 0,30 420x20
+after-table: 220,0 200x30
+display-table: 220,0 20x20

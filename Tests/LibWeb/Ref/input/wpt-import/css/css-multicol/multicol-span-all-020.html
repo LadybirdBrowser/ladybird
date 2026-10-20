@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Column rules before and after spanner with margins</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#column-gaps-and-rules">
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#column-span">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-020-ref.html">
+<p>There should be three identical blue bars below.</p>
+<div style="columns:2; width:100px; column-gap:20px; column-rule:20px solid blue;">
+  <div style="height:50px; background:blue;"></div>
+  <div style="column-span:all; margin:10px 0; height:25px; background:blue;"></div>
+  <div style="height:50px; background:blue;"></div>
+</div>

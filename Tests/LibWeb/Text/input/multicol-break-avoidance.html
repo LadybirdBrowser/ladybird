@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .grid { columns: 3; column-gap: 16px; width: 600px; margin-bottom: 20px; }
+    .card { break-inside: avoid; margin-bottom: 16px; }
+    .block { height: 20px; }
+    .case { margin-bottom: 20px; }
+</style>
+<div class="grid" id="grid">
+<div class="card" style="height: 100px"></div>
+<div class="card" style="height: 140px"></div>
+<div class="card" style="height: 80px"></div>
+<div class="card" style="height: 120px"></div>
+<div class="card" style="height: 90px"></div>
+<div class="card" style="height: 150px"></div>
+<div class="card" style="height: 70px"></div>
+<div class="card" style="height: 130px"></div>
+<div class="card" style="height: 110px"></div>
+<div class="card" style="height: 60px"></div>
+</div>
+<div class="case" id="collapsed" style="columns: 2; column-fill: auto; height: 100px; width: 400px; column-gap: 0"><div><div style="margin-top: 50px; height: 10px"></div><div id="collapsed-avoid" style="break-inside: avoid; height: 60px"></div></div></div>
+<div class="case" id="forced-balanced" style="columns: 2; width: 410px; column-gap: 10px"><div class="block"></div><div style="break-inside: avoid"><div class="block"></div><div class="block" style="break-before: column"></div><div class="block"></div></div><div class="block"></div></div>
+<div class="case" id="forced-fixed" style="columns: 2; width: 410px; column-gap: 10px; column-fill: auto; height: 100px"><div class="block"></div><div style="break-inside: avoid"><div class="block"></div><div class="block" style="break-before: column"></div><div class="block"></div></div></div>
+<script>
+    function rectsIn(element, container) {
+        const origin = container.getBoundingClientRect();
+        return [...element.getClientRects()]
+            .map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`)
+            .join(" ");
+    }
+
+    test(() => {
+        const grid = document.getElementById("grid");
+        println(`grid: ${grid.offsetHeight}`);
+        for (const card of grid.querySelectorAll(".card"))
+            println(`    ${rectsIn(card, grid)}`);
+        const collapsed = document.getElementById("collapsed");
+        println(`avoid box after a collapsed margin: ${rectsIn(document.getElementById("collapsed-avoid"), collapsed)}`);
+        for (const id of ["forced-balanced", "forced-fixed"]) {
+            const container = document.getElementById(id);
+            println(`${id}: ${container.offsetHeight}`);
+            for (const block of container.querySelectorAll(".block"))
+                println(`    ${rectsIn(block, container)}`);
+        }
+    });
+</script>

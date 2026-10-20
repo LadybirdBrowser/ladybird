@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Restyle column-span's parent that is an inline</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  html {
+    overflow: hidden;
+  }
+  #column {
+    column-count: 1;
+  }
+  #span {
+    position: relative;
+    left: 200px;
+  }
+  h3 {
+    column-span: all;
+  }
+  </style>
+
+  <body>
+    <article id="column">
+      <span id="span">
+        All text should be offset 200px, except the spanner
+        <h3>Spanner</h3>
+        <div>Some more text</div>
+      </span>
+    </article>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .mc { column-gap: 0; margin-bottom: 20px; }
+</style>
+<div class="mc" id="padding-bottom" style="columns: 2; width: 400px"><div style="padding-bottom: 100px"></div></div>
+<div class="mc" id="float" style="columns: 3; width: 300px"><div id="float-box" style="float: left; width: 50px; height: 90px"></div></div>
+<div class="mc" id="forced-in-avoid" style="columns: 2; column-fill: auto; height: 100px; width: 200px"><div style="height: 60px"></div><div style="break-inside: avoid"><div id="forced-in-avoid-box" style="height: 80px"></div><div style="break-before: column; height: 20px"></div></div></div>
+<div class="mc" id="forced-in-avoid-balanced" style="columns: 3; width: 300px"><div style="height: 60px"></div><div style="break-inside: avoid"><div id="forced-in-avoid-balanced-box" style="height: 80px"></div><div style="break-before: column; height: 20px"></div></div></div>
+<div class="mc" id="collapse-through" style="columns: 2; column-fill: auto; height: 100px; width: 400px"><div style="height: 100px"></div><div style="margin-top: 20px; height: 0"></div><div id="collapse-through-box" style="margin-top: 30px; height: 10px"></div></div>
+<div class="mc" id="block-in-inline" style="columns: 2; column-fill: auto; height: 200px; width: 400px; line-height: 20px"><div style="height: 150px"></div><div><span style="display: inline-block; width: 10px; height: 10px"></span><span><div id="block-in-inline-box" style="margin-top: 50px; height: 10px"></div></span></div></div>
+<div class="mc" id="aspect-ratio" style="columns: 3; column-fill: auto; height: 100px; width: 640px; column-gap: 20px"><div id="aspect-ratio-box" style="box-sizing: border-box; padding-top: 30px; aspect-ratio: auto 1 / 1"></div><div id="aspect-ratio-after" style="height: 10px"></div></div>
+<div class="mc" id="top-edge" style="columns: 2; column-fill: auto; height: 100px; width: 400px"><div id="top-edge-box"><div style="height: 50px"></div><div id="top-edge-inner" style="break-before: column; margin-top: 30px; height: 20px"></div></div></div>
+<div class="mc" id="bottom-edge" style="columns: 2; width: 400px"><div><div style="height: 20px; margin-bottom: 30px; break-after: column"></div><div style="height: 20px"></div></div></div>
+<div class="mc" id="bottom-edge-fill" style="columns: 2; column-fill: auto; width: 400px"><div><div style="height: 20px; margin-bottom: 30px; break-after: column"></div><div style="height: 20px"></div></div></div>
+<script>
+    function rects(id, containerId) {
+        const origin = document.getElementById(containerId).getBoundingClientRect();
+        return [...document.getElementById(id).getClientRects()].map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`).join(" ");
+    }
+    test(() => {
+        for (const id of ["padding-bottom", "float", "forced-in-avoid-balanced", "bottom-edge", "bottom-edge-fill"])
+            println(`${id}: height ${document.getElementById(id).offsetHeight}`);
+        println(`float box: ${rects("float-box", "float")}`);
+        for (const id of ["forced-in-avoid", "forced-in-avoid-balanced", "collapse-through", "block-in-inline", "aspect-ratio", "top-edge"])
+            println(`${id} box: ${rects(`${id}-box`, id)}`);
+        println(`aspect-ratio after: ${rects("aspect-ratio-after", "aspect-ratio")}`);
+        println(`top-edge inner: ${rects("top-edge-inner", "top-edge")}`);
+    });
+</script>

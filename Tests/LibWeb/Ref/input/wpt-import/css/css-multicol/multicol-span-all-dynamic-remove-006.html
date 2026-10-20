@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Remove the parent of a column-spanner</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-remove-001-ref.html">
+  <meta name="assert" content="This test checks removing the parent of a column-spanner should be rendered correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    document.getElementById("block").remove();
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <div>block1</div>
+      <div id="block">
+        <h3>inner spanner</h3>
+        <div>inner block</div>
+      </div>
+      <div>block2</div>
+    </article>
+  </body>
+</html>

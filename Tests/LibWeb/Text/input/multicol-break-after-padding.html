@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .multicol { columns: 3; column-gap: 20px; width: 600px; height: 100px; margin-bottom: 10px; }
+</style>
+<div class="multicol"><div id="padding-reaches-column-end" style="height: 60px; padding-top: 30px"></div></div>
+<div class="multicol"><div id="small-box" style="height: 10px; padding-top: 6px"></div></div>
+<script>
+    test(() => {
+        for (const id of ["padding-reaches-column-end", "small-box"]) {
+            const element = document.getElementById(id);
+            const origin = element.parentElement.getBoundingClientRect();
+            const fragments = Array.from(element.getClientRects()).map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.height}`);
+            println(`${id}: ${fragments.join(" | ")}`);
+        }
+    });
+</script>

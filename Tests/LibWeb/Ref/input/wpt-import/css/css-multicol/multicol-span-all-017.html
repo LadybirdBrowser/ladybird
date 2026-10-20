@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/6805">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Test that column-span all inside a transform doesn't create a spanner">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:2; column-fill:auto; column-gap:0; width:100px; height:100px; background:red;">
+  <div style="transform:scale(1);">
+    <div style="column-span:all; width:50px; height:200px; background:green;"></div>
+  </div>
+</div>

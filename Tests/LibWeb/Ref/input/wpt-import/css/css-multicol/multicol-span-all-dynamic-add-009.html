@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Add a simple block to columns which already contains a column-span</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-add-002-ref.html">
+  <meta name="assert" content="This test checks a dynamically added block element should be rendered correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    /* Add a simple block to columns which already contains a column-span. */
+    var block2 = document.createElement("div");
+    var text = document.createTextNode("block2");
+    block2.appendChild(text);
+
+    var column = document.getElementById("column");
+    column.appendChild(block2);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <div>block1</div>
+      <h3>spanner</h3>
+    </article>
+  </body>
+</html>

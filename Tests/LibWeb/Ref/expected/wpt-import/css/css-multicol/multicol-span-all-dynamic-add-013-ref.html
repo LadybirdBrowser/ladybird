@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Insert a block into a multicol details containing column-span:all</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  #details {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body>
+    <details open id="details">
+      <div>block1</div>
+      <summary>Summary</summary>
+      <h3>spanner</h3>
+      <div>block2</div>
+    </details>
+  </body>
+</html>

@@ -234,6 +234,7 @@ pub(crate) enum AncestorFact {
     HasInlineLevelInclusiveAncestor = 1 << 4,
     /// An anonymous box whose nearest non-anonymous ancestor puts an ellipsis on overflowing lines.
     InheritsTextOverflowEllipsis = 1 << 5,
+    ParentLaysOutInColumns = 1 << 6,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

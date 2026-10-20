@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .block { height: 30px; }
+    table { border-spacing: 0; }
+    td { padding: 0; height: 20px; }
+</style>
+<div class="multicol" id="spanner" style="columns: 2; column-gap: 20px; width: 420px"><div class="block"></div><div class="block"></div><table id="spanner-table" style="column-span: all; width: 100%"><tr><td>T</td></tr></table><div class="block"></div><div class="block"></div></div>
+<div class="multicol" id="break-after" style="columns: 3; column-gap: 20px; column-fill: auto; height: 100px; width: 640px"><div class="block"></div><table style="break-after: column"><tr><td>T</td></tr></table><div class="block" id="after-table"></div></div>
+<div class="multicol" id="break-before" style="columns: 3; column-gap: 20px; column-fill: auto; height: 100px; width: 640px"><div class="block"></div><div style="display: table; break-before: column" id="display-table"><div style="display: table-cell">T</div></div></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["spanner-table", "after-table", "display-table"]) {
+            const element = document.getElementById(id);
+            const origin = element.closest(".multicol").getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
+            println(`${id}: ${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`);
+        }
+        done();
+    });
+</script>

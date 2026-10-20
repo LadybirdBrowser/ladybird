@@ -1,0 +1,4 @@
+adjacent: container 80, second spanner 60
+before: container 130, spanner 60 400x10
+columns on: container 90, spanner 20 400x50
+columns off: container 130, spanner 60 400x10

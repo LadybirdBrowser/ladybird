@@ -1,0 +1,5 @@
+margins: 90, spanner 0,20 400x50
+float: 70, spanner 0,20 400x30
+after-spanner: 70, block 0,60 200x10
+after-whitespace: 70, block 0,60 200x10
+not-a-spanner: 30, box 0,0 200x30 200,0 200x30

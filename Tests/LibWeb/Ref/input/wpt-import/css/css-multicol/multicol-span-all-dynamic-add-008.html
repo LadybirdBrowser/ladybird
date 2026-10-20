@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Add a nested multi-column spanner to the outer column</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-add-008-ref.html">
+  <meta name="assert" content="This test checks a dynamically added 'column-span' element should be rendered correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    /* Add a nested multi-column spanner to the outer column. */
+    var spanner = document.createElement("h3");
+    var text = document.createTextNode("multi-column spanner");
+    spanner.appendChild(text);
+
+    var column = document.getElementById("column");
+    column.insertBefore(spanner, column.children[1]);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-count: 2;
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <div>block1</div>
+      <h3>spanner</h3>
+      <div>block2</div>
+    </article>
+  </body>
+</html>

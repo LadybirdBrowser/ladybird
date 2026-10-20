@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Add the spanner in block1. It should correctly span across all columns</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-add-003-ref.html">
+  <meta name="assert" content="This test checks a dynamically added 'column-span' element should be rendered correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    /* Add the spanner in block1. It should correctly span across all columns. */
+    var spanner = document.createElement("h3");
+    var text = document.createTextNode("spanner");
+    spanner.appendChild(text);
+
+    var block1 = document.getElementById("block1");
+    block1.appendChild(spanner);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <div id="block1">block1</div>
+      <div>block2</div>
+    </article>
+  </body>
+</html>

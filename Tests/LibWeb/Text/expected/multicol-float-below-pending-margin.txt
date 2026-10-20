@@ -1,0 +1,2 @@
+float bottom inside multicol: true
+next element below float: true

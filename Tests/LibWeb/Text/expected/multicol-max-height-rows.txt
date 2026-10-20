@@ -1,0 +1,4 @@
+spanner-after-capped-row: height 60, children 0,0 0,20 0,40 200,0 200,20 200,40 400,0 400,20 0,60 0,80
+last-row-gets-remainder: height 100, children 0,0 0,20 200,0 200,20 0,40 0,60 0,80 200,60 200,80 400,60 400,80 600,60 600,80 800,60 800,80
+filled-columns: height 100, children 0,0 133.328125,0 266.65625,0
+forced-break: height 20, children 0,0 200,0

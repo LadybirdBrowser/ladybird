@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test the column rule's block-size</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-gaps-and-rules">
+  <link rel="help" href="https://github.com/w3c/csswg-drafts/issues/2309">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-rule-001-ref.html">
+  <meta name="assert" content="This test verifies that the column-rule after the last column-span is extended to the content block-end edge of the multicol container.">
+
+  <style>
+  article {
+    column-count: 2;
+    column-rule: 6px solid;
+    width: 400px;
+    height: 500px;
+    background-color: lightgreen;
+    border: 2em solid purple;
+    padding: 2em;
+  }
+  div.block {
+    width: 100px;
+    height: 200px;
+  }
+  div.column-span {
+    column-span: all;
+    height: 50px;
+    background-color: lightblue;
+  }
+  </style>
+
+  <article>
+    <!-- Each block spreads its height evenly into two columns, and
+         each column contains 100px height. -->
+    <div class="block">block1</div>
+    <div class="column-span">column-span1</div>
+    <div class="block">block2</div>
+    <div class="column-span">column-span2</div>
+    <!-- The column rule after column-span2 should extend to the content edge
+         of the multicol container as if block3 has "height: 400px;"  -->
+    <div class="block">block3</div>
+  </article>
+</html>

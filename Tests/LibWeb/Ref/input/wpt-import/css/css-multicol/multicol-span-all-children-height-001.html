@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test a multi-column container with percentage height children</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-children-height-001-ref.html">
+  <meta name="assert" content="This test checks the percentage height children under multicol container is rendered correctly.">
+
+  <style>
+  article {
+    column-count: 2;
+    width: 400px;
+    height: 200px;
+    outline: 1px solid black;
+  }
+  div {
+    height: 50%; /* Spread evenly into two colums, each 25%. */
+  }
+  div.spanner {
+    column-span: all;
+    outline: 1px solid blue;
+    height: 50%;
+  }
+  </style>
+
+  <article>
+    <div>block1</div>
+    <div class="spanner">spanner</div>
+    <div>block2</div>
+  </article>
+</html>

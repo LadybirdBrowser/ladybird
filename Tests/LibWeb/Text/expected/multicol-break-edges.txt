@@ -1,0 +1,14 @@
+padding-bottom: height 100
+float: height 90
+forced-in-avoid-balanced: height 80
+bottom-edge: height 20
+bottom-edge-fill: height 20
+float box: 0,0 50x90
+forced-in-avoid box: 100,0 100x80
+forced-in-avoid-balanced box: 100,0 100x80
+collapse-through box: 200,0 200x10
+block-in-inline box: 200,70 200x10
+aspect-ratio box: 0,0 200x100 220,0 200x100 440,0 200x30
+top-edge box: 0,0 200x100 200,0 200x50
+aspect-ratio after: 440,30 200x10
+top-edge inner: 200,30 200x20

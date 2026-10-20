@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-column-span-all-ref.html">
+<style>
+body { margin: 0; }
+.multicol { columns: 2; column-gap: 20px; width: 220px; background: lightgray; }
+.multicol > div { height: 30px; background: green; overflow: hidden; }
+.multicol > .spanner { column-span: all; height: 20px; background: blue; }
+</style>
+<div class="multicol">
+    <div></div><div></div><div></div><div></div>
+    <div class="spanner"></div>
+    <div></div><div></div>
+</div>

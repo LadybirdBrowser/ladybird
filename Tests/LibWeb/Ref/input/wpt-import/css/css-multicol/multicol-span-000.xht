@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-span (basic)</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-27 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-rule" title="4.5 'column-rule'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-000-ref.xht" />
+  <meta name="flags" content="ahem image" />
+  <meta name="assert" content="Tests that the element with an id of 'column-span' spans across all columns." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  color: lime;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 10em;
+  }
+
+  div#test, div.test2
+  {
+  columns: 2;
+  column-fill: balance;
+  column-gap: 0em;
+
+  /*
+
+  N == 2;
+
+  W == 5em;
+
+  */
+  }
+
+  div#test, div#reference {margin-bottom: 0.5em;}
+
+  div#column-span
+  {
+  column-span: all;
+  font: inherit;
+  }
+
+  img
+  {
+  padding-right: 4em;
+  vertical-align: top;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 3 rectangles are <strong>identical</strong>.</p>
+
+  <div id="test">A<br />B<div id="column-span">123456</div>C<br />D</div>
+
+  <div id="reference"><img src="support/swatch-lime.png" width="20" height="20" alt="Image download support must be enabled" /><img src="support/swatch-lime.png" width="20" height="20" alt="Image download support must be enabled" /><br /><img src="support/swatch-lime.png" width="120" height="20" alt="Image download support must be enabled" /><br /><img src="support/swatch-lime.png" width="20" height="20" alt="Image download support must be enabled" /><img src="support/swatch-lime.png" width="20" height="20" alt="Image download support must be enabled" /></div>
+
+  <div class="test2">A<br />B</div>
+  <div>123456</div>
+  <div class="test2">C<br />D</div>
+
+ </body>
+</html>

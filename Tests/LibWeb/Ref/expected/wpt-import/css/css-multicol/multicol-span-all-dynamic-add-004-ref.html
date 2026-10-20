@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Add the spanner to the inner column</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  body {
+    width: 400px;
+  }
+  article {
+    column-count: 2;
+    column-rule: 6px solid;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body>
+    <article>
+      <article>
+        <div>inner block1</div>
+        <h3>spanner</h3>
+        <div>inner block2</div>
+      </article>
+      <article>
+        <div>inner block3</div>
+        <h3>static spanner</h3>
+        <div>inner block4</div>
+      </article>
+    </article>
+  </body>
+</html>

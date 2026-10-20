@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .block { height: 80px; margin-bottom: 10px; }
+</style>
+<div id="container" style="columns: 3; column-gap: 0; width: 600px"><a href="#"><div class="block"></div></a><a href="#"><div class="block"></div></a><a href="#"><div class="block"></div></a><a href="#"><div class="block"></div></a><a href="#"><div class="block"></div></a><a href="#"><div class="block"></div></a></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const origin = container.getBoundingClientRect();
+        println(`container: ${container.offsetHeight}`);
+        for (const block of container.querySelectorAll(".block")) {
+            const rect = block.getBoundingClientRect();
+            println(`block: ${rect.x - origin.x},${rect.y - origin.y}`);
+        }
+    });
+</script>

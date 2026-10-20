@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Add the spanner to the inner column</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-add-004-ref.html">
+  <meta name="assert" content="This test checks a dynamically added 'column-span' element should be rendered correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    /* Add the spanner to the inner column. */
+    var spanner = document.createElement("h3");
+    var text = document.createTextNode("spanner");
+    spanner.appendChild(text);
+
+    var innerColumn = document.getElementById("inner-column");
+    innerColumn.insertBefore(spanner, innerColumn.children[1]);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  body {
+    width: 400px;
+  }
+  article {
+    column-count: 2;
+    column-rule: 6px solid;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <article id="inner-column">
+        <div>inner block1</div>
+        <div>inner block2</div>
+      </article>
+      <article>
+        <div>inner block3</div>
+        <h3>static spanner</h3>
+        <div>inner block4</div>
+      </article>
+    </article>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<div id="adjacent" style="columns: 2; width: 400px"><div style="column-span: all; height: 20px; margin-bottom: 40px"></div><div id="second-spanner" style="column-span: all; height: 20px; margin-top: 40px"></div></div>
+<div id="dynamic" style="width: 400px"> <div style="height: 40px"></div><div id="spanner" style="column-span: all"><p style="margin: 20px 0; height: 10px"></p></div><div style="height: 40px"></div></div>
+<script>
+    function spannerRect() {
+        const container = document.getElementById("dynamic");
+        const origin = container.getBoundingClientRect();
+        const rect = document.getElementById("spanner").getBoundingClientRect();
+        return `container ${container.offsetHeight}, spanner ${rect.y - origin.y} ${rect.width}x${rect.height}`;
+    }
+    test(() => {
+        const adjacent = document.getElementById("adjacent");
+        println(`adjacent: container ${adjacent.offsetHeight}, second spanner ${document.getElementById("second-spanner").offsetTop - adjacent.offsetTop}`);
+        const dynamic = document.getElementById("dynamic");
+        println(`before: ${spannerRect()}`);
+        dynamic.style.columns = "2";
+        println(`columns on: ${spannerRect()}`);
+        dynamic.style.columns = "auto";
+        println(`columns off: ${spannerRect()}`);
+    });
+</script>

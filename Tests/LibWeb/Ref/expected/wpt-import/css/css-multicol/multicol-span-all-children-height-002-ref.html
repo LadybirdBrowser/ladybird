@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Test a multi-column container with percentage height children</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  article {
+    width: 400px;
+    height: 200px;
+    background-color: lightgreen;
+    border: 5px solid purple;
+  }
+  div.columns {
+    column-count: 2;
+  }
+  div.block1 {
+    background-color: yellow;
+    height: 200px;
+  }
+  div.spanner {
+    height: 50px;
+    background-color: lightblue;
+  }
+  div.block2 {
+    background-color: yellow;
+    height: 200px;
+  }
+  </style>
+
+  <article>
+    <div class="columns" style="height: 100px;">
+      <div class="block1">block1</div>
+    </div>
+    <div class="spanner">spanner</div>
+    <div class="columns" style="height: 50px;">
+      <div class="block2">block2</div>
+    </div>
+  </article>
+</html>

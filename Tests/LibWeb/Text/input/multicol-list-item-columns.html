@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px monospace; }
+    li { columns: 2; width: 300px; column-gap: 0; margin-bottom: 10px; }
+</style>
+<ul>
+<li id="spanner"><div style="height: 30px"></div><div style="height: 30px; column-span: all"></div><div style="height: 4px"></div></li>
+<li id="tall-line-height" style="line-height: 100px"><div style="height: 10px"></div><div style="height: 10px"></div><div style="height: 10px"></div><div style="height: 10px"></div><div style="height: 10px"></div><div style="height: 10px"></div></li>
+<li id="empty"></li>
+</ul>
+<script>
+    test(() => {
+        for (const item of document.querySelectorAll("li")) {
+            const origin = item.getBoundingClientRect();
+            const children = Array.from(item.children).map(child => {
+                const rect = child.getBoundingClientRect();
+                return `${rect.x - origin.x},${rect.y - origin.y}`;
+            });
+            println(`${item.id}: height ${origin.height}, children ${children.join(" ")}`);
+        }
+    });
+</script>

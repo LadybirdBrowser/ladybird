@@ -1,0 +1,6 @@
+paragraph: 36
+list: 20
+min-height: 100, scroll width 400, last 200,60 200x20
+tall-min-height: 200, scroll width 400, last 200,60 200x20
+min-over-max: 100, scroll width 400, last 200,40 200x20
+percentage-max: 100, scroll width 400, last 200,40 200x20

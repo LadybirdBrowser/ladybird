@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-span: all' element with vertical margins and width exceeding available multi-colum width (complex)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-19 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-span" title="6.1. 'column-span'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-margin-bottom-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="In this test, the glyphs 'or' are painted into 1st column box, the glyphs 'ang' extend outside the box, and  should not be clipped. In this test they are overwritten by spans so are not visible." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: navy;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 8em;
+
+  column-count: 4;
+  column-gap: 0em;
+
+  /*
+
+  N == 4;
+
+  W == 2em;
+
+  */
+  }
+
+  h4
+  {
+  font: inherit;
+  margin: 1em 0;
+  }
+
+  h4#black
+  {
+  background: black;
+  color: black;
+
+  column-span: all;
+  }
+
+  h4#orange
+  {
+  background: orange;
+  color: orange;
+  /*
+  In this test, the glyphs "or" are painted into 1st column box.
+  Per spec, content in the normal flow that extends into column
+  gaps (e.g., long words or images) is not clipped to the column
+  box. However, the glyphs "ang" are overwritten by <span>s, so
+  they're not visible.
+  */
+  }
+
+  span {color: blue;}
+
+  span + span {color: pink;}
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+    na vy na vy
+    na vy na vy
+    <h4 id="black"> black </h4>
+    <h4 id="orange"> orang </h4>
+    <span> bl ue bl ue </span>
+    <span> Pi nk Pi nk </span>
+  </div>
+
+ </body>
+</html>
