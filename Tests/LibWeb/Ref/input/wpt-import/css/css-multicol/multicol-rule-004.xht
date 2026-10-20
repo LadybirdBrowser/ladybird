@@ -1,0 +1,56 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-fill: balance' and column-rule</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-02 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-gaps-and-rules" title="4. Column gaps and rules" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-004-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that when 'column-fill: balance' distributes equally inline content into column boxes in a way that does not completely fill column boxes, then column-rule must nevertheless still be painted entirely, that is for the whole length of column boxes, even though the whole inline content may not fill the whole length of the column boxes." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body {margin: 8px;}
+
+  p
+  {
+  line-height: 1.25em;
+  margin: 1em 0em;
+  }
+
+  strong {line-height: 1;}
+
+  div#red-overlapped-reference
+  {
+  background-color: red;
+  height: 100px;
+  width: 100px;
+  }
+
+  div#test-overlapping-green
+  {
+  bottom: 100px;
+  color: transparent;
+  font: 1.25em/1 Ahem; /* equivalent to 20px/1 Ahem */
+  height: 5em;
+  position: relative;
+  right: 80px;
+  width: 13em;
+
+  column-count: 2;
+  column-fill: balance;
+  column-gap: 5em;
+  column-rule: green solid 5em;
+  }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="red-overlapped-reference"></div>
+
+  <div id="test-overlapping-green">LEFT Colm RIGH Colm</div>
+
+ </body>
+</html>

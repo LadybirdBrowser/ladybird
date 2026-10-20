@@ -3042,7 +3042,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             column_gap: geometry.gap,
             rows: vec![fragmentation::ColumnRow {
                 block_offset: CssPixels::default(),
-                block_size: row_block_size,
+                block_size: definite_block_size.unwrap_or(row_block_size),
                 column_count: column_index + 1,
             }],
         }));
