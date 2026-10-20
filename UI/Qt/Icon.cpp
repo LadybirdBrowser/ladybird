@@ -243,7 +243,7 @@ static QPixmap create_transparent_icon_pixmap(QSize logical_size, qreal device_p
     return pixmap;
 }
 
-static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal device_pixel_ratio)
+QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal device_pixel_ratio)
 {
     auto pixmap = create_transparent_icon_pixmap({ 20, 20 }, device_pixel_ratio);
 

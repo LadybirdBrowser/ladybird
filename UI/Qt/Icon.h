@@ -10,7 +10,9 @@
 #include <AK/Span.h>
 #include <AK/StringView.h>
 
+#include <QColor>
 #include <QIcon>
+#include <QPixmap>
 #include <QSize>
 
 class QPalette;
@@ -53,6 +55,7 @@ constexpr inline auto ICON_DEVICE_PIXEL_RATIOS = to_array({ 1, 2, 3 });
 QIcon load_icon_from_uri(StringView);
 QIcon icon_from_png(ReadonlyBytes, int logical_size);
 QIcon create_chrome_icon(ChromeIcon, QPalette const&);
+QPixmap create_chrome_icon_pixmap(ChromeIcon, QColor, qreal device_pixel_ratio);
 QIcon loading_spinner_icon(QPalette const& palette, int frame);
 
 QSize physical_size_for_device_pixel_ratio(QSize size, qreal device_pixel_ratio);
