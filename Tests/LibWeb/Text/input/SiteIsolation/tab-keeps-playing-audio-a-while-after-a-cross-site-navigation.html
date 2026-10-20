@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(30_000);
+        const httpServer = httpTestServer();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const echo = async (name, body) => httpServer.createEcho("GET", `/${name}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>${body}<\/script>`,
+        });
+
+        // The popup's document plays audio in another process, and says so once its tab is heard.
+        const crossSiteUrl = new URL(await echo("tab-keeps-playing-audio-cross-site", `
+            const context = new AudioContext();
+            const oscillator = new OscillatorNode(context);
+            oscillator.connect(context.destination);
+            oscillator.start();
+            (async () => {
+                while (!internals.tabIsPlayingAudio())
+                    await new Promise(resolve => setTimeout(resolve, 25));
+                opener.postMessage(internals.tabAudibilityChangeCount(), "*");
+            })();
+        `));
+        crossSiteUrl.hostname = uniqueLocalhostHostname("tab-keeps-playing-audio-cross-site");
+        const sameSiteUrl = await echo("tab-keeps-playing-audio-same-site", `opener.postMessage("arrived", "*");`);
+
+        const heard = nextMessage();
+        const popup = window.open(crossSiteUrl.href);
+        const changes = await heard;
+        println("the popup's tab plays audio heard in another process");
+
+        // The popup's page leaves its tab while it is heard, as the popup's next document is displayed by this process.
+        const arrived = nextMessage();
+        const navigatedAt = performance.now();
+        popup.location.href = sameSiteUrl;
+        await arrived;
+        println(`plays audio once navigated to this site: ${popup.internals.tabIsPlayingAudio()}`);
+        println(`stops playing audio a while later: ${await waitForCondition(() => !popup.internals.tabIsPlayingAudio())}`);
+        const heldFor = performance.now() - navigatedAt;
+        println(`about three seconds after navigating: ${heldFor >= 2500 && heldFor < 5000}`);
+        println(`changed whether it plays audio once: ${popup.internals.tabAudibilityChangeCount() - changes === 1}`);
+        popup.close();
+    });
+</script>

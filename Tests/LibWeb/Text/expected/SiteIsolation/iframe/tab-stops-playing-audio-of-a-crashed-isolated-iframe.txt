@@ -1,0 +1,8 @@
+plays audio heard in the isolated iframe: true
+stops playing audio once the iframe's process is gone: true
+before the sound would have been forgotten: true
+changed whether it plays audio once: true
+plays audio heard in another isolated iframe: true
+its process is gone: true
+plays audio heard in this document: true
+went on playing audio: true

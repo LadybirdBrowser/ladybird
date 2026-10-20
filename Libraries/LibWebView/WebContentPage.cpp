@@ -627,6 +627,10 @@ void WebContentPage::close()
         m_client->update_audio_capture_permission();
         m_client->forget_audio_playback(m_id);
     }
+    if (m_traversable) {
+        if (auto view = m_traversable->view(); view.has_value())
+            view->did_close_page({}, m_id);
+    }
     set_audibility(Audio::Audibility::Inaudible);
     auto owed_replies = move(m_owed_replies);
     for (auto owed : owed_replies)
@@ -2775,6 +2779,12 @@ Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse We
 {
     auto view = traversable().view();
     return view.has_value() && view->audibility() == Audio::Audibility::Audible;
+}
+
+Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse WebContentPage::did_request_tab_audibility_change_count_for_testing()
+{
+    auto view = traversable().view();
+    return view.has_value() ? view->audibility_change_count() : 0;
 }
 
 void WebContentPage::did_request_crash_of_remote_frame_processes_for_testing()

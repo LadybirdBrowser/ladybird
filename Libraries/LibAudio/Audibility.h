@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Time.h>
 #include <AK/Types.h>
 
 namespace Audio {
@@ -15,5 +16,8 @@ enum class Audibility : u8 {
     Inaudible,
     Audible,
 };
+
+// How long a group goes on counting as audible after its sound stops.
+static constexpr AK::Duration AUDIBILITY_LINGER = AK::Duration::from_seconds(3);
 
 }

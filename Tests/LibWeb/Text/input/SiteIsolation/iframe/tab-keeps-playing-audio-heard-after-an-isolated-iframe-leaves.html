@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function play() {
+        const context = new AudioContext();
+        const oscillator = new OscillatorNode(context);
+        oscillator.connect(context.destination);
+        oscillator.start();
+        return context;
+    }
+
+    promiseTest(async () => {
+        internals.setTestTimeout(30_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const httpServer = httpTestServer();
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", "/tab-keeps-playing-audio-heard-after-an-isolated-iframe-leaves-child", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>${play}play();<\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("tab-keeps-playing-audio-heard-after-an-isolated-iframe-leaves");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+
+        // This document's sound starts while the iframe's page holds the tab, and goes on after the hold has ended.
+        const changes = internals.tabAudibilityChangeCount();
+        iframe.remove();
+        const context = play();
+        await new Promise(resolve => setTimeout(resolve, 4000));
+        println(`plays audio heard after the hold: ${internals.tabIsPlayingAudio()}`);
+
+        await context.close();
+        println(`stops playing audio once nothing is heard: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
+        println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
+    });
+</script>

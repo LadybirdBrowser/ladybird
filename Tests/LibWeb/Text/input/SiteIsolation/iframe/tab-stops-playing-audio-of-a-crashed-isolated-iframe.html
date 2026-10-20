@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function play() {
+        const context = new AudioContext();
+        const oscillator = new OscillatorNode(context);
+        oscillator.connect(context.destination);
+        oscillator.start();
+        return context;
+    }
+
+    promiseTest(async () => {
+        internals.setTestTimeout(30_000);
+        // The tab can still be remembered as playing a previous test's sound.
+        await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const httpServer = httpTestServer();
+        const appendPlayingIframe = async name => {
+            const url = new URL(
+                await httpServer.createEcho("GET", `/${name}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body: `<!DOCTYPE html><script>${play}play();<\/script>`,
+                })
+            );
+            url.hostname = uniqueLocalhostHostname(name);
+            const iframe = document.createElement("iframe");
+            iframe.src = url;
+            document.body.appendChild(iframe);
+        };
+
+        // A page lost along with its process doesn't leave the tab, so its sound is forgotten at once.
+        await appendPlayingIframe("tab-stops-playing-audio-of-a-crashed-isolated-iframe");
+        println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+        let changes = internals.tabAudibilityChangeCount();
+        const crashedAt = performance.now();
+        internals.crashRemoteFrameProcesses();
+        println(`stops playing audio once the iframe's process is gone: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
+        println(`before the sound would have been forgotten: ${performance.now() - crashedAt < 2000}`);
+        println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
+
+        // The sound of the tab's other pages goes on being heard.
+        await appendPlayingIframe("tab-stops-playing-audio-of-a-crashed-isolated-iframe-again");
+        println(`plays audio heard in another isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
+        const context = play();
+        await waitForCondition(() => context.currentTime >= 0.5);
+        changes = internals.tabAudibilityChangeCount();
+        internals.crashRemoteFrameProcesses();
+        println(`its process is gone: ${await waitForCondition(() => remoteFrameCount() === 0)}`);
+        println(`plays audio heard in this document: ${internals.tabIsPlayingAudio()}`);
+        println(`went on playing audio: ${internals.tabAudibilityChangeCount() === changes}`);
+        await context.close();
+    });
+</script>
