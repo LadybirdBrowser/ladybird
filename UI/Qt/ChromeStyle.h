@@ -55,6 +55,7 @@ QString downloads_popover_style_sheet(QPalette const&);
 QString message_popover_style_sheet(QPalette const&);
 QString content_blocking_popover_style_sheet(QPalette const&);
 QString screenshot_selection_style_sheet(QPalette const&);
+QString screenshot_viewer_style_sheet();
 
 enum class CircularControlFrameStyle {
     InteractionOnly,

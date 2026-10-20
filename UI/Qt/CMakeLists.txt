@@ -51,6 +51,7 @@ target_sources(ladybird PRIVATE
     Popover.cpp
     ReportReview.cpp
     ScreenshotSelectionOverlay.cpp
+    ScreenshotViewer.cpp
     SelectDropdown.cpp
     StringUtils.cpp
     Tab.cpp

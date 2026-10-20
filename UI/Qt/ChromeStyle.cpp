@@ -1541,6 +1541,36 @@ QFrame#ScreenshotSelectionInstructions QPushButton:focus {{
         text, surface, border, control_border, hover_surface, pressed_surface, accent);
 }
 
+// The viewer darkens the whole tab whatever the theme, so its controls are light on dark like a photo viewer's.
+QString screenshot_viewer_style_sheet()
+{
+    return QStringLiteral(R"(
+QLabel#ScreenshotViewerCaption {
+    color: #ffffff;
+    background: rgba(0, 0, 0, 180);
+    border: 1px solid rgba(255, 255, 255, 40);
+    border-radius: 12px;
+    padding: 4px 12px;
+}
+
+QPushButton#ScreenshotViewerCloseButton {
+    color: #ffffff;
+    background: rgba(0, 0, 0, 180);
+    border: 1px solid rgba(255, 255, 255, 64);
+    border-radius: 6px;
+    padding: 5px 12px;
+}
+
+QPushButton#ScreenshotViewerCloseButton:hover {
+    background: rgba(48, 48, 48, 200);
+}
+
+QPushButton#ScreenshotViewerCloseButton:pressed {
+    background: rgba(0, 0, 0, 220);
+}
+)");
+}
+
 QString content_blocking_popover_style_sheet(QPalette const& palette)
 {
     auto text = style_sheet_color(chrome_text(palette));

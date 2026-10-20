@@ -87,6 +87,17 @@ target_sources(TestScreenshotSelectionOverlay PRIVATE
 )
 deploy_qt_offscreen_platform_plugin(TestScreenshotSelectionOverlay)
 
+ladybird_test("TestScreenshotViewer.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+    LIBS LibURL Qt::Core Qt::Gui Qt::Widgets
+)
+target_sources(TestScreenshotViewer PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ScreenshotViewer.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
+)
+deploy_qt_offscreen_platform_plugin(TestScreenshotViewer)
+
 ladybird_test("TestHiddenPageSizing.cpp" UI/Qt
     CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
     LIBS Qt::Core Qt::Gui Qt::Widgets
