@@ -1981,7 +1981,7 @@ impl RetainedState {
         let Some(cascaded) = self.cascaded_custom_declarations_of(node, pseudo) else {
             return Vec::new();
         };
-        let mut moved: Vec<Arc<[u16]>> = animated
+        let mut moved: HashSet<Arc<[u16]>> = animated
             .iter()
             .map(|(name, _)| Arc::from(name.to_utf16().as_ref()))
             .collect();
@@ -2001,13 +2001,13 @@ impl RetainedState {
             let reads_moved = |reads: &Option<Vec<&[u16]>>| {
                 reads
                     .as_ref()
-                    .is_none_or(|reads| reads.iter().any(|read| moved.iter().any(|name| name[..] == **read)))
+                    .is_none_or(|reads| reads.iter().any(|read| moved.contains(*read)))
             };
             let Some(index) = candidates.iter().position(|(_, _, _, reads)| reads_moved(reads)) else {
                 break;
             };
             let (name, declared, value, _) = candidates.swap_remove(index);
-            moved.push(name.text.clone());
+            moved.insert(name.text.clone());
             readers.push((name.clone(), declared, value));
         }
         if readers.is_empty() {
