@@ -19,7 +19,8 @@ Optional<Gfx::IntRect> compute_display_list_damage(
     DisplayList const& new_display_list,
     AccumulatedVisualContextTree const& new_visual_context_tree,
     ScrollStateSnapshot const& new_scroll_state,
-    Gfx::IntRect viewport_rect)
+    Gfx::IntRect viewport_rect,
+    LiveContentChanges live_content_changes)
 {
     auto old_scroll_offsets = old_scroll_state.device_offsets();
     auto new_scroll_offsets = new_scroll_state.device_offsets();
@@ -27,7 +28,10 @@ Optional<Gfx::IntRect> compute_display_list_damage(
     bool damage_is_bounded = Compositing::RustFFI::display_list_compute_damage(
         old_display_list.rust_handle(), old_visual_context_tree.rust_handle(), old_scroll_offsets.data(), old_scroll_offsets.size(),
         new_display_list.rust_handle(), new_visual_context_tree.rust_handle(), new_scroll_offsets.data(), new_scroll_offsets.size(),
-        viewport_rect, &damage_rect);
+        viewport_rect,
+        live_content_changes.canvases.data(), live_content_changes.canvases.size(),
+        live_content_changes.video_sinks.data(), live_content_changes.video_sinks.size(),
+        &damage_rect);
     if (!damage_is_bounded)
         return {};
     return damage_rect;
