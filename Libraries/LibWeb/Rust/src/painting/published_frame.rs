@@ -109,11 +109,10 @@ impl PublishedRows {
         id: NodeSlotId,
         read: impl FnOnce(Option<&FragmentLink>) -> R,
     ) -> R {
-        debug_assert!(self.paintable_row_is_populated(id));
         read(
             self.fragment_links
                 .get(id.slot_index() as usize)
-                .and_then(CommittedFragmentLinkSlot::link),
+                .and_then(|slot| slot.link_for(id.generation())),
         )
     }
 

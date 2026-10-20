@@ -384,7 +384,7 @@ fn previously_committed_fragment_matching(
     }
     callbacks
         .arena()
-        .with_committed_fragment_link_during_layout(candidate.node, |previous_link| {
+        .with_committed_fragment_link(candidate.node, |previous_link| {
             previous_link
                 .filter(|previous_link| candidate.builds_identically_to(&previous_link.fragment))
                 .map(|previous_link| previous_link.fragment.clone())
