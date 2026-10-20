@@ -1842,6 +1842,11 @@ pub struct RuntimeLayout {
     /// `ObjectMethods::internal_get_prototype_of`, which is null for objects
     /// whose prototype is the prototype of their shape.
     pub object_methods_get_prototype_of: u32,
+    /// `ObjectMethods::is_cacheable_for_property_absence`, and the hook that
+    /// classes whose objects have no other properties than those of their
+    /// shape keep there, or 0 if JIT code does not check it.
+    pub object_methods_is_cacheable_for_property_absence: u32,
+    pub default_is_cacheable_for_property_absence: u64,
     /// The entries of the VM's keyed property lookup cache, which remembers
     /// lookups of names on shapes for keyed accesses whose own caches do not
     /// have them, or 0 if JIT code does not look in it. The entry for a name

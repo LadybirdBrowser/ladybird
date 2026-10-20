@@ -66,7 +66,7 @@ use crate::runtime::function_environment::{
 };
 use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::module_environment::ModuleEnvironment;
-use crate::runtime::object::{ObjectMethods, PropertyKind};
+use crate::runtime::object::{ORDINARY_OBJECT_METHODS, ObjectMethods, PropertyKind};
 use crate::runtime::string_object::StringObject;
 use crate::runtime::string_prototype::StringPrototype;
 
@@ -339,6 +339,12 @@ fn runtime_layout() -> RuntimeLayout {
         property_lookup_cache_entry_type_change_own_property: PropertyLookupCacheEntryType::ChangeOwnProperty as u32,
         class_object_methods: offset(offset_of!(Class, object_methods)),
         object_methods_get_prototype_of: offset(offset_of!(ObjectMethods, internal_get_prototype_of)),
+        object_methods_is_cacheable_for_property_absence: offset(offset_of!(
+            ObjectMethods,
+            is_cacheable_for_property_absence
+        )),
+        default_is_cacheable_for_property_absence: ORDINARY_OBJECT_METHODS.is_cacheable_for_property_absence as usize
+            as u64,
         property_lookup_cache_polymorphic_tag: PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG as u64,
         property_lookup_cache_polymorphic_entry_count: MAX_NUMBER_OF_SHAPES_TO_REMEMBER as u32,
         property_lookup_cache_entry_size: offset(size_of::<PropertyLookupCacheEntry>()),
