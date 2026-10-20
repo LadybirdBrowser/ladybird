@@ -365,6 +365,8 @@ interface Internals {
     // Returns how many tasks sit in the main thread event loop's task queue, runnable or not.
     unsigned long long taskQueueLength();
     DOMString canvasColorScheme();
+    // Returns the number of shared image requests owned by the given document.
+    unsigned long long imageRequestCount(Document document);
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     object imageAnimationStateForURL(USVString url);
     boolean mediaElementIsFetching(HTMLMediaElement element);

@@ -176,6 +176,11 @@ GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document&
 
 void ImageStyleValue::load_any_resources(DOM::Document& document)
 {
+    // NB: Prefetching for inactive documents would load images merely from parsing or cloning declarations. If these
+    //     declarations are later rendered in an active document, register_client() will fetch their images then.
+    if (!document.is_fully_active())
+        return;
+
     if (resource_registered_by_clients(document))
         return;
     if (auto resolved_url = this->resolved_url(document); resolved_url.has_value() && document.css_image_resource(*resolved_url))
