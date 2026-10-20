@@ -105,6 +105,36 @@ pub(crate) fn resolve_column_geometry(style: StyleValues<'_>, available_inline_s
     }
 }
 
+// https://drafts.csswg.org/css-multicol-1/#intrinsic-sizes
+pub(crate) fn multicol_intrinsic_inline_size(
+    style: StyleValues<'_>,
+    content_inline_size: CssPixels,
+    is_min_content: bool,
+) -> CssPixels {
+    let column_count = if style.has_column_count() {
+        resolved_column_count(style)
+    } else {
+        1
+    };
+    let gaps = used_column_gap(style, CssPixels::default()) * (column_count - 1);
+    let column_width = resolved_column_width(style, CssPixels::default());
+    if is_min_content {
+        // The min-content inline size of a multi-column container with a computed column-width not auto is the
+        // smaller of its column-width and the largest min-content contribution of its contents.
+        if let Some(column_width) = column_width {
+            return column_width.min(content_inline_size);
+        }
+        // The min-content inline size of a multi-column container with a computed column-width of auto is the
+        // largest min-content contribution of its contents multiplied by its column-count (treating auto as 1),
+        // plus its column-gap multiplied by column-count minus 1.
+        return content_inline_size * column_count + gaps;
+    }
+    // The max-content inline size of a multi-column container is the product of its column-count (treating auto
+    // as 1) and the larger of its column-width (treating auto as zero) and the largest max-content contribution of
+    // its contents, plus its column-gap multiplied by one less than its column-count.
+    content_inline_size.max(column_width.unwrap_or_default()) * column_count + gaps
+}
+
 pub(crate) fn ceil_divide(value: CssPixels, divisor: usize) -> CssPixels {
     let divisor = divisor.max(1) as i64;
     CssPixels::from_raw(((value.raw_value() as i64 + divisor - 1).div_euclid(divisor)) as i32)

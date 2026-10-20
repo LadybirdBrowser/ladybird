@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .mc { columns: 3; column-gap: 0; width: 300px; }
+    p { margin: 0; width: 20px; }
+</style>
+<div style="display: flex"><div class="mc" id="flex-item"><p>a a a a a a a a a a a a a a a a a a a a a a a a</p></div></div>
+<div style="display: grid"><div class="mc" id="grid-item"><p>a a a a a a a a a a a a a a a a a a a a a a a a</p></div></div>
+<div class="mc" id="fit-content" style="height: fit-content"><p>a a a a a a a a a a a a a a a a a a a a a a a a</p></div>
+<div style="display: flex"><div id="nested"><div style="columns: 2"><div style="columns: 2"><div style="columns: 2"><canvas width="10" height="40" style="display: block"></canvas></div></div></div></div></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["flex-item", "grid-item", "fit-content", "nested"])
+            println(`${id}: ${document.getElementById(id).offsetHeight}`);
+        done();
+    });
+</script>

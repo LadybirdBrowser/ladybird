@@ -1,0 +1,6 @@
+min-content: 60
+max-content: 60
+fit-content: 120
+flex-item: 60
+grid-item: 60
+inline-block: 60

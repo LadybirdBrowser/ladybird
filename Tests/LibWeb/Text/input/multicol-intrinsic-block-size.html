@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    body { margin: 0; }
+    .multicol { columns: 3; column-gap: 0; width: 300px; }
+    .multicol > div { height: 50px; }
+    .case { margin-bottom: 20px; }
+    .text { display: inline-block; font: 10px/10px Ahem; vertical-align: top; }
+</style>
+<div class="case" style="display: flex"><div class="multicol" id="flex-item"><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+<div class="case" style="display: grid"><div class="multicol" id="grid-item"><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+<div class="case multicol" id="fit-content" style="height: fit-content"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+<div class="case multicol" id="size-contained" style="height: 120px; contain: size"></div>
+<div class="case multicol" id="size-container" style="height: 120px; container-type: size"></div>
+<div class="case"><div class="text" id="max-content" style="columns: 3; column-gap: 10px">aaaa bb</div></div>
+<div class="case" style="width: 0"><div class="text" id="min-content" style="columns: 3; column-gap: 10px">aaaa bb</div></div>
+<div class="case" style="width: 0"><div class="text" id="min-content-width" style="column-width: 30px">aaaa bb</div></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const id of ["flex-item", "grid-item", "fit-content"])
+            println(`${id}: ${document.getElementById(id).offsetHeight}`);
+        for (const id of ["size-contained", "size-container"]) {
+            const container = document.getElementById(id);
+            for (let i = 0; i < 12; ++i)
+                container.append(document.createElement("div"));
+            println(`${id}: scroll width ${container.scrollWidth}`);
+        }
+        for (const id of ["max-content", "min-content", "min-content-width"])
+            println(`${id}: ${document.getElementById(id).offsetWidth}`);
+        done();
+    });
+</script>

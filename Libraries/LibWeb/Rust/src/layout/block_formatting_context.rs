@@ -272,6 +272,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     broken_child_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
     unbreakable_line_roots: RefCell<HashSet<Node>>,
     break_before_child_is_avoided: Cell<Option<Node>>,
+    intrinsic_inline_size_constraint: Cell<AvailableSize>,
 }
 
 #[derive(Default)]
@@ -387,6 +388,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             broken_child_token: RefCell::new(None),
             unbreakable_line_roots: RefCell::new(HashSet::default()),
             break_before_child_is_avoided: Cell::new(None),
+            intrinsic_inline_size_constraint: Cell::new(AvailableSize::Indefinite),
         }
     }
 
@@ -3324,8 +3326,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.facts(self.run.box_).lays_out_in_columns()
     }
 
-    fn lays_out_multicol_container(&self) -> bool {
-        self.run.fragmentainer.is_none() && self.run.layout_mode == LayoutMode::Normal && self.is_multicol_container()
+    fn lays_out_multicol_container(&self, input: LayoutInput) -> bool {
+        self.run.fragmentainer.is_none()
+            && (self.run.layout_mode == LayoutMode::Normal
+                || matches!(input.available_space.inline_size, AvailableSize::Definite(_)))
+            && self.is_multicol_container()
     }
 
     fn layout_multicol_container(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
@@ -4017,6 +4022,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available_space = input.available_space;
+        self.intrinsic_inline_size_constraint.set(available_space.inline_size);
         self.used(self.run.box_)
             .clamped_content_is_scrollable_overflow
             .set(self.clamped_content_is_scrollable_overflow);
@@ -4043,7 +4049,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 }
             }
         }
-        if self.lays_out_multicol_container() {
+        if self.lays_out_multicol_container(input) {
             self.layout_multicol_container(run, input);
             if self.facts(self.run.box_).is_list_item_box() {
                 self.layout_list_item_marker(
@@ -4660,9 +4666,15 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn greatest_child_inline_size_including_floats(&self, node: Node) -> CssPixels {
+        let (content, spanners) = self.greatest_child_inline_sizes_including_floats(node);
+        content.max(spanners)
+    }
+
+    fn greatest_child_inline_sizes_including_floats(&self, node: Node) -> (CssPixels, CssPixels) {
         // Similar to the former C++ greatest_child_inline_size() helper.
         // but this one takes floats into account!
         let mut max_inline_size = CssPixels::default();
+        let mut max_spanner_inline_size = CssPixels::default();
 
         // https://drafts.csswg.org/css2/#floats
         // A line box is next to a float when there exists a vertical position that satisfies all of these
@@ -4746,6 +4758,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         } else {
             drop(floats);
+            let lays_out_in_columns = self.facts(node).lays_out_in_columns();
             for child in self.laid_out_children(node) {
                 if !self.facts(child).is_flow_layout_participant() {
                     continue;
@@ -4754,11 +4767,16 @@ impl<'pass> BlockFormattingContext<'pass> {
                     if used.is_invisible_for_line_clamp.get() {
                         continue;
                     }
-                    max_inline_size = max_inline_size.max(used.margin_box_inline_size(false));
+                    let inline_size = used.margin_box_inline_size(false);
+                    if lays_out_in_columns && self.is_column_spanner(child) {
+                        max_spanner_inline_size = max_spanner_inline_size.max(inline_size);
+                    } else {
+                        max_inline_size = max_inline_size.max(inline_size);
+                    }
                 }
             }
         }
-        max_inline_size
+        (max_inline_size, max_spanner_inline_size)
     }
 
     pub(crate) fn automatic_content_inline_size(&self) -> CssPixels {
@@ -4790,7 +4808,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let root_facts = self.facts(self.run.box_);
         if root_facts.children_are_inline() {
-            return self.used(self.run.box_).content_inline_size.get();
+            let content_inline_size = self.used(self.run.box_).content_inline_size.get();
+            if self.run.layout_mode == LayoutMode::IntrinsicSizing && self.is_multicol_container() {
+                return self.multicol_intrinsic_inline_size(content_inline_size);
+            }
+            return content_inline_size;
         }
         if root_facts.is_table_wrapper() {
             let mut stack: Vec<Node> = self.run.callbacks.children_rev(self.run.box_).collect();
@@ -4804,11 +4826,32 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
             unreachable!("a table wrapper contains its table box");
         }
+        if self.run.layout_mode == LayoutMode::IntrinsicSizing && self.is_multicol_container() {
+            let (column_content_inline_size, spanner_inline_size) =
+                self.greatest_child_inline_sizes_including_floats(self.run.box_);
+            return self
+                .multicol_intrinsic_inline_size(column_content_inline_size)
+                .max(spanner_inline_size);
+        }
         self.greatest_child_inline_size_including_floats(self.run.box_)
     }
 
     pub(crate) fn min_content_inline_size_from_max_content_layout(&self) -> Option<CssPixels> {
-        self.min_content_inline_size_from_max_content_layout.get()
+        let minimum = self.min_content_inline_size_from_max_content_layout.get();
+        if self.is_multicol_container() {
+            return minimum.map(|minimum| {
+                fragmentation::multicol_intrinsic_inline_size(self.style(self.run.box_), minimum, true)
+            });
+        }
+        minimum
+    }
+
+    fn multicol_intrinsic_inline_size(&self, content_inline_size: CssPixels) -> CssPixels {
+        fragmentation::multicol_intrinsic_inline_size(
+            self.style(self.run.box_),
+            content_inline_size,
+            self.intrinsic_inline_size_constraint.get() == AvailableSize::MinContent,
+        )
     }
 
     fn resolve_automatic_line_clamp_block_size(&self, input: LayoutInput) -> Option<CssPixels> {

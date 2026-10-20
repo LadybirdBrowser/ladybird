@@ -33,6 +33,7 @@ struct MeasurementMemo {
 
 struct MemoizedMeasurement {
     purpose: super::formatting_context::LayoutPurpose,
+    layout_mode: super::formatting_context::LayoutMode,
     key: super::fc_run_cache::FcRunCacheKey,
     outputs: super::formatting_context::RunOutputs,
 }
@@ -101,6 +102,7 @@ impl LayoutScratch {
         &self,
         box_: NodeSlotId,
         purpose: super::formatting_context::LayoutPurpose,
+        layout_mode: super::formatting_context::LayoutMode,
         key: &super::fc_run_cache::FcRunCacheKey,
     ) -> Option<super::formatting_context::RunOutputs> {
         self.measurement_memo
@@ -108,7 +110,7 @@ impl LayoutScratch {
             .runs
             .get(&box_)?
             .iter()
-            .find(|memoized| memoized.purpose == purpose && memoized.key == *key)
+            .find(|memoized| memoized.purpose == purpose && memoized.layout_mode == layout_mode && memoized.key == *key)
             .map(|memoized| memoized.outputs.clone())
     }
 
@@ -116,6 +118,7 @@ impl LayoutScratch {
         &self,
         box_: NodeSlotId,
         purpose: super::formatting_context::LayoutPurpose,
+        layout_mode: super::formatting_context::LayoutMode,
         key: super::fc_run_cache::FcRunCacheKey,
         outputs: &super::formatting_context::RunOutputs,
     ) {
@@ -125,6 +128,7 @@ impl LayoutScratch {
         }
         memo.runs.entry(box_).or_default().push(MemoizedMeasurement {
             purpose,
+            layout_mode,
             key,
             outputs: outputs.clone(),
         });

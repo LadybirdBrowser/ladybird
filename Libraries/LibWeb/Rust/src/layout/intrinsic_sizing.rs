@@ -61,7 +61,21 @@ pub(super) fn compute_inline_sizes(
                 sizing.constraints_for_child_context(node, constraints),
                 ParticipationInParentFormattingContext::BlockLevel,
             );
-            compute_from_atomic_children(&run, input).or_else(|| compute_from_items(&run, input))
+            let measurement = compute_from_atomic_children(&run, input).or_else(|| compute_from_items(&run, input))?;
+            if !facts.lays_out_in_columns() {
+                return Some(measurement);
+            }
+            Some(IntrinsicInlineSizeMeasurement {
+                automatic_content_inline_size: fragmentation::multicol_intrinsic_inline_size(
+                    style,
+                    measurement.automatic_content_inline_size,
+                    false,
+                ),
+                min_content_inline_size_from_max_content_layout: measurement
+                    .min_content_inline_size_from_max_content_layout
+                    .map(|minimum| fragmentation::multicol_intrinsic_inline_size(style, minimum, true)),
+                ..measurement
+            })
         },
     )
 }

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .case { margin-bottom: 20px; }
+    .block { height: 20px; }
+    .cell { width: 50px; height: 30px; }
+</style>
+<div class="case" id="pre" style="columns: 2; column-gap: 0; width: 400px; white-space: pre"><div class="block" style="break-after: column"></div>
+<div class="block" id="pre-second"></div></div>
+<div class="case" id="capped" style="columns: 4; column-fill: auto; height: 120px; width: 400px"></div>
+<div class="case"><input id="input" style="columns: 2; width: 200px" value="aa bb cc dd ee"><input id="plain-input" style="width: 200px" value="aa bb cc dd ee"></div>
+<div class="case"><textarea id="textarea" style="columns: 2" cols="20">aa bb cc dd ee</textarea><textarea id="plain-textarea" cols="20">aa bb cc dd ee</textarea></div>
+<fieldset class="case" id="fieldset" style="columns: 3; column-gap: 0; float: left; margin: 0; padding: 0; border: 0"><div class="cell"></div><div class="cell"></div><div class="cell" id="fieldset-last"></div></fieldset>
+<div style="clear: both"></div>
+<button class="case" id="button" style="columns: 3; column-gap: 0; padding: 0; border: 0"><div class="cell"></div><div class="cell"></div><div class="cell" id="button-last"></div></button>
+<script>
+    function rectsIn(element, container) {
+        const origin = container.getBoundingClientRect();
+        return [...element.getClientRects()]
+            .map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`)
+            .join(" ");
+    }
+
+    test(() => {
+        const capped = document.getElementById("capped");
+        for (let i = 0; i < 7000; ++i) {
+            const item = document.createElement("div");
+            item.className = "block";
+            capped.append(item);
+        }
+        const pre = document.getElementById("pre");
+        println(`after a forced break and preserved whitespace: ${rectsIn(document.getElementById("pre-second"), pre)}`);
+        println(`last item past the column cap: ${rectsIn(capped.lastElementChild, capped)}`);
+        const sameSize = (a, b) => a.offsetWidth === b.offsetWidth && a.offsetHeight === b.offsetHeight;
+        println(`input with columns sized like an input: ${sameSize(document.getElementById("input"), document.getElementById("plain-input"))}`);
+        println(`textarea with columns sized like a textarea: ${sameSize(document.getElementById("textarea"), document.getElementById("plain-textarea"))}`);
+        for (const id of ["fieldset", "button"]) {
+            const container = document.getElementById(id);
+            println(`${id}: ${container.offsetWidth}x${container.offsetHeight}, last child ${rectsIn(document.getElementById(`${id}-last`), container)}`);
+        }
+    });
+</script>
