@@ -158,6 +158,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
     seen.set(value);
 
     // 3. Let result be the value of the first matching statement, matching on value:
+    Optional<u32> collection_length;
     auto result = TRY(([&]() -> ErrorOr<ResultType, WebDriver::Error> {
         // -> a collection
         if (is_collection(value)) {
@@ -167,6 +168,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
             auto length = TRY_OR_JS_ERROR(length_property.to_length(vm));
             if (length > NumericLimits<u32>::max())
                 return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Length of Object too large"sv);
+            collection_length = static_cast<u32>(length);
 
             if constexpr (is_json_value)
                 return JsonArray { length };
@@ -186,7 +188,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
     Optional<WebDriver::Error> error;
 
     // 4. For each enumerable property in value, run the following substeps:
-    (void)value.enumerate_object_properties([&](auto property) -> Optional<JS::Completion> {
+    auto clone_property = [&](auto property) -> Optional<JS::Completion> {
         // 1. Let name be the name of the property.
         auto name = MUST(JS::PropertyKey::from_value(vm, property));
 
@@ -221,7 +223,19 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
         }
 
         return {};
-    });
+    };
+
+    if (collection_length.has_value()) {
+        // INTEROP: Chromium and Firefox clone collection entries rather than arbitrary enumerable properties.
+        //          Both visit every index, including holes, without a separate limit for sparse lengths.
+        //          This also preserves non-enumerable indexed properties, like JSON array serialization.
+        for (u32 index = 0; index < *collection_length; ++index) {
+            if (clone_property(JS::Value(index)).has_value())
+                break;
+        }
+    } else {
+        (void)value.enumerate_object_properties(move(clone_property));
+    }
 
     if (error.has_value())
         return error.release_value();
