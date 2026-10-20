@@ -7,15 +7,19 @@
 use super::NativeRuleType;
 use super::read::{NativeRuleView, RuleRef};
 use crate::css::container_conditions::ContainerConditionsData;
-use crate::css::descriptor_block::DescriptorBlockData;
+use crate::css::custom_properties::{
+    SubstitutionFunctionDeclaration, prepare_function_declarations, prepare_function_parameter_defaults,
+};
 use crate::css::function_signature::FunctionSignature;
 use crate::css::media_list::MediaListData;
+use crate::css::parser::component_value::ComponentValue;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
 /// One block of a function's declarations, with the conditions that gate it.
 pub(crate) struct FunctionDeclarationInput {
-    pub(crate) declarations: Arc<DescriptorBlockData>,
+    pub(crate) declarations: Vec<SubstitutionFunctionDeclaration>,
+    pub(crate) reads_attributes: bool,
     /// The container conditions around the block, nearest first, which hold for an element or not.
     pub(crate) containers: Vec<Arc<ContainerConditionsData>>,
     /// The `@media` lists around the block, which hold for the document or not.
@@ -27,6 +31,8 @@ pub(crate) struct FunctionDeclarationInput {
 pub struct CompiledFunction {
     pub(crate) identity: u64,
     pub(crate) signature: Arc<FunctionSignature>,
+    pub(crate) parameter_defaults: Vec<Option<Vec<ComponentValue>>>,
+    pub(crate) parameter_defaults_read_attributes: bool,
     pub(crate) inputs: Vec<FunctionDeclarationInput>,
 }
 
@@ -53,8 +59,11 @@ impl CompiledFunction {
                             .cloned()
                             .collect()
                     };
+                    let (parsed_declarations, reads_attributes) =
+                        prepare_function_declarations(&rule.descriptors().unwrap());
                     inputs.push(FunctionDeclarationInput {
-                        declarations: rule.descriptors().unwrap(),
+                        declarations: parsed_declarations,
+                        reads_attributes,
                         containers: conditions,
                         media: media.clone(),
                     });
@@ -79,9 +88,13 @@ impl CompiledFunction {
                 _ => {}
             }
         }
+        let signature = view.rule.function_signature().unwrap();
+        let (parameter_defaults, parameter_defaults_read_attributes) = prepare_function_parameter_defaults(&signature);
         let mut result = Self {
             identity: view.rule.identity(),
-            signature: view.rule.function_signature().unwrap(),
+            signature,
+            parameter_defaults,
+            parameter_defaults_read_attributes,
             inputs: Vec::new(),
         };
         let _ = view.rule.visit_children(&mut |child| {

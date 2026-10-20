@@ -23,8 +23,8 @@ use crate::css::cascaded_properties::{
     CascadeResolutionContext, parse_substituted_value, resolve_declared_custom_properties,
 };
 use crate::css::custom_properties::{
-    CustomFunctionVisibility, CustomPropertyFinalization, CustomPropertyStore, FfiSubstitutionFunctionVisibility,
-    NativeVarResolution, SubstitutionAttribute, SubstitutionFunctionDeclaration, SubstitutionFunctionDefinition,
+    CustomFunctionRegistry, CustomFunctionVisibility, CustomPropertyFinalization, CustomPropertyStore,
+    FfiSubstitutionFunctionVisibility, NativeVarResolution, PreparedCustomFunction, SubstitutionAttribute,
     VarResolutionInputs, prepare_var_resolution_environment,
 };
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
@@ -33,6 +33,8 @@ use crate::css::style_value::{
     RetainedStyleValueData, StyleValueData, custom_property_references, utf16_equals_ascii_case_insensitive,
 };
 use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
+
+static EMPTY_CUSTOM_FUNCTIONS: CustomFunctionRegistry<'static> = CustomFunctionRegistry::empty();
 
 /// The document's media features as the style update a transaction belongs to saw them, which
 /// `media()` conditions in `if()` read. Copied rather than borrowed: the host's snapshot ends with
@@ -325,11 +327,10 @@ impl DocumentFunctionSnapshot {
 /// The custom functions a node's calls may reach, as the resolver takes them: each definition with
 /// the declarations its conditions select for the node, and which definition each scope's calls
 /// name.
-pub(super) struct PreparedCustomFunctions {
-    definitions: Vec<SubstitutionFunctionDefinition>,
-    visibilities: Vec<CustomFunctionVisibility>,
-    caller_scope: usize,
-    /// Whether a selected declaration substitutes `attr()`, which reads the node's attributes.
+pub(super) struct PreparedCustomFunctions<'a> {
+    registry: CustomFunctionRegistry<'a>,
+    /// Whether a parameter default or selected declaration substitutes `attr()`, which reads the
+    /// node's attributes.
     pub(super) reads_attributes: bool,
     /// What the container conditions read of the node's containers, for the host to record with
     /// its record; `None` when no condition was evaluated.
@@ -360,7 +361,7 @@ fn engine_resolution_context<'a>(
     media_environment: &'a crate::css::parser::query_parser::FfiMediaEnvironment<'a>,
     style_query: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,
     style_query_references: Option<&'a mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
-    functions: Option<&'a PreparedCustomFunctions>,
+    functions: Option<&'a PreparedCustomFunctions<'a>>,
 ) -> CascadeResolutionContext<'a> {
     CascadeResolutionContext {
         inputs: VarResolutionInputs {
@@ -374,9 +375,7 @@ fn engine_resolution_context<'a>(
             style_query_inputs: style_query,
         },
         attributes: attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice()),
-        custom_functions: functions.map_or(&[][..], |functions| functions.definitions.as_slice()),
-        custom_function_scope_identity: functions.map_or(0, |functions| functions.caller_scope),
-        custom_function_visibilities: functions.map_or(&[][..], |functions| functions.visibilities.as_slice()),
+        custom_functions: functions.map_or(&EMPTY_CUSTOM_FUNCTIONS, |functions| &functions.registry),
         style_query_dependencies: style_query_references,
     }
 }
@@ -643,7 +642,7 @@ pub(super) struct SubstitutionInputs<'a> {
     /// Where the custom properties a `style()` query reads are noted.
     pub style_query_references:
         Option<&'a std::cell::RefCell<Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>>,
-    pub functions: Option<&'a PreparedCustomFunctions>,
+    pub functions: Option<&'a PreparedCustomFunctions<'a>>,
 }
 
 /// What an `attr()` reads of an element, as the resolution takes it: each of the element's
@@ -1374,23 +1373,19 @@ impl RetainedState {
     /// resolve against: the functions its tree scope's calls reach, each with the blocks of
     /// declarations whose `@media` conditions hold for the transaction and whose container
     /// conditions hold for the node. `None` when the engine cannot decide a container condition.
-    pub(super) fn prepare_custom_functions(
+    pub(super) fn prepare_custom_functions<'a>(
         &self,
+        snapshot: &'a DocumentFunctionSnapshot,
         node: StyleNodeID,
         pseudo: Option<u8>,
-    ) -> Option<PreparedCustomFunctions> {
-        let (caller_scope, visible) = self.document_functions.scope_functions(self.tree.tree_scope(node));
+    ) -> Option<PreparedCustomFunctions<'a>> {
+        let (caller_scope, visible) = snapshot.scope_functions(self.tree.tree_scope(node));
         let visible_definitions = visible.map_or(&[][..], |visible| visible.definitions.as_slice());
         let mut container_effects: Option<super::container_queries::ContainerVerdict> = None;
         let mut reads_attributes = false;
-        let mut declarations = Vec::with_capacity(visible_definitions.len());
-        for (function, _, selected_inputs) in visible_definitions {
-            reads_attributes |= function
-                .signature
-                .parameters
-                .iter()
-                .filter_map(|parameter| parameter.default_value.as_deref())
-                .any(value_reads_attributes);
+        let mut definitions = Vec::with_capacity(visible_definitions.len());
+        for (function, scope, selected_inputs) in visible_definitions {
+            reads_attributes |= function.parameter_defaults_read_attributes;
             let mut selected = Vec::new();
             for input in selected_inputs.iter().map(|&index| &function.inputs[index]) {
                 if !input.containers.is_empty() {
@@ -1401,30 +1396,23 @@ impl RetainedState {
                         continue;
                     }
                 }
-                for descriptor in &input.declarations.descriptors {
-                    reads_attributes |= value_reads_attributes(&descriptor.value);
-                    selected.push(SubstitutionFunctionDeclaration {
-                        name: descriptor.name.clone(),
-                        value: descriptor.value.clone(),
-                    });
-                }
+                reads_attributes |= input.reads_attributes;
+                selected.extend(&input.declarations);
             }
-            declarations.push(selected);
-        }
-        let definitions = visible_definitions
-            .iter()
-            .zip(declarations)
-            .map(|((function, scope, _), declarations)| SubstitutionFunctionDefinition {
+            definitions.push(PreparedCustomFunction {
                 identity: function.identity,
                 scope_identity: *scope,
-                signature: function.signature.clone(),
-                declarations,
-            })
-            .collect();
+                signature: &function.signature,
+                parameter_defaults: &function.parameter_defaults,
+                declarations: selected,
+            });
+        }
         Some(PreparedCustomFunctions {
-            definitions,
-            visibilities: visible.map_or_else(Vec::new, |visible| visible.visibilities.clone()),
-            caller_scope,
+            registry: CustomFunctionRegistry {
+                definitions,
+                visible: visible.map_or(&[][..], |visible| visible.visibilities.as_slice()),
+                caller_scope_identity: caller_scope,
+            },
             reads_attributes,
             container_effects,
         })
@@ -1709,7 +1697,7 @@ impl RetainedState {
         {
             // A container condition the engine cannot decide asks about an ancestor the host styles
             // in this update: the row waits for it.
-            let Some(mut functions) = self.prepare_custom_functions(node, pseudo) else {
+            let Some(mut functions) = self.prepare_custom_functions(&self.document_functions, node, pseudo) else {
                 self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                 return Err(Unanswered::AwaitsParent);
             };
@@ -2031,7 +2019,7 @@ impl RetainedState {
             .any(|(_, _, value)| value_calls_custom_functions(value.data()))
         {
             // A container condition the engine cannot decide leaves the declarations as they resolved.
-            let Some(functions) = self.prepare_custom_functions(node, pseudo) else {
+            let Some(functions) = self.prepare_custom_functions(&self.document_functions, node, pseudo) else {
                 return Vec::new();
             };
             Some(functions)
@@ -2153,7 +2141,7 @@ impl RetainedState {
     ) -> RetainedStyleValueData {
         let calls_functions = value_calls_custom_functions(written.data());
         let functions = calls_functions
-            .then(|| self.prepare_custom_functions(node, pseudo_kind))
+            .then(|| self.prepare_custom_functions(&self.document_functions, node, pseudo_kind))
             .flatten();
         let reads_attributes = value_reads_attributes(written.data())
             || functions.as_ref().is_some_and(|functions| functions.reads_attributes);
@@ -2283,9 +2271,7 @@ fn substitute_against_stores(
     let media_environment = inputs.media.environment();
     let mut resolution_environment = prepare_var_resolution_environment(
         attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice()),
-        functions.map_or(&[][..], |functions| functions.definitions.as_slice()),
-        functions.map_or(0, |functions| functions.caller_scope),
-        functions.map_or(&[][..], |functions| functions.visibilities.as_slice()),
+        functions.map_or(&EMPTY_CUSTOM_FUNCTIONS, |functions| &functions.registry),
     );
     let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
     let resolution_inputs = VarResolutionInputs {

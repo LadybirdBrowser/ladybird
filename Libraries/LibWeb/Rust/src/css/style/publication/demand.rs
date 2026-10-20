@@ -682,7 +682,10 @@ impl RetainedState {
                     Some(substituted_property) => {
                         let calls_functions = custom_property_cascade::value_calls_custom_functions(written.data());
                         if calls_functions && functions.is_none() {
-                            functions = Some(self.prepare_custom_functions(subject, None).or_refused()?);
+                            functions = Some(
+                                self.prepare_custom_functions(&self.document_functions, subject, None)
+                                    .or_refused()?,
+                            );
                         }
                         if style_query.is_none()
                             && (calls_functions || custom_property_cascade::value_reads_conditions(written.data()))

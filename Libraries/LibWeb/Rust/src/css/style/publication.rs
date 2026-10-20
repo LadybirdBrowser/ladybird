@@ -3481,7 +3481,7 @@ impl RetainedState {
         // reaches, likewise.
         let mut style_query = None;
         let style_query_references = std::cell::RefCell::new(None);
-        let mut functions: Option<custom_property_cascade::PreparedCustomFunctions> = None;
+        let mut functions: Option<custom_property_cascade::PreparedCustomFunctions<'_>> = None;
         // Whether a property rolled back below a substituted revert keyword: what it rolled back to
         // is decided by declarations the winners do not name.
         let mut rolled_back = false;
@@ -3542,7 +3542,8 @@ impl RetainedState {
                 if calls_functions && functions.is_none() {
                     // A container condition the engine cannot decide asks about an ancestor the
                     // host styles in this update: the row waits for it.
-                    let Some(prepared) = self.prepare_custom_functions(node, pseudo_kind) else {
+                    let Some(prepared) = self.prepare_custom_functions(&self.document_functions, node, pseudo_kind)
+                    else {
                         self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                         return Err(Unanswered::AwaitsParent);
                     };
