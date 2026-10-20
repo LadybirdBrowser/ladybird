@@ -14,7 +14,7 @@
 def</textarea>
 <div id="rich" contenteditable>hello world</div>
 <iframe id="iframe" srcdoc='<input value="hello world">'></iframe>
-<input id="result" aria-label="Result" readonly value="ready">
+<input id="result" aria-label="Result" readonly value="loading">
 <script>
 let target;
 let events = [];
@@ -22,6 +22,7 @@ let cancelDeletion = false;
 let cancelKeyboard = false;
 let serial = 0;
 const result = document.getElementById("result");
+window.onload = () => { result.value = "ready"; };
 function report() {
     if (!target) return;
     const doc = target.ownerDocument;

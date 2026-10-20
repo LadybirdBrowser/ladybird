@@ -135,7 +135,6 @@ class LadybirdContext:
         self._web = None
         self._stderr_file: Optional[tempfile.NamedTemporaryFile] = None
         self._profile_directory: Optional[str] = None
-        self._initial_load_notifications = None
 
     def __enter__(self) -> "LadybirdContext":
         self.start()
@@ -243,12 +242,6 @@ class LadybirdContext:
 
         self._app = AXUIElementCreateApplication(self._process.pid)
         startup_timeout = float(os.environ.get("LADYBIRD_AX_STARTUP_TIMEOUT", "60"))
-        if self._launch_via_launch_services:
-            from .notifications import NotificationCollector
-
-            if not wait_for(lambda: _ax_attr(self._app, kAXRoleAttribute), timeout=startup_timeout):
-                raise RuntimeError("The fixture did not become responsive to accessibility requests")
-            self._initial_load_notifications = NotificationCollector(self._process.pid, self._app, ["AXLoadComplete"])
 
         # A test that decides for itself when an assistive technology first reads the page waits for nothing here: Any
         # accessibility query into the window turns Qt's accessibility on, and with it the fetch of the page's tree.
@@ -290,26 +283,7 @@ class LadybirdContext:
                 f"Stderr:\n{stderr_excerpt}"
             )
 
-        if self._initial_load_notifications is not None:
-            collector = self._initial_load_notifications
-            try:
-
-                def initial_focus_delivered():
-                    collector.collect(0.05)
-                    return "AXLoadComplete" in collector.names()
-
-                if not wait_for(
-                    initial_focus_delivered, timeout=startup_timeout, description="initial accessibility focus delivery"
-                ):
-                    raise RuntimeError("The fixture didn't finish its initial accessibility focus announcement")
-            finally:
-                collector.close()
-                self._initial_load_notifications = None
-
     def stop(self) -> None:
-        if self._initial_load_notifications is not None:
-            self._initial_load_notifications.close()
-            self._initial_load_notifications = None
         if self._process is None:
             self._cleanup_stderr_file()
             self._cleanup_profile_directory()

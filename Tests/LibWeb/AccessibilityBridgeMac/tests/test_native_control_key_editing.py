@@ -105,6 +105,17 @@ class NativeControlKeyEditingTests(unittest.TestCase):
         )
         self.addCleanup(self._cleanup_fixture)
         self.ctx.start()
+        # A page announces its load only to an assistive technology that queried it during the load, and only while
+        # the view holds the keyboard focus in the key window. So the fixture reports its own load event.
+        self.assertTrue(
+            wait_for(
+                lambda: any(
+                    _ax_attr(field, kAXValueAttribute) == "ready"
+                    for field in find_all_by_role(self.ctx.web, "AXTextField")
+                )
+            ),
+            "fixture did not finish loading",
+        )
         activate_fixture(self.ctx.pid)
 
     def _cleanup_fixture(self):
