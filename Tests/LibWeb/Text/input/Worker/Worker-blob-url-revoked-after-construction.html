@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const url = URL.createObjectURL(new Blob(["postMessage('hello')"], { type: "text/javascript" }));
+        const worker = new Worker(url);
+        URL.revokeObjectURL(url);
+        worker.onmessage = event => {
+            println(`message: ${event.data}`);
+            done();
+        };
+        worker.onerror = () => {
+            println("error");
+            done();
+        };
+    });
+</script>
