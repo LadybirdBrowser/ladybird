@@ -23,6 +23,7 @@
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 #include <LibWebCommon/Page/PageId.h>
+#include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 
@@ -138,6 +139,9 @@ private:
         Vector<Owner> owners;
         NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
         bool may_read_local_files { false };
+        // Keeps the blob URL entry of the worker's script alive until the script is loaded, so that the owner can
+        // revoke the URL right after constructing the worker.
+        BlobURLHandle script_blob_url;
     };
 
     // A worker whose agent is gone counts toward the workers of its top-level site until its process exits, or until its
