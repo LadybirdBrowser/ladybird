@@ -1,0 +1,24 @@
+When a document repopulated for its session history entry creates a
+child navigable, Ladybird restores the nested history the entry kept,
+and traverses the child to it at once. So Ladybird now stops the lazy
+loading of the child’s iframe there, and the restored document stays.
+
+Blink and Gecko don’t meet this case: Both restore a new child
+frame’s entry only in place of the frame’s own first load, and
+only while the parent’s history load is in progress. In Blink,
+NavigationControllerImpl::StartHistoryNavigationInNewSubframe() loads
+the restored entry in place of a child frame’s first navigation, as
+long as LocalFrameClientImpl::BeginNavigation() found the parent’s
+IsBackForwardNavigationInProgress() true. In Gecko, nsDocShell::
+MaybeHandleSubframeHistory() swaps the restored entry in while the
+parent docshell IsLoadingFromSessionHistory(). So in both, a lazy frame
+stays lazy — and once its lazy load starts after the parent has loaded,
+it loads its src rather than the restored entry.
+
+Both also stop a frame’s lazy loading when another load starts in
+the frame or commits in it: Blink’s FrameLoader::StartNavigation()
+and FrameLoader::CommitNavigation() call CancelPendingLazyLoad(), as
+do LocalFrame::Navigate() and RemoteFrame::Navigate(), and Gecko’s
+nsDocShell::InternalLoad() calls StopLazyLoading(TriggerLoad::No) for
+every load but a reload. Stopping at the restore applies that same rule
+to the load Ladybird’s restore at creation makes.
