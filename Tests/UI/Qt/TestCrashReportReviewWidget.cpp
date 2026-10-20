@@ -123,11 +123,42 @@ TEST_CASE(the_review_offers_to_exit_before_and_after_answering)
     exit_button.click();
     EXPECT_EQ(exits, 2);
 
-    // A report that may still be sent offers both.
+    // A report that may still be sent offers to try again, or to go back to the review.
     widget.show_failure(ReportSubmission::Failure::Sending, "Network error while contacting the report server."_string);
     EXPECT(child<QPushButton>(widget, "CrashReportRetryButton").isVisible());
-    EXPECT(exit_button.isVisible());
-    EXPECT(!exit_button.isDefault());
+    EXPECT(child<QPushButton>(widget, "CrashReportCancelButton").isVisible());
+    EXPECT(!exit_button.isVisible());
+}
+
+TEST_CASE(sending_can_be_canceled_until_the_report_is_sent)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto name = write_report("2026-10-01T12-00-00Z"sv);
+    WebView::CrashReportStore store { test_directory() };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
+    auto answers = 0;
+    widget.on_answered = [&] { ++answers; };
+    MUST(widget.open_report(name));
+    widget.show();
+
+    auto& description = child<QPlainTextEdit>(widget, "CrashReportDescription");
+    description.setPlainText("Opening a menu");
+    widget.show_progress(ReportSubmission::Stage::SolvingProof);
+    auto& cancel = child<QPushButton>(widget, "CrashReportCancelButton");
+    EXPECT(cancel.isVisible());
+    EXPECT(!cancel.isDefault());
+    EXPECT(!child<QPushButton>(widget, "CrashReportExitButton").isVisible());
+
+    cancel.click();
+    EXPECT(child<QPushButton>(widget, "CrashReportSendButton").isVisible());
+    EXPECT_EQ(description.toPlainText(), "Opening a menu");
+    EXPECT_EQ(answers, 0);
+
+    widget.show_sent();
+    EXPECT_EQ(answers, 1);
+    EXPECT(!cancel.isVisible());
 }
 
 TEST_CASE(a_choice_that_cannot_be_sent_is_explained_in_place)

@@ -78,6 +78,7 @@ public:
     virtual ~ReportSubmission();
 
     void start();
+    void cancel();
 
     Function<void(Stage)> on_progress;
     Function<void(ByteString const& manifest)> on_prepared;
