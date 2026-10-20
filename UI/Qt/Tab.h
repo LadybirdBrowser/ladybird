@@ -122,7 +122,7 @@ public:
     void update_window_control_icons();
     void update_hover_label();
 
-    void set_tab_to_activate_on_close(Tab& tab) { m_tab_to_activate_on_close = &tab; }
+    void enter_report_review(Tab* tab_to_activate_on_close);
 
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
@@ -156,6 +156,7 @@ private:
     QToolButton* create_navigation_history_toolbar_button(QWidget& parent, QAction&, int direction);
     void update_chrome_style();
     void update_tab_title();
+    void leave_report_review();
     void update_downloads_button();
     void update_downloads_popover();
     void show_downloads_popover();
@@ -215,6 +216,8 @@ private:
     Optional<WakeLock::DisplaySleepInhibitor> m_screen_display_sleep_inhibitor;
     BrowserWindow* m_window { nullptr };
     QString m_title;
+    Optional<u64> m_report_review_navigation_listener;
+    bool m_has_loaded_report_review_page { false };
     HyperlinkLabel* m_hover_label { nullptr };
     QIcon m_favicon;
     QTimer* m_loading_animation_timer { nullptr };

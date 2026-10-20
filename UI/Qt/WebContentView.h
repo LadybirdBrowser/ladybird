@@ -144,6 +144,7 @@ public:
     void close_select_dropdown_after_crash();
     void cancel_mouse_press();
     void review_hidden_crash_report(ByteString const& report_name);
+    void leave_report_review();
 
     enum class PaletteMode {
         Default,

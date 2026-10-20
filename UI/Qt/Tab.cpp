@@ -1441,6 +1441,38 @@ QString Tab::title() const
     return QString("%1 [%2]").arg(m_title).arg(view().page().client().pid());
 }
 
+// A tab opened only for a review shows it over a blank page, and closing it goes back to the tab it was opened from.
+// That lasts until the user takes the tab somewhere else. The tab starts out loading about:blank, which is not somewhere
+// else, but any page loaded after that is, about:blank included.
+void Tab::enter_report_review(Tab* tab_to_activate_on_close)
+{
+    VERIFY(!m_report_review_navigation_listener.has_value());
+    m_tab_to_activate_on_close = tab_to_activate_on_close;
+
+    WebView::ViewImplementation::NavigationListener listener;
+    listener.on_load_start = [this](URL::URL const& url) {
+        if (m_has_loaded_report_review_page || url != URL::about_blank())
+            leave_report_review();
+    };
+    listener.on_load_finish = [this](URL::URL const&) { m_has_loaded_report_review_page = true; };
+    m_report_review_navigation_listener = view().add_navigation_listener(AK::move(listener));
+}
+
+// A report on its way keeps being sent, as it does when the tab closes.
+void Tab::leave_report_review()
+{
+    if (!m_report_review_navigation_listener.has_value())
+        return;
+
+    view().leave_report_review();
+    m_tab_to_activate_on_close = nullptr;
+
+    // The view is still telling its listeners about this navigation, so the listener goes once it is done.
+    QTimer::singleShot(0, this, [this, listener = m_report_review_navigation_listener.release_value()] {
+        view().remove_navigation_listener(listener);
+    });
+}
+
 void Tab::update_tab_title()
 {
     emit title_changed(tab_index(), title());
