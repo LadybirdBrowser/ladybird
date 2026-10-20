@@ -12,6 +12,7 @@
 #include <AK/RWLock.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
+#include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <AK/WeakPtr.h>
 #include <AK/kmalloc.h>
@@ -46,7 +47,7 @@ static void destroy_thread_data(void*);
 
 static auto& thread_data()
 {
-    static NeverDestroyed<HashMap<pthread_t, ThreadData*>> thread_data;
+    static NeverDestroyed<HashMap<AK::ThreadID, ThreadData*>> thread_data;
     return *thread_data;
 }
 
@@ -123,7 +124,7 @@ public:
     AK::Duration interval;
     bool should_reload { false };
     WeakPtr<EventReceiver> owner;
-    pthread_t owner_thread { 0 };
+    AK::ThreadID owner_thread;
     Atomic<bool> is_being_deleted { false };
 };
 
@@ -147,7 +148,7 @@ struct ThreadData {
         return *data;
     }
 
-    static ThreadData* for_thread(pthread_t thread_id)
+    static ThreadData* for_thread(AK::ThreadID thread_id)
     {
         // NOTE: thread_data_lock() is supposed to be held by the caller.
         return thread_data().get(thread_id).value_or(nullptr);
@@ -155,7 +156,7 @@ struct ThreadData {
 
     ThreadData()
     {
-        thread_id = pthread_self();
+        thread_id = AK::ThreadID::current();
 
         auto result = Core::System::pipe2(O_CLOEXEC | O_NONBLOCK);
         if (result.is_error()) {
@@ -195,7 +196,7 @@ struct ThreadData {
     Array<int, 2> wake_pipe_fds { -1, -1 };
     bool wake_pipe_is_signal_target { false };
 
-    pthread_t thread_id { 0 };
+    AK::ThreadID thread_id;
 };
 
 static void destroy_thread_data(void* value)

@@ -12,6 +12,7 @@
 #include <AK/RWLock.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
+#include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <AK/kmalloc.h>
 #include <LibCore/Event.h>
@@ -125,9 +126,8 @@ private:
 
 struct ThreadData;
 static thread_local OwnPtr<ThreadData> s_this_thread_data;
-static HashMap<pthread_t, ThreadData*> s_thread_data;
+static HashMap<AK::ThreadID, ThreadData*> s_thread_data;
 static RWLock s_thread_data_lock;
-static thread_local Optional<pthread_t> s_thread_id;
 #if defined(AK_OS_WINDOWS)
 static MutexProtected<HashMap<pid_t, QWinEventNotifier*>> s_processes;
 #endif
@@ -137,17 +137,15 @@ struct ThreadData {
 
     static ThreadData& the()
     {
-        if (!s_thread_id.has_value())
-            s_thread_id = pthread_self();
         if (!s_this_thread_data) {
             s_this_thread_data = make<ThreadData>();
             RWLockLocker<RWLock::Mode::Write> locker(s_thread_data_lock);
-            s_thread_data.set(s_thread_id.value(), s_this_thread_data.ptr());
+            s_thread_data.set(AK::ThreadID::current(), s_this_thread_data.ptr());
         }
         return *s_this_thread_data;
     }
 
-    static ThreadData* for_thread(pthread_t thread_id)
+    static ThreadData* for_thread(AK::ThreadID thread_id)
     {
         RWLockLocker<RWLock::Mode::Read> locker(s_thread_data_lock);
         return s_thread_data.get(thread_id).value_or(nullptr);
@@ -157,7 +155,7 @@ struct ThreadData {
     {
         Core::ThreadEventQueue::destroy_current();
         RWLockLocker<RWLock::Mode::Write> locker(s_thread_data_lock);
-        s_thread_data.remove(s_thread_id.value());
+        s_thread_data.remove(AK::ThreadID::current());
     }
 
     Mutex mutex;
@@ -457,7 +455,7 @@ void EventLoopManagerQt::register_notifier(Core::Notifier& notifier)
         MutexLocker locker(thread_data.mutex);
         thread_data.notifiers.set(&notifier, move(qt_notifier));
     }
-    notifier.set_owner_thread(s_thread_id.value());
+    notifier.set_owner_thread(AK::ThreadID::current());
 }
 
 void EventLoopManagerQt::unregister_notifier(Core::Notifier& notifier)
@@ -627,23 +625,3 @@ NonnullOwnPtr<Core::EventLoopImplementation> EventLoopManagerQt::make_implementa
 }
 
 }
-
-#if defined(AK_OS_WINDOWS)
-namespace AK {
-
-template<>
-struct Traits<pthread_t> : public DefaultTraits<pthread_t> {
-    static unsigned hash(pthread_t thread_id)
-    {
-        return Traits<intptr_t>::hash(reinterpret_cast<intptr_t>(thread_id.p));
-    }
-
-    static constexpr bool equals(pthread_t a, pthread_t b)
-    {
-        return Traits<intptr_t>::equals(reinterpret_cast<intptr_t>(a.p), reinterpret_cast<intptr_t>(b.p));
-    }
-};
-
-}
-
-#endif

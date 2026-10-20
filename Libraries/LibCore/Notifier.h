@@ -7,10 +7,10 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/ThreadID.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Export.h>
-#include <pthread.h>
 
 namespace Core {
 
@@ -44,13 +44,13 @@ public:
 
     void event(Core::Event&) override;
 
-    void set_owner_thread(pthread_t owner_thread) { m_owner_thread = owner_thread; }
-    pthread_t owner_thread() const { return m_owner_thread; }
+    void set_owner_thread(AK::ThreadID owner_thread) { m_owner_thread = owner_thread; }
+    AK::ThreadID owner_thread() const { return m_owner_thread; }
 
 private:
     Notifier(int fd, Type type);
 
-    pthread_t m_owner_thread {};
+    AK::ThreadID m_owner_thread;
     int m_fd { -1 };
     Type m_type { Type::None };
     bool m_is_enabled { false };
