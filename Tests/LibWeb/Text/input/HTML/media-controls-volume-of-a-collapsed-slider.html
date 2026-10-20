@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<script src="../include.js"></script>
+<audio id="audio" controls style="width: 100px"></audio>
+<script>
+    promiseTest(async () => {
+        const audio = document.getElementById("audio");
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        // The volume slider has no room left for it, but is still pressed through the padding around it.
+        const slider = internals.getShadowRoot(audio).querySelector(".volume").getBoundingClientRect();
+        println(`slider width: ${slider.width}`);
+        internals.mouseDown(slider.left, slider.top + slider.height / 2);
+        internals.mouseUp(slider.left, slider.top + slider.height / 2);
+        println(`volume: ${audio.volume}`);
+    });
+</script>

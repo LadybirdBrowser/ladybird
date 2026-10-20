@@ -346,6 +346,8 @@ void MediaControls::set_up_event_listeners()
     // Volume scrubbing
     static constexpr auto compute_volume = [](UIEvents::MouseEvent const& event, DOM::Element& volume_element) -> Optional<double> {
         auto rect = volume_element.get_bounding_client_rect();
+        if (rect.width() <= 0)
+            return {};
         return clamp((event.client_x() - rect.left().to_double()) / rect.width().to_double(), 0.0, 1.0);
     };
 
