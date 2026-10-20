@@ -11,8 +11,6 @@
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
-#include <LibCore/EventLoop.h>
-#include <LibCore/Timer.h>
 #include <LibURL/Parser.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Error.h>
@@ -440,66 +438,7 @@ ResponsePromise Client::new_window(Web::WebDriver::Parameters parameters, JsonVa
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/new");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    auto promise = WebDriverPromise::construct();
-    auto new_window_promise = session->run_top_level_content_command("new_window"sv, move(payload));
-    promise->add_child(new_window_promise);
-    new_window_promise->when_resolved([promise, session](JsonValue& handle_value) {
-                          if (!handle_value.is_object()) {
-                              promise->reject(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "New Window response is not a JSON object"sv));
-                              return;
-                          }
-
-                          auto handle_member = handle_value.as_object().get("handle"sv);
-                          if (!handle_member.has_value() || !handle_member->is_string()) {
-                              promise->reject(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "New Window response does not contain a string 'handle' property"sv));
-                              return;
-                          }
-
-                          auto handle = handle_member->as_string();
-                          if (session->has_window_handle(handle)) {
-                              promise->resolve(handle_value);
-                              return;
-                          }
-
-                          static constexpr u32 CONNECTION_TIMEOUT_MS = 5000;
-                          struct WaitState : public RefCounted<WaitState> {
-                              Session::WindowHandleBecameAvailableCallbackID callback_id { 0 };
-                              RefPtr<Core::Timer> timer;
-                              bool settled { false };
-                          };
-                          auto wait_state = adopt_ref(*new WaitState);
-                          wait_state->timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(CONNECTION_TIMEOUT_MS), [promise, session, handle, wait_state] {
-                              if (wait_state->settled)
-                                  return;
-                              wait_state->settled = true;
-                              Core::deferred_invoke([session, handle, wait_state] {
-                                  session->remove_window_handle_became_available_callback(handle, wait_state->callback_id);
-                                  wait_state->timer = nullptr;
-                              });
-                              promise->reject(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for window handle"sv));
-                          });
-
-                          auto handle_response = handle_value;
-                          wait_state->callback_id = session->add_window_handle_became_available_callback(handle, [promise, handle_response = move(handle_response), wait_state]() mutable {
-                              if (wait_state->settled)
-                                  return;
-                              auto timer = move(wait_state->timer);
-                              wait_state->settled = true;
-                              if (timer)
-                                  timer->stop();
-                              promise->resolve(move(handle_response)); }, [promise, wait_state] {
-                              if (wait_state->settled)
-                                  return;
-                              wait_state->settled = true;
-                              if (auto timer = move(wait_state->timer))
-                                  timer->stop();
-                              promise->reject(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "Browser connection lost"sv)); });
-                          wait_state->timer->start();
-                      })
-        .when_rejected([promise](Web::WebDriver::Error& error) {
-            promise->reject(Web::WebDriver::Error(error));
-        });
-    return promise;
+    return session->new_window(move(payload));
 }
 
 // 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame

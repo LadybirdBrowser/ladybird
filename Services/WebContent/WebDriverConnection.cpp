@@ -218,7 +218,7 @@ static bool fire_an_event(Utf16FlyString const& name, Optional<Web::DOM::Element
 
 NonnullRefPtr<WebDriverConnection> WebDriverConnection::create(PageClient& page_client)
 {
-    // Allow pop-ups, or otherwise /window/new won't be able to open a new tab.
+    // NB: Allow script-initiated pop-ups in WebDriver sessions.
     page_client.page().set_should_block_pop_ups(false);
 
     return adopt_ref(*new WebDriverConnection(page_client));
@@ -298,8 +298,6 @@ void WebDriverConnection::run_command(u64 command_id, Optional<Web::HTML::CrossP
             return asynchronous(get_title());
         if (name == "close_window"sv)
             return asynchronous(close_window());
-        if (name == "new_window"sv)
-            return asynchronous(new_window(move(payload)));
         if (name == "switch_to_frame"sv)
             return asynchronous(switch_to_frame(move(payload)));
         if (name == "get_window_rect"sv)
@@ -491,61 +489,6 @@ Web::WebDriver::Response WebDriverConnection::close_window()
         }));
 
         driver_execution_complete(JsonValue {});
-    });
-
-    return JsonValue {};
-}
-
-// 11.5 New Window, https://w3c.github.io/webdriver/#dfn-new-window
-Web::WebDriver::Response WebDriverConnection::new_window(JsonValue payload)
-{
-    // 1. If the implementation does not support creating new top-level browsing contexts, return error with error code unsupported operation.
-
-    // 2. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
-
-    // 3. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, payload = move(payload)]() {
-        // 4. Let type hint be the result of getting the property "type" from the parameters argument.
-        if (!payload.is_object()) {
-            driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv));
-            return;
-        }
-
-        // FIXME: Actually use this value to decide between an OS window or tab.
-        auto type_hint = payload.as_object().get("type"sv);
-        if (type_hint.has_value() && !type_hint->is_null() && !type_hint->is_string()) {
-            driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload property `type` is not null or a string"sv));
-            return;
-        }
-
-        // 5. Create a new top-level browsing context by running the window open steps with url set to "about:blank",
-        //    target set to the empty string, and features set to "noopener" and the user agent configured to create a new
-        //    browsing context. This must be done without invoking the focusing steps for the created browsing context. If
-        //    type hint has the value "tab", and the implementation supports multiple browsing context in the same OS
-        //    window, the new browsing context should share an OS window with the current browsing context. If type hint
-        //    is "window", and the implementation supports multiple browsing contexts in separate OS windows, the
-        //    created browsing context should be in a new OS window. In all other cases the details of how the browsing
-        //    context is presented to the user are implementation defined.
-        auto* active_window = current_browsing_context().active_window();
-        VERIFY(active_window);
-
-        Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->relevant_settings_object() };
-        auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
-
-        // 6. Let handle be the associated window handle of the newly created window.
-        auto handle = as<Web::HTML::LocalTraversableNavigable>(*target_navigable->traversable_navigable()).window_handle().to_utf8();
-
-        // 7. Let type be "tab" if the newly created window shares an OS-level window with the current browsing context, or "window" otherwise.
-        auto type = "tab"sv;
-
-        // 8. Let result be a new JSON Object initialized with:
-        JsonObject result;
-        result.set("handle"sv, JsonValue { handle });
-        result.set("type"sv, JsonValue { type });
-
-        // 9. Return success with data result.
-        driver_execution_complete({ move(result) });
     });
 
     return JsonValue {};

@@ -13,6 +13,7 @@ endpoint WebDriverBrowserClient {
     get_session_history(u64 command_id, String window_handle) =|
     load_url(u64 command_id, String window_handle, URL::URL url) =|
     run_content_command(u64 command_id, String window_handle, Web::WebDriver::SessionBrowsingContext browsing_context, String name, JsonValue payload, Vector<String> arguments) =|
+    new_window(u64 command_id, String window_handle, JsonValue payload) =|
     switch_to_window(u64 command_id, String window_handle) =|
     switch_to_parent_frame(u64 command_id, String window_handle) =|
     set_current_browsing_context_to_top_level(u64 command_id, String window_handle) =|

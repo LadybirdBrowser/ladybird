@@ -376,11 +376,6 @@ void Session::close()
     // 4. Perform any implementation-specific cleanup steps.
     reject_start_promise(Error::from_string_literal("Session closed during browser startup"));
     reject_pending_browser_commands();
-    auto window_handle_callbacks = move(m_window_handle_became_available_callbacks);
-    for (auto& callbacks : window_handle_callbacks) {
-        for (auto& callback : callbacks.value)
-            callback.on_session_close();
-    }
     if (m_browser_connection) {
         m_browser_connection->on_close = nullptr;
         m_browser_connection->on_did_create_window = nullptr;
@@ -432,7 +427,6 @@ ErrorOr<void> Session::accept_browser_transport(NonnullOwnPtr<IPC::Transport> tr
         if (m_current_window_handle.is_empty())
             m_current_window_handle = window_handle;
 
-        dispatch_window_handle_became_available_callbacks(window_handle);
         if (auto start_promise = move(m_start_promise))
             start_promise->resolve({});
     };
@@ -744,11 +738,11 @@ NonnullRefPtr<Session::WebDriverPromise> Session::close_window()
     auto promise = WebDriverPromise::construct();
 
     // 3. Close the current top-level browsing context.
+    auto closed_window_handle = m_current_window_handle;
     auto close_window_promise = run_top_level_content_command("close_window"sv);
     promise->add_child(close_window_promise);
-    close_window_promise->when_resolved([this_ref = NonnullRefPtr { *this }, promise](JsonValue&) {
+    close_window_promise->when_resolved([this_ref = NonnullRefPtr { *this }, promise, closed_window_handle = move(closed_window_handle)](JsonValue&) {
                             // 4. If there are no more open top-level browsing contexts, then close the session.
-                            auto closed_window_handle = this_ref->m_current_window_handle;
                             this_ref->remove_window(closed_window_handle);
 
                             // 5. Return the result of running the remote end steps for the Get Window Handles command.
@@ -762,6 +756,14 @@ NonnullRefPtr<Session::WebDriverPromise> Session::close_window()
             promise->reject(Web::WebDriver::Error(error));
         });
     return promise;
+}
+
+// 11.5 New Window, https://w3c.github.io/webdriver/#dfn-new-window
+NonnullRefPtr<Session::WebDriverPromise> Session::new_window(JsonValue payload)
+{
+    return perform_browser_command([this, payload = move(payload)](u64 command_id) mutable {
+        m_browser_connection->async_new_window(command_id, m_current_window_handle, move(payload));
+    });
 }
 
 // 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
@@ -799,38 +801,6 @@ Web::WebDriver::Response Session::get_window_handles() const
 
     // 3. Return success with data handles.
     return JsonValue { move(handles) };
-}
-
-void Session::dispatch_window_handle_became_available_callbacks(String const& window_handle)
-{
-    // Registrations are one-shot: take() erases them before invoking their callbacks.
-    auto callbacks = m_window_handle_became_available_callbacks.take(window_handle);
-    if (!callbacks.has_value())
-        return;
-
-    for (auto& callback : callbacks.value())
-        callback.callback();
-}
-
-Session::WindowHandleBecameAvailableCallbackID Session::add_window_handle_became_available_callback(String const& handle, Function<void()> callback, Function<void()> on_session_close)
-{
-    auto id = m_next_window_handle_became_available_callback_id++;
-    m_window_handle_became_available_callbacks.ensure(handle).append({ id, move(callback), move(on_session_close) });
-    return id;
-}
-
-void Session::remove_window_handle_became_available_callback(String const& handle, WindowHandleBecameAvailableCallbackID id)
-{
-    auto callbacks = m_window_handle_became_available_callbacks.find(handle);
-    if (callbacks == m_window_handle_became_available_callbacks.end())
-        return;
-
-    callbacks->value.remove_all_matching([id](auto const& callback) {
-        return callback.id == id;
-    });
-
-    if (callbacks->value.is_empty())
-        m_window_handle_became_available_callbacks.remove(callbacks);
 }
 
 ErrorOr<void, Web::WebDriver::Error> Session::ensure_current_window_handle_is_valid() const

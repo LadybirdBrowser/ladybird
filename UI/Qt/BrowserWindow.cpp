@@ -605,6 +605,16 @@ void BrowserWindow::initialize_tab(Tab* tab)
         }
     });
 
+    tab->view().on_new_webdriver_window = [this](WebView::ViewImplementation::NewWindowType type) {
+        using NewWindowType = WebView::ViewImplementation::NewWindowType;
+        if (type == NewWindowType::Window) {
+            auto& window = Application::the().new_window({ URL::about_blank() }, Application::the().configuration_for_new_window(), IsPopupWindow::No, m_is_private, nullptr, {}, ShowWindow::WithoutActivating);
+            return WebView::ViewImplementation::NewWebDriverWindow { window.current_tab()->view(), type };
+        }
+        auto& new_tab = create_new_tab(Web::HTML::ActivateTab::No, TabLocation::end());
+        return WebView::ViewImplementation::NewWebDriverWindow { new_tab.view(), type };
+    };
+
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, WebView::CanonicalTraversable& traversable) {
         if (hints.popup) {
             auto cascaded_configuration = Application::the().configuration_for_new_window();
