@@ -29,6 +29,13 @@ struct StorageLocation {
     Utf16String bottle_key;
 };
 
+struct StorageBottleLocation {
+    bool operator==(StorageBottleLocation const&) const = default;
+
+    StorageEndpointType storage_endpoint;
+    String storage_key;
+};
+
 class WEBVIEW_API StorageJar {
     AK_MAKE_NONCOPYABLE(StorageJar);
     AK_MAKE_NONMOVABLE(StorageJar);
@@ -87,7 +94,13 @@ private:
             u64 quota_size { 0 };
         };
 
-        HashMap<StorageLocation, Entry> m_storage_items;
+        struct Bottle {
+            HashMap<Utf16String, Entry> items;
+            // The sum of the quota sizes of the items, so a set need not add them up again.
+            u64 usage { 0 };
+        };
+
+        HashMap<StorageBottleLocation, Bottle> m_bottles;
     };
 
     struct PersistedStorage {
@@ -113,13 +126,9 @@ private:
 }
 
 template<>
-struct AK::Traits<WebView::StorageLocation> : public AK::DefaultTraits<WebView::StorageLocation> {
-    static unsigned hash(WebView::StorageLocation const& key)
+struct AK::Traits<WebView::StorageBottleLocation> : public AK::DefaultTraits<WebView::StorageBottleLocation> {
+    static unsigned hash(WebView::StorageBottleLocation const& key)
     {
-        unsigned hash = 0;
-        hash = pair_int_hash(hash, to_underlying(key.storage_endpoint));
-        hash = pair_int_hash(hash, key.storage_key.hash());
-        hash = pair_int_hash(hash, key.bottle_key.hash());
-        return hash;
+        return pair_int_hash(to_underlying(key.storage_endpoint), key.storage_key.hash());
     }
 };

@@ -148,7 +148,11 @@ void StorageJar::clone_from(StorageJar const& other)
 
 Optional<Utf16String> StorageJar::TransientStorage::get_item(StorageLocation const& key)
 {
-    if (auto entry = m_storage_items.get(key); entry.has_value()) {
+    auto bottle = m_bottles.get({ key.storage_endpoint, key.storage_key });
+    if (!bottle.has_value())
+        return {};
+
+    if (auto entry = bottle->items.get(key.bottle_key); entry.has_value()) {
         entry->last_access_time = UnixDateTime::now();
         return entry->value;
     }
@@ -158,69 +162,72 @@ Optional<Utf16String> StorageJar::TransientStorage::get_item(StorageLocation con
 
 StorageSetResult StorageJar::TransientStorage::set_item(StorageLocation const& key, Utf16String const& value)
 {
-    auto old_value = get_item(key);
+    auto& bottle = m_bottles.ensure({ key.storage_endpoint, key.storage_key });
 
-    u64 current_size = 0;
+    Optional<Utf16String> old_value;
+    auto current_size = bottle.usage;
 
-    for (auto const& [existing_key, existing_entry] : m_storage_items) {
-        if (existing_key.storage_endpoint == key.storage_endpoint && existing_key.storage_key == key.storage_key && existing_key.bottle_key != key.bottle_key)
-            current_size += existing_entry.quota_size;
+    if (auto entry = bottle.items.get(key.bottle_key); entry.has_value()) {
+        old_value = entry->value;
+        current_size -= entry->quota_size;
     }
 
     auto new_size = storage_quota_size(key.bottle_key) + storage_quota_size(value);
     if (current_size + new_size > LOCAL_STORAGE_QUOTA)
         return StorageOperationError::QuotaExceededError;
 
-    m_storage_items.set(key, { value, UnixDateTime::now(), new_size });
+    bottle.items.set(key.bottle_key, { value, UnixDateTime::now(), new_size });
+    bottle.usage = current_size + new_size;
     return old_value;
 }
 
 void StorageJar::TransientStorage::delete_item(StorageLocation const& key)
 {
-    m_storage_items.remove(key);
+    auto bottle = m_bottles.get({ key.storage_endpoint, key.storage_key });
+    if (!bottle.has_value())
+        return;
+
+    if (auto entry = bottle->items.take(key.bottle_key); entry.has_value())
+        bottle->usage -= entry->quota_size;
 }
 
 void StorageJar::TransientStorage::delete_items_accessed_since(UnixDateTime since)
 {
-    m_storage_items.remove_all_matching([&](auto const&, auto const& entry) {
-        return entry.last_access_time >= since;
-    });
+    for (auto& [location, bottle] : m_bottles) {
+        bottle.items.remove_all_matching([&](auto const&, auto const& entry) {
+            if (entry.last_access_time < since)
+                return false;
+            bottle.usage -= entry.quota_size;
+            return true;
+        });
+    }
 }
 
 void StorageJar::TransientStorage::clear(StorageEndpointType storage_endpoint, String const& storage_key)
 {
-    Vector<StorageLocation> keys_to_remove;
-    for (auto const& [key, value] : m_storage_items) {
-        if (key.storage_endpoint == storage_endpoint && key.storage_key == storage_key)
-            keys_to_remove.append(key);
-    }
-
-    for (auto const& key : keys_to_remove)
-        m_storage_items.remove(key);
+    m_bottles.remove({ storage_endpoint, storage_key });
 }
 
 Vector<Utf16String> StorageJar::TransientStorage::get_keys(StorageEndpointType storage_endpoint, String const& storage_key)
 {
-    Vector<Utf16String> keys;
-
-    for (auto const& [key, value] : m_storage_items) {
-        if (key.storage_endpoint == storage_endpoint && key.storage_key == storage_key)
-            keys.append(key.bottle_key);
-    }
-
-    return keys;
+    auto bottle = m_bottles.get({ storage_endpoint, storage_key });
+    if (!bottle.has_value())
+        return {};
+    return bottle->items.keys();
 }
 
 Requests::CacheSizes StorageJar::TransientStorage::estimate_storage_size_accessed_since(UnixDateTime since) const
 {
     Requests::CacheSizes sizes;
 
-    for (auto const& [key, entry] : m_storage_items) {
-        auto size = key.storage_key.byte_count() + entry.quota_size;
-        sizes.total += size;
+    for (auto const& [location, bottle] : m_bottles) {
+        for (auto const& [bottle_key, entry] : bottle.items) {
+            auto size = location.storage_key.byte_count() + entry.quota_size;
+            sizes.total += size;
 
-        if (entry.last_access_time >= since)
-            sizes.since_requested_time += size;
+            if (entry.last_access_time >= since)
+                sizes.since_requested_time += size;
+        }
     }
 
     return sizes;
@@ -357,9 +364,9 @@ Requests::CacheSizes StorageJar::PersistedStorage::estimate_storage_size_accesse
 u64 StorageJar::TransientStorage::usage(String const& storage_key)
 {
     u64 current_size_in_bytes = 0;
-    for (auto const& [key, entry] : m_storage_items) {
-        if (key.storage_key == storage_key)
-            current_size_in_bytes += entry.quota_size;
+    for (auto const& [location, bottle] : m_bottles) {
+        if (location.storage_key == storage_key)
+            current_size_in_bytes += bottle.usage;
     }
     return current_size_in_bytes;
 }
