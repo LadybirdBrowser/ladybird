@@ -1,0 +1,5 @@
+button-on: 150,0 150x20
+button-off: 0,20 300x20
+fieldset-on: 150,10 150x20
+legend-removed: 150,0 150x20
+legend-added: 150,10 150x20

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    button { display: block; width: 300px; column-gap: 0; padding: 0; border: 0; margin: 0; }
+    fieldset { width: 300px; column-gap: 0; padding: 0; border: 0; margin: 0; }
+    legend { padding: 0; height: 10px; }
+    .item { height: 20px; }
+</style>
+<button id="button-on"><div class="item"></div><div class="item" id="button-on-second"></div></button>
+<button id="button-off" style="column-count: 2"><div class="item"></div><div class="item" id="button-off-second"></div></button>
+<fieldset id="fieldset-on"><legend>L</legend><div class="item"></div><div class="item" id="fieldset-on-second"></div></fieldset>
+<fieldset id="legend-removed" style="column-count: 2"><legend id="removed-legend">L</legend><div class="item"></div><div class="item" id="legend-removed-second"></div></fieldset>
+<fieldset id="legend-added" style="column-count: 2"><div class="item"></div><div class="item" id="legend-added-second"></div></fieldset>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        document.getElementById("button-on").style.columnCount = "2";
+        document.getElementById("button-off").style.columnCount = "auto";
+        document.getElementById("fieldset-on").style.columnCount = "2";
+        document.getElementById("removed-legend").remove();
+        const legend = document.createElement("legend");
+        legend.textContent = "L";
+        document.getElementById("legend-added").prepend(legend);
+        for (const id of ["button-on", "button-off", "fieldset-on", "legend-removed", "legend-added"]) {
+            const origin = document.getElementById(id).getBoundingClientRect();
+            const rect = document.getElementById(`${id}-second`).getBoundingClientRect();
+            println(`${id}: ${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`);
+        }
+    });
+</script>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .multicol { columns: 2; width: 420px; column-gap: 0px; margin: 0; padding: 0; border: 0; display: block; transition: column-gap 1000s linear -500s; }
+    .multicol.wide { column-gap: 200px; }
+    .block { height: 40px; }
+    legend { padding: 0; }
+</style>
+<fieldset class="multicol" id="fieldset"><legend>L</legend><div class="block"></div><div class="block" id="fieldset-block"></div></fieldset>
+<button class="multicol" id="button"><div class="block"></div><div class="block" id="button-block"></div></button>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        for (const id of ["fieldset", "button"])
+            document.getElementById(id).classList.add("wide");
+        for (const id of ["fieldset-block", "button-block"]) {
+            const element = document.getElementById(id);
+            const origin = element.parentElement.getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
+            println(`${id}: ${rect.x - origin.x} ${rect.width}`);
+        }
+    });
+</script>

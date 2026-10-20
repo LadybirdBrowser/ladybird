@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-balance-min-max-height-ref.html">
+<style>
+body { margin: 0; }
+.multicol { columns: 2; column-gap: 20px; width: 220px; background: lightgray; margin-bottom: 10px; }
+.multicol > div { height: 20px; background: green; }
+</style>
+<div class="multicol" style="min-height: 80px">
+    <div></div><div></div><div></div><div></div><div></div><div></div>
+</div>
+<div class="multicol" style="max-height: 40px">
+    <div></div><div></div><div></div><div></div><div></div><div></div>
+</div>
