@@ -374,7 +374,7 @@ pub(crate) struct CascadeResolutionContext<'a> {
     pub(crate) attributes: &'a [crate::css::custom_properties::SubstitutionAttribute<'a>],
     pub(crate) custom_functions: &'a [crate::css::custom_properties::SubstitutionFunctionDefinition],
     pub(crate) custom_function_scope_identity: usize,
-    pub(crate) custom_function_visibilities: &'a [crate::css::custom_properties::FfiSubstitutionFunctionVisibility],
+    pub(crate) custom_function_visibilities: &'a [crate::css::custom_properties::CustomFunctionVisibility],
     /// Where the custom properties and sibling position style queries read are kept, if anywhere.
     pub(crate) style_query_dependencies:
         Option<&'a mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
