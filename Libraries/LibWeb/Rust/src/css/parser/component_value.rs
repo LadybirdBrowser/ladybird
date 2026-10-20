@@ -12,11 +12,13 @@ use smallvec::SmallVec;
 
 const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct ComponentValueList<T = Vec<ComponentValue>> {
     values: T,
     pub(crate) token_count: usize,
 }
+
+pub(crate) type ComponentValueSlice<'a> = ComponentValueList<&'a [ComponentValue]>;
 
 impl<T: AsRef<[ComponentValue]>> ComponentValueList<T> {
     pub(crate) fn new(values: T) -> Self {
@@ -26,6 +28,10 @@ impl<T: AsRef<[ComponentValue]>> ComponentValueList<T> {
 
     pub(crate) fn with_token_count(values: T, token_count: usize) -> Self {
         Self { values, token_count }
+    }
+
+    pub(crate) fn as_slice(&self) -> ComponentValueSlice<'_> {
+        ComponentValueSlice::with_token_count(self.values.as_ref(), self.token_count)
     }
 }
 
@@ -53,6 +59,34 @@ impl<T: AsRef<[ComponentValue]>> std::ops::Deref for ComponentValueList<T> {
 impl<T: AsRef<[ComponentValue]>> From<T> for ComponentValueList<T> {
     fn from(values: T) -> Self {
         Self::new(values)
+    }
+}
+
+impl<'a, T: AsRef<[ComponentValue]>> From<&'a ComponentValueList<T>> for ComponentValueSlice<'a> {
+    fn from(values: &'a ComponentValueList<T>) -> Self {
+        values.as_slice()
+    }
+}
+
+impl ComponentValueSlice<'_> {
+    pub(crate) fn trim_whitespace(self) -> Self {
+        let values = trim_whitespace(self.values);
+        Self {
+            values,
+            token_count: self.token_count - (self.values.len() - values.len()),
+        }
+    }
+
+    pub(crate) fn trim_end_whitespace(mut self) -> Self {
+        while self.values.last().is_some_and(ComponentValue::is_whitespace) {
+            self.values = &self.values[..self.values.len() - 1];
+            self.token_count -= 1;
+        }
+        self
+    }
+
+    pub(crate) fn to_owned(self) -> ComponentValueList {
+        ComponentValueList::with_token_count(self.values.to_vec(), self.token_count)
     }
 }
 
@@ -657,7 +691,7 @@ pub(crate) fn consume_a_small_list_of_component_values(
 #[cfg(test)]
 mod tests {
     use super::{
-        ComponentKind, ComponentSerializationMode, consume_a_counted_list_of_component_values,
+        ComponentKind, ComponentSerializationMode, ComponentValueSlice, consume_a_counted_list_of_component_values,
         consume_a_list_of_component_values, serialize_component_values_into,
     };
     use crate::css::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
@@ -689,6 +723,12 @@ mod tests {
         ] {
             let values = consume_a_counted_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
             assert_eq!(values.token_count, expected, "{source}");
+            let trimmed = values.as_slice().trim_whitespace().to_owned();
+            assert_eq!(
+                trimmed.token_count,
+                ComponentValueSlice::new(&trimmed[..]).token_count,
+                "{source}"
+            );
         }
     }
 
