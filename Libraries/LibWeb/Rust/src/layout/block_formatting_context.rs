@@ -2809,7 +2809,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
         state.has_in_flow_content = true;
-        self.fragmentainer_has_content.set(true);
+        if border_box_block_size > CssPixels::default() {
+            self.fragmentainer_has_content.set(true);
+        }
         state.previous_in_flow_child_forces_break_after =
             fragmentation::is_forced_column_break(self.style(child).break_after());
         FragmentationStep::LayOut

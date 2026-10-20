@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Multi-column Test: Test an unbreakble block element in a zero height multi-column container</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1754598">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-zero-height-002-ref.html">
+<meta name="assert" content="This test verifies that the unbreakable block element with definite block-size doesn't ask for an extra continuation in the second column.">
+
+<style>
+.multicol {
+  column-width: 100px;
+  inline-size: 300px;
+  block-size: 0;
+}
+
+.child {
+  font: 100px/1 Ahem;
+  color: green;
+  inline-size: 100px;
+  block-size: 100px; /* The define block-size is required to reproduce the bug.*/
+  outline: 3px solid green;
+}
+</style>
+
+<p>There shouldn't be a green strip in the second column.</p>
+<div class="multicol">
+  <div class="child">X</div>
+</div>
