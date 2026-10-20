@@ -1,0 +1,9 @@
+When an iframe’s loading attribute changes from lazy to eager, Ladybird
+runs its pending lazy load resumption steps, so the iframe loads
+right away, and stops intersection-observing it. The other engines
+all do the same. Gecko’s HTMLIFrameElement::AfterSetAttr() calls
+StopLazyLoading(TriggerLoad::Yes) when the old value was lazy. For any
+value but lazy, WebKit’s HTMLIFrameElement::attributeChanged() calls
+LazyLoadElementObserver::unobserve() and then loadDeferredFrame(). And
+for an eager value, Blink’s HTMLFrameOwnerElement::ParseAttribute()
+calls LazyLoadFrameObserver::LoadImmediately().
