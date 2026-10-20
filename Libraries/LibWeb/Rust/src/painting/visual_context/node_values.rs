@@ -626,6 +626,34 @@ pub(crate) struct ResolvedEffects {
     pub(crate) svg_filter_bounds: Option<crate::layout::used_values::FfiCssPixelRect>,
 }
 
+// https://www.w3.org/TR/compositing-1/#csscompositingrules
+// Everything in CSS that creates a stacking context must be considered an ‘isolated’ group.
+fn stacking_context_needs_isolation(arena: &impl PaintRead, slot: NodeSlotId) -> bool {
+    // NB: The document root already paints inside the viewport's isolated group.
+    if arena
+        .node_parent_if_live(slot)
+        .is_some_and(|parent| arena.node_kind_if_live(parent) == Some(crate::layout::node_data::NodeKind::Viewport))
+        || !style_queries::establishes_stacking_context(arena, slot)
+    {
+        return false;
+    }
+    // NB: A group without blending descendants can paint directly into its backdrop.
+    let mut needs_isolation = false;
+    arena.for_each_node_in_layout_subtree_in_pre_order_with_pruning(slot, |descendant| {
+        if descendant == slot {
+            return true;
+        }
+        if arena
+            .node_style_if_live(descendant)
+            .is_some_and(|style| style.effects().mix_blend_mode != crate::css::css_enums::mix_blend_mode::NORMAL)
+        {
+            needs_isolation = true;
+        }
+        !needs_isolation && !style_queries::establishes_stacking_context(arena, descendant)
+    });
+    needs_isolation
+}
+
 /// Resolves a box's effects, or `None` for a box without style.
 pub(crate) fn resolve_effects_data(
     layout_arena: &impl PaintRead,
@@ -635,6 +663,7 @@ pub(crate) fn resolve_effects_data(
     use crate::css::css_enums::mix_blend_mode;
     let style = layout_arena.node_style_if_live(slot)?;
     let effects_values = style.effects();
+    let isolation = stacking_context_needs_isolation(layout_arena, slot);
     let mut svg_filter_bounds = None;
     let filter = if crate::painting::css_filter::contains_url(&effects_values.filter) {
         let resolved_svg_filter = published_svg_filter(
@@ -662,7 +691,8 @@ pub(crate) fn resolve_effects_data(
     let keeps_effects_node_for_later_values = layout_arena
         .node_has_compositor_animation_frame(slot, crate::layout::node_data::CompositorAnimationFrameKind::Opacity)
         || style_queries::will_change_promotes_effects_node(style);
-    if filter.is_none()
+    if !isolation
+        && filter.is_none()
         && backdrop_filter.is_none()
         && effects_values.opacity == 1.0
         && effects_values.mix_blend_mode == mix_blend_mode::NORMAL
@@ -674,6 +704,7 @@ pub(crate) fn resolve_effects_data(
         });
     }
     let effects = EffectsData {
+        isolation,
         opacity: effects_values.opacity,
         blend_mode: mix_blend_mode_to_compositing_and_blending_operator(effects_values.mix_blend_mode),
         filter,

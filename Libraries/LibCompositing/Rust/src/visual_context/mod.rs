@@ -88,6 +88,7 @@ pub struct BackdropFilterData {
 
 #[derive(Clone)]
 pub struct EffectsData {
+    pub isolation: bool,
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
     pub filter: Option<std::sync::Arc<Vec<u8>>>,
@@ -97,6 +98,7 @@ pub struct EffectsData {
 impl EffectNodeData {
     pub fn layer_blending_with(blend_mode: CompositingAndBlendingOperator) -> Self {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity: 1.0,
             blend_mode,
             filter: None,
@@ -117,7 +119,8 @@ impl ClipNodeData {
 
 impl EffectsData {
     pub fn needs_layer(&self) -> bool {
-        self.opacity < 1.0
+        self.isolation
+            || self.opacity < 1.0
             || self.blend_mode != CompositingAndBlendingOperator::Normal
             || self.filter.is_some()
             || self.backdrop_filter.is_some()
@@ -1452,6 +1455,7 @@ mod tests {
 
     fn effects() -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,

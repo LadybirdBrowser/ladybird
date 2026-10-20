@@ -573,6 +573,7 @@ mod node_dump_tests {
         );
         let plain_effects = tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
@@ -584,6 +585,7 @@ mod node_dump_tests {
         );
         let full_effects = tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Multiply,
                 filter: Some(std::sync::Arc::new(vec![1, 2, 3])),
@@ -691,6 +693,7 @@ mod section_dump_tests {
         );
         let effect = tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,

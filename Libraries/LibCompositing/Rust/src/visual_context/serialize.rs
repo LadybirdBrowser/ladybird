@@ -28,7 +28,7 @@ use libgfx_rust::{
 };
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
-const SERIALIZED_TREE_FORMAT: u32 = 6;
+const SERIALIZED_TREE_FORMAT: u32 = 7;
 
 const SPATIAL_KIND_SCROLL: u8 = 0;
 const SPATIAL_KIND_STICKY: u8 = 1;
@@ -465,6 +465,7 @@ fn write_effect_data(writer: &mut TreeByteWriter, data: &EffectNodeData) {
                 writer.corner_radii(backdrop_filter.corner_radii);
                 writer.length_prefixed_bytes(&backdrop_filter.filter);
             }
+            writer.bool(effects.isolation);
         }
         EffectNodeData::Mask(mask) => {
             writer.u8(EFFECT_KIND_MASK);
@@ -494,6 +495,7 @@ fn read_effect_data(reader: &mut TreeByteReader<'_>) -> Option<EffectNodeData> {
                 None
             };
             EffectNodeData::Effects(EffectsData {
+                isolation: reader.bool()?,
                 opacity,
                 blend_mode,
                 filter: has_filter.then(|| std::sync::Arc::new(filter_bytes.to_vec())),
@@ -1083,6 +1085,7 @@ mod tests {
         );
         let root_effect = tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: true,
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
@@ -1094,6 +1097,7 @@ mod tests {
         );
         let effects = tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.25,
                 blend_mode: CompositingAndBlendingOperator::PlusLighter,
                 filter: Some(std::sync::Arc::new(vec![1, 2, 3, 4])),
@@ -1273,7 +1277,8 @@ mod tests {
     fn effect_data_matches(a: &EffectNodeData, b: &EffectNodeData) -> bool {
         match (a, b) {
             (EffectNodeData::Effects(a), EffectNodeData::Effects(b)) => {
-                a.opacity == b.opacity
+                a.isolation == b.isolation
+                    && a.opacity == b.opacity
                     && a.blend_mode == b.blend_mode
                     && a.filter == b.filter
                     && a.backdrop_filter == b.backdrop_filter
@@ -1429,6 +1434,7 @@ mod tests {
         );
         let stale_effect = tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
@@ -1520,6 +1526,7 @@ mod tests {
 
         let effects = || {
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
@@ -1663,6 +1670,7 @@ mod tests {
         );
         tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
@@ -1674,6 +1682,7 @@ mod tests {
         );
         tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,

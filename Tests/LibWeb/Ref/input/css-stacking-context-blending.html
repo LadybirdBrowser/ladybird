@@ -1,0 +1,12 @@
+<!doctype html>
+<link rel="match" href="../expected/css-stacking-context-blending.html">
+<style>
+  body { margin: 0; background: white; }
+  .pane { position: absolute; top: 20px; width: 0; height: 0; }
+  .tile { width: 80px; height: 80px; background: green; mix-blend-mode: plus-lighter; }
+</style>
+<div class="pane" style="left: 20px; z-index: 0"><div class="tile"></div></div>
+<div class="pane" style="left: 120px; transform: translate3d(0, 0, 0)"><div class="tile"></div></div>
+<div class="pane" style="left: 220px; isolation: isolate"><div class="tile"></div></div>
+<div class="pane" style="left: 320px; will-change: transform"><div class="tile"></div></div>
+<div class="tile" style="position: absolute; left: 420px; top: 20px"></div>

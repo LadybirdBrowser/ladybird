@@ -358,7 +358,8 @@ fn effect_data_is_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
     match (a, b) {
         (EffectNodeData::BackgroundColorAnimation, EffectNodeData::BackgroundColorAnimation) => true,
         (EffectNodeData::Effects(data), EffectNodeData::Effects(other)) => {
-            data.opacity == other.opacity
+            data.isolation == other.isolation
+                && data.opacity == other.opacity
                 && data.blend_mode == other.blend_mode
                 && data.filter == other.filter
                 && data.backdrop_filter == other.backdrop_filter
@@ -1702,6 +1703,7 @@ mod tests {
 
     fn effects(filter: Vec<u8>) -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: Some(std::sync::Arc::new(filter)),
@@ -1887,6 +1889,7 @@ mod tests {
         );
         let effect = tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
@@ -2318,6 +2321,7 @@ mod tests {
 
     fn backdrop_effects(filter: Vec<u8>, region: IntRect) -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
@@ -2531,6 +2535,7 @@ mod tests {
         effect_context(
             &mut new_tree,
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
