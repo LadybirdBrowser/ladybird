@@ -1,0 +1,68 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: excessively wide column-rule-width</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-09-03 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#crw" title="4.4. 'column-rule-width'" />
+  <link rel="bookmark" href="http://lists.w3.org/Archives/Public/www-style/2013Sep/0006.html" title="[css3-multicol] z-order of column-rule: below or above border?" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-large-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that if a column rule is wider than its gap, then the column rule will overlap adjacent column boxes; its painting will be above background of multi-column element but below the inline content inside the multicol element." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body
+  {
+  font: 1.25em/1 Ahem;
+  margin-left: 1em;
+  }
+
+  div
+  {
+  background-color: red;
+  border: gray solid 1em;
+  color: lime;
+  font-size: 1em;
+  orphans: 1;
+  widows: 1;
+  width: 15em;
+
+  column-count: 4;
+  column-gap: 1em;
+  column-rule-color: blue;
+  column-rule-style: solid;
+  column-rule-width: 17em;
+  }
+
+  /*
+
+  N == 4;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (15em - ((4 - 1) * 1em)) / 4);
+  W == max(0, (15em - (3 * 1em)) / 4);
+  W == max(0, (15em - (3em)) / 4);
+  W == max(0, (12em) / 4);
+  W == max(0, 3em);
+  W == 3em;
+
+  */
+
+  /*
+  Since column rules do not take up space, then the test
+  should not generate an horizontal scrollbar.
+  */
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+  1s cl
+  2n cl
+  3r cl
+  4t cl
+  </div>
+
+ </body>
+</html>

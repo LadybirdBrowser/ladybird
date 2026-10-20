@@ -328,6 +328,18 @@ impl FcRunCacheArenaStore {
         }
     }
 
+    pub(crate) fn remove_entries_stored_in_open_journal(&self, slots: impl IntoIterator<Item = u32>) {
+        let stored: HashSet<u32> = match self.store_journals.borrow().last() {
+            Some(journal) if !journal.is_empty() => journal.iter().copied().collect(),
+            _ => return,
+        };
+        for slot in slots {
+            if stored.contains(&slot) {
+                self.remove_entry(slot);
+            }
+        }
+    }
+
     fn enqueue_for_sweep(&self, slot: u32) {
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
         if enrolled.len() <= slot as usize {

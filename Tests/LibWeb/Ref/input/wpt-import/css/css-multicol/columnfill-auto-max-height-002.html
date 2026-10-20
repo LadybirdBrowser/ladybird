@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Multi-column Layout Test: 'column-fill: auto' and height constrained of a multi-column container</title>
+
+  <!--
+
+  See also
+
+  Bug 1348839: 'column-fill: auto' does not fill as expected, content ends up in one column
+  https://bugzilla.mozilla.org/show_bug.cgi?id=1348839
+
+  -->
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#cf" title="7.1 column-fill">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+
+  <meta content="This test verifies how content is distributed among columns when the height of a multi-column container is constrained and when 'column-fill' is set to 'auto'. In this test, the line box height is exactly 25px. So, content should fill 4 lines of the first column and should only fill up the first column. Since column rules are only drawn between two columns that both have content and since the test expects only 1 column filled with content, therefore the column rule should not be painted, thus the 'no red' test success condition." name="assert">
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style>
+  div
+    {
+      color: green;
+      column-count: 4;
+      column-fill: auto; /* fill columns sequentially */
+      column-gap: 4em; /* computes to 100px */
+      column-rule: red solid 4em;
+      font-family: Ahem;
+      /*
+      To download Ahem font:
+      http://www.w3.org/Style/CSS/Test/Fonts/Ahem/
+      */
+      font-size: 25px;
+      line-height: 1;
+      max-height: 100px;
+      orphans: 1;
+      /*
+      In this test, the orphans property specifies the
+      minimum number of line boxes that must be left
+      in a column box before a column break, that must
+      be left at the bottom of a column box.
+      */
+      widows: 1;
+      /*
+      In this test, the widows property specifies the
+      minimum number of line boxes that must be left
+      in a column box after a column break, that must
+      be left at the top of a column box.
+      */
+      width: 700px;
+    }
+  </style>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.
+
+  <div>Abcd efgh ijkl mno.</div>

@@ -1,0 +1,68 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-05 -->
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body > div
+  {
+  background-color: gray;
+  font: 1.25em/1 Ahem;
+  height: 4em;
+  position: relative;
+  width: 14.5em;
+  }
+
+  p, div > div
+  {
+  background-color: blue;
+  height: 1em;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 4em;
+  }
+
+  div > div
+  {
+  background-color: black;
+  height: 4em;
+  }
+
+  p {left: 7.5em;}
+
+  p + p
+  {
+  left: 8.5em;
+  top: 1em;
+  }
+
+  p + p + p
+  {
+  left: 9.5em;
+  top: 2em;
+  }
+
+  p + p + p + p
+  {
+  left: 10.5em;
+  top: 3em;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+	<div></div>
+	<p></p>
+	<p></p>
+	<p></p>
+	<p></p>
+  </div>
+
+ </body>
+</html>

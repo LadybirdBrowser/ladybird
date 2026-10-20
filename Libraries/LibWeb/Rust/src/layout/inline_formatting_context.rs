@@ -716,8 +716,10 @@ pub(crate) fn compute(
                 }
                 continue;
             };
-            let first = first_line_with_content == Some(line.line_index);
-            let last = last_line_with_content == Some(line.line_index);
+            let first = first_line_with_content == Some(line.line_index)
+                && !context.inline_boxes_continued_from_previous_fragment.contains(&node);
+            let last = last_line_with_content == Some(line.line_index)
+                && !context.inline_boxes_continued_in_next_fragment.borrow().contains(&node);
             let has_low_edge = if reversed { last } else { first };
             let has_high_edge = if reversed { first } else { last };
             let content_block_start = line
@@ -972,6 +974,46 @@ pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
     result
 }
 
+struct FragmentainerLineLimit {
+    block_size: CssPixels,
+    widows: usize,
+    checked_line_count: usize,
+    lines_past_end: usize,
+    minimum_line_block_size: Option<CssPixels>,
+}
+
+impl FragmentainerLineLimit {
+    fn is_reached(&mut self, context: &InlineFormattingContext<'_>) -> bool {
+        let data = context.line_data();
+        let finished_line_count = data.line_boxes.len().saturating_sub(1);
+        if finished_line_count <= self.checked_line_count {
+            return false;
+        }
+        let root_block_offset = context.content_box_position_in_bfc_root().y;
+        for line in data.line_boxes[self.checked_line_count..finished_line_count]
+            .iter()
+            .filter(|line| !line.is_empty())
+        {
+            let line_block_size = line.block_end - line.block_start;
+            self.minimum_line_block_size = Some(
+                self.minimum_line_block_size
+                    .map_or(line_block_size, |minimum| minimum.min(line_block_size)),
+            );
+            if root_block_offset + line.block_end > self.block_size {
+                self.lines_past_end += 1;
+            }
+        }
+        self.checked_line_count = finished_line_count;
+        let lines_per_fragmentainer = self
+            .minimum_line_block_size
+            .filter(|minimum| *minimum > CssPixels::default())
+            .map_or(usize::MAX, |minimum| {
+                (self.block_size.to_double() / minimum.to_double()) as usize + 1
+            });
+        self.lines_past_end > self.widows.min(lines_per_fragmentainer)
+    }
+}
+
 pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) run: &'context FormattingContextRun<'context>,
     pub(crate) containing_block: Node,
@@ -984,6 +1026,9 @@ pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) automatic_content_inline_size: CssPixels,
     pub(crate) min_content_inline_size_from_max_content_layout: Option<CssPixels>,
     pub(crate) automatic_content_block_size: CssPixels,
+    pub(crate) current_line_start: Cell<fragmentation::LinePosition>,
+    inline_boxes_continued_from_previous_fragment: Vec<Node>,
+    inline_boxes_continued_in_next_fragment: RefCell<Vec<Node>>,
     block_axis_float_clearance: Cell<CssPixels>,
 }
 
@@ -1010,6 +1055,9 @@ impl<'context> InlineFormattingContext<'context> {
             automatic_content_inline_size: CssPixels::default(),
             min_content_inline_size_from_max_content_layout: None,
             automatic_content_block_size: CssPixels::default(),
+            current_line_start: Cell::new(fragmentation::LinePosition::default()),
+            inline_boxes_continued_from_previous_fragment: Vec::new(),
+            inline_boxes_continued_in_next_fragment: RefCell::new(Vec::new()),
             block_axis_float_clearance: Cell::new(CssPixels::default()),
         }
     }
@@ -1020,6 +1068,13 @@ impl<'context> InlineFormattingContext<'context> {
 
     pub(crate) fn set_block_axis_float_clearance(&self, clearance: CssPixels) {
         self.block_axis_float_clearance.set(clearance);
+    }
+
+    fn forget_cached_runs_of_subtree(&self, node: Node) {
+        let arena = self.callbacks.arena();
+        let mut slots = Vec::new();
+        arena.for_each_node_in_layout_subtree_in_pre_order(node, |node| slots.push(node.slot_index()));
+        arena.fc_run_cache_store().remove_entries_stored_in_open_journal(slots);
     }
 
     fn hide_atomic_inline_for_line_clamp(&self, node: Node) {
@@ -1064,14 +1119,7 @@ impl<'context> InlineFormattingContext<'context> {
         has_immediate_continuation: bool,
         line_block_end: CssPixels,
     ) {
-        let content_box_position_in_bfc_root = self
-            .input
-            .content_box_position_in_bfc_root
-            .expect("line clamping requires the containing block position in the BFC root");
-        let block_offset_adjustment = self
-            .parent
-            .block_offset_adjustment_from_pending_ancestor_block_start_margins(self.containing_block);
-        let line_block_end_in_bfc_root = content_box_position_in_bfc_root.y + block_offset_adjustment + line_block_end;
+        let line_block_end_in_bfc_root = self.content_box_position_in_bfc_root().y + line_block_end;
         let mut line_data = self.line_data_mut();
         let line = &mut line_data.line_boxes[line_index];
         if self.parent.register_line_for_line_clamp(
@@ -1160,6 +1208,23 @@ impl<'context> InlineFormattingContext<'context> {
         self.callbacks.next_sibling(node)
     }
 
+    fn fragmented_inline_ancestors(&self, node: Node) -> Vec<Node> {
+        let mut ancestors = Vec::new();
+        let mut ancestor = self.nearest_fragmented_inline_ancestor(node);
+        while !ancestor.is_invalid() {
+            ancestors.push(ancestor);
+            ancestor = self.nearest_fragmented_inline_ancestor(ancestor);
+        }
+        ancestors
+    }
+
+    fn fragmented_inline_ancestors_spanning(&self, before: Node, after: Node) -> Vec<Node> {
+        let after_ancestors = self.fragmented_inline_ancestors(after);
+        let mut ancestors = self.fragmented_inline_ancestors(before);
+        ancestors.retain(|ancestor| after_ancestors.contains(ancestor));
+        ancestors
+    }
+
     pub(crate) fn nearest_fragmented_inline_ancestor(&self, node: Node) -> Node {
         let mut ancestor = self.parent_node(node);
         while !ancestor.is_invalid() {
@@ -1200,21 +1265,29 @@ impl<'context> InlineFormattingContext<'context> {
         self.parent.commit_pending_margin_before_inline_content()
     }
 
+    fn content_box_position_in_bfc_root(&self) -> FfiCssPixelPoint {
+        let position = self
+            .input
+            .content_box_position_in_bfc_root
+            .expect("inline layout requires the containing block position in the BFC root");
+        FfiCssPixelPoint {
+            x: position.x,
+            y: position.y
+                + self
+                    .parent
+                    .block_offset_adjustment_from_pending_ancestor_block_start_margins(self.containing_block),
+        }
+    }
+
     pub(crate) fn intrusion_by_floats_into_containing_block(
         &self,
         block_start: CssPixels,
         block_end: CssPixels,
     ) -> SpaceUsedByFloats {
-        let content_box_position_in_bfc_root = self
-            .input
-            .content_box_position_in_bfc_root
-            .expect("float intrusion requires the containing block position in the BFC root");
-        let adjustment = self
-            .parent
-            .block_offset_adjustment_from_pending_ancestor_block_start_margins(self.containing_block);
+        let content_box_position_in_bfc_root = self.content_box_position_in_bfc_root();
         let rect = FfiCssPixelRect {
             x: content_box_position_in_bfc_root.x,
-            y: content_box_position_in_bfc_root.y + adjustment,
+            y: content_box_position_in_bfc_root.y,
             width: self.containing_used().content_inline_size.get(),
             height: self.containing_used().content_block_size.get(),
         };
@@ -1255,21 +1328,14 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     pub(crate) fn next_float_band_block_start_after(&self, block_offset: CssPixels) -> Option<CssPixels> {
-        let content_box_position_in_bfc_root = self
-            .input
-            .content_box_position_in_bfc_root
-            .expect("float-band lookup requires the containing block position in the BFC root");
-        let adjustment = self
-            .parent
-            .block_offset_adjustment_from_pending_ancestor_block_start_margins(self.containing_block);
-        let containing_block_offset_in_root = content_box_position_in_bfc_root.y + adjustment;
+        let containing_block_offset_in_root = self.content_box_position_in_bfc_root().y;
         let next = self
             .parent
             .next_float_band_block_start_after(containing_block_offset_in_root + block_offset);
         next.map(|next| next - containing_block_offset_in_root)
     }
 
-    fn layout_inside(&mut self, node: Node, available_space: AvailableSpace) -> DerivedBaselines {
+    fn layout_inside(&self, node: Node, available_space: AvailableSpace) -> DerivedBaselines {
         let input = LayoutInput::new(
             available_space,
             self.input.containing_block_constraints,
@@ -1293,7 +1359,7 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
-    pub(crate) fn dimension_box_on_line(&mut self, node: Node) -> DerivedBaselines {
+    pub(crate) fn dimension_box_on_line(&self, node: Node) -> DerivedBaselines {
         let available_space = self.input.available_space;
         let facts = self.facts(node);
         // Any fragmented inline box should have generated line box fragments already.
@@ -1373,6 +1439,7 @@ impl<'context> InlineFormattingContext<'context> {
             }
             let fragment_end = fragment_start + retained_line.fragment_count as usize;
             let line = line_box::LineBoxData {
+                start: fragmentation::LinePosition::default(),
                 record: *retained_line,
                 fragments: previous.fragments[fragment_start..fragment_end]
                     .iter()
@@ -1608,29 +1675,42 @@ impl<'context> InlineFormattingContext<'context> {
                 && self.input.available_space.inline_size != AvailableSize::MinContent)
     }
 
+    fn set_current_line_start_offset(&self, item_index: usize, offset_in_node: usize) {
+        self.current_line_start.set(fragmentation::LinePosition {
+            item_index,
+            offset_in_node,
+        });
+    }
+
     fn break_overflowing_text_item(
         &self,
         line_builder: &mut line_builder::LineBuilder<'_, '_>,
         item: &mut inline_level_iterator::Item,
-    ) {
+        item_index: usize,
+        mut line_limit: Option<&mut FragmentainerLineLimit>,
+    ) -> bool {
         if line_builder
             .remaining_inline_size_for_overflow_break()
             .is_none_or(|remaining_inline_size| item.border_box_inline_size() <= remaining_inline_size)
         {
-            return;
+            return false;
         }
         let style = self.style(self.parent_node(item.node));
         let text_content = self.callbacks.text_content(item.node);
         let letter_spacing = style.letter_spacing().to_double() as f32;
         let word_spacing = style.word_spacing().to_double() as f32;
         loop {
+            if line_limit.as_deref_mut().is_some_and(|limit| limit.is_reached(self)) {
+                return true;
+            }
             let Some(remaining_inline_size) = line_builder.remaining_inline_size_for_overflow_break() else {
-                return;
+                return false;
             };
             if item.border_box_inline_size() <= remaining_inline_size {
-                return;
+                return false;
             }
             let line_is_empty = self.line_data().line_boxes.last().is_some_and(|line| line.is_empty());
+            self.set_current_line_start_offset(item_index, item.offset_in_node);
             if line_is_empty && line_builder.current_line_has_no_space_left_by_floats() {
                 line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
                 continue;
@@ -1645,7 +1725,7 @@ impl<'context> InlineFormattingContext<'context> {
             );
             let Some(mut prefix) = split_item else {
                 if line_is_empty {
-                    return;
+                    return false;
                 }
                 line_builder.break_line(
                     line_builder::ForcedBreak::No,
@@ -1655,6 +1735,7 @@ impl<'context> InlineFormattingContext<'context> {
                 continue;
             };
             line_builder.append_text_item(&mut prefix, style.line_height());
+            self.set_current_line_start_offset(item_index, item.offset_in_node);
             line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
         }
     }
@@ -1663,7 +1744,9 @@ impl<'context> InlineFormattingContext<'context> {
         self.min_content_inline_size_from_max_content_layout =
             self.min_content_inline_size_from_max_content_items(iterator.items());
         self.fragmented_inlines_in_pre_order = iterator.fragmented_inlines_in_pre_order(self);
-        let (reused_lines, reused_item_count) = if self.parent.has_line_clamp() {
+        let fragmentation = self.parent.line_root_fragmentation(self.containing_block);
+        let resume = fragmentation.and_then(|fragmentation| fragmentation.resume);
+        let (reused_lines, reused_item_count) = if self.parent.has_line_clamp() || resume.is_some() {
             Default::default()
         } else {
             self.run
@@ -1678,9 +1761,51 @@ impl<'context> InlineFormattingContext<'context> {
             data.inline_box_pieces.clear();
             data.lines_after_clamp_point_rect = None;
         }
-        iterator.skip_items(reused_item_count);
+        let item_count = iterator.items().len();
+        let start_item_index = resume.map_or(reused_item_count, |resume| resume.item_index.min(item_count));
+        let shares_items = iterator.shares_items();
+        let skipped_atomic_inlines: Vec<Node> = if resume.is_some() && !shares_items {
+            iterator.items()[..start_item_index]
+                .iter()
+                .filter(|item| item.type_ == inline_level_iterator::ItemType::Element)
+                .map(|item| item.node)
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let mut pending_resume_offset = resume.map(|resume| resume.offset_in_node);
+        self.inline_boxes_continued_from_previous_fragment = {
+            let (before, after) = iterator.items().split_at(start_item_index.min(item_count));
+            let has_node = |item: &&inline_level_iterator::Item| !item.node.is_invalid();
+            let left_fragment = |item: &&inline_level_iterator::Item| {
+                has_node(item)
+                    && item.type_ != inline_level_iterator::ItemType::ForcedBreak
+                    && item.type_ != inline_level_iterator::ItemType::AbsolutelyPositionedElement
+                    && !item.is_collapsible_whitespace
+            };
+            match after.first() {
+                Some(item) if pending_resume_offset.is_some_and(|offset| offset > item.offset_in_node) => {
+                    self.fragmented_inline_ancestors(item.node)
+                }
+                _ if resume.is_some() => match (before.iter().rev().find(left_fragment), after.iter().find(has_node)) {
+                    (Some(before), Some(after)) => self.fragmented_inline_ancestors_spanning(before.node, after.node),
+                    _ => Vec::new(),
+                },
+                _ => Vec::new(),
+            }
+        };
+        let resumes_after_forced_break = resume.is_some()
+            && start_item_index > 0
+            && iterator.items()[start_item_index - 1].type_ == inline_level_iterator::ItemType::ForcedBreak;
+        iterator.skip_items(start_item_index);
+        self.current_line_start.set(fragmentation::LinePosition {
+            item_index: start_item_index,
+            offset_in_node: pending_resume_offset.unwrap_or_default(),
+        });
         let reused_line_count = self.line_data().line_boxes.len();
-        let mut line_builder = if reused_line_count == 0 {
+        let mut line_builder = if resume.is_some() {
+            line_builder::LineBuilder::new_for_continuation(self, resumes_after_forced_break)
+        } else if reused_line_count == 0 {
             line_builder::LineBuilder::new(self)
         } else {
             line_builder::LineBuilder::new_after_reused_lines(self)
@@ -1695,13 +1820,71 @@ impl<'context> InlineFormattingContext<'context> {
         let mut state_at_clamp_point = None;
         let mut items_after_clamp_point = Vec::new();
         let mut floating_boxes_after_clamp_point = Vec::new();
+        let floating_box_count_before_lines = self.parent.floating_box_count();
+        let mut line_limit = fragmentation
+            .filter(|_| !self.parent.has_line_clamp())
+            .and_then(|fragmentation| fragmentation.block_size)
+            .filter(|_| {
+                shares_items
+                    || iterator.items().iter().all(|item| {
+                        matches!(
+                            item.type_,
+                            inline_level_iterator::ItemType::Text
+                                | inline_level_iterator::ItemType::Element
+                                | inline_level_iterator::ItemType::ForcedBreak
+                                | inline_level_iterator::ItemType::AbsolutelyPositionedElement
+                        )
+                    })
+            })
+            .map(|block_size| FragmentainerLineLimit {
+                block_size,
+                widows: 1,
+                checked_line_count: 0,
+                lines_past_end: 0,
+                minimum_line_block_size: None,
+            });
+        let mut stopped_at_line_limit = false;
+        let mut consumed_item_nodes = (self.run.fragmentainer.is_some()
+            && self.run.fragments.is_some()
+            && !iterator.entered_inline_boxes().is_empty())
+        .then(Vec::new);
         loop {
             if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
+                break;
+            }
+            if line_limit.as_mut().is_some_and(|limit| limit.is_reached(self)) {
+                stopped_at_line_limit = true;
                 break;
             }
             let Some(mut item) = iterator.next() else {
                 break;
             };
+            let item_index = item_count - iterator.items().len() - 1;
+            if let Some(consumed_item_nodes) = consumed_item_nodes.as_mut() {
+                consumed_item_nodes.push((item_index, item.node));
+            }
+            if let Some(offset_in_node) = pending_resume_offset.take()
+                && item.type_ == inline_level_iterator::ItemType::Text
+                && offset_in_node > item.offset_in_node
+            {
+                let style = self.style(self.parent_node(item.node));
+                let text_content = self.callbacks.text_content(item.node);
+                item.drop_prefix_before(
+                    offset_in_node,
+                    &text_content.text,
+                    style.letter_spacing().to_double() as f32,
+                    style.word_spacing().to_double() as f32,
+                );
+            }
+            let has_leading_edges = leading_margin != CssPixels::default()
+                || leading_border != CssPixels::default()
+                || leading_padding != CssPixels::default();
+            if !has_leading_edges {
+                self.current_line_start.set(fragmentation::LinePosition {
+                    item_index,
+                    offset_in_node: item.offset_in_node,
+                });
+            }
             let can_break_after_previous_overflow_item =
                 std::mem::take(&mut previous_text_item_allows_overflow_break_after);
             let line_starts_with_whitespace = self
@@ -1732,6 +1915,10 @@ impl<'context> InlineFormattingContext<'context> {
 
             match item.type_ {
                 inline_level_iterator::ItemType::ForcedBreak => {
+                    self.current_line_start.set(fragmentation::LinePosition {
+                        item_index: item_index + 1,
+                        offset_in_node: 0,
+                    });
                     let continuation = iterator.next_inline_run_size(self);
                     line_builder.break_line(line_builder::ForcedBreak::Yes, item.node, continuation);
                     if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
@@ -1741,6 +1928,10 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
+                    if shares_items && self.run.records.used_values_if_owned(item.node).is_none() {
+                        self.create_used_values(item.node, self.input.containing_block_constraints);
+                        self.dimension_box_on_line(item.node);
+                    }
                     self.compute_inset(item.node);
                     if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
                         let mut minimum = item.border_box_inline_size();
@@ -1843,6 +2034,14 @@ impl<'context> InlineFormattingContext<'context> {
                                 };
                                 if broke_line {
                                     line_builder.set_trailing_whitespace_on_previous_line();
+                                    let next_line_start = fragmentation::LinePosition {
+                                        item_index: item_index + 1,
+                                        offset_in_node: 0,
+                                    };
+                                    self.current_line_start.set(next_line_start);
+                                    if let Some(line) = self.line_data_mut().line_boxes.last_mut() {
+                                        line.start = next_line_start;
+                                    }
                                     continue;
                                 }
                             }
@@ -1857,7 +2056,15 @@ impl<'context> InlineFormattingContext<'context> {
                             TextItemWrapOpportunity::None => {}
                         }
                         if overflow_break_allowed {
-                            self.break_overflowing_text_item(&mut line_builder, &mut item);
+                            if self.break_overflowing_text_item(
+                                &mut line_builder,
+                                &mut item,
+                                item_index,
+                                line_limit.as_mut(),
+                            ) {
+                                stopped_at_line_limit = true;
+                                break;
+                            }
                             previous_text_item_allows_overflow_break_after = true;
                         }
                     }
@@ -1981,6 +2188,68 @@ impl<'context> InlineFormattingContext<'context> {
             line_builder.update_last_line(false);
         }
 
+        let mut lines_are_fragmented = false;
+        let mut kept_lines_end = None;
+        if let Some(fragmentation) = fragmentation {
+            let breakable = !self.parent.has_line_clamp()
+                && self.parent.floating_box_count() == floating_box_count_before_lines
+                && !self.line_data().line_boxes.iter().any(|line| line.has_block_level_box);
+            let dropped_atomic_inlines = if breakable {
+                lines_are_fragmented = true;
+                let (dropped_atomic_inlines, next_line_start) = self.keep_lines_of_fragmentainer(fragmentation);
+                kept_lines_end = next_line_start;
+                dropped_atomic_inlines
+            } else {
+                let lines_block_end_in_root = self.content_box_position_in_bfc_root().y
+                    + self
+                        .line_data()
+                        .line_boxes
+                        .iter()
+                        .rfind(|line| !line.is_empty())
+                        .map_or(CssPixels::default(), |line| line.block_end);
+                self.parent
+                    .note_unbreakable_line_root(self.containing_block, lines_block_end_in_root);
+                Vec::new()
+            };
+            let unconsumed_atomic_inlines: Vec<Node> = if stopped_at_line_limit && !shares_items {
+                iterator
+                    .items()
+                    .iter()
+                    .filter(|item| item.type_ == inline_level_iterator::ItemType::Element)
+                    .map(|item| item.node)
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            if let Some(fragments) = self.run.fragments.as_deref() {
+                for node in &skipped_atomic_inlines {
+                    fragments.discard_unplaced_subtree(*node, self.used(*node));
+                }
+                for node in dropped_atomic_inlines.into_iter().chain(unconsumed_atomic_inlines) {
+                    fragments.discard_unplaced_subtree(node, self.used(node));
+                    self.forget_cached_runs_of_subtree(node);
+                }
+            }
+        }
+        if let Some(consumed_item_nodes) = consumed_item_nodes {
+            let present_inline_boxes = lines_are_fragmented.then(|| {
+                self.inline_boxes_present_in_lines(
+                    iterator.entered_inline_boxes(),
+                    &consumed_item_nodes,
+                    kept_lines_end,
+                    resume.is_none(),
+                )
+            });
+            for &node in iterator.entered_inline_boxes() {
+                if present_inline_boxes
+                    .as_ref()
+                    .is_none_or(|present| present.contains(&node))
+                {
+                    formatting_context::place_child(self.run, node, FfiCssPixelPoint::default(), None);
+                }
+            }
+        }
+
         for line_index in 0..self.line_data().line_boxes.len() {
             if self.line_data().line_boxes[line_index].has_block_level_box {
                 continue;
@@ -2017,6 +2286,15 @@ impl<'context> InlineFormattingContext<'context> {
 
         if self.layout_mode == LayoutMode::Normal {
             for box_ in absolute_boxes {
+                if lines_are_fragmented
+                    && !self
+                        .line_data()
+                        .line_boxes
+                        .iter()
+                        .any(|line| line.static_position_markers.iter().any(|marker| marker.box_ == box_))
+                {
+                    continue;
+                }
                 let mut static_position = abspos_inputs::StaticPositionRect {
                     rect: Default::default(),
                     inline_alignment: StaticPositionAlignment::Start,
@@ -2069,7 +2347,13 @@ impl<'context> InlineFormattingContext<'context> {
 
     pub(crate) fn run(&mut self) {
         assert!(self.facts(self.containing_block).children_are_inline());
-        let iterator = inline_level_iterator::InlineLevelIterator::new(self);
+        let run = self.run;
+        let iterator = match run.fragmentainer.as_deref() {
+            Some(fragmentainer) => {
+                inline_level_iterator::InlineLevelIterator::new_sharing_items(self, &fragmentainer.inline_items)
+            }
+            None => inline_level_iterator::InlineLevelIterator::new(self),
+        };
         // OPTIMIZATION: Under a min-content or max-content constraint every soft wrap opportunity breaks the line or
         //               none does, so eligible content is measured from its items without building line boxes.
         //               Earlier floats would shorten lines by an amount that depends on block positions the
@@ -2149,6 +2433,124 @@ impl<'context> InlineFormattingContext<'context> {
                 );
             }
         }
+    }
+
+    fn keep_lines_of_fragmentainer(
+        &self,
+        fragmentation: fragmentation::LineRootFragmentation,
+    ) -> (Vec<Node>, Option<fragmentation::LinePosition>) {
+        let line_count = self.line_data().line_boxes.len();
+        let is_first_fragment = fragmentation.resume.is_none();
+        let root_block_offset = self.content_box_position_in_bfc_root().y;
+        let mut stop = line_count;
+        for index in 0..line_count {
+            let (block_start, block_end, is_empty) = {
+                let line = &self.line_data().line_boxes[index];
+                (
+                    root_block_offset + line.block_start,
+                    root_block_offset + line.block_end,
+                    line.is_empty(),
+                )
+            };
+            if is_empty {
+                continue;
+            }
+            let exceeds = fragmentation
+                .block_size
+                .is_some_and(|block_size| block_end > block_size);
+            if exceeds && index > 0 {
+                self.parent
+                    .note_line_for_fragmentation(block_end - block_start, block_end, false);
+                stop = index;
+                break;
+            }
+            if exceeds && is_first_fragment && fragmentation.fragmentainer_had_content {
+                self.parent.request_early_break_before(self.containing_block);
+            }
+            self.parent
+                .note_line_for_fragmentation(block_end - block_start, block_end, true);
+        }
+
+        *self.inline_boxes_continued_in_next_fragment.borrow_mut() = {
+            let data = self.line_data();
+            let last_kept = data.line_boxes[..stop]
+                .iter()
+                .flat_map(|line| line.fragments.iter())
+                .rfind(|fragment| !fragment.layout_node.is_invalid());
+            let first_dropped = data.line_boxes[stop..]
+                .iter()
+                .flat_map(|line| line.fragments.iter())
+                .find(|fragment| !fragment.layout_node.is_invalid());
+            match (last_kept, first_dropped) {
+                (Some(last_kept), Some(first_dropped)) => {
+                    self.fragmented_inline_ancestors_spanning(last_kept.layout_node, first_dropped.layout_node)
+                }
+                _ => Vec::new(),
+            }
+        };
+        let mut data = self.line_data_mut();
+        let dropped_atomic_inlines = data.line_boxes[stop..]
+            .iter()
+            .flat_map(|line| line.fragments.iter())
+            .filter(|fragment| fragment.is_atomic_inline)
+            .map(|fragment| fragment.layout_node)
+            .collect();
+        let next_line_start = data.line_boxes.get(stop).map(|line| line.start);
+        data.line_boxes.truncate(stop);
+        drop(data);
+        if let Some(next_line_start) = next_line_start {
+            self.parent
+                .break_line_root_before_line(self.containing_block, next_line_start);
+        }
+        (dropped_atomic_inlines, next_line_start)
+    }
+
+    fn inline_boxes_present_in_lines(
+        &self,
+        entered_inline_boxes: &[Node],
+        consumed_item_nodes: &[(usize, Node)],
+        kept_lines_end: Option<fragmentation::LinePosition>,
+        is_first_fragment: bool,
+    ) -> HashSet<Node> {
+        let mut present: HashSet<Node> = self
+            .inline_boxes_continued_from_previous_fragment
+            .iter()
+            .chain(self.inline_boxes_continued_in_next_fragment.borrow().iter())
+            .copied()
+            .collect();
+        let kept_item_nodes = consumed_item_nodes
+            .iter()
+            .filter(|(item_index, _)| {
+                kept_lines_end.is_none_or(|end| {
+                    *item_index < end.item_index || (*item_index == end.item_index && end.offset_in_node > 0)
+                })
+            })
+            .map(|(_, node)| *node);
+        let data = self.line_data();
+        let nodes_on_lines = data.line_boxes.iter().flat_map(|line| {
+            line.fragments
+                .iter()
+                .map(|fragment| fragment.layout_node)
+                .chain(line.static_position_markers.iter().map(|marker| marker.box_))
+        });
+        let childless_inline_boxes = entered_inline_boxes
+            .iter()
+            .copied()
+            .filter(|node| is_first_fragment && self.callbacks.first_child(*node).is_invalid());
+        present.extend(childless_inline_boxes.clone());
+        let mut walked = HashSet::<Node>::default();
+        for node in kept_item_nodes
+            .chain(nodes_on_lines)
+            .chain(childless_inline_boxes)
+            .filter(|node| !node.is_invalid())
+        {
+            let mut ancestor = self.callbacks.parent(node);
+            while !ancestor.is_invalid() && ancestor != self.containing_block && walked.insert(ancestor) {
+                present.insert(ancestor);
+                ancestor = self.callbacks.parent(ancestor);
+            }
+        }
+        present
     }
 
     /// Runs after all line post-processing and after atomic-inline placement,

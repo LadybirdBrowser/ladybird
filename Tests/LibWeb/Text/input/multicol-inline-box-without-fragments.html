@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .multicol { columns: 2; column-gap: 20px; width: 420px; margin-bottom: 10px; }
+    .fill { column-fill: auto; height: 21px; }
+    p { margin: 0; }
+    .edges { border: 3px solid; padding: 0 3px; }
+    .start-edge { border-left: 6px solid; padding-left: 4px; }
+</style>
+<div class="multicol"><p>aa <span class="edges" id="break-only"><br></span>bb</p></div>
+<div class="multicol"><p>aa <span class="edges" id="collapsed-whitespace"> </span>bb</p></div>
+<div class="multicol fill"><p>aaaaaaa<span class="start-edge" id="starts-after-break"> ccccccc</span></p></div>
+<div class="multicol fill"><p>aaa<span class="start-edge" id="starts-with-break"><br>bbb</span></p></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["break-only", "collapsed-whitespace"]) {
+            const element = document.getElementById(id);
+            const style = getComputedStyle(element);
+            println(`${id}: ${element.offsetWidth}x${element.offsetHeight}, padding-left ${style.paddingLeft}`);
+        }
+        for (const id of ["starts-after-break", "starts-with-break"]) {
+            const element = document.getElementById(id);
+            const origin = element.closest(".multicol").getBoundingClientRect();
+            const rects = Array.from(element.getClientRects()).map(rect => `${rect.x - origin.x} ${rect.width}`);
+            println(`${id}: ${rects.join(" | ")}`);
+        }
+        done();
+    });
+</script>

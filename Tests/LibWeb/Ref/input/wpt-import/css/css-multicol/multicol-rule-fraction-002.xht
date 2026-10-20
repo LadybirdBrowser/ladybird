@@ -1,0 +1,56 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: wide column-rule-width painted above background-color</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-14 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#crw" title="4.4. 'column-rule-width'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-fraction-002-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that if a column rule is wider than its gap, then the column rule will overlap adjacent column boxes above the background of the multi-column element but below the inline content inside the multicol element. In this test, the blue column-rule is painted above the yellow background-color but below (under) the black Ahem glyphs." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: black;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 14em;
+
+  column-count: 4;
+  column-gap: 1em;
+  column-rule-color: blue;
+  column-rule-style: solid;
+  column-rule-width: 1.9em;
+  }
+
+  /*
+
+  N == 4;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (14em - ((4 - 1) * 1em)) / 4);
+  W == max(0, (14em - (3 * 1em)) / 4);
+  W == max(0, (14em - (3em)) / 4);
+  W == max(0, (11em) / 4);
+  W == max(0, 2.75em);
+  W == 2.75em;
+
+  */
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+  1s cl
+  2n cl
+  3r cl
+  4t cl
+  </div>
+
+ </body>
+</html>

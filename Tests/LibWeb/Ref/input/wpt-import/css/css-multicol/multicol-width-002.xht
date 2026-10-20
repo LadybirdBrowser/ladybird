@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-width (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-23 -->
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-number-and-width-of-columns" title="The number and width of columns" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-width-002-ref.xht" />
+  <meta name="assert" content="Tests that column-width is calculated correctly."/>
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: black;
+  font: 1.25em/1 Ahem;
+  width: 12em;
+
+  column-gap: 0;
+  column-width: 6em;
+  }
+
+  span {color: blue;}
+  ]]></style>
+ </head>
+ <body>
+ <p>Test passes if there are two black bars and two blue bars with a yellow stripe to the right of each bar, matching reference.</p>
+  <div>
+  bl ac bl ac
+    <span>
+    bl ue bl ue
+    </span>
+  </div>
+ </body>
+</html>

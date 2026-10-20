@@ -41,6 +41,7 @@ pub(crate) struct InlineBoxBaseline {
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct LineBoxData {
+    pub(crate) start: super::fragmentation::LinePosition,
     pub(crate) fragments: Vec<line_box_fragment::LineBoxFragmentData>,
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
     pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
@@ -61,8 +62,9 @@ impl std::ops::DerefMut for LineBoxData {
 }
 
 impl LineBoxData {
-    pub(crate) fn new(direction: u8, writing_mode: u8) -> Self {
+    pub(crate) fn new(direction: u8, writing_mode: u8, start: super::fragmentation::LinePosition) -> Self {
         Self {
+            start,
             fragments: Vec::new(),
             static_position_markers: Vec::new(),
             inline_box_baselines: Vec::new(),

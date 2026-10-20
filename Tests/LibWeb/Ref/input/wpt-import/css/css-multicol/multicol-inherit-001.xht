@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: multicolumn and inheritance</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-08 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-number-and-width-of-columns" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-inherit-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body
+  {
+  font: 1.25em/1 Ahem;
+  width: 34em;
+  }
+
+  body > div
+  {
+  column-count: 3;
+  column-gap: 1em;
+
+  /*
+  N == 3;
+
+    34em : available width
+  -  2em : horizontal margin of external div
+  -  2em : 2 column gaps
+ ==========
+    30em
+
+  So, W == 10em;
+
+    30em
+  -  6em : 3 mult by 2em: horizontal margin of 3 internal divs
+ ==========
+    24em : 8em for each of the 3 column boxes without their horizontal margins
+
+  */
+  }
+
+  div
+  {
+  background-color: yellow;
+  color: black;
+  margin: 0 1em 1em;
+  orphans: 1;
+  widows: 1;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+	<div>
+		aa aa
+		aa aa
+		aa aa
+		aa aa
+	</div>
+	<div>
+		mm mm
+		mm mm
+		mm mm
+		mm mm
+	</div>
+	<div>
+		xx xx
+		xx xx
+		xx xx
+		xx xx
+	</div>
+  </div>
+
+ </body>
+</html>

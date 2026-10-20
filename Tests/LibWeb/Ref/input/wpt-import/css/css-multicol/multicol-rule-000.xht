@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-rule shorthand (basic)</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-27 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-rule" title="4.5 'column-rule'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-000-ref.xht" />
+  <meta name="assert" content="This test checks that the shorthand column-rule property draws the rule correctly." />
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  color: black;
+  font: 1.25em/1 Ahem;
+  margin-bottom: 0.5em;
+  width: 602px;
+  }
+
+  div#test
+  {
+  columns: 3;
+  column-gap: 1px;
+  column-rule: lime solid 1px;
+
+  /*
+
+  N == 3;
+
+  W == 200px;
+
+  */
+
+  orphans: 1;
+  widows: 1;
+  }
+
+  span
+  {
+  border-left: lime solid 1px;
+  border-right: lime solid 1px;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 2 horizontal bars are <strong>identical</strong>.</p>
+
+  <div id="test">
+  1234567890<br />ABCDEFGHIJ<br />1234567890
+  </div>
+
+  <div id="reference">
+  1234567890<span>ABCDEFGHIJ</span>1234567890
+  </div>
+
+ </body>
+</html>

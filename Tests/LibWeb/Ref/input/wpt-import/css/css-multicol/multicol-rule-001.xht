@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-rule exceeding column-gap</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-27 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-gaps-and-rules" title="4. Column gaps and rules" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="If a column rule is wider than its gap, then the adjacent column boxes overlap the rule. This test checks that if inline content of column boxes uses only 1 twentieth (1/20) of each of the adjacent column box width, then the column rule must shine through 19 twentieths (19/20) of each of the adjacent column boxes (and above their respective backgrounds)." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: red;
+  color: green;
+  font: 1.25em/1 Ahem;
+  margin-bottom: 0.5em;
+  width: 20em;
+  }
+
+  div#test
+  {
+  columns: 2;
+  column-gap: 0em;
+  column-rule: green solid 20em;
+
+  /*
+
+  N == 2;
+
+  W == 200px;
+
+  */
+
+  orphans: 1;
+  widows: 1;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if there are 2 green bars and <strong>no red</strong>.</p>
+
+  <div id="test">1<br />2</div>
+
+  <div id="reference">12345678901234567890</div>
+
+ </body>
+</html>

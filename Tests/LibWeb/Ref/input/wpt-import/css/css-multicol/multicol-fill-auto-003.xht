@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-fill: auto' (basic)</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-01 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#cf" title="7.1 'column-fill'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-fill-auto-003-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks if inline content fills column boxes sequentially when 'column-fill' is set to 'auto'." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-image: url("support/red20x20.png");
+  background-repeat: no-repeat;
+  background-position: 2em 4em;
+  border: green solid 1em;
+  color: green;
+  font: 1.25em/1 Ahem;
+  height: 6em;
+  width: 21em;
+
+  column-count: 2;
+  column-fill: auto;
+  column-gap: 1em;
+  column-rule: yellow solid 1em;
+  }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <p>Test passes if there is <strong>no red</strong>.</p>
+
+  <div>1234567890 12 4567 90 123 56 890 123 56789 1 34567 90 12 4567 90
+123 56 890 123 56</div>
+
+  <!--
+
+  Expected result:
+
+  ************  ************
+  |1234567890|  |123 56 890|
+  |12 4567 90|  |123 56    |
+  |123 56 890|  |          |
+  |123 56789 |  |          |
+  |1 34567 90|  |          |
+  |12 4567 90|  |          |
+  ************  ************
+
+  The digits are the green squares, the white squares
+  are the blank white spaces. The yellow vertical stripe
+  represent both the column-gap and the column-rule.
+  The "3" glyph at line 5 of 1st column box should be
+  overlapping the red square.
+
+  -->
+
+ </body>
+</html>

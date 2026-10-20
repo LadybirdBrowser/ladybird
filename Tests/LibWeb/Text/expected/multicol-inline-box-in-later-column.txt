@@ -1,0 +1,4 @@
+nested: offset 220,0 rect 220,0
+right-to-left: offset 60,0 rect 60,0
+own-line-root: offset 220,0 rect 220,0
+inline-block in relative span: offset left 0 rect 164,26

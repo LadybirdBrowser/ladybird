@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: multi-column and margin bottom of last child</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#the-multi-column-model">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square-only.html">
+  <meta name="assert" content="This test checks the margin-bottom of the last child of a multi-column should not affect its parent's margin-bottom.">
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style>
+  article {
+    font: 25px/25px Ahem;
+    color: green;
+    background-color: green;
+    width: 100px;
+    column-count: 2;
+    column-gap: 0;
+    margin-bottom: 0;
+    orphans: 1;
+    widows: 1;
+  }
+
+  article div:last-child {
+    margin-bottom: 13px;
+  }
+  </style>
+
+  <body>
+    <p>Test passes if there is a filled green square.</p>
+    <article>
+      <div>a1 a2 a3 a4</div>
+      <div>a5</div>
+    </article>
+    <article>b1 b2</article>
+
+    <!--
+    Expected result:
+
+    |------+------|
+    |  a1  |  a4  |
+    |  a2  |  a5  |
+    |  a3  |margin|
+    |------+------|
+    |  b1  |  b2  |
+    |------+------|
+    -->
+  </body>
+</html>

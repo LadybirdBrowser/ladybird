@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: narrower inline content inside wider colum box</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-07-26 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-number-and-width-of-columns" title="3. The number and width of columns" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-columns-invalid-001-ref.xht"/>
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks the rendering of inline content (2em) inside wider (3em) column boxes." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: black;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 12em;
+
+  column-count: 4;
+  column-gap: 0;
+  }
+
+  span {color: blue;}
+  ]]></style>
+ </head>
+ <body>
+  <div>
+  bl ac
+    <span>
+    bl ue
+    </span>
+    <span>
+    bl ue
+    </span>
+  bl ac
+  </div>
+ </body>
+</html>

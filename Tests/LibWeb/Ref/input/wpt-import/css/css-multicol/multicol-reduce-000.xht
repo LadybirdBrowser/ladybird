@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column width becomes wider to fill available space</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-25 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#cw" title="3.1 'column-width'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-reduce-000-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that column width is increased to fill the available space: in this test, there are only 2 column boxes." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#test, div#reference
+  {
+  background-color: yellow;
+  border: black solid thin;
+  color: orange;
+  font: 1.25em/1 Ahem;
+  margin-bottom: 0.5em;
+  width: 30em;
+  }
+
+  div#test
+  {
+  column-gap: 0;
+  column-width: 201px;
+
+  /*
+
+  N == max(1, floor((U + column-gap)/(column-width + column-gap)))
+  N == max(1, floor((600px + 0px)/(201px + 0)))
+  N == max(1, floor(600px/201px))
+  N == max(1, floor(2.985))
+  N == max(1, 2)
+  N == 2;
+
+  W == max(0, ((U + column-gap)/N - column-gap))
+  W == max(0, ((600px + 0px)/2 - 0px))
+  W == max(0, ((600px)/2 - 0px))
+  W == max(0, (300px - 0px))
+  W == max(0, 300px)
+  W == 300px;
+
+  */
+  }
+
+  span {color: blue;}
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 2 rectangles with orange and blue vertical stripes are <strong>identical</strong>.</p>
+
+  <div id="test">
+  1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 <span>A B C D E F G H I J K L M N O P</span>
+  </div>
+
+  <div id="reference">
+  1 2 3 4 5 6 7 8<span>A B C D E F G H </span><br />
+  9 0 1 2 3 4 5 6<span>I J K L M N O P </span>
+  </div>
+
+ </body>
+</html>

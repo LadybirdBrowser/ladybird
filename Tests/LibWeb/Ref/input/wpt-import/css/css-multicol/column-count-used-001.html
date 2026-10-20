@@ -1,0 +1,26 @@
+<!doctype html>
+<title>column-count used value when neither column-count nor column-width are auto</title>
+<link rel=help href=https://www.w3.org/TR/css-multicol-1/#pseudo-algorithm>
+<link rel=match href=../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht>
+<style>
+div {
+    position: absolute;
+}
+.bg {
+    background: red;
+    width: 100px;
+    height: 100px;
+}
+.test {
+    line-height: 50px;
+    width: 100px;
+    background: green;
+    columns: 2 20px;
+    column-gap: 0;
+    orphans: 1;
+    widows: 1;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class=bg></div>
+<div class=test><br><br><br><br></div>

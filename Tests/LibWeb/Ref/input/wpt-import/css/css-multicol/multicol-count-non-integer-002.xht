@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: non-integer 'column-count' value</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-number-and-width-of-columns" title="3. The number and width of columns" />
+  <link rel="help" href="http://www.w3.org/TR/css3-values/#integers" title="4.1. Integers: the '&lt;integer&gt;' type" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-columns-invalid-001-ref.xht" />
+  <meta name="flags" content="ahem invalid" />
+  <meta name="assert" content="This test checks that a specified real 'column-count' value is invalid and ignored." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background: yellow;
+  border: gray solid 1em;
+  color: black;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 12em;
+
+  column-count: 4;
+  column-count: 1.9; /* invalid; must be an integer */
+  column-gap: 0;
+  }
+
+  span {color: blue;}
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+	bl ac
+  <span>
+	bl ue
+  </span>
+  <span>
+	bl ue
+  </span>
+	bl ac
+  </div>
+
+ </body>
+</html>

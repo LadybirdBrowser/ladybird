@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .multicol { columns: 3; column-gap: 20px; column-fill: auto; height: 41px; width: 260px; margin-bottom: 10px; }
+    p { margin: 0; }
+</style>
+<div class="multicol"><p id="long-word" style="overflow-wrap: anywhere">abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh</p></div>
+<div class="multicol"><p><span style="position: absolute" id="abspos"></span>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll <span id="last">mmm</span></p></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const longWord = document.getElementById("long-word");
+        const origin = longWord.parentElement.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(longWord);
+        const lines = Array.from(range.getClientRects()).map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}`);
+        println(`long word lines: ${lines.join(" | ")}`);
+        for (const id of ["abspos", "last"]) {
+            const element = document.getElementById(id);
+            const multicol = element.closest(".multicol").getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
+            println(`${id}: ${rect.x - multicol.x},${rect.y - multicol.y}`);
+        }
+        done();
+    });
+</script>

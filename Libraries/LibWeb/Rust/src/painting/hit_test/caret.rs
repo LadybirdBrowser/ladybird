@@ -125,6 +125,8 @@ pub struct ClosestLine {
     pub block_start_distance: CssPixels,
     pub inline_distance: CssPixels,
     pub block_container: NodeSlotId,
+    pub box_fragment: u32,
+    pub fragment_inline_distance: CssPixels,
     pub is_before_point: bool,
     pub contains_point_in_block_axis: bool,
 }
@@ -138,6 +140,8 @@ impl Default for ClosestLine {
             block_start_distance: CssPixels::from_raw(i32::MAX),
             inline_distance: CssPixels::from_raw(i32::MAX),
             block_container: NodeSlotId::INVALID,
+            box_fragment: 0,
+            fragment_inline_distance: CssPixels::default(),
             is_before_point: false,
             contains_point_in_block_axis: false,
         }
@@ -512,9 +516,33 @@ impl HitTestList {
             let inline_distance = inline_axis_distance_to_rect(line.rect, local_point, writing_mode);
             let contains_point_in_block_axis = block_coordinate >= block_axis_start(line.rect, writing_mode)
                 && block_coordinate < block_axis_end(line.rect, writing_mode);
+            let fragment_inline_distance = if line.block_container.is_invalid()
+                || !rows.paintable_row_is_populated(line.block_container)
+                || crate::painting::paintable_geometry::fragment_count(rows, line.block_container) == 1
+            {
+                CssPixels::default()
+            } else {
+                inline_axis_distance_to_rect(
+                    crate::painting::paintable_geometry::absolute_fragment_rect(
+                        rows,
+                        line.block_container,
+                        line.box_fragment as usize,
+                    ),
+                    local_point,
+                    writing_mode,
+                )
+            };
+            let in_other_fragment_of_same_block_container = |closest: &ClosestLine| {
+                !line.block_container.is_invalid()
+                    && line.block_container == closest.block_container
+                    && line.box_fragment != closest.box_fragment
+                    && fragment_inline_distance != closest.fragment_inline_distance
+            };
             let is_better_candidate = {
                 if closest_line.index.is_none() {
                     true
+                } else if in_other_fragment_of_same_block_container(&closest_line) {
+                    fragment_inline_distance < closest_line.fragment_inline_distance
                 } else {
                     // Between lines of the same block container, a line whose block-axis range
                     // contains the point always beats lines that do not.
@@ -540,25 +568,33 @@ impl HitTestList {
                 closest_line.block_distance = block_distance;
                 closest_line.inline_distance = inline_distance;
                 closest_line.block_container = line.block_container;
+                closest_line.box_fragment = line.box_fragment;
+                closest_line.fragment_inline_distance = fragment_inline_distance;
                 closest_line.is_before_point = block_axis_end(line.rect, writing_mode) < block_coordinate;
                 closest_line.contains_point_in_block_axis = contains_point_in_block_axis;
             }
 
             if block_axis_end(line.rect, writing_mode) < block_coordinate
                 && (closest_line_before_point.index.is_none()
-                    || caret_line_is_better_candidate(
-                        block_distance,
-                        inline_distance,
-                        closest_line_before_point.block_distance,
-                        closest_line_before_point.inline_distance,
-                        px(CARET_LINE_BLOCK_AXIS_COMPARE_SLOP),
-                    ))
+                    || if in_other_fragment_of_same_block_container(&closest_line_before_point) {
+                        fragment_inline_distance < closest_line_before_point.fragment_inline_distance
+                    } else {
+                        caret_line_is_better_candidate(
+                            block_distance,
+                            inline_distance,
+                            closest_line_before_point.block_distance,
+                            closest_line_before_point.inline_distance,
+                            px(CARET_LINE_BLOCK_AXIS_COMPARE_SLOP),
+                        )
+                    })
             {
                 closest_line_before_point.index = Some(line_index);
                 closest_line_before_point.local_point = local_point;
                 closest_line_before_point.block_distance = block_distance;
                 closest_line_before_point.inline_distance = inline_distance;
                 closest_line_before_point.block_container = line.block_container;
+                closest_line_before_point.box_fragment = line.box_fragment;
+                closest_line_before_point.fragment_inline_distance = fragment_inline_distance;
                 closest_line_before_point.is_before_point = true;
             }
 
@@ -603,9 +639,12 @@ impl HitTestList {
             let line = &self.caret_lines[closest_index];
             let writing_mode = self.first_item_of_line(line).writing_mode;
             let block_coordinate = block_axis_coordinate(closest_line.local_point, writing_mode);
-            let point_is_in_closest_line_block_container_margin =
-                super::geometry::block_container_margin_rect(rows, closest_line.block_container)
-                    .is_some_and(|rect| block_coordinate < block_axis_end(rect, writing_mode));
+            let point_is_in_closest_line_block_container_margin = super::geometry::block_container_margin_rect(
+                rows,
+                closest_line.block_container,
+                closest_line.box_fragment,
+            )
+            .is_some_and(|rect| block_coordinate < block_axis_end(rect, writing_mode));
             let lines_share_block_container = !closest_line.block_container.is_invalid()
                 && closest_line.block_container == closest_line_after_point.block_container;
             // A point still inside the previous block container's margin box should not jump to
@@ -644,15 +683,55 @@ impl HitTestList {
         let current_line_context = current_first_item.paintable;
         let current_block_coordinate = line_block_middle(current_line.rect, writing_mode);
 
+        let fragment_rects: smallvec::SmallVec<[CssPixelRect; 2]> = if current_line.block_container.is_invalid()
+            || !arena.paintable_row_is_populated(current_line.block_container)
+        {
+            smallvec::SmallVec::new()
+        } else {
+            (0..crate::painting::paintable_geometry::fragment_count(arena, current_line.block_container))
+                .map(|index| {
+                    crate::painting::paintable_geometry::absolute_fragment_rect(
+                        arena,
+                        current_line.block_container,
+                        index,
+                    )
+                })
+                .collect()
+        };
+        let fragment_inline_start = |box_fragment: u32| {
+            fragment_rects
+                .get(box_fragment as usize)
+                .map(|rect| inline_axis_start(*rect, writing_mode))
+        };
+        let mut inline_coordinate = inline_coordinate;
+        if fragment_rects.len() > 1
+            && let Some(source_fragment) = fragment_rects.iter().position(|rect| {
+                inline_coordinate >= inline_axis_start(*rect, writing_mode)
+                    && inline_coordinate < inline_axis_end(*rect, writing_mode)
+            })
+            && let (Some(current_start), Some(source_start)) = (
+                fragment_inline_start(current_line.box_fragment),
+                fragment_inline_start(source_fragment as u32),
+            )
+        {
+            inline_coordinate += current_start - source_start;
+        }
         let mut closest_line_index: Option<usize> = None;
         let mut closest_line_shares_context = false;
         let mut closest_block_distance = CssPixels::from_raw(i32::MAX);
         let mut closest_inline_distance = CssPixels::from_raw(i32::MAX);
+        let is_in_other_fragment_of_current_block_container = |line: &CaretLine| {
+            !current_line.block_container.is_invalid()
+                && line.block_container == current_line.block_container
+                && line.box_fragment != current_line.box_fragment
+        };
         for line_index in 0..self.caret_lines.len() {
             let line = &self.caret_lines[line_index];
             // INTEROP: Keyboard navigation follows layout geometry across clips, effects, and transforms.
             //          Separate paint contexts inside one editing host must not isolate its editable lines.
-            if line_index == current_line_index || !self.line_in_scope(main_thread, arena, callbacks, line_index, scope)
+            if line_index == current_line_index
+                || is_in_other_fragment_of_current_block_container(line)
+                || !self.line_in_scope(main_thread, arena, callbacks, line_index, scope)
             {
                 continue;
             }
@@ -683,6 +762,39 @@ impl HitTestList {
                 closest_block_distance = block_distance;
                 closest_inline_distance = inline_distance;
             }
+        }
+        let adjacent_fragment = if direction == CaretLineDirection::Next {
+            current_line.box_fragment.checked_add(1)
+        } else {
+            current_line.box_fragment.checked_sub(1)
+        };
+        let continues_in_adjacent_fragment = closest_line_index
+            .is_none_or(|index| self.caret_lines[index].block_container != current_line.block_container);
+        if continues_in_adjacent_fragment
+            && let Some(adjacent_fragment) = adjacent_fragment
+            && let Some(line_index) = (0..self.caret_lines.len())
+                .filter(|&line_index| {
+                    let line = &self.caret_lines[line_index];
+                    is_in_other_fragment_of_current_block_container(line)
+                        && line.box_fragment == adjacent_fragment
+                        && self.line_in_scope(main_thread, arena, callbacks, line_index, scope)
+                })
+                .min_by_key(|&line_index| {
+                    let block_coordinate = line_block_middle(self.caret_lines[line_index].rect, writing_mode);
+                    if physically_after {
+                        block_coordinate
+                    } else {
+                        -block_coordinate
+                    }
+                })
+        {
+            if let (Some(target_start), Some(current_start)) = (
+                fragment_inline_start(self.caret_lines[line_index].box_fragment),
+                fragment_inline_start(current_line.box_fragment),
+            ) {
+                inline_coordinate += target_start - current_start;
+            }
+            closest_line_index = Some(line_index);
         }
         let closest_line_index = closest_line_index?;
         let closest_line = &self.caret_lines[closest_line_index];
@@ -846,7 +958,11 @@ impl HitTestList {
         let find_closest_line =
             |scope| self.find_closest_line(main_thread, arena, tree, callbacks, point, mode, scope, respect_clip);
         let mut closest_line = find_closest_line(line_scope);
-        if !line_scope.is_none() && !constrained {
+        let point_is_in_column_of_closest_line = closest_line.index.is_some()
+            && closest_line.fragment_inline_distance == CssPixels::default()
+            && arena.paintable_row_is_populated(closest_line.block_container)
+            && crate::painting::paintable_geometry::fragment_count(arena, closest_line.block_container) > 1;
+        if !line_scope.is_none() && !constrained && !point_is_in_column_of_closest_line {
             // The scoped search is only a guard against unrelated nearby content. If there is a plainly closer line
             // outside the scope, use it instead.
             let unscoped_closest_line = find_closest_line(FfiNodeIdentity::default());

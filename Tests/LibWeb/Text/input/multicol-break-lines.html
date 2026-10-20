@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    body { margin: 0; }
+    .case { columns: 2; column-gap: 0; width: 400px; font: 20px/20px Ahem; margin-bottom: 20px; }
+    .float { float: left; width: 100px; height: 60px; }
+    p { margin: 0; }
+    .boxed { border: 2px solid; padding: 0 4px; }
+</style>
+<div class="case" id="float-balanced"><div class="float"></div><p id="float-balanced-text">aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF GG HH II JJ KK LL MM NN OO PP QQ</p></div>
+<div class="case" id="float-fixed" style="column-fill: auto; height: 100px"><div class="float"></div><p id="float-fixed-text">aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF GG HH II JJ KK LL MM NN OO PP QQ</p></div>
+<div class="case" id="edges"><p>aa bb cc dd <span class="boxed" id="edges-span">ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww</span> xx yy zz 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF</p></div>
+<div class="case" id="one-column"><p>aa <span class="boxed" id="one-column-first">bb</span> cc dd ee ff gg hh ii jj kk ll mm nn oo pp <span class="boxed" id="one-column-second">qq</span> rr ss tt uu vv</p></div>
+<script>
+    function rectsIn(element, container) {
+        const origin = container.getBoundingClientRect();
+        return [...element.getClientRects()]
+            .map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`)
+            .join(" ");
+    }
+
+    function wordsIn(paragraph, container) {
+        const origin = container.getBoundingClientRect();
+        const range = document.createRange();
+        const words = [];
+        for (const node of paragraph.childNodes) {
+            const pattern = /\S+/g;
+            let match;
+            while ((match = pattern.exec(node.data))) {
+                range.setStart(node, match.index);
+                range.setEnd(node, match.index + match[0].length);
+                const rect = range.getClientRects()[0];
+                words.push(rect ? `${match[0]}@${rect.x - origin.x},${rect.y - origin.y}` : `${match[0]}@missing`);
+            }
+        }
+        return words.join(" ");
+    }
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["float-balanced", "float-fixed"])
+            println(`${id}: ${wordsIn(document.getElementById(`${id}-text`), document.getElementById(id))}`);
+        const edges = document.getElementById("edges");
+        println(`span across the break: ${rectsIn(document.getElementById("edges-span"), edges)}`);
+        const oneColumn = document.getElementById("one-column");
+        for (const id of ["one-column-first", "one-column-second"]) {
+            const span = document.getElementById(id);
+            const origin = oneColumn.getBoundingClientRect();
+            const box = span.getBoundingClientRect();
+            println(`${id}: ${rectsIn(span, oneColumn)}, bounding ${box.x - origin.x},${box.y - origin.y} ${box.width}x${box.height}, offset width ${span.offsetWidth}`);
+        }
+        done();
+    });
+</script>

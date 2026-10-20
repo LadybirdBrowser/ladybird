@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout Test: column-width (ch units)</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-number-and-width-of-columns">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-width-ch-ref.html">
+<meta name="assert" value="Test that the ch unit can be used as a value for column-width.">
+<style>
+  .multicol {
+    font: 10px ahem;
+    width: 69ch;
+    column-width: 13ch;
+    column-gap: 1ch;
+    background: yellow;
+  }
+</style>
+
+<div class="multicol">
+  one two three four
+  five six seven eight
+  nineten eleven twelve
+  thirtn fourtnfiftn sixtn
+  seventn eightn ninetn twenty
+  hundred thousand million billionx
+  trillionsopp
+</div>

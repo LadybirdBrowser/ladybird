@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: multi-column and margin collapsing of block children (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-10 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model" title="2. The multi-column model" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-margin-child-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that the margin-bottom of a block child in a multi-column element will collapse with the margin-top of a following block child of that same multi-column element if those children are vertically adjacent and if no line boxes, no clearance, no padding and no border separate them." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: blue;
+  font: 1.25em/1 Ahem;
+  width: 10em;
+
+  column-count: 2;
+  column-fill: balance;
+  column-gap: 0em;
+  }
+
+  h4
+  {
+  font: inherit;
+  margin: 1em 0;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <div>
+	1scol 1scol
+	1scol
+  <h4>	h4h41	</h4>
+  <h4>	h4h42	</h4>
+	2ncol 2ncol
+	2ncol 2ncol
+	2ncol 2ncol
+	2ncol 2ncol
+  </div>
+
+ </body>
+</html>

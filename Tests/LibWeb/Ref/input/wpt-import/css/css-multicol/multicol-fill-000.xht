@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-fill: balance (basic)</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-25 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#cf" title="7.1 'column-fill'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-fill-000-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that content is balanced into all columns thanks to 'column-fill: balance'." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div.test, table#reference
+  {
+  background-color: yellow;
+  color: lime;
+  margin: 1em 0em;
+  font: 1.25em/1 Ahem;
+  width: 18em;
+  }
+
+  div.test
+  {
+  columns: 3;
+  column-fill: balance;
+  column-gap: 0em;
+
+  /*
+
+  N == 3;
+
+  W == 6em;
+
+  */
+
+  orphans: 1;
+  widows: 1;
+  }
+
+  div.test > p {margin: 0em;}
+
+  table
+  {
+  border-spacing: 0em;
+  table-layout: fixed;
+  }
+
+  td {padding: 0em;}
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 3 horizontal bars are <strong>identical</strong>.</p>
+
+  <div class="test">
+      <p>A</p>
+      <p>B</p>
+      <p>C</p>
+  </div>
+
+  <div class="test">D<br />E<br />F</div>
+
+  <table id="reference">
+    <tr>
+      <td>G</td>
+      <td>H</td>
+      <td>I</td>
+    </tr>
+  </table>
+
+ </body>
+</html>

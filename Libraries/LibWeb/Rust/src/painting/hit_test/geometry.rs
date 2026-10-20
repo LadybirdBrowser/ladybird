@@ -10,7 +10,7 @@
 //! block or line root changes without the item's own row changing.
 
 use super::{HitTestItem, HitTestItemKind};
-use crate::css::css_pixels::CssPixelRect;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::{node_painting, paintable_geometry, text_fragment};
@@ -22,9 +22,30 @@ pub(crate) fn populated_block_container(rows: &impl PaintRead, block_container: 
     block_container
 }
 
-pub(crate) fn block_container_margin_rect(rows: &impl PaintRead, block_container: NodeSlotId) -> Option<CssPixelRect> {
+pub(crate) fn block_container_margin_rect(
+    rows: &impl PaintRead,
+    block_container: NodeSlotId,
+    box_fragment: u32,
+) -> Option<CssPixelRect> {
     if populated_block_container(rows, block_container).is_invalid() {
         return None;
+    }
+    if box_fragment != 0 {
+        let margin = paintable_geometry::unbroken_box_model(rows, block_container).0;
+        let is_last_fragment = box_fragment as usize + 1 == paintable_geometry::fragment_count(rows, block_container);
+        return Some(
+            paintable_geometry::absolute_fragment_border_box_rect(rows, block_container, box_fragment as usize)
+                .inflated(
+                    CssPixels::default(),
+                    margin.right,
+                    if is_last_fragment {
+                        margin.bottom
+                    } else {
+                        CssPixels::default()
+                    },
+                    margin.left,
+                ),
+        );
     }
     let absolute = paintable_geometry::absolute_rect(rows, block_container);
     let margin = paintable_geometry::committed_margin(rows, block_container);
