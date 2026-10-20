@@ -1,0 +1,12 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        requestIdleCallback(deadline => {
+            const initialRemaining = deadline.timeRemaining();
+            println(`Idle budget is between 0 and 50 ms: ${initialRemaining >= 0 && initialRemaining <= 50}`);
+
+            done();
+        });
+    });
+</script>
