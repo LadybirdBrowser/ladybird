@@ -721,6 +721,8 @@ mod macro_assembler {
             "ldrsw x3, [x4, #0x4]" => |m| m.load32_sign_extend(X3, &base(X4, 4));
             "str xzr, [sp, #0x8]" => |m| m.store_imm64(&base(SP, 8), 0);
             "mov w17, #0x5; str w17, [x0]" => |m| m.store_imm32(&base(X0, 0), 5);
+            "mov w17, #0x41; strb w17, [x0, #0x3]" => |m| m.store_imm8(&base(X0, 3), 0x41);
+            "strh wzr, [x0, #0x2]" => |m| m.store_imm16(&base(X0, 2), 0);
             "strh w5, [x6, #0x6]" => |m| m.store16(&base(X6, 6), X5);
             "add x0, sp, x1, lsl #0x3; add x0, x0, #0x18" => |m| m.load_effective_address(X0, &indexed(SP, X1, Scale::Eight, 24));
             "mov x0, sp" => |m| m.move64(X0, SP);

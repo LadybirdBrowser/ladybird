@@ -125,6 +125,8 @@ pub trait PortableMacroAssembler: Sized {
     fn store16(&mut self, address: &Address, src: Gpr);
     fn store32(&mut self, address: &Address, src: Gpr);
     fn store64(&mut self, address: &Address, src: Gpr);
+    fn store_imm8(&mut self, address: &Address, imm: u8);
+    fn store_imm16(&mut self, address: &Address, imm: u16);
     fn store_imm32(&mut self, address: &Address, imm: u32);
     fn store_imm64(&mut self, address: &Address, imm: u64);
     /// Loads the 16 bytes of `imm` (little-endian) into all of `dst`, from

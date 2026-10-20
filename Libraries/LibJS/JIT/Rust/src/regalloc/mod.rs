@@ -464,8 +464,16 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
             constraints.temps = 1;
         }
         // The elements or the element address.
-        Op::LoadElementAt { .. } | Op::StoreElementAt { .. } => {
+        Op::LoadElementAt { .. } => {
             constraints.inputs[1] = InputConstraint::RegisterOrConstant;
+            constraints.temps = 1;
+        }
+        // NB: Stores of integer and tagged constants store immediates.
+        Op::StoreElementAt { kind } => {
+            constraints.inputs[1] = InputConstraint::RegisterOrConstant;
+            if kind.stored_repr() != Repr::Float64 {
+                constraints.inputs[2] = InputConstraint::RegisterOrConstant;
+            }
             constraints.temps = 1;
         }
         Op::CheckBounds => {
