@@ -1794,6 +1794,13 @@ bool PageClient::page_did_request_tab_is_playing_audio_for_testing()
     return false;
 }
 
+u64 PageClient::page_did_request_tab_audibility_change_count_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_tab_audibility_change_count_for_testing(m_id);
+    return 0;
+}
+
 String PageClient::dump_site_isolation_process_tree_for_testing()
 {
     if (auto* test_connection = client().test_connection())

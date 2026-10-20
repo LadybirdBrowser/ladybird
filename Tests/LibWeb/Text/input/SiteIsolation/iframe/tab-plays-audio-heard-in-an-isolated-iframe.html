@@ -26,10 +26,14 @@
         println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
         println(internals.dumpSiteIsolationProcessTree().trimEnd());
 
-        // The iframe's page stops hosting its document, and is no longer heard at all.
+        // The iframe's page leaves the tab while it is heard, so the tab goes on playing audio as though the page's
+        // sound had stopped as it left.
+        const changes = internals.tabAudibilityChangeCount();
         const removedAt = performance.now();
         iframe.remove();
         println(`stops playing audio once the iframe is gone: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
-        println(`before the sound would have been forgotten: ${performance.now() - removedAt < 2000}`);
+        const heldFor = performance.now() - removedAt;
+        println(`about three seconds later: ${heldFor >= 2500 && heldFor < 5000}`);
+        println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
     });
 </script>

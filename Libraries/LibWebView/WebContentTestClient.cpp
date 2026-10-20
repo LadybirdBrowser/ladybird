@@ -84,6 +84,14 @@ Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse We
     return false;
 }
 
+Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse WebContentTestClient::did_request_tab_audibility_change_count_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->did_request_tab_audibility_change_count_for_testing();
+
+    return 0;
+}
+
 Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse WebContentTestClient::did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto* page = m_client.page(page_id))

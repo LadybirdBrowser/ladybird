@@ -321,6 +321,7 @@ public:
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
     bool document_is_playing_audio(DOM::Document&);
     bool tab_is_playing_audio();
+    WebIDL::UnsignedLongLong tab_audibility_change_count();
     bool media_element_video_sink_is_ticking(HTML::HTMLMediaElement&);
     void set_media_element_ready_state(HTML::HTMLMediaElement&, u16 ready_state);
     void set_media_element_paused(HTML::HTMLMediaElement&, bool paused);

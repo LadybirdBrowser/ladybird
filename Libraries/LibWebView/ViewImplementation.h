@@ -67,6 +67,7 @@
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
 #include <LibWebCommon/WebView/ZoomLevel.h>
+#include <LibWebView/AudibilityHold.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -418,9 +419,13 @@ public:
     Web::HTML::MuteState page_mute_state() const { return m_mute_state; }
     void toggle_page_mute_state();
 
-    // The tab is audible while the AudioServer has recently heard any page of it.
+    // The tab is audible while the AudioServer has recently heard any page of it, and for a while after a page leaves it
+    // while heard. A page lost along with its process doesn't leave.
     void update_audibility(Badge<WebContentPage>) { update_audibility(); }
+    void did_release_page(Badge<CanonicalTraversable>, WebContentPage const& page) { page_left(page); }
+    void did_close_page(Badge<WebContentPage>, Web::PageId page_id) { m_audibility_hold.page_closed(page_id); }
     Audio::Audibility audibility() const { return m_audibility; }
+    u64 audibility_change_count() const { return m_audibility_change_count; }
     void did_change_screen_wake_lock_state(Badge<WebContentPage>, Web::ScreenWakeLockState);
 
     void did_reset_state_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
@@ -720,6 +725,7 @@ protected:
     WebContentPage& focused_navigable_host() const;
     void reset_page_media_state();
     void update_audibility();
+    void page_left(WebContentPage const&);
 
     // A navigation to make again on reload: one the user stopped before its document was activated, or one a crash cut
     // short. It's made again from the source it was first made from, when it has one (a javascript: URL has none).
@@ -1026,6 +1032,9 @@ protected:
     Optional<Web::HTML::CrossProcessId> m_webdriver_current_parent_navigable_id;
 
     Audio::Audibility m_audibility { Audio::Audibility::Inaudible };
+    u64 m_audibility_change_count { 0 };
+    AudibilityHold m_audibility_hold;
+    RefPtr<Core::Timer> m_audibility_hold_timer;
     Web::ScreenWakeLockState m_screen_wake_lock_state { Web::ScreenWakeLockState::Released };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
