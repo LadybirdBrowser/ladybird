@@ -174,6 +174,7 @@ public:
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
     void duplicate_tab(Tab&);
     void open_history_entry_in_new_tab(Tab&, int delta);
+    void update_tab_audio_button(Tab&);
     // Opens a window's restored tabs, keeping the session rows the store re-adopted for them.
     void restore_tabs(Vector<WebView::RestoredSessionTab> const&, i64 active_tab_index);
     Tab* current_tab() const { return m_current_tab; }

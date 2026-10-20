@@ -1787,8 +1787,10 @@ void Tab::create_tab_context_menu()
 
     auto* mute_tab_action = new QAction("&Mute Tab", this);
     QObject::connect(mute_tab_action, &QAction::triggered, this, [this]() {
-        if (is_loaded())
+        if (is_loaded()) {
             view().toggle_page_mute_state();
+            m_window->update_tab_audio_button(*this);
+        }
     });
 
     auto* move_to_new_window_action = new QAction("Move to New &Window", this);
