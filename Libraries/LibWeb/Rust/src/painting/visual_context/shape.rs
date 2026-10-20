@@ -173,7 +173,8 @@ pub(crate) fn clip_payloads_are_equal(a: &ClipNodeData, b: &ClipNodeData) -> boo
 pub(crate) fn effect_payloads_are_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
     match (a, b) {
         (EffectNodeData::Effects(a), EffectNodeData::Effects(b)) => {
-            a.opacity == b.opacity
+            a.isolation == b.isolation
+                && a.opacity == b.opacity
                 && a.blend_mode == b.blend_mode
                 && effects_filters_are_equal(a.filter.as_ref(), b.filter.as_ref())
                 && a.backdrop_filter == b.backdrop_filter

@@ -816,6 +816,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_effects(
     let tree = unsafe { test_builder_tree(builder) };
     tree.append_effect(
         crate::visual_context::EffectNodeData::Effects(crate::visual_context::EffectsData {
+            isolation: false,
             opacity,
             blend_mode,
             filter: None,

@@ -90,6 +90,38 @@ fn expand_dirty_entries(
             revalidate_children_of.insert(removed.former_paint_parent);
         }
     }
+    // Only style and tree changes can change a stacking context's blending descendants.
+    // A dirty box is already rebuilt. Start at its parent since the box's own blend, or a change in whether it
+    // establishes a stacking context, can change its enclosing group's isolation too.
+    let changed: Vec<_> = work
+        .iter()
+        .filter_map(|(slot, bits)| {
+            (bits.contains(VisualContextBoxDirtyKind::NewRow)
+                || bits.contains(VisualContextBoxDirtyKind::RecommittedInPlace)
+                || bits.contains(VisualContextBoxDirtyKind::ReattachedInLayoutTree)
+                || bits.contains(VisualContextBoxDirtyKind::StyleValueChange)
+                || bits.contains(VisualContextBoxDirtyKind::StyleStructuralChange))
+            .then(|| layout_arena.node_parent_if_live(*slot))
+            .flatten()
+        })
+        .chain(revalidate_children_of.iter().copied())
+        .collect();
+    let mut visited = HashSet::default();
+    for slot in changed {
+        let mut ancestor = Some(slot);
+        while let Some(parent) = ancestor {
+            if !visited.insert(parent) {
+                break;
+            }
+            if crate::painting::style_queries::establishes_stacking_context(layout_arena, parent) {
+                work.entry(parent)
+                    .or_default()
+                    .insert(VisualContextBoxDirtyKind::StyleValueChange);
+                break;
+            }
+            ancestor = layout_arena.node_parent_if_live(parent);
+        }
+    }
     let mut plan = WorkPlan {
         work,
         revalidate_children_of,
@@ -685,6 +717,7 @@ mod tests {
 
     fn effects() -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity: 0.5,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,

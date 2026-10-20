@@ -1,0 +1,23 @@
+<!doctype html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/css-stacking-context-blending-update.html">
+<style>
+  body { margin: 0; background: white; }
+  .pane { position: absolute; top: 20px; width: 0; height: 0; }
+  .tile { width: 80px; height: 80px; background: green; mix-blend-mode: plus-lighter; }
+</style>
+<div class="pane" style="left: 20px; transform: translateX(0)"><div id="tile" class="tile" style="mix-blend-mode: normal"></div></div>
+<div id="isolation" class="pane" style="left: 120px; isolation: isolate"><div class="tile"></div></div>
+<div id="transform" class="pane" style="left: 220px; transform: translateX(0)"><div class="tile"></div></div>
+<div id="insert" class="pane" style="left: 320px; transform: translateX(0)"></div>
+<script>
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const insertedTile = document.createElement("div");
+    insertedTile.className = "tile";
+    insert.appendChild(insertedTile);
+    tile.style.mixBlendMode = "plus-lighter";
+    isolation.style.isolation = "auto";
+    transform.style.transform = "none";
+    document.documentElement.classList.remove("reftest-wait");
+  }));
+</script>

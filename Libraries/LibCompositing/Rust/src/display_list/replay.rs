@@ -871,6 +871,7 @@ mod tests {
 
     fn effects(opacity: f32) -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
@@ -1363,6 +1364,7 @@ mod tests {
         let region = IntRect::new(1, 2, 30, 40);
         let radii = CornerRadii::uniform(5);
         let with_backdrop = EffectsData {
+            isolation: false,
             opacity: 0.5,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,

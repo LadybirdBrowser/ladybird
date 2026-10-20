@@ -213,6 +213,7 @@ mod tests {
 
     fn opacity_effect() -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,

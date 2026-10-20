@@ -76,6 +76,7 @@ pub(crate) struct BoxFacts {
 impl BoxFacts {
     pub(crate) fn effects_data(&self) -> Option<EffectsData> {
         self.effects.as_ref().map(|effects| EffectsData {
+            isolation: effects.isolation,
             opacity: effects.opacity,
             blend_mode: effects.blend_mode,
             filter: effects.filter.clone(),

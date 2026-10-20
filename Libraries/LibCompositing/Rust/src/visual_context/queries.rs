@@ -903,6 +903,7 @@ mod tests {
 
     fn effects(opacity: f32, blend_mode: CompositingAndBlendingOperator) -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {
+            isolation: false,
             opacity,
             blend_mode,
             filter: None,
@@ -1037,6 +1038,7 @@ mod tests {
         // A backdrop filter reads outside its own layer, so only an enclosing layer isolates it.
         let backdrop_effects = || {
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
