@@ -544,6 +544,150 @@ TEST_CASE(pump_holds_off_while_a_seek_request_is_in_flight)
     EXPECT_EQ(consumer_edge.peek()->seek_id, 1u);
 }
 
+namespace {
+
+NonnullRefPtr<RemoteVideoSink> make_sink_with_inert_delegates()
+{
+    RemoteVideoSink::Delegates delegates;
+    delegates.ring_data_available = [] { };
+    delegates.transmit_seek = [](InvalidateHeldData) { };
+    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
+    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
+    delegates.retire_pool = [](VideoFramePoolID) { };
+    return MUST(RemoteVideoSink::create(move(delegates)));
+}
+
+}
+
+// A seek the consumer holds nothing for goes to the input right away, and the consumer's request for it, which
+// follows, is already answered; a request for anywhere else is a new seek.
+TEST_CASE(sink_seeks_its_input_directly_when_the_consumer_holds_nothing_for_the_seek)
+{
+    auto sink = make_sink_with_inert_delegates();
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    sink->seek(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 1u);
+    sink->seek_upstream(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 1u);
+
+    sink->seek_upstream(AK::Duration::from_seconds(2));
+    EXPECT_EQ(producer->seek_count(), 2u);
+}
+
+// A request the consumer has already made will seek the input to its own target, so a seek that arrives while the
+// request is on its way is left to the consumer.
+TEST_CASE(sink_leaves_a_seek_to_the_consumer_while_its_request_is_on_its_way)
+{
+    auto sink = make_sink_with_inert_delegates();
+    auto producer = ScriptedVideoProducer::create();
+    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
+    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
+    MUST(sink->connect_input(producer));
+
+    consumer_edge.set_requested_seek_id(1);
+    sink->seek(AK::Duration::from_seconds(2));
+    EXPECT_EQ(producer->seek_count(), 0u);
+
+    sink->seek_upstream(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 1u);
+    consumer_edge.set_requested_seek_id(2);
+    sink->seek_upstream(AK::Duration::from_seconds(2));
+    EXPECT_EQ(producer->seek_count(), 2u);
+}
+
+// The consumer may seek on its own while a direct seek awaits its request, as when it starts ticking again. Its
+// request supersedes the direct seek, so the input follows the consumer, pumping resumes under the request's stamp,
+// and the request for the direct seek, which arrives after, is a seek of its own again.
+TEST_CASE(a_request_for_another_seek_supersedes_the_direct_seek)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto sink = make_sink_with_inert_delegates();
+
+    auto pool = MUST(VideoFramePool::create());
+    auto producer = ScriptedVideoProducer::create();
+    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
+    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
+    MUST(sink->connect_input(producer));
+    sink->start_input();
+
+    sink->seek(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 1u);
+
+    producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_seconds(2)));
+    consumer_edge.set_requested_seek_id(1);
+    sink->seek_upstream(AK::Duration::from_seconds(2));
+    EXPECT_EQ(producer->seek_count(), 2u);
+    EXPECT(spin_until(loop, [&] { return consumer_edge.peek().has_value(); }));
+    EXPECT_EQ(consumer_edge.peek()->seek_id, 1u);
+
+    consumer_edge.set_requested_seek_id(2);
+    sink->seek_upstream(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 3u);
+}
+
+// The frames lent across the edge may satisfy a seek on the consumer's side, so such a seek waits for the consumer's
+// decision.
+TEST_CASE(sink_leaves_seeks_within_the_lent_frames_to_the_consumer)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto sink = make_sink_with_inert_delegates();
+
+    auto pool = MUST(VideoFramePool::create());
+    auto producer = ScriptedVideoProducer::create();
+    producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
+    producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
+
+    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
+    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
+    MUST(sink->connect_input(producer));
+    sink->start_input();
+    EXPECT(spin_until(loop, [&] { return consumer_edge.peek_newest().has_value() && consumer_edge.peek_newest()->handle.timestamp == AK::Duration::from_milliseconds(33); }));
+
+    sink->seek(AK::Duration::from_milliseconds(20));
+    EXPECT_EQ(producer->seek_count(), 0u);
+    consumer_edge.set_requested_seek_id(1);
+    sink->seek_upstream(AK::Duration::from_milliseconds(20));
+    EXPECT_EQ(producer->seek_count(), 1u);
+
+    sink->seek(AK::Duration::from_milliseconds(500));
+    EXPECT_EQ(producer->seek_count(), 2u);
+}
+
+// Between the direct seek and the consumer's request for it, a frame of the new position would be stamped with the
+// seek before it, so pumping waits for the request.
+TEST_CASE(pump_holds_off_after_a_direct_seek_until_the_consumer_requests_it)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto sink = make_sink_with_inert_delegates();
+
+    auto pool = MUST(VideoFramePool::create());
+    auto producer = ScriptedVideoProducer::create();
+
+    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
+    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
+    MUST(sink->connect_input(producer));
+    sink->seek(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 1u);
+    sink->start_input();
+    producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
+    producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
+    producer->wake();
+
+    auto hold_off_deadline = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(100);
+    while (MonotonicTime::now_coarse() < hold_off_deadline) {
+        EXPECT(!consumer_edge.peek().has_value());
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+
+    consumer_edge.set_requested_seek_id(1);
+    sink->seek_upstream(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 1u);
+    EXPECT(spin_until(loop, [&] { return consumer_edge.peek().has_value(); }));
+    EXPECT_EQ(consumer_edge.peek()->seek_id, 1u);
+}
+
 // A request the consumer withdraws, having resolved the seek locally after all, must let pumping resume under the
 // unchanged stamp once the consumer's next consume wakes the pump.
 TEST_CASE(pump_resumes_after_a_withdrawn_seek_request)

@@ -31,8 +31,9 @@ public:
     struct Delegates {
         // Rung when newly enqueued data, a status change or a resumed clock may need the consumer woken.
         Function<void()> ring_data_available;
-        // A seek reaches the far-end consumer first so its cached frames are consulted before anything moves upstream.
-        // The consumer will then seek upstream, which passes through the RemoteVideoProducer and across the edge.
+        // A seek reaches the far-end consumer so that its cached frames are consulted. Unless the frames lent to it
+        // could satisfy the seek, the input is seeked before the seek is transmitted, and the consumer's request for
+        // the same seek, which passes through the RemoteVideoProducer and across the edge, is then already answered.
         Function<void(InvalidateHeldData)> transmit_seek;
         // Relays a replacement time reader (e.g. after audio is disabled) to the consumer; the initial one rides video_edge_ready.
         Function<void(MediaTimeReader const&)> transmit_time_reader;
