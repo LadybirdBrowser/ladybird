@@ -34,6 +34,8 @@ WEB_API Layout::Node* layout_node_for_committed_slot(Layout::BegunRead const&, L
 WEB_API CSSPixelRect absolute_rect(Layout::Node const&);
 WEB_API CSSPixelRect absolute_padding_box_rect(Layout::Node const&);
 WEB_API CSSPixelRect absolute_border_box_rect(Layout::Node const&);
+WEB_API CSSPixelRect border_box_rect_of_fragments(Layout::Node const&);
+WEB_API CSSPixelSize unbroken_border_box_size(Layout::Node const&);
 WEB_API CSSPixelPoint absolute_position(Layout::Node const&);
 WEB_API CSSPixelSize content_size(Layout::Node const&);
 WEB_API CSSPixels content_width(Layout::Node const&);

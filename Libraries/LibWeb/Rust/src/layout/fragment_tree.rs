@@ -6,6 +6,7 @@
 
 use super::*;
 use crate::layout::used_values::CommittedSvgFacts;
+use smallvec::SmallVec;
 
 pub(crate) struct Fragment {
     pub(crate) identity: u64,
@@ -41,6 +42,8 @@ pub(crate) struct Fragment {
     pub(crate) has_line_clamp_point: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
     pub(crate) clamped_content_is_scrollable_overflow: bool,
+    pub(crate) continues_from_previous_fragment: bool,
+    pub(crate) continues_in_next_fragment: bool,
     pub(crate) children: Vec<FragmentLink>,
 }
 
@@ -95,6 +98,8 @@ impl Fragment {
             && !self.has_line_clamp_point
             && !self.is_invisible_for_line_clamp
             && !self.clamped_content_is_scrollable_overflow
+            && !self.continues_from_previous_fragment
+            && !self.continues_in_next_fragment
     }
 
     /// Box properties excluding inline content and child fragments. Painting compares those
@@ -136,6 +141,8 @@ impl Fragment {
             && self.has_line_clamp_point == previous.has_line_clamp_point
             && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
             && self.clamped_content_is_scrollable_overflow == previous.clamped_content_is_scrollable_overflow
+            && self.continues_from_previous_fragment == previous.continues_from_previous_fragment
+            && self.continues_in_next_fragment == previous.continues_in_next_fragment
     }
 
     /// Whether this fragment's subtree came out of layout like `previous`, ignoring which allocations hold the pieces.
@@ -236,6 +243,8 @@ impl FragmentLink {
                 has_line_clamp_point: false,
                 is_invisible_for_line_clamp: false,
                 clamped_content_is_scrollable_overflow: false,
+                continues_from_previous_fragment: false,
+                continues_in_next_fragment: false,
                 children: Vec::new(),
             }),
             committed_offset: Default::default(),
@@ -468,9 +477,14 @@ fn snapshot_fragment(
         has_line_clamp_point: used.has_line_clamp_point.get(),
         is_invisible_for_line_clamp: used.is_invisible_for_line_clamp.get(),
         clamped_content_is_scrollable_overflow: used.clamped_content_is_scrollable_overflow.get(),
+        continues_from_previous_fragment: used.continues_from_previous_fragment.get(),
+        continues_in_next_fragment: used.continues_in_next_fragment.get(),
         children,
     };
-    if let Some(previous) = previously_committed_fragment_matching(callbacks, &fragment) {
+    if !fragment.continues_from_previous_fragment
+        && !fragment.continues_in_next_fragment
+        && let Some(previous) = previously_committed_fragment_matching(callbacks, &fragment)
+    {
         return previous;
     }
     fragment.identity = NEXT_IDENTITY.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -550,25 +564,111 @@ impl UnplacedRootFragment {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct SlotFragment<'tree> {
+    pub(crate) link: &'tree FragmentLink,
+    pub(crate) containing_block_fragment: Option<u32>,
+    pub(crate) containing_block_line_index_offset: usize,
+}
+
+pub(crate) type SlotFragments<'tree> = SmallVec<[SlotFragment<'tree>; 1]>;
+
+pub(crate) struct LinksBySlot<'tree> {
+    in_first_containing_block_fragment: HashMap<u32, &'tree FragmentLink>,
+    other: HashMap<u32, (SlotFragments<'tree>, usize)>,
+}
+
+impl<'tree> LinksBySlot<'tree> {
+    pub(crate) fn fragments(&self, slot: u32) -> SlotFragments<'tree> {
+        if let Some(link) = self.in_first_containing_block_fragment.get(&slot) {
+            return smallvec::smallvec![SlotFragment {
+                link,
+                containing_block_fragment: Some(0),
+                containing_block_line_index_offset: 0,
+            }];
+        }
+        self.other
+            .get(&slot)
+            .map(|(fragments, _)| fragments.clone())
+            .unwrap_or_default()
+    }
+
+    fn push(&mut self, slot: u32, fragment: SlotFragment<'tree>) -> (u32, usize) {
+        let line_count = |fragment: &SlotFragment<'_>| {
+            fragment
+                .link
+                .fragment
+                .line_data
+                .as_ref()
+                .map_or(0, |line_data| line_data.lines.len())
+        };
+        if let Some(link) = self.in_first_containing_block_fragment.remove(&slot) {
+            let first = SlotFragment {
+                link,
+                containing_block_fragment: Some(0),
+                containing_block_line_index_offset: 0,
+            };
+            let first_line_count = line_count(&first);
+            self.other.insert(slot, (smallvec::smallvec![first], first_line_count));
+        }
+        let Some((fragments, line_count_before)) = self.other.get_mut(&slot) else {
+            if fragment.containing_block_fragment == Some(0) && fragment.containing_block_line_index_offset == 0 {
+                self.in_first_containing_block_fragment.insert(slot, fragment.link);
+            } else {
+                let fragment_line_count = line_count(&fragment);
+                self.other
+                    .insert(slot, (smallvec::smallvec![fragment], fragment_line_count));
+            }
+            return (0, 0);
+        };
+        let fragment_index = fragments.len() as u32;
+        let line_index_offset = *line_count_before;
+        *line_count_before += line_count(&fragment);
+        fragments.push(fragment);
+        (fragment_index, line_index_offset)
+    }
+}
+
 pub(crate) struct CompletedPassFragments {
     pub(crate) roots: Vec<FragmentLink>,
     pub(crate) reused_subtree_roots: HashSet<u32>,
 }
 
 impl CompletedPassFragments {
-    pub(crate) fn links_by_slot(&self) -> HashMap<u32, &FragmentLink> {
+    pub(crate) fn links_by_slot(&self) -> LinksBySlot<'_> {
         fn insert_links<'tree>(
             links: &'tree [FragmentLink],
+            parent: Option<(crate::layout::node_data::NodeSlotId, u32, usize)>,
             reused_subtree_roots: &HashSet<u32>,
-            links_by_slot: &mut HashMap<u32, &'tree FragmentLink>,
+            links_by_slot: &mut LinksBySlot<'tree>,
         ) {
             for link in links {
                 let slot = link.fragment.node.slot_index();
-                let previous = links_by_slot.insert(slot, link);
-                assert!(previous.is_none(), "two fragments claim slot {slot}");
+                let (containing_block_fragment, containing_block_line_index_offset) = match parent {
+                    None => (None, 0),
+                    Some((parent_node, parent_fragment, parent_line_index_offset))
+                        if parent_node == link.containing_block =>
+                    {
+                        (Some(parent_fragment), parent_line_index_offset)
+                    }
+                    Some(_) => (Some(0), 0),
+                };
+                let (fragment_index, line_index_offset) = links_by_slot.push(
+                    slot,
+                    SlotFragment {
+                        link,
+                        containing_block_fragment,
+                        containing_block_line_index_offset,
+                    },
+                );
                 // NB: Commit stops at a reused subtree's root, so nothing looks up the links below it.
                 if !reused_subtree_roots.contains(&slot) {
-                    insert_links(&link.fragment.children, reused_subtree_roots, links_by_slot);
+                    insert_links(
+                        &link.fragment.children,
+                        Some((link.fragment.node, fragment_index, line_index_offset)),
+                        reused_subtree_roots,
+                        links_by_slot,
+                    );
                 }
             }
         }
@@ -585,9 +685,14 @@ impl CompletedPassFragments {
                 })
                 .sum()
         }
-        let mut links_by_slot =
-            HashMap::with_capacity_and_hasher(count_links(&self.roots, &self.reused_subtree_roots), Default::default());
-        insert_links(&self.roots, &self.reused_subtree_roots, &mut links_by_slot);
+        let mut links_by_slot = LinksBySlot {
+            in_first_containing_block_fragment: HashMap::with_capacity_and_hasher(
+                count_links(&self.roots, &self.reused_subtree_roots),
+                Default::default(),
+            ),
+            other: HashMap::default(),
+        };
+        insert_links(&self.roots, None, &self.reused_subtree_roots, &mut links_by_slot);
         links_by_slot
     }
 

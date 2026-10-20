@@ -103,14 +103,34 @@ fn commit_subtree(
     node: Node,
     messages: &mut Vec<FfiCommitMessage>,
     paintables: &mut crate::painting::paintable_build::PaintableCommit<'_>,
-    links_by_slot: &HashMap<u32, &FragmentLink>,
+    links_by_slot: &fragment_tree::LinksBySlot<'_>,
     pass_fragments: &fragment_tree::CompletedPassFragments,
     enclosing_line_root_changes: crate::painting::paintable_build::LineRootChanges,
 ) {
     let slot_index = node.slot_index();
-    let entry = links_by_slot.get(&slot_index).copied();
-    let reuses_committed_subtree = pass_fragments.subtree_was_reused(slot_index)
-        || entry.is_some_and(|link| keeps_committed_childless_box(paintables.arena(), node, link));
+    let fragments = links_by_slot.fragments(slot_index);
+    let fragments = fragments.as_slice();
+    let link_with_merged_line_index;
+    let entry = match fragments.first() {
+        Some(fragment)
+            if fragment.containing_block_line_index_offset != 0
+                && fragment.link.containing_line_box_index.is_some() =>
+        {
+            link_with_merged_line_index = fragment_tree::FragmentLink {
+                containing_line_box_index: fragment
+                    .link
+                    .containing_line_box_index
+                    .map(|index| index + fragment.containing_block_line_index_offset),
+                ..fragment.link.clone()
+            };
+            Some(&link_with_merged_line_index)
+        }
+        first => first.map(|fragment| fragment.link),
+    };
+    let has_more_fragments = fragments.len() > 1;
+    let reuses_committed_subtree = !has_more_fragments
+        && (pass_fragments.subtree_was_reused(slot_index)
+            || entry.is_some_and(|link| keeps_committed_childless_box(paintables.arena(), node, link)));
     debug_assert!(!reuses_committed_subtree || entry.is_some());
     // A reused subtree whose root committed this very link already, in geometry that is still current, has nothing left
     // to commit. A box placing an absolutely positioned box, or a navigable's viewport, notes itself on every commit, and
@@ -121,6 +141,10 @@ fn commit_subtree(
         && !link.containing_block.is_invalid()
         && paintables.arena().data(node).kind.get() != NodeKind::NavigableContainerViewport
         && paintables.arena().holds_current_committed_fragment_link(node, link)
+        && fragments
+            .first()
+            .and_then(|fragment| fragment.containing_block_fragment)
+            .is_none_or(|fragment| paintables.arena().committed_side_data(node).containing_block_fragment == fragment)
     {
         return;
     }
@@ -130,6 +154,10 @@ fn commit_subtree(
     if let Some(inputs) = entry.and_then(|link| link.abspos_layout_inputs.as_ref()) {
         paintables.arena().note_committed_out_of_flow_box(node, inputs);
     }
+    let previous_fragmented_content = (paintables.arena().paintable_row_is_populated(node)
+        && (has_more_fragments || !paintables.arena().committed_side_data(node).box_fragments().is_empty()))
+    .then(|| paintables.arena().committed_side_data(node).inline_content.clone())
+    .flatten();
     let prepared = paintables.prepare_node(
         node,
         entry.is_some(),
@@ -155,6 +183,7 @@ fn commit_subtree(
             enclosing_line_root_changes,
             prepared.previous_offset,
         );
+        paintables.set_box_fragments(node, fragments);
         if fragment.line_data.is_some() {
             line_root_changes_for_children = replaced.line_root_changes;
         }
@@ -171,12 +200,27 @@ fn commit_subtree(
             ));
         }
 
-        if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
-            has_pending_inline_box_geometry = paintables.set_line_data(node, line_data);
+        if !reuses_committed_subtree {
+            let merged_line_data = has_more_fragments
+                .then(|| {
+                    inline_content::InlineContent::merge_box_fragments(
+                        fragments
+                            .iter()
+                            .map(|fragment| fragment.link.fragment.line_data.as_deref()),
+                    )
+                })
+                .flatten();
+            if let Some(line_data) = merged_line_data.as_ref().or(fragment.line_data.as_ref()) {
+                let change = paintables.set_line_data(node, line_data, previous_fragmented_content);
+                has_pending_inline_box_geometry = change.has_pieces;
+                line_root_changes_for_children.fragment_changed |= change.content_changed;
+                line_root_changes_for_children.inline_content_changed |= change.content_changed;
+                line_root_changes_for_children.inline_item_order_changed |= change.item_order_changed;
+            }
         }
     }
-
     if entry.is_none() && prepared.has_paintable_row {
+        paintables.set_box_fragments(node, fragments);
         paintables.schedule_scrollable_overflow_recalculation(node);
     }
 

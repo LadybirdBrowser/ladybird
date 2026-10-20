@@ -338,6 +338,8 @@ pub(crate) struct UsedValues {
     pub has_line_clamp_point: Cell<bool>,
     pub is_invisible_for_line_clamp: Cell<bool>,
     pub clamped_content_is_scrollable_overflow: Cell<bool>,
+    pub continues_from_previous_fragment: Cell<bool>,
+    pub continues_in_next_fragment: Cell<bool>,
 
     // For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
     // columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
@@ -401,6 +403,8 @@ impl Default for UsedValues {
             is_collapsed_borders_table_box: Cell::new(false),
             has_line_clamp_point: Cell::new(false),
             is_invisible_for_line_clamp: Cell::new(false),
+            continues_from_previous_fragment: Cell::new(false),
+            continues_in_next_fragment: Cell::new(false),
             clamped_content_is_scrollable_overflow: Cell::new(false),
             table_column_index: Cell::new(0),
             table_column_span: Cell::new(0),
@@ -603,6 +607,8 @@ used_values_cell_state! {
     has_line_clamp_point: bool,
     is_invisible_for_line_clamp: bool,
     clamped_content_is_scrollable_overflow: bool,
+    continues_from_previous_fragment: bool,
+    continues_in_next_fragment: bool,
     table_column_index: u32,
     table_column_span: u32,
     hidden_by_collapsed_columns: bool,

@@ -61,6 +61,7 @@ pub struct LineRecord {
     pub has_forced_break: bool,
     pub forced_break_node: NodeSlotId,
     pub has_block_level_box: bool,
+    pub box_fragment: u32,
 }
 
 impl LineRecord {
@@ -220,6 +221,63 @@ impl InlineContent {
         });
         content.items = items;
         content
+    }
+
+    pub(crate) fn merge_box_fragments<'content>(
+        contents: impl Iterator<Item = Option<&'content InlineContent>>,
+    ) -> Option<std::sync::Arc<InlineContent>> {
+        let contents: Vec<(u32, &InlineContent)> = contents
+            .enumerate()
+            .filter_map(|(index, content)| content.map(|content| (index as u32, content)))
+            .collect();
+        if contents.is_empty() {
+            return None;
+        }
+        let interleaves = contents.iter().any(|(_, content)| !content.items.is_empty());
+        let mut merged = InlineContent::default();
+        for (box_fragment, content) in contents {
+            merged.append(content, interleaves, box_fragment);
+        }
+        Some(std::sync::Arc::new(merged))
+    }
+
+    fn append(&mut self, content: &InlineContent, interleaves: bool, box_fragment: u32) {
+        let line_offset = self.lines.len() as u32;
+        let fragment_offset = self.fragments.len() as u32;
+        let piece_offset = self.inline_box_pieces.len() as u32;
+        self.lines
+            .extend(content.lines.iter().map(|line| LineRecord { box_fragment, ..*line }));
+        self.fragments
+            .extend(content.fragments.iter().cloned().map(|mut fragment| {
+                fragment.line_index += line_offset;
+                fragment
+            }));
+        self.inline_box_pieces
+            .extend(content.inline_box_pieces.iter().map(|piece| {
+                let mut piece = *piece;
+                piece.line_index += line_offset;
+                piece.first_fragment_index += fragment_offset;
+                piece
+            }));
+        if !interleaves {
+            return;
+        }
+        if content.items.is_empty() {
+            self.items.extend(
+                content
+                    .fragments
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, fragment)| fragment.glyph_run.is_some())
+                    .map(|(index, _)| InlineItem::TextFragment(index as u32 + fragment_offset)),
+            );
+        } else {
+            self.items.extend(content.items.iter().map(|item| match *item {
+                InlineItem::BoxPiece(index) => InlineItem::BoxPiece(index + piece_offset),
+                InlineItem::TextFragment(index) => InlineItem::TextFragment(index + fragment_offset),
+                InlineItem::AtomicInline(index) => InlineItem::AtomicInline(index + fragment_offset),
+            }));
+        }
     }
 
     fn item_position(&self, item: InlineItem) -> (NodeSlotId, u32) {

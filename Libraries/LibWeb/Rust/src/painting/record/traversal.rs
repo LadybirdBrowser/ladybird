@@ -106,6 +106,7 @@ fn record_display_list_impl<O: Observer>(
         source_recording,
         source_items,
         live_producer: false,
+        line_root_positions: None,
         moved_expansion: FastSet::default(),
         blocking_wheel_event_region_count: 0,
         records_per_box_wheel_hit_test_targets: frame_inputs.records_per_box_wheel_hit_test_targets(),

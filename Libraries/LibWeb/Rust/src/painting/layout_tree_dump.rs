@@ -330,6 +330,20 @@ fn push_box_model(output: &mut Vec<u8>, arena: &LayoutNodeArena, slot: NodeSlotI
     output.push(b']');
 }
 
+fn push_box_fragments(output: &mut Vec<u8>, arena: &LayoutNodeArena, slot: NodeSlotId) {
+    let rows = arena.paintable_rows();
+    for index in 1..paintable_geometry::fragment_count(&rows, slot) {
+        let rect = paintable_geometry::absolute_fragment_rect(&rows, slot, index);
+        output.extend_from_slice(b" fragment at ");
+        push_css_pixel_point(&mut Utf8Sink(output), rect.location());
+        output.extend_from_slice(b" [");
+        push_css_pixels(&mut Utf8Sink(output), rect.width);
+        output.push(b' ');
+        push_css_pixels(&mut Utf8Sink(output), rect.height);
+        output.push(b']');
+    }
+}
+
 fn push_position_and_box_model(
     output: &mut Vec<u8>,
     arena: &LayoutNodeArena,
@@ -346,6 +360,7 @@ fn push_position_and_box_model(
         paintable_geometry::absolute_position(&arena.paintable_rows(), slot),
     );
     push_box_model(output, arena, slot);
+    push_box_fragments(output, arena, slot);
 }
 
 fn push_affine_transform(output: &mut Vec<u8>, transform: FfiAffineTransform) {
@@ -517,6 +532,7 @@ fn push_layout_node_line(
     push_box_tokens(output, arena, data, slot, palette);
     if has_committed_box {
         push_box_model(output, arena, slot);
+        push_box_fragments(output, arena, slot);
     }
     push_box_suffix(output, arena, data, slot, has_committed_box, palette);
 }

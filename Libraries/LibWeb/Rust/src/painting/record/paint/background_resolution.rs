@@ -15,6 +15,7 @@ use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::host::{FfiLayerImageList, RootBackgroundSource};
 use crate::painting::paint_read::PaintRead;
+use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry::{
     absolute_border_box_rect, absolute_padding_box_rect, committed_border_box_edges, committed_padding,
     committed_uses_collapsing_borders_model,
@@ -76,6 +77,8 @@ pub(crate) struct ResolvedBackgroundLayer<'a> {
 
 pub(crate) struct ResolvedBackground<'a> {
     pub color_box: BackgroundBox,
+    pub padding: FfiPixelBox,
+    pub border: FfiPixelBox,
     pub layers: Vec<ResolvedBackgroundLayer<'a>>,
     pub paintable_layer_count: usize,
     pub needs_text_clip: bool,
@@ -88,6 +91,7 @@ pub(crate) struct BackgroundPaintInputs<'a> {
     pub border_radii: crate::painting::border_radii::BorderRadii,
     pub image_rendering: u8,
     pub is_root_element: bool,
+    pub visible_device_rect: Option<libgfx_rust::IntRect>,
 }
 
 fn mask_composite_to_compositing_and_blending_operator(compositing_operator: u8) -> CompositingAndBlendingOperator {
@@ -482,6 +486,7 @@ fn resolve_layers<'a, O: Observer>(
     background_color_clip: u8,
     border_rect: CssPixelRect,
     border_radii: crate::painting::border_radii::BorderRadii,
+    edges: Option<(FfiPixelBox, FfiPixelBox)>,
     layer_type: LayerType,
 ) -> ResolvedBackground<'a> {
     use css_enums::{background_attachment, repetition};
@@ -489,10 +494,14 @@ fn resolve_layers<'a, O: Observer>(
         rect: border_rect,
         radii: border_radii,
     };
-    let padding = committed_padding(recorder.source, paintable);
     // The padding box and content box are inset from the border box by the border widths that the border box
     // includes: half of each collapsed border in the collapsing borders model.
-    let border = committed_border_box_edges(recorder.source, paintable);
+    let (padding, border) = edges.unwrap_or_else(|| {
+        (
+            committed_padding(recorder.source, paintable),
+            committed_border_box_edges(recorder.source, paintable),
+        )
+    });
     let color_box = background_box_for(background_color_clip, border_box, padding, border);
     let layer_may_be_painted =
         |layer: &ComputedLayer<'_>| matches!(layer_type, LayerType::Mask) || layer.image.is_some();
@@ -701,6 +710,8 @@ fn resolve_layers<'a, O: Observer>(
 
     ResolvedBackground {
         color_box,
+        padding,
+        border,
         layers: resolved_layers,
         paintable_layer_count,
         needs_text_clip: background_color_clip == css_enums::background_box::TEXT,
@@ -769,6 +780,7 @@ pub(crate) fn resolve_background_layers<'a, O: Observer>(
     background_color_clip: u8,
     border_rect: CssPixelRect,
     border_radii: crate::painting::border_radii::BorderRadii,
+    edges: Option<(FfiPixelBox, FfiPixelBox)>,
 ) -> ResolvedBackground<'a> {
     let layers = computed_background_layers(style, layer_image_facts_owner);
     resolve_layers(
@@ -779,6 +791,7 @@ pub(crate) fn resolve_background_layers<'a, O: Observer>(
         background_color_clip,
         border_rect,
         border_radii,
+        edges,
         LayerType::Background,
     )
 }
@@ -798,6 +811,7 @@ pub(crate) fn resolve_mask_layers<'a, O: Observer>(
         css_enums::background_box::BORDER_BOX,
         border_rect,
         crate::painting::border_radii::BorderRadii::default(),
+        None,
         LayerType::Mask,
     )
 }
@@ -863,12 +877,15 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
             source.background_color_clip,
             source.background_rect,
             source.border_radii,
+            None,
         ),
         None => ResolvedBackground {
             color_box: BackgroundBox {
                 rect: CssPixelRect::default(),
                 radii: BorderRadii::default(),
             },
+            padding: FfiPixelBox::default(),
+            border: FfiPixelBox::default(),
             layers: Vec::new(),
             paintable_layer_count: 0,
             needs_text_clip: false,
@@ -886,5 +903,6 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
         border_radii: source.border_radii,
         image_rendering: source.image_rendering,
         is_root_element: source.is_root_element,
+        visible_device_rect: None,
     })
 }

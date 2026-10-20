@@ -10,9 +10,10 @@ use crate::painting::record::trace::Observer;
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::paintable_geometry;
 use crate::painting::record::paint::background_resolution::body_background_is_propagated_to_root;
-use crate::painting::record::paint::border::{paint_box_borders, present_css_border_widths, style_borders_data};
+use crate::painting::record::paint::border::{
+    ALL_PIECE_EDGES, paint_box_borders, present_css_border_widths, style_borders_data,
+};
 use crate::painting::record::paint::{background, outline, text};
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::style_queries;
@@ -64,9 +65,12 @@ fn paint_pieces<O: Observer>(
         }
         block
     };
-    let root_position = paintable_geometry::absolute_position(recorder.source, root);
+    let root_positions = recorder.line_root_positions(root);
     let layout_arena = recorder.source;
     let side = layout_arena.committed_side_data(root);
+    let root_position_of = |piece: &crate::layout::inline_content::InlineBoxPieceRecord| {
+        root_positions.of_line(side.lines(), piece.line_index as usize)
+    };
     let root_pieces = &side.inline_box_pieces();
     let facts = recorder.base_paint_facts(paintable);
 
@@ -86,7 +90,7 @@ fn paint_pieces<O: Observer>(
             if piece.is_geometry_only_placeholder {
                 continue;
             }
-            let border_box_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
+            let border_box_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position_of(piece));
             let padding_box_rect = piece.shrunken_by_present_edges(
                 border_box_rect,
                 crate::painting::paintable_geometry::committed_border(recorder.source, paintable),
@@ -98,6 +102,8 @@ fn paint_pieces<O: Observer>(
                     paintable,
                     if has_borders { border_box_rect } else { padding_box_rect },
                     border_radii,
+                    None,
+                    None,
                 );
             }
             crate::painting::record::paint::shadow::paint_box_shadow(
@@ -127,8 +133,9 @@ fn paint_pieces<O: Observer>(
                 recorder,
                 paintable,
                 &facts,
-                CssPixelRect::from(piece.border_box_rect).translated_by(root_position),
+                CssPixelRect::from(piece.border_box_rect).translated_by(root_position_of(piece)),
                 present_css_border_widths(style, border, piece.present_edges),
+                ALL_PIECE_EDGES,
                 &borders_data,
                 border_radii,
             );
@@ -149,7 +156,7 @@ fn paint_pieces<O: Observer>(
                 recorder,
                 outline,
                 outline_offset,
-                CssPixelRect::from(piece.border_box_rect).translated_by(root_position),
+                CssPixelRect::from(piece.border_box_rect).translated_by(root_position_of(piece)),
                 border_radii,
             );
         }

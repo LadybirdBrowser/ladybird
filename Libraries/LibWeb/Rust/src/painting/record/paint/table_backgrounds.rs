@@ -55,16 +55,20 @@ pub(crate) fn paint_table_part_background<O: Observer>(recorder: &mut PaintRecor
         style.background().background_color_clip,
         part_rect,
         BorderRadii::default(),
+        None,
     );
-    let inputs = BackgroundPaintInputs {
+    let mut inputs = BackgroundPaintInputs {
         resolved,
         border_radii: BorderRadii::default(),
         image_rendering: style.image_rendering(),
         is_root_element: false,
+        visible_device_rect: None,
     };
     for cell in originating_cells(layout_arena, paintable) {
         let cell_rect = paintable_geometry::absolute_border_box_rect(layout_arena, cell);
-        let clip_rect = recorder.converter.rounded_device_rect(cell_rect).to_float();
+        let cell_device_rect = recorder.converter.rounded_device_rect(cell_rect);
+        inputs.visible_device_rect = Some(cell_device_rect);
+        let clip_rect = cell_device_rect.to_float();
         recorder.record_with_inline_clips(&[PendingInlineClip::intersecting_float_rect(clip_rect)], |recorder| {
             paint_resolved_background(recorder, paintable, &inputs);
         });

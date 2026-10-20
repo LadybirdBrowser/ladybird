@@ -1413,32 +1413,54 @@ pub(crate) fn paint_box_borders_from_style<O: Observer>(
     paintable: NodeSlotId,
     facts: &BasePaintFacts,
 ) {
+    let border = crate::painting::paintable_geometry::committed_border(recorder.source, paintable);
+    let border_box_rect = crate::painting::paintable_geometry::absolute_border_box_rect(recorder.source, paintable);
+    let border_radii = recorder.border_radii(paintable);
+    paint_borders_from_style(
+        recorder,
+        paintable,
+        facts,
+        border,
+        border_box_rect,
+        border_radii,
+        ALL_PIECE_EDGES,
+    );
+}
+
+pub(crate) fn paint_borders_from_style<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    facts: &BasePaintFacts,
+    border: FfiPixelBox,
+    border_box_rect: CssPixelRect,
+    border_radii: crate::painting::border_radii::BorderRadii,
+    present_edges: u8,
+) {
     let converter = recorder.converter;
     let Some(style) = recorder.source.node_style_if_live(paintable) else {
         return;
     };
-    let border = crate::painting::paintable_geometry::committed_border(recorder.source, paintable);
     let borders_data = style_borders_data(style, border, ALL_PIECE_EDGES, &converter);
-    let css_border_widths = present_css_border_widths(style, border, ALL_PIECE_EDGES);
-    let border_box_rect = crate::painting::paintable_geometry::absolute_border_box_rect(recorder.source, paintable);
-    let border_radii = recorder.border_radii(paintable);
     paint_box_borders(
         recorder,
         paintable,
         facts,
         border_box_rect,
-        css_border_widths,
+        present_css_border_widths(style, border, ALL_PIECE_EDGES),
+        present_edges,
         &borders_data,
         border_radii,
     );
 }
 
+#[expect(clippy::too_many_arguments)]
 pub(crate) fn paint_box_borders<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     facts: &BasePaintFacts,
     border_box_rect: CssPixelRect,
     css_border_widths: [CssPixels; 4],
+    present_edges: u8,
     borders_data: &BordersDataDevicePixels,
     border_radii: crate::painting::border_radii::BorderRadii,
 ) {
@@ -1447,6 +1469,7 @@ pub(crate) fn paint_box_borders<O: Observer>(
             recorder,
             paintable,
             css_border_widths,
+            present_edges,
             border_box_rect,
         )
     {
