@@ -293,8 +293,9 @@ fn branches_to_labels() {
         "ud2" => |a| a.ud2();
     });
 
-    // Backward branches just out of rel8 range are near.
+    // Backward branches just out of rel8 range are near. (They start at 32-byte windows, which they stay within.)
     let code = bytes(|a| {
+        a.nops(2);
         let label = a.new_label();
         a.bind(label);
         a.nops(126);
@@ -302,8 +303,45 @@ fn branches_to_labels() {
         a.nops(1);
         a.jcc(Cond::Equal, label);
     });
-    assert_eq!(&code[126..128], [0xeb, 0x80]);
-    assert_eq!(&code[129..135], [0x0f, 0x84, 0x79, 0xff, 0xff, 0xff]);
+    assert_eq!(&code[128..130], [0xeb, 0x80]);
+    assert_eq!(&code[131..137], [0x0f, 0x84, 0x79, 0xff, 0xff, 0xff]);
+}
+
+/// Where each instruction of `code` starts, and what it is.
+fn layout(code: &[u8]) -> Vec<(usize, String)> {
+    disassembler::listing(super::super::Architecture::X86_64, code)
+        .into_iter()
+        .map(|instruction| (instruction.offset, instruction.text))
+        .collect()
+}
+
+#[test]
+fn branches_stay_within_32_byte_windows() {
+    // A branch that would cross the end of a 32-byte window, or end at it, starts the next one.
+    type Emit = fn(&mut Assembler);
+    let cases: [(usize, Emit, &str, usize); 6] = [
+        (29, |a| a.jmp_r(RAX), "jmp rax", 29),
+        (30, |a| a.jmp_r(RAX), "jmp rax", 32),
+        (30, |a| a.ret(), "ret", 30),
+        (31, |a| a.ret(), "ret", 32),
+        (26, |a| a.call_m(&base(RAX, 8)), "call qword ptr [rax+8]", 26),
+        (30, |a| a.call_m(&base(RAX, 8)), "call qword ptr [rax+8]", 32),
+    ];
+    for (offset, emit, text, start) in cases {
+        let code = bytes(|a| {
+            a.nops(offset);
+            emit(a);
+        });
+        let layout = layout(&code);
+        let (branch_start, branch) = layout.last().unwrap();
+        assert_eq!((*branch_start, branch.as_str()), (start, text), "{layout:?}");
+        assert!(
+            layout[..layout.len() - 1]
+                .iter()
+                .all(|(_, text)| text.starts_with("nop") || text == "xchg ax, ax"),
+            "{layout:?}"
+        );
+    }
 }
 
 #[test]
@@ -414,6 +452,22 @@ mod macro_assembler {
     use super::super::super::NegativeZero;
     use super::super::super::PortableMacroAssembler;
     use super::*;
+
+    #[test]
+    fn compares_move_with_the_branches_they_fuse_with() {
+        let mut masm = MacroAssembler::new();
+        let label = masm.new_label();
+        masm.assembler.nops(26);
+        masm.branch32_imm(Condition::Equal, RAX, 1000, label);
+        masm.bind(label);
+        let code = masm.assembler.finish().unwrap();
+        let layout = layout(&code);
+        let tail = layout[layout.len() - 2..]
+            .iter()
+            .map(|(offset, text)| (*offset, text.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(tail, [(32, "cmp eax, 0x3e8"), (38, "je 0x2c")], "{layout:?}");
+    }
 
     #[test]
     fn operations_are_legalized() {

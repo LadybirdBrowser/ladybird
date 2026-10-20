@@ -153,6 +153,51 @@ enum Prefix {
 #[derive(Debug, Default)]
 pub struct Assembler {
     buffer: CodeBuffer,
+    /// Whether a group of instructions that ends in a branch is being emitted (see `BranchGroups::branch_group()`), whose
+    /// branches leave keeping it within a branch window to the group.
+    in_branch_group: bool,
+}
+
+/// The windows of code that branches stay within (see `BranchGroups::branch_group()`).
+const BRANCH_WINDOW: usize = 32;
+
+/// Emitters of code with branches, which keep the branches within 32-byte windows.
+pub trait BranchGroups: Sized {
+    fn branch_assembler(&mut self) -> &mut Assembler;
+
+    /// Emits a branch with `emit`, or the instructions that macro-fuse with a branch and the branch, so that they
+    /// neither cross nor end at the end of a 32-byte window, padding with NOPs to the next one where they would.
+    ///
+    /// OPTIMIZATION: Skylake-derived cores (with the microcode for their JCC erratum) keep no 32-byte window of code
+    /// with such a branch in their micro-op cache, and decode it again every time it runs, at a fraction of the rate.
+    /// Other cores only run the NOPs where code falls through to the padded branch.
+    ///
+    /// NB: `emit` runs again after the padding, so it may not bind labels or have other effects.
+    fn branch_group(&mut self, emit: impl Fn(&mut Self)) {
+        if self.branch_assembler().in_branch_group {
+            emit(self);
+            return;
+        }
+        let assembler = self.branch_assembler();
+        assembler.in_branch_group = true;
+        let checkpoint = assembler.buffer.checkpoint();
+        emit(self);
+        let assembler = self.branch_assembler();
+        let (start, end) = (checkpoint.offset(), assembler.offset());
+        let crosses = start / BRANCH_WINDOW != (end - 1) / BRANCH_WINDOW || end.is_multiple_of(BRANCH_WINDOW);
+        if end > start && end - start < BRANCH_WINDOW && crosses {
+            assembler.buffer.rewind(checkpoint);
+            assembler.nops(start.next_multiple_of(BRANCH_WINDOW) - start);
+            emit(self);
+        }
+        self.branch_assembler().in_branch_group = false;
+    }
+}
+
+impl BranchGroups for Assembler {
+    fn branch_assembler(&mut self) -> &mut Assembler {
+        self
+    }
 }
 
 impl Assembler {
@@ -845,12 +890,14 @@ impl Assembler {
 
     /// `jcc label`, rel8 when the label is bound and in range, rel32 otherwise.
     pub fn jcc(&mut self, cond: Cond, label: Label) {
-        if self.backward_rel8_reaches(label, 2) {
-            self.jcc_short(cond, label);
-        } else {
-            self.buffer.emit_bytes(&[0x0f, 0x80 | cond as u8]);
-            self.emit_rel32(label);
-        }
+        self.branch_group(|a| {
+            if a.backward_rel8_reaches(label, 2) {
+                a.jcc_short(cond, label);
+            } else {
+                a.buffer.emit_bytes(&[0x0f, 0x80 | cond as u8]);
+                a.emit_rel32(label);
+            }
+        });
     }
 
     /// `jcc rel8 label`. Fails at bind or finish time if out of range.
@@ -861,12 +908,14 @@ impl Assembler {
 
     /// `jmp label`, rel8 when the label is bound and in range, rel32 otherwise.
     pub fn jmp(&mut self, label: Label) {
-        if self.backward_rel8_reaches(label, 2) {
-            self.jmp_short(label);
-        } else {
-            self.buffer.emit_u8(0xe9);
-            self.emit_rel32(label);
-        }
+        self.branch_group(|a| {
+            if a.backward_rel8_reaches(label, 2) {
+                a.jmp_short(label);
+            } else {
+                a.buffer.emit_u8(0xe9);
+                a.emit_rel32(label);
+            }
+        });
     }
 
     /// `jmp rel8 label`. Fails at bind or finish time if out of range.
@@ -877,33 +926,45 @@ impl Assembler {
 
     /// `call label` (rel32).
     pub fn call(&mut self, label: Label) {
-        self.buffer.emit_u8(0xe8);
-        self.emit_rel32(label);
+        self.branch_group(|a| {
+            a.buffer.emit_u8(0xe8);
+            a.emit_rel32(label);
+        });
     }
 
     /// `call reg`.
     pub fn call_r(&mut self, target: Gpr) {
-        self.emit_instruction(Prefix::None, false, &[0xff], 2, Rm::Reg(target.0), ByteRegisters::No, 0);
+        self.branch_group(|a| {
+            a.emit_instruction(Prefix::None, false, &[0xff], 2, Rm::Reg(target.0), ByteRegisters::No, 0);
+        });
     }
 
     /// `call qword [address]`.
     pub fn call_m(&mut self, address: &Address) {
-        self.emit_instruction(Prefix::None, false, &[0xff], 2, Rm::Mem(*address), ByteRegisters::No, 0);
+        self.branch_group(|a| {
+            a.emit_instruction(Prefix::None, false, &[0xff], 2, Rm::Mem(*address), ByteRegisters::No, 0);
+        });
     }
 
     /// `jmp reg`.
     pub fn jmp_r(&mut self, target: Gpr) {
-        self.emit_instruction(Prefix::None, false, &[0xff], 4, Rm::Reg(target.0), ByteRegisters::No, 0);
+        self.branch_group(|a| {
+            a.emit_instruction(Prefix::None, false, &[0xff], 4, Rm::Reg(target.0), ByteRegisters::No, 0);
+        });
     }
 
     /// `call qword [rip + label]`.
     pub fn call_label_indirect(&mut self, label: Label) {
-        self.emit_instruction(Prefix::None, false, &[0xff], 2, Rm::Rip(label), ByteRegisters::No, 0);
+        self.branch_group(|a| {
+            a.emit_instruction(Prefix::None, false, &[0xff], 2, Rm::Rip(label), ByteRegisters::No, 0);
+        });
     }
 
     /// `jmp qword [address]`.
     pub fn jmp_m(&mut self, address: &Address) {
-        self.emit_instruction(Prefix::None, false, &[0xff], 4, Rm::Mem(*address), ByteRegisters::No, 0);
+        self.branch_group(|a| {
+            a.emit_instruction(Prefix::None, false, &[0xff], 4, Rm::Mem(*address), ByteRegisters::No, 0);
+        });
     }
 
     fn backward_rel8_reaches(&self, label: Label, instruction_size: usize) -> bool {
@@ -935,7 +996,7 @@ impl Assembler {
     }
 
     pub fn ret(&mut self) {
-        self.buffer.emit_u8(0xc3);
+        self.branch_group(|a| a.buffer.emit_u8(0xc3));
     }
 
     pub fn nop(&mut self) {

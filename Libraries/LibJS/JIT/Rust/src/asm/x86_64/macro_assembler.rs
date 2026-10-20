@@ -137,6 +137,12 @@ fn double_flags(condition: DoubleCondition) -> DoubleFlags {
     }
 }
 
+impl BranchGroups for MacroAssembler {
+    fn branch_assembler(&mut self) -> &mut Assembler {
+        &mut self.assembler
+    }
+}
+
 impl MacroAssembler {
     /// `dst = lhs op rhs` for a commutative operation.
     fn commutative(&mut self, op: AluOp, width: Width, dst: Gpr, lhs: Gpr, rhs: Gpr) {
@@ -726,6 +732,8 @@ impl PortableMacroAssembler for MacroAssembler {
         self.shift_imm(ShiftOp::Sar, W64, dst, src, amount);
     }
 
+    // NB: Overflow branches do not macro-fuse with the arithmetic before them, so they keep only themselves within
+    //     a branch window (see `BranchGroups::branch_group()`).
     fn branch_add32_overflow(&mut self, dst: Gpr, lhs: Gpr, rhs: Gpr, overflow: Label) {
         self.commutative(AluOp::Add, W32, dst, lhs, rhs);
         self.assembler.jcc(Cond::Overflow, overflow);
@@ -767,18 +775,24 @@ impl PortableMacroAssembler for MacroAssembler {
     }
 
     fn branch32(&mut self, condition: Condition, lhs: Gpr, rhs: Gpr, target: Label) {
-        self.assembler.cmp_rr(W32, lhs, rhs);
-        self.assembler.jcc(condition_code(condition), target);
+        self.branch_group(|m| {
+            m.assembler.cmp_rr(W32, lhs, rhs);
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch32_imm(&mut self, condition: Condition, lhs: Gpr, imm: i32, target: Label) {
-        self.compare_imm(W32, lhs, i64::from(imm));
-        self.assembler.jcc(condition_code(condition), target);
+        self.branch_group(|m| {
+            m.compare_imm(W32, lhs, i64::from(imm));
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch64(&mut self, condition: Condition, lhs: Gpr, rhs: Gpr, target: Label) {
-        self.assembler.cmp_rr(W64, lhs, rhs);
-        self.assembler.jcc(condition_code(condition), target);
+        self.branch_group(|m| {
+            m.assembler.cmp_rr(W64, lhs, rhs);
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch_if_stack_pointer_below(&mut self, limit: &Address, target: Label) {
@@ -786,53 +800,73 @@ impl PortableMacroAssembler for MacroAssembler {
     }
 
     fn branch64_imm(&mut self, condition: Condition, lhs: Gpr, imm: i64, target: Label) {
-        self.compare_imm(W64, lhs, imm);
-        self.assembler.jcc(condition_code(condition), target);
+        self.branch_group(|m| {
+            m.compare_imm(W64, lhs, imm);
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch32_memory_imm(&mut self, condition: Condition, address: &Address, imm: i32, target: Label) {
-        self.assembler.cmp_mi(W32, address, imm);
-        self.assembler.jcc(condition_code(condition), target);
+        self.branch_group(|m| {
+            m.assembler.cmp_mi(W32, address, imm);
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch16_memory_imm(&mut self, condition: Condition, address: &Address, imm: u16, target: Label) {
         // NB: 16-bit compares only see the low 16 bits, so a sign-extended
         //     imm8 matches the zero-extended value if it has the same bits.
         match i8::try_from(imm as i16) {
-            Ok(imm8) if matches!(condition, Condition::Equal | Condition::NotEqual) => {
-                self.assembler.cmp16_mi8(address, imm8);
-            }
+            Ok(imm8) if matches!(condition, Condition::Equal | Condition::NotEqual) => self.branch_group(|m| {
+                m.assembler.cmp16_mi8(address, imm8);
+                m.assembler.jcc(condition_code(condition), target);
+            }),
             _ => {
                 self.assembler.movzx16_rm(SCRATCH, address);
-                self.assembler.cmp_ri(W32, SCRATCH, i32::from(imm));
+                self.branch32_imm(condition, SCRATCH, i32::from(imm), target);
             }
         }
-        self.assembler.jcc(condition_code(condition), target);
     }
 
     fn branch64_memory(&mut self, condition: Condition, address: &Address, rhs: Gpr, target: Label) {
-        self.assembler.cmp_mr(W64, address, rhs);
-        self.assembler.jcc(condition_code(condition), target);
+        self.branch_group(|m| {
+            m.assembler.cmp_mr(W64, address, rhs);
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch64_memory_imm(&mut self, condition: Condition, address: &Address, imm: i64, target: Label) {
-        if let Ok(imm) = i32::try_from(imm) {
-            self.assembler.cmp_mi(W64, address, imm);
-        } else {
+        let Ok(imm) = i32::try_from(imm) else {
             self.move_imm64(SCRATCH, imm as u64);
-            self.assembler.cmp_mr(W64, address, SCRATCH);
-        }
-        self.assembler.jcc(condition_code(condition), target);
+            self.branch64_memory(condition, address, SCRATCH, target);
+            return;
+        };
+        self.branch_group(|m| {
+            m.assembler.cmp_mi(W64, address, imm);
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch_test32(&mut self, condition: Condition, value: Gpr, mask: u32, target: Label) {
-        self.test_mask(W32, value, u64::from(mask));
-        self.assembler.jcc(condition_code(condition), target);
+        self.branch_group(|m| {
+            m.test_mask(W32, value, u64::from(mask));
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn branch_test64(&mut self, condition: Condition, value: Gpr, mask: u64, target: Label) {
-        self.test_mask(W64, value, mask);
-        self.assembler.jcc(condition_code(condition), target);
+        if mask != u64::MAX && i32::try_from(mask as i64).is_err() {
+            self.move_imm64(SCRATCH, mask);
+            self.branch_group(|m| {
+                m.assembler.test_rr(W64, value, SCRATCH);
+                m.assembler.jcc(condition_code(condition), target);
+            });
+            return;
+        }
+        self.branch_group(|m| {
+            m.test_mask(W64, value, mask);
+            m.assembler.jcc(condition_code(condition), target);
+        });
     }
 
     fn compare32_set(&mut self, condition: Condition, dst: Gpr, lhs: Gpr, rhs: Gpr) {
@@ -999,11 +1033,15 @@ impl PortableMacroAssembler for MacroAssembler {
         self.assembler.jcc(Cond::Parity, fail);
         if negative_zero == NegativeZero::Fail {
             let done = self.assembler.new_label();
-            self.assembler.test_rr(W32, dst, dst);
-            self.assembler.jcc(Cond::NotEqual, done);
+            self.branch_group(|m| {
+                m.assembler.test_rr(W32, dst, dst);
+                m.assembler.jcc(Cond::NotEqual, done);
+            });
             self.assembler.movmskpd(SCRATCH, src);
-            self.assembler.test_ri(W32, SCRATCH, 1);
-            self.assembler.jcc(Cond::NotEqual, fail);
+            self.branch_group(|m| {
+                m.assembler.test_ri(W32, SCRATCH, 1);
+                m.assembler.jcc(Cond::NotEqual, fail);
+            });
             self.assembler.bind(done);
         }
     }

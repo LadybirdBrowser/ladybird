@@ -109,6 +109,19 @@ pub struct PendingFixup {
     pub label: Label,
 }
 
+/// A point in the emission that `CodeBuffer::rewind()` goes back to.
+#[derive(Debug, Clone, Copy)]
+pub struct Checkpoint {
+    offset: usize,
+    fixup_count: usize,
+}
+
+impl Checkpoint {
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+}
+
 /// A growable code buffer with labels.
 #[derive(Debug, Default)]
 pub struct CodeBuffer {
@@ -239,6 +252,29 @@ impl CodeBuffer {
         self.fixups[id as usize].resolved = true;
     }
 
+    pub fn checkpoint(&self) -> Checkpoint {
+        Checkpoint {
+            offset: self.offset(),
+            fixup_count: self.fixups.len(),
+        }
+    }
+
+    /// Drops what was emitted after `checkpoint`, and the references it made. No label may have been bound since.
+    pub fn rewind(&mut self, checkpoint: Checkpoint) {
+        while self.fixups.len() > checkpoint.fixup_count {
+            let fixup = self.fixups.pop().expect("there are fixups past the checkpoint");
+            let state = &mut self.labels[fixup.label.0 as usize];
+            debug_assert!(
+                matches!(*state, LabelState::Unbound { first_fixup } if first_fixup as usize == self.fixups.len()),
+                "a label was bound after the checkpoint"
+            );
+            *state = LabelState::Unbound {
+                first_fixup: fixup.next,
+            };
+        }
+        self.bytes.truncate(checkpoint.offset);
+    }
+
     /// Pads with `filler` until the offset is a multiple of `alignment`.
     pub fn align_with(&mut self, alignment: usize, filler: u8) {
         assert!(alignment.is_power_of_two());
@@ -314,6 +350,28 @@ mod tests {
         assert!(buffer.add_fixup(label, 6, FixupKind::X86Rel32).is_none());
         let code = buffer.finish().unwrap();
         assert_eq!(code, [0xeb, 3, 0x90, 0x90, 0x90, 0xe9, 0xfb, 0xff, 0xff, 0xff]);
+    }
+
+    #[test]
+    fn rewinding_drops_code_and_its_references() {
+        let mut buffer = CodeBuffer::new();
+        let label = buffer.new_label();
+        buffer.emit_u8(0xeb);
+        buffer.emit_u8(0);
+        buffer.add_fixup(label, 1, FixupKind::X86Rel8);
+        let checkpoint = buffer.checkpoint();
+        buffer.emit_u8(0xeb);
+        buffer.emit_u8(0);
+        buffer.add_fixup(label, 3, FixupKind::X86Rel8);
+        buffer.rewind(checkpoint);
+        assert_eq!(buffer.offset(), 2);
+        buffer.emit_u8(0x90);
+        buffer.emit_u8(0xeb);
+        buffer.emit_u8(0);
+        buffer.add_fixup(label, 4, FixupKind::X86Rel8);
+        buffer.bind(label);
+        let code = buffer.finish().unwrap();
+        assert_eq!(code, [0xeb, 3, 0x90, 0xeb, 0]);
     }
 
     #[test]
