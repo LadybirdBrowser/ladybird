@@ -313,6 +313,31 @@ TEST_CASE(gain_changes_apply_to_the_next_callback)
         EXPECT_EQ(sample, 0.25f);
 }
 
+TEST_CASE(the_mix_is_clipped_to_what_devices_play)
+{
+    MixerFixture fixture;
+    auto first = fixture.add_client(1);
+    auto second = fixture.add_client(2);
+    fixture.mixer->resume_client(1);
+    fixture.mixer->resume_client(2);
+
+    auto mix = [&](float first_sample, float second_sample) {
+        EXPECT_EQ(first.try_push(constant_frames(64, first_sample)), 64u);
+        EXPECT_EQ(second.try_push(constant_frames(64, second_sample)), 64u);
+        return fixture.device->render(64);
+    };
+    for (auto sample : mix(0.75f, 0.75f))
+        EXPECT_EQ(sample, 1.0f);
+    for (auto sample : mix(-0.75f, -0.75f))
+        EXPECT_EQ(sample, -1.0f);
+    for (auto sample : mix(0.25f, 0.5f))
+        EXPECT_EQ(sample, 0.75f);
+
+    // Sound beyond the range can still be cancelled out by the rest of the mix.
+    for (auto sample : mix(1.5f, -1.0f))
+        EXPECT_EQ(sample, 0.5f);
+}
+
 TEST_CASE(resuming_a_client_whose_ring_ran_empty_does_not_count_it_twice)
 {
     MixerFixture fixture;
