@@ -39,6 +39,7 @@
         let animationIterationEvents = 0;
         const animationIterationListener = () => ++animationIterationEvents;
         hidden.addEventListener("animationiteration", animationIterationListener);
+        internals.updateLayoutForTesting();
         internals.resetStyleInvalidationCounters();
         await animationOverlayBuildsOverFrames(4);
         println(`animation event listener uses iteration wake-ups: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0 && internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
