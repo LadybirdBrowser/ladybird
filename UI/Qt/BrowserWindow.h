@@ -256,6 +256,7 @@ private:
     void toggle_window_maximized();
     bool start_window_move();
 
+    void update_tab_audio_button(Tab&);
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
 
