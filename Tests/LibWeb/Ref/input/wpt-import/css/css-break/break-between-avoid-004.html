@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#unforced-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Violate orphans/widows requirements rather than break-before:avoid and break-after:avoid">
+<style>
+  .container {
+      break-before: avoid;
+      break-after: avoid;
+  }
+  .square {
+      display: inline-block;
+      vertical-align: top;
+      width: 100%;
+      height: 50px;
+      background:green;
+  }
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:2; column-fill:auto; column-gap:0; width:100px; height:120px; orphans:2; widows:2;">
+  <div class="container">
+    <div class="square"></div>
+  </div>
+  <div class="container">
+    <div class="square"></div>
+    <div class="square"></div>
+  </div>
+  <div class="container">
+    <div class="square"></div>
+  </div>
+</div>

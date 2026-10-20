@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#break-propagation">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div style="columns:2; column-fill:auto; column-gap:0; height:250px;">
+    <div style="height:100px; background:green;"></div>
+    <div style="break-inside:avoid;">
+      <div>
+        <div style="break-before:column; height:100px; background:green;"></div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<style>
+  .container {
+      float: left;
+      width: 200px;
+      height: 100px;
+      margin-right: 10px;
+  }
+  .box {
+      border-radius: 15px;
+      border: 20px solid hotpink;
+      background: yellow;
+  }
+  .skip-start {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+      border-top: none;
+  }
+  .skip-end {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom: none;
+  }
+</style>
+<p>There should be a yellow box that starts in the first column and ends in the
+  third. The border should be rounded at the start (first column) and at the end
+  (last column).</p>
+<div class="container">
+  <div class="box skip-end" style="height:80px;"></div>
+</div>
+<div class="container">
+  <div class="box skip-start skip-end" style="height:100px;"></div>
+</div>
+<div class="container">
+  <div class="box skip-start" style="height:70px;"></div>
+</div>

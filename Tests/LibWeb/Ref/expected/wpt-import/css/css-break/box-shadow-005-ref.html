@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+  #mc > div {
+    position: absolute;
+    inset-block-start:-10px;
+    inline-size: 50px;
+    border: 10px solid;
+  }
+</style>
+<p>Box shadows should be painted around all of the three fragments.</p>
+<div id="mc" style="position:relative; margin:50px; inline-size:400px; block-size:100px; background:yellow;">
+  <div style="inset-inline-start:-10px; block-size:100px;"></div>
+  <div style="inset-inline-start: 140px; block-size:100px;"></div>
+  <div style="inset-inline-start: 290px; block-size:50px;"></div>
+</div>

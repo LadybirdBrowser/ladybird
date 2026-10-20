@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicol | break-inside: avoid-column</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-breaks"/>
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-200px-square.html"/>
+<style type="text/css"><![CDATA[
+.multicol {
+  column-count: 2;
+  column-gap: 0;
+  column-fill: auto;
+  overflow: hidden;
+  width: 200px;
+  height: 300px;
+}
+.multicol > div {
+  height: 200px;
+  break-inside: avoid-column;
+  background: green;
+}
+.multicol > div.red {
+  background:red;
+}
+]]></style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <div></div>
+  <div></div>
+  <div class="red"></div>
+</div>
+</body>
+</html>

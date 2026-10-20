@@ -1,0 +1,3 @@
+ltr: offset 0,70 420x100, computed 200px 60px
+rtl: offset 220,70 420x100, computed 200px 60px
+border-box: offset 0,0 420x100, computed 200px 150px

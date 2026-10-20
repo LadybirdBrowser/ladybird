@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#unforced-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Cannot break before a child if we're at the block-start of a fragmentainer">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:2; column-fill:auto; column-gap:0; width:100px; height:100px; background:red;">
+  <div></div>
+  <div style="break-inside:avoid; height:200px; background:green;"></div>
+</div>
