@@ -1698,6 +1698,19 @@ pub(super) fn run_formatting_context(
     }
     let root_cells = used_values::UsedValuesCellState::capture(parent_used);
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
+    let memoizes_measurement = purpose.is_measurement()
+        && callbacks.scratch().memoizes_measurements()
+        && fc_run_cache::can_describe_run(
+            box_,
+            parent_grid.is_some(),
+            layout_mode,
+            should_collect_devtools_layout_data,
+            &callbacks,
+            &cache_key,
+        );
+    if memoizes_measurement && let Some(outputs) = callbacks.scratch().memoized_measurement(box_, purpose, &cache_key) {
+        return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false);
+    }
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         purpose,
         box_,
@@ -1759,6 +1772,11 @@ pub(super) fn run_formatting_context(
         table_inline_layout,
         None,
     );
+    if memoizes_measurement {
+        callbacks
+            .scratch()
+            .memoize_measurement(box_, purpose, cache_key, &outputs);
+    }
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
 }

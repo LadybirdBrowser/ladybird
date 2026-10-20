@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Reference: Append a block with column-span descendants to multicol</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    column-fill: auto;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <div>block1</div>
+      <h3>spanner</h3>
+      <div>block2</div>
+      <div>
+        <div>block3</div>
+        <h3>spanner2</h3>
+        <div>block4</div>
+      </div>
+    </article>
+  </body>
+</html>

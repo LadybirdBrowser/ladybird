@@ -1,0 +1,77 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-span: all' element</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-19 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-span" title="6.1. 'column-span'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-margin-002-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="The spanning element extends only to the width of the multicol element, despite an item in the fourth column extending into the overflow area." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: navy;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 8em;
+
+  column-count: 4;
+  column-gap: 0em;
+
+  /*
+
+  N == 4;
+
+  W == 2;
+
+  */
+  }
+
+  h4
+  {
+  font: inherit;
+  margin: 1em 0;
+  }
+
+  h4#orange
+  {
+  background: orange;
+  color: orange;
+  /*
+  In this test, the glyphs "or" are painted into 4th column box
+  and the glyphs "ang" are painted in the overflow area.
+  */
+  }
+
+  h4#black
+  {
+  background: black;
+  color: black;
+
+  column-span: all;
+  }
+
+  span {color: blue;}
+
+  span + span {color: pink;}
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+    <span> bl ue bl ue </span>
+    <span> Pi nk Pi nk </span>
+    <h4 id="orange"> orang </h4>
+    <h4 id="black"> black </h4>
+    na vy na vy
+    na vy na vy
+  </div>
+
+ </body>
+</html>

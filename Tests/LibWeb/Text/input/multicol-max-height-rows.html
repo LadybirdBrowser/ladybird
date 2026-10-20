@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .multicol { columns: 2; column-gap: 0; width: 400px; margin-bottom: 10px; }
+    .block { height: 20px; width: 50px; }
+    .monolithic { height: 60px; width: 50px; display: flow-root; contain: size; }
+    .spanner { column-span: all; height: 20px; }
+</style>
+<div class="multicol" id="spanner-after-capped-row" style="max-height: 60px"><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="spanner"></div><div class="block"></div></div>
+<div class="multicol" id="last-row-gets-remainder" style="max-height: 100px"><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="spanner"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div></div>
+<div class="multicol" id="filled-columns" style="columns: 3; column-fill: auto; max-height: 100px"><div class="monolithic"></div><div class="monolithic"></div><div class="monolithic"></div></div>
+<div class="multicol" id="forced-break" style="column-fill: auto; max-height: 100px"><div class="block"></div><div class="block" style="break-before: column"></div></div>
+<script>
+    test(() => {
+        for (const multicol of document.querySelectorAll(".multicol")) {
+            const origin = multicol.getBoundingClientRect();
+            const children = Array.from(multicol.children).map(child => {
+                const rect = child.getBoundingClientRect();
+                return `${rect.x - origin.x},${rect.y - origin.y}`;
+            });
+            println(`${multicol.id}: height ${origin.height}, children ${children.join(" ")}`);
+        }
+    });
+</script>

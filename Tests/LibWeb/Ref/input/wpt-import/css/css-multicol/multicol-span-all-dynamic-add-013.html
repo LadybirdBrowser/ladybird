@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Insert a block into a multicol details containing column-span:all</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-add-013-ref.html">
+  <meta name="assert" content="This test checks that <summary> is still rendered as the first element after inserting a block into multicol <details>, at the place before <summary>.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    // Create a div, and insert it as the first child of <details>,
+    // just before <summary>.
+    var block1 = document.createElement("div");
+    var block1Text = document.createTextNode("block1");
+    block1.appendChild(block1Text);
+
+    var details = document.getElementById("details");
+    details.insertBefore(block1, details.children[0]);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #details {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <details open id="details">
+      <summary>Summary</summary>
+      <h3>spanner</h3>
+      <div>block2</div>
+    </details>
+  </body>
+</html>

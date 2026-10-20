@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Remove a block with spanner siblings</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body>
+    <article id="column">
+      <h3>spanner1</h3>
+      <h3>spanner2</h3>
+    </article>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Test a bidi-override multi-column container with a dir=rtl column-span:all child</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  body {
+    column-count: 1;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    /* "column-count: 1" makes this behave like a real spanner. */
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body>
+    <div>block1</div>
+    <h3 dir="rtl">spanner</h3>
+    <div>block2</div>
+  </body>
+</html>

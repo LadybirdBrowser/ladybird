@@ -246,6 +246,13 @@ impl LayoutStyle {
             target.z_index = box_values.z_index;
             target.vertical_align = box_values.vertical_align.clone();
         });
+        let misc_reset = source.group::<MiscResetValues>();
+        self.edit::<MiscResetValues>(|target| {
+            target.column_span = misc_reset.column_span;
+            target.break_before = misc_reset.break_before;
+            target.break_after = misc_reset.break_after;
+            target.break_inside = misc_reset.break_inside;
+        });
         self.copy_table_properties(source);
     }
 

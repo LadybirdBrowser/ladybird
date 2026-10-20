@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .case { width: 400px; column-gap: 0; margin-bottom: 20px; }
+    .block { height: 20px; }
+</style>
+<div class="case" id="paragraph" style="columns: 3"><p style="margin: 16px 0">Hello</p></div>
+<div class="case" id="list" style="columns: 3"><ul style="margin: 0"><li>one</li><li>two</li><li>three</li></ul></div>
+<div class="case" id="min-height" style="columns: 2; min-height: 100px"><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block" id="min-height-last"></div></div>
+<div class="case" id="tall-min-height" style="columns: 2; min-height: 200px"><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block" id="tall-min-height-last"></div></div>
+<div class="case" id="min-over-max" style="columns: 2; column-fill: auto; max-height: 50px; min-height: 100px"><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block" id="min-over-max-last"></div></div>
+<div style="height: 200px"><div class="case" id="percentage-max" style="columns: 2; column-fill: auto; max-height: 25%; min-height: 100px"><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div><div class="block" id="percentage-max-last"></div></div></div>
+<script>
+    function rectsIn(element, container) {
+        const origin = container.getBoundingClientRect();
+        return [...element.getClientRects()]
+            .map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`)
+            .join(" ");
+    }
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["paragraph", "list"])
+            println(`${id}: ${document.getElementById(id).offsetHeight}`);
+        for (const id of ["min-height", "tall-min-height", "min-over-max", "percentage-max"]) {
+            const container = document.getElementById(id);
+            println(`${id}: ${container.offsetHeight}, scroll width ${container.scrollWidth}, last ${rectsIn(document.getElementById(`${id}-last`), container)}`);
+        }
+        done();
+    });
+</script>

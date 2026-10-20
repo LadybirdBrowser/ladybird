@@ -22,6 +22,19 @@ pub(crate) struct LayoutScratch {
     /// The inline items a block container generated, kept for its next run in the same pass. The
     /// items borrow fonts for the current pass, so the stashes are cleared when the pass ends.
     inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
+    measurement_memo: RefCell<MeasurementMemo>,
+}
+
+#[derive(Default)]
+struct MeasurementMemo {
+    depth: usize,
+    runs: HashMap<NodeSlotId, Vec<MemoizedMeasurement>>,
+}
+
+struct MemoizedMeasurement {
+    purpose: super::formatting_context::LayoutPurpose,
+    key: super::fc_run_cache::FcRunCacheKey,
+    outputs: super::formatting_context::RunOutputs,
 }
 
 // Between passes the scratch holds no record, so it can move to the thread a layout stage runs on.
@@ -47,6 +60,7 @@ impl Default for LayoutScratch {
             run_record_stack: RunRecordStack::default(),
             intrinsic_size_caches: Default::default(),
             inline_item_stashes: RefCell::new(HashMap::default()),
+            measurement_memo: RefCell::new(MeasurementMemo::default()),
         }
     }
 }
@@ -65,6 +79,55 @@ impl LayoutScratch {
         block_container: NodeSlotId,
     ) -> Option<super::inline_level_iterator::StashedInlineItems> {
         self.inline_item_stashes.borrow_mut().remove(&block_container)
+    }
+
+    pub(crate) fn begin_measurement_memo(&self) {
+        self.measurement_memo.borrow_mut().depth += 1;
+    }
+
+    pub(crate) fn end_measurement_memo(&self) {
+        let mut memo = self.measurement_memo.borrow_mut();
+        memo.depth -= 1;
+        if memo.depth == 0 {
+            memo.runs.clear();
+        }
+    }
+
+    pub(crate) fn memoizes_measurements(&self) -> bool {
+        self.measurement_memo.borrow().depth > 0
+    }
+
+    pub(super) fn memoized_measurement(
+        &self,
+        box_: NodeSlotId,
+        purpose: super::formatting_context::LayoutPurpose,
+        key: &super::fc_run_cache::FcRunCacheKey,
+    ) -> Option<super::formatting_context::RunOutputs> {
+        self.measurement_memo
+            .borrow()
+            .runs
+            .get(&box_)?
+            .iter()
+            .find(|memoized| memoized.purpose == purpose && memoized.key == *key)
+            .map(|memoized| memoized.outputs.clone())
+    }
+
+    pub(super) fn memoize_measurement(
+        &self,
+        box_: NodeSlotId,
+        purpose: super::formatting_context::LayoutPurpose,
+        key: super::fc_run_cache::FcRunCacheKey,
+        outputs: &super::formatting_context::RunOutputs,
+    ) {
+        let mut memo = self.measurement_memo.borrow_mut();
+        if memo.depth == 0 {
+            return;
+        }
+        memo.runs.entry(box_).or_default().push(MemoizedMeasurement {
+            purpose,
+            key,
+            outputs: outputs.clone(),
+        });
     }
 
     /// Lets go of what the pass that just committed kept for itself.

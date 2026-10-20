@@ -1,0 +1,51 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-span: all' (basic)</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-03 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-span" title="6.1. 'column-span'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-count-002-ref.xht"/>
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that 'column-span: all' spans across all column boxes and that content in the normal flow (in this test, the '55555 55555 55555 55555') that appears before the element is automatically balanced across all columns before the element appears." />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  html {background-color: white;}
+
+  body
+  {
+  background-color: black;
+  font: 1.25em/1 Ahem;
+  padding-right: 1em;
+  width: 20em;
+  }
+
+  div
+  {
+  background-color: yellow;
+  color: black;
+
+  column-count: 4;
+  column-gap: 0;
+  orphans: 1;
+  widows: 1;
+  }
+
+  h4
+  {
+  background-color: black;
+  column-span: all;
+  color: yellow;
+  font: 1em/1 Ahem;
+  margin: 0em;
+  }
+  ]]></style>
+ </head>
+ <body>
+  <div>
+  55555 55555 55555 55555
+    <h4>&nbsp;4444 4444 4444 4444</h4>
+  1 22&nbsp; 1 22&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp; 1 333 1 333 1 333 55555 1 22&nbsp; 1 22&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp; 1 22&nbsp; 1 22&nbsp; 1 22&nbsp; 55555 1 333 1 333 1&nbsp;&nbsp;&nbsp;&nbsp; 4444 4444 1&nbsp;&nbsp;&nbsp;&nbsp; 55555 1 333 1 333 1&nbsp;&nbsp;&nbsp;&nbsp; 4444 4444 1&nbsp;&nbsp;&nbsp;&nbsp; 55555
+  </div>
+ </body>
+</html>

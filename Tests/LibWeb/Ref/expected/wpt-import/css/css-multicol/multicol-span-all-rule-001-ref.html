@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test the column-rule's block-size</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+
+  <style>
+  article {
+    column-count: 2;
+    column-rule: 6px solid;
+    width: 400px;
+    height: 500px;
+    background-color: lightgreen;
+    border: 2em solid purple;
+    padding: 2em;
+  }
+  div.block {
+    width: 100px;
+    height: 200px;
+  }
+  div.column-span {
+    column-span: all;
+    height: 50px;
+    background-color: lightblue;
+  }
+  </style>
+
+  <article>
+    <div class="block">block1</div>
+    <div class="column-span">column-span1</div>
+    <div class="block">block2</div>
+    <div class="column-span">column-span2</div>
+    <div class="block" style="height: 400px;">block3</div>
+  </article>
+</html>

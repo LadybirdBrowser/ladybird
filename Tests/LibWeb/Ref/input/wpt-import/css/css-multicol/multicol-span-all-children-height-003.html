@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test a multi-column container with percentage height children</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="help" href="https://drafts.csswg.org/css-break/#breaking-rules">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-children-height-003-ref.html">
+  <meta name="assert" content="This test checks the percentage height children under multicol container compute the percentage relative to the entire multicol, not just the part after the column-span.">
+
+  <style>
+  article {
+    column-count: 2;
+    width: 400px;
+    height: 200px;
+    background-color: lightgreen;
+    border: 5px solid purple;
+  }
+  div.block1 {
+    background-color: yellow;
+    /* This overflows the column container, so one extra column is created. */
+    height: 300%;
+  }
+  div.spanner {
+    column-span: all;
+    height: 25%;
+    background-color: lightblue;
+  }
+  div.block2 {
+    background-color: yellow;
+    /* No height left for this block. According to the breaking rules, the
+       column container creates 1px column boxes for it. */
+    height: 100%;
+  }
+  </style>
+
+  <article>
+    <div class="block1">block1</div>
+    <div class="spanner">spanner</div>
+    <div class="block2">block2</div>
+  </article>
+</html>

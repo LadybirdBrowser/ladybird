@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-16 -->
+  <meta name="flags" content="image" />
+  <style type="text/css"><![CDATA[
+  div#inline-block
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  display: inline-block;
+  font-size: 1.25em;
+  }
+
+  div + div {line-height: 1;}
+
+  img {vertical-align: top;}
+
+  img.padding-left {padding-left: 1em;}
+
+  img.padding-left-right {padding: 0em 1em;}
+  ]]></style>
+ </head>
+ <body>
+
+  <div id="inline-block">
+
+    <div><img src="support/swatch-blue.png" width="40" height="40" alt="Image download support must be enabled" /><img class="padding-left" src="support/swatch-blue.png" width="40" height="40" alt="Image download support must be enabled" /><img class="padding-left-right" src="support/swatch-pink.png" width="40" height="40" alt="Image download support must be enabled" /><img src="support/swatch-pink.png" width="40" height="40" alt="Image download support must be enabled" /></div>
+
+    <div><img src="support/black20x20.png" width="220" height="20" alt="Image download support must be enabled" /></div>
+
+    <div><img src="support/swatch-navy.png" width="40" height="40" alt="Image download support must be enabled" /><img class="padding-left" src="support/swatch-navy.png" width="40" height="40" alt="Image download support must be enabled" /><img class="padding-left-right" src="support/swatch-navy.png" width="40" height="40" alt="Image download support must be enabled" /><img src="support/swatch-navy.png" width="40" height="40" alt="Image download support must be enabled" /></div>
+
+  </div>
+
+ </body>
+</html>

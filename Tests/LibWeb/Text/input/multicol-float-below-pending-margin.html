@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .multicol { columns: 2; column-gap: 20px; width: 420px; }
+    .float { float: left; width: 50px; height: 100px; }
+</style>
+<div class="multicol" id="multicol"><article><p><span class="float" id="float"></span>text</p></article></div>
+<div id="next" style="height: 10px"></div>
+<script>
+    test(() => {
+        const multicol = document.getElementById("multicol").getBoundingClientRect();
+        const float = document.getElementById("float").getBoundingClientRect();
+        const next = document.getElementById("next").getBoundingClientRect();
+        println(`float bottom inside multicol: ${float.bottom <= multicol.bottom}`);
+        println(`next element below float: ${next.top >= float.bottom}`);
+    });
+</script>

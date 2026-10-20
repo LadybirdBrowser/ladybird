@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test floats in a multi-column container with column-span</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#the-multi-column-model">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="stylesheet" href="../../fonts/ahem.css">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-float-002-ref.html">
+  <meta name="assert" content="This test verifies the floats, which are inside the mulitcol layout with column-span, are positioned with regard to the column box where the float appears.">
+
+  <style>
+  article {
+    column-count: 1;
+    width: 300px;
+    font: 1.25em/1 Ahem;
+  }
+  .float-left {
+    float: left;
+    color: black;
+  }
+  .float-right {
+    float: right;
+    color: navy;
+  }
+  .column-span {
+    column-span: all;
+    color: pink;
+  }
+  </style>
+
+  <article>
+    <div class="float-left">black</div>
+    <div class="float-right">navyy</div>
+
+    <div class="column-span">Pink</div>
+
+    <div class="float-left">black</div>
+    <div class="float-right">navyy</div>
+  </article>
+</html>

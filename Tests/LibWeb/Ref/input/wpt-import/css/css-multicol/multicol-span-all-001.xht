@@ -1,0 +1,63 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-span' element (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-16 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-span" title="6.1. 'column-span'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="Tests that the h4 set to 'column-span: all' spans across all columns resulting in a black bar across the multicol container." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: navy;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 11em;
+
+  column-count: 4;
+  column-gap: 1em;
+
+  /*
+
+  N == 4;
+
+  W == 2em;
+
+  */
+
+  }
+
+  span {color: blue;}
+
+  span + span {color: pink;}
+
+  h4
+  {
+  background-color: black;
+  color: black;
+  font: inherit;
+  margin: 0;
+
+  column-span: all;
+  }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+    <span id="top-first-and-second-columns"> bl ue bl ue </span>
+    <span id="top-third-and-fourth-columns"> Pi nk Pi nk </span>
+    <h4> sPana </h4>
+    ab cd ef gh
+    ij kl mn oq
+  </div>
+
+ </body>
+</html>

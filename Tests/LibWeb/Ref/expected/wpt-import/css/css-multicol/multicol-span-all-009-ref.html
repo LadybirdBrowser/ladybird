@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Test the multicol element is the containing block of absolute elements</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  body {
+    column-count: 1;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+    transform: scale(1);
+  }
+  h3 {
+    /* "column-count: 1" makes this behave like a real spanner. */
+    outline: 1px solid blue;
+  }
+  .out-of-flow {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+  </style>
+
+  <body>
+    <article id="column">
+      <h3>spanner</h3>
+      <div class="out-of-flow">out-of-flow</div>
+    </article>
+  </body>
+</html>

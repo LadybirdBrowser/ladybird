@@ -1,0 +1,62 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-span: none (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-22 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#spanning-columns" title="6.1. 'column-span'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-none-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks how a 'column-span: none' element is rendered: it should not span across all column boxes." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  border: gray solid 1em;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 11em;
+
+  column-count: 2;
+  column-gap: 1em;
+
+  /*
+
+  N == 2;
+
+  W == 5em;
+
+  */
+  }
+
+  h4
+  {
+  background: black;
+  color: black;
+  font: inherit;
+  margin: 0;
+  width: 11em;
+
+  column-span: none;
+  }
+
+  #column1-top {color: blue;}
+
+  #column1-bottom {color: orange;}
+
+  #column2-top {color: pink;}
+
+  #column2-bottom {color: yellow;}
+  ]]></style>
+ </head>
+ <body>
+  <div>
+    <span id="column1-top"> ab cd ef gh </span>
+    <h4> 1234567890123 </h4>
+    <span id="column1-bottom"> ij kl mn oq </span>
+    <span id="column2-top"> ab cd ef gh </span>
+    <span id="column2-bottom"> rs tu vw xy </span>
+  </div>
+ </body>
+</html>

@@ -19,6 +19,32 @@ impl ColumnGeometry {
     pub(crate) fn pitch(&self) -> CssPixels {
         self.inline_size + self.gap
     }
+
+    pub(crate) fn column_inline_offset(
+        &self,
+        index: usize,
+        content_inline_size: CssPixels,
+        is_right_to_left: bool,
+    ) -> CssPixels {
+        let offset = self.pitch() * index;
+        if is_right_to_left {
+            content_inline_size - self.inline_size - offset
+        } else {
+            offset
+        }
+    }
+
+    pub(crate) fn gap_center(
+        &self,
+        gap_index: usize,
+        content_inline_size: CssPixels,
+        is_right_to_left: bool,
+    ) -> CssPixels {
+        self.column_inline_offset(gap_index, content_inline_size, is_right_to_left)
+            .min(self.column_inline_offset(gap_index + 1, content_inline_size, is_right_to_left))
+            + self.inline_size
+            + self.gap / 2usize
+    }
 }
 
 pub(crate) fn used_column_gap(style: StyleValues<'_>, percentage_basis: CssPixels) -> CssPixels {
@@ -105,15 +131,14 @@ pub(crate) struct ColumnRow {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MulticolLayoutData {
-    pub(crate) column_inline_size: CssPixels,
-    pub(crate) column_gap: CssPixels,
+    pub(crate) geometry: ColumnGeometry,
     pub(crate) rows: Vec<ColumnRow>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum BlockResume {
     BeforeChild { child: Node, after_forced_break: bool },
-    InsideChild { child: Node, token: Rc<BlockBreakToken> },
+    InsideChild(Rc<BlockBreakToken>),
     AfterChildren,
     AtLine(LinePosition),
 }
@@ -138,11 +163,21 @@ pub(crate) struct BlockBreakToken {
     pub(crate) resume: BlockResume,
 }
 
+impl BlockResume {
+    pub(crate) fn resume_child(&self) -> Option<Node> {
+        match self {
+            BlockResume::BeforeChild { child, .. } => Some(*child),
+            BlockResume::InsideChild(token) => Some(token.node),
+            BlockResume::AfterChildren | BlockResume::AtLine(_) => None,
+        }
+    }
+}
+
 impl BlockBreakToken {
-    pub(crate) fn ends_at_forced_break(&self) -> bool {
+    pub(crate) fn follows_forced_break(&self) -> bool {
         match &self.resume {
             BlockResume::BeforeChild { after_forced_break, .. } => *after_forced_break,
-            BlockResume::InsideChild { token, .. } => token.ends_at_forced_break(),
+            BlockResume::InsideChild(token) => token.follows_forced_break(),
             BlockResume::AfterChildren | BlockResume::AtLine(_) => false,
         }
     }
@@ -163,16 +198,12 @@ pub(crate) struct FragmentainerOutcome {
     pub(crate) minimal_space_shortage: Option<CssPixels>,
     pub(crate) tallest_unbreakable_block_size: CssPixels,
     pub(crate) violates_break_avoidance: bool,
-}
-
-impl FragmentainerOutcome {
-    pub(crate) fn ended_at_forced_break(&self) -> bool {
-        self.outgoing.as_ref().is_some_and(|token| token.ends_at_forced_break())
-    }
+    pub(crate) overflows: bool,
 }
 
 pub(crate) struct FragmentainerContext {
     pub(crate) block_size: Option<CssPixels>,
+    pub(crate) honors_forced_breaks: bool,
     pub(crate) incoming: Option<Rc<BlockBreakToken>>,
     pub(crate) inline_items: Rc<inline_level_iterator::InlineItemCache>,
     pub(crate) early_break_before: Option<Node>,
@@ -183,6 +214,7 @@ pub(crate) struct FragmentainerContext {
 impl FragmentainerContext {
     pub(crate) fn new(
         block_size: Option<CssPixels>,
+        honors_forced_breaks: bool,
         incoming: Option<Rc<BlockBreakToken>>,
         inline_items: Rc<inline_level_iterator::InlineItemCache>,
         early_break_before: Option<Node>,
@@ -190,6 +222,7 @@ impl FragmentainerContext {
     ) -> Self {
         Self {
             block_size,
+            honors_forced_breaks,
             incoming,
             inline_items,
             early_break_before,

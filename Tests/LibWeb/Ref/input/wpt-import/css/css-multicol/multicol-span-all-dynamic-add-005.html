@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Add block1 before block2. It should join the column content box with
+    block2, not with the spanner</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-add-001-ref.html">
+  <meta name="assert" content="This test checks a dynamically added block element should be rendered correctly in a column hierarchy containing a column-span.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    /* Add block1 before block2. It should join the column content box with
+       block2, not with the spanner. */
+    var block = document.createElement("div");
+    var text = document.createTextNode("block1");
+    block.appendChild(text);
+
+    var column = document.getElementById("column");
+    column.insertBefore(block, column.children[1]);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <h3>spanner</h3>
+      <div>block2</div>
+    </article>
+  </body>
+</html>

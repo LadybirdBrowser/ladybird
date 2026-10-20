@@ -450,6 +450,15 @@ pub(crate) fn node_creates_block_formatting_context(
         {
             return true;
         }
+        // https://drafts.csswg.org/css-multicol-1/#valdef-column-span-all
+        // The element establishes an independent formatting context.
+        if has_ancestor_fact(data, AncestorFact::ParentLaysOutInColumns)
+            && style.column_span() == crate::css::css_enums::column_span::ALL
+            && display.is_block_outside()
+            && display.is_flow_inside()
+        {
+            return true;
+        }
     }
     if has_flag(data, NodeFlag::IsHtmlHtmlElement)
         || data.kind.get() == NodeKind::FieldSetBox

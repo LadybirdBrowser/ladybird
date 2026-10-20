@@ -52,13 +52,7 @@ pub(crate) fn paint_column_rules<O: Observer>(recorder: &mut PaintRecorder<'_, O
     };
     for row in &data.rows {
         for gap_index in 0..row.column_count.saturating_sub(1) {
-            let gap_center =
-                data.column_inline_size * (gap_index + 1) + data.column_gap * gap_index + data.column_gap / 2usize;
-            let gap_center = if is_right_to_left {
-                content_box.width - gap_center
-            } else {
-                gap_center
-            };
+            let gap_center = data.geometry.gap_center(gap_index, content_box.width, is_right_to_left);
             let rule_rect = CssPixelRect::new(
                 content_box.x + gap_center - rule_width / 2usize,
                 content_box.y + row.block_offset,

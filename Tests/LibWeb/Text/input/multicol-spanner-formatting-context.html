@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .case { columns: 2; column-gap: 0; width: 400px; margin-bottom: 20px; }
+</style>
+<div class="case" id="margins"><div style="height: 40px"></div><div id="margins-spanner" style="column-span: all"><p style="margin: 20px 0; height: 10px"></p></div><div style="height: 40px"></div></div>
+<div class="case" id="float"><div style="height: 40px"></div><div id="float-spanner" style="column-span: all"><div style="float: left; width: 50px; height: 30px"></div></div><div style="height: 40px"></div></div>
+<div class="case" id="after-spanner"><div style="height: 20px"></div><div style="column-span: all; height: 20px"></div><div id="after-spanner-block" style="margin-top: 30px; height: 10px"></div></div>
+<div class="case" id="after-whitespace"><div style="height: 20px"></div>
+<div style="column-span: all; height: 20px"></div>
+<div id="after-whitespace-block" style="margin-top: 30px; height: 10px"></div></div>
+<div class="case" id="not-a-spanner"><div style="transform: scale(1)"><div id="not-a-spanner-box" style="column-span: all; height: 60px"></div></div></div>
+<script>
+    function rectsIn(element, container) {
+        const origin = container.getBoundingClientRect();
+        return [...element.getClientRects()]
+            .map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`)
+            .join(" ");
+    }
+
+    test(() => {
+        for (const [id, part] of [["margins", "spanner"], ["float", "spanner"], ["after-spanner", "block"], ["after-whitespace", "block"], ["not-a-spanner", "box"]]) {
+            const container = document.getElementById(id);
+            println(`${id}: ${container.offsetHeight}, ${part} ${rectsIn(document.getElementById(`${id}-${part}`), container)}`);
+        }
+    });
+</script>

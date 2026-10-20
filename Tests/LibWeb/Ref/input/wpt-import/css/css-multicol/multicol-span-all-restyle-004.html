@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Restyle the column-span itself</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="help" href="https://github.com/w3c/csswg-drafts/issues/1072">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-restyle-004-ref.html">
+  <meta name="assert" content="This test checks change the style of the spanner itself.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight; // flush layout
+
+    var spanner = document.getElementById("spanner");
+    spanner.style.backgroundColor = "yellow";
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 1;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <div>
+        <div>block1</div>
+        <h3 id="spanner">yellow spanner</h3>
+        <div>block2</div>
+      </div>
+    </article>
+  </body>
+</html>

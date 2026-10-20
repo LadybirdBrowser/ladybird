@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-22 -->
+  <meta name="flags" content="image" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  font: 1.25em/1 serif;
+  border: 1em solid gray;
+  width: 11em;
+  height: 5em;
+  position: relative;
+  }
+
+  img {position: absolute;}
+
+  img#first-blue {left: 0em; top: 0em;}
+
+  img#second-blue {left: 3em; top: 0em;}
+
+  img#first-pink {left: 6em; top: 0em;}
+
+  img#second-pink {left: 9em; top: 0em;}
+
+  img#black {left: 0em; top: 2em;}
+
+  img#first-yellow {left: 6em; top: 2em;}
+
+  img#second-yellow {left: 9em; top: 2em;}
+
+  img#first-orange {left: 0em; top: 3em;}
+
+  img#second-orange {left: 3em; top: 3em;}
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+	<img id="first-blue" src="support/swatch-blue.png" width="40" height="40" alt="Image download support must be enabled" /> <img id="second-blue" src="support/swatch-blue.png" width="40" height="40" alt="Image download support must be enabled" /> <img id="first-pink" src="support/swatch-pink.png" width="40" height="40" alt="Image download support must be enabled" /> <img id="second-pink" src="support/swatch-pink.png" width="40" height="40" alt="Image download support must be enabled" />
+
+	<img id="black" src="support/black20x20.png" width="260" height="20" alt="Image download support must be enabled" />
+
+	<img id="first-yellow" src="support/swatch-yellow.png" width="40" height="40" alt="Image download support must be enabled" />
+	<img id="second-yellow" src="support/swatch-yellow.png" width="40" height="40" alt="Image download support must be enabled" />
+
+	<img id="first-orange" src="support/swatch-orange.png" width="40" height="40" alt="Image download support must be enabled" />
+	<img id="second-orange" src="support/swatch-orange.png" width="40" height="40" alt="Image download support must be enabled" />
+  </div>
+
+ </body>
+</html>

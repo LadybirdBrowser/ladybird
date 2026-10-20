@@ -2466,8 +2466,11 @@ impl<'context> InlineFormattingContext<'context> {
                 stop = index;
                 break;
             }
-            if exceeds && is_first_fragment && fragmentation.fragmentainer_had_content {
-                self.parent.request_early_break_before(self.containing_block);
+            if exceeds {
+                if is_first_fragment && fragmentation.fragmentainer_had_content {
+                    self.parent.request_early_break_before(self.containing_block);
+                }
+                self.parent.note_overflowing_content();
             }
             self.parent
                 .note_line_for_fragmentation(block_end - block_start, block_end, true);

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Insert a block containing a spanner kid. The spanner kid should correctly span across all columns</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-dynamic-add-003-ref.html">
+  <meta name="assert" content="This test checks that an inserted block containing 'column-span' element should be rendered correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    // Create a subtree like the following, and insert it into column as the
+    // first child.
+    // <div>
+    //   block1
+    //   <h3>spanner</h3>
+    // </div>
+    var spanner = document.createElement("h3");
+    var spannerText = document.createTextNode("spanner");
+    spanner.appendChild(spannerText);
+
+    var block1 = document.createElement("div");
+    var block1Text = document.createTextNode("block1");
+    block1.appendChild(block1Text)
+    block1.appendChild(spanner);
+
+    var column = document.getElementById("column");
+    column.insertBefore(block1, column.children[0]);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <div>block2</div>
+    </article>
+  </body>
+</html>
