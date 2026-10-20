@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Optional.h>
 #include <LibAudio/ChannelMap.h>
@@ -157,6 +158,7 @@ public:
 
     void append_output(RefPtr<Media::VideoFrame> frame, Media::PipelineStatus status)
     {
+        MutexLocker locker { m_mutex };
         m_outputs.append({ move(frame), status });
     }
 
@@ -169,11 +171,16 @@ public:
     virtual void start() override { }
     virtual Media::VideoProducerOutput peek() override
     {
+        MutexLocker locker { m_mutex };
         if (m_outputs.is_empty())
             return { nullptr, Media::PipelineStatus::Pending };
         return m_outputs.first();
     }
-    virtual void consume() override { (void)m_outputs.take_first(); }
+    virtual void consume() override
+    {
+        MutexLocker locker { m_mutex };
+        (void)m_outputs.take_first();
+    }
     virtual void set_wake_handler(Media::PipelineWakeHandler handler) override { m_wake_handler = move(handler); }
     virtual void seek(AK::Duration, Media::InvalidateHeldData = Media::InvalidateHeldData::No) override { m_seek_count++; }
 
@@ -182,6 +189,7 @@ public:
 private:
     ScriptedVideoProducer() = default;
 
+    Mutex m_mutex;
     Vector<Media::VideoProducerOutput> m_outputs;
     size_t m_seek_count { 0 };
     Media::PipelineWakeHandler m_wake_handler;
