@@ -162,7 +162,7 @@ pub(crate) fn mask_layers_have_image(mask: &MaskValues) -> bool {
     for_each_comma_item(value, is_abstract_image)
 }
 
-fn clip_path_has_value(mask: &MaskValues) -> bool {
+pub(crate) fn clip_path_has_value(mask: &MaskValues) -> bool {
     handle_value(&mask.clip_path)
         .is_some_and(|value| matches!(value, StyleValueData::Url { .. } | StyleValueData::BasicShape { .. }))
 }

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px monospace; }
+    .multicol { columns: 2; column-gap: 0; column-fill: auto; height: 100px; width: 400px; }
+</style>
+<div class="multicol"><div style="height: 90px"></div><div contenteditable id="in-columns"><div style="float: left; width: 10px; height: 5px"></div><div></div></div></div>
+<div contenteditable id="unbroken" style="width: 200px"><div style="float: left; width: 10px; height: 5px"></div><div></div></div>
+<script>
+    test(() => {
+        for (const id of ["in-columns", "unbroken"]) {
+            const element = document.getElementById(id);
+            const heights = Array.from(element.getClientRects()).map(rect => rect.height);
+            println(`${id}: fragments ${heights.join(" + ")}`);
+        }
+    });
+</script>

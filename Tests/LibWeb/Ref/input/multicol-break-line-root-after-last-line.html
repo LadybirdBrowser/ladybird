@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-break-line-root-after-last-line-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+body { margin: 0; }
+.multicol { columns: 2; column-gap: 20px; column-fill: auto; height: 100px; width: 220px; font: 20px/20px Ahem; }
+.multicol > div { height: 150px; background: green; color: blue; }
+</style>
+<div class="multicol">
+    <div>X</div>
+</div>

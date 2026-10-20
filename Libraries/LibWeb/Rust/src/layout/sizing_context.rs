@@ -1512,7 +1512,7 @@ impl<'pass> SizingContext<'pass> {
         resolution_space
     }
 
-    fn clamp_block_size_to_min_max(
+    pub(crate) fn clamp_block_size_to_min_max(
         &self,
         node: Node,
         mut block_size: CssPixels,
