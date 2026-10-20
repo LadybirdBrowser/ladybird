@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-forced-column-breaks-ref.html">
+<style>
+body { margin: 0; }
+.multicol { columns: 3; column-gap: 10px; column-fill: auto; height: 100px; width: 320px; background: lightgray; }
+.multicol > div { height: 20px; margin-top: 10px; }
+</style>
+<div class="multicol">
+    <div style="background: red"></div>
+    <div style="background: orange; break-after: column"></div>
+    <div style="background: yellow"></div>
+    <div style="background: green; break-before: column"></div>
+    <div style="background: blue"></div>
+</div>

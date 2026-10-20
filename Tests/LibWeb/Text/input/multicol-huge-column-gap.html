@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .mc { column-gap: 40000000px; width: 400px; }
+    .item { height: 20px; }
+</style>
+<div class="mc" style="columns: 1"><div class="item" id="one-column"></div></div>
+<div class="mc" style="column-width: 100px"><div class="item" id="column-width"></div></div>
+<div class="mc" style="columns: 2"><div class="item" id="two-columns"></div><div class="item"></div></div>
+<script>
+    test(() => {
+        for (const id of ["one-column", "column-width", "two-columns"]) {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: ${rect.width}x${rect.height}`);
+        }
+    });
+</script>

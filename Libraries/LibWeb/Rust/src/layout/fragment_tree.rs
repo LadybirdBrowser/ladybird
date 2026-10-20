@@ -745,6 +745,13 @@ struct RunFragmentBuilderInner {
     reused_subtree_roots_holding_fragments: Vec<crate::layout::node_data::NodeSlotId>,
 }
 
+impl RunFragmentBuilderInner {
+    fn receive_abspos_containing_block_info(&mut self, contributions: Vec<AbsposContainingBlockInfoContribution>) {
+        self.abspos_containing_block_info_contributions_received += contributions.len() as u64;
+        self.abspos_containing_block_info_contributions.extend(contributions);
+    }
+}
+
 /// The committed fragment a run holds in the record of a box it sized from it, for the box's placement to attach as it
 /// is, and whether the box roots a reused subtree.
 pub(crate) struct HeldCommittedFragment {
@@ -1044,6 +1051,32 @@ impl RunFragmentBuilder {
         );
     }
 
+    pub(crate) fn adopt_fragmentainer_root(&self, root: UnplacedRootFragment, offset: FfiCssPixelPoint) {
+        debug_assert!(
+            root.node == self.root_node,
+            "a fragmentainer run's root is the box of the run that adopts it"
+        );
+        let mut inner = self.inner.borrow_mut();
+        inner.reused_subtree_roots.extend(root.reused_subtree_roots);
+        for mut link in root.scoped_descendants {
+            link.committed_offset = formatting_context::point_add(link.committed_offset, offset);
+            inner.top_scope_links.push(link);
+        }
+        for mut entry in root.propagated_pending_abspos {
+            entry.translate_by(offset);
+            inner.pending_abspos_at_root.push(entry);
+        }
+        for mut candidate in root.propagated_anchor_candidates {
+            candidate.translate_by(offset);
+            inner.anchor_candidates_at_root.push(candidate);
+        }
+        for mut payload in root.propagated_inline_containing_block_rects {
+            payload.translate_by(offset);
+            inner.inline_containing_block_rects_at_root.push(payload);
+        }
+        inner.receive_abspos_containing_block_info(root.propagated_abspos_containing_block_info);
+    }
+
     pub(crate) fn note_reused_subtree_root(&self, node: crate::layout::node_data::NodeSlotId) {
         self.inner.borrow_mut().reused_subtree_roots.insert(node.slot_index());
     }
@@ -1144,11 +1177,7 @@ impl RunFragmentBuilder {
         pending_fragment
             .inline_containing_block_rects
             .extend(root.propagated_inline_containing_block_rects);
-        inner.abspos_containing_block_info_contributions_received +=
-            root.propagated_abspos_containing_block_info.len() as u64;
-        inner
-            .abspos_containing_block_info_contributions
-            .extend(root.propagated_abspos_containing_block_info);
+        inner.receive_abspos_containing_block_info(root.propagated_abspos_containing_block_info);
     }
 
     #[allow(clippy::too_many_arguments)]

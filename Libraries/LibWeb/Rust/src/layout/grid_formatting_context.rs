@@ -2729,6 +2729,7 @@ impl<'pass> GridFormattingContext<'pass> {
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,
                     previous_line_data: None,
+                    fragmentainer: None,
                 };
                 let mut context = GridFormattingContext::new(&scratch_run, Some(self));
                 measure(&mut context, &scratch_run)

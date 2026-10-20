@@ -3183,6 +3183,7 @@ impl<'pass> SizingContext<'pass> {
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,
                     previous_line_data: None,
+                    fragmentainer: None,
                 };
                 let mut table = table_formatting_context::TableFormattingContext::new(&table_run);
                 let table_available = table_used.available_inner_space_or_constraints_from(available_space);

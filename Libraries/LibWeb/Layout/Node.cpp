@@ -496,6 +496,14 @@ void NodeWithStyle::set_computed_values(Layout::BegunRead const& read, NonnullRe
     m_has_layout_derived_style = true;
 }
 
+static bool uses_button_layout(Node const& node)
+{
+    if (node.is_generated_for_pseudo_element())
+        return false;
+    auto const* html_element = as_if<HTML::HTMLElement>(node.dom_node());
+    return html_element && html_element->uses_button_layout();
+}
+
 void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& installed, CSS::InstalledStyle const& held_before)
 {
     auto style_record_identity = installed.record();
@@ -544,6 +552,8 @@ void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& install
 
     if (changes_layout_affecting_style)
         reset_cached_intrinsic_sizes_of_self_and_ancestors();
+    if (changes_layout_affecting_style && (kind() == RustFFI::NodeKind::FieldSetBox || uses_button_layout(*this)))
+        RustFFI::render_state_reinherit_anonymous_descendants(document_host(), slot_id(this), false);
 }
 
 void NodeWithStyle::pin_style_record_for_cxx_consumers()

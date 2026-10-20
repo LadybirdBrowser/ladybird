@@ -40,6 +40,7 @@ pub(crate) struct AnonymousStyleOverrides {
     pub inline_block_wrapper: bool,
     pub overflow_x: u8,
     pub overflow_y: u8,
+    pub columns_from_parent: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -248,6 +249,24 @@ impl LayoutStyle {
         self.copy_table_properties(source);
     }
 
+    pub(crate) fn copy_column_properties(&mut self, source: &Self) {
+        let box_values = source.group::<BoxValues>();
+        self.edit::<BoxValues>(|target| {
+            target.column_count = box_values.column_count;
+            target.column_count_has_value = box_values.column_count_has_value;
+            target.column_width = box_values.column_width.clone();
+        });
+        let misc_reset = source.group::<MiscResetValues>();
+        self.edit::<MiscResetValues>(|target| {
+            target.column_fill = misc_reset.column_fill;
+            target.column_rule_style = misc_reset.column_rule_style;
+            target.column_rule_width = misc_reset.column_rule_width;
+            target.column_rule_color = misc_reset.column_rule_color;
+        });
+        let alignment = source.group::<AlignmentValues>();
+        self.edit::<AlignmentValues>(|target| target.column_gap = alignment.column_gap.clone());
+    }
+
     fn copy_table_properties(&mut self, source: &Self) {
         let surround = source.group::<SurroundValues>();
         self.edit::<SurroundValues>(|target| {
@@ -391,6 +410,9 @@ impl LayoutStyle {
                     value: ComputedStyleValueHandle::empty(),
                 }
             });
+        }
+        if overrides.columns_from_parent {
+            style.copy_column_properties(&Self::from_record(engine, parent));
         }
         if kind == AnonymousStyleKind::ButtonContentBox {
             style.edit::<SizingValues>(|values| {

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    ul {
+        margin: 0;
+        padding-left: 40px;
+    }
+    li {
+        columns: 3;
+        column-gap: 0;
+        width: 300px;
+    }
+    li > div {
+        height: 20px;
+    }
+    .break {
+        break-before: column;
+    }
+</style>
+<ul><li><div></div><div class="break"></div><div class="break"></div></li></ul>

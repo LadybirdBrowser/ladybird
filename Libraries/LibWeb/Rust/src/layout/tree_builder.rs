@@ -4677,7 +4677,10 @@ fn wrap_button_contents_if_needed(host: &mut TreeBuilderHost<'_>, layout_node: L
         let content_box = host.create_anonymous_box(
             layout_node,
             AnonymousStyleKind::ButtonContentBox,
-            host.anonymous_wrapper_overrides(layout_node),
+            AnonymousStyleOverrides {
+                columns_from_parent: !node_facts::has_flag(host.data(layout_node), NodeFlag::IsHtmlInputElement),
+                ..host.anonymous_wrapper_overrides(layout_node)
+            },
             NodeKind::BlockContainer,
         );
         let flex_wrapper_slot = flex_wrapper.slot();
@@ -4733,6 +4736,7 @@ fn wrap_fieldset_contents_if_needed(host: &mut TreeBuilderHost<'_>, layout_node:
             inline_block_wrapper: false,
             overflow_x: style.box_values().overflow_x,
             overflow_y: style.box_values().overflow_y,
+            columns_from_parent: true,
         };
         host.arena()
             .update_layout_style(host.host_calls(), layout_node, |style| {

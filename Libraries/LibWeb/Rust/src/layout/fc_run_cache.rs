@@ -307,9 +307,27 @@ pub(crate) struct FcRunCacheArenaStore {
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
     pending_sweep_slots: RefCell<Vec<u32>>,
     enrolled_for_sweep: RefCell<Vec<bool>>,
+    store_journals: RefCell<Vec<Vec<u32>>>,
 }
 
 impl FcRunCacheArenaStore {
+    pub(crate) fn begin_store_journal(&self) {
+        self.store_journals.borrow_mut().push(Vec::new());
+    }
+
+    pub(crate) fn end_store_journal(&self, keeps_stored_entries: bool) {
+        let slots = self.store_journals.borrow_mut().pop().expect("a store journal is open");
+        if keeps_stored_entries {
+            if let Some(enclosing) = self.store_journals.borrow_mut().last_mut() {
+                enclosing.extend(slots);
+            }
+            return;
+        }
+        for slot in slots {
+            self.remove_entry(slot);
+        }
+    }
+
     fn enqueue_for_sweep(&self, slot: u32) {
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
         if enrolled.len() <= slot as usize {
@@ -453,6 +471,9 @@ impl FcRunCacheArenaStore {
             None => entries[slot as usize] = Some(std::sync::Arc::new(entry)),
         }
         drop(entries);
+        if let Some(journal) = self.store_journals.borrow_mut().last_mut() {
+            journal.push(slot);
+        }
         // NB: Invalidation can occur between probing a run and storing its result.
         self.enqueue_for_sweep(slot);
     }

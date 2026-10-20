@@ -419,9 +419,13 @@ scalar_accessors! {
         is_size_container: bool => is_size_container,
         is_inline_size_container: bool => is_inline_size_container,
         aspect_ratio_uses_natural_when_available: bool => aspect_ratio.use_natural_aspect_ratio_if_available,
+        has_column_count: bool => column_count_has_value,
+        column_count: i32 => column_count,
     }
     misc_reset: {
         appearance: u8 => appearance,
+        break_before: u8 => break_before,
+        break_after: u8 => break_after,
     }
     border_facts: {
         border_top_width: CssPixels => border_top.width,
@@ -507,6 +511,9 @@ reference_accessors! {
         min_height: ComputedSize => min_height,
         max_width: ComputedSize => max_width,
         max_height: ComputedSize => max_height,
+    }
+    box_values: {
+        column_width: ComputedSize => column_width,
     }
     surround: {
         margin_top: ComputedLengthPercentageOrAuto => margin.top,
