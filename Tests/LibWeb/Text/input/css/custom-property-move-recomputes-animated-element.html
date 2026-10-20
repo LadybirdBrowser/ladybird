@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0.5; } to { opacity: 0.6; } }
+    #animated { --width: 10px; animation: fade 1000s infinite; }
+</style>
+<div id="animated"></div>
+<script>
+    test(() => {
+        const animated = document.getElementById("animated");
+        println("animated: " + getComputedStyle(animated).getPropertyValue("--root-width"));
+        // The root's environment moves under an element that declares custom properties and holds an animated style.
+        document.documentElement.style.setProperty("--root-width", "15px");
+        println("animated after root change: " + getComputedStyle(animated).getPropertyValue("--root-width"));
+        // A child styled for the first time inherits what the animated element holds now.
+        const child = document.createElement("div");
+        child.style.width = "calc(var(--width) + var(--root-width))";
+        animated.appendChild(child);
+        println("child: " + child.offsetWidth);
+    });
+</script>

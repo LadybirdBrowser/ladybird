@@ -2456,7 +2456,8 @@ pub(crate) fn publish_rule_declarations(
 
 /// Moves a node's record to the custom-property environment C++ refreshed it to, keeping the
 /// store behind the environment, and returns the new record's identity; zero when the node holds
-/// no base record to move.
+/// no record to move. Only a base record moves: an environment move computes an element holding a
+/// record that composes animated values again instead of having C++ refresh it.
 ///
 /// # Safety
 /// `host` must be a live document host, on its document's thread, and `store` must be null or a
