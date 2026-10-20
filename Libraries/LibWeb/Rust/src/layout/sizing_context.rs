@@ -1058,6 +1058,8 @@ impl<'pass> SizingContext<'pass> {
             || facts.is_table_wrapper()
         {
             Some(used.content_block_size.get())
+        } else if facts.lays_out_in_columns() {
+            None
         } else {
             constraints.quirks_mode_percentage_basis_block_size
         };

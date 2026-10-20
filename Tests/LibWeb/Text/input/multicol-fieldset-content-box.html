@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    fieldset { margin: 0 0 10px 0; padding: 0; border: 0; columns: 2; column-gap: 20px; width: 420px; }
+    legend { padding: 0; height: 20px; }
+    .block { height: 40px; }
+    .clearfix::before, .clearfix::after { content: " "; display: table; }
+</style>
+<fieldset class="clearfix" id="clearfix"><div class="block"></div><div class="block"></div></fieldset>
+<fieldset id="direct-table"><table><tr><td></td></tr></table><div class="block"></div><div class="block"></div></fieldset>
+<fieldset id="legend-fill" style="column-fill: auto; height: 100px"><legend>L</legend><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div></fieldset>
+<fieldset id="legend-balanced" style="height: 60px"><legend>L</legend><div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div></fieldset>
+<fieldset id="legend-percentage" style="height: 100px; columns: auto"><legend>L</legend><div style="height: 50%"></div></fieldset>
+<script>
+    test(() => {
+        for (const fieldset of document.querySelectorAll("fieldset")) {
+            const origin = fieldset.getBoundingClientRect();
+            const blocks = Array.from(fieldset.querySelectorAll(":scope > div")).map(block => {
+                const rect = block.getBoundingClientRect();
+                return `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`;
+            });
+            println(`${fieldset.id}: ${origin.width}x${origin.height}, blocks ${blocks.join(" | ")}`);
+        }
+    });
+</script>

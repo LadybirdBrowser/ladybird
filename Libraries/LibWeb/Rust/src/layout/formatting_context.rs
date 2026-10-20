@@ -1966,7 +1966,8 @@ fn execute_formatting_context_run(
             // Every formatting context reports its content sizes through ChildLayoutResult, so overriding here covers them all
             // rather than one context's root-height path.
             let containment_facts = NodeFacts::new(&run.callbacks, run.box_);
-            if containment_facts.node_has_size_containment() {
+            let lays_out_own_content = run.fragmentainer.is_none();
+            if lays_out_own_content && containment_facts.node_has_size_containment() {
                 let style = containment_facts.style();
                 // https://drafts.csswg.org/css-contain-2/#containment-size
                 // Giving an element size containment makes its principal box a size containment box and has the following
@@ -1983,7 +1984,7 @@ fn execute_formatting_context_run(
                 } else {
                     CssPixels::default()
                 };
-            } else if containment_facts.node_has_inline_size_containment() {
+            } else if lays_out_own_content && containment_facts.node_has_inline_size_containment() {
                 // https://drafts.csswg.org/css-contain-2/#containment-inline-size
                 // "This means the inline-axis intrinsic sizes of the principal box are determined as if the element had
                 //  no content."

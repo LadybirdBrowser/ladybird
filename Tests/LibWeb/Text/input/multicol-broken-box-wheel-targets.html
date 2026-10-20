@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #multicol { columns: 2; column-gap: 20px; column-fill: auto; height: 200px; width: 420px; }
+    #scroller { overflow: auto; height: 60px; }
+</style>
+<div id="multicol">
+    <div id="scroller"><div style="height: 500px"></div></div>
+    <div id="broken" style="height: 300px"></div>
+</div>
+<script>
+    test(() => {
+        document.getElementById("broken").addEventListener("wheel", () => {}, { passive: false });
+        internals.recordDisplayListForTesting();
+        const state = internals.recordedAsyncScrollingState();
+        println(`blocking regions: ${state.blockingWheelEventRegionCount}`);
+        for (const line of internals.dumpDisplayList().split("\n")) {
+            if (line.startsWith("CompositorWheelHitTestTarget") || line.startsWith("CompositorBlockingWheelEventRegion"))
+                println(line);
+        }
+    });
+</script>

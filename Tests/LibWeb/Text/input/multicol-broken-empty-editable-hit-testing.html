@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    #multicol { columns: 2; column-gap: 20px; column-fill: auto; height: 200px; width: 420px; }
+    p { margin: 0; }
+</style>
+<div id="multicol"><p id="before">hello world</p><div id="editable" contenteditable style="height: 300px"></div><p id="after">after</p></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const describe = (x, y) => {
+            const element = document.elementFromPoint(x, y);
+            const caret = document.caretPositionFromPoint(x, y);
+            const node = caret ? (caret.offsetNode.id || caret.offsetNode.parentNode.id) : "none";
+            return `${element ? element.id : "none"}, caret in ${node}`;
+        };
+        println(`over text before the editable: ${describe(30, 10)}`);
+        println(`over the editable in column 1: ${describe(30, 100)}`);
+        println(`over the editable in column 2: ${describe(300, 50)}`);
+        println(`over text after the editable: ${describe(230, 130)}`);
+        done();
+    });
+</script>

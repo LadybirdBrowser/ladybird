@@ -1,0 +1,12 @@
+blocking regions: 2
+CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x239]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x226]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 420x200]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[0,0 200x60]
+CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,0 200x500]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,60 200x140]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[220,0 200x160]
+CompositorBlockingWheelEventRegion@s1/e0 rect=[0,60 200x140]
+CompositorBlockingWheelEventRegion@s1/e0 rect=[220,0 200x160]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,213 800x13]

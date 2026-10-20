@@ -99,12 +99,25 @@ pub(crate) struct MulticolLayoutData {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum BlockResume {
     BeforeChild { child: Node, after_forced_break: bool },
+    InsideChild { child: Node, token: Rc<BlockBreakToken> },
+    AfterChildren,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BlockBreakToken {
     pub(crate) node: Node,
+    pub(crate) consumed_block_size: CssPixels,
     pub(crate) resume: BlockResume,
+}
+
+impl BlockBreakToken {
+    pub(crate) fn ends_at_forced_break(&self) -> bool {
+        match &self.resume {
+            BlockResume::BeforeChild { after_forced_break, .. } => *after_forced_break,
+            BlockResume::InsideChild { token, .. } => token.ends_at_forced_break(),
+            BlockResume::AfterChildren => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -117,9 +130,7 @@ pub(crate) struct FragmentainerOutcome {
 
 impl FragmentainerOutcome {
     pub(crate) fn ended_at_forced_break(&self) -> bool {
-        self.outgoing.as_ref().is_some_and(|token| match token.resume {
-            BlockResume::BeforeChild { after_forced_break, .. } => after_forced_break,
-        })
+        self.outgoing.as_ref().is_some_and(|token| token.ends_at_forced_break())
     }
 }
 

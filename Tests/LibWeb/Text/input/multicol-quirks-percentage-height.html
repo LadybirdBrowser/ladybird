@@ -1,0 +1,25 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<div id="outer" style="height: 400px; width: 400px">
+    <div id="auto-height" style="columns: 2; column-gap: 0"><div id="auto-height-child" style="height: 50%"></div></div>
+    <div id="percentage-height" style="columns: 2; column-gap: 0; height: 100%"><div id="percentage-height-child" style="height: 50%"></div></div>
+</div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const report = label => {
+            const heights = ["auto-height", "auto-height-child", "percentage-height", "percentage-height-child"].map(
+                id => `${id}=${document.getElementById(id).offsetHeight}`
+            );
+            println(`${label}: ${heights.join(" ")}`);
+        };
+        report("at 400px");
+        outer.style.height = "200px";
+        report("at 200px");
+        outer.style.height = "400px";
+        report("back at 400px");
+    });
+</script>

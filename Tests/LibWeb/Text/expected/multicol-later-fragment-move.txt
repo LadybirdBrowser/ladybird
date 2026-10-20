@@ -1,0 +1,2 @@
+clipped: 200,0 50x50, hit true
+transformed: 225,112.5 25x25, hit true

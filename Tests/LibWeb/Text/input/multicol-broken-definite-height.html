@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<div style="columns: 2; column-gap: 0; column-fill: auto; height: 100px; width: 400px"><div id="short" style="height: 50px"><div style="height: 200px"></div></div></div>
+<div style="columns: 2; column-gap: 0; width: 200px"><div id="tall" style="height: 160px"></div><div id="after" style="height: 10px"></div></div>
+<script>
+    test(() => {
+        for (const id of ["short", "tall", "after"]) {
+            const element = document.getElementById(id);
+            const origin = element.parentElement.getBoundingClientRect();
+            const rects = [...element.getClientRects()].map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`);
+            println(`${id}: ${rects.join(" ")}`);
+        }
+    });
+</script>

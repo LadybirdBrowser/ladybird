@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+.container { position: relative; height: 100px; width: 220px; }
+.fragment { position: absolute; top: 0; width: 90px; border: 5px solid blue; background: yellow; }
+.child { position: absolute; width: 90px; height: 30px; background: green; }
+</style>
+<div class="container">
+    <div class="fragment" style="left: 0; height: 95px; border-bottom: none"></div>
+    <div class="child" style="left: 5px; top: 5px"></div>
+    <div class="child" style="left: 5px; top: 35px"></div>
+    <div class="child" style="left: 5px; top: 65px"></div>
+    <div class="fragment" style="left: 120px; height: 90px; border-top: none"></div>
+    <div class="child" style="left: 125px; top: 0"></div>
+    <div class="child" style="left: 125px; top: 30px"></div>
+    <div class="child" style="left: 125px; top: 60px"></div>
+</div>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-break-background-slice-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+    .multicol {
+        columns: 2;
+        column-gap: 0;
+        column-fill: auto;
+        width: 200px;
+        height: 100px;
+    }
+    .sliced {
+        background: linear-gradient(green 50%, blue 50%);
+    }
+    .sliced > div {
+        height: 100px;
+    }
+</style>
+<div class="multicol"><div class="sliced"><div></div><div></div></div></div>
