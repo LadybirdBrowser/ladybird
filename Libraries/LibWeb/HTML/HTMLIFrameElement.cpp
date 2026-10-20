@@ -88,6 +88,23 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
             document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
     }
 
+    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-loading
+    // When the loading attribute's state is changed to the Eager state, the user agent must run these steps:
+    if (name == AttributeNames::loading && lazy_loading_state(old_value) == LazyLoading::Lazy && lazy_loading_state(value) == LazyLoading::Eager) {
+        // 1. Let resumptionSteps be the iframe element's lazy load resumption steps.
+        // 3. Set the iframe's lazy load resumption steps to null.
+        auto resumption_steps = take_lazy_load_resumption_steps_internal();
+
+        // 2. If resumptionSteps is null, then return.
+        if (resumption_steps) {
+            // NB: Only an iframe with lazy load resumption steps is intersection-observed, so this one no longer is.
+            document().stop_intersection_observing_a_lazy_loading_element(*this);
+
+            // 4. Invoke resumptionSteps.
+            resumption_steps->function()();
+        }
+    }
+
     if (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height)
         CSS::Invalidation::invalidate_style_after_embedded_content_geometry_change(*this);
 
