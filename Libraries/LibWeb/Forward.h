@@ -837,6 +837,7 @@ class TransferDataDecoder;
 class UserActivation;
 class UserScrollGestureHold;
 class ValidityState;
+class VideoPlaybackQuality;
 class VideoTrack;
 class VideoTrackList;
 class Window;

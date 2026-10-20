@@ -51,6 +51,7 @@ public:
     struct PresentedFrame {
         u64 generation { 0 };
         u64 presented_frame_count { 0 };
+        u64 dropped_frame_count { 0 };
         AK::Duration media_time { AK::Duration::zero() };
         MonotonicTime presentation_time;
         u32 width { 0 };

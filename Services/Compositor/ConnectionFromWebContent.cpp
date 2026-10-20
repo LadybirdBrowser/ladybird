@@ -101,9 +101,14 @@ void ConnectionFromWebContent::release_video_frame_hold(Media::VideoSinkHandle v
         did_misbehave("WebContent released a video frame hold that it did not take");
 }
 
-void ConnectionFromWebContent::video_sink_presented_frame(Media::VideoSinkHandle video_sink_handle, RefPtr<Media::VideoFrame> frame)
+void ConnectionFromWebContent::video_sink_presented_frame(Media::VideoSinkHandle video_sink_handle, RefPtr<Media::VideoFrame> frame, Media::DisplayingVideoSinkFrameCounts new_frame_counts)
 {
-    m_video_frame_holds.present_frame(video_sink_handle, move(frame));
+    m_video_frame_holds.present_frame(video_sink_handle, move(frame), new_frame_counts);
+}
+
+void ConnectionFromWebContent::video_sink_counted_frames(Media::VideoSinkHandle video_sink_handle, Media::DisplayingVideoSinkFrameCounts new_frame_counts)
+{
+    m_video_frame_holds.add_frame_counts(video_sink_handle, new_frame_counts);
 }
 
 void ConnectionFromWebContent::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)

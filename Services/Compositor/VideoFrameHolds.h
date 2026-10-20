@@ -11,6 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibCompositing/Video/VideoFramePresentationPage.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaCodecs/Forward.h>
 
@@ -21,7 +22,8 @@ public:
     void add_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_sink(Media::VideoSinkHandle);
 
-    void present_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>);
+    void present_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>, Media::DisplayingVideoSinkFrameCounts new_frame_counts);
+    void add_frame_counts(Media::VideoSinkHandle, Media::DisplayingVideoSinkFrameCounts new_frame_counts);
 
     ErrorOr<void> release_hold(Media::VideoSinkHandle, u64 generation);
     RefPtr<Media::VideoFrame> held_frame(Media::VideoSinkHandle, u64 generation) const;
@@ -31,7 +33,7 @@ private:
         NonnullRefPtr<Compositing::VideoFramePresentationPage> page;
         u64 generation { 0 };
         RefPtr<Media::VideoFrame> frame;
-        u64 presented_frame_count { 0 };
+        Compositing::VideoFramePresentationPage::PresentedFrame presented_frame;
     };
     struct RetainedFrame {
         RefPtr<Media::VideoFrame> frame;

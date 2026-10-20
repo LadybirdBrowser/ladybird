@@ -1,0 +1,15 @@
+// https://w3c.github.io/media-playback-quality/#idl-def-videoplaybackquality
+[Exposed=Window]
+interface VideoPlaybackQuality {
+    readonly attribute DOMHighResTimeStamp creationTime;
+    readonly attribute unsigned long droppedVideoFrames;
+    readonly attribute unsigned long totalVideoFrames;
+
+    // Deprecated!
+    readonly attribute unsigned long corruptedVideoFrames;
+};
+
+// https://w3c.github.io/media-playback-quality/#htmlvideoelement
+partial interface HTMLVideoElement {
+    VideoPlaybackQuality getVideoPlaybackQuality();
+};

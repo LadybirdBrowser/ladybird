@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setAutoplayPolicy("allow-audio-and-video");
+        const video = document.createElement("video");
+        video.muted = true;
+        document.body.append(video);
+
+        const initial = video.getVideoPlaybackQuality();
+        println(`Before loading: ${initial.constructor.name}, total ${initial.totalVideoFrames}, dropped ${initial.droppedVideoFrames}, corrupted ${initial.corruptedVideoFrames}`);
+
+        video.src = "../../../Assets/red-with-second-in-gray-64x36.webm";
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+            await new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true }));
+        await video.play();
+        await new Promise(resolve => {
+            const waitForFrames = () => {
+                if (video.getVideoPlaybackQuality().totalVideoFrames >= 5)
+                    resolve();
+                else
+                    video.requestVideoFrameCallback(waitForFrames);
+            };
+            waitForFrames();
+        });
+        video.pause();
+
+        const played = video.getVideoPlaybackQuality();
+        println(`After playing: total at least 5: ${played.totalVideoFrames >= 5}, dropped within total: ${played.droppedVideoFrames <= played.totalVideoFrames}, corrupted ${played.corruptedVideoFrames}`);
+        println(`creationTime does not go backwards: ${played.creationTime >= initial.creationTime}`);
+
+        // Setting src runs the media element load algorithm, which resets the counts.
+        video.src = "../../../Assets/blue-with-second-in-gray-64x36.webm";
+        const reloaded = video.getVideoPlaybackQuality();
+        println(`After loading again: total ${reloaded.totalVideoFrames}, dropped ${reloaded.droppedVideoFrames}`);
+    });
+</script>

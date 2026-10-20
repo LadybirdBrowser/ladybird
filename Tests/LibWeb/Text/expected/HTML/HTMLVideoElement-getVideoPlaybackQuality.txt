@@ -1,0 +1,4 @@
+Before loading: VideoPlaybackQuality, total 0, dropped 0, corrupted 0
+After playing: total at least 5: true, dropped within total: true, corrupted 0
+creationTime does not go backwards: true
+After loading again: total 0, dropped 0

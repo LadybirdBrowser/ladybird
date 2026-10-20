@@ -557,6 +557,7 @@ UserActivation
 VTTCue
 VTTRegion
 ValidityState
+VideoPlaybackQuality
 VideoTrack
 VideoTrackList
 ViewTransition

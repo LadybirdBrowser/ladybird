@@ -70,6 +70,8 @@ public:
     void for_each_visual_clone(Function<void(HTMLVideoElement&)> const&) const;
     void clear_visual_clones();
 
+    GC::Ref<VideoPlaybackQuality> get_video_playback_quality();
+
     WebIDL::UnsignedLong request_video_frame_callback(GC::Ref<WebIDL::CallbackType>);
     void cancel_video_frame_callback(WebIDL::UnsignedLong handle);
     bool has_video_frame_request_callbacks() const { return !m_list_of_video_frame_request_callbacks.is_empty(); }
