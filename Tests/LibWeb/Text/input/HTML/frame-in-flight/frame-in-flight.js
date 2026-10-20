@@ -93,14 +93,15 @@ function srcdocLoaded(iframe) {
 // an earlier frame, has come together from it, beside which the lane hovers. A pointer move a test injects before the
 // lane follows the pointer reaches no lane, and nothing else hands it to the host. Rendering opportunities stay manual
 // until `during` is done. `documents` are those whose lanes `during` needs: a same-process iframe's document is laid
-// out after the document around it, and its frame lands on its own.
-async function whileLaneHovers(during, documents = [document]) {
+// out after the document around it, and its frame lands on its own. `frameTime`, if given, replaces the current time as
+// the frame time of the rendering update.
+async function whileLaneHovers(during, documents = [document], frameTime = undefined) {
     if (document.readyState !== "complete")
         await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
     internals.setManualRenderingOpportunities(true);
     try {
         await nextTask();
-        let frameTime = performance.now();
+        frameTime ??= performance.now();
         internals.injectRenderingOpportunity(frameTime);
         do await nextTask();
         while (

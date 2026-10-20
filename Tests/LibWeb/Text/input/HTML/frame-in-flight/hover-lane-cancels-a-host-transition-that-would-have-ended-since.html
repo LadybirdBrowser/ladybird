@@ -15,16 +15,17 @@
     asyncTest(async done => {
         if (document.readyState !== "complete")
             await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
-        await twoFrames();
+        await nextFrame();
+        const transitionStart = await animationFrame();
         const events = [];
         for (const type of ["transitionend", "transitioncancel"])
             box.addEventListener(type, event => events.push(`${event.type} ${event.propertyName}`));
-        // The rendering update that the lane follows starts the short transition.
+        // The rendering update of this animation frame starts the short transition.
         box.classList.add("green");
         await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 50, frameTime + 1, 1);
             while (performance.now() < frameTime + 50) { }
-        });
+        }, [document], transitionStart + 1);
         await twoFrames();
         println(`transition events: ${events.join(", ")}`);
         println(`#box matches :hover: ${box.matches(":hover")}`);
