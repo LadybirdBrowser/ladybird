@@ -165,6 +165,7 @@ private:
         i32 bitmap_id { 0 };
         double device_pixel_ratio { 1.0 };
         bool was_cancelled { false };
+        bool was_delivered { false };
     };
 
     ContextState* context_if_present(Web::CompositorContextId);
@@ -252,6 +253,7 @@ private:
     void publish_backing_stores(Web::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
     BackingStoreManager::GpuSharing gpu_sharing_for_client() const;
     void did_finish_async_present(PendingAsyncPresent&);
+    void deliver_rendered_frame(PendingAsyncPresent&);
     void cancel_pending_async_presents_for_context(Web::CompositorContextId);
     void schedule_gpu_completion_check();
     void check_gpu_completions();
