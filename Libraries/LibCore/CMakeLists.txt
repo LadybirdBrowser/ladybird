@@ -24,6 +24,7 @@ set(SOURCES
     SharedVersion.cpp
     SocketAddress.cpp
     StandardPaths.cpp
+    StatsLog.cpp
     SystemServerTakeover.cpp
     ThreadEventQueue.cpp
     Timer.cpp
@@ -111,7 +112,7 @@ if (APPLE)
 endif()
 
 ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibCore PRIVATE Threads::Threads LibUnicode LibTextCodec)
+target_link_libraries(LibCore PRIVATE Threads::Threads LibUnicode LibTextCodec mimalloc)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that

@@ -831,7 +831,7 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
             auto optipng_or_error = Core::Process::spawn({
                 .executable = "optipng"sv,
                 .search_for_executable_in_path = true,
-                .arguments = { "-strip"sv, "all"sv, test.expectation_path },
+                .arguments = Vector<ByteString> { "-strip"sv, "all"sv, test.expectation_path },
             });
             if (optipng_or_error.is_error()) {
                 warnln("Warning: Failed to run optipng: {}", optipng_or_error.error());

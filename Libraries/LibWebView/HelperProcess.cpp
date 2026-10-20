@@ -188,7 +188,7 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
 
     for (auto [i, path] : enumerate(candidate_server_paths)) {
         auto process_arguments = arguments;
-        Core::ProcessSpawnOptions options { .name = server_name, .arguments = process_arguments };
+        Core::ProcessSpawnOptions options { .name = server_name };
 
         if (browser_options.profile_helper_process == process_type && browser_options.profile_tool == ProfileTool::Callgrind) {
             options.executable = "valgrind"sv;
@@ -242,6 +242,7 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
         }
 #endif
 
+        options.arguments = process_arguments;
         bool capture_output = WebView::Application::the().should_capture_web_content_output();
         auto result = spawn(options, capture_output);
 

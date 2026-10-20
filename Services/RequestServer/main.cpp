@@ -15,6 +15,7 @@
 #include <LibCore/Platform/TaskRole.h>
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
+#include <LibCore/StatsLog.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/DiskCache.h>
@@ -55,7 +56,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_sandbox = false;
 
     int crash_report_fd = -1;
+    StringView stats_log_directory;
     Core::ArgsParser args_parser;
+    args_parser.add_option(stats_log_directory, "Directory for process statistics (JSON lines)", "stats-log-dir", 0, "path");
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
@@ -66,6 +69,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.parse(arguments);
+
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "RequestServer"sv));
 
     if (crash_report_fd >= 0) {
         if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())
@@ -142,6 +147,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         connections,
         request_transfer_leases,
         disk_cache));
+
+    if (stats_log)
+        stats_log->start_sampling([&](JsonObject& values) {
+            values.set("requests.clients"sv, connections.size());
+            values.set("requests.transfer_leases"sv, request_transfer_leases.size());
+        });
 
     return event_loop.exec();
 }

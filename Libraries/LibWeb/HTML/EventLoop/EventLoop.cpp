@@ -7,6 +7,7 @@
 
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
+#include <AK/JsonObject.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
@@ -17,6 +18,7 @@
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
@@ -25,6 +27,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/FrameCompletion.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/ListOfAvailableImages.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
@@ -1589,6 +1592,31 @@ void EventLoop::register_document(Badge<DOM::Document>, DOM::Document& document)
 {
     m_documents.append(&document);
     m_documents_sort_dirty = true;
+}
+
+void EventLoop::add_stats(JsonObject& values) const
+{
+    // NB: Read container sizes from the existing document registry, without sorting it or walking any trees.
+    size_t available_images = 0;
+    size_t shared_image_requests = 0;
+    size_t style_sheets = 0;
+    size_t font_faces = 0;
+    for (auto const& document : m_documents) {
+        if (!document)
+            continue;
+        available_images += document->list_of_available_images().size();
+        shared_image_requests += document->shared_resource_requests().size();
+        style_sheets += document->style_scope().style_sheets().size();
+        font_faces += document->fonts()->set_size();
+    }
+    values.set("dom.documents"sv, m_documents.size());
+    values.set("images.available_entries"sv, available_images);
+    values.set("images.shared_requests"sv, shared_image_requests);
+    values.set("css.document_style_sheet_entries"sv, style_sheets);
+    values.set("fonts.face_entries"sv, font_faces);
+    values.set("rendering.updates"sv, m_rendering_scheduler_counters.updates_run);
+    values.set("rendering.paints"sv, m_rendering_scheduler_counters.paints);
+    values.set("rendering.update_duration_us"sv, m_rendering_scheduler_counters.update_microseconds);
 }
 
 void EventLoop::unregister_document(Badge<DOM::Document>, DOM::Document& document)

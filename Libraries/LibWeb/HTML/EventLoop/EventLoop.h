@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
@@ -134,6 +135,7 @@ public:
     void document_navigable_did_change(Badge<DOM::Document>);
 
     [[nodiscard]] Vector<GC::Root<DOM::Document>> documents_in_this_event_loop_matching(Function<bool(DOM::Document&)> callback) const;
+    void add_stats(JsonObject&) const;
 
     Vector<GC::Root<HTML::Window>> same_loop_windows() const;
 

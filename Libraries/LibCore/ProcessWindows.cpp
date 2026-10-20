@@ -182,7 +182,7 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> argume
 {
     return spawn({
         .executable = path,
-        .arguments = Vector<ByteString> { arguments },
+        .arguments = arguments,
     });
 }
 

@@ -13,6 +13,7 @@
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
 #include <LibCore/ResourceImplementationFile.h>
+#include <LibCore/StatsLog.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/GpuDeviceIdentity.h>
@@ -34,7 +35,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_sandbox = false;
 
     int crash_report_fd = -1;
+    StringView stats_log_directory;
     Core::ArgsParser args_parser;
+    args_parser.add_option(stats_log_directory, "Directory for process statistics (JSON lines)", "stats-log-dir", 0, "path");
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
@@ -45,6 +48,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.parse(arguments);
+
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "Compositor"sv));
 
     if (resource_root.is_empty())
         return Error::from_string_literal("--resource-root is required");
@@ -94,6 +99,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
         mach_server_name, move(skia_backend_context)));
     client->async_gpu_device_identity_reported(move(gpu_device_identity));
+
+    if (stats_log)
+        stats_log->start_sampling([](JsonObject& values) {
+            if (auto context = Gfx::SkiaBackendContext::the_main_thread_context())
+                values.set("gpu.skia_resource_cache_bytes"sv, context->resource_cache_bytes());
+        });
 
     return event_loop.exec();
 }

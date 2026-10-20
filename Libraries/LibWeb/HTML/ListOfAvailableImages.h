@@ -58,6 +58,7 @@ public:
     void remove(Key const&);
     void prune_to_limits(size_t external_memory_limit, size_t count_limit);
     [[nodiscard]] Entry* get(Key const&);
+    size_t size() const { return m_images.size(); }
 
     void visit_edges(JS::Cell::Visitor& visitor) override;
 

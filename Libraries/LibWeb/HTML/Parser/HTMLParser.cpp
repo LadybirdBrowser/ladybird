@@ -13,6 +13,7 @@
 #include <AK/FFIHelpers.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/UnicodeUtils.h>
+#include <LibCore/StatsLog.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibTextCodec/Decoder.h>
@@ -63,6 +64,7 @@
 #include <LibWeb/HTMLTokenizerRustFFI.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
@@ -833,6 +835,22 @@ void HTMLParserEndState::check_progress()
     }
 }
 
+static void log_document_stats_event(DOM::Document const& document, StringView name)
+{
+    auto* log = Core::StatsLog::the();
+    if (!log || document.is_decoded_svg() || !document.is_active())
+        return;
+    auto navigable = document.navigable();
+    if (!navigable || !navigable->is_top_level_traversable())
+        return;
+    JsonObject data;
+    data.set("page_id"sv, document.page().client().id().value());
+    data.set("navigable_id"sv, MUST(String::formatted("{}", navigable->id())));
+    data.set("document_id"sv, MUST(String::formatted("{}", document.id())));
+    data.set("url"sv, document.url().serialize());
+    log->event(name, move(data));
+}
+
 void HTMLParserEndState::advance_to_dom_content_loaded_phase()
 {
     // AD-HOC: We need to scroll to the fragment on page load somewhere.
@@ -859,6 +877,9 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
             return;
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
+
+        if (Core::StatsLog::the())
+            log_document_stats_event(*document, "DOMContentLoaded"sv);
 
         // 2. Fire an event named DOMContentLoaded at the Document object, with its bubbles attribute initialized to true.
         auto content_loaded_event = DOM::Event::create(
@@ -963,6 +984,9 @@ void HTMLParserEndState::complete()
 
         // 4. Set the Document's load timing info's load event start time to the current high resolution time given window.
         document->load_timing_info().load_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(window));
+
+        if (Core::StatsLog::the())
+            log_document_stats_event(*document, "load"sv);
 
         // 5. Fire an event named load at window, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()

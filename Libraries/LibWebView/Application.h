@@ -589,6 +589,7 @@ private:
     OwnPtr<AutocompleteService> m_autocomplete_service;
 
     Main::Arguments m_arguments;
+    OwnPtr<Core::StatsLog> m_stats_log;
     BrowserOptions m_browser_options;
     Optional<Core::Process> m_cpu_profiler_process;
     OwnPtr<Core::File> m_cpu_profiler_control_socket;
