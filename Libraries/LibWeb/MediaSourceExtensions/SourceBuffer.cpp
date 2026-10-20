@@ -226,7 +226,13 @@ Bindings::AppendMode SourceBuffer::mode() const
 // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
 double SourceBuffer::timestamp_offset() const
 {
-    return m_remote_source_buffer->published_state().timestamp_offset.to_seconds_f64();
+    // NB: The media server keeps the offset in nanoseconds, so reading it back would round the value that was
+    //     assigned. Scripts compare the two to decide whether to assign it again, so hand back the assigned value
+    //     until coded frame processing moves the offset elsewhere.
+    auto published_timestamp_offset = m_remote_source_buffer->published_state().timestamp_offset;
+    if (published_timestamp_offset == AK::Duration::from_seconds_f64(m_timestamp_offset_assigned_by_script))
+        return m_timestamp_offset_assigned_by_script;
+    return published_timestamp_offset.to_seconds_f64();
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
@@ -257,6 +263,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_timestamp_offset(double timestamp_of
 
     // 6. If the mode attribute equals "sequence", then set the [[group start timestamp]] to new timestamp offset.
     // 7. Update the attribute to new timestamp offset.
+    m_timestamp_offset_assigned_by_script = timestamp_offset;
     m_remote_source_buffer->set_timestamp_offset(AK::Duration::from_seconds_f64(timestamp_offset));
 
     return {};

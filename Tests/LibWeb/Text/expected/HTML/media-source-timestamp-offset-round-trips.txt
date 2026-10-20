@@ -1,0 +1,2 @@
+PASS: timestampOffset reads back -0.036281179138321996
+PASS: timestampOffset reads back 0.3333333333333333

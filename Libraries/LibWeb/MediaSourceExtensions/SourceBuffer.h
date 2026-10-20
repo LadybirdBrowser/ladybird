@@ -119,6 +119,9 @@ private:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool m_updating { false };
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+    double m_timestamp_offset_assigned_by_script { 0 };
+
     // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowstart
     double m_append_window_start { 0 };
     // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowend

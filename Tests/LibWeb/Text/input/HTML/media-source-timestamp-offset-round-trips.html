@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        mediaSource.addEventListener("sourceopen", () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/mp4;codecs="av01.0.00M.08,mp4a.40.2"');
+
+            // An AAC encoder delay of 1600 frames at 44.1 kHz, and a third, are both finer than a nanosecond.
+            for (const value of [-1600 / 44100, 1 / 3]) {
+                sourceBuffer.timestampOffset = value;
+                if (sourceBuffer.timestampOffset === value)
+                    println(`PASS: timestampOffset reads back ${value}`);
+                else
+                    println(`FAIL: timestampOffset was set to ${value} but reads back ${sourceBuffer.timestampOffset}`);
+            }
+            done();
+        });
+    });
+</script>
