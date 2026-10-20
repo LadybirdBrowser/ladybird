@@ -3170,6 +3170,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
+    pub(crate) fn note_violated_break_avoidance(&self) {
+        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+            fragmentainer.outcome_mut().violates_break_avoidance = true;
+        }
+    }
+
     pub(crate) fn note_unbreakable_line_root(&self, line_root: Node, lines_block_end_in_root: CssPixels) {
         self.unbreakable_line_roots.borrow_mut().insert(line_root);
         if line_root != self.run.box_ {
