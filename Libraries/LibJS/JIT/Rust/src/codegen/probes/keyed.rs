@@ -30,9 +30,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Looks up the own data property that the string `key` names on the
     /// object in `base` in the VM's keyed property lookup cache, like the
     /// runtime's keyed get does when the access's own cache has nothing for
-    /// it (see `RuntimeLayout::keyed_lookup_cache_entries`): puts it in
-    /// `output` and jumps to `done`, or jumps to `miss`. Clobbers the cache
-    /// registers and the scratch register.
+    /// it (see `RuntimeLayout::keyed_lookup_cache_entries`): puts it, or
+    /// `undefined` where the entry says the object and its prototype chain
+    /// have no such property, in `output` and jumps to `done`, or jumps to
+    /// `miss`. Clobbers the cache registers and the scratch register.
     fn emit_keyed_lookup_cache_get(
         &mut self,
         base: Gpr,
@@ -42,13 +43,41 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         miss: Label,
         done: Label,
     ) {
-        let entries = self.runtime.layout.keyed_lookup_cache_entries;
-        let entry_type = self.runtime.layout.property_lookup_cache_entry_type_get_own_property;
-        let Some(property) = self.emit_vm_keyed_cache_probe(base, key, &registers, entries, entry_type, miss) else {
+        let layout = self.runtime.layout;
+        let entry_type = layout.property_lookup_cache_entry_type_get_own_property;
+        let missing = (layout.keyed_lookup_cache_prototype_chain_validity != 0).then(|| self.masm.new_label());
+        let Some(property) = self.emit_vm_keyed_cache_probe(
+            base,
+            key,
+            &registers,
+            layout.keyed_lookup_cache_entries,
+            entry_type,
+            miss,
+            missing.unwrap_or(miss),
+        ) else {
             return;
         };
-        let CacheRegisters { entry, .. } = registers;
+        let CacheRegisters { object, shape, entry } = registers;
         let scratch = self.pinned.scratch;
+        if let Some(missing) = missing {
+            let own = self.masm.new_label();
+            self.masm.jump(own);
+            // NB: The cache entry is in the object register (see `emit_vm_keyed_cache_entry()`).
+            self.masm.bind(missing);
+            self.masm.branch32_memory_imm(
+                Condition::NotEqual,
+                &Address::new(object, layout.keyed_lookup_cache_entry_type as i32),
+                layout.property_lookup_cache_entry_type_get_missing_property as i32,
+                miss,
+            );
+            self.masm.move64(entry, object);
+            self.emit_unbox_cell(object, base);
+            let validity = Address::new(entry, layout.keyed_lookup_cache_prototype_chain_validity as i32);
+            self.branch_unless_property_absence_applies(object, shape, &validity, miss);
+            self.masm.move_imm64(output, value::UNDEFINED);
+            self.masm.jump(done);
+            self.masm.bind(own);
+        }
         self.masm.load64(entry, &property);
         self.branch_on_tag(Condition::Equal, entry, value::ACCESSOR_TAG, scratch, miss);
         self.masm.move64(output, entry);
@@ -71,7 +100,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     ) {
         let entries = self.runtime.layout.keyed_store_cache_entries;
         let entry_type = self.runtime.layout.property_lookup_cache_entry_type_change_own_property;
-        let Some(property) = self.emit_vm_keyed_cache_probe(base, key, &registers, entries, entry_type, miss) else {
+        let Some(property) = self.emit_vm_keyed_cache_probe(base, key, &registers, entries, entry_type, miss, miss)
+        else {
             return;
         };
         let CacheRegisters { entry, .. } = registers;
@@ -85,10 +115,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// `base` in a VM-wide keyed cache with `entries` (laid out like the
     /// keyed property lookup cache's), with `entry_type` and the shape's
     /// dictionary generation, and returns the address of the named property
-    /// at its offset in the object. Branches to `miss` otherwise, and
-    /// returns nothing (having jumped to `miss`) if `entries` is 0. Clobbers
-    /// the cache registers and the scratch register; the address uses the
-    /// shape register and the scratch register.
+    /// at its offset in the object. Branches to `other_type`, with the entry
+    /// in the object register, where the entry has another type, and to
+    /// `miss` where there is none, and returns nothing (having jumped to
+    /// `miss`) if `entries` is 0. Clobbers the cache registers and the
+    /// scratch register; the address uses the shape register and the scratch
+    /// register.
+    #[allow(clippy::too_many_arguments)]
     fn emit_vm_keyed_cache_probe(
         &mut self,
         base: Gpr,
@@ -97,6 +130,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         entries: u64,
         entry_type: u32,
         miss: Label,
+        other_type: Label,
     ) -> Option<Address> {
         if !self.emit_vm_keyed_cache_entry(base, key, registers, entries, miss) {
             return None;
@@ -109,7 +143,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Condition::NotEqual,
             &Address::new(cache_entry, layout.keyed_lookup_cache_entry_type as i32),
             entry_type as i32,
-            miss,
+            other_type,
         );
         // The own property at the entry's offset.
         self.masm.load32(
@@ -379,7 +413,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.jump(done);
 
         self.masm.bind(missing);
-        self.branch_unless_property_absence_applies(object, shape, entry, fail);
+        let validity = Address::new(
+            entry,
+            layout.property_lookup_cache_entry_prototype_chain_validity as i32,
+        );
+        self.branch_unless_property_absence_applies(object, shape, &validity, fail);
         self.masm.move_imm64(output, value::UNDEFINED);
         self.masm.jump(done);
 

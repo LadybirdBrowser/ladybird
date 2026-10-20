@@ -1320,6 +1320,7 @@ fn fake_object_layout() -> RuntimeLayout {
         keyed_lookup_cache_dictionary_generation: 8,
         keyed_lookup_cache_shape: 16,
         keyed_lookup_cache_name: 40,
+        keyed_lookup_cache_prototype_chain_validity: 0,
         property_lookup_cache_polymorphic_tag: 1,
         property_lookup_cache_polymorphic_entry_count: 4,
         property_lookup_cache_entry_size: 64,

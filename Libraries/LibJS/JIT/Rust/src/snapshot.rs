@@ -1870,6 +1870,11 @@ pub struct RuntimeLayout {
     pub keyed_lookup_cache_dictionary_generation: u32,
     pub keyed_lookup_cache_shape: u32,
     pub keyed_lookup_cache_name: u32,
+    /// The offset in an entry of the prototype chain validity (a cell
+    /// pointer, or null for shapes without a prototype) that a
+    /// `GetMissingProperty` entry relies on, or 0 if JIT code does not use
+    /// such entries.
+    pub keyed_lookup_cache_prototype_chain_validity: u32,
     /// The tag bits of `PropertyLookupCache::data` of a polymorphic cache,
     /// whose entries follow its most recently used one.
     pub property_lookup_cache_polymorphic_tag: u64,
