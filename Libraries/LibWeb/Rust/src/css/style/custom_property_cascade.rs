@@ -23,9 +23,9 @@ use crate::css::cascaded_properties::{
     CascadeResolutionContext, parse_substituted_value, resolve_declared_custom_properties,
 };
 use crate::css::custom_properties::{
-    CustomPropertyFinalization, CustomPropertyStore, FfiSubstitutionFunctionVisibility, NativeVarResolution,
-    SubstitutionAttribute, SubstitutionFunctionDeclaration, SubstitutionFunctionDefinition, VarResolutionInputs,
-    prepare_var_resolution_environment,
+    CustomFunctionVisibility, CustomPropertyFinalization, CustomPropertyStore, FfiSubstitutionFunctionVisibility,
+    NativeVarResolution, SubstitutionAttribute, SubstitutionFunctionDeclaration, SubstitutionFunctionDefinition,
+    VarResolutionInputs, prepare_var_resolution_environment,
 };
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::rule::CompiledFunction;
@@ -115,7 +115,8 @@ pub(super) struct DocumentFunctionSnapshot {
 pub(super) struct ScopeFunctions {
     /// Each reachable definition, with the scope that defines it and its selected blocks.
     definitions: Vec<(Arc<CompiledFunction>, usize, Box<[usize]>)>,
-    visibilities: Vec<FfiSubstitutionFunctionVisibility>,
+    /// Caller scope identities paired with indices into `definitions`.
+    visibilities: Vec<CustomFunctionVisibility>,
 }
 
 /// What a call from one tree scope may reach: the definitions its scope sees, and those the
@@ -224,7 +225,7 @@ impl DocumentFunctionSnapshot {
                 continue;
             }
             let visible = self.visible_from_scope(caller_scope);
-            let definitions = visible
+            let definitions: Vec<_> = visible
                 .definitions
                 .iter()
                 .map(|(function, scope)| {
@@ -245,9 +246,23 @@ impl DocumentFunctionSnapshot {
                     (function, *scope, selected)
                 })
                 .collect();
+            let visibilities = visible
+                .visibilities
+                .iter()
+                .filter_map(|visibility| {
+                    let index = definitions
+                        .iter()
+                        .position(|(function, _, _)| function.identity == visibility.function_identity);
+                    debug_assert!(index.is_some(), "a visible function is published with its definition");
+                    Some(CustomFunctionVisibility {
+                        caller_scope_identity: visibility.caller_scope_identity,
+                        definition_index: index?,
+                    })
+                })
+                .collect();
             let scope_functions = ScopeFunctions {
                 definitions,
-                visibilities: visible.visibilities,
+                visibilities,
             };
             self.scope_functions.insert(caller_scope, scope_functions);
         }
@@ -312,7 +327,7 @@ impl DocumentFunctionSnapshot {
 /// name.
 pub(super) struct PreparedCustomFunctions {
     definitions: Vec<SubstitutionFunctionDefinition>,
-    visibilities: Vec<FfiSubstitutionFunctionVisibility>,
+    visibilities: Vec<CustomFunctionVisibility>,
     caller_scope: usize,
     /// Whether a selected declaration substitutes `attr()`, which reads the node's attributes.
     pub(super) reads_attributes: bool,

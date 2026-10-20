@@ -163,7 +163,7 @@ struct CustomFunctionRegistry {
     definitions: Vec<CustomFunctionDefinition>,
     /// Which definition a call names from each scope that sees one: the caller scope and the
     /// index of the definition its name resolves to there.
-    visible: Vec<(usize, usize)>,
+    visible: Vec<CustomFunctionVisibility>,
 }
 
 #[derive(Clone)]
@@ -223,6 +223,13 @@ pub(crate) struct SubstitutionFunctionDefinition {
     pub(crate) scope_identity: usize,
     pub(crate) signature: Arc<FunctionSignature>,
     pub(crate) declarations: Vec<SubstitutionFunctionDeclaration>,
+}
+
+/// A definition visible to a caller scope, indexed in the prepared definition list.
+#[derive(Clone, Copy)]
+pub(crate) struct CustomFunctionVisibility {
+    pub(crate) caller_scope_identity: usize,
+    pub(crate) definition_index: usize,
 }
 
 /// That a call from a scope names a function: the definition its name dereferences to there, as
@@ -1138,7 +1145,7 @@ fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, boo
 fn custom_function_registry(
     definitions: &[SubstitutionFunctionDefinition],
     caller_scope_identity: usize,
-    visibilities: &[FfiSubstitutionFunctionVisibility],
+    visibilities: &[CustomFunctionVisibility],
 ) -> CustomFunctionRegistry {
     let mut parsed_definitions = Vec::with_capacity(definitions.len());
     for definition in definitions {
@@ -1165,20 +1172,10 @@ fn custom_function_registry(
             declarations: parsed_declarations,
         });
     }
-    let visible = visibilities
-        .iter()
-        .filter_map(|visibility| {
-            let index = definitions
-                .iter()
-                .position(|definition| definition.identity == visibility.function_identity);
-            debug_assert!(index.is_some(), "a visible function is published with its definition");
-            Some((visibility.caller_scope_identity, index?))
-        })
-        .collect();
     CustomFunctionRegistry {
         caller_scope_identity,
         definitions: parsed_definitions,
-        visible,
+        visible: visibilities.to_vec(),
     }
 }
 
@@ -1187,7 +1184,7 @@ pub(crate) fn prepare_var_resolution_environment(
     attributes: &[SubstitutionAttribute],
     custom_functions: &[SubstitutionFunctionDefinition],
     custom_function_scope_identity: usize,
-    custom_function_visibilities: &[FfiSubstitutionFunctionVisibility],
+    custom_function_visibilities: &[CustomFunctionVisibility],
 ) -> VarResolutionEnvironment {
     let attributes = attributes
         .iter()
@@ -2809,8 +2806,8 @@ fn replace_a_dashed_function(
     let definition = functions
         .visible
         .iter()
-        .filter(|&&(scope, _)| scope == caller_scope_identity)
-        .map(|&(_, index)| &functions.definitions[index])
+        .filter(|visibility| visibility.caller_scope_identity == caller_scope_identity)
+        .map(|visibility| &functions.definitions[visibility.definition_index])
         .find(|definition| definition.signature.name.units() == name);
     let Some(function) = definition else {
         return TokenResolution::Invalid;
@@ -3624,7 +3621,10 @@ mod tests {
                     true,
                 )],
             }],
-            visible: vec![(1, 0)],
+            visible: vec![CustomFunctionVisibility {
+                caller_scope_identity: 1,
+                definition_index: 0,
+            }],
         };
         let mut context = ASFResolutionContext {
             custom_functions: Some(&functions),
@@ -3665,7 +3665,24 @@ mod tests {
                 definition(11, 2, "--inner", b"2px"),
                 definition(12, 1, "--inner", b"1px"),
             ],
-            visible: vec![(1, 0), (1, 2), (2, 0), (2, 1)],
+            visible: vec![
+                CustomFunctionVisibility {
+                    caller_scope_identity: 1,
+                    definition_index: 0,
+                },
+                CustomFunctionVisibility {
+                    caller_scope_identity: 1,
+                    definition_index: 2,
+                },
+                CustomFunctionVisibility {
+                    caller_scope_identity: 2,
+                    definition_index: 0,
+                },
+                CustomFunctionVisibility {
+                    caller_scope_identity: 2,
+                    definition_index: 1,
+                },
+            ],
         };
         let substitute = |source: &[u8]| {
             let mut context = ASFResolutionContext {
