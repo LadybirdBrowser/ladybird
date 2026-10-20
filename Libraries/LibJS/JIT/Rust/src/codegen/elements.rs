@@ -307,6 +307,22 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             return;
         }
+        if let InputValue::Constant(bits) = self.input_value(node, 2) {
+            let ElementsKind::TypedArray(element) = kind else {
+                self.masm.store_imm64(&address, bits);
+                return;
+            };
+            let integer = (bits as u32).cast_signed();
+            match element {
+                TypedArrayElement::Uint8Clamped => self.masm.store_imm8(&address, integer.clamp(0, 255) as u8),
+                TypedArrayElement::Uint8 | TypedArrayElement::Int8 => self.masm.store_imm8(&address, integer as u8),
+                TypedArrayElement::Uint16 | TypedArrayElement::Int16 => {
+                    self.masm.store_imm16(&address, integer as u16);
+                }
+                _ => self.masm.store_imm32(&address, integer.cast_unsigned()),
+            }
+            return;
+        }
         let source = self.input(node, 2);
         let ElementsKind::TypedArray(element) = kind else {
             self.masm.store64(&address, source);

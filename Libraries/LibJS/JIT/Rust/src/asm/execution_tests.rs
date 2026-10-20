@@ -899,6 +899,8 @@ fn loads_and_stores() {
         let code = assemble(|masm| {
             masm.store_imm64(&Address::new(RDI, 0), imm);
             masm.store_imm32(&Address::new(RDI, 8), imm as u32);
+            masm.store_imm16(&Address::new(RDI, 12), imm as u16);
+            masm.store_imm8(&Address::new(RDI, 14), imm as u8);
             masm.ret();
         });
         // SAFETY: The code implements `Access`.
@@ -907,7 +909,8 @@ fn loads_and_stores() {
         function(target.as_mut_ptr(), 0);
         assert_eq!(u64::from_le_bytes(target[..8].try_into().unwrap()), imm);
         assert_eq!(u32::from_le_bytes(target[8..12].try_into().unwrap()), imm as u32);
-        assert_eq!(target[12..], [0xaa; 4]);
+        assert_eq!(u16::from_le_bytes(target[12..14].try_into().unwrap()), imm as u16);
+        assert_eq!(target[14..], [imm as u8, 0xaa]);
     }
 
     // Doubles through memory.

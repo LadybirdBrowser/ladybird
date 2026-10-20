@@ -186,6 +186,17 @@ impl MacroAssembler {
         self.assembler.load_store(op, rt, operand);
     }
 
+    /// Stores `imm` with the store `op` of 32 bits or fewer, from the zero register where it can.
+    fn store_imm32_with(&mut self, op: MemOp, address: &Address, imm: u32) {
+        let source = if imm == 0 {
+            XZR
+        } else {
+            self.assembler.mov_imm(W32, VALUE_SCRATCH, u64::from(imm));
+            VALUE_SCRATCH
+        };
+        self.load_store(op, source.0, address);
+    }
+
     /// `dst = lhs +/- imm`. Either register may be SP.
     fn arithmetic_imm(&mut self, op: ArithmeticOp, width: Width, dst: Gpr, lhs: Gpr, imm: i64) {
         let (op, magnitude) = if imm < 0 {
@@ -583,14 +594,16 @@ impl PortableMacroAssembler for MacroAssembler {
         self.load_store(MemOp::StrX, src.0, address);
     }
 
+    fn store_imm8(&mut self, address: &Address, imm: u8) {
+        self.store_imm32_with(MemOp::Strb, address, u32::from(imm));
+    }
+
+    fn store_imm16(&mut self, address: &Address, imm: u16) {
+        self.store_imm32_with(MemOp::Strh, address, u32::from(imm));
+    }
+
     fn store_imm32(&mut self, address: &Address, imm: u32) {
-        let source = if imm == 0 {
-            XZR
-        } else {
-            self.assembler.mov_imm(W32, VALUE_SCRATCH, u64::from(imm));
-            VALUE_SCRATCH
-        };
-        self.load_store(MemOp::StrW, source.0, address);
+        self.store_imm32_with(MemOp::StrW, address, imm);
     }
 
     fn store_imm64(&mut self, address: &Address, imm: u64) {

@@ -481,6 +481,17 @@ impl PortableMacroAssembler for MacroAssembler {
         self.assembler.mov_mr(W64, address, src);
     }
 
+    fn store_imm8(&mut self, address: &Address, imm: u8) {
+        self.assembler.mov8_mi(address, imm);
+    }
+
+    // OPTIMIZATION: A 16-bit immediate after an operand-size prefix stalls the legacy decoders for a few cycles, which
+    //               a store of the low half of a register avoids.
+    fn store_imm16(&mut self, address: &Address, imm: u16) {
+        self.assembler.mov_ri32(SCRATCH, u32::from(imm));
+        self.assembler.mov16_mr(address, SCRATCH);
+    }
+
     fn store_imm32(&mut self, address: &Address, imm: u32) {
         self.assembler.mov_mi(W32, address, imm as i32);
     }
