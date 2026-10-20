@@ -4014,7 +4014,7 @@ impl RetainedState {
             || self.computed_group_sets.retired_animation_overlay_records() != 0
     }
 
-    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> std::sync::Arc<[u64]> {
+    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> Option<std::sync::Arc<[u64]>> {
         self.computed_group_sets.lease_selected_style_records(records)
     }
 

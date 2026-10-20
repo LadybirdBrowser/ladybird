@@ -913,7 +913,7 @@ pub struct ComputedGroupSets {
     style_record_column: Vec<Option<StyleRecordID>>,
     base_style_record_pins: HashMap<StyleRecordID, u64>,
     /// Long-lived immutable readers pin only the base records they actually read. Expired readers leave weak entries
-    /// that the next publication removes, so they neither block reclamation nor need to call back into the owner.
+    /// that the next lease removes, so they neither block reclamation nor need to call back into the owner.
     selected_style_record_leases: std::sync::Arc<std::sync::Mutex<Vec<std::sync::Weak<[u64]>>>>,
     columns: PublishedComputedColumns,
     // Recyclable animation overlays are deliberately separate from the permanent base records
@@ -1014,12 +1014,14 @@ impl ComputedGroupSets {
             .collect()
     }
 
-    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> std::sync::Arc<[u64]> {
+    /// Leases `records` to an immutable hover frame, or answers none where one of them is an animation overlay record,
+    /// whose payloads such a lease does not keep.
+    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> Option<std::sync::Arc<[u64]>> {
         for &raw_record in &records {
             let record = FinalStyleRecordID(raw_record);
-            let base = record
-                .base_record()
-                .expect("an immutable hover frame reads only base records");
+            // NB: A row can name an overlay record no element is assigned anymore, such as the row of a removed
+            //     element, which pins its record until the rebuild of its parent frees it.
+            let base = record.base_record()?;
             assert!(self.style_record_generation_is_live(base, record.base_generation()));
         }
         let records: std::sync::Arc<[u64]> = records.into();
@@ -1029,7 +1031,7 @@ impl ComputedGroupSets {
             .expect("selected style-record leases");
         leases.retain(|lease| lease.strong_count() != 0);
         leases.push(std::sync::Arc::downgrade(&records));
-        records
+        Some(records)
     }
 
     fn style_records_are_leased(&self) -> bool {
@@ -4660,6 +4662,39 @@ mod tests {
     }
 
     #[test]
+    fn a_selected_record_lease_declines_the_overlay_record_of_a_removed_element() {
+        let mut sets = ComputedGroupSets::default();
+        let node = StyleNodeID::from_raw(1).unwrap();
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let mut overlay_metadata = metadata(0, 0, 0);
+        overlay_metadata.animation_overlay_identity = 1;
+        overlay_metadata.animated_overlay = HostShared::new(std::ptr::from_ref(&animated_overlay));
+        let overlay = sets
+            .publish_unowned(
+                Some(ComputedStyleTarget::new(node, u8::MAX)),
+                &[],
+                0,
+                0,
+                overlay_metadata,
+            )
+            .style_record_identity;
+        let base = sets
+            .publish_unowned(None, &[], 0, 0, metadata(1, 0, 0))
+            .style_record_identity;
+        // The row of the removed element pins its record until the rebuild of its parent frees the row.
+        sets.pin_style_record(overlay.raw());
+        sets.remove(node);
+        assert_eq!(sets.live_animation_overlay_records(), 0);
+        assert_eq!(sets.retired_animation_overlay_records(), 0);
+        assert!(
+            sets.lease_selected_style_records(vec![base.raw(), overlay.raw()])
+                .is_none()
+        );
+        assert!(sets.lease_selected_style_records(vec![base.raw()]).is_some());
+        sets.unpin_style_record(overlay.raw());
+    }
+
+    #[test]
     fn a_selected_record_lease_allows_other_records_to_be_reclaimed() {
         let mut sets = ComputedGroupSets::default();
         let kept = sets
@@ -4668,7 +4703,7 @@ mod tests {
         let discarded = sets
             .publish_unowned(None, &[], 0, 0, metadata(2, 0, 0))
             .style_record_identity;
-        let lease = sets.lease_selected_style_records(vec![kept.raw()]);
+        let lease = sets.lease_selected_style_records(vec![kept.raw()]).unwrap();
         let mut fork = sets.clone();
         sets.reclaim_unreachable();
         fork.reclaim_unreachable();
