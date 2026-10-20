@@ -60,7 +60,7 @@ impl DocumentMediaSnapshot {
         self.values.clear();
         if !inputs.media_feature_values.is_none() && inputs.media_feature_value_count != 0 {
             self.values.extend_from_slice(unsafe {
-                std::slice::from_raw_parts(
+                ak::slice_from_raw_parts(
                     inputs.media_feature_values.as_pointer().cast(),
                     inputs.media_feature_value_count,
                 )
@@ -155,7 +155,7 @@ impl DocumentFunctionSnapshot {
             &[]
         } else {
             unsafe {
-                std::slice::from_raw_parts(
+                ak::slice_from_raw_parts(
                     inputs
                         .custom_functions
                         .as_pointer()

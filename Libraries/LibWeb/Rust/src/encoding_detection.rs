@@ -45,7 +45,7 @@ pub unsafe extern "C" fn rust_detect_encoding(
         let tld_slice = if tld.is_null() || tld_len == 0 {
             None
         } else {
-            Some(std::slice::from_raw_parts(tld, tld_len))
+            Some(ak::slice_from_raw_parts(tld, tld_len))
         };
 
         // Web browsers must use `Iso2022JpDetection::Deny` and `Utf8Detection::Deny` to

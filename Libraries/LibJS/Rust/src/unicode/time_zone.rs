@@ -165,7 +165,7 @@ unsafe extern "C" fn append_time_zone(context: *mut c_void, time_zone: *const u1
     // SAFETY: The context is the list available_time_zones() passes, which outlives the call.
     let time_zones = unsafe { &mut *context.cast::<Vec<Vec<u16>>>() };
     // SAFETY: LibUnicode passes a time zone of `length` code units that stays alive for the call.
-    time_zones.push(unsafe { core::slice::from_raw_parts(time_zone, length) }.to_vec());
+    time_zones.push(unsafe { ak::slice_from_raw_parts(time_zone, length) }.to_vec());
 }
 
 /// Unicode::available_time_zones: every time zone LibUnicode knows, sorted, which it computes once.

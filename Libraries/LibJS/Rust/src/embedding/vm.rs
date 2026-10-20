@@ -374,7 +374,7 @@ pub unsafe extern "C" fn js_vm_default_host_call_job_callback(
         &[]
     } else {
         // SAFETY: The caller passes `argument_count` values, and a Value is a JSValue.
-        unsafe { core::slice::from_raw_parts(arguments.cast(), argument_count) }
+        unsafe { ak::slice_from_raw_parts(arguments.cast(), argument_count) }
     };
     completion_into_abi(call_job_callback(vm, job_callback, Value(this_value), arguments))
 }

@@ -73,18 +73,18 @@ pub unsafe extern "C" fn yuv_u8_to_rgba(
     let uv_len = u_stride as usize * uv_height;
 
     let planar_image = YuvPlanarImage {
-        y_plane: unsafe { core::slice::from_raw_parts(y_plane, y_len) },
+        y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
         y_stride,
-        u_plane: unsafe { core::slice::from_raw_parts(u_plane, uv_len) },
+        u_plane: unsafe { ak::slice_from_raw_parts(u_plane, uv_len) },
         u_stride,
-        v_plane: unsafe { core::slice::from_raw_parts(v_plane, uv_len) },
+        v_plane: unsafe { ak::slice_from_raw_parts(v_plane, uv_len) },
         v_stride,
         width,
         height,
     };
 
     let dst_len = dst_stride as usize * height as usize;
-    let dst_slice = unsafe { core::slice::from_raw_parts_mut(dst, dst_len) };
+    let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
 
     let result = match (subsampling_x, subsampling_y) {
         (true, true) => yuv::yuv420_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
@@ -123,18 +123,18 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
     let uv_len = u_stride as usize * uv_height;
 
     let planar_image = YuvPlanarImage {
-        y_plane: unsafe { core::slice::from_raw_parts(y_plane, y_len) },
+        y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
         y_stride,
-        u_plane: unsafe { core::slice::from_raw_parts(u_plane, uv_len) },
+        u_plane: unsafe { ak::slice_from_raw_parts(u_plane, uv_len) },
         u_stride,
-        v_plane: unsafe { core::slice::from_raw_parts(v_plane, uv_len) },
+        v_plane: unsafe { ak::slice_from_raw_parts(v_plane, uv_len) },
         v_stride,
         width,
         height,
     };
 
     let dst_len = dst_stride as usize * height as usize;
-    let dst_slice = unsafe { core::slice::from_raw_parts_mut(dst, dst_len) };
+    let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
 
     let result = if bit_depth <= 10 {
         match (subsampling_x, subsampling_y) {
@@ -146,15 +146,15 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
     } else {
         // 12-bit 4:4:4 has no 8-bit RGBA output; shift to 10-bit and use I410.
         if !subsampling_x && !subsampling_y {
-            let y_10: Vec<u16> = unsafe { core::slice::from_raw_parts(y_plane, y_len) }
+            let y_10: Vec<u16> = unsafe { ak::slice_from_raw_parts(y_plane, y_len) }
                 .iter()
                 .map(|&v| v >> 2)
                 .collect();
-            let u_10: Vec<u16> = unsafe { core::slice::from_raw_parts(u_plane, uv_len) }
+            let u_10: Vec<u16> = unsafe { ak::slice_from_raw_parts(u_plane, uv_len) }
                 .iter()
                 .map(|&v| v >> 2)
                 .collect();
-            let v_10: Vec<u16> = unsafe { core::slice::from_raw_parts(v_plane, uv_len) }
+            let v_10: Vec<u16> = unsafe { ak::slice_from_raw_parts(v_plane, uv_len) }
                 .iter()
                 .map(|&v| v >> 2)
                 .collect();
@@ -201,16 +201,16 @@ pub unsafe extern "C" fn yuv_nv12_to_rgba(
     let uv_len = uv_stride as usize * height.div_ceil(2) as usize;
 
     let bi_planar_image = YuvBiPlanarImage {
-        y_plane: unsafe { core::slice::from_raw_parts(y_plane, y_len) },
+        y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
         y_stride,
-        uv_plane: unsafe { core::slice::from_raw_parts(uv_plane, uv_len) },
+        uv_plane: unsafe { ak::slice_from_raw_parts(uv_plane, uv_len) },
         uv_stride,
         width,
         height,
     };
 
     let dst_len = dst_stride as usize * height as usize;
-    let dst_slice = unsafe { core::slice::from_raw_parts_mut(dst, dst_len) };
+    let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
 
     yuv::yuv_nv12_to_rgba(
         &bi_planar_image,
@@ -244,16 +244,16 @@ pub unsafe extern "C" fn yuv_p010_to_rgba(
     let uv_len = uv_stride as usize * height.div_ceil(2) as usize;
 
     let bi_planar_image = YuvBiPlanarImage {
-        y_plane: unsafe { core::slice::from_raw_parts(y_plane, y_len) },
+        y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
         y_stride,
-        uv_plane: unsafe { core::slice::from_raw_parts(uv_plane, uv_len) },
+        uv_plane: unsafe { ak::slice_from_raw_parts(uv_plane, uv_len) },
         uv_stride,
         width,
         height,
     };
 
     let dst_len = dst_stride as usize * height as usize;
-    let dst_slice = unsafe { core::slice::from_raw_parts_mut(dst, dst_len) };
+    let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
 
     yuv::p010_to_rgba(
         &bi_planar_image,

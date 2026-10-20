@@ -63,7 +63,7 @@ impl<'a> Record<'a> {
             );
             let _ = writeln!(
                 out,
-                "    let {array} = unsafe {{ core::slice::from_raw_parts_mut((&raw mut (*values).{array}).cast::<Value>(), instruction.{count} as usize) }};"
+                "    let {array} = unsafe {{ ak::slice_from_raw_parts_mut((&raw mut (*values).{array}).cast::<Value>(), instruction.{count} as usize) }};"
             );
         }
         let _ = writeln!(

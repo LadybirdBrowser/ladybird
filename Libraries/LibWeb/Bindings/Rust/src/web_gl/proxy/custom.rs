@@ -347,7 +347,7 @@ impl<T: Transport> Proxy<T> {
                 );
                 // SAFETY: The memory is mapped and at least `length` bytes long, and the replayer, which is the only
                 //         other user of it, has answered the call and does not write to it any more.
-                unsafe { core::slice::from_raw_parts(shared_pixels.as_ptr(), length) }
+                unsafe { ak::slice_from_raw_parts(shared_pixels.as_ptr(), length) }
             }
             _ => &[],
         };
@@ -389,7 +389,7 @@ impl<T: Transport> Proxy<T> {
         assert!(size <= shared_data.len());
         // SAFETY: The memory is mapped and at least `size` bytes long, and the replayer, which is the only other
         //         user of it, has answered the call and does not write to it any more.
-        use_data(unsafe { core::slice::from_raw_parts(shared_data.as_ptr(), size) });
+        use_data(unsafe { ak::slice_from_raw_parts(shared_data.as_ptr(), size) });
         true
     }
 }

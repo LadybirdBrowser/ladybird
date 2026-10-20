@@ -176,7 +176,7 @@ unsafe extern "C" fn append_to_vec(context: *mut c_void, bytes: *const u8, lengt
     // SAFETY: `context` is the Vec pointer handed out by serialize_to_bytes; the bytes are live
     // for this synchronous call.
     let out = unsafe { &mut *context.cast::<Vec<u8>>() };
-    out.extend_from_slice(unsafe { std::slice::from_raw_parts(bytes, length) });
+    out.extend_from_slice(unsafe { ak::slice_from_raw_parts(bytes, length) });
 }
 
 unsafe extern "C" fn append_to_string(context: *mut c_void, bytes: *const u8, length: usize) {
@@ -185,7 +185,7 @@ unsafe extern "C" fn append_to_string(context: *mut c_void, bytes: *const u8, le
     unsafe {
         let output = &mut *context.cast::<String>();
         if length > 0 {
-            output.push_str(&String::from_utf8_lossy(std::slice::from_raw_parts(bytes, length)));
+            output.push_str(&String::from_utf8_lossy(ak::slice_from_raw_parts(bytes, length)));
         }
     }
 }

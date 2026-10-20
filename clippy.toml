@@ -1,0 +1,4 @@
+disallowed-methods = [
+    { path = "std::slice::from_raw_parts", reason = "a null pointer is undefined behavior even for an empty slice, and an empty AK container lends one: use ak::slice_from_raw_parts" },
+    { path = "std::slice::from_raw_parts_mut", reason = "a null pointer is undefined behavior even for an empty slice, and an empty AK container lends one: use ak::slice_from_raw_parts_mut" },
+]

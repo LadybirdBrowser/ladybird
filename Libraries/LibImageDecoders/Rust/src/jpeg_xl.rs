@@ -55,7 +55,7 @@ unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
     }
 
     // SAFETY: The caller guarantees that `bytes` is valid for `len` bytes.
-    Some(unsafe { std::slice::from_raw_parts(bytes, len) })
+    Some(unsafe { ak::slice_from_raw_parts(bytes, len) })
 }
 
 fn decode_header(input: &mut &[u8], options: JxlDecoderOptions) -> Option<JxlDecoder<WithImageInfo>> {

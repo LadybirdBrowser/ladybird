@@ -45,11 +45,11 @@ mod unix {
         }
 
         pub fn as_slice(&self) -> &[u8] {
-            unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
+            unsafe { ak::slice_from_raw_parts(self.ptr, self.len) }
         }
 
         pub fn as_slice_mut(&mut self) -> &mut [u8] {
-            unsafe { std::slice::from_raw_parts_mut(self.ptr, self.len) }
+            unsafe { ak::slice_from_raw_parts_mut(self.ptr, self.len) }
         }
     }
 
@@ -108,11 +108,11 @@ mod win {
         }
 
         pub fn as_slice(&self) -> &[u8] {
-            unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
+            unsafe { ak::slice_from_raw_parts(self.ptr, self.len) }
         }
 
         pub fn as_slice_mut(&mut self) -> &mut [u8] {
-            unsafe { std::slice::from_raw_parts_mut(self.ptr, self.len) }
+            unsafe { ak::slice_from_raw_parts_mut(self.ptr, self.len) }
         }
     }
 

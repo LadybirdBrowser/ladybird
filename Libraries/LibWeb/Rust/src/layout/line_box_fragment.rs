@@ -149,7 +149,7 @@ impl LineBoxFragmentData {
         assert!(self.start + self.length_in_code_units <= self.text_length_in_code_units);
         // SAFETY: The text snapshot owns this buffer for the layout-state
         // lifetime, and the asserted range comes from its chunk snapshot.
-        unsafe { std::slice::from_raw_parts(self.text_utf16.add(self.start), self.length_in_code_units) }
+        unsafe { ak::slice_from_raw_parts(self.text_utf16.add(self.start), self.length_in_code_units) }
     }
 
     pub(crate) fn ends_in_whitespace(&self) -> bool {

@@ -123,9 +123,9 @@ unsafe extern "C" fn append_relative_time_format_part(
     let (parts, type_, value, unit) = unsafe {
         (
             &mut *context.cast::<Vec<RelativeTimeFormatPartition>>(),
-            core::slice::from_raw_parts(type_, type_length),
-            core::slice::from_raw_parts(value, value_length),
-            core::slice::from_raw_parts(unit, unit_length),
+            ak::slice_from_raw_parts(type_, type_length),
+            ak::slice_from_raw_parts(value, value_length),
+            ak::slice_from_raw_parts(unit, unit_length),
         )
     };
     parts.push(RelativeTimeFormatPartition {

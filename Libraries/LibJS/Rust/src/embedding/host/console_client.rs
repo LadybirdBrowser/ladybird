@@ -319,7 +319,7 @@ pub unsafe extern "C" fn js_console_client_generically_format_values(
     let marked_values = MarkedVec::with_capacity(vm, value_count);
     if value_count > 0 {
         // SAFETY: The caller guarantees that `values` points to `value_count` values.
-        for &value in unsafe { core::slice::from_raw_parts(values, value_count) } {
+        for &value in unsafe { ak::slice_from_raw_parts(values, value_count) } {
             marked_values.push(Value(value));
         }
     }

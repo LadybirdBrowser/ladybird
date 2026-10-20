@@ -7,6 +7,7 @@ edition = "2024"
 crate-type = ["rlib"]
 
 [dependencies]
+ak = { path = "../../../AK/Rust" }
 cranelift-codegen = "0.136"
 cranelift-frontend = "0.136"
 cranelift-module = "0.136"

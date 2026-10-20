@@ -67,7 +67,7 @@ unsafe fn source_hash_from_abi<'a>(
         return None;
     }
     // SAFETY: The caller passes readable bytes, which are as many as a hash has.
-    unsafe { core::slice::from_raw_parts(source_hash, source_hash_length) }
+    unsafe { ak::slice_from_raw_parts(source_hash, source_hash_length) }
         .try_into()
         .ok()
 }
@@ -156,7 +156,7 @@ unsafe fn decode(
     }
     let program_type = program_type_from_abi(program_type);
     // SAFETY: The caller passes bytes that stay alive and unchanged until the owner is released.
-    let bytes = unsafe { core::slice::from_raw_parts(bytes, length) };
+    let bytes = unsafe { ak::slice_from_raw_parts(bytes, length) };
 
     let (bytes, owner) = if bytes.as_ptr().addr().is_multiple_of(JS_BYTECODE_CACHE_BLOB_ALIGNMENT) {
         let owner = BytecodeCacheBlobOwner::Foreign {
@@ -173,7 +173,7 @@ unsafe fn decode(
         }
         release_owner();
         // SAFETY: The words, which the owner below keeps, stay alive and unchanged.
-        let bytes = unsafe { core::slice::from_raw_parts(words.as_ptr().cast::<u8>(), length) };
+        let bytes = unsafe { ak::slice_from_raw_parts(words.as_ptr().cast::<u8>(), length) };
         (bytes, BytecodeCacheBlobOwner::Aligned(words))
     };
     // SAFETY: The owner keeps the bytes alive and unchanged until it is released.

@@ -342,7 +342,7 @@ unsafe impl Trace for Object {
             debug_assert!(property_count <= self.named_storage_capacity() as usize);
             // SAFETY: The storage holds at least one slot per property of the shape, and nothing writes it during
             // a collection.
-            visitor.visit_values(unsafe { core::slice::from_raw_parts(named_properties, property_count) });
+            visitor.visit_values(unsafe { ak::slice_from_raw_parts(named_properties, property_count) });
         }
         if !named_properties.is_null()
             && !self.named_storage_is_inline()
@@ -3799,7 +3799,7 @@ impl Object {
             return;
         }
         // SAFETY: The count is within the elements buffer, and nothing writes it during a collection.
-        visitor.visit_values(unsafe { core::slice::from_raw_parts(self.indexed_elements.get(), count as usize) });
+        visitor.visit_values(unsafe { ak::slice_from_raw_parts(self.indexed_elements.get(), count as usize) });
     }
 
     /// Storage for at least `capacity` elements, all empty.
@@ -4419,7 +4419,7 @@ impl Object {
             return None;
         }
         // SAFETY: The count is within the elements buffer, and IsStrictlyEqual runs no code that could write it.
-        let elements = unsafe { core::slice::from_raw_parts(self.indexed_elements.get(), count as usize) };
+        let elements = unsafe { ak::slice_from_raw_parts(self.indexed_elements.get(), count as usize) };
         elements[start as usize..]
             .iter()
             .position(|element| is_strictly_equal(value, *element))

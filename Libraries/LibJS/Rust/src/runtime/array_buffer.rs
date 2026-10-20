@@ -965,7 +965,7 @@ impl ArrayBuffer {
                 let data = data_block.data_at(0).cast::<MaybeUninit<u8>>();
                 assert!(!data.is_null() && data_block.size() == byte_length);
                 // SAFETY: The new block has `byte_length` bytes, which nothing else references yet.
-                write(unsafe { core::slice::from_raw_parts_mut(data, byte_length) })
+                write(unsafe { ak::slice_from_raw_parts_mut(data, byte_length) })
             };
             assert_eq!(
                 written, byte_length,

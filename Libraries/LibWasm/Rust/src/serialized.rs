@@ -65,7 +65,7 @@ fn align_up(value: usize, alignment: usize) -> Result<usize, &'static str> {
 }
 
 fn as_bytes_slice<T>(value: &[T]) -> &[u8] {
-    unsafe { std::slice::from_raw_parts(value.as_ptr().cast::<u8>(), size_of_val(value)) }
+    unsafe { ak::slice_from_raw_parts(value.as_ptr().cast::<u8>(), size_of_val(value)) }
 }
 
 fn read_pod<T: Copy>(base: &[u8], offset: usize) -> Result<T, &'static str> {

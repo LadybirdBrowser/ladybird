@@ -212,7 +212,7 @@ fn font_feature_mutation_preserves_live_owners_and_shared_maps() {
                 return None;
             }
             let entry = rust_font_feature_values_at(owner, kind, index);
-            Some(std::slice::from_raw_parts(entry.values, entry.count).to_vec())
+            Some(ak::slice_from_raw_parts(entry.values, entry.count).to_vec())
         }
     }
     let kind = FontFeatureValuesRuleKind::Styleset;
@@ -221,7 +221,7 @@ fn font_feature_mutation_preserves_live_owners_and_shared_maps() {
         assert_eq!(rust_font_feature_values_count(values, kind), 3);
         let entry = rust_font_feature_values_at(values, kind, 1);
         assert_eq!(entry.name.to_utf16().unwrap(), utf16("色"));
-        assert_eq!(std::slice::from_raw_parts(entry.values, entry.count), [6, 7]);
+        assert_eq!(ak::slice_from_raw_parts(entry.values, entry.count), [6, 7]);
         assert_eq!(entry.values, rust_font_feature_values_at(&shared, kind, 1).values);
         rust_font_feature_values_set(values, kind, entry.name, [29].as_ptr(), 1);
         assert_eq!(get(&shared, kind, "色").unwrap(), [6, 7]);
@@ -553,7 +553,7 @@ fn import_preludes_outlive_the_worker_and_shared_sheet() {
 
 unsafe extern "C" fn collect_text(context: *mut std::ffi::c_void, text: *const u16, length: usize) {
     let result = unsafe { &mut *context.cast::<Vec<u16>>() };
-    result.extend_from_slice(unsafe { std::slice::from_raw_parts(text, length) });
+    result.extend_from_slice(unsafe { ak::slice_from_raw_parts(text, length) });
 }
 
 fn page_text(selectors: &PageSelectorList) -> Vec<u16> {

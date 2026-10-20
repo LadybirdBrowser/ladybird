@@ -58,7 +58,7 @@ unsafe fn native_code_between(start: *const u8, end: *const u8) -> &'static [u8]
         return &[];
     }
     // SAFETY: The caller guarantees the range.
-    unsafe { std::slice::from_raw_parts(start, end_address - start_address) }
+    unsafe { ak::slice_from_raw_parts(start, end_address - start_address) }
 }
 
 struct ColdCodeRange {

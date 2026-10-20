@@ -77,7 +77,7 @@ unsafe fn lent_values<'a, T>(values: *const T, count: usize) -> &'a [T] {
         return &[];
     }
     // SAFETY: Guaranteed by the caller.
-    unsafe { std::slice::from_raw_parts(values, count) }
+    unsafe { ak::slice_from_raw_parts(values, count) }
 }
 
 impl SealedStyleInputs {

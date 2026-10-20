@@ -1688,7 +1688,7 @@ mod tests {
             let collection = unsafe { &*data.cast::<Collection>() };
             if rule_type == NativeRuleType::Style {
                 let layer = context.layer_name.to_utf16().unwrap();
-                let scopes = unsafe { std::slice::from_raw_parts(context.scopes, context.scope_count) };
+                let scopes = unsafe { ak::slice_from_raw_parts(context.scopes, context.scope_count) };
                 collection.rules.borrow_mut().push(CompiledRule {
                     identity,
                     source,

@@ -223,7 +223,7 @@ pub unsafe extern "C" fn rust_dom_selector_program_create(
 ) -> *mut DomSelectorProgram {
     let selectors = match count {
         0 => &[][..],
-        _ => unsafe { std::slice::from_raw_parts(selectors, count) },
+        _ => unsafe { ak::slice_from_raw_parts(selectors, count) },
     };
     let mut names = QueryNames::default();
     let program = {
@@ -451,7 +451,7 @@ impl<'q> DomSubject<'q> {
         let count = self.element.attribute_count;
         match count <= self.attributes.len() {
             // SAFETY: The host wrote this many attributes to the buffer when it read the element.
-            true => unsafe { std::slice::from_raw_parts(self.attributes.as_ptr().cast(), count) },
+            true => unsafe { ak::slice_from_raw_parts(self.attributes.as_ptr().cast(), count) },
             false => &self.spilled_attributes,
         }
     }
@@ -507,7 +507,7 @@ impl<'q> ElementFeatures for DomFeatures<'_, 'q> {
         }
         match self.subject.ids_and_classes_ignore_case {
             true => unsafe { (self.subject.dom.id_or_class_equals_ignoring_ascii_case)(self.node, true, class) },
-            false => unsafe { std::slice::from_raw_parts(element.classes, element.class_count) }.contains(&class),
+            false => unsafe { ak::slice_from_raw_parts(element.classes, element.class_count) }.contains(&class),
         }
     }
 

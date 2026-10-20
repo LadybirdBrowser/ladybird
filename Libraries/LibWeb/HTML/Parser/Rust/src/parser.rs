@@ -4824,7 +4824,7 @@ unsafe fn utf16_string_from_ffi(ptr: *const u16, len: usize) -> String {
         return String::new();
     }
 
-    let code_units = unsafe { std::slice::from_raw_parts(ptr, len) };
+    let code_units = unsafe { ak::slice_from_raw_parts(ptr, len) };
     String::from_utf16_lossy(code_units)
 }
 
@@ -4847,7 +4847,7 @@ unsafe fn owned_context_attributes_from_ffi(
         return Vec::new();
     }
 
-    let attributes = unsafe { std::slice::from_raw_parts(attributes, attribute_count) };
+    let attributes = unsafe { ak::slice_from_raw_parts(attributes, attribute_count) };
     attributes
         .iter()
         .map(|attribute| OwnedAttribute {

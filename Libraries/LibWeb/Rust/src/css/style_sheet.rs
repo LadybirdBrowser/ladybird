@@ -630,7 +630,7 @@ pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     let sheets = if count == 0 {
         &[][..]
     } else {
-        unsafe { std::slice::from_raw_parts(sheets, count) }
+        unsafe { ak::slice_from_raw_parts(sheets, count) }
     };
     let names = cascade_layer_order(sheets.iter().map(|&sheet| unsafe { &*sheet }));
     let has_layers = names.len() > 1;

@@ -5669,7 +5669,7 @@ fn counter_owner(style_node: u32, generated_for: u8) -> Option<super::counters::
 pub unsafe extern "C" fn style_resets_forward_list_item_counter(payloads: *const *const c_void, count: usize) -> bool {
     assert!(!payloads.is_null(), "style group payload array is null");
     // SAFETY: Guaranteed by the caller.
-    let groups = unsafe { std::slice::from_raw_parts(payloads, count) };
+    let groups = unsafe { ak::slice_from_raw_parts(payloads, count) };
     super::counters::style_resets_forward_list_item_counter(ComputedValuesView::new(groups))
 }
 

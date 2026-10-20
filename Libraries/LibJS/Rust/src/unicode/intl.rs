@@ -226,7 +226,7 @@ unsafe extern "C" fn append_string(context: *mut c_void, text: *const u16, lengt
     let (list, text) = unsafe {
         (
             &mut *context.cast::<Vec<Utf16String>>(),
-            core::slice::from_raw_parts(text, length),
+            ak::slice_from_raw_parts(text, length),
         )
     };
     list.push(Utf16String::from_utf16(text));
@@ -450,7 +450,7 @@ unsafe extern "C" fn append_locale_id_part(context: *mut c_void, part: u8, text:
     let (builder, text) = unsafe {
         (
             &mut *context.cast::<LocaleIDBuilder>(),
-            core::slice::from_raw_parts(text, length),
+            ak::slice_from_raw_parts(text, length),
         )
     };
     builder.append(LocaleIDPart::from_u8(part), Utf16String::from_utf16(text));
@@ -984,8 +984,8 @@ unsafe extern "C" fn append_list_format_part(
     let (parts, type_, value) = unsafe {
         (
             &mut *context.cast::<Vec<ListFormatPartition>>(),
-            core::slice::from_raw_parts(type_, type_length),
-            core::slice::from_raw_parts(value, value_length),
+            ak::slice_from_raw_parts(type_, type_length),
+            ak::slice_from_raw_parts(value, value_length),
         )
     };
     parts.push(ListFormatPartition {

@@ -112,7 +112,7 @@ unsafe fn prefix_from_abi<'prefix>(prefix: *const c_char, prefix_length: usize) 
         return None;
     }
     // SAFETY: The caller passes `prefix_length` bytes at `prefix`.
-    let bytes = unsafe { core::slice::from_raw_parts(prefix.cast::<u8>(), prefix_length) };
+    let bytes = unsafe { ak::slice_from_raw_parts(prefix.cast::<u8>(), prefix_length) };
     Some(core::str::from_utf8(bytes).expect("the prefix is UTF-8"))
 }
 

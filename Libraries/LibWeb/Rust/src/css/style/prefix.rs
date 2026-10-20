@@ -2017,7 +2017,7 @@ impl PrefixStates {
         // SAFETY: Every referenced state range is initialized. Sparse rebases can leave
         // unreferenced holes in the arena, but never point a state at one.
         unsafe {
-            std::slice::from_raw_parts(
+            ak::slice_from_raw_parts(
                 self.delta_steps.as_ptr().add(start).cast::<PrefixStepID>(),
                 state.additions_len as usize,
             )
@@ -2029,7 +2029,7 @@ impl PrefixStates {
         let start = state.payload_start as usize + state.additions_len as usize;
         // SAFETY: See `additions_in`; this is the initialized suffix of the same payload.
         unsafe {
-            std::slice::from_raw_parts(
+            ak::slice_from_raw_parts(
                 self.delta_steps.as_ptr().add(start).cast::<PrefixStepID>(),
                 state.expiring_len as usize,
             )
@@ -3674,7 +3674,7 @@ impl PrefixStates {
     ) {
         // SAFETY: Callers pass a range from an interned state's initialized payload.
         let steps = unsafe {
-            std::slice::from_raw_parts(
+            ak::slice_from_raw_parts(
                 self.delta_steps.as_ptr().add(payload_start).cast::<PrefixStepID>(),
                 len as usize,
             )

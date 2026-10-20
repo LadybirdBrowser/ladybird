@@ -862,10 +862,10 @@ impl FfiSvgInput {
         }
         match (self.ascii.is_null(), self.utf16.is_null()) {
             (false, true) => Some(Input::Ascii(unsafe {
-                std::slice::from_raw_parts(self.ascii, self.length)
+                ak::slice_from_raw_parts(self.ascii, self.length)
             })),
             (true, false) => Some(Input::Utf16(unsafe {
-                std::slice::from_raw_parts(self.utf16, self.length)
+                ak::slice_from_raw_parts(self.utf16, self.length)
             })),
             _ => None,
         }

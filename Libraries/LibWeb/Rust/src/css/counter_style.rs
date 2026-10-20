@@ -487,8 +487,8 @@ pub unsafe extern "C" fn rust_counter_styles_resolve(
     // SAFETY: Guaranteed by the caller.
     let (rules, outer_scopes, length_context) = unsafe {
         (
-            std::slice::from_raw_parts(rules, rule_count),
-            std::slice::from_raw_parts(outer_scopes, outer_scope_count),
+            ak::slice_from_raw_parts(rules, rule_count),
+            ak::slice_from_raw_parts(outer_scopes, outer_scope_count),
             length_resolution_context.cast::<FfiLengthResolutionContext>().as_ref(),
         )
     };

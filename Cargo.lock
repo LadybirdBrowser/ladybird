@@ -856,6 +856,7 @@ checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 name = "libcompositing_rust"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "cbindgen",
  "foldhash 0.2.0",
  "ladybird_allocator",
@@ -867,6 +868,7 @@ dependencies = [
 name = "libgfx_rust"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "cbindgen",
  "foldhash 0.2.0",
  "ladybird_allocator",
@@ -878,6 +880,7 @@ dependencies = [
 name = "libimagedecoders_rust"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "cbindgen",
  "jxl",
  "ladybird_allocator",
@@ -900,6 +903,7 @@ dependencies = [
 name = "libjs_jit"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "fARM64",
  "flapc",
  "iced-x86",
@@ -952,6 +956,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 name = "libregex_rust"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "cbindgen",
  "ladybird_allocator",
  "libunicode_rust",
@@ -962,6 +967,7 @@ dependencies = [
 name = "libtextcodec_rust"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "cbindgen",
  "encoding_rs",
  "ladybird_allocator",
@@ -972,6 +978,7 @@ dependencies = [
 name = "libunicode_rust"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "calendrical_calculations",
  "cbindgen",
  "icu_calendar",
@@ -983,6 +990,7 @@ dependencies = [
 name = "liburl_rust"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "cbindgen",
  "encoding_rs",
  "ladybird_allocator",
@@ -995,6 +1003,7 @@ dependencies = [
 name = "libwasm_cranelift"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "cbindgen",
  "cranelift-codegen",
  "cranelift-frontend",
@@ -1024,6 +1033,7 @@ name = "libweb_content_blocker_rust"
 version = "0.1.0"
 dependencies = [
  "adblock",
+ "ak",
  "cbindgen",
  "ladybird_allocator",
  "rustc-demangle",

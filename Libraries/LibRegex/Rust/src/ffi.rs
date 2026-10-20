@@ -10,7 +10,6 @@
 /// All functions use `extern "C"` linkage and opaque pointer types.
 use crate::ast::Flags;
 use crate::regex::Regex;
-use std::slice;
 
 /// Opaque regex handle.
 pub struct RustRegex(Regex);
@@ -80,7 +79,7 @@ pub unsafe extern "C" fn rust_regex_compile(
         return std::ptr::null_mut();
     }
 
-    let code_units = unsafe { slice::from_raw_parts(pattern, pattern_len) };
+    let code_units = unsafe { ak::slice_from_raw_parts(pattern, pattern_len) };
     let pattern = char::decode_utf16(code_units.iter().copied())
         .map(|result| result.unwrap_or(char::REPLACEMENT_CHARACTER))
         .collect();
@@ -107,7 +106,7 @@ pub unsafe extern "C" fn rust_regex_compile_ascii(
         return std::ptr::null_mut();
     }
 
-    let bytes = unsafe { slice::from_raw_parts(pattern, pattern_len) };
+    let bytes = unsafe { ak::slice_from_raw_parts(pattern, pattern_len) };
     let pattern = bytes.iter().map(|byte| *byte as char).collect();
 
     compile_pattern(pattern, flags, error_out, error_len_out)
@@ -144,7 +143,7 @@ fn exec_into_internal<I: crate::vm::Input>(
 ) -> i32 {
     use crate::vm::VmResult;
 
-    let out = unsafe { slice::from_raw_parts_mut(out_captures, out_capture_slots as usize) };
+    let out = unsafe { ak::slice_from_raw_parts_mut(out_captures, out_capture_slots as usize) };
     match regex.0.exec_into_input(input, start_pos, out) {
         VmResult::Match => 1,
         VmResult::NoMatch => 0,
@@ -169,7 +168,7 @@ fn find_all_internal<I: crate::vm::Input>(
     out: *mut i32,
     out_capacity: u32,
 ) -> i32 {
-    let out_slice = unsafe { slice::from_raw_parts_mut(out, out_capacity as usize) };
+    let out_slice = unsafe { ak::slice_from_raw_parts_mut(out, out_capacity as usize) };
     regex.0.find_all_into_input(input, start_pos, out_slice)
 }
 
@@ -197,7 +196,7 @@ pub unsafe extern "C" fn rust_regex_exec_into(
     let input = if input.is_null() {
         &[]
     } else {
-        unsafe { slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
     exec_into_internal(regex, input, start_pos, out_captures, out_capture_slots)
 }
@@ -224,7 +223,7 @@ pub unsafe extern "C" fn rust_regex_exec_into_ascii(
     let input = if input.is_null() {
         &[]
     } else {
-        unsafe { slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
     exec_into_internal(regex, input, start_pos, out_captures, out_capture_slots)
 }
@@ -248,7 +247,7 @@ pub unsafe extern "C" fn rust_regex_test(
     let input = if input.is_null() {
         &[]
     } else {
-        unsafe { slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
     test_internal(regex, input, start_pos)
 }
@@ -271,7 +270,7 @@ pub unsafe extern "C" fn rust_regex_test_ascii(
     let input = if input.is_null() {
         &[]
     } else {
-        unsafe { slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
     test_internal(regex, input, start_pos)
 }
@@ -327,7 +326,7 @@ pub unsafe extern "C" fn rust_regex_find_all(
     let input = if input.is_null() {
         &[]
     } else {
-        unsafe { slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
     find_all_internal(regex, input, start_pos, out, out_capacity)
 }
@@ -354,7 +353,7 @@ pub unsafe extern "C" fn rust_regex_find_all_ascii(
     let input = if input.is_null() {
         &[]
     } else {
-        unsafe { slice::from_raw_parts(input, input_len) }
+        unsafe { ak::slice_from_raw_parts(input, input_len) }
     };
     find_all_internal(regex, input, start_pos, out, out_capacity)
 }

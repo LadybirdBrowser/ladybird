@@ -1191,18 +1191,6 @@ fn tokens_for_function_value(data: &StyleValueData) -> (Vec<OwnedToken>, bool) {
     (tokenize_owned(&source), false)
 }
 
-/// An array the host lends, empty when it has no entries.
-///
-/// # Safety
-/// A non-empty array must be live for `'a`.
-pub(crate) unsafe fn ffi_slice<'a, T>(items: *const T, count: usize) -> &'a [T] {
-    if count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(items, count) }
-    }
-}
-
 fn custom_function_registry(
     definitions: &[SubstitutionFunctionDefinition],
     caller_scope_identity: usize,
@@ -3822,7 +3810,7 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
     let registrations = if registration_count == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(registrations, registration_count) }
+        unsafe { ak::slice_from_raw_parts(registrations, registration_count) }
     };
     // SAFETY: Guaranteed by the caller.
     drop(unsafe { Arc::from_raw(registry.cast::<CustomPropertyRegistry>()) });
@@ -3917,7 +3905,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     let entries = if entry_count == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(entries, entry_count) }
+        unsafe { ak::slice_from_raw_parts(entries, entry_count) }
     };
     assert!(declared_count <= entries.len());
     let parent = if parent.is_null() {
@@ -3978,7 +3966,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
     let entries = if entry_count == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(entries, entry_count) }
+        unsafe { ak::slice_from_raw_parts(entries, entry_count) }
     };
     let base = unsafe { base.cast::<CustomPropertyStore>().as_ref() };
     let animated = entries.iter().map(|entry| {

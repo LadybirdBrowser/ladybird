@@ -2077,7 +2077,7 @@ pub unsafe extern "C" fn rust_style_value_absolutize(
     let document_base_url = if context.document_base_url_length == 0 {
         &[][..]
     } else {
-        unsafe { std::slice::from_raw_parts(context.document_base_url, context.document_base_url_length) }
+        unsafe { ak::slice_from_raw_parts(context.document_base_url, context.document_base_url_length) }
     };
     match absolutize_with_element_facts(
         value,

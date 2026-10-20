@@ -821,7 +821,7 @@ pub unsafe extern "C" fn ladybird_gfx_filter_for_each_image_frame_id(
         &[]
     } else {
         // SAFETY: The caller guarantees `count` readable bytes.
-        unsafe { std::slice::from_raw_parts(bytes, count) }
+        unsafe { ak::slice_from_raw_parts(bytes, count) }
     };
     if let Some(filter) = Filter::deserialize(bytes) {
         // SAFETY: The caller guarantees `visit` accepts `context`.

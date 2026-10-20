@@ -162,8 +162,8 @@ impl TokenizerInput<'_> {
             return Some(Self::Ascii(&[]));
         }
         match (ascii.is_null(), utf16.is_null()) {
-            (false, true) => Some(Self::Ascii(unsafe { std::slice::from_raw_parts(ascii, length) })),
-            (true, false) => Some(Self::Utf16(unsafe { std::slice::from_raw_parts(utf16, length) })),
+            (false, true) => Some(Self::Ascii(unsafe { ak::slice_from_raw_parts(ascii, length) })),
+            (true, false) => Some(Self::Utf16(unsafe { ak::slice_from_raw_parts(utf16, length) })),
             _ => None,
         }
     }

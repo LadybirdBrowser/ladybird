@@ -9,6 +9,7 @@ crate-type = ["staticlib", "rlib"]
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
+ak = { path = "../../../AK/Rust" }
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
 rustc-demangle = "0.1"

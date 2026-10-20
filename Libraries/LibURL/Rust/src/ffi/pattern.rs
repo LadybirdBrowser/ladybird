@@ -105,7 +105,7 @@ fn decode_utf8(slice: RustUrlByteSlice) -> String {
         return String::new();
     }
     // SAFETY: slice.data is valid for slice.length bytes (contract with C++ caller).
-    let bytes = unsafe { std::slice::from_raw_parts(slice.data, slice.length) };
+    let bytes = unsafe { ak::slice_from_raw_parts(slice.data, slice.length) };
     String::from_utf8_lossy(bytes).into_owned()
 }
 
@@ -344,7 +344,7 @@ pub unsafe extern "C" fn rust_url_pattern_create_from_string(
         }
 
         // SAFETY: caller guarantees input is valid for input_len bytes.
-        let input_bytes = unsafe { std::slice::from_raw_parts(input, input_len) };
+        let input_bytes = unsafe { ak::slice_from_raw_parts(input, input_len) };
         let Ok(input_str) = std::str::from_utf8(input_bytes) else {
             return std::ptr::null_mut();
         };
@@ -504,7 +504,7 @@ pub unsafe extern "C" fn rust_url_pattern_exec_string(
 
         // SAFETY: caller guarantees pointers are valid.
         let pattern = unsafe { &*pattern };
-        let input_bytes = unsafe { std::slice::from_raw_parts(input, input_len) };
+        let input_bytes = unsafe { ak::slice_from_raw_parts(input, input_len) };
         let Ok(input_str) = std::str::from_utf8(input_bytes) else {
             return false;
         };
@@ -573,7 +573,7 @@ pub unsafe extern "C" fn rust_url_pattern_test_string(
 
         // SAFETY: caller guarantees pointers are valid.
         let pattern = unsafe { &*pattern };
-        let input_bytes = unsafe { std::slice::from_raw_parts(input, input_len) };
+        let input_bytes = unsafe { ak::slice_from_raw_parts(input, input_len) };
         let Ok(input_str) = std::str::from_utf8(input_bytes) else {
             return false;
         };

@@ -67,7 +67,7 @@ impl AlignedBytes {
 
     fn as_slice(&self) -> &[u8] {
         // SAFETY: The words hold at least `size` initialized bytes.
-        unsafe { std::slice::from_raw_parts(self.words.as_ptr().cast(), self.size) }
+        unsafe { ak::slice_from_raw_parts(self.words.as_ptr().cast(), self.size) }
     }
 }
 
@@ -199,8 +199,8 @@ pub unsafe fn tape_of<'a>(storage: *const c_void) -> (&'a [u8], &'a [DisplayList
     unsafe {
         let view = *storage.cast::<TapeView>();
         (
-            crate::ffi::ffi_slice(view.bytes, view.byte_count),
-            crate::ffi::ffi_slice(view.command_runs, view.command_run_count),
+            ak::slice_from_raw_parts(view.bytes, view.byte_count),
+            ak::slice_from_raw_parts(view.command_runs, view.command_run_count),
         )
     }
 }
@@ -293,7 +293,7 @@ pub unsafe extern "C" fn display_list_storage_write_packed(storage: *const c_voi
         return;
     }
     // SAFETY: The caller guarantees `destination` addresses `size` writable bytes.
-    let destination = unsafe { std::slice::from_raw_parts_mut(destination, size) };
+    let destination = unsafe { ak::slice_from_raw_parts_mut(destination, size) };
     let (tape_destination, runs_destination) = destination.split_at_mut(tape.len());
     tape_destination.copy_from_slice(tape);
     let (run_destinations, _) = runs_destination.as_chunks_mut::<{ std::mem::size_of::<DisplayListCommandRun>() }>();

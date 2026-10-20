@@ -94,9 +94,9 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     // SAFETY: Guaranteed by the caller.
-    let elements = unsafe { crate::css::custom_properties::ffi_slice(elements, count) };
+    let elements = unsafe { ak::slice_from_raw_parts(elements, count) };
     // SAFETY: Guaranteed by the caller.
-    let scroll_timelines = unsafe { crate::css::custom_properties::ffi_slice(scroll_timelines, scroll_timeline_count) };
+    let scroll_timelines = unsafe { ak::slice_from_raw_parts(scroll_timelines, scroll_timeline_count) };
     abort_on_panic(|| {
         let elements: Vec<_> = elements
             .iter()

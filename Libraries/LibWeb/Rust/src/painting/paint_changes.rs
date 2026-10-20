@@ -26,7 +26,6 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::tree_update_marks::MarkedBox;
 use crate::render_state::{ArenaChange, DocumentHost};
-use libcompositing_rust::ffi::ffi_slice;
 use std::sync::Arc;
 
 /// One write of the host to a document's paint state.
@@ -251,7 +250,7 @@ pub unsafe extern "C" fn render_state_apply_selection(
         Box::default()
     } else {
         // SAFETY: Guaranteed by the caller.
-        unsafe { std::slice::from_raw_parts(entries, entry_count) }.into()
+        unsafe { ak::slice_from_raw_parts(entries, entry_count) }.into()
     };
     let change = PaintChange::ApplySelection {
         viewport,
@@ -284,13 +283,13 @@ pub unsafe extern "C" fn render_state_apply_search_text(
         Box::default()
     } else {
         // SAFETY: Guaranteed by the caller.
-        unsafe { std::slice::from_raw_parts(ranges, range_count) }.into()
+        unsafe { ak::slice_from_raw_parts(ranges, range_count) }.into()
     };
     let entries = if entry_count == 0 {
         Box::default()
     } else {
         // SAFETY: Guaranteed by the caller.
-        unsafe { std::slice::from_raw_parts(entries, entry_count) }.into()
+        unsafe { ak::slice_from_raw_parts(entries, entry_count) }.into()
     };
     host.host_tables().shows_search_text.set(range_count != 0);
     let change = PaintChange::ApplySearchText {
@@ -326,7 +325,7 @@ pub unsafe extern "C" fn render_state_apply_spelling_errors(
         Box::default()
     } else {
         // SAFETY: Guaranteed by the caller.
-        unsafe { std::slice::from_raw_parts(errors, error_count) }.into()
+        unsafe { ak::slice_from_raw_parts(errors, error_count) }.into()
     };
     host.host_tables().shows_spelling_errors.set(error_count != 0);
     queue(host, PaintChange::ApplySpellingErrors { viewport, errors });
@@ -395,7 +394,7 @@ pub unsafe extern "C" fn render_state_set_layer_image_paint_facts(
         Vec::new()
     } else {
         // SAFETY: Guaranteed by the caller.
-        unsafe { std::slice::from_raw_parts(entries, count) }
+        unsafe { ak::slice_from_raw_parts(entries, count) }
             .iter()
             .map(|entry| LayerImagePaintFactsEntry {
                 list: entry.list,
@@ -524,7 +523,12 @@ pub unsafe extern "C" fn render_state_publish_image_map_areas(
     coords_count: usize,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let (areas, coords) = unsafe { (ffi_slice(areas, area_count), ffi_slice(coords, coords_count)) };
+    let (areas, coords) = unsafe {
+        (
+            ak::slice_from_raw_parts(areas, area_count),
+            ak::slice_from_raw_parts(coords, coords_count),
+        )
+    };
     let areas = areas
         .iter()
         .map(|area| {

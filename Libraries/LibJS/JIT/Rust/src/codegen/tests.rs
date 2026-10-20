@@ -3082,7 +3082,7 @@ mod direct_calls {
         // slot count in the header.
         unsafe {
             let slot_count = *frame.cast::<u8>().add(148).cast::<u32>() as usize;
-            let copy = std::slice::from_raw_parts(frame, FRAME_HEADER_WORDS + slot_count).to_vec();
+            let copy = ak::slice_from_raw_parts(frame, FRAME_HEADER_WORDS + slot_count).to_vec();
             let mut state = test_state(vm).borrow_mut();
             state.direct.callee_frames.push(copy);
             let (value, status) = state.direct.callee_result.expect("a callee result");
@@ -4004,7 +4004,7 @@ mod direct_calls {
             unsafe {
                 let frame = *vm as *mut u64;
                 let slot_count = *frame.cast::<u8>().add(148).cast::<u32>() as usize;
-                let copy = std::slice::from_raw_parts(frame, FRAME_HEADER_WORDS + slot_count).to_vec();
+                let copy = ak::slice_from_raw_parts(frame, FRAME_HEADER_WORDS + slot_count).to_vec();
                 let mut sum = int(*frame.add(120 / 8));
                 for index in 0..slot_count {
                     sum = sum.wrapping_add(int(*frame.add(FRAME_HEADER_WORDS + index)));

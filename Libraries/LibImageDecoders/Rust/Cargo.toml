@@ -11,6 +11,7 @@ default = []
 allocator = ["dep:ladybird_allocator"]
 
 [dependencies]
+ak = { path = "../../../AK/Rust" }
 jxl = "0.7.4"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 rustc-demangle = "0.1"

@@ -59,7 +59,7 @@ pub(crate) fn verify_that_rust_and_cpp_agree_on_layouts_and_constants() {
         // SAFETY: The function returns a table that lives as long as the process, and stores its length.
         let replayer_layouts = unsafe {
             let words = compositing_webgl_wire_struct_layouts(&raw mut word_count);
-            core::slice::from_raw_parts(words, word_count)
+            ak::slice_from_raw_parts(words, word_count)
         };
         let first_difference = replayer_layouts
             .iter()

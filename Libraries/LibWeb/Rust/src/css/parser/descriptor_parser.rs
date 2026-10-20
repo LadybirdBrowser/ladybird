@@ -478,7 +478,7 @@ pub(crate) fn parse_descriptor(
     } else if context.value_contexts.is_null() {
         return None;
     } else {
-        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
     };
     let mut value_contexts = Vec::with_capacity(inherited_contexts.len() + 1);
     value_contexts.extend_from_slice(inherited_contexts);

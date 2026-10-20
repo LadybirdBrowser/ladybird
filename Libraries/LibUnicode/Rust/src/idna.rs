@@ -42,7 +42,7 @@ unsafe extern "C" fn on_idna_result(ctx: *mut c_void, data: *const u8, len: usiz
     // SAFETY: `ctx` was set to `addr_of_mut!(result)` in `idna_to_ascii_utf16`.
     let out = unsafe { &mut *(ctx as *mut Option<String>) };
     // SAFETY: `data` is valid for `len` bytes; IDNA to_ascii guarantees ASCII output.
-    let bytes = unsafe { std::slice::from_raw_parts(data, len) };
+    let bytes = unsafe { ak::slice_from_raw_parts(data, len) };
     debug_assert!(bytes.is_ascii(), "unicode_rust_idna_to_ascii must return ASCII");
     // SAFETY: ASCII is a strict subset of UTF-8.
     *out = Some(unsafe { String::from_utf8_unchecked(bytes.to_vec()) });

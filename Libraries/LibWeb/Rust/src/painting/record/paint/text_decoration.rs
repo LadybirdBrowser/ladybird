@@ -43,7 +43,7 @@ fn text_decoration_lines(style: crate::css::computed_value_views::ComputedValues
         return &[];
     }
     // SAFETY: The retained list belongs to the style group payload, which outlives the pass.
-    unsafe { std::slice::from_raw_parts(list.pointer, list.length) }
+    unsafe { ak::slice_from_raw_parts(list.pointer, list.length) }
 }
 
 fn first_available_font(

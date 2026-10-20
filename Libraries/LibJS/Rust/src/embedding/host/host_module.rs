@@ -138,7 +138,7 @@ unsafe fn code_units_of<'a>(code_units: *const u16, length: usize) -> &'a [u16] 
         return &[];
     }
     // SAFETY: The caller passes that many code units.
-    unsafe { core::slice::from_raw_parts(code_units, length) }
+    unsafe { ak::slice_from_raw_parts(code_units, length) }
 }
 
 fn resolved_binding_type_from_abi(binding_type: u8) -> ResolvedBindingType {
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn js_host_module_create(
         Vec::new()
     } else {
         // SAFETY: The embedder passes that many module requests.
-        unsafe { core::slice::from_raw_parts(requested_modules, requested_module_count) }
+        unsafe { ak::slice_from_raw_parts(requested_modules, requested_module_count) }
             .iter()
             // SAFETY: Each is a module request that outlives the call.
             .map(|&request| unsafe { module_request_from_abi(request) }.clone())
