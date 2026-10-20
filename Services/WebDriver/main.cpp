@@ -12,6 +12,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/StatsLog.h>
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibFileSystem/FileSystem.h>
@@ -87,6 +88,9 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
 
     arguments.append(ByteString::formatted("--site-isolation={}", site_isolation_mode));
 
+    if (auto* stats_log = Core::StatsLog::the())
+        arguments.append(ByteString::formatted("--stats-log-dir={}", stats_log->directory()));
+
     arguments.append("about:blank"sv);
     return arguments;
 }
@@ -116,7 +120,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Optional<StringView> resource_substitution_map_path;
     StringView site_isolation_mode = "iframe"sv;
 
+    StringView stats_log_directory;
     Core::ArgsParser args_parser;
+    args_parser.add_option(stats_log_directory, "Directory for process statistics (JSON lines)", "stats-log-dir", 0, "path");
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
     args_parser.add_option(port, "Port to listen on", "port", 'p', "port");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
@@ -144,6 +150,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         },
     });
     args_parser.parse(arguments);
+
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "WebDriver"sv));
 
     auto profile_selector_count = static_cast<unsigned>(profile_name.has_value())
         + static_cast<unsigned>(profile_path.has_value())
@@ -191,6 +199,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     auto& loop = Core::EventLoop::initialize_for_current_thread();
+    if (stats_log)
+        stats_log->start_sampling();
     Core::EventLoop::register_signal(SIGINT, handle_signal);
     Core::EventLoop::register_signal(SIGTERM, handle_signal);
     auto server = TRY(Core::TCPServer::try_create());

@@ -109,7 +109,7 @@ static bool flatpak_firefox_is_installed(LexicalPath const& flatpak)
         .name = "find-firefox-flatpak"sv,
         .executable = flatpak.string(),
         .die_with_parent = true,
-        .arguments = {
+        .arguments = Vector<ByteString> {
             "info"sv,
             "org.mozilla.firefox"sv,
         },

@@ -131,6 +131,14 @@ void SkiaBackendContext::perform_post_flush_cleanup()
         context->purgeUnlockedResources(GrPurgeResourceOptions::kScratchResourcesOnly);
 }
 
+size_t SkiaBackendContext::resource_cache_bytes() const
+{
+    size_t bytes = 0;
+    if (auto* context = sk_context())
+        context->getResourceCacheUsage(nullptr, &bytes);
+    return bytes;
+}
+
 void SkiaBackendContext::initialize_gpu_backend()
 {
     VERIFY(!main_thread_context());

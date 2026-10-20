@@ -8,6 +8,7 @@
 
 #include <AK/AnyOf.h>
 #include <AK/Random.h>
+#include <LibCore/StatsLog.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
@@ -1310,6 +1311,14 @@ void CanonicalNavigable::set_the_ongoing_navigation(OngoingNavigation value)
 
 void CanonicalNavigable::set_ongoing_navigation(CanonicalNavigation::Start navigation)
 {
+    if (auto* log = Core::StatsLog::the(); log && is_top_level_traversable()) {
+        JsonObject data;
+        data.set("navigable_id"sv, MUST(String::formatted("{}", id())));
+        data.set("navigation_id"sv, navigation.navigation_id.to_utf8());
+        data.set("url"sv, navigation.url.serialize());
+        log->event("navigation_start"sv, move(data));
+    }
+
     // NB: Taken before the handle covering this navigation's start is dropped below, so that a revoked entry is not
     //     let go of in between.
     auto blob_url = BlobURLHandle::for_url(blob_url_store(), navigation.url);

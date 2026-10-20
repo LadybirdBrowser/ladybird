@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/StackInfo.h>
 #include <AK/String.h>
@@ -118,6 +119,9 @@ public:
     void did_create_weak_container(Badge<WeakContainer>, WeakContainer&);
     void did_destroy_weak_container(Badge<WeakContainer>, WeakContainer&);
 
+    void enable_stats();
+    void add_stats(AK::JsonObject&) const;
+
     void register_sweep_callback(AK::Function<void()>);
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
@@ -152,6 +156,7 @@ private:
     void undefer_gc();
 
     void dump_allocators();
+    void finish_stats_collection();
 
     template<typename T, typename... Args>
     Ref<T> construct_cell(Cell* memory, Args&&... args)
@@ -267,6 +272,21 @@ private:
                 return;
         }
     }
+
+    struct Stats {
+        AK_ALLOC_WITH_KMALLOC;
+
+        u64 collections { 0 };
+        u64 completed_collections { 0 };
+        u64 total_duration_ns { 0 };
+        u64 last_duration_ns { 0 };
+        u64 pause_duration_ns { 0 };
+        u64 sweep_duration_ns { 0 };
+        size_t bytes_before { 0 };
+        size_t live_cell_bytes { 0 };
+        size_t live_external_bytes { 0 };
+    };
+    OwnPtr<Stats> m_stats;
 
     size_t m_gc_bytes_threshold { 0 };
     size_t m_allocated_bytes_since_last_gc { 0 };

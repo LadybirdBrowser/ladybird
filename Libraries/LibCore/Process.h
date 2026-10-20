@@ -11,7 +11,9 @@
 
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
+#include <AK/Span.h>
 #include <AK/String.h>
+#include <AK/Vector.h>
 #include <LibCore/Export.h>
 #include <LibCore/File.h>
 
@@ -43,7 +45,7 @@ struct ProcessSpawnOptions {
     bool search_for_executable_in_path { false };
     // On supported platforms, ask the kernel to terminate this process when its parent dies.
     bool die_with_parent { false };
-    Vector<ByteString> const& arguments {};
+    ReadonlySpan<ByteString> arguments {};
     // The child's whole environment, as NAME=value strings. Without it, the child inherits the environment of this
     // process.
     Optional<Vector<ByteString>> environment {};

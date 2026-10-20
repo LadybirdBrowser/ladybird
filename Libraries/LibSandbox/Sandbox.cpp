@@ -26,6 +26,7 @@
 #if defined(AK_OS_MACOS)
 #    include <AK/LexicalPath.h>
 #    include <AK/StringBuilder.h>
+#    include <LibCore/StatsLog.h>
 #    include <errno.h>
 #    include <limits.h>
 #    include <sandbox.h>
@@ -715,6 +716,12 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     TRY(append_allowed_ancestor_directories(profile, options.paths));
     TRY(append_allowed_paths(profile, "file-map-executable"sv, options.paths, SeatbeltPath::Access::ReadAndExecute));
     TRY(append_allowed_paths(profile, "file-write*"sv, options.paths, SeatbeltPath::Access::ReadWrite));
+    if (auto* log = Core::StatsLog::the()) {
+        Vector<SeatbeltPath> log_paths;
+        TRY(add_seatbelt_path_if_exists(log_paths, log->path(), SeatbeltPath::Access::ReadWrite));
+        // Only append to this process's already-open log, without granting access to the statistics directory.
+        TRY(append_allowed_paths(profile, "file-write-data"sv, log_paths, SeatbeltPath::Access::ReadWrite));
+    }
     TRY(append_allowed_paths(profile, "file-lock"sv, options.paths, SeatbeltPath::Access::ReadWrite));
     TRY(append_allowed_path_extensions(profile, options.paths, SeatbeltPath::Access::ReadOnly));
     TRY(append_allowed_path_extensions(profile, options.paths, SeatbeltPath::Access::ReadWrite));

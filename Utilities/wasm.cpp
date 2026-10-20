@@ -1132,14 +1132,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     .name = "ndisasm"sv,
                     .executable = "ndisasm"sv,
                     .search_for_executable_in_path = true,
-                    .arguments = { "-b"sv, (sizeof(void*) == sizeof(u64) ? "64"sv : "32"sv), tmp_path },
+                    .arguments = Vector<ByteString> { "-b"sv, (sizeof(void*) == sizeof(u64) ? "64"sv : "32"sv), tmp_path },
                 });
 #elif defined(AK_OS_MACOS)
                 auto cmd = ByteString::formatted("/usr/bin/objdump -d {} | tail -n +7", tmp_path);
                 auto result = Core::Process::spawn({
                     .name = "sh"sv,
                     .executable = "/bin/sh"sv,
-                    .arguments = { "-c"sv, cmd },
+                    .arguments = Vector<ByteString> { "-c"sv, cmd },
                 });
 #else
 #    if ARCH(X86_64)
@@ -1152,7 +1152,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 auto result = Core::Process::spawn({
                     .name = "sh"sv,
                     .executable = "/bin/sh"sv,
-                    .arguments = { "-c"sv, cmd },
+                    .arguments = Vector<ByteString> { "-c"sv, cmd },
                 });
 #endif
                 if (!result.is_error())

@@ -15,11 +15,13 @@
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
+#include <LibCore/StatsLog.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZone.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/SystemFallbackFonts.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
@@ -30,6 +32,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Internals/Internals.h>
@@ -193,7 +196,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView default_time_zone {};
     bool file_origins_are_tuple_origins = false;
 
+    StringView stats_log_directory;
     Core::ArgsParser args_parser;
+    args_parser.add_option(stats_log_directory, "Directory for process statistics (JSON lines)", "stats-log-dir", 0, "path");
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
@@ -226,6 +231,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     });
 
     args_parser.parse(arguments);
+
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "WebContent"sv));
 
     if (crash_report_fd >= 0) {
         if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())
@@ -274,6 +281,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::HTML::WindowOrWorkerGlobalScopeMixin::set_experimental_interfaces_exposed(expose_experimental_interfaces);
 
     Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
+    if (stats_log)
+        Web::Bindings::main_thread_vm().heap().enable_stats();
 
     if (collect_garbage_on_every_allocation)
         Web::Bindings::main_thread_vm().heap().set_should_collect_on_every_allocation(true);
@@ -314,6 +323,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         WasmCompilerClient::compiler_state().replace_connection(move(handle));
     };
 #endif
+
+    if (stats_log) {
+        stats_log->start_sampling([&heap](JsonObject& values) {
+            heap.add_stats(values);
+            Web::HTML::main_thread_event_loop().add_stats(values);
+            values.set("fonts.system_fallback_cache_entries"sv, Gfx::system_fallback_font_cache_size());
+        });
+    }
 
     return event_loop.exec();
 }

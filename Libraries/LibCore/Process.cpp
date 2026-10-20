@@ -448,7 +448,7 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> argume
 {
     auto process = TRY(spawn({
         .executable = path,
-        .arguments = Vector<ByteString> { arguments },
+        .arguments = arguments,
     }));
 
     return process;

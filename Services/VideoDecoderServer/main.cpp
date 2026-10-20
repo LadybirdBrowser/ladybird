@@ -11,6 +11,7 @@
 #include <LibCore/Platform/TaskRole.h>
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
+#include <LibCore/StatsLog.h>
 #include <LibGfx/GpuDeviceIdentity.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
@@ -45,6 +46,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     AK::set_rich_debug_enabled(true);
 
     int crash_report_fd = -1;
+    StringView stats_log_directory;
     StringView mach_server_name;
     bool wait_for_debugger = false;
     bool disable_sandbox = false;
@@ -52,6 +54,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView gpu_device;
 
     Core::ArgsParser args_parser;
+    args_parser.add_option(stats_log_directory, "Directory for process statistics logs", "stats-log-dir", 0, "directory");
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
@@ -74,6 +77,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         warnln("Could not set main thread QoS: {}", result.error());
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "VideoDecoderServer"sv));
 
     Optional<Gfx::GpuDeviceIdentity> gpu_device_identity;
     if (!gpu_device.is_empty()) {
@@ -113,6 +117,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         TRY(VideoDecoderServer::apply_sandbox(mach_server_name));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<VideoDecoderServer::ControlConnection>(mach_server_name, hosted_decoders));
+
+    if (stats_log)
+        stats_log->start_sampling();
 
     return event_loop.exec();
 }

@@ -10,6 +10,7 @@
 #include <LibCore/Platform/TaskRole.h>
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
+#include <LibCore/StatsLog.h>
 #include <LibCore/System.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/OpenSSLForward.h>
@@ -71,7 +72,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool enable_test_mode = false;
 
     int crash_report_fd = -1;
+    StringView stats_log_directory;
     Core::ArgsParser args_parser;
+    args_parser.add_option(stats_log_directory, "Directory for process statistics (JSON lines)", "stats-log-dir", 0, "path");
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
     args_parser.add_option(serenity_resource_root, "Absolute path to directory for serenity resources", "serenity-resource-root", 'r', "serenity-resource-root");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
@@ -98,6 +101,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     });
 
     args_parser.parse(arguments);
+
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "WebWorker"sv));
 
     if (crash_report_fd >= 0) {
         if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())
@@ -131,6 +136,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
     Web::Bindings::initialize_main_thread_vm(worker_type);
+    if (stats_log)
+        Web::Bindings::main_thread_vm().heap().enable_stats();
 
     if (!disable_sandbox)
         TRY(RendererSandbox::apply_sandbox(mach_server_name));
@@ -160,6 +167,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         WasmCompilerClient::compiler_state().replace_connection(move(handle));
     };
 #endif
+
+    if (stats_log)
+        stats_log->start_sampling([&heap](JsonObject& values) { heap.add_stats(values); });
 
     return event_loop.exec();
 }

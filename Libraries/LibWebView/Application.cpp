@@ -19,6 +19,7 @@
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/StatsLog.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZoneWatcher.h>
 #include <LibCore/Timer.h>
@@ -301,6 +302,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> screenshot_path;
     bool new_window = false;
     bool force_new_process = false;
+    StringView stats_log_directory;
     Optional<StringView> profile_name;
     Optional<StringView> profile_path;
     bool temporary_profile = false;
@@ -387,6 +389,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
 #if !defined(AK_OS_ANDROID)
     args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
+    args_parser.add_option(stats_log_directory, "Directory for process statistics (JSON lines)", "stats-log-dir", 0, "path");
     args_parser.add_option(profile_name, "Select or create a named profile", "profile", 0, "name");
     args_parser.add_option(profile_path, "Use a self-contained profile at an absolute path", "profile-path", 0, "path");
     args_parser.add_option(temporary_profile, "Use a temporary profile that is removed on clean shutdown", "temporary-profile");
@@ -492,6 +495,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     create_platform_arguments(args_parser);
     args_parser.parse(m_arguments);
 
+    m_stats_log = TRY(Core::StatsLog::create(stats_log_directory, "Ladybird"sv));
+
 #if !defined(AK_OS_ANDROID)
     ProfileSelection profile_selection;
     if (force_new_process) {
@@ -529,8 +534,9 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     m_profile = TRY(Profile::create(profile_selection, profile_roots));
 #endif
 
-    // Browsers launched by WebDriver are driven directly and must never join an existing browser process.
-    bool coordinate_browser_process = !headless_mode.has_value() && !webdriver_browser_endpoint.has_value() && should_coordinate_browser_process();
+    // Browsers launched by WebDriver are driven directly and must never join an existing browser process. A browser
+    // that logs process statistics must not join one either, since that browser would not sample them.
+    bool coordinate_browser_process = !headless_mode.has_value() && !webdriver_browser_endpoint.has_value() && !m_stats_log && should_coordinate_browser_process();
 
     // Synchronous IPC used to forward URLs to an existing browser process requires an event loop.
     if (coordinate_browser_process) {
@@ -727,6 +733,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     // NB: The host's thread makes an event loop, which would install the default event loop manager if the platform
     //     one were not installed yet.
     m_font_service_host = FontServiceHost::create(*m_font_service);
+    if (m_stats_log)
+        m_stats_log->start_sampling();
     TRY(launch_services());
 
     if (m_web_content_options.is_test_mode == IsTestMode::No && m_browser_options.enable_content_blocker == EnableContentBlocker::Yes) {

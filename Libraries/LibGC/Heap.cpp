@@ -25,6 +25,7 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/StatsLog.h>
 #include <LibCore/Timer.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
@@ -319,6 +320,51 @@ Heap::~Heap()
     m_incoming_cross_heap_members.clear();
 }
 
+void Heap::enable_stats()
+{
+    VERIFY(!m_stats);
+    VERIFY(!is_incremental_sweep_active());
+    m_stats = make<Stats>();
+}
+
+void Heap::add_stats(AK::JsonObject& values) const
+{
+    VERIFY(m_stats);
+    values.set("gc.allocated_bytes_total"sv, m_total_allocated_bytes);
+    values.set("gc.allocated_bytes_since_gc"sv, m_allocated_bytes_since_last_gc);
+    values.set("gc.heap_blocks"sv, m_live_heap_blocks.size());
+    values.set("gc.heap_block_bytes"sv, m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE);
+    values.set("gc.cell_allocators"sv, m_cell_allocators_by_type.size());
+    values.set("gc.threshold_bytes"sv, m_gc_bytes_threshold);
+    values.set("gc.live_cell_bytes"sv, m_stats->live_cell_bytes);
+    values.set("gc.live_external_bytes"sv, m_stats->live_external_bytes);
+    values.set("gc.collections"sv, m_stats->collections);
+    values.set("gc.completed_collections"sv, m_stats->completed_collections);
+    values.set("gc.total_duration_ns"sv, m_stats->total_duration_ns);
+    values.set("gc.last_duration_ns"sv, m_stats->last_duration_ns);
+}
+
+void Heap::finish_stats_collection()
+{
+    VERIFY(m_stats);
+    auto& stats = *m_stats;
+    stats.last_duration_ns = stats.pause_duration_ns + stats.sweep_duration_ns;
+    stats.total_duration_ns += stats.last_duration_ns;
+    ++stats.completed_collections;
+    if (auto* log = Core::StatsLog::the()) {
+        AK::JsonObject data;
+        data.set("collection"sv, stats.collections);
+        data.set("duration_ns"sv, stats.last_duration_ns);
+        data.set("pause_duration_ns"sv, stats.pause_duration_ns);
+        data.set("sweep_duration_ns"sv, stats.sweep_duration_ns);
+        data.set("bytes_before"sv, stats.bytes_before);
+        data.set("bytes_after"sv, m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE);
+        data.set("live_cell_bytes"sv, stats.live_cell_bytes);
+        data.set("live_external_bytes"sv, stats.live_external_bytes);
+        log->event("gc"sv, move(data));
+    }
+}
+
 void Heap::will_allocate(size_t size, TriggersCollection triggers_collection)
 {
     ASSERT(!heap_access_is_forbidden_on_this_thread());
@@ -367,6 +413,10 @@ void Heap::did_free_external_memory(size_t size)
 
 void Heap::update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_external_bytes)
 {
+    if (m_stats) {
+        m_stats->live_cell_bytes = live_cell_bytes;
+        m_stats->live_external_bytes = live_external_bytes;
+    }
     Checked<size_t> live_bytes = live_cell_bytes;
     live_bytes += live_external_bytes;
 
@@ -678,6 +728,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     VERIFY(!m_collecting_garbage);
 
     finish_pending_incremental_sweep();
+    auto stats_start_ns = m_stats ? MonotonicTime::now().nanoseconds() : 0;
     give_back_local_free_lists();
     g_next_incremental_sweep_should_report = false;
 
@@ -699,11 +750,16 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
         }
         ScopeGuard stop_recording = [&] { g_recording_phase_timings = false; };
 
+        if (collection_type == CollectionType::CollectGarbage && m_gc_deferrals) {
+            m_should_gc_when_deferral_ends = true;
+            return;
+        }
+        if (m_stats) {
+            ++m_stats->collections;
+            m_stats->bytes_before = m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE;
+            m_stats->sweep_duration_ns = 0;
+        }
         if (collection_type == CollectionType::CollectGarbage) {
-            if (m_gc_deferrals) {
-                m_should_gc_when_deferral_ends = true;
-                return;
-            }
             HashMap<Cell*, HeapRoot> roots;
             {
                 ScopedPhaseTimer timer { report, g_phase_timings.gather_roots_us };
@@ -746,6 +802,12 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
         start_incremental_sweep();
     else
         g_next_incremental_sweep_should_report = false;
+
+    if (m_stats) {
+        m_stats->pause_duration_ns = MonotonicTime::now().nanoseconds() - stats_start_ns;
+        if (!m_incremental_sweep_active)
+            finish_stats_collection();
+    }
 
     run_post_gc_tasks();
 
@@ -1348,6 +1410,13 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 
 void Heap::sweep_block(HeapBlock& block)
 {
+    // A destructor can allocate and sweep another block. Its time is included in the outermost sweep.
+    bool record_stats = m_stats && m_block_sweeps_in_progress == 0;
+    auto stats_start_ns = record_stats ? MonotonicTime::now().nanoseconds() : 0;
+    ScopeGuard record_duration = [&] {
+        if (record_stats)
+            m_stats->sweep_duration_ns += MonotonicTime::now().nanoseconds() - stats_start_ns;
+    };
     ++m_block_sweeps_in_progress;
     ScopeGuard finish_block_sweep = [&] { --m_block_sweeps_in_progress; };
 
@@ -1473,6 +1542,8 @@ void Heap::finish_incremental_sweep()
     m_cells_allocated_during_sweep.clear();
 
     m_incremental_sweep_active = false;
+    if (m_stats)
+        finish_stats_collection();
 
     stop_incremental_sweep_timer();
 
