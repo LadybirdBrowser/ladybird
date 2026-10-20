@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Assertions.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Format.h>
@@ -14,6 +15,7 @@
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Promise.h>
 #include <LibCore/Resource.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
@@ -29,10 +31,14 @@
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/PlatformColors.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/WebCompatReport.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
 #include <UI/Qt/ReportReview.h>
+#include <UI/Qt/ScreenshotSelectionOverlay.h>
+#include <UI/Qt/ScreenshotViewer.h>
+#include <UI/Qt/WebCompatReportReview.h>
 #ifdef AK_OS_MACOS
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -299,11 +305,14 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
 #endif
 
     on_ready_to_paint = [this]() {
+        // Nothing of the page shows while an overlay covers it, which repaints the page once it goes away.
+        if (!is_page_covered_by_overlay()) {
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
-        schedule_frame_damage_repaint();
+            schedule_frame_damage_repaint();
 #else
-        schedule_repaint();
+            schedule_repaint();
 #endif
+        }
         emit ready_to_paint();
     };
 
@@ -319,6 +328,10 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
 
     on_crash_report_saved = [this] {
         show_crash_report_review();
+    };
+
+    on_request_website_issue_report = [this] {
+        start_web_compat_report();
     };
 
 #ifdef AK_OS_MACOS
@@ -1133,13 +1146,13 @@ void WebContentView::paintEvent(QPaintEvent*)
 }
 #endif
 
-Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size) const
+// The page as the view currently shows it, in device pixels.
+QImage WebContentView::visible_snapshot() const
 {
     auto paintable = current_paintable();
-    if (!paintable.has_value() || maximum_size.isEmpty())
+    if (!paintable.has_value())
         return {};
 
-    QImage snapshot;
     if (auto bitmap = paintable->shared_image_buffer->bitmap_if_present()) {
         auto width = min(bitmap->width(), paintable->bitmap_size.width());
         auto height = min(bitmap->height(), paintable->bitmap_size.height());
@@ -1147,15 +1160,23 @@ Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size) 
             return {};
 
         QImage image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
-        snapshot = image.copy(0, 0, width, height);
+        return image.copy(0, 0, width, height);
     }
-#ifdef LADYBIRD_QT_USE_RHI_WIDGET
-    else {
-        // GPU-shared backing stores have no CPU-visible pixels, so grab the rendered widget instead.
-        snapshot = const_cast<WebContentView*>(this)->grabFramebuffer();
-    }
-#endif
 
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    // GPU-shared backing stores have no CPU-visible pixels, so grab the rendered widget instead.
+    return const_cast<WebContentView*>(this)->grabFramebuffer();
+#else
+    return {};
+#endif
+}
+
+Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size) const
+{
+    if (maximum_size.isEmpty())
+        return {};
+
+    auto snapshot = visible_snapshot();
     if (snapshot.isNull())
         return {};
 
@@ -1438,14 +1459,160 @@ void WebContentView::review_hidden_crash_report(ByteString const& report_name)
 // A tab opened only for a review lets go of what it showed over its page once the user takes the tab elsewhere.
 void WebContentView::leave_report_review()
 {
+    QWidget* web_compat_report_overlays[] = { m_screenshot_selection_overlay, m_screenshot_viewer, m_web_compat_report_overlay };
+    for (auto* overlay : web_compat_report_overlays) {
+        if (!overlay)
+            continue;
+        overlay->hide();
+        overlay->deleteLater();
+    }
+    m_web_compat_report_overlay = nullptr;
+
     if (m_crash_overlay && !m_crash_overlay->isHidden() && !crash_overlay_active())
         set_crash_overlay_visible(false);
+    schedule_repaint();
+}
+
+// The frame and the page's dumps are taken right away, so the report shows the page as it was when the user asked. The
+// user selects what they saw on the page itself, and reviews the report in a tab of its own.
+void WebContentView::start_web_compat_report()
+{
+    if (m_screenshot_selection_overlay)
+        return;
+
+    WebCompatReportCapture capture {
+        .page = WebView::WebCompatReport::describe_page(*this),
+        .frame = visible_snapshot(),
+        .screenshot = {},
+        .page_dumps = WebView::WebCompatReport::request_page_dumps(*this),
+    };
+
+    auto review = [this](WebCompatReportCapture capture) {
+        if (on_request_web_compat_report_review)
+            on_request_web_compat_report_review(AK::move(capture));
+    };
+    if (capture.frame.isNull()) {
+        review(AK::move(capture));
+        return;
+    }
+
+    auto frame = capture.frame;
+    select_screenshot(frame, [review = AK::move(review), capture = AK::move(capture)](QImage screenshot) mutable {
+        capture.screenshot = AK::move(screenshot);
+        review(AK::move(capture));
+    });
+}
+
+// The tab was opened only for the review, so no web content runs behind it, and leaving the review closes it.
+void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
+{
+    if (m_web_compat_report_overlay)
+        return;
+
+    m_web_compat_report_overlay = new PageOverlay(this);
+    auto* column = &m_web_compat_report_overlay->column();
+
+    auto* review = new WebCompatReportReview(AK::move(capture.page), AK::move(capture.screenshot), column);
+    auto* column_layout = new QVBoxLayout(column);
+    column_layout->setContentsMargins(0, 0, 0, 0);
+    column_layout->addWidget(review);
+
+    review->on_select_screenshot = [this, review = QPointer { review }, frame = AK::move(capture.frame)] {
+        if (frame.isNull())
+            return;
+        select_screenshot(frame, [review](QImage screenshot) {
+            if (!review)
+                return;
+            review->set_screenshot(AK::move(screenshot));
+            review->setFocus(Qt::OtherFocusReason);
+        });
+    };
+    review->on_view_screenshot = [this](QImage const& screenshot) {
+        if (screenshot.isNull() || m_screenshot_viewer)
+            return;
+
+        auto* viewer = new ScreenshotViewer(screenshot, this);
+        m_screenshot_viewer = viewer;
+        auto focus_to_restore = show_transient_overlay(*viewer);
+        viewer->on_closed = [this, viewer, focus_to_restore] {
+            close_transient_overlay(*viewer, focus_to_restore);
+        };
+    };
+    review->on_exit = [this] {
+        if (on_close)
+            on_close();
+    };
+    // The review is part of the overlay and cannot outlive it, even once leaving the review has let go of the overlay.
+    review->on_report_text_visibility_change = [overlay = m_web_compat_report_overlay](bool visible) {
+        overlay->set_fills_tab(visible);
+    };
+
+    capture.page_dumps
+        ->when_resolved([review = QPointer { review }](String& page_dumps) {
+            if (review)
+                review->set_page_dumps(AK::move(page_dumps));
+        })
+        .when_rejected([](Error const& error) {
+            warnln("Could not dump the page for a web compatibility report: {}", error);
+        });
+
+    m_web_compat_report_overlay->setGeometry(rect());
+    m_web_compat_report_overlay->show();
+    m_web_compat_report_overlay->raise();
+    review->setFocus(Qt::OtherFocusReason);
+    schedule_repaint();
+}
+
+// The selection shows a frame taken earlier, so the user selects what they saw, even while the page underneath changes.
+void WebContentView::select_screenshot(QImage const& frame, Function<void(QImage)> on_selected)
+{
+    if (m_screenshot_selection_overlay)
+        return;
+
+    auto* overlay = new ScreenshotSelectionOverlay(frame, this);
+    m_screenshot_selection_overlay = overlay;
+    auto focus_to_restore = show_transient_overlay(*overlay);
+    overlay->on_finished = [this, overlay, focus_to_restore, on_selected = AK::move(on_selected)](QImage screenshot) {
+        close_transient_overlay(*overlay, focus_to_restore);
+        on_selected(AK::move(screenshot));
+    };
+    overlay->on_canceled = [this, overlay, focus_to_restore] {
+        close_transient_overlay(*overlay, focus_to_restore);
+    };
+}
+
+// An overlay shown for a moment, such as to select or view a screenshot, hands the focus back once it is done.
+QPointer<QWidget> WebContentView::show_transient_overlay(QWidget& overlay)
+{
+    auto focus_to_restore = QPointer { QApplication::focusWidget() };
+    overlay.show();
+    overlay.raise();
+    overlay.setFocus(Qt::OtherFocusReason);
+    schedule_repaint();
+    return focus_to_restore;
+}
+
+void WebContentView::close_transient_overlay(QWidget& overlay, QPointer<QWidget> const& focus_to_restore)
+{
+    overlay.deleteLater();
+    schedule_repaint();
+    if (focus_to_restore)
+        focus_to_restore->setFocus(Qt::OtherFocusReason);
+}
+
+Array<QWidget*, 4> WebContentView::overlays() const
+{
+    return { m_crash_overlay, m_web_compat_report_overlay, m_screenshot_selection_overlay, m_screenshot_viewer };
 }
 
 // Overlays are painted by Qt, underneath whatever presents the page on some platforms, which has to step aside for them.
 bool WebContentView::is_page_covered_by_overlay() const
 {
-    return m_crash_overlay && !m_crash_overlay->isHidden();
+    for (auto* overlay : overlays()) {
+        if (overlay && !overlay->isHidden())
+            return true;
+    }
+    return false;
 }
 
 // A report of a crash with no crash screen of its own is reviewed in a blank tab opened for it.
@@ -1508,8 +1675,10 @@ void WebContentView::resizeEvent(QResizeEvent* event)
     update_iosurface_layer_frame();
 #endif
 
-    if (m_crash_overlay)
-        m_crash_overlay->setGeometry(rect());
+    for (auto* overlay : overlays()) {
+        if (overlay)
+            overlay->setGeometry(rect());
+    }
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     m_force_full_repaint = true;

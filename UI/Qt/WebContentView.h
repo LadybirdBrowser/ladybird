@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
@@ -25,9 +26,12 @@
 #include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
+#include <LibWebView/WebCompatReport.h>
 
 #include <LibWebCommon/Page/QueuedInputEvent.h>
+#include <QImage>
 #include <QPixmap>
+#include <QPointer>
 #include <QTimer>
 #include <QUrl>
 #include <QVariant>
@@ -83,7 +87,16 @@ using WebContentViewBase = QWidget;
 class CrashOverlayUrlLabel;
 class CrashReportReviewWidget;
 class PageOverlay;
+class ScreenshotSelectionOverlay;
+class ScreenshotViewer;
 class SelectDropdown;
+
+struct WebCompatReportCapture {
+    WebView::WebCompatReport::Page page;
+    QImage frame;
+    QImage screenshot;
+    NonnullRefPtr<Core::Promise<String>> page_dumps;
+};
 
 struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
@@ -145,6 +158,9 @@ public:
     void cancel_mouse_press();
     void review_hidden_crash_report(ByteString const& report_name);
     void leave_report_review();
+    void review_web_compat_report(WebCompatReportCapture);
+
+    Function<void(WebCompatReportCapture)> on_request_web_compat_report_review;
 
     enum class PaletteMode {
         Default,
@@ -192,6 +208,7 @@ private:
     };
 
     Optional<Paintable> current_paintable() const;
+    QImage visible_snapshot() const;
 
     void update_viewport_size();
     void update_cursor(Gfx::Cursor cursor);
@@ -221,6 +238,12 @@ private:
     void set_crash_overlay_visible(bool);
     void show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name = {});
 
+    void start_web_compat_report();
+    void select_screenshot(QImage const& frame, Function<void(QImage)> on_selected);
+    QPointer<QWidget> show_transient_overlay(QWidget&);
+    void close_transient_overlay(QWidget&, QPointer<QWidget> const& focus_to_restore);
+
+    Array<QWidget*, 4> overlays() const;
     bool is_page_covered_by_overlay() const;
 
 #if !defined(Q_OS_WIN)
@@ -273,6 +296,10 @@ private:
     QShortcut* m_crash_overlay_reload_shortcut { nullptr };
     QWidget* m_crash_report_container { nullptr };
     CrashReportReviewWidget* m_crash_report_review { nullptr };
+
+    QPointer<ScreenshotSelectionOverlay> m_screenshot_selection_overlay;
+    QPointer<ScreenshotViewer> m_screenshot_viewer;
+    PageOverlay* m_web_compat_report_overlay { nullptr };
 
 #ifdef AK_OS_MACOS
     NativeTextEditingBindings m_native_text_editing_bindings;

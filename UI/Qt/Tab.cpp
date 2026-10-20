@@ -8,6 +8,7 @@
 
 #include <AK/kmalloc.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Promise.h>
 #include <LibURL/URL.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
@@ -818,6 +819,12 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
             m_window->definitely_close_tab(index);
     };
 
+    view().on_request_web_compat_report_review = [this](WebCompatReportCapture capture) {
+        auto& tab = m_window->new_tab_from_url(URL::about_blank(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_tab(*this));
+        tab.view().review_web_compat_report(AK::move(capture));
+        tab.enter_report_review(this, tr("Report Website Issue"));
+    };
+
     view().on_link_hover = [this](auto const& url) {
         m_hover_label->setText(qstring_from_ak_string(url.to_byte_string()));
         update_hover_label();
@@ -1435,19 +1442,22 @@ QIcon Tab::tab_icon() const
 
 QString Tab::title() const
 {
+    auto title = m_fixed_title.value_or(m_title);
     if (!WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
-        return m_title;
+        return title;
 
-    return QString("%1 [%2]").arg(m_title).arg(view().page().client().pid());
+    return QString("%1 [%2]").arg(title).arg(view().page().client().pid());
 }
 
-// A tab opened only for a review shows it over a blank page, and closing it goes back to the tab it was opened from.
-// That lasts until the user takes the tab somewhere else. The tab starts out loading about:blank, which is not somewhere
-// else, but any page loaded after that is, about:blank included.
-void Tab::enter_report_review(Tab* tab_to_activate_on_close)
+// A tab opened only for a review shows it over a blank page, under the review's own title if it has one, and closing it
+// goes back to the tab it was opened from. That lasts until the user takes the tab somewhere else. The tab starts out
+// loading about:blank, which is not somewhere else, but any page loaded after that is, about:blank included.
+void Tab::enter_report_review(Tab* tab_to_activate_on_close, Optional<QString> title)
 {
     VERIFY(!m_report_review_navigation_listener.has_value());
     m_tab_to_activate_on_close = tab_to_activate_on_close;
+    m_fixed_title = AK::move(title);
+    update_tab_title();
 
     WebView::ViewImplementation::NavigationListener listener;
     listener.on_load_start = [this](URL::URL const& url) {
@@ -1466,6 +1476,8 @@ void Tab::leave_report_review()
 
     view().leave_report_review();
     m_tab_to_activate_on_close = nullptr;
+    m_fixed_title.clear();
+    update_tab_title();
 
     // The view is still telling its listeners about this navigation, so the listener goes once it is done.
     QTimer::singleShot(0, this, [this, listener = m_report_review_navigation_listener.release_value()] {

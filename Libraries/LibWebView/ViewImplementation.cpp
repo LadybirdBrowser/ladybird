@@ -154,6 +154,7 @@ void ViewImplementation::set_url(URL::URL url)
     if (m_url != url) {
         m_url = move(url);
         update_bookmark_action();
+        update_report_website_issue_action();
         if (auto page = traversable().display_page(); page && page->routed_connection())
             page->routed_connection()->update_audio_capture_permission();
     }
@@ -1433,6 +1434,24 @@ void ViewImplementation::find_in_page_end()
 void ViewImplementation::get_source()
 {
     page().async_get_source();
+}
+
+// Only a website the page is showing can be reported, so not a browser page or a page that crashed.
+bool ViewImplementation::can_report_website_issue() const
+{
+    return (m_url.scheme() == "http"sv || m_url.scheme() == "https"sv) && !crash_overlay_active();
+}
+
+void ViewImplementation::report_website_issue()
+{
+    if (can_report_website_issue() && on_request_website_issue_report)
+        on_request_website_issue_report();
+}
+
+void ViewImplementation::update_report_website_issue_action()
+{
+    m_report_website_issue_action->set_enabled(can_report_website_issue());
+    Application::the().update_report_website_issue_action();
 }
 
 void ViewImplementation::inspect_dom_tree()
@@ -3644,6 +3663,7 @@ void ViewImplementation::set_crash_state(Optional<CrashState> state)
     auto active = state.has_value();
     m_crash_state = move(state);
     notify_content_blocking_changed();
+    update_report_website_issue_action();
     if (on_crash_overlay_state_change)
         on_crash_overlay_state_change(active);
 }
@@ -4001,6 +4021,11 @@ void ViewImplementation::initialize_context_menus()
         take_and_save_screenshot(ScreenshotType::Full);
     });
 
+    m_report_website_issue_action = Action::create("Report Website Issue..."sv, ActionID::ReportWebsiteIssue, [this]() {
+        report_website_issue();
+    });
+    m_report_website_issue_action->set_enabled(false);
+
     // A URL from the context menu is the page's — a link's or an image's — so it's navigated to from the page, unless
     // the user selected it as text. Blink also starts a selected URL with no initiator (IDC_CONTENT_CONTEXT_GOTOURL).
     m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
@@ -4155,6 +4180,7 @@ void ViewImplementation::initialize_context_menus()
     m_page_context_menu->add_action(*m_take_full_screenshot_action);
     m_page_context_menu->add_separator();
     m_page_context_menu->add_action(application.view_source_action());
+    m_page_context_menu->add_action(*m_report_website_issue_action);
 
     m_link_context_menu = Menu::create("Link Context Menu"sv);
     m_link_context_menu->add_action(*m_look_up_selected_text_action);

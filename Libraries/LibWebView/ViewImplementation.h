@@ -283,6 +283,9 @@ public:
 
     void get_source();
 
+    bool can_report_website_issue() const;
+    void report_website_issue();
+
     void inspect_dom_tree();
     void inspect_storage(Web::StorageAPI::StorageEndpointType, u64 request_id);
     Optional<StorageSetResult> set_session_storage_item(Utf16String const& key, Utf16String const& value);
@@ -490,6 +493,7 @@ public:
     Function<void()> on_before_browser_initiated_navigation;
     Function<void(URL::URL const&, URL::Origin const&, ExternalURLHandler const&, Function<void(bool)>)> on_request_external_url_confirmation;
     Function<void()> on_request_accept_dialog;
+    Function<void()> on_request_website_issue_report;
     Function<void()> on_request_dismiss_dialog;
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
@@ -708,6 +712,7 @@ protected:
     void update_bookmark_action();
 
     void initialize_context_menus();
+    void update_report_website_issue_action();
     void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation, Function<void()> on_handler_unavailable = {});
     void handle_external_url_from_user_input(URL::URL const&, Function<void()> on_handler_unavailable = {});
     void complete_external_url_request();
@@ -803,6 +808,7 @@ protected:
 
     RefPtr<Action> m_take_visible_screenshot_action;
     RefPtr<Action> m_take_full_screenshot_action;
+    RefPtr<Action> m_report_website_issue_action;
 
     RefPtr<Action> m_open_in_new_tab_action;
     RefPtr<Action> m_open_in_new_window_action;
