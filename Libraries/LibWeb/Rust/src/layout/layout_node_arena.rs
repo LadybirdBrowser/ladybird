@@ -5127,12 +5127,20 @@ impl LayoutNodeArena {
 
     pub(crate) fn text_source_range(&self, id: NodeSlotId, source_length: usize) -> FfiTextSourceRange {
         self.data(id);
-        self.text_node_state(id)
-            .and_then(|state| state.source_range)
-            .unwrap_or(FfiTextSourceRange {
+        let Some(range) = self.text_node_state(id).and_then(|state| state.source_range) else {
+            return FfiTextSourceRange {
                 start: 0,
                 length: source_length,
-            })
+            };
+        };
+        // NB: A slice's range was taken from the text when its ::first-letter split was built. The text can change
+        //     or leave the document before the next tree build replaces the split, and a layout in the meantime
+        //     renders the part of the range that the current text still has.
+        let start = range.start.min(source_length);
+        FfiTextSourceRange {
+            start,
+            length: range.length.min(source_length - start),
+        }
     }
 
     pub(crate) fn text_has_source_range(&self, id: NodeSlotId) -> bool {
