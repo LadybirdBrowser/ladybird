@@ -34,7 +34,7 @@ void TabPerformanceAccumulator::did_present(MonotonicTime now)
     m_presentations.remove_all_matching([&](auto time) { return now - time > AK::Duration::from_seconds(1); });
 }
 
-TabPerformanceStats TabPerformanceAccumulator::sample(MonotonicTime now, HashMap<pid_t, Core::Platform::ProcessResourceUsage> const& processes)
+TabPerformanceStats TabPerformanceAccumulator::sample(MonotonicTime now, HashMap<pid_t, Core::Platform::ProcessResourceUsage> const& processes, Optional<pid_t> top_level_process)
 {
     TabPerformanceStats stats;
     if (!m_started_at.has_value())
@@ -51,8 +51,25 @@ TabPerformanceStats TabPerformanceAccumulator::sample(MonotonicTime now, HashMap
             has_baseline = true;
         }
     }
-    if (!processes.is_empty() && !memory.has_overflow())
+    // NB: Peak memory belongs to the tab's top-level process. When that process is replaced, start a new peak once
+    //     no replaced process counts toward the tab any more, so their memory does not carry over.
+    if (top_level_process.has_value() && m_top_level_process.has_value() && *top_level_process != *m_top_level_process
+        && !m_replaced_top_level_processes.contains_slow(*m_top_level_process))
+        m_replaced_top_level_processes.append(*m_top_level_process);
+    if (top_level_process.has_value()) {
+        m_top_level_process = top_level_process;
+        m_replaced_top_level_processes.remove_all_matching([&](pid_t pid) { return pid == *top_level_process; });
+    }
+    if (!m_replaced_top_level_processes.is_empty()) {
+        m_replaced_top_level_processes.remove_all_matching([&](pid_t pid) { return !processes.contains(pid); });
+        if (m_replaced_top_level_processes.is_empty())
+            m_peak_memory_bytes.clear();
+    }
+    if (!processes.is_empty() && !memory.has_overflow()) {
         stats.memory_bytes = memory.value();
+        m_peak_memory_bytes = max(m_peak_memory_bytes.value_or(0), memory.value());
+    }
+    stats.peak_memory_bytes = m_peak_memory_bytes;
     if (has_baseline) {
         stats.cpu_percent = cpu;
         m_cpu_history.append({ now, cpu });

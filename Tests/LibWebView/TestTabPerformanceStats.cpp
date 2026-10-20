@@ -92,6 +92,63 @@ TEST_CASE(cpu_history_expires_after_ten_seconds)
     EXPECT(expired.cpu_history.is_empty());
 }
 
+TEST_CASE(peak_memory_is_the_highest_sample)
+{
+    TabPerformanceAccumulator accumulator;
+    auto now = MonotonicTime::now();
+    HashMap<pid_t, ProcessResourceUsage> processes;
+    processes.set(1, { 0, 300 });
+    EXPECT_EQ(*accumulator.sample(now, processes, 1).peak_memory_bytes, 300u);
+    processes.set(1, { 0, 500 });
+    EXPECT_EQ(*accumulator.sample(now + AK::Duration::from_seconds(1), processes, 1).peak_memory_bytes, 500u);
+    processes.set(1, { 0, 200 });
+    auto lower = accumulator.sample(now + AK::Duration::from_seconds(2), processes, 1);
+    EXPECT_EQ(*lower.memory_bytes, 200u);
+    EXPECT_EQ(*lower.peak_memory_bytes, 500u);
+    auto missing = accumulator.sample(now + AK::Duration::from_seconds(3), {}, 1);
+    EXPECT(!missing.memory_bytes.has_value());
+    EXPECT_EQ(*missing.peak_memory_bytes, 500u);
+}
+
+TEST_CASE(peak_memory_restarts_once_the_replaced_top_level_process_is_gone)
+{
+    TabPerformanceAccumulator accumulator;
+    auto now = MonotonicTime::now();
+    HashMap<pid_t, ProcessResourceUsage> processes;
+    processes.set(1, { 0, 500 });
+    accumulator.sample(now, processes, 1);
+    processes.set(1, { 0, 400 });
+    processes.set(2, { 0, 100 });
+    auto overlapping = accumulator.sample(now + AK::Duration::from_seconds(1), processes, 2);
+    EXPECT_EQ(*overlapping.peak_memory_bytes, 500u);
+    processes.remove(1);
+    auto replaced = accumulator.sample(now + AK::Duration::from_seconds(2), processes, 2);
+    EXPECT_EQ(*replaced.peak_memory_bytes, 100u);
+    processes.set(3, { 0, 50 });
+    auto subframe = accumulator.sample(now + AK::Duration::from_seconds(3), processes, 2);
+    processes.remove(3);
+    EXPECT_EQ(*accumulator.sample(now + AK::Duration::from_seconds(4), processes, 2).peak_memory_bytes, 150u);
+    EXPECT_EQ(*subframe.peak_memory_bytes, 150u);
+}
+
+TEST_CASE(peak_memory_restarts_once_every_replaced_top_level_process_is_gone)
+{
+    TabPerformanceAccumulator accumulator;
+    auto now = MonotonicTime::now();
+    HashMap<pid_t, ProcessResourceUsage> processes;
+    processes.set(1, { 0, 500 });
+    accumulator.sample(now, processes, 1);
+    processes.set(1, { 0, 400 });
+    processes.set(2, { 0, 100 });
+    accumulator.sample(now + AK::Duration::from_seconds(1), processes, 2);
+    processes.set(3, { 0, 50 });
+    EXPECT_EQ(*accumulator.sample(now + AK::Duration::from_seconds(2), processes, 3).peak_memory_bytes, 550u);
+    processes.remove(2);
+    EXPECT_EQ(*accumulator.sample(now + AK::Duration::from_seconds(3), processes, 3).peak_memory_bytes, 550u);
+    processes.remove(1);
+    EXPECT_EQ(*accumulator.sample(now + AK::Duration::from_seconds(4), processes, 3).peak_memory_bytes, 50u);
+}
+
 TEST_CASE(memory_overflow_is_unavailable)
 {
     TabPerformanceAccumulator accumulator;

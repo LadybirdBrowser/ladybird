@@ -21,6 +21,7 @@ WEBVIEW_API String format_performance_bytes(u64);
 struct TabPerformanceStats {
     Optional<double> cpu_percent;
     Optional<u64> memory_bytes;
+    Optional<u64> peak_memory_bytes;
     u64 download_bytes_per_second { 0 };
     u64 upload_bytes_per_second { 0 };
     Optional<double> frames_per_second;
@@ -32,7 +33,7 @@ class WEBVIEW_API TabPerformanceAccumulator {
 public:
     void add_network_bytes(MonotonicTime, u64 interval_microseconds, u64 download, u64 upload);
     void did_present(MonotonicTime);
-    TabPerformanceStats sample(MonotonicTime, HashMap<pid_t, Core::Platform::ProcessResourceUsage> const&);
+    TabPerformanceStats sample(MonotonicTime, HashMap<pid_t, Core::Platform::ProcessResourceUsage> const&, Optional<pid_t> top_level_process = {});
 
 private:
     struct NetworkSample {
@@ -51,6 +52,9 @@ private:
     Vector<NetworkSample> m_network;
     Vector<MonotonicTime> m_presentations;
     Vector<CPUSample> m_cpu_history;
+    Optional<u64> m_peak_memory_bytes;
+    Optional<pid_t> m_top_level_process;
+    Vector<pid_t> m_replaced_top_level_processes;
 };
 
 }
