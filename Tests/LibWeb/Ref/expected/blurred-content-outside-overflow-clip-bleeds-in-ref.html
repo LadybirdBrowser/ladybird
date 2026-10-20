@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+    html { background: white; }
+    body { margin: 0; }
+    #unclipped { width: 100px; height: 100px; }
+    #blurred { margin-left: 102px; width: 50px; height: 100px; background: blue; filter: blur(4px); }
+    .cover { position: absolute; background: white; }
+</style>
+<div id="unclipped"><div id="blurred"></div></div>
+<div class="cover" style="left: 100px; top: 0; width: 200px; height: 200px"></div>
+<div class="cover" style="left: 0; top: 100px; width: 300px; height: 100px"></div>

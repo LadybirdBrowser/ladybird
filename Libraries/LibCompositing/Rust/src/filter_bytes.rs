@@ -7,6 +7,7 @@
 //! The filter graphs painting hands over as bytes, and the device-pixel filter functions hosts
 //! build them from outside the style system.
 
+use libgfx_rust::FloatRect;
 use libgfx_rust::filter::Filter;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,6 +66,12 @@ pub fn filter_functions_graph(functions: impl IntoIterator<Item = Filter>) -> Op
 /// Whether a serialized filter can change the painted bounds of what it is applied to.
 pub fn may_affect_output_bounds(bytes: &[u8]) -> bool {
     Filter::serialized_may_affect_output_bounds(bytes)
+}
+
+/// Where a serialized filter paints when what it is applied to paints within `source`, or `None`
+/// when it can paint everywhere.
+pub fn output_bounds(bytes: &[u8], source: FloatRect) -> Option<FloatRect> {
+    Filter::serialized_output_bounds(bytes, source)
 }
 
 #[cfg(test)]

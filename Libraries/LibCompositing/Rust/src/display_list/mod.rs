@@ -10,6 +10,7 @@ pub mod damage;
 pub mod depth_sorted_plan;
 pub mod device_pixels;
 pub mod effect_clip_plan;
+pub mod effect_geometry;
 pub mod ffi_bytes;
 pub mod nested_records;
 pub mod replay;
