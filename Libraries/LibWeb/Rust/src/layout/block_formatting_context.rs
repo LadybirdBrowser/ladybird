@@ -2660,11 +2660,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
 
         let column_block_size = self.column_block_size(input, column_input, geometry, definite_block_size);
+        let mut baselines = formatting_context::DerivedBaselines::default();
         let mut incoming = None;
         let mut content_block_size = CssPixels::default();
         let mut column_index = 0;
         loop {
-            let (outcome, consumed_block_size) = self.layout_column(
+            let (outcome, consumed_block_size, column_baselines) = self.layout_column(
                 self.run.purpose,
                 column_input,
                 column_block_size,
@@ -2672,6 +2673,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 column_origin(column_index),
             );
             content_block_size = content_block_size.max(consumed_block_size);
+            if let Some(first) = column_baselines.first {
+                baselines.first = Some(baselines.first.map_or(first, |baseline| baseline.min(first)));
+            }
+            if let Some(last) = column_baselines.last {
+                baselines.last = Some(baselines.last.map_or(last, |baseline| baseline.max(last)));
+            }
             let Some(outgoing) = outcome.outgoing else {
                 break;
             };
@@ -2692,6 +2699,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }],
         }));
         self.multicol_automatic_content_block_size.set(Some(row_block_size));
+        self.record_derived_baselines_of_root_box(baselines);
     }
 
     fn column_block_size(
@@ -2743,7 +2751,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut tallest_unbreakable_block_size = CssPixels::default();
         let mut incoming = None;
         loop {
-            let (outcome, consumed_block_size) = self.layout_column(
+            let (outcome, consumed_block_size, _) = self.layout_column(
                 formatting_context::LayoutPurpose::Measurement,
                 column_input,
                 None,
@@ -2783,7 +2791,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let mut forced_break_count = 0;
             let mut minimal_space_shortage: Option<CssPixels> = None;
             loop {
-                let (outcome, _) = self.layout_column(
+                let (outcome, _, _) = self.layout_column(
                     formatting_context::LayoutPurpose::Measurement,
                     column_input,
                     Some(block_size),
@@ -2828,7 +2836,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_size: Option<CssPixels>,
         incoming: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
         origin: FfiCssPixelPoint,
-    ) -> (fragmentation::FragmentainerOutcome, CssPixels) {
+    ) -> (
+        fragmentation::FragmentainerOutcome,
+        CssPixels,
+        formatting_context::DerivedBaselines,
+    ) {
         let mut early_break_before = None;
         let mut minimal_space_shortage_of_discarded_attempts = None;
         let mut tallest_unbreakable_block_size_of_discarded_attempts = CssPixels::default();
@@ -2874,7 +2886,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             {
                 fragments.adopt_fragmentainer_root(root, origin);
             }
-            return (outcome, outputs.result.automatic_content_block_size);
+            return (
+                outcome,
+                outputs.result.automatic_content_block_size,
+                outputs.result.baselines,
+            );
         }
     }
 
