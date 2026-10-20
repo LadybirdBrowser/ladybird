@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Format.h>
+#include <AK/Traits.h>
 #include <AK/Types.h>
 
 namespace AK {
@@ -41,6 +42,11 @@ struct Formatter<ThreadID> : Formatter<u64> {
     {
         return Formatter<u64>::format(builder, thread_id.value());
     }
+};
+
+template<>
+struct Traits<ThreadID> : public DefaultTraits<ThreadID> {
+    static unsigned hash(ThreadID thread_id) { return Traits<u64>::hash(thread_id.value()); }
 };
 
 }
