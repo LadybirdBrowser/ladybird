@@ -974,28 +974,26 @@ impl<'pass> BlockFormattingContext<'pass> {
             .map(|band| band.block_start)
     }
 
-    pub(crate) fn available_inline_space(
-        &self,
-        block_start_in_root: CssPixels,
-        block_end_in_root: CssPixels,
-    ) -> inline_formatting_context::SpaceUsedByFloats {
+    /// The deepest intrusion on each side of the bands between the two block offsets.
+    fn merged_band(&self, block_start_in_root: CssPixels, block_end_in_root: CssPixels) -> FloatBand {
         let bands = self.bands.borrow();
         assert!(!bands.is_empty());
-        let mut intrusions = inline_formatting_context::SpaceUsedByFloats::default();
+        let first_index = self.band_index_at(block_start_in_root);
         if block_end_in_root <= block_start_in_root {
-            let band = bands[self.band_index_at(block_start_in_root)];
-            intrusions.left = band.left_intrusion.unwrap_or_default().max(CssPixels::default());
-            intrusions.right = band.right_intrusion.unwrap_or_default().max(CssPixels::default());
-            return intrusions;
+            return bands[first_index];
         }
-        for band in bands.iter().skip(self.band_index_at(block_start_in_root)) {
+        let mut merged = FloatBand {
+            block_start: block_start_in_root,
+            ..FloatBand::default()
+        };
+        for band in bands.iter().skip(first_index) {
             if band.block_start >= block_end_in_root {
                 break;
             }
-            intrusions.left = intrusions.left.max(band.left_intrusion.unwrap_or_default());
-            intrusions.right = intrusions.right.max(band.right_intrusion.unwrap_or_default());
+            merged.left_intrusion = merged.left_intrusion.max(band.left_intrusion);
+            merged.right_intrusion = merged.right_intrusion.max(band.right_intrusion);
         }
-        intrusions
+        merged
     }
 
     fn intrusions_for_band_into_rect(
@@ -1028,21 +1026,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             width: box_in_root_rect.width,
             height: box_in_root_rect.height,
         };
-        let intrusions = self.available_inline_space(rect.y + block_start_in_box, rect.y + block_end_in_box);
-        // Deliberately read the root inline size at query time.
-        let root_content_inline_size = self.used(self.run.box_).content_inline_size.get();
-        inline_formatting_context::SpaceUsedByFloats {
-            left: if intrusions.left == CssPixels::default() {
-                CssPixels::default()
-            } else {
-                (intrusions.left - rect.x).max(CssPixels::default())
-            },
-            right: if intrusions.right == CssPixels::default() {
-                CssPixels::default()
-            } else {
-                (intrusions.right - (root_content_inline_size - rect.right())).max(CssPixels::default())
-            },
-        }
+        let band = self.merged_band(rect.y + block_start_in_box, rect.y + block_end_in_box);
+        self.intrusions_for_band_into_rect(band, rect)
     }
 
     fn place_float(
