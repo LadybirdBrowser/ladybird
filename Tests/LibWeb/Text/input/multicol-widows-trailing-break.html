@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; }
+    .mc { columns: 2; column-gap: 0; column-fill: auto; height: 100px; width: 400px; font: 20px/20px Ahem; }
+    p, pre { margin: 0; font: inherit; }
+</style>
+<div class="mc" id="br"><p style="widows: 3">l1<br>l2<br>l3<br><span id="br-line">l4</span><br>l5<br>l6<br></p></div>
+<div class="mc" id="pre"><pre>p1
+p2
+p3
+p4
+<span id="pre-line">p5</span>
+p6
+</pre></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["br", "pre"]) {
+            const origin = document.getElementById(id).getBoundingClientRect();
+            const rect = document.getElementById(`${id}-line`).getBoundingClientRect();
+            println(`${id}: ${rect.x - origin.x},${rect.y - origin.y}`);
+        }
+        done();
+    });
+</script>

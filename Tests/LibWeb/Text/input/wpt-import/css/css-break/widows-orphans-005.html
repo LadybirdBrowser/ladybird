@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-break/#widows-orphans">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1022348">
+<meta name="assert" content="Here's a multicol container with four lines, and a widows requirement of 2. We cannot honor that requirement, because the third line alone is too tall to fit in a column.">
+<style>
+  .multicol {
+      position: relative;
+      columns: 3;
+      column-fill: auto;
+      column-gap: 10px;
+      width: 320px;
+      height: 200px;
+      orphans: 1;
+      widows: 2;
+      column-rule: 1px dotted;
+      line-height: 20px;
+  }
+  .ibk {
+      display: inline-block;
+      width: 70px;
+  }
+</style>
+<p>
+  There should be three columns below. In the first column there should be a
+  black rectangle and a yellow rectangle. In the second column there should be a
+  cyan rectangle. In the third column there should be a hotpink rectangle.</p>
+<div class="multicol">
+  <div class="ibk" style="height:50px; background:black;" data-offset-x="0"></div><br>
+  <div class="ibk" style="height:50px; background:yellow;" data-offset-x="0"></div><br>
+  <div class="ibk" style="height:285px;" data-offset-x="110">
+    <!-- The implementations differ here. Gecko lets the inline-block overflow
+         the column, while Blink slices the inline-block and puts what doesn't
+         fit in the second column into the third. Blink has a bug, but that's
+         not the bug we want to test here. -->
+    <div style="height:100px; background:cyan;"></div>
+  </div><br>
+  <div class="ibk" style="height:10px; background:hotpink;" data-offset-x="220"></div><br>
+</div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+  checkLayout("[data-offset-x]");
+</script>

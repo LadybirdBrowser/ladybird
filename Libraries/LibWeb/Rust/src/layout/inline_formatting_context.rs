@@ -1838,7 +1838,7 @@ impl<'context> InlineFormattingContext<'context> {
             })
             .map(|block_size| FragmentainerLineLimit {
                 block_size,
-                widows: 1,
+                widows: self.style(self.containing_block).widows().max(1) as usize,
                 checked_line_count: 0,
                 lines_past_end: 0,
                 minimum_line_block_size: None,
@@ -2196,7 +2196,8 @@ impl<'context> InlineFormattingContext<'context> {
                 && !self.line_data().line_boxes.iter().any(|line| line.has_block_level_box);
             let dropped_atomic_inlines = if breakable {
                 lines_are_fragmented = true;
-                let (dropped_atomic_inlines, next_line_start) = self.keep_lines_of_fragmentainer(fragmentation);
+                let (dropped_atomic_inlines, next_line_start) =
+                    self.keep_lines_of_fragmentainer(fragmentation, stopped_at_line_limit);
                 kept_lines_end = next_line_start;
                 dropped_atomic_inlines
             } else {
@@ -2438,6 +2439,7 @@ impl<'context> InlineFormattingContext<'context> {
     fn keep_lines_of_fragmentainer(
         &self,
         fragmentation: fragmentation::LineRootFragmentation,
+        stopped_at_line_limit: bool,
     ) -> (Vec<Node>, Option<fragmentation::LinePosition>) {
         let line_count = self.line_data().line_boxes.len();
         let is_first_fragment = fragmentation.resume.is_none();
@@ -2469,6 +2471,31 @@ impl<'context> InlineFormattingContext<'context> {
             }
             self.parent
                 .note_line_for_fragmentation(block_end - block_start, block_end, true);
+        }
+        if stop < line_count {
+            let content_line_count = self
+                .line_data()
+                .line_boxes
+                .iter()
+                .rposition(|line| !line.is_empty())
+                .map_or(0, |index| index + 1);
+            let style = self.style(self.containing_block);
+            // https://drafts.csswg.org/css-break-3/#widows-orphans
+            let orphans = style.orphans().max(1) as usize;
+            let widows = style.widows().max(1) as usize;
+            if stop < orphans {
+                if is_first_fragment
+                    && fragmentation.fragmentainer_had_content
+                    && !fragmentation.break_before_is_avoided
+                {
+                    self.parent.request_early_break_before(self.containing_block);
+                }
+            } else if !stopped_at_line_limit && content_line_count.saturating_sub(stop) < widows {
+                let stop_keeping_widows = content_line_count.saturating_sub(widows);
+                if stop_keeping_widows >= orphans {
+                    stop = stop_keeping_widows;
+                }
+            }
         }
 
         *self.inline_boxes_continued_in_next_fragment.borrow_mut() = {

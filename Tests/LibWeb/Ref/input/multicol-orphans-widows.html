@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-orphans-widows-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+body { margin: 0; }
+.multicol { columns: 2; column-gap: 20px; column-fill: auto; height: 60px; width: 220px; margin-bottom: 10px; font: 20px/20px Ahem; color: green; }
+.multicol p { margin: 0; }
+.block { height: 40px; background: blue; overflow: hidden; }
+</style>
+<div class="multicol">
+    <p>X<br>X<br>X<br>X</p>
+</div>
+<div class="multicol">
+    <div class="block"></div>
+    <p>X<br>X<br>X</p>
+</div>
+<div class="multicol" style="orphans: 1; widows: 1">
+    <div class="block"></div>
+    <p>X<br>X<br>X</p>
+</div>
