@@ -59,8 +59,8 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
     }
     update_iosurface_layer_frame();
     update_iosurface_layer_background_color();
-    // The crash overlay is a child widget that Qt paints into the content layer, underneath this one.
-    layer.hidden = m_crash_overlay && !m_crash_overlay->isHidden();
+    // Overlays are child widgets that Qt paints into the content layer, underneath this one.
+    layer.hidden = is_page_covered_by_overlay();
     return true;
 }
 

@@ -82,6 +82,7 @@ using WebContentViewBase = QWidget;
 
 class CrashOverlayUrlLabel;
 class CrashReportReviewWidget;
+class PageOverlay;
 class SelectDropdown;
 
 struct WebContentViewInitialState {
@@ -219,6 +220,8 @@ private:
     void set_crash_overlay_visible(bool);
     void show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name = {});
 
+    bool is_page_covered_by_overlay() const;
+
 #if !defined(Q_OS_WIN)
     virtual void accessibilityActiveChanged(bool active) override;
     void fetch_accessibility_tree();
@@ -262,7 +265,7 @@ private:
 
     SelectDropdown* m_select_dropdown { nullptr };
 
-    QWidget* m_crash_overlay { nullptr };
+    PageOverlay* m_crash_overlay { nullptr };
     CrashOverlayUrlLabel* m_crash_overlay_url { nullptr };
     QLabel* m_crash_overlay_message { nullptr };
     QPushButton* m_crash_overlay_reload_button { nullptr };
