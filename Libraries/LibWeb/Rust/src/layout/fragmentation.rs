@@ -82,6 +82,20 @@ pub(crate) fn is_forced_column_break(value: u8) -> bool {
     value == break_between::COLUMN
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ColumnRow {
+    pub(crate) block_offset: CssPixels,
+    pub(crate) block_size: CssPixels,
+    pub(crate) column_count: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct MulticolLayoutData {
+    pub(crate) column_inline_size: CssPixels,
+    pub(crate) column_gap: CssPixels,
+    pub(crate) rows: Vec<ColumnRow>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum BlockResume {
     BeforeChild { child: Node, after_forced_break: bool },

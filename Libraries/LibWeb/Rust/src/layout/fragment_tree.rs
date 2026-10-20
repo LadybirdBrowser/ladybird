@@ -34,6 +34,7 @@ pub(crate) struct Fragment {
     pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
+    pub(crate) multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     /// Boxed, as only SVG boxes have any and the facts are larger than the rest of the fragment's box.
     pub(crate) svg: Option<Box<CommittedSvgFacts>>,
@@ -91,6 +92,7 @@ impl Fragment {
             && self.collapsed_table_borders.is_none()
             && self.grid_layout_data.is_none()
             && self.flex_layout_data.is_none()
+            && self.multicol_layout_data.is_none()
             && self.used_grid_tracks.is_none()
             && self.svg.is_none()
             && self.computed_svg_path.is_none()
@@ -131,6 +133,7 @@ impl Fragment {
             )
             && same_allocation(self.grid_layout_data.as_ref(), previous.grid_layout_data.as_ref())
             && same_allocation(self.flex_layout_data.as_ref(), previous.flex_layout_data.as_ref())
+            && self.multicol_layout_data == previous.multicol_layout_data
             && same_allocation(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
             && self.svg == previous.svg
             && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
@@ -236,6 +239,7 @@ impl FragmentLink {
                 line_data: None,
                 grid_layout_data: None,
                 flex_layout_data: None,
+                multicol_layout_data: None,
                 used_grid_tracks: None,
                 svg: None,
                 computed_svg_path: None,
@@ -405,6 +409,7 @@ struct CommittedRarePayloads {
     collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
     grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
     flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
+    multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
     used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     svg: CommittedSvgFacts,
     computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
@@ -428,6 +433,7 @@ fn snapshot_fragment(
                 collapsed_table_borders: rare.collapsed_table_borders.take(),
                 grid_layout_data: rare.grid_layout_data.take(),
                 flex_layout_data: rare.flex_layout_data.take(),
+                multicol_layout_data: rare.multicol_layout_data.take(),
                 used_grid_tracks: rare.used_grid_tracks.take(),
                 svg: rare.svg,
                 computed_svg_path: rare.computed_svg_path.take(),
@@ -439,6 +445,7 @@ fn snapshot_fragment(
         collapsed_table_borders,
         grid_layout_data,
         flex_layout_data,
+        multicol_layout_data,
         used_grid_tracks,
         svg,
         computed_svg_path,
@@ -470,6 +477,7 @@ fn snapshot_fragment(
         line_data,
         grid_layout_data,
         flex_layout_data,
+        multicol_layout_data,
         used_grid_tracks,
         svg: (svg != CommittedSvgFacts::default()).then(|| Box::new(svg)),
         computed_svg_path,

@@ -32,7 +32,7 @@ pub use crate::painting::paintable_data::BorderEdge;
 
 pub(crate) const ALL_PIECE_EDGES: u8 = PIECE_EDGE_TOP | PIECE_EDGE_RIGHT | PIECE_EDGE_BOTTOM | PIECE_EDGE_LEFT;
 
-fn border_side(
+pub(crate) fn border_side(
     converter: &DevicePixelConverter,
     present: bool,
     color: u32,

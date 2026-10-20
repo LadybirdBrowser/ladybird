@@ -11,6 +11,7 @@ pub mod background;
 pub mod background_resolution;
 pub mod border;
 pub mod border_image;
+pub mod column_rule;
 pub mod fieldset;
 pub mod form_controls;
 pub mod gradient_resolution;
@@ -66,6 +67,7 @@ pub(crate) fn paint_phase_mask<O: Observer>(
         if facts.paints_border_image
             || style_queries::has_css_borders(style)
             || crate::painting::border_shape::has_border_shape(style)
+            || facts.paints_column_rules
         {
             phases |= PaintPhase::Border.bit();
         }
@@ -227,12 +229,15 @@ pub(crate) fn paint_base_with<O: Observer>(
             shadow::paint_box_shadow(recorder, paintable, border_box_rect, padding_box_rect, border_radii);
         }
     }
-    if phase == PaintPhase::Border
-        && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(recorder.source, paintable)
-        && !facts.empty_cells_property_applies
-    {
+    if phase == PaintPhase::Border && !facts.empty_cells_property_applies {
         let previous = set_own_background_as_contrast_backdrop(recorder, paintable);
-        border::paint_box_borders_from_style(recorder, paintable, &facts);
+        if !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(recorder.source, paintable) {
+            border::paint_box_borders_from_style(recorder, paintable, &facts);
+        }
+        if facts.paints_column_rules {
+            let context = recorder.for_descendants_context(paintable);
+            recorder.with_context(context, |recorder| column_rule::paint_column_rules(recorder, paintable));
+        }
         recorder.recorder.set_contrast_backdrop(previous);
     }
     if phase == PaintPhase::TableCollapsedBorder {

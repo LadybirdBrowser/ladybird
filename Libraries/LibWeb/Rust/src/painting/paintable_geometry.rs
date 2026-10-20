@@ -124,6 +124,15 @@ pub(crate) fn committed_grid_layout_data(
     })
 }
 
+pub(crate) fn committed_multicol_layout_data(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+) -> Option<std::sync::Arc<crate::layout::fragmentation::MulticolLayoutData>> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.multicol_layout_data.clone())
+    })
+}
+
 pub(crate) fn committed_flex_layout_data(
     arena: &impl GeometryRead,
     slot: NodeSlotId,

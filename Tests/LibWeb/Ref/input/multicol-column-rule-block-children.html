@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/multicol-column-rule-block-children-ref.html">
+<style>
+body { margin: 0; }
+.multicol { columns: 3; column-gap: 20px; column-rule: 4px solid green; width: 340px; margin-bottom: 10px; }
+.multicol > div { height: 30px; background: blue; overflow: hidden; }
+</style>
+<div class="multicol">
+    <div></div><div></div><div></div><div></div><div></div><div></div>
+</div>
+<div class="multicol" style="columns: 4; column-rule: 6px inset rgb(0, 128, 0)">
+    <div></div><div></div>
+</div>

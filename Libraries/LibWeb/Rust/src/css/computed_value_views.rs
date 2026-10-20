@@ -425,6 +425,9 @@ scalar_accessors! {
     misc_reset: {
         appearance: u8 => appearance,
         column_fill: u8 => column_fill,
+        column_rule_style: u8 => column_rule_style,
+        column_rule_width: CssPixels => column_rule_width,
+        column_rule_color: u32 => column_rule_color,
         break_before: u8 => break_before,
         break_after: u8 => break_after,
     }
