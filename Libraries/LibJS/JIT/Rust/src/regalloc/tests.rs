@@ -375,6 +375,105 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
 }
 
 #[test]
+fn loops_leave_the_values_they_only_carry_through_in_their_stack_slots() {
+    // r(5) to r(9) are live across the call, back in registers before the loop and used only after it. With them in
+    // registers, the six registers would not hold the counter, the bound and `last` as well. The loop leaves them in
+    // their stack slots, so that its back edge neither reloads them nor stores the counter. r(11) is live across the
+    // call too, and the loop only uses it as the input of `last`'s phi: it keeps its register.
+    let layout = FrameLayout {
+        number_of_registers: 16,
+        registers_and_locals_count: 18,
+        number_of_constants: 0,
+        number_of_arguments: 1,
+    };
+    let r = Operand::from_raw;
+    let (counter, last, argument) = (Operand::from_raw(16), Operand::from_raw(17), Operand::from_raw(18));
+    let xor = |arith_feedback, dst, lhs, rhs| Instruction::BitwiseXor {
+        arith_feedback,
+        dst,
+        lhs,
+        rhs,
+    };
+    let program = assemble(|label| {
+        vec![
+            Instruction::Enter,
+            xor(0, r(5), argument, argument),
+            xor(1, r(6), r(5), argument),
+            xor(2, r(7), r(6), argument),
+            xor(3, r(8), r(7), argument),
+            xor(4, r(9), r(8), argument),
+            xor(14, r(11), r(9), argument),
+            Instruction::Call {
+                value_feedback: 0,
+                call_feedback: 0,
+                dst: r(14),
+                callee: r(15),
+                this_value: r(15),
+                argument_count: 0,
+                expression_string: None,
+                arguments: vec![],
+            },
+            xor(5, r(10), r(5), r(6)),
+            xor(6, r(12), r(7), r(11)),
+            Instruction::Mov {
+                dst: counter,
+                src: r(10),
+            },
+            Instruction::Mov { dst: last, src: r(5) },
+            Instruction::JumpLessThan {
+                arith_feedback: 8,
+                lhs: counter,
+                rhs: r(12),
+                true_target: label(13),
+                false_target: label(16),
+            },
+            Instruction::Increment {
+                arith_feedback: 9,
+                dst: counter,
+            },
+            Instruction::Mov { dst: last, src: r(11) },
+            Instruction::Jump { target: label(12) },
+            xor(10, r(13), r(5), r(6)),
+            xor(11, r(13), r(13), r(7)),
+            xor(12, r(13), r(13), r(8)),
+            xor(13, r(13), r(13), r(9)),
+            xor(15, r(13), r(13), last),
+            Instruction::Return { value: r(13) },
+        ]
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, layout);
+    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 16];
+    let graph = crate::builder::tests::optimized_graph(&snapshot);
+    let allocation = allocate_and_verify(&graph);
+    let header = graph.blocks.iter().position(|block| block.is_loop_header).unwrap();
+    assert_eq!(
+        graph.blocks[header].phis.len(),
+        2,
+        "{}",
+        dump_allocation(&graph, &allocation)
+    );
+    let back_edge = *graph.blocks[header]
+        .predecessors
+        .iter()
+        .find(|predecessor| predecessor.index() > header)
+        .unwrap();
+    assert!(
+        allocation.block_end_moves[back_edge.index()]
+            .iter()
+            .all(|m| !matches!(m.from, Location::Stack(_)) && !matches!(m.to, Location::Stack(_))),
+        "{}",
+        dump_allocation(&graph, &allocation)
+    );
+    for phi in &graph.blocks[header].phis {
+        assert!(
+            matches!(allocation.node(*phi).output, Some(Location::Register(_))),
+            "{}",
+            dump_allocation(&graph, &allocation)
+        );
+    }
+}
+
+#[test]
 fn int32_operations_write_over_their_first_input_where_it_dies() {
     // The first XOR's value dies at the second, whose output then takes its
     // register: two-address instructions need no copy of it.

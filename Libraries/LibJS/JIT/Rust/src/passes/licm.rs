@@ -124,16 +124,7 @@ fn find_loops(graph: &Graph, dominators: &Dominators) -> Vec<Loop> {
         if back_edge_sources.is_empty() {
             continue;
         }
-        let mut blocks = BitSet::new(graph.blocks.len());
-        blocks.insert(index);
-        let mut pending = back_edge_sources.clone();
-        while let Some(block) = pending.pop() {
-            if blocks.contains(block.index()) {
-                continue;
-            }
-            blocks.insert(block.index());
-            pending.extend(graph.block(block).predecessors.iter().copied());
-        }
+        let blocks = dominators.loop_blocks(graph, header, &back_edge_sources);
         let entries = block
             .predecessors
             .iter()

@@ -10,6 +10,7 @@
 //! immediate dominator, and neither has a block reached from several
 //! entries.
 
+use crate::bitset::BitSet;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 
@@ -104,6 +105,23 @@ impl Dominators {
             .copied()
             .filter(|predecessor| self.dominates(header, *predecessor))
             .collect()
+    }
+
+    /// The blocks of the loop that `header` heads, with back edges from
+    /// `back_edge_sources`: the header and every reachable block that reaches
+    /// one of them without going through it.
+    pub fn loop_blocks(&self, graph: &Graph, header: BlockId, back_edge_sources: &[BlockId]) -> BitSet {
+        let mut blocks = BitSet::new(graph.blocks.len());
+        blocks.insert(header.index());
+        let mut pending = back_edge_sources.to_vec();
+        while let Some(block) = pending.pop() {
+            if blocks.contains(block.index()) || !self.is_reachable(block) {
+                continue;
+            }
+            blocks.insert(block.index());
+            pending.extend(graph.block(block).predecessors.iter().copied());
+        }
+        blocks
     }
 
     /// Whether every iteration of a loop with back edges from

@@ -31,7 +31,8 @@ pub(super) struct ValueLiveness {
     pub needs_spill: BitSet,
     /// The position of each node in linear order.
     pub positions: Vec<u32>,
-    /// For each value, the positions of the nodes that use it as an input, in order.
+    /// For each value, the positions of the nodes that use it as an input, in order. A phi input is used at the
+    /// control node of its predecessor, where the moves into the phis are.
     pub use_positions: Vec<Vec<u32>>,
 }
 
@@ -129,6 +130,13 @@ impl ValueLiveness {
                     }
                 }
                 position += 1;
+            }
+            for successor in graph.successors(block) {
+                for (_, input) in phi_inputs_from(graph, block, successor) {
+                    if is_allocated_value(graph, input) {
+                        use_positions[input.index()].push(position - 1);
+                    }
+                }
             }
         }
 
