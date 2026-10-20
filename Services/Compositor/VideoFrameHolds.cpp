@@ -17,7 +17,7 @@ void VideoFrameHolds::add_sink(Media::VideoSinkHandle handle, NonnullRefPtr<Vide
     // WebContent may already hold generation 0.
     if (auto sink = m_sinks.get(handle); sink.has_value())
         retire_current_generation(handle, *sink, VideoFramePresentationPage::retired_generation);
-    m_sinks.set(handle, Sink { .page = move(page), .generation = 0, .frame = nullptr });
+    m_sinks.set(handle, Sink { .page = move(page), .generation = 0, .frame = nullptr, .presented_frame = {} });
 }
 
 void VideoFrameHolds::remove_sink(Media::VideoSinkHandle handle)
@@ -29,25 +29,46 @@ void VideoFrameHolds::remove_sink(Media::VideoSinkHandle handle)
     m_sinks.remove(handle);
 }
 
-void VideoFrameHolds::present_frame(Media::VideoSinkHandle handle, RefPtr<Media::VideoFrame> frame)
+void VideoFrameHolds::present_frame(Media::VideoSinkHandle handle, RefPtr<Media::VideoFrame> frame, Media::DisplayingVideoSinkFrameCounts new_frame_counts)
 {
     auto sink = m_sinks.get(handle);
-    if (!sink.has_value() || sink->frame == frame)
+    if (!sink.has_value())
         return;
+    if (sink->frame == frame) {
+        add_frame_counts(handle, new_frame_counts);
+        return;
+    }
     auto next_generation = sink->generation + 1;
     retire_current_generation(handle, *sink, next_generation);
     sink->generation = next_generation;
     sink->frame = move(frame);
 
-    Compositing::VideoFramePresentationPage::PresentedFrame presented_frame { .generation = next_generation, .presentation_time = MonotonicTime::now() };
+    auto& presented_frame = sink->presented_frame;
+    presented_frame.generation = next_generation;
+    presented_frame.presentation_time = MonotonicTime::now();
+    presented_frame.media_time = AK::Duration::zero();
+    presented_frame.width = 0;
+    presented_frame.height = 0;
+    presented_frame.presented_frame_count += new_frame_counts.presented;
+    presented_frame.dropped_frame_count += new_frame_counts.dropped;
     if (sink->frame) {
-        sink->presented_frame_count++;
         presented_frame.media_time = sink->frame->timestamp();
         presented_frame.width = sink->frame->width();
         presented_frame.height = sink->frame->height();
     }
-    presented_frame.presented_frame_count = sink->presented_frame_count;
     sink->page->publish_presented_frame(presented_frame);
+}
+
+void VideoFrameHolds::add_frame_counts(Media::VideoSinkHandle handle, Media::DisplayingVideoSinkFrameCounts new_frame_counts)
+{
+    auto sink = m_sinks.get(handle);
+    if (!sink.has_value())
+        return;
+    if (new_frame_counts.is_zero())
+        return;
+    sink->presented_frame.presented_frame_count += new_frame_counts.presented;
+    sink->presented_frame.dropped_frame_count += new_frame_counts.dropped;
+    sink->page->publish_presented_frame(sink->presented_frame);
 }
 
 void VideoFrameHolds::retire_current_generation(Media::VideoSinkHandle handle, Sink& sink, u64 next_generation)

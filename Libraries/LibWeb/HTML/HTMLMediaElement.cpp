@@ -97,8 +97,7 @@ public:
             return;
         unregister();
         m_compositor_host = &compositor_host;
-        m_frames_presented_on_earlier_pages += m_frames_presented_on_this_page;
-        m_frames_presented_on_this_page = 0;
+        m_frame_counts_of_earlier_pages += exchange(m_frame_counts_of_this_page, {});
         m_presentation_page = MUST(Compositing::VideoFramePresentationPage::create());
         m_compositor_host->add_video_sink(m_handle, *m_presentation_page);
     }
@@ -139,7 +138,7 @@ public:
             auto presented_frame = m_presentation_page->presented_frame();
             if (!presented_frame.has_value())
                 return {};
-            m_frames_presented_on_this_page = presented_frame->presented_frame_count;
+            note_frame_counts(*presented_frame);
             if (presented_frame->presented_frame_count == 0)
                 return {};
             auto hold = Compositing::VideoFrameHold::hold_frame_of_generation(*m_presentation_page, m_handle, presented_frame->generation, m_compositor_host->video_frame_hold_releaser_for_current_connection());
@@ -147,7 +146,7 @@ public:
                 continue;
             m_hold_for_video_frame_callbacks = move(hold);
             return PresentedVideoFrame {
-                .presented_frames = total_presented_frames(),
+                .presented_frames = frame_counts().presented,
                 .media_time = presented_frame->media_time,
                 .presentation_time = presented_frame->presentation_time,
                 .width = presented_frame->width,
@@ -159,13 +158,13 @@ public:
 
     void release_frame_held_for_video_frame_callbacks() { m_hold_for_video_frame_callbacks = nullptr; }
 
-    u64 total_presented_frames()
+    VideoFrameCounts frame_counts()
     {
         if (m_presentation_page) {
             if (auto presented_frame = m_presentation_page->presented_frame(); presented_frame.has_value())
-                m_frames_presented_on_this_page = presented_frame->presented_frame_count;
+                note_frame_counts(*presented_frame);
         }
-        return m_frames_presented_on_earlier_pages + m_frames_presented_on_this_page;
+        return m_frame_counts_of_earlier_pages + m_frame_counts_of_this_page;
     }
 
 private:
@@ -175,8 +174,13 @@ private:
     RefPtr<Compositing::VideoFramePresentationPage> m_presentation_page;
     WeakPtr<Compositing::VideoFrameHold> m_latest_hold;
     RefPtr<Compositing::VideoFrameHold> m_hold_for_video_frame_callbacks;
-    u64 m_frames_presented_on_earlier_pages { 0 };
-    u64 m_frames_presented_on_this_page { 0 };
+    void note_frame_counts(Compositing::VideoFramePresentationPage::PresentedFrame const& presented_frame)
+    {
+        m_frame_counts_of_this_page = { .presented = presented_frame.presented_frame_count, .dropped = presented_frame.dropped_frame_count };
+    }
+
+    VideoFrameCounts m_frame_counts_of_earlier_pages;
+    VideoFrameCounts m_frame_counts_of_this_page;
 };
 
 static u64 s_next_remote_fetch_data_id = 0;
@@ -876,6 +880,10 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
 WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
     m_has_fired_loadeddata = false;
+
+    // https://w3c.github.io/media-playback-quality/#concepts
+    // NB: The total and dropped video frame counts are "reset to 0 when the media element load algorithm is invoked".
+    m_video_frame_counts_at_last_load = video_frame_counts();
 
     // FIXME: 1. Set this element's is currently stalled to false.
 
@@ -2011,12 +2019,12 @@ Optional<Compositing::CapturedVideoFrame> HTMLMediaElement::capture_current_vide
     return m_active_video_sink->capture_current_frame();
 }
 
-u64 HTMLMediaElement::presented_video_frame_count() const
+HTMLMediaElement::VideoFrameCounts HTMLMediaElement::video_frame_counts() const
 {
-    auto presented_frames = m_frames_presented_by_released_video_sinks;
+    auto frame_counts = m_frame_counts_of_released_video_sinks;
     if (m_active_video_sink)
-        presented_frames += m_active_video_sink->total_presented_frames();
-    return presented_frames;
+        frame_counts += m_active_video_sink->frame_counts();
+    return frame_counts;
 }
 
 Optional<HTMLMediaElement::PresentedVideoFrame> HTMLMediaElement::hold_presented_video_frame_for_callbacks()
@@ -2025,7 +2033,7 @@ Optional<HTMLMediaElement::PresentedVideoFrame> HTMLMediaElement::hold_presented
         return {};
     auto presented_frame = m_active_video_sink->hold_presented_frame_for_video_frame_callbacks();
     if (presented_frame.has_value())
-        presented_frame->presented_frames += m_frames_presented_by_released_video_sinks;
+        presented_frame->presented_frames += m_frame_counts_of_released_video_sinks.presented;
     return presented_frame;
 }
 
@@ -2077,7 +2085,7 @@ void HTMLMediaElement::release_active_video_sink()
 {
     auto handle = video_sink_handle();
     if (m_active_video_sink)
-        m_frames_presented_by_released_video_sinks += m_active_video_sink->total_presented_frames();
+        m_frame_counts_of_released_video_sinks += m_active_video_sink->frame_counts();
     m_active_video_sink.clear();
     if (m_playback_manager && handle.has_value())
         m_playback_manager->disable_video_sink_by_handle(*handle);

@@ -314,7 +314,7 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
     sink_state->sink = sink;
     sink->set_on_present_needed([this, &client, handle] {
         if (auto* sink_state = video_sink_state(client, handle); sink_state && sink_state->sink)
-            client.video_sink_presented_frame(handle, sink_state->sink->current_frame());
+            client.video_sink_presented_frame(handle, sink_state->sink->current_frame(), sink_state->sink->take_frame_counts());
         present_contexts_drawing_video_sink(client, handle);
         update_unpainted_video_update_scheduling();
     });
@@ -430,6 +430,11 @@ CompositorState::VideoSinkUpdateResult CompositorState::update_all_video_sinks()
             auto is_painted = video_sink_is_painted_by_any_context(client_entry.key, sink_entry.key);
             sink_state.requires_updates = video_sink_updates_are_needed(sink_state)
                 && sink_state.sink->update(now).may_require_updates;
+            Media::DisplayingVideoSinkFrameCounts frame_counts;
+            if (sink_state.sink)
+                frame_counts = sink_state.sink->take_frame_counts();
+            if (!frame_counts.is_zero())
+                client_entry.key->video_sink_counted_frames(sink_entry.key, frame_counts);
             if (!is_painted && sink_state.requires_updates)
                 result = VideoSinkUpdateResult::UnpaintedSinkRequiresUpdates;
         }

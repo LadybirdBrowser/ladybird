@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/VideoPlaybackQuality.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/HTML/Window.h>
@@ -539,7 +540,7 @@ WebIDL::UnsignedLong HTMLVideoElement::request_video_frame_callback(GC::Ref<WebI
     // AD-HOC: Callbacks are "fired the next time a frame is presented to the compositor", so to ensure we don't invoke
     //         the callback on a frame that was presented before the request, update the identifier here.
     if (m_list_of_video_frame_request_callbacks.is_empty())
-        m_last_presented_frame_identifier = presented_video_frame_count();
+        m_last_presented_frame_identifier = video_frame_counts().presented;
 
     // 4. Append callback to video's list of video frame request callbacks, associated with callbackId.
     m_list_of_video_frame_request_callbacks.append({ .handle = callback_id, .callback = callback });
@@ -643,6 +644,24 @@ void HTMLVideoElement::request_rendering_update_for_video_frame_callbacks()
     auto may_present_a_frame = potentially_playing() || seeking() || ready_state() < ReadyState::HaveCurrentData;
     if (may_present_a_frame)
         document().page().client().request_frame();
+}
+
+// https://w3c.github.io/media-playback-quality/#dom-htmlvideoelement-getvideoplaybackquality
+GC::Ref<VideoPlaybackQuality> HTMLVideoElement::get_video_playback_quality()
+{
+    auto frame_counts = video_frame_counts_since_last_load();
+    auto clamp_count = [](u64 count) { return static_cast<WebIDL::UnsignedLong>(min(count, NumericLimits<WebIDL::UnsignedLong>::max())); };
+
+    // 1. Let playbackQuality be a new instance of VideoPlaybackQuality.
+    // 2. Set playbackQuality.creationTime to the current high resolution time.
+    // 3. Set playbackQuality.totalVideoFrames to the current value of the total video frame count.
+    // 4. Set playbackQuality.droppedVideoFrames to the current value of the dropped video frame count.
+    // 5. [DEPRECATED] Set playbackQuality.corruptedVideoFrames to the current value of the corrupted video frame count.
+    // 6. Return playbackQuality.
+    return VideoPlaybackQuality::create(
+        HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)),
+        clamp_count(frame_counts.dropped),
+        clamp_count(frame_counts.presented + frame_counts.dropped));
 }
 
 }

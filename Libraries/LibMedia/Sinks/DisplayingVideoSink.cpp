@@ -131,6 +131,11 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
     auto time_state = m_time_reader.time_state(now);
     auto current_time = time_state.time;
     auto new_frame_available = false;
+    u64 passed_frame_count = 0;
+    auto last_passed_frame_was_late = false;
+    Optional<AK::Duration> last_passed_timestamp;
+    if (m_current_frame)
+        last_passed_timestamp = m_current_frame->timestamp();
 
     auto last_status = PipelineStatus::Pending;
     auto seek_resolved_during_this_update = false;
@@ -150,6 +155,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         }
         if (m_seek_status != SeekStatus::None && resolves_seek(last_status)) {
             m_current_frame.clear();
+            last_passed_timestamp.clear();
             m_seek_status = SeekStatus::None;
             seek_resolved_during_this_update = true;
             new_frame_available = true;
@@ -159,7 +165,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         if (m_next_frame->timestamp() > current_time)
             break;
 
-        if (m_current_frame && m_current_frame->timestamp() > m_next_frame->timestamp()) {
+        if (last_passed_timestamp.has_value() && last_passed_timestamp.value() > m_next_frame->timestamp()) {
             m_next_frame.clear();
             continue;
         }
@@ -177,6 +183,11 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             last_status = next.status;
             if (!is_terminal(last_status)) {
                 if (last_status == PipelineStatus::HaveData) {
+                    if (!m_seek_resolution_is_pending_frame_at_target) {
+                        passed_frame_count++;
+                        last_passed_frame_was_late = true;
+                    }
+                    last_passed_timestamp = m_next_frame->timestamp();
                     m_next_frame = move(next.frame);
                     m_input->consume();
                     m_cached_frames_are_discontinuous = true;
@@ -188,7 +199,18 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         m_current_frame = m_next_frame.release_nonnull();
         m_cached_frames_are_discontinuous = false;
         new_frame_available = true;
+        last_passed_timestamp = m_current_frame->timestamp();
+        if (m_seek_resolution_is_pending_frame_at_target)
+            passed_frame_count = 1;
+        else
+            passed_frame_count++;
+        last_passed_frame_was_late = false;
     }
+
+    if (last_passed_frame_was_late)
+        m_frame_counts.dropped += passed_frame_count;
+    else
+        m_frame_counts.presented += passed_frame_count;
 
     auto status_to_dispatch = last_status;
 

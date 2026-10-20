@@ -26,6 +26,13 @@ struct DisplayingVideoSinkUpdateResult {
     bool may_require_updates { false };
 };
 
+struct DisplayingVideoSinkFrameCounts {
+    u64 presented { 0 };
+    u64 dropped { 0 };
+
+    bool is_zero() const { return presented == 0 && dropped == 0; }
+};
+
 class MEDIA_API DisplayingVideoSink final : public VideoSink
     , public ThreadSafeWeakable<DisplayingVideoSink> {
 public:
@@ -46,6 +53,7 @@ public:
 
     DisplayingVideoSinkUpdateResult update(MonotonicTime now);
     RefPtr<VideoFrame> current_frame() const;
+    DisplayingVideoSinkFrameCounts take_frame_counts() { return exchange(m_frame_counts, {}); }
 
     void set_on_present_needed(Function<void()> handler) { m_on_present_needed = move(handler); }
 
@@ -59,6 +67,7 @@ private:
     RefPtr<VideoFrame> m_current_frame;
     bool m_cached_frames_are_discontinuous { false };
     bool m_seek_resolution_is_pending_frame_at_target { false };
+    DisplayingVideoSinkFrameCounts m_frame_counts;
 
     enum class SeekStatus : u8 {
         None,

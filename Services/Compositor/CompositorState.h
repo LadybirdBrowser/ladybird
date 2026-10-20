@@ -30,6 +30,7 @@
 #include <LibGfx/Size.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaCodecs/VideoFramePool.h>
 
@@ -64,7 +65,8 @@ public:
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) = 0;
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
-    virtual void video_sink_presented_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>) { }
+    virtual void video_sink_presented_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>, Media::DisplayingVideoSinkFrameCounts) { }
+    virtual void video_sink_counted_frames(Media::VideoSinkHandle, Media::DisplayingVideoSinkFrameCounts) { }
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) = 0;
     // The owner of this client's canvases, which are the only ones its contexts may draw.
     virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const = 0;

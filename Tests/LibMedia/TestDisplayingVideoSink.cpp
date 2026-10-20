@@ -260,6 +260,174 @@ TEST_CASE(seek_past_the_cached_frames_waits_for_the_frame_at_the_target)
     EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::HaveData }));
 }
 
+TEST_CASE(frames_passed_while_waiting_on_a_late_frame_are_counted_as_dropped)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    // Both frames are late, and the second waits for a frame after it to replace it.
+    clock->seek(AK::Duration::from_milliseconds(1200));
+    for (auto timestamp : { 1040, 1080 })
+        producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(timestamp), AK::Duration::from_milliseconds(40)));
+    EXPECT(!sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1000));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 0u);
+    EXPECT_EQ(frame_counts.dropped, 1u);
+    EXPECT(sink->take_frame_counts().is_zero());
+}
+
+TEST_CASE(frames_passed_by_an_update_landing_on_time_are_counted_as_presented)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(4)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    // Updates spaced further apart than the frames make the oldest ones late, but the frame landed on is on time.
+    clock->seek(AK::Duration::from_milliseconds(1016));
+    for (auto timestamp : { 1004, 1008, 1012, 1016 })
+        producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(timestamp), AK::Duration::from_milliseconds(4)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1016));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 4u);
+    EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
+TEST_CASE(frames_passed_by_a_seek_within_the_cached_frames_are_not_counted)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    // A long frame followed by a short one, so that a seek within the long one's conservative end lands after the
+    // short one's.
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(100)));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1100), AK::Duration::from_milliseconds(10)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1110), AK::Duration::from_milliseconds(40)));
+    clock->seek(AK::Duration::from_milliseconds(1120));
+    sink->seek(AK::Duration::from_milliseconds(1120));
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1110));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 1u);
+    EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
+TEST_CASE(frames_replaced_within_an_update_are_presented_when_the_last_one_is_on_time)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    // Both frames are due and neither is late, so the update passes over the first.
+    clock->seek(AK::Duration::from_milliseconds(1090));
+    for (auto timestamp : { 1040, 1080 })
+        producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(timestamp), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1080));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 2u);
+    EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
+TEST_CASE(frames_passed_for_a_late_frame_ending_the_stream_are_counted_as_presented)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    // A long frame that is still on time is replaced by a short one that is already late, but is presented because
+    // the stream ends after it.
+    clock->seek(AK::Duration::from_milliseconds(1150));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1040), AK::Duration::from_milliseconds(100)));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1100), AK::Duration::from_milliseconds(10)));
+    producer->append_output(nullptr, Media::PipelineStatus::EndOfStream);
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1100));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 2u);
+    EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
+TEST_CASE(frames_out_of_order_with_a_passed_frame_are_not_counted)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    // The frame at 1020 follows the current frame, but precedes the late frame skipped before it.
+    clock->seek(AK::Duration::from_milliseconds(1200));
+    for (auto timestamp : { 1040, 1020, 1180 })
+        producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(timestamp), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1180));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 2u);
+    EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
 // The input reaching its end leaves the last frame on screen until its interval ends, and only an update after that
 // can report the end of the stream.
 TEST_CASE(updates_are_required_until_the_last_frame_finishes_presenting)

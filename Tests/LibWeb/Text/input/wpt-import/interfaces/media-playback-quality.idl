@@ -1,0 +1,18 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Media Playback Quality (https://w3c.github.io/media-playback-quality/)
+
+partial interface HTMLVideoElement {
+  VideoPlaybackQuality getVideoPlaybackQuality();
+};
+
+[Exposed=Window]
+interface VideoPlaybackQuality {
+  readonly attribute DOMHighResTimeStamp creationTime;
+  readonly attribute unsigned long droppedVideoFrames;
+  readonly attribute unsigned long totalVideoFrames;
+
+  // Deprecated!
+  readonly attribute unsigned long corruptedVideoFrames;
+};

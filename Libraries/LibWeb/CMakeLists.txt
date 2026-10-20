@@ -691,6 +691,7 @@ set(SOURCES
     HTML/UserNavigationInvolvement.cpp
     HTML/UniversalGlobalScope.cpp
     HTML/ValidityState.cpp
+    HTML/VideoPlaybackQuality.cpp
     HTML/VideoTrack.cpp
     HTML/VideoTrackList.cpp
     HTML/WebViewHints.cpp

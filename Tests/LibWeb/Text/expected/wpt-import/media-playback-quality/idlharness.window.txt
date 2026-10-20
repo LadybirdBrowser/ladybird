@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 30 tests
+
+30 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface HTMLVideoElement: original interface defined
+Pass	Partial interface HTMLVideoElement: member names are unique
+Pass	Partial interface Element: member names are unique
+Pass	HTMLElement includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes ElementContentEditable: member names are unique
+Pass	HTMLElement includes HTMLOrSVGElement: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	VideoPlaybackQuality interface: existence and properties of interface object
+Pass	VideoPlaybackQuality interface object length
+Pass	VideoPlaybackQuality interface object name
+Pass	VideoPlaybackQuality interface: existence and properties of interface prototype object
+Pass	VideoPlaybackQuality interface: existence and properties of interface prototype object's "constructor" property
+Pass	VideoPlaybackQuality interface: existence and properties of interface prototype object's @@unscopables property
+Pass	VideoPlaybackQuality interface: attribute creationTime
+Pass	VideoPlaybackQuality interface: attribute droppedVideoFrames
+Pass	VideoPlaybackQuality interface: attribute totalVideoFrames
+Pass	VideoPlaybackQuality interface: attribute corruptedVideoFrames
+Pass	VideoPlaybackQuality must be primary interface of videoPlaybackQuality
+Pass	Stringification of videoPlaybackQuality
+Pass	VideoPlaybackQuality interface: videoPlaybackQuality must inherit property "creationTime" with the proper type
+Pass	VideoPlaybackQuality interface: videoPlaybackQuality must inherit property "droppedVideoFrames" with the proper type
+Pass	VideoPlaybackQuality interface: videoPlaybackQuality must inherit property "totalVideoFrames" with the proper type
+Pass	VideoPlaybackQuality interface: videoPlaybackQuality must inherit property "corruptedVideoFrames" with the proper type
+Pass	HTMLVideoElement interface: operation getVideoPlaybackQuality()
+Pass	HTMLVideoElement interface: video must inherit property "getVideoPlaybackQuality()" with the proper type
