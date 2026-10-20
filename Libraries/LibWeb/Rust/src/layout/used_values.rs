@@ -244,6 +244,7 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) svg: CommittedSvgFacts,
     pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
+    pub(crate) multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
@@ -257,6 +258,7 @@ impl UsedValuesRareData {
             svg,
             grid_layout_data,
             flex_layout_data,
+            multicol_layout_data,
             used_grid_tracks,
             collapsed_table_borders,
             abspos_layout_inputs,
@@ -270,6 +272,7 @@ impl UsedValuesRareData {
             && svg == CommittedSvgFacts::default()
             && grid_layout_data.is_none()
             && flex_layout_data.is_none()
+            && multicol_layout_data.is_none()
             && used_grid_tracks.is_none()
             && collapsed_table_borders.is_none()
         {
@@ -288,6 +291,9 @@ impl UsedValuesRareData {
         }
         if let Some(data) = flex_layout_data {
             rare.flex_layout_data = Some(data);
+        }
+        if let Some(data) = multicol_layout_data {
+            rare.multicol_layout_data = Some(data);
         }
         if let Some(tracks) = used_grid_tracks {
             rare.used_grid_tracks = Some(tracks);

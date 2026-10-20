@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/multicol-column-rule-scrolled-ref.html">
+<style>
+    body { margin: 0; }
+    #multicol { column-width: 80px; column-gap: 20px; column-rule: 4px solid red; column-fill: auto; height: 100px; width: 280px; overflow-x: scroll; scrollbar-width: none; }
+    #multicol > div { height: 100px; background: green; }
+</style>
+<div id="multicol"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+<script>
+    requestAnimationFrame(() => {
+        document.getElementById("multicol").scrollLeft = 50;
+        requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+    });
+</script>
+</html>

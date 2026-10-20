@@ -2681,8 +2681,17 @@ impl<'pass> BlockFormattingContext<'pass> {
             incoming = Some(outgoing);
             column_index += 1;
         }
-        self.multicol_automatic_content_block_size
-            .set(Some(column_block_size.unwrap_or(content_block_size)));
+        let row_block_size = column_block_size.unwrap_or(content_block_size);
+        root_used.rare_data_mut().multicol_layout_data = Some(std::sync::Arc::new(fragmentation::MulticolLayoutData {
+            column_inline_size: geometry.inline_size,
+            column_gap: geometry.gap,
+            rows: vec![fragmentation::ColumnRow {
+                block_offset: CssPixels::default(),
+                block_size: row_block_size,
+                column_count: column_index + 1,
+            }],
+        }));
+        self.multicol_automatic_content_block_size.set(Some(row_block_size));
     }
 
     fn column_block_size(

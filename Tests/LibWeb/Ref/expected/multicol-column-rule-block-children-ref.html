@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+.container { position: relative; width: 340px; margin-bottom: 10px; }
+.column { position: absolute; top: 0; width: 100px; height: 60px; background: blue; }
+.rule { position: absolute; top: 0; width: 0; border-left: 4px solid green; height: 60px; }
+</style>
+<div class="container" style="height: 60px">
+    <div class="column" style="left: 0"></div>
+    <div class="rule" style="left: 108px"></div>
+    <div class="column" style="left: 120px"></div>
+    <div class="rule" style="left: 228px"></div>
+    <div class="column" style="left: 240px"></div>
+</div>
+<div class="container" style="height: 30px">
+    <div class="column" style="left: 0; width: 70px; height: 30px"></div>
+    <div class="rule" style="left: 77px; height: 30px; border-left: 6px ridge rgb(0, 128, 0)"></div>
+    <div class="column" style="left: 90px; width: 70px; height: 30px"></div>
+</div>

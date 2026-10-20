@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; }
+    #scroller { height: 100px; width: 280px; overflow-x: scroll; scrollbar-width: none; }
+    #content { position: relative; width: 580px; height: 100px; }
+    #content > div { position: absolute; top: 0; height: 100px; }
+    .column { width: 80px; background: green; }
+    .rule { width: 4px; background: red; }
+</style>
+<div id="scroller"><div id="content">
+    <div class="column" style="left: 0"></div><div class="rule" style="left: 88px"></div>
+    <div class="column" style="left: 100px"></div><div class="rule" style="left: 188px"></div>
+    <div class="column" style="left: 200px"></div><div class="rule" style="left: 288px"></div>
+    <div class="column" style="left: 300px"></div><div class="rule" style="left: 388px"></div>
+    <div class="column" style="left: 400px"></div><div class="rule" style="left: 488px"></div>
+    <div class="column" style="left: 500px"></div>
+</div></div>
+<script>
+    requestAnimationFrame(() => {
+        document.getElementById("scroller").scrollLeft = 50;
+        requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+    });
+</script>
+</html>
