@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['column-width'] = "none" should not set the property value
+Pass	e.style['column-width'] = "10" should not set the property value
+Pass	e.style['column-width'] = "-20px" should not set the property value
+Pass	e.style['column-width'] = "30%" should not set the property value
+Pass	e.style['column-width'] = "auto 40px" should not set the property value

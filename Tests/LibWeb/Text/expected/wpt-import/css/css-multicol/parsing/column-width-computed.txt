@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property column-width value 'auto'
+Pass	Property column-width value 'calc(10px + 0.5em)'
+Pass	Property column-width value 'calc(10px - 0.5em)'

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing column-count with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-count">
+<meta name="assert" content="column-count supports only the grammar 'auto | <integer>'.">
+<meta name="assert" content="column-count rejects non-positive integers.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("column-count", "none");
+test_invalid_value("column-count", "2.5");
+test_invalid_value("column-count", "-1");
+test_invalid_value("column-count", "0");
+
+test_invalid_value("column-count", "auto 1");
+test_invalid_value("column-count", "1 234");
+</script>
+</body>
+</html>

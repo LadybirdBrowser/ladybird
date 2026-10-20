@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: getComputedStyle().columnCount</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-count">
+<meta name="assert" content="column-count computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("column-count", "auto");
+
+test_computed_value("column-count", "1");
+test_computed_value("column-count", "234");
+test_computed_value("column-count", "calc(1 + 234)", "235");
+</script>
+</body>
+</html>

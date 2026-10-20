@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Property column-count has initial value auto
+Pass	Property column-count does not inherit
+Pass	Property column-fill has initial value balance
+Pass	Property column-fill does not inherit
+Pass	Property column-rule-color has initial value rgba(42, 53, 64, 0.75)
+Pass	Property column-rule-color does not inherit
+Pass	Property column-rule-style has initial value none
+Pass	Property column-rule-style does not inherit
+Pass	Property column-rule-width has initial value 3px
+Pass	Property column-rule-width does not inherit
+Pass	Property column-span has initial value none
+Pass	Property column-span does not inherit
+Pass	Property column-width has initial value auto
+Pass	Property column-width does not inherit

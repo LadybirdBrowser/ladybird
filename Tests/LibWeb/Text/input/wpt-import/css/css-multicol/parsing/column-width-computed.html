@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: getComputedStyle().columnWidth</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-width">
+<meta name="assert" content="column-width computed value is the keyword auto or an absolute length.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+<script>
+test_computed_value("column-width", "auto");
+
+test_computed_value("column-width", "calc(10px + 0.5em)", "30px");
+test_computed_value("column-width", "calc(10px - 0.5em)", "0px");
+</script>
+</body>
+</html>

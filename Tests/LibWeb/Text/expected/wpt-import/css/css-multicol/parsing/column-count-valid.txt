@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['column-count'] = "auto" should set the property value
+Pass	e.style['column-count'] = "1" should set the property value
+Pass	e.style['column-count'] = "234" should set the property value

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Property column-count value 'auto'
+Pass	Property column-count value '1'
+Pass	Property column-count value '234'
+Pass	Property column-count value 'calc(1 + 234)'
