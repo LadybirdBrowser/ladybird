@@ -300,7 +300,13 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         .owners = move(owners),
         .inside_settings = move(inside_settings),
         .may_read_local_files = may_read_local_files,
+        .script_blob_url = {},
     };
+
+    // NB: The worker's URL was parsed with its blob URL entry, so revoking the URL must not stop the worker from
+    //     fetching its script.
+    if (auto session = client->session())
+        agent.script_blob_url = BlobURLHandle::for_url(session->blob_url_store.ptr(), request.url);
 
     if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         agent.shared_worker_key = SharedWorkerKey {
@@ -551,6 +557,7 @@ void WorkerProcessManager::worker_did_finish_loading_script(Web::HTML::WorkerAge
 
     auto& agent = maybe_agent->value;
     agent.worker_is_secure_context = worker_is_secure_context;
+    agent.script_blob_url = {};
 }
 
 void WorkerProcessManager::worker_did_fail_loading_script(Web::HTML::WorkerAgentId agent_id)
