@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1219401">
+<div style="columns:2;">
+  <span>
+    <div id="div0" style="column-span:all; float:right;"></div>
+    <div id="div1" style="column-span:all;"></div>
+  </span>
+</div>
+<script>
+  document.body.offsetTop;
+  div0.style.float = "none";
+  div1.style.float = "right";
+</script>

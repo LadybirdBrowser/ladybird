@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: multicolumn and margin-bottom collapsing</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-11 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model" title="2. The multi-column model" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-nested-002-ref.xht" />
+  <meta name="assert" content="This test checks that a block container element's margin-bottom can collapse with its multi-column parent's margin-bottom if no line boxes, no clearance, no padding and no border separate them." />
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body {margin: 0em;}
+
+  body > div
+  {
+  font: 1.25em/1 Ahem;
+  width: 32em;
+
+  column-gap: 1em;
+  column-width: 8em;
+  }
+
+  /*
+
+  N == max(1, floor((available-width + column-gap) / (column-width + column-gap)));
+  N == max(1, floor((32em + 1em) / (8em + 1em)));
+  N == max(1, floor(33em / 9em));
+  N == max(1, floor(3.6));
+  N == max(1, 3);
+  N == 3;
+
+  W == ((available-width + column-gap) / N) - column-gap;
+  W == ((32em + 1em) / 3) - 1em;
+  W == (33em / 3) - 1em;
+  W == (11em) - 1em;
+  W == 10em;
+
+  */
+
+  div
+  {
+  background: yellow;
+  color: black;
+  orphans: 1;
+  widows: 1;
+  }
+
+  div > div {margin: 0 1em 1em;}
+
+  div + div {color: blue;}
+
+  div + div + div {color: pink;}
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+	<div>
+		bl ac
+		bl ac
+		bl ac
+		bl ac
+	</div>
+	<div>
+		bl ue
+		bl ue
+		bl ue
+		bl ue
+	</div>
+	<div>
+		Pi nk
+		Pi nk
+		Pi nk
+		Pi nk
+	</div>
+  </div>
+
+ </body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: nested multicolumn and nested margin-top</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-14 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model" title="2. The multi-column model" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-nested-margin-003-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that a top margin set on the first child element of a nested multicol element will not collapse with the margins of the multicol element." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body > div
+  {
+  font: 1.25em/1 Ahem;
+  margin: 1em;
+  width: 41em;
+  /*
+  This test requires a viewport width of 860px
+  */
+  }
+
+  div
+  {
+  background-color: yellow;
+  color: black;
+  margin: 1em 1em 0;
+  orphans: 1;
+  widows: 1;
+
+  column-count: 3;
+  column-gap: 1em;
+  }
+
+  /*
+
+  N == 3;
+
+  43em - 2em (horizontal margins) == available-width
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (41em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (41em - (2 * 1em)) / 3);
+  W == max(0, (41em - 2em) / 3);
+  W == max(0, 39em / 3);
+  W == max(0, 13em);
+  W == 13em;
+
+    13em : width of each outer column box
+   -
+     2em : horizontal margin of each div inside
+   =======
+    11em : width of each inner multi-column elements
+
+  N == 3;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (11em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (11em - (2 * 1em)) / 3);
+  W == max(0, (11em - 2em) / 3);
+  W == max(0, 9em / 3);
+  W == max(0, 3em);
+  W == 3em;
+
+  */
+
+  div div:nth-child(2) {color: pink;}
+
+  div div:nth-child(3) {color: blue;}
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+	<div>
+		bl ac
+		bl ac
+		bl ac
+		bl ac
+	</div>
+	<div>
+		Pi nk
+		Pi nk
+		Pi nk
+		Pi nk
+	</div>
+	<div>
+		bl ue
+		bl ue
+		bl ue
+		bl ue
+	</div>
+  </div>
+
+ </body>
+</html>

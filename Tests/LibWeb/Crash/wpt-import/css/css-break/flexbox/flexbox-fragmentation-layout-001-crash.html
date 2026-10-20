@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Flexbox: flexbox fragmentation</title>
+    <link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+    <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1708007">
+    <style>
+        * {
+            display: inline-flex;
+            border-left-style: ridge;
+            border-top: green ridge 3289332275.907055mm;
+            box-sizing: border-box;
+            white-space: pre;
+            max-block-size: 2307181333.664816mm;
+            float: inline-end;
+            columns: 2800509010 1630715400.2851658ex;
+    </style>
+    <script>
+      window.addEventListener('load', () => {
+        const details = document.createElement('details')
+        details.setAttribute('open', true)
+        const span = document.createElement('span')
+        const small = document.createElement('small')
+        small.innerText = '𧄚۹󠙥󠶒㏬1q/\n\rI퐆￻‭҆𯔩󠸗徢۹𠹅𝅧󠚏۹٠󠑛𖩡￺󠤵zc𯌈\r\naB-=^𯽉�辴𯂼x?>>>=𝅯🨸-𯁡𯌌銒𖯩㿎‪٩𢂷+=\b﷞ᣰ⁡&󠕨\b\r0A۹'
+        span.appendChild(small)
+        details.appendChild(span)
+        document.documentElement.appendChild(details)
+      })
+    </script>
+</head>
+</html>

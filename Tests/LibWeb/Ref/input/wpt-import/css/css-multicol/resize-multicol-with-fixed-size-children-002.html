@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#columns">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div style="width:100px; height:100px; background:red;">
+    <div id="multicol" style="columns:2; gap:0; column-fill:auto; width:60px; height:100px;">
+      <div style="width:50px;">
+        <div>
+          <div>
+            <div style="height:200px; background:green;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    requestAnimationFrame(()=> {
+      requestAnimationFrame(()=> {
+        multicol.style.width = "100px";
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+  </script>
+</html>

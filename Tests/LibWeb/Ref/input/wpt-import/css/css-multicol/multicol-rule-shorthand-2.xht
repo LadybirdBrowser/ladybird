@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>CSS Multi-column Layout Test: 'column-rule' shorthand</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="help" href=""/>
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-shorthand-2-ref.xht"/>
+<meta name="assert" content="Tests that column rules are not displayed for invalid properties and values."/>
+<meta name="flags" content="ahem invalid"/>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body {
+	margin: 1em;
+}
+body>div {
+	font-family: Ahem;
+	font-size: 1em;
+	line-height: 1em;
+	color: black;
+	background: yellow;
+	margin: 1em 0;
+	border: 1em solid gray;
+	width: 15em;
+
+	column-count: 4;
+	column-gap: 1em;
+	column-rule: solid blue 1em;
+	column-rule: normal red 1em; /* invalid: 'normal' is not a 'border-style' */
+	column: normal red 1em; /* invalid: 'column' is not a valid property name; 'normal' can only apply to 'column-gap' */
+}
+
+]]></style>
+</head>
+
+<body>
+<p>Pass if there is no red visible.</p>
+
+<div>
+	xx xx
+	xx xx
+	xx xx
+	xx xx
+</div>
+
+</body>
+</html>

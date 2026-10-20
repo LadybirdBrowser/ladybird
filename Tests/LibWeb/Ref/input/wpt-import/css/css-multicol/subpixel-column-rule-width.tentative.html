@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>
+    CSS Column-Rule: width computed value
+  </title>
+
+  <link rel="author" title="Traian Captan" href="mailto:tcaptan@chromium.org">
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#crw">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/reference/subpixel-column-rule-width-ref.tentative.html">
+
+  <meta name="assert" content="column-rule-width computed value after rounding.">
+
+  <style>
+    .columns {
+      column-count: 2;
+      column-rule: solid gray;
+      width: 420px;
+      height: 50px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>
+    Test passes if column rule widths are rounded up
+    when they are greater than 0 and less than 1,
+    and rounded down when they are greater than 1.
+  </h1>
+
+  <div class="columns" style="column-rule-width: 0.3px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 0.5px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 0.9px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 1.3px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 1.5px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 1.9px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 3.3px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 3.5px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 3.9px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#monolithic">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:2; column-fill:auto; gap:0; width:100px; height:200px;">
+  <div style="contain:size; height:100px; width:50px; break-after:column;">
+    <div style="height:100px; background:green;"></div>
+  </div>
+  <div style="width:50px; height:100px; background:green;"></div>
+</div>

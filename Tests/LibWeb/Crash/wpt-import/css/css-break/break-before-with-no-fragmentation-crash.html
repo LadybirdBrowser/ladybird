@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-break/">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=966369">
+<div id="container" style="height:100px";>
+  <div style="height:100%;">
+    <div style="break-before:page;"></div>
+  </div>
+</div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+      document.body.offsetTop;
+      container.style.height = "101px";
+  }, "no crash");
+</script>

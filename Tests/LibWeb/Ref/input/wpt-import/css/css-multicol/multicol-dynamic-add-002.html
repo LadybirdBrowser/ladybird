@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Multi-column Layout Test: Change textContent on flex container in multi-column context</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-1/">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1645714">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-dynamic-add-002-ref.html">
+<meta name="assert" content="This test checks that dynamically changing textContent on a flex container in a multi-column context renders correctly.">
+
+<script>
+function runTest() {
+  document.body.offsetHeight;
+
+  a.textContent = "f";
+
+  document.documentElement.removeAttribute("class");
+}
+</script>
+
+<style>
+:root { columns: 0px }
+</style>
+
+<body onload="runTest();">
+<q id="a" style="display: flex">
+<small>x</label>
+<li>
+</body>
+</html>

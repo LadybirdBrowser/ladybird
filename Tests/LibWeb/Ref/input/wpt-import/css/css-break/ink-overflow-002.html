@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<style>
+.col {
+  column-width: 100px;
+  column-rule: 100px solid red;
+  height: 100px;
+  column-fill: auto;
+  gap: 0;
+  overflow: hidden;
+}
+
+.col > div {
+  display: flow-root;
+  width: 100px;
+  height: 100px;
+  background: green;
+}
+
+.col > div > div {
+  width: 10px;
+  height: 10px;
+  margin-top: 80px;
+  margin-left: 50px;
+  outline: 30px solid green;
+  box-shadow: 0 30px 0 30px green;
+}
+</style>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div class="col"><div><div></div></div></div>
+</body>

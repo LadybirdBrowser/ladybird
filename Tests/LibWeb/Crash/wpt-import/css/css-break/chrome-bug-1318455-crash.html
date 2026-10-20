@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1318455">
+<ul id="multicol" style="columns:34; column-fill:auto; height:50px; line-height:20px;">
+  <div style="float:left; padding:3px;">
+    <br><br><br>
+  </div>
+  <div style="float:left; position:relative; padding:3px;">
+    <br><br><br>
+    <div style="position:absolute;"></div>
+  </div>
+  <li style="float:left;">
+    <div></div>
+    <a style="float:left;">
+      <li style="position:relative;">
+        <br>
+        <div style="position:absolute;"></div>
+      </li>
+    </a>
+  </li>
+  <div id="surprise" style="display:none; height:150px;"></div>
+</ul>
+<script>
+  requestAnimationFrame(()=> {
+    requestAnimationFrame(()=> {
+      surprise.style.display = "inline-block";
+      multicol.style.height = "150px";
+    });
+  });
+</script>

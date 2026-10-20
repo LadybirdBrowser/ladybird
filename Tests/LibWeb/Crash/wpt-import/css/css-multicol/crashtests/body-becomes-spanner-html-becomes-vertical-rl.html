@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1377673">
+<style>
+  html { columns:2; }
+</style>
+<div style="height:100px;"></div>
+<script>
+  document.body.offsetTop;
+  document.body.style.columnSpan = "all";
+  document.documentElement.style.writingMode = "vertical-rl";
+</script>

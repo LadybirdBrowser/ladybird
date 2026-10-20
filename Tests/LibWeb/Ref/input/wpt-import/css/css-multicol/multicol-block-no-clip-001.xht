@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: Overflowed content inside multicol element</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-07-24 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#overflow-inside-multicol-elements" title="8.1. Overflow inside multicol elements" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-block-no-clip-001-ref.xht"/>
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that content in the normal flow that extends into column gaps is not clipped in the middle of the column gap." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  border: gray solid 1em;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 11em;
+
+  column-count: 4;
+  column-gap: 1em;
+  }
+
+  h4
+  {
+  background: black;
+  color: black;
+  font: inherit;
+  margin: 0;
+  }
+
+  #first-column {color: blue;}
+
+  #second-column {color: orange;}
+
+  #third-column, #fourth-column {color: white;}
+  ]]></style>
+ </head>
+ <body>
+  <div>
+    <span id="first-column"> ab cd ef gh </span>
+    <h4>123</h4>
+    <span id="second-column"> ij kl mn oq </span>
+    <span id="third-column"> ab cd ef gh </span>
+    <span id="fourth-column"> rs tu vw xy </span>
+  </div>
+ </body>
+</html>

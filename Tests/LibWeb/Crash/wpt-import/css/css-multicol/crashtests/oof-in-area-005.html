@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="author" title="Helmut Januschka" href="mailto:helmut@januschka.com">
+<link rel="help" href="https://issues.chromium.org/issues/40779549">
+<style>
+  area {
+    display: inline;
+    position: relative;
+  }
+</style>
+<div style="columns:2;">
+  <area id="elm">
+</div>
+<script>
+  const child = document.createElement("div");
+  child.style.position = "absolute";
+  elm.appendChild(child);
+</script>

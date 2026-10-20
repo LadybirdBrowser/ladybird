@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>
+    CSS Column-Rule: width computed value
+  </title>
+
+  <link rel="author" title="Traian Captan" href="mailto:tcaptan@chromium.org">
+
+  <style>
+    .columns {
+      column-count: 2;
+      column-rule: 1px solid gray;
+      width: 420px;
+      height: 50px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>
+    Test passes if column rule widths are rounded up
+    when they are greater than 0 and less than 1,
+    and rounded down when they are greater than 1.
+  </h1>
+
+  <div class="columns">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 3px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 3px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+
+  <div class="columns" style="column-rule-width: 3px;">
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+  </div>
+</body>
+
+</html>

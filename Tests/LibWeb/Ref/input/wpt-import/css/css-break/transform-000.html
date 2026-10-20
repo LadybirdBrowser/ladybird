@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#transforms">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<style>
+  .relpos {
+      position: relative;
+      left: -60px;
+      background: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="inline-size:100px; block-size:100px; columns:4; column-fill:auto; column-gap:0; background:red;">
+  <div style="block-size:50px; background:green;"></div>
+  <div style="will-change:transform; transform:translateX(60px);">
+    <div class="relpos" style="block-size:100px;"></div>
+    <div class="relpos" style="block-size:100px;"></div>
+    <div class="relpos" style="block-size:150px;"></div>
+  </div>
+</div>

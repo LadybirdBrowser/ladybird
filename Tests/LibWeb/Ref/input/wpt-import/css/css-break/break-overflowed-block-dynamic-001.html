@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/ -->
+<html>
+  <meta charset="utf-8">
+  <title>Test for dynamic re-pagination of a overflowed block element</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-break/#possible-breaks">
+  <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1559961">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+
+  <style>
+  #multicol {
+    columns: 2;
+    column-fill: auto;
+    column-gap: 0;
+    height: 400px; /* Must be large enough so that .target doesn't break initially. */
+    width: 100px;
+    background: red;
+  }
+  #block {
+    height: 25px;
+  }
+  #target {
+    background: green;
+    width: 50px;
+    height: 200px; /* Expected to be broken into 2 columns after runTest() */
+  }
+  </style>
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+    document.getElementById("multicol").style.height = "100px";
+  }
+  </script>
+
+  <body onload="runTest()">
+    <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+    <div id="multicol">
+      <div id="block">
+        <div id="target"></div>
+      </div>
+    </div>
+  </body>
+</html>

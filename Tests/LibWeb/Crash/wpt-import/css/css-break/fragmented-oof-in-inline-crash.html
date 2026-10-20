@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1290093">
+<div style="columns:2;">
+  <span style="position:relative;">
+    <div style="position:absolute;"></div>
+    <div id="spanner" style="column-span:all;"></div>
+  </span>
+</div>
+<script>
+  document.body.offsetTop;
+  // This doesn't actually affect layout, but changing display type requires re-attach.
+  spanner.style.display = "flow-root";
+</script>

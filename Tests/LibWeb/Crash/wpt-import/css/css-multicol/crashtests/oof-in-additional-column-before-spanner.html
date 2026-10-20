@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="test-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1361902">
+  <div style="columns:1;">
+    <div style="float:left; padding-top:10px; position:relative;">
+      <div style="position:absolute; height:2px;"></div>
+      <div id="elm" style="display:inline-block;"></div>
+    </div>
+    <span>
+      <div style="column-span:all;"></div>
+    </span>
+  </div>
+  <script>
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        elm.style.display = "none";
+        document.documentElement.classList.remove("test-wait");
+      });
+    });
+  </script>
+</html>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Monolithic float in inline formatting context</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/394900337">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div style="columns:2; orphans:1; widows:1; background:green;">
+    <span></span>
+    <div style="float:left; width:100%; contain:size; height:100px;"></div>
+  </div>
+</div>

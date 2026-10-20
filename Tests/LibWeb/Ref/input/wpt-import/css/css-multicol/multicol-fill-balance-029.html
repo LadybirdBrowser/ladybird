@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="help" href="https://issues.chromium.org/issues/324314465">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: flex; width: 100px; height: 100px; background: red;">
+  <div style="columns: 1; width: 50px; gap: 0;">
+    <div style="break-inside: avoid; background: green; height: 100px;"></div>
+    <div style="break-inside: avoid; background: green; height: 100px;"></div>
+  </div>
+</div>

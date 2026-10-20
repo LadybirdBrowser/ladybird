@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: Test fragmentation for a nested multi-column container with column-span in paginated context</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+
+  <style>
+  :root {
+    print-color-adjust: exact;
+  }
+  .inner {
+    column-count: 2;
+    column-rule: 3px solid green;
+    background-color: lightgreen;
+  }
+  .block1 {
+    background-color: yellow;
+    height: 3in;
+  }
+  .spanner {
+    height: 2in;
+    background-color: lightblue;
+  }
+  .block2 {
+    background-color: pink;
+    height: 3in;
+  }
+  </style>
+
+  <article class="inner">
+    <div class="block1">block1</div>
+  </article>
+  <div class="spanner">spanner</div>
+  <article class="inner">
+    <div class="block2">block2</div>
+  </article>
+</html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#monolithic">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="inline-size:100px; block-size:100px; background:red;">
+  <div style="columns:2; column-gap:0; column-fill:auto; block-size:50px;">
+    <div style="block-size:50px; background:green;"></div>
+    <div style="contain:size; block-size:0;">
+      <div style="block-size:25px; background:green;"></div>
+      <div style="block-size:25px; background:green;"></div>
+    </div>
+    <div style="contain:size; block-size:100px; background:green;"></div>
+  </div>
+</div>

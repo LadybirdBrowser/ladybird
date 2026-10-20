@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>Relative child can overflow onto the column gap area</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/relative-child-overflowing-column-gap-ref.html">
+
+<style>
+body {
+  margin: 0px;
+}
+
+.multicol {
+  width: 200px;
+  column-count: 2;
+  column-gap: 50px;
+}
+
+.relative-layer {
+  position: relative;
+}
+
+.child {
+  width: 100px;
+  height: 100px;
+  background: green;
+}
+</style>
+<div class="multicol">
+  <div class="relative-layer">
+    <div class="child"></div>
+  </div>
+</div>

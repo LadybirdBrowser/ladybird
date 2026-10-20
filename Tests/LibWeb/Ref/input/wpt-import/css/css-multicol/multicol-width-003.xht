@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-width (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-23 -->
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-multi-column-model" title="The Multi-column Model" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-width-002-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="Test to check that the multicol container and not the column box becomes the containing box"/>
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#multi-column
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: black;
+  font: 1.25em/1 Ahem;
+  height: 2em;
+  position: relative;
+  width: 12em;
+  column-width: 6em;
+  column-gap: 0;
+  }
+
+  div > div
+  {
+  background-color: black;
+  height: 2em;
+  position: absolute;
+  top: 0;
+  width: 2em;
+  }
+
+  div#s2 {right: 7em;}
+
+  div#s3
+  {
+  background-color: blue;
+  right: 4em;
+  }
+
+  div#s4
+  {
+  background-color: blue;
+  right: 1em;
+  }
+  ]]></style>
+ </head>
+ <body>
+  <p>Test passes if there are two black bars and two blue bars with a yellow stripe to the right of each bar, matching reference.</p>
+  <div id="multi-column">
+    <div></div>
+    <div id="s2"></div>
+    <div id="s3"></div>
+    <div id="s4"></div>
+  </div>
+
+ </body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Remove transform but keep stacking context root, remove child inside descendant spanner candidate</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/500832364">
+<div style="columns:1;">
+  <div id="ancestor" style="transform:rotate(45deg); position:relative; z-index:1;">
+    <div style="column-span:all; padding-bottom:100px;">
+      <div id="child"></div>
+    </div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+
+  // Transforms establish a stacking context. So does relative-positioning +
+  // z-index. Removing the transform therefore won't affect whether it creates a
+  // stacking context or not. Transforms also prevent descendant spanners,
+  // though, so removing the transform will allow for spanners inside.
+  ancestor.style.transform = "none";
+
+  child.style.display = "none";
+</script>

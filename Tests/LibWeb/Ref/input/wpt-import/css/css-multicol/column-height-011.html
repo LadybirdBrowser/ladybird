@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>column-wrap:auto - should not wrap</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#ch">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#cwr">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div style="columns:1; column-fill:auto; width:50px; gap:0; height:100px; column-wrap:auto; background:red;">
+    <div style="height:200px; background:green;"></div>
+  </div>
+</div>

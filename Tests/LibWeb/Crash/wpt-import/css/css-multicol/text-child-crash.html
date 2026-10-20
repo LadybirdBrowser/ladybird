@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://crbug.com/1412020">
+<div id="outer">
+  x
+  <div id="inner" style="display:none; columns:1; padding-left:1%;"></div>
+</div>
+<script>
+  document.body.offsetTop;
+  outer.style.columns = "1";
+  inner.style.display = "block";
+</script>
+</html>

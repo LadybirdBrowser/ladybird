@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: multi-column with set height causing overflow outside (basic)</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-25 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#pagination-and-overflow-outside-multicol" title="8.2. Pagination and overflow outside multicol elements" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-overflow-000-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that column gap appears between two columns." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div, table
+  {
+  background-color: yellow;
+  color: lime;
+  font: 1.25em/1 Ahem;
+  margin: 1em 0;
+  }
+
+  div
+  {
+  columns: 2;
+  column-fill: balance;
+  column-gap: 0px;
+  height: 2em;
+  width: 20em;
+  }
+
+  table
+  {
+  border-right: lime solid 1em;
+  border-spacing: 0px;
+  table-layout: fixed;
+  width: 21em;
+  }
+
+  td {padding: 0em;}
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 2 horizontal bars are <strong>identical</strong>.</p>
+
+  <div id="test">A<br />B<br />C<br />D<br />E<br />F</div>
+
+  <table id="reference"><tr><td>G<br />H</td><td>I<br />J</td></tr></table>
+
+ </body>
+</html>

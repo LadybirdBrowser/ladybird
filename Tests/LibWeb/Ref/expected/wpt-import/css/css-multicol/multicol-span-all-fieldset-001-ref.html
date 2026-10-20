@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test a multi-column container on fieldset works with a column-span:all child</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  fieldset {
+    width: 400px;
+  }
+  .inner {
+    column-count: 3;
+    column-rule: 6px solid;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <fieldset>
+    <legend>Legend</legend>
+    <div class="inner">
+      <div>block1</div><div>block2</div>
+      <h3>spanner</h3>
+      <div>block3</div><div>block4</div>
+    </div>
+  </fieldset>
+</html>

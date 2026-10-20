@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Failing to find room for repeated table footer in first fragment</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/479908893">
+<div style="columns:3; line-height:20px; column-fill: auto; height:90px;">
+  <div style="height:40px;"></div>
+  <div style="display:table;">
+    <div style="display:table-caption;">Caption</div>
+    <div style="display:table-header-group; break-inside:avoid;">header</div>
+    body
+    <div style="display:table-footer-group; break-inside:avoid;">footer</div>
+  </div>
+</div>

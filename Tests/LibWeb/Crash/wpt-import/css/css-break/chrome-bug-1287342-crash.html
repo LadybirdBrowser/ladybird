@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1287342">
+<div>
+  <div id="a" style="columns:2; display:table;"></div>
+  <div id="b" style="columns:2; display:inline-table;"></div>
+</div>
+<script>
+  document.body.offsetTop;
+  a.style.display = "table-row-group";
+  b.appendChild(a);
+</script>

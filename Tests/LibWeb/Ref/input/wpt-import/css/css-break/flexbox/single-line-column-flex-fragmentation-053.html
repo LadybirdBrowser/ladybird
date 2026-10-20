@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>
+  Tests that a flex-item that can't shrink and has a definite flex-basis, an
+  indefinite height, and a non-auto min-height *doesn't* expand.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/flexbox/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px; height: 100px; columns: 2; column-gap: 0; background: red;">
+  <div style="display: flex; flex-direction: column; height: 100px;">
+    <div style="background: green; flex-basis: 10px; min-height: 10px;">
+      <div style="contain: size; width: 50px; height: 50px;"></div>
+      <div style="contain: size; width: 50px; height: 100px;"></div>
+    </div>
+    <div style="background: green; width: 50px; height: 190px;"></div>
+  </div>
+  <div style="background: green; width: 50px; height: 100px;"></div>
+</div>

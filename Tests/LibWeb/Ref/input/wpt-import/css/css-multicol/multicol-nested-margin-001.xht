@@ -1,0 +1,77 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: multicolumn and nested margins</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-11 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#pagination-and-overflow-outside-multicol" title="8.2. Pagination and overflow outside multicol elements" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-nested-margin-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that non-zero vertical margins can be applied on a multi-column element while the vertical margins of its own block containers can be set to zero." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body {margin: 0em;}
+
+  body > div
+  {
+  font: 1.25em/1 Ahem;
+  width: 32em;
+
+  column-count: 3;
+  column-gap: 1em;
+  }
+
+  /*
+
+  N == 3;
+
+  W == ((available-width + column-gap) / N) - column-gap;
+  W == ((32em + 1em) / 3) - 1em;
+  W == (33em / 3) - 1em;
+  W == (11em) - 1em;
+  W == 10em;
+
+  */
+
+  div
+  {
+  background: yellow;
+  color: black;
+  margin: 1em;
+  orphans: 1;
+  widows: 1;
+  }
+
+  div > div {margin: 0em 1em;}
+
+  div div:nth-child(2) {color: pink;}
+
+  div div:nth-child(3) {color: blue;}
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+	<div>
+		bl ac
+		bl ac
+		bl ac
+		bl ac
+	</div>
+	<div>
+		Pi nk
+		Pi nk
+		Pi nk
+		Pi nk
+	</div>
+	<div>
+		bl ue
+		bl ue
+		bl ue
+		bl ue
+	</div>
+  </div>
+
+ </body>
+</html>

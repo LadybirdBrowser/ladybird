@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<style>
+  span {
+      position: relative;
+      left: -100px;
+      top: 100px;
+      border: 1px solid;
+      background:hotpink;
+  }
+  .fakecol {
+      float: left;
+      width: 150px;
+      height: 100%;
+  }
+</style>
+<div style="line-height:30px; height:60px;">
+  <div class="fakecol"></div>
+  <div class="fakecol">
+    <br>
+    <span style="border-right:none;">
+      line1<br>
+    </span>
+  </div>
+  <div class="fakecol">
+    <span style="border-left:none; border-right:none;">
+      line2<br>
+      line3<br>
+    </span>
+  </div>
+  <div class="fakecol">
+    <span style="border-left:none;">
+      line4<br>
+    </span>
+  </div>
+</div>

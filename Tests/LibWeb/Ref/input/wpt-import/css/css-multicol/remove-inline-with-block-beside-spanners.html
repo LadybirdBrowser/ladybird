@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#column-span">
+<meta name="assert" content="Margins of two adjacent spanners will collapse with each other">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square-only.html">
+<style>
+  #spanner1 {
+      column-span: all;
+      margin-bottom: 100px;
+  }
+  #spanner2 {
+      column-span: all;
+      margin-top: 100px;
+  }
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:3; width:100px; background:green;">
+  <div id="spanner1"></div>
+  <span id="inlineWithBlock"><div></div></span><div id="spanner2"></div>
+</div>
+<script>
+  document.body.offsetTop;
+  inlineWithBlock.style.display = "none";
+</script>

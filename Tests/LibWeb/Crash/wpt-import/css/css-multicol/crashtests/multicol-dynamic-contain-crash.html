@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<link rel="help" href="https://crbug.com/965639">
+<style>
+#multicol {
+  columns: 2;
+  column-fill: auto;
+  height: 50px;
+  background: orange;
+}
+#container {
+  contain: strict;
+  width: 100px;
+  height: 100px;
+  background: blue;
+}
+#target {
+  width: 100px;
+  height: 100px;
+  position: absolute;
+  background: purple;
+}
+.transform {
+  transform: translate(0, 50px);
+}
+</style>
+<body>
+  <div id="multicol">
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  </div>
+<script>
+document.body.offsetTop;
+target.appendChild(document.createTextNode('a'));
+</script>
+</body>

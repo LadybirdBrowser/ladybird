@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#spanning-columns">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/float-with-line-after-spanner-ref.html">
+<p>The word 'PASS' should be seen below, inside a blue square.</p>
+<div style="columns:1; font-size:50px; width:225px; line-height:60px; color:white; background:blue;">
+  <div style="float:left; padding-top:165px;">PASS</div>
+  <div style="height:65px;"></div>
+  <div style="column-span:all;"></div>
+  <div></div>
+</div>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-multi-column-model">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-oof-inline-cb-001-ref.html"/>
+<meta name="assert" content="Out-of-flow in inline containing block across inline-block">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org" />
+<style>
+section {
+  width: 300px;
+  height: 100px;
+  border: blue 1px solid;
+}
+.columns {
+  column-width: 100px;
+  column-fill: auto;
+  height: 100px;
+}
+inline-block {
+  display: inline-block;
+}
+.cb {
+  position: relative;
+}
+abs {
+  position: absolute;
+  background: purple;
+  width: 100px;
+  height: 50px;
+}
+abs.p0 {
+  top: 0; left: 0;
+  background: blue;
+}
+</style>
+<body>
+  <!-- OOF with inline-CB across inline-block. -->
+  <section>
+    123
+    <span class="cb">
+      456<br>
+      <inline-block>
+        7
+        <abs></abs>
+        <abs class="p0"></abs>
+      </inline-block>
+    </span>
+  </section>
+
+  <!-- Same in multicol. -->
+  <section class="columns">
+    123
+    <span class="cb">
+      456<br>
+      <inline-block>
+        7
+        <abs></abs>
+        <abs class="p0"></abs>
+      </inline-block>
+    </span>
+  </section>
+</body>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Reference: min-height block fragmentation</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+    color:black; background-color:white; font:24px/1 monospace; padding:0; margin:0;
+    width: 300px;
+}
+.columns {
+  columns: 3;
+  background: grey;
+  margin-bottom: 1em;
+}
+.columns > div {
+  height: 172px;
+  background: yellow;
+  border: solid;
+  border-width:10px 0 6px 0;
+  padding: 5px 0 3px 0;
+}
+.columns > div > div { height:150px; width:50px; border:solid; }
+  </style>
+</head>
+<body>
+<div class="columns">
+  BEFORE
+  <div>
+    <div></div>
+  </div>
+  AFTER
+</div>
+<div class="columns" style="height:100px">
+  BEFORE
+  <div>
+    <div></div>
+  </div>
+  AFTER
+</div>
+<div class="columns" style="height:70px">
+  BEFORE
+  <div>
+    <div></div>
+  </div>
+  AFTER
+</div>
+<div class="columns" style="height:50px">
+  BEFORE
+  <div>
+    <div></div>
+  </div>
+  AFTER
+</div>
+</body>
+</html>

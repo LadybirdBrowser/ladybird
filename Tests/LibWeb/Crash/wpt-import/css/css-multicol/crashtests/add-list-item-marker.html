@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1510614">
+<div style="columns:2;">
+  <div id="outer" style="display:list-item; list-style-type:none;">
+    text
+    <div></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  outer.style.listStyleType = "disc";
+</script>

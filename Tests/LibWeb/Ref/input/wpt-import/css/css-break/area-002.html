@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>Default-hidden and author-shown area elements in multicol</title>
+<link rel="author" title="Helmut Januschka" href="mailto:helmut@januschka.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#hidden-elements">
+<link rel="help" href="https://drafts.csswg.org/css-break/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/area-002-ref.html">
+<style>
+  .multicol {
+    columns: 2;
+    column-fill: auto;
+    column-gap: 0;
+    width: 200px;
+    height: 100px;
+    margin-bottom: 20px;
+  }
+  .block {
+    height: 50px;
+    background: green;
+  }
+  area {
+    padding: 10px;
+    border: 10px solid red;
+    background: red;
+  }
+  .inline {
+    display: inline;
+    border-color: blue;
+    background: blue;
+  }
+  .out-of-flow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50px;
+    height: 50px;
+    background: red;
+  }
+</style>
+
+<div class="multicol">
+  <div class="block"></div>
+  <area>
+  <div class="block"></div>
+  <area id="area-with-child">
+  <div class="block"></div>
+  <div class="block"></div>
+</div>
+
+<div class="multicol">
+  <div class="block"></div>
+  <area class="inline">
+  <div class="block"></div>
+  <div class="block"></div>
+  <div class="block"></div>
+</div>
+
+<script>
+  const child = document.createElement("div");
+  child.className = "out-of-flow";
+  document.getElementById("area-with-child").appendChild(child);
+</script>

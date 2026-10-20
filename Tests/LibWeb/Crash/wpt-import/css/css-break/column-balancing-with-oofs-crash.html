@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1362550">
+<style>
+  .multicol {
+    column-count: 2;
+    width: 200px;
+  }
+  .relpos {
+    position: relative;
+  }
+  .abspos {
+    height: 25%;
+    position: absolute;
+  }
+</style>
+<div class="multicol">
+  <div class="relpos">
+    <div class="abspos">
+      <p>
+        text
+      </p>
+    </div>
+  </div>
+  <figure class="relpos">
+    <div class="abspos">
+      <p>
+        text
+      </p>
+    </div>
+  </figure>
+</div>

@@ -1,0 +1,114 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: nested multicolumns and vertical margin (complex)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />  <!-- 2013-08-14 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model" title="2. The multi-column model" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-nested-margin-002-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that when an inner nested multi-column element is preceded by a soft column break (caused by an unforced column-break), then the used margin-top of such inner nested multi-column element is '0'." />
+
+  <!--
+  More info:
+  Re: [css3-multicol] vertical margins rendering in nested multi-columns
+  http://lists.w3.org/Archives/Public/www-style/2013Aug/0146.html
+  -->
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body {margin: 0;}
+
+  body > div
+  {
+  background-color: yellow;
+  font: 1.25em/1 Ahem;
+  width: 41em;
+  /*
+  This test requires a viewport width of 820px
+  */
+  }
+
+  div
+  {
+  color: yellow;
+  font: inherit;
+  orphans: 1;
+  widows: 1;
+
+  column-count: 3;
+  column-gap: 1em;
+  }
+
+  div div {margin: 0em 1em;}
+
+  div div:last-child
+  {
+  color: blue;
+  margin: 1em;
+  }
+
+  /*
+
+  N == 3;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (41em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (41em - (2 * 1em)) / 3);
+  W == max(0, (41em - 2em) / 3);
+  W == max(0, 39em / 3);
+  W == max(0, 13em);
+  W == 13em;
+
+  The height of column rule depends on number of line boxes in
+  each outer column box which depends on number of line boxes
+  in each inner column box. So:
+
+    13em : width of each outer column box
+   -
+     2em : horizontal margin of each div inside
+   =======
+    11em : width of each inner multi-column elements
+
+  N == 3;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (11em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (11em - (2 * 1em)) / 3);
+  W == max(0, (11em - 2em) / 3);
+  W == max(0, 9em / 3);
+  W == max(0, 3em);
+  W == 3em;
+
+  So, each duo of 'a', 'm' and 'x' should fill one and only 1
+  line box. There are 15 'a' duos and 15 'm' duos; therefore,
+  the 3 inner column boxes of each first 2 inner
+  multi-column elements should use 5 line boxes.
+
+  The 1st column box of last inner multi-column
+  (the blue one with 'x' duos) should have 'x1',
+  'x2' and 'x3' duos filling 3 line boxes.
+
+  The 2nd column box of last inner multi-column should
+  have 'x4', 'x5' and 'x6' duos filling 3 line boxes.
+
+  The 3rd column box of the last inner multi-column should
+  have 'x7' and 'x8' duos filling 2 line boxes.
+  */
+
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+
+	<div> a1 a2 a3 a4 a5 a6 a7 a8 a9 a0 a1 a2 a3 a4 a5 </div>
+
+	<div> m1 m2 m3 m4 m5 m6 m7 m8 m9 m0 m1 m2 m3 m4 m5 </div>
+
+	<div> x1 x2 x3 x4 x5 x6	x7 x8 </div>
+
+  </div>
+
+ </body>
+</html>

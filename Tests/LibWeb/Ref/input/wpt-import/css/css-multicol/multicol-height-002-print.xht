@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: Percentage Computed Height on Multicol Child (Definite Multicol Height)</title>
+  <link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact" />
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visudet.html#the-height-property"/>
+  <meta name="assert" content="Percentage heights with a multi-column element are relative to the computed height of the multicolumn box, and this works even when the multi-column element is paginated." />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-height-002-print-ref.xht" />
+  <style type="text/css"><![CDATA[
+    html, body { height: 100%; }
+    * { margin: 0; }
+    div {
+      border: double blue 12px;
+      column-count:2;
+      column-gap:0;
+      column-fill: balance;
+      height: 150%;
+    }
+    div > p {
+      border-right: solid orange 12px;
+      width: 0;
+      margin: 0 auto;
+      height: 200%;
+    }
+    blockquote {
+      border: solid thick yellow;
+    }
+  ]]></style>
+ </head>
+ <body>
+  <p>Test passes if even when printed:</p>
+  <ul>
+    <li>Two vertical orange stripes stretch exactly
+    from the inner top edge to the inner bottom edge of the blue box below.</li>
+    <li>There is a yellow stripe immediately below the blue box.</li>
+  </ul>
+  <div>
+    <p></p>
+  </div>
+  <blockquote></blockquote>
+ </body>
+</html>

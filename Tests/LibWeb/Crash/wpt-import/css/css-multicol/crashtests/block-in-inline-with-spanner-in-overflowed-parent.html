@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Overflowed block with spanner</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/364933065">
+<div style="columns:2; column-fill:auto; height:100px; line-height:50px;">
+  <span>
+    <div style="height:100px;">
+      <div style="height:150px;"></div>
+      <div style="column-span:all; height:20px;"></div>
+    </div>
+  </span>
+</div>

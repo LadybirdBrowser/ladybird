@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-break/#break-decoration">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1693616">
+<meta name="assert" content="This test verifies that a block element with box-decoration-break:clone, whose block-start border and padding exceed the multicol's height, can make progress when fragmenting without hanging the browser.">
+
+<style>
+#a {
+  column-count: 2;
+  height: 5px;
+}
+#b {
+  box-decoration-break: clone;
+  padding: 4px 0px;
+  border: 1px dotted black;
+  height: 10px;
+}
+</style>
+Hopefully this doesn't hang.
+<div id="a">
+<div id="b">

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html class="test-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1276319">
+  <div style="columns:2; column-fill:auto; height:4000px;">
+    <div style="margin-top:1000px; width:100px; height:100px; background:url(bilen.jpg) fixed;"></div>
+    <!-- Attempt to get legacy layout, in order to trigger the bug: -->
+    <div style="display:flex;"></div>
+    <div style="display:grid;"></div>
+    <div style="display:table;"></div>
+  </div>
+  <script>
+    var offset = 1000;
+    function scrollEverSoSlightly() {
+      if (offset > 1003) {
+        document.documentElement.classList.remove("test-wait");
+        return;
+      }
+      window.scrollTo(0, offset);
+      offset += 1/19;
+      requestAnimationFrame(()=> {
+        requestAnimationFrame(()=> {
+          scrollEverSoSlightly();
+        });
+      });
+    }
+    scrollEverSoSlightly();
+  </script>
+</html>

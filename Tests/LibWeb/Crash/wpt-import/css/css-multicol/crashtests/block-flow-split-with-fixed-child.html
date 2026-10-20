@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Moving fixed-position element into multi-column container should not crash</title>
+<link rel="help" href="https://crbug.com/40362061">
+<style>
+.maybe-colspan:nth-last-child(even) { column-span: all; }
+</style>
+<div id="container" style="column-count: 2">
+  <div class="maybe-colspan"></div>
+  <span class="maybe-colspan">
+    <div></div>
+  </span>
+</div>
+<div id="fixed" style="position: fixed"></div>
+<script>
+  window.addEventListener('load', function() {
+    document.getElementById('container').appendChild(document.getElementById('fixed'));
+  });
+</script>

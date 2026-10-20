@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-page-3/#using-named-pages">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The 'page' property affects breaking, but only for pagination, and not for multicol. Test that it has no effect inside multicol.">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; background:red;">
+  <div style="columns:3; column-fill:auto; gap:0; width:300px; height:100px;">
+    <div style="height:50px; background:green;"></div>
+    <div style="page:foo; height:25px; background:green;"></div>
+    <div style="page:bar; height:25px; background:green;"></div>
+  </div>
+</div>

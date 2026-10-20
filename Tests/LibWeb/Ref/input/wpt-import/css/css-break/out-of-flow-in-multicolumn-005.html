@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#breaking-controls">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<!-- break-after: column does not apply to absolute positioned elements. -->
+<style>
+  #multicol {
+    column-count: 2;
+    column-fill: auto;
+    column-gap: 10px;
+    height: 100px;
+    width: 200px;
+  }
+  .rel {
+    position: relative;
+    height: 10px;
+    width: 100px;
+    background: green;
+  }
+  .abs {
+    position: absolute;
+    width: 40px;
+    height: 30px;
+    break-after: column;
+  }
+  .content {
+    width: 100px;
+    height: 45px;
+    background: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="multicol">
+  <div class="content"></div>
+  <div class="rel">
+    <div class="abs"></div>
+  </div>
+  <div class="content"></div>
+</div>

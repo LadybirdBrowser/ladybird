@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#possible-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Replaced content should be considered to be monolithic">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div style="columns:3; column-gap:0;">
+    <input style="display:block; margin:0; border:none; padding:0; width:100px; height:100px; background:green;">
+  </div>
+</div>

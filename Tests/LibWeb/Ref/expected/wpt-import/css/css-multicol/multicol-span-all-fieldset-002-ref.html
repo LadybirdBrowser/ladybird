@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test a overflow:hidden and position:absolute multi-column container on fieldset works with a column-span:all child and position:absolute boxes</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  fieldset {
+    width: 400px;
+    overflow: hidden;
+    position: absolute;
+  }
+  .inner {
+    column-count: 3;
+    column-rule: 6px solid;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  a {
+    position: absolute;
+    width: 1em;
+    height: 1em;
+    background-color: blue;
+  }
+  </style>
+
+  <fieldset>
+    <legend>Legend<a></a></legend>
+    <div class="inner">
+      <div>block1</div><div>block2</div><a></a>
+      <h3>spanner<a></a></h3>
+      <div>block3</div><div>block4</div><a></a>
+    </div>
+  </fieldset>
+</html>

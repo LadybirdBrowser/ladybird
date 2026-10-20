@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Column balancing and ruby</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/391504025">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="position:absolute; z-index:1; width:100px; height:100px; background:green;"></div>
+<div style="columns:2; width:100px; orphans:1; widows:1; color:red; background:red;">
+  <div style="margin-left:10px;">
+    <ruby>
+      <rt>x</rt>
+    </ruby>
+    FAIL
+  </div>
+  <div style="margin-left:10px;">
+    <ruby>
+      <rt>x</rt>
+    </ruby>
+    FAIL
+  </div>
+  <div style="margin-left:10px;">
+    <ruby>
+      <rt>x</rt>
+    </ruby>
+    X
+  </div>
+</div>

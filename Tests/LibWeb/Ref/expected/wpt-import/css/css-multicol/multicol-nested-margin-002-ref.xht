@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-14 -->
+  <style type="text/css"><![CDATA[
+  body {margin: 0em;}
+
+  div
+  {
+  background-color: yellow;
+  font: 1.25em/1 serif;
+  height: 5em;
+  position: relative;
+  width: 41em;
+  }
+
+  div > div
+  {
+  background-color: blue;
+  font: inherit;
+  height: 3em;
+  position: absolute;
+  top: 0em;
+  width: 2em
+  }
+
+  div#first-blue
+  {
+  background-color: blue;
+  left: 29em;
+  }
+
+  div#second-blue
+  {
+  background-color: blue;
+  left: 33em;
+  }
+
+  div#third-blue
+  {
+  background-color: blue;
+  height: 2em;
+  left: 37em;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+    <div id="first-blue"></div>
+    <div id="second-blue"></div>
+    <div id="third-blue"></div>
+  </div>
+
+ </body>
+</html>

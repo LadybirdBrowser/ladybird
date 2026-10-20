@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-1/#the-multi-column-model">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-breaking">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-nested-033-ref.html">
+<meta name="assert" content="Test that the nested multicol's column-gap is resolved against its content-box inline-size in the outer multicol's second column.">
+
+<style>
+.multicol {
+  column-count: 2;
+  column-fill: auto;
+  column-gap: 0;
+}
+#outer {
+  width: 100px;
+  height: 100px;
+}
+#nested {
+  width: 100%;
+  height: 200px;
+  /* column-gap should be resolved to 50px * 30% = 15px. */
+  column-gap: 30%;
+}
+#abscb {
+  position: relative;
+  width: 100%;
+
+  /* Use a height less than the outer column container's height 100px to trigger
+     the bug. */
+  height: 50px;
+}
+#abspos {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 400px;
+  background: green;
+}
+</style>
+
+<div id="outer" class="multicol">
+  <div id="nested" class="multicol">
+    <div id="abscb">
+      <div id="abspos"></div>
+    </div>
+  </div>
+</div>

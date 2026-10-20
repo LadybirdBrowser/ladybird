@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1074480">
+<p>PASS if no crash.</p>
+<body style="columns:2;">
+  <div style="position:relative;">
+    <div style="column-span:all;"></div>
+    <div id="target" style="columns:2; position:fixed;"></div>
+  </div>
+</body>
+<script>
+  document.body.offsetTop;
+  target.style.position = 'absolute';
+  target.style.columns = 'auto';
+</script>

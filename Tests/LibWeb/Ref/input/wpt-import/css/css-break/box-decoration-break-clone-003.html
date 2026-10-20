@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-break/#break-decoration">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1564726">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+
+<style>
+.multicol {
+  column-count: 2;
+  column-gap: 0;
+  column-fill: auto;
+  inline-size: 100px;
+  block-size: 100px;
+  background: red;
+}
+
+.container {
+  border-block-start: 15px solid green;
+  border-block-end: 15px solid pink;
+  box-decoration-break: clone;
+  block-size: 70px;
+}
+
+.child {
+  block-size: calc(85px + 100px); /* 1st column + 2nd column */
+  background: green;
+}
+</style>
+
+<!-- The container's content-box block-size is 70px, fitting exactly into the
+     first column. The child overflows the container, and get painted over the
+     container's block-end border in the first column. -->
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <div class="container">
+    <div class="child"></div>
+  </div>
+</div>

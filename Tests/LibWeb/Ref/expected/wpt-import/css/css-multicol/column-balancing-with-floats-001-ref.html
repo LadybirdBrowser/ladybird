@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+
+<style>
+.multicol {
+  width: 600px;
+  column-count: 2;
+  column-gap: 0;
+  font: 25px/1 Ahem;
+}
+.nav {
+  padding: 25px;
+}
+.float {
+  float: right;
+  width: 50px;
+  height: 25px;
+  background: green;
+}
+</style>
+
+<div class="multicol">
+  <div class="nav">First</div>
+  <div class="nav">
+    <div class="float"></div>
+    Second
+  </div>
+</div>

@@ -1,0 +1,123 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <!--
+  This test's original filename was multicol-inherit-004.xht
+  and it has been modified and is now
+  multicol-nested-column-rule-001.xht
+  -->
+  <title>CSS Multi-column Layout Test: nested multi-columns and column-rule position</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-09 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#pseudo-algorithm" title="3.4 Pseudo-algorithm" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-nested-column-rule-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks how the height of column boxes conditions the height of column rule." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body > div
+  {
+  column-rule: blue solid 1em;
+  font: 1.25em/1 Ahem;
+  width: 26em;
+  }
+
+  /*
+
+  N == 3;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (26em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (26em - (2 * 1em)) / 3);
+  W == max(0, (26em - 2em) / 3);
+  W == max(0, 24em / 3);
+  W == max(0, 8em);
+  W == 8em;
+
+  So, the first column-rule should be at:
+
+    1.0em : margin-left of outer div
+    8.0em : width of 1st column box
+    0.0em : (1.0em / 2) - (1.0em / 2) : left edge of 1st column-rule
+  =========
+    9.0em
+
+  The 2nd column-rule should be at:
+
+    1.0em : margin-left of outer div
+    8.0em : width of 1st column box
+    1.0em : first column-gap
+    8.0em : width of 2nd column box
+    0.0em : (1.0em / 2) - (1.0em / 2) : left edge of 2nd column-rule
+  =========
+   18.0em
+
+  The height of column rule depends on number of line boxes in
+  each outer column box which depends on number of line boxes
+  in each inner column box. So:
+
+     8em : width of each outer column box
+   -
+     2em : horizontal margin of each div inside
+   =======
+     6em : width of each inner multi-column elements
+
+  N == 3;
+
+  W == max(0, (available-width - ((N - 1) * -column-gap)) / N);
+  W == max(0, (6em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (6em - (2 * 1em)) / 3);
+  W == max(0, (6em - 2em) / 3);
+  W == max(0, 4em / 3);
+  W == max(0, 1.33333em);
+  W == 1.33333em;
+
+  So, each duo of 'a', 'm' and 'x' should fill one and only 1 line
+  box. There are 8 duos; therefore, the first 2 inner
+  column boxes should use 3 line boxes and the 3rd inner
+  column box should be using 2 line boxes.
+
+  So, the height of the 2 blue column rules should be 60px.
+
+  */
+
+  div
+  {
+  background-color: white;
+  color: white;
+  font-size: 1em;
+  margin: 0em 1em;
+  orphans: 1;
+  widows: 1;
+
+  column-count: 3;
+  column-gap: 1em;
+  }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+	<div>
+		aa aa
+		aa aa
+		aa aa
+		aa aa
+	</div>
+	<div>
+		mm mm
+		mm mm
+		mm mm
+		mm mm
+	</div>
+	<div>
+		xx xx
+		xx xx
+		xx xx
+		xx xx
+	</div>
+  </div>
+
+ </body>
+</html>

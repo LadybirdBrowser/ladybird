@@ -1,0 +1,48 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-16 -->
+  <style type="text/css"><![CDATA[
+  body {margin:0; margin-top:8px;}
+
+  div
+  {
+  float: left;
+  background-color: blue;
+  height: 200px;
+  width: 60%;
+  margin-left: 8px;
+  }
+
+  h1
+  {
+  color: white;
+  font-size: 2em;
+  line-height: 1.25; /* or 1.21875 to achieve a 39px tall line box */
+  margin: 21px 0em;
+  }
+
+  span#pass
+  {
+  float: left;
+  margin-left: 10px;
+  color: blue;
+  font-size: 1.5em;
+  font-weight: bolder;
+
+  line-height: 1;
+  margin-top: 122px;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+    <h1>Test passes if "PASS!" is<br />on the right &#8600;</h1>
+  </div>
+  <span id="pass">PASS!</span>
+
+ </body>
+</html>

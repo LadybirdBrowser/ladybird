@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#spanning-columns">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:2; column-gap:0; width:100px; background:red;">
+  <div style="height:200px; background:green;">
+    <div style="column-span:all;"></div>
+  </div>
+</div>

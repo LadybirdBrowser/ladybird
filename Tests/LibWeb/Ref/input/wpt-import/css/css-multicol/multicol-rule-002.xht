@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | column-rule</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-gaps-and-rules"/>
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-ref.xht"/>
+<meta name="flags" content="ahem"/>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body {
+	margin: 0;
+}
+body>div {
+	font-family: Ahem;
+	font-size: 1em;
+	line-height: 1em;
+	color: black;
+	background: yellow;
+	margin: 1em;
+	border: 1em solid gray;
+	width: 15em;
+	position: relative;
+	orphans: 1;
+	widows: 1;
+
+	column-count: 4;
+	column-gap: 1em;
+}
+span {
+	background: blue;
+	position: absolute;
+	top: 0;
+	left: 3em;
+	height: 2em;
+	width: 1em;
+}
+span+span {
+	left: 7em;
+}
+span+span+span {
+	left: 11em;
+}
+]]></style>
+</head>
+
+<body>
+
+<div>
+	xx xx
+<span>
+</span>
+	xx xx
+<span>
+</span>
+	xx xx
+<span>
+</span>
+	xx xx
+</div>
+
+</body>
+</html>

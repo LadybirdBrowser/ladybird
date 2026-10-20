@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2045606">
+<style>
+  #col { columns: 3; column-fill: auto; height: 150px; width: 450px; column-gap: 0; }
+  #w { contain: layout paint style; }
+  #k { position: fixed; top: 0; left: 0; width: 60px; }
+  #y { position: fixed; top: 10px; left: 100px; width: 30px; height: 30px; background: red; }
+</style>
+<div id="col">
+  <div id="w">
+    <div style="height:20px">pre</div>
+    <div id="k">
+      <div style="height:220px;background:lime"></div>
+      <span id="h"><div id="y"></div></span>
+      <div style="height:60px;background:cyan"></div>
+    </div>
+    <div style="height:500px">post</div>
+  </div>
+</div>
+<script>
+document.body.offsetHeight;
+requestAnimationFrame(function() {
+  document.getElementById('w').style.contentVisibility = 'hidden';
+  document.body.offsetHeight;
+  document.title = 'done';
+});
+</script>

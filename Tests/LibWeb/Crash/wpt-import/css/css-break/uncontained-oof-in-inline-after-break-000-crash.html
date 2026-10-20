@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="test-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1285743">
+  <div style="columns:2; line-height:20px;">
+    <div id="b" style="height:20px; column-fill:auto;">
+      <br>
+      <span>
+        x
+        <div id="c" style="position:absolute; top:0; left:0; width:10px; column-fill:auto; height:40px;">
+          <br><br><br><br><br>
+        </div>
+      </span>
+    </div>
+  </div>
+  <script>
+    requestAnimationFrame(()=> {
+      requestAnimationFrame(()=> {
+        b.style.columns = "2";
+        c.style.columns = "3";
+        document.documentElement.classList.remove("test-wait");
+      });
+    });
+  </script>
+</html>

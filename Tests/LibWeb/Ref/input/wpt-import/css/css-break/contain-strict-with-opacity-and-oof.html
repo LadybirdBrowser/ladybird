@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/contain-strict-with-opacity-and-oof-ref.html">
+<p>There should be a (pale) green square below, and no (pale) red.</p>
+<div style="columns:3; margin-top:-50px; column-fill:auto; height:200px;">
+  <div style="height:50px;"></div>
+  <div style="will-change:transform; contain:strict; width:100px; height:100px;">
+    <div style="opacity:0.2; width:100px; height:100px; background:red;">
+      <div style="position:absolute; width:100px; height:100px; background:green;"></div>
+    </div>
+  </div>
+</div>

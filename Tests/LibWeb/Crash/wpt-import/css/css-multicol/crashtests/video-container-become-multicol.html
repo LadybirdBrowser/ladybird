@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Change a regular container to a multicol container, so that an inline VIDEO child ends up in the non-first column</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/392928804">
+<div id="container" style="column-fill:auto; height:100px; orphans:1; widows:1;">
+  <br>
+  <video width="100" height="100" controls></video>
+</div>
+<script>
+  requestAnimationFrame(()=> {
+    requestAnimationFrame(()=> {
+      container.style.columns = "2";
+    });
+  });
+</script>

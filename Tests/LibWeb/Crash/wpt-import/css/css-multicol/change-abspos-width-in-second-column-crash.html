@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1074480">
+<p>PASS if no crash.</p>
+<div style="columns:2; column-fill:auto; height:100px;">
+  <div style="position: relative;">
+    <div style="height:150px;"></div>
+    <div id="target" style="position:absolute;"></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  target.style.width = '55px';
+</script>

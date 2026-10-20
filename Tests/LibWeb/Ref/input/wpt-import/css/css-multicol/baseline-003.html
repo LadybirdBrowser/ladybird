@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-1">
+<link rel="help" href="https://drafts.csswg.org/css-align/#baseline-export">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/baseline-003-ref.html">
+<p>The word "PASS" should be seen below, with letters baseline aligned.</p>
+<div style="display:flex; align-items:baseline;">
+  PA
+  <div style="columns:3;">
+    <div style="column-span:all;">SS</div>
+    <br>
+  </div>
+</div>

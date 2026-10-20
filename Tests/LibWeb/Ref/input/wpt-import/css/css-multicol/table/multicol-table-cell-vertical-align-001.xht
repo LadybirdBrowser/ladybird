@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | table-cell, vertical-align</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model"/>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-multicol/table/multicol-table-cell-vertical-align-ref.xht"/>
+<meta name="flags" content="ahem"/>
+<meta name="assert" content="This test checks that 'column-count' applies to elements with 'display' set to 'table-cell' which also use 'vertical-align: middle'. The 'vertical-align' property should still apply." />
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+div {
+	font-family: Ahem;
+	font-size: 20px;
+	line-height: 1em;
+	vertical-align: middle;
+	color: white;
+	background: #3366CC;
+	width: 6em;
+	height: 20em;
+	display: table-cell;
+
+	column-count: 2;
+	column-gap: 0;
+}
+]]></style>
+</head>
+
+<body>
+
+<div>
+aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa
+</div>
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | column-rule</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body {
+	margin: 0;
+}
+body>div {
+	font-family: Ahem;
+	font-size: 1em;
+	line-height: 1em;
+	color: black;
+	background: blue;
+	margin: 1em;
+	border: 1em solid gray;
+	width: 14em;
+	height: 2em;
+	position: relative;
+}
+span {
+	margin-left: 7.5em;
+	width: 2em;
+	height: 2em;
+	display: inline-block;
+}
+div div {
+	background: blue;
+	position: absolute;
+	height: 2em;
+	width: 2em;
+	top: 0;
+	left: -2em;
+}
+div div+div {
+	left: 13em;
+	width: 11.75em;
+}
+]]></style>
+</head>
+
+<body>
+
+<div>
+	<span>xx xx</span>
+	<div></div>
+	<div></div>
+</div>
+
+</body>
+</html>

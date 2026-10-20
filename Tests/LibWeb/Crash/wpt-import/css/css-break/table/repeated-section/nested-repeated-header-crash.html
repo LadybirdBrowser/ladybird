@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1336683">
+<style>
+  thead { break-inside: avoid; }
+  td { padding: 0; }
+  table { border-spacing: 0; }
+</style>
+<p>PASS if no freeze.</p>
+<div style="columns:2; column-fill:auto; height:700px;">
+  <table>
+    <thead>
+      <tr>
+        <td>
+          <div style="columns:2; column-fill:auto; height:120px; background:yellow;">
+            <table>
+              <thead>
+                <tr>
+                  <td>
+                    <div style="width:50px; height:20px; background:hotpink;"></div>
+                  </td>
+                </tr>
+              </thead>
+              <tr><td style="height:100px;"></td></tr>
+              <tr><td style="height:100px;"></td></tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </thead>
+    <tr><td style="height:400px; background:blue;"></td></tr>
+    <tr><td style="height:400px; background:orange;"></td></tr>
+  </table>
+</div>

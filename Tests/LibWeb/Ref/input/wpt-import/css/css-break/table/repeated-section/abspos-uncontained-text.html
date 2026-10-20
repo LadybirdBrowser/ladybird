@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-tables-3/#repeated-headers">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-break/table/repeated-section/abspos-uncontained-text-ref.html">
+<p>The word PASS should be seen <em>once</em> below.</p>
+<div style="columns:4; column-fill:auto; gap:0; width:100px; height:100px;">
+  <div style="display:table;">
+    <div style="display:table-header-group; break-inside:avoid;">
+      <div style="height:20px;">
+        <div style="position:absolute;">PASS</div>
+      </div>
+    </div>
+    <div style="width:25px; height:320px;"></div>
+  </div>
+</div>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-1">
+<link rel="help" href="https://drafts.csswg.org/css-align/#baseline-export">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/baseline-002-ref.html">
+<meta name="assert" content="The first-baseline is propagated from the secound column, as it is the highest.">
+<p>There should be a green square below.</p>
+<div style="display:flex; align-items:baseline; line-height:2em;">
+  <div style="background:green; width:50px; height:100px;">
+    <br>
+  </div>
+  <div style="background:green; columns:3; orphans:1; widows:1; width:50px; height:100px;">
+    <div style="break-inside:avoid; height:2em;"></div>
+    <br>
+    <br>
+    <br>
+  </div>
+</div>

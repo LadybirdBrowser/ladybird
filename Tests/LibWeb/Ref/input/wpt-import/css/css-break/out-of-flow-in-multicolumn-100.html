@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1395581">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:2; column-fill:auto; height:200px;">
+  <div style="width:60px; height:60px; direction:rtl; border:20px solid green; background:red;">
+    <div style="position:relative;">
+      <div style="position:absolute; left:0; top:0; width:60px; height:30px; background:green;"></div>
+      <div style="position:absolute; right:0; top:30px; width:60px; height:30px; background:green;"></div>
+    </div>
+  </div>
+</div>
