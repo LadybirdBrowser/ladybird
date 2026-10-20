@@ -203,13 +203,16 @@ impl HoverPlan {
         // NB: Keep the frame's geometry and dispatch identities even when the host moves its boxes in the next task.
         //     Published rows share immutable columns instead of copying the mutable arena and style engine. The lease
         //     pins only these rows' records, leaving unrelated records reclaimable. Frames with animation overlays
-        //     use the regular lane above.
+        //     use the regular lane above, and so do frames with a row that still names an overlay record no element
+        //     is assigned, which the lease declines.
         let visual_context = state.arena.arena().paint_state().borrow().visual_context.clone();
         if visual_context.tree.is_none() {
             return;
         }
         let records = state.arena.arena().hover_frame_style_records();
-        let style_records = state.engine_ref().lease_selected_style_records(records);
+        let Some(style_records) = state.engine_ref().lease_selected_style_records(records) else {
+            return;
+        };
         self.read_only_frame = Some(ReadOnlyHoverFrame {
             rows: state.arena.arena_mut().publish_rows(),
             bound_rows: state.arena.arena_mut().bound_rows_mut().publish(),
