@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An append may end partway through a value in the initialization segment. The source buffer must wait for the rest
+    // of the segment rather than treat the bytes it has as corrupt.
+    asyncTest(async done => {
+        const mimeType = 'video/mp4;codecs="av01.0.00M.08,mp4a.40.2"';
+        const data = new Uint8Array(await (await fetch("../../../Assets/av1-aac-fragmented.mp4")).arrayBuffer());
+        const view = new DataView(data.buffer);
+        const fileTypeBoxSize = view.getUint32(0);
+        const initializationSegment = data.subarray(0, fileTypeBoxSize + view.getUint32(fileTypeBoxSize));
+
+        async function appendInTwoParts(splitOffset) {
+            const video = document.createElement("video");
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+            await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+            let errorFired = false;
+            sourceBuffer.addEventListener("error", () => errorFired = true);
+
+            for (const part of [initializationSegment.subarray(0, splitOffset), initializationSegment.subarray(splitOffset)]) {
+                sourceBuffer.appendBuffer(part);
+                await new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true }));
+            }
+            println(`Split at ${splitOffset}: error fired: ${errorFired}, video tracks: ${video.videoTracks.length}, audio tracks: ${video.audioTracks.length}`);
+        }
+
+        // Split two bytes into the size of the File Type box, of the Movie Header box, of the second Track box, and of
+        // the last Chunk Offset box's entry count.
+        for (const splitOffset of [2, fileTypeBoxSize + 10, 627, 1066])
+            await appendInTwoParts(splitOffset);
+        done();
+    });
+</script>
