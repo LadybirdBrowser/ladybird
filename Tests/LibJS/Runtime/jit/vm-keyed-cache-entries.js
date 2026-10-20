@@ -1,6 +1,7 @@
 // JIT code at keyed accesses that saw too many (shape, key) pairs for their own caches looks string keys up in the
-// VM's keyed lookup cache, like the interpreter, where missing properties read undefined. The functions are compiled
-// once their sites have given up on their own caches.
+// VM's keyed caches, like the interpreter: missing properties read undefined, and stores add properties to objects of
+// the shapes the store cache remembers additions for. The functions are compiled once their sites have given up on
+// their own caches.
 
 const keys = [];
 for (let i = 0; i < 600; ++i) keys.push(`key${i}`);
@@ -13,7 +14,7 @@ function compiledAfter(parameters, body, warmUp) {
     return fn;
 }
 
-describe("keyed accesses through the VM's lookup cache in JIT code", () => {
+describe("keyed accesses through the VM's caches in JIT code", () => {
     test("missing and present properties of many shapes", () => {
         // Objects with every even or every odd key, and one key of their own, so that the VM's lookup cache holds
         // entries for missing and for present properties of many shapes, which also share entries.
@@ -81,5 +82,40 @@ describe("keyed accesses through the VM's lookup cache in JIT code", () => {
         })(1, 2);
         expect(get(args, "key1")).toBeUndefined();
         expect(get(args, "length")).toBe(2);
+    });
+
+    test("additions of many keys", () => {
+        const make = () => {
+            const object = {};
+            for (let k = 0; k < keys.length; k += 3) object[keys[k]] = k;
+            return object;
+        };
+        const put = compiledAfter(["object", "key", "value"], "(object[key] = value)", put => {
+            for (let round = 0; round < 3; ++round) {
+                const object = make();
+                for (const key of keys) put(object, key, key);
+            }
+        });
+        for (let round = 0; round < 3; ++round) {
+            const object = make();
+            for (let k = 0; k < keys.length; ++k) put(object, keys[k], -k);
+            for (let k = 0; k < keys.length; ++k) expect(object[keys[k]]).toBe(-k);
+            expect(Object.keys(object).length).toBe(keys.length);
+        }
+        const sealed = make();
+        Object.preventExtensions(sealed);
+        put(sealed, "key1", 1);
+        expect(Object.hasOwn(sealed, "key1")).toBeFalse();
+        const prototype = {};
+        const stores = [];
+        Object.defineProperty(prototype, "key1", {
+            set(value) {
+                stores.push(value);
+            },
+        });
+        const inheriting = Object.assign(Object.create(prototype), make());
+        put(inheriting, "key1", "set");
+        expect(stores).toEqual(["set"]);
+        expect(Object.hasOwn(inheriting, "key1")).toBeFalse();
     });
 });

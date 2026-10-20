@@ -46,8 +46,10 @@ pub(super) struct DeferredStorageGrowth {
     object: Gpr,
     /// Holds the property count of the new shape.
     needed: Gpr,
-    /// The cache entry, whose new shape the addition reloads.
+    /// The cache entry, whose new shape (at `new_shape`) the addition
+    /// reloads.
     cache_entry: Gpr,
+    new_shape: i32,
     shape: Gpr,
 }
 
@@ -74,13 +76,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// The label that grows the named property storage of the object in
     /// `registers.object` to hold `needed` properties and continues at
-    /// `resume`, with the new shape of `registers.entry` in
-    /// `registers.shape`, or goes to `miss`. Or `miss` itself if JIT code
-    /// cannot grow storage.
+    /// `resume`, with the new shape of `registers.entry` (at `new_shape` in
+    /// it) in `registers.shape`, or goes to `miss`. Or `miss` itself if JIT
+    /// code cannot grow storage.
     pub(super) fn storage_growth(
         &mut self,
         node: NodeId,
         registers: &CacheRegisters,
+        new_shape: i32,
         needed: Gpr,
         resume: Label,
         miss: Label,
@@ -97,6 +100,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             object: registers.object,
             needed,
             cache_entry: registers.entry,
+            new_shape,
             shape: registers.shape,
         });
         entry
@@ -109,7 +113,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
         let registers = Self::growth_registers().expect("growth needs its registers");
         let subroutine = self.masm.new_label();
-        let layout = self.runtime.layout;
         for growth in growths {
             self.annotate(super::CodeAnnotation::Deferred(growth.node));
             self.masm.bind(growth.entry);
@@ -119,10 +122,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.masm.call(subroutine);
             self.masm
                 .branch_test32(Condition::Zero, self.pinned.scratch, u32::MAX, growth.miss);
-            self.masm.load64(
-                growth.shape,
-                &Address::new(growth.cache_entry, layout.property_lookup_cache_entry_shape as i32),
-            );
+            self.masm
+                .load64(growth.shape, &Address::new(growth.cache_entry, growth.new_shape));
             self.masm.jump(growth.resume);
         }
         self.annotate(super::CodeAnnotation::Tail("grow named property storage"));

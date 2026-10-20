@@ -12,6 +12,7 @@
 use super::super::Codegen;
 use super::megamorphic::EntryShape;
 use super::megamorphic::MegamorphicKey;
+use super::property::AdditionEntryFields;
 use super::property::CacheProbe;
 use super::property::CacheRegisters;
 use super::property::DeferredCacheProbe;
@@ -85,29 +86,61 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     }
 
     /// Stores `source` into the writable own data property that the string
-    /// `key` names on the object in `base`, if the VM's keyed property
-    /// store cache has it (see `RuntimeLayout::keyed_store_cache_entries`),
-    /// and jumps to `done`, or jumps to `miss`. Clobbers the cache registers
-    /// and the scratch register.
+    /// `key` names on the object in `base`, or adds it, if the VM's keyed
+    /// property store cache has the change or the addition (see
+    /// `RuntimeLayout::keyed_store_cache_entries`), and jumps to `done`, or
+    /// jumps to `miss`. Uses `storage` for additions, and clobbers the cache
+    /// registers and the scratch register.
+    #[allow(clippy::too_many_arguments)]
     fn emit_keyed_store_cache_put(
         &mut self,
+        node: NodeId,
         base: Gpr,
         key: Gpr,
         source: Gpr,
         registers: CacheRegisters,
+        storage: Gpr,
         miss: Label,
         done: Label,
     ) {
-        let entries = self.runtime.layout.keyed_store_cache_entries;
-        let entry_type = self.runtime.layout.property_lookup_cache_entry_type_change_own_property;
-        let Some(property) = self.emit_vm_keyed_cache_probe(base, key, &registers, entries, entry_type, miss, miss)
-        else {
+        let layout = self.runtime.layout;
+        let entry_type = layout.property_lookup_cache_entry_type_change_own_property;
+        let addition = (layout.keyed_lookup_cache_new_shape != 0).then(|| self.masm.new_label());
+        let Some(property) = self.emit_vm_keyed_cache_probe(
+            base,
+            key,
+            &registers,
+            layout.keyed_store_cache_entries,
+            entry_type,
+            miss,
+            addition.unwrap_or(miss),
+        ) else {
             return;
         };
-        let CacheRegisters { entry, .. } = registers;
+        let CacheRegisters { object, entry, .. } = registers;
         self.masm.load64(entry, &property);
         self.branch_on_tag(Condition::Equal, entry, value::ACCESSOR_TAG, entry, miss);
         self.masm.store64(&property, source);
+        self.masm.jump(done);
+        let Some(addition) = addition else {
+            return;
+        };
+        // NB: The cache entry is in the object register, and the shape it
+        //     was found for in the shape register (see
+        //     `emit_vm_keyed_cache_entry()`).
+        self.masm.bind(addition);
+        self.masm.move64(entry, object);
+        self.emit_unbox_cell(object, base);
+        // NB: Finding the entry matched the shape and its dictionary generation.
+        let fields = AdditionEntryFields {
+            entry_type: layout.keyed_lookup_cache_entry_type as i32,
+            from_shape: None,
+            dictionary_generation: None,
+            prototype_chain_validity: layout.keyed_lookup_cache_prototype_chain_validity as i32,
+            new_shape: layout.keyed_lookup_cache_new_shape as i32,
+            property_offset: layout.keyed_lookup_cache_property_offset as i32,
+        };
+        self.emit_add_own_property(node, &registers, fields, source, storage, miss);
         self.masm.jump(done);
     }
 
@@ -484,11 +517,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .load64(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
         let registers = CacheRegisters { object, shape, entry };
-        self.emit_add_own_property(node, &registers, source, storage, fail);
+        let fields = self.site_addition_entry_fields();
+        self.emit_add_own_property(node, &registers, fields, source, storage, fail);
         self.masm.jump(stored);
 
         self.masm.bind(store_cache);
-        self.emit_keyed_store_cache_put(base, key, source, registers, fail, stored);
+        self.emit_keyed_store_cache_put(node, base, key, source, registers, storage, fail, stored);
         self.masm.bind(stored);
         self.masm.move_imm32(output, 1);
         self.bind_probe_failure(output, 0, failure, done);
