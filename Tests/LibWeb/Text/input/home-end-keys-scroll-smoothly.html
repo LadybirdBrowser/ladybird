@@ -12,28 +12,28 @@
         window.scrollTo(100, 0);
         await scrolled;
 
-        // A key that jumps fires one scroll event. A key that animates fires one per frame.
-        const scrollEventsUntilScrollend = async (target, key) => {
-            let scrollEventCount = 0;
-            const countScrollEvent = () => ++scrollEventCount;
-            target.addEventListener("scroll", countScrollEvent);
+        // A key that jumps scrolls before the key press returns. A key that animates leaves the scroll offset alone
+        // until a later frame. This holds even when a busy page sees only the last frame of the animation.
+        const keyAnimatesUntilScrollend = async (target, key) => {
+            const scrollOffset = () => (target === document ? window.scrollY : target.scrollTop);
+            const scrollOffsetBeforeKey = scrollOffset();
             const finished = scrollendEvent(target);
             internals.sendKey(target === document ? document.body : target, key);
+            const keyAnimates = scrollOffset() === scrollOffsetBeforeKey;
             await finished;
-            target.removeEventListener("scroll", countScrollEvent);
-            return scrollEventCount;
+            return keyAnimates;
         };
 
-        const viewportEndEvents = await scrollEventsUntilScrollend(document, "End");
+        const viewportEndAnimates = await keyAnimatesUntilScrollend(document, "End");
         const viewportEnd = document.documentElement.scrollHeight - window.innerHeight;
-        println(`End animated the viewport to its end: ${viewportEndEvents > 1 && window.scrollY === viewportEnd}`);
+        println(`End animated the viewport to its end: ${viewportEndAnimates && window.scrollY === viewportEnd}`);
 
-        const viewportHomeEvents = await scrollEventsUntilScrollend(document, "Home");
-        println(`Home animated the viewport to its start: ${viewportHomeEvents > 1 && window.scrollY === 0}`);
+        const viewportHomeAnimates = await keyAnimatesUntilScrollend(document, "Home");
+        println(`Home animated the viewport to its start: ${viewportHomeAnimates && window.scrollY === 0}`);
         println(`Home kept the viewport's horizontal offset: ${window.scrollX === 100}`);
 
-        const scrollerEndEvents = await scrollEventsUntilScrollend(scroller, "End");
+        const scrollerEndAnimates = await keyAnimatesUntilScrollend(scroller, "End");
         const scrollerEnd = scroller.scrollHeight - scroller.clientHeight;
-        println(`End animated the scroll container to its end: ${scrollerEndEvents > 1 && scroller.scrollTop === scrollerEnd}`);
+        println(`End animated the scroll container to its end: ${scrollerEndAnimates && scroller.scrollTop === scrollerEnd}`);
     });
 </script>
