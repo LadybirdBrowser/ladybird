@@ -261,6 +261,9 @@ ReadonlySpan<float> PlaybackStreamMixer::MixState::mix_into(Span<float> buffer, 
             client.ring.publish_consumption(client.played_at_ns, client.state == ClientState::Playing && consumed_frames > 0);
         }
     }
+    // The mix is clipped to the [-1, 1] that devices play, rather than leaving sound beyond it to each platform.
+    for (auto& sample : buffer)
+        sample = clamp(sample, -1.0f, 1.0f);
     for (auto drained : drained_clients) {
         m_control_loop.deferred_invoke([self = NonnullRefPtr(*this), drained] {
             if (self->m_mixer)
