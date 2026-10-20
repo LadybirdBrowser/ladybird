@@ -314,7 +314,8 @@ Optional<Decoder&> decoder_for_exact_name(StringView encoding)
 Optional<StringView> get_standardized_encoding(StringView encoding)
 {
     auto standardized_encoding = get_static_encoding_name_from_rust(encoding);
-    if (!standardized_encoding.has_value())
+    // NB: Pages often give an empty label, such as <script charset="">. That is not worth logging.
+    if (!standardized_encoding.has_value() && !encoding.trim_whitespace().is_empty())
         dbgln("TextCodec: Unrecognized encoding: {}", encoding);
     return standardized_encoding;
 }
