@@ -154,8 +154,10 @@ pub(crate) struct FloatingBox {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FloatBand {
     pub(crate) block_start: CssPixels,
-    pub(crate) left_intrusion: CssPixels,
-    pub(crate) right_intrusion: CssPixels,
+    // NB: None means that no float on this side touches the band. A float can intrude by zero or a negative amount
+    //     when it lies entirely outside the root, and it must still push later floats on the same side.
+    pub(crate) left_intrusion: Option<CssPixels>,
+    pub(crate) right_intrusion: Option<CssPixels>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -982,16 +984,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut intrusions = inline_formatting_context::SpaceUsedByFloats::default();
         if block_end_in_root <= block_start_in_root {
             let band = bands[self.band_index_at(block_start_in_root)];
-            intrusions.left = band.left_intrusion;
-            intrusions.right = band.right_intrusion;
+            intrusions.left = band.left_intrusion.unwrap_or_default().max(CssPixels::default());
+            intrusions.right = band.right_intrusion.unwrap_or_default().max(CssPixels::default());
             return intrusions;
         }
         for band in bands.iter().skip(self.band_index_at(block_start_in_root)) {
             if band.block_start >= block_end_in_root {
                 break;
             }
-            intrusions.left = intrusions.left.max(band.left_intrusion);
-            intrusions.right = intrusions.right.max(band.right_intrusion);
+            intrusions.left = intrusions.left.max(band.left_intrusion.unwrap_or_default());
+            intrusions.right = intrusions.right.max(band.right_intrusion.unwrap_or_default());
         }
         intrusions
     }
@@ -1005,16 +1007,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         // intrinsic sizing of this context's own root is in progress.
         let root_content_inline_size = self.used(self.run.box_).content_inline_size.get();
         inline_formatting_context::SpaceUsedByFloats {
-            left: if band.left_intrusion == CssPixels::default() {
-                CssPixels::default()
-            } else {
-                (band.left_intrusion - rect_in_root.x).max(CssPixels::default())
-            },
-            right: if band.right_intrusion == CssPixels::default() {
-                CssPixels::default()
-            } else {
-                (band.right_intrusion - (root_content_inline_size - rect_in_root.right())).max(CssPixels::default())
-            },
+            left: band.left_intrusion.map_or(CssPixels::default(), |intrusion| {
+                (intrusion - rect_in_root.x).max(CssPixels::default())
+            }),
+            right: band.right_intrusion.map_or(CssPixels::default(), |intrusion| {
+                (intrusion - (root_content_inline_size - rect_in_root.right())).max(CssPixels::default())
+            }),
         }
     }
 
@@ -1062,8 +1060,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let intrusions = self.intrusions_for_band_into_rect(band, containing_block_rect_in_root);
             let available_inline_size =
                 available_space.inline_size.to_px_or_zero() - intrusions.left - intrusions.right;
-            let has_floats_present =
-                band.left_intrusion > CssPixels::default() || band.right_intrusion > CssPixels::default();
+            let has_floats_present = band.left_intrusion.is_some() || band.right_intrusion.is_some();
             let fits = matches!(
                 available_space.inline_size,
                 AvailableSize::MaxContent | AvailableSize::Indefinite
@@ -1132,6 +1129,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         if block_end <= block_start {
             return;
         }
+        // NB: A float that takes up no inline space only moves later floats and clearance down, which the lowest
+        //     margin edges above track. It leaves the bands alone, so that it does not push later floats past it.
+        if margin_box_rect.width <= CssPixels::default() {
+            return;
+        }
         self.ensure_band_boundary(block_start);
         self.ensure_band_boundary(block_end);
         let intrusion = if floating_box.side == FloatSide::Left {
@@ -1154,9 +1156,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 break;
             }
             if floating_box.side == FloatSide::Left {
-                band.left_intrusion = band.left_intrusion.max(intrusion);
+                band.left_intrusion = band.left_intrusion.max(Some(intrusion));
             } else {
-                band.right_intrusion = band.right_intrusion.max(intrusion);
+                band.right_intrusion = band.right_intrusion.max(Some(intrusion));
             }
         }
     }
