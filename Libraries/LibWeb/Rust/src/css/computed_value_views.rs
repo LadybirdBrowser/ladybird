@@ -430,6 +430,7 @@ scalar_accessors! {
         column_rule_color: u32 => column_rule_color,
         break_before: u8 => break_before,
         break_after: u8 => break_after,
+        break_inside: u8 => break_inside,
     }
     border_facts: {
         border_top_width: CssPixels => border_top.width,

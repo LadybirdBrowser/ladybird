@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#break-decoration">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/borders-002-ref.html">
+<p>There should be a yellow box that starts in the second column and ends in the
+  fourth. The top border should be in the second column, and the bottom border
+  should be in the fourth.</p>
+<div style="columns:4; column-gap:10px; column-fill:auto; width:430px; height:100px;">
+  <div style="height:95px;"></div>
+  <div style="border:10px solid hotpink; height:250px; background:yellow;"></div>
+</div>

@@ -82,6 +82,14 @@ pub(crate) fn is_forced_column_break(value: u8) -> bool {
     value == break_between::COLUMN
 }
 
+pub(crate) fn avoids_column_break_between(value: u8) -> bool {
+    matches!(value, break_between::AVOID | break_between::AVOID_COLUMN)
+}
+
+pub(crate) fn avoids_column_break_inside(value: u8) -> bool {
+    matches!(value, break_inside::AVOID | break_inside::AVOID_COLUMN)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ColumnRow {
     pub(crate) block_offset: CssPixels,
@@ -140,6 +148,7 @@ pub(crate) struct FragmentainerOutcome {
     pub(crate) needs_early_break_before: Option<Node>,
     pub(crate) minimal_space_shortage: Option<CssPixels>,
     pub(crate) tallest_unbreakable_block_size: CssPixels,
+    pub(crate) violates_break_avoidance: bool,
 }
 
 impl FragmentainerOutcome {
@@ -153,6 +162,7 @@ pub(crate) struct FragmentainerContext {
     pub(crate) incoming: Option<Rc<BlockBreakToken>>,
     pub(crate) inline_items: Rc<inline_level_iterator::InlineItemCache>,
     pub(crate) early_break_before: Option<Node>,
+    pub(crate) allows_early_break_requests: bool,
     outcome: RefCell<FragmentainerOutcome>,
 }
 
@@ -162,18 +172,28 @@ impl FragmentainerContext {
         incoming: Option<Rc<BlockBreakToken>>,
         inline_items: Rc<inline_level_iterator::InlineItemCache>,
         early_break_before: Option<Node>,
+        allows_early_break_requests: bool,
     ) -> Self {
         Self {
             block_size,
             incoming,
             inline_items,
             early_break_before,
+            allows_early_break_requests,
             outcome: RefCell::new(FragmentainerOutcome::default()),
         }
     }
 
     pub(crate) fn outcome_mut(&self) -> RefMut<'_, FragmentainerOutcome> {
         self.outcome.borrow_mut()
+    }
+
+    pub(crate) fn request_early_break_before(&self, node: Node) -> bool {
+        if !self.allows_early_break_requests {
+            return false;
+        }
+        self.outcome.borrow_mut().needs_early_break_before = Some(node);
+        true
     }
 
     pub(crate) fn take_outcome(&self) -> FragmentainerOutcome {

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .mc { columns: 2; column-gap: 20px; column-fill: auto; height: 100px; width: 420px; }
+</style>
+<div class="mc"><div style="height: 70px"></div><div id="ltr" style="height: 60px"></div></div>
+<div class="mc" style="direction: rtl"><div style="height: 70px"></div><div id="rtl" style="height: 60px"></div></div>
+<div class="mc"><div id="border-box" style="box-sizing: border-box; height: 150px; padding: 5px; border: 2px solid"></div></div>
+<script>
+    test(() => {
+        for (const id of ["ltr", "rtl", "border-box"]) {
+            const element = document.getElementById(id);
+            const container = element.parentElement;
+            const style = getComputedStyle(element);
+            println(`${id}: offset ${element.offsetLeft - container.offsetLeft},${element.offsetTop - container.offsetTop} ${element.offsetWidth}x${element.offsetHeight}, computed ${style.width} ${style.height}`);
+        }
+    });
+</script>

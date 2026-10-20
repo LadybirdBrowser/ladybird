@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#unforced-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Three blocks could fit in the first fragmentainer, but there's a break-after:avoid between the third and fourth block, so we should break between the second and third">
+<style>
+  .square {
+      height: 50px;
+      break-inside: avoid;
+      background:green;
+  }
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:2; column-fill:auto; column-gap:0; width:100px; height:160px;">
+  <div class="square"></div>
+  <div class="square"></div>
+  <div class="square" style="break-after:avoid;"></div>
+  <div class="square"></div>
+</div>

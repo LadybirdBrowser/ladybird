@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .multicol { columns: 2; column-gap: 0; column-fill: auto; height: 100px; width: 400px; margin-bottom: 10px; }
+    .box { margin-top: 30px; height: 20px; }
+</style>
+<div class="multicol"><div style="height: 90px"></div><div><div></div><div class="box" id="after-empty-child"></div></div></div>
+<div class="multicol"><div style="height: 90px"></div><div><div><div></div><div class="box" id="after-nested-empty-child"></div></div></div></div>
+<div class="multicol"><div style="height: 90px"></div><section><a id="anchor"></a><h2 style="margin: 30px 0 0 0; height: 20px" id="heading">Heading</h2></section></div>
+<script>
+    test(() => {
+        for (const id of ["after-empty-child", "after-nested-empty-child", "heading"]) {
+            const element = document.getElementById(id);
+            const origin = element.closest(".multicol").getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
+            println(`${id}: ${rect.x - origin.x},${rect.y - origin.y}`);
+        }
+    });
+</script>

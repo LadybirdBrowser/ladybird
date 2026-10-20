@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .case { columns: 2; column-gap: 0; width: 400px; margin-bottom: 20px; }
+    .fixed { column-fill: auto; height: 100px; }
+</style>
+<div class="case" id="min-height"><div id="min-height-box" style="min-height: 300px"><div style="height: 20px"></div></div><div id="min-height-after" style="height: 20px"></div></div>
+<div class="case" id="contained"><div id="contained-box" style="contain: size; contain-intrinsic-height: 300px"><div style="height: 20px"></div></div><div id="contained-after" style="height: 20px"></div></div>
+<div class="case fixed" id="border-box-padding" style="columns: 3; column-gap: 10px; width: 320px"><div id="border-box-padding-box" style="box-sizing: border-box; height: 250px; padding-top: 50px"></div><div id="border-box-padding-after" style="height: 10px"></div></div>
+<div class="case fixed" id="border-box-border"><div id="border-box-border-box" style="border: 10px solid; box-sizing: border-box; height: 200px"></div></div>
+<div class="case fixed" id="border-box-both"><div id="border-box-both-box" style="border: 10px solid; padding: 5px; box-sizing: border-box; height: 200px"></div></div>
+<div class="case fixed" id="border-box-min"><div id="border-box-min-box" style="border: 10px solid; padding: 5px; box-sizing: border-box; min-height: 200px"></div></div>
+<div class="case fixed" id="nested-margin"><div style="height: 90px"></div><div id="nested-margin-box"><div id="nested-margin-inner" style="margin-top: 30px; height: 20px"></div></div><div id="nested-margin-after" style="height: 60px"></div></div>
+<div class="case fixed" id="percentage" style="column-gap: 20px; width: 420px"><div style="height: 200px"><div style="height: 100px"></div><div id="percentage-box" style="height: 50%"></div></div></div>
+<div class="case fixed" id="relative" style="column-gap: 20px; width: 420px"><div style="height: 200px"><div style="height: 100px"></div><div id="relative-box" style="position: relative; top: 25%; height: 10px"></div></div></div>
+<div class="case fixed" id="metrics"><div id="metrics-box" style="border: 5px solid; padding: 10px; height: 120px; margin-bottom: 7px"></div></div>
+<script>
+    function rectsIn(element, container) {
+        const origin = container.getBoundingClientRect();
+        return [...element.getClientRects()]
+            .map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`)
+            .join(" ");
+    }
+
+    test(() => {
+        const report = (id, part) => {
+            const element = document.getElementById(`${id}-${part}`);
+            println(`${id} ${part}: ${rectsIn(element, document.getElementById(id))}`);
+        };
+        report("min-height", "box");
+        report("min-height", "after");
+        report("contained", "box");
+        report("contained", "after");
+        report("border-box-padding", "box");
+        report("border-box-padding", "after");
+        for (const id of ["border-box-border", "border-box-both", "border-box-min"])
+            report(id, "box");
+        report("nested-margin", "box");
+        report("nested-margin", "inner");
+        report("nested-margin", "after");
+        report("percentage", "box");
+        report("relative", "box");
+        const box = document.getElementById("metrics-box");
+        const style = getComputedStyle(box);
+        println(`metrics: offset ${box.offsetWidth}x${box.offsetHeight}, client ${box.clientWidth}x${box.clientHeight}, computed height ${style.height}, padding-bottom ${style.paddingBottom}, margin-bottom ${style.marginBottom}`);
+        println(`document scroll width: ${document.documentElement.scrollWidth}`);
+    });
+</script>

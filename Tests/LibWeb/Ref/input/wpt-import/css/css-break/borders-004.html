@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#break-decoration">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/borders-004-ref.html">
+<p>There should be a yellow box that starts in the first column and ends in the
+  third. The border should be rounded at the start (first column) and at the end
+  (last column).</p>
+<div style="columns:3; column-gap:10px; column-fill:auto; width:620px; height:100px;">
+  <div style="border-radius:40px; border:20px solid hotpink; height:250px; background:yellow;"></div>
+</div>

@@ -1,0 +1,16 @@
+min-height box: 0,0 200x160 200,0 200x140
+min-height after: 200,140 200x20
+contained box: 0,0 200x300
+contained after: 200,0 200x20
+border-box-padding box: 0,0 100x100 110,0 100x100 220,0 100x50
+border-box-padding after: 220,50 100x10
+border-box-border box: 0,0 200x100 200,0 200x100
+border-box-both box: 0,0 200x100 200,0 200x100
+border-box-min box: 0,0 200x100 200,0 200x100
+nested-margin box: 200,0 200x20
+nested-margin inner: 200,0 200x20
+nested-margin after: 200,20 200x60
+percentage box: 220,0 200x100
+relative box: 220,50 200x10
+metrics: offset 400x100, client 190x95, computed height 120px, padding-bottom 10px, margin-bottom 7px
+document scroll width: 800

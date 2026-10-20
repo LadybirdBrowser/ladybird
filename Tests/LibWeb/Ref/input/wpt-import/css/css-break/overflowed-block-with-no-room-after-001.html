@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#parallel-flows">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="margin-bottom:-30px; width:50px; height:30px; background:green;"></div>
+<div style="columns:2; column-fill:auto; column-gap:0; width:100px; height:70px; margin-top:30px;">
+  <div>
+    <div style="height:80px;">
+      <div style="height:140px; background:green;"></div>
+    </div>
+  </div>
+  <div style="margin-top:-40px; height:30px; background:green;"></div>
+</div>

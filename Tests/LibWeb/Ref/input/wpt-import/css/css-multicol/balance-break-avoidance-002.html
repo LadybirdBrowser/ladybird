@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#filling-columns">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#break-between">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#break-within">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="width:100px; columns:2; column-gap:0; background:green;">
+  <div style="height:25px;"></div>
+  <div style="height:50px;"></div>
+  <div style="height:25px; break-before:avoid;"></div>
+  <div style="height:50px;"></div>
+</div>

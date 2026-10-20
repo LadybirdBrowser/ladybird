@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#forced-breaks">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#unforced-breaks">
+<meta name="assert" content="A forced break at the block-start of the fragmentainer is allowed, as long as it's otherwise at a valid class A break point">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:1; column-fill:auto; width:100px; height:100px; background:green;">
+  <div style="break-after:column;"></div>
+  <div style="height:99px; background:white;"></div>
+</div>
