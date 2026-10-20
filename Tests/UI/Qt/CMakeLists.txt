@@ -98,6 +98,19 @@ target_sources(TestScreenshotViewer PRIVATE
 )
 deploy_qt_offscreen_platform_plugin(TestScreenshotViewer)
 
+ladybird_test("TestWebCompatReportReview.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+    LIBS LibURL LibWebView Qt::Core Qt::Gui Qt::Widgets
+)
+target_sources(TestWebCompatReportReview PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/Icon.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ReportReview.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/WebCompatReportReview.cpp"
+)
+deploy_qt_offscreen_platform_plugin(TestWebCompatReportReview)
+
 ladybird_test("TestHiddenPageSizing.cpp" UI/Qt
     CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
     LIBS Qt::Core Qt::Gui Qt::Widgets

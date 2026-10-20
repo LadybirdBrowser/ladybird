@@ -56,6 +56,7 @@ target_sources(ladybird PRIVATE
     StringUtils.cpp
     Tab.cpp
     TabBar.cpp
+    WebCompatReportReview.cpp
     WebContentView.cpp
     WindowCloseCoordinator.cpp
     WindowControlButton.cpp
