@@ -12,13 +12,16 @@
 #include <AK/GenericShorthands.h>
 #include <AK/String.h>
 #include <AK/TypeCasts.h>
+#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
 
 #include <core/SkCanvas.h>
+#include <core/SkFont.h>
 #include <core/SkImage.h>
 #include <core/SkPath.h>
 #include <effects/SkBlurMaskFilter.h>
@@ -277,12 +280,35 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
     canvas.drawPath(sk_path, paint);
 }
 
-void PainterSkia::draw_text_blob(SkTextBlob const& blob, FloatPoint translation, PaintStyle const& style, Optional<Filter> filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator)
+void PainterSkia::draw_glyph_run(Font const& font, ReadonlySpan<CanvasGlyph> glyphs, FloatPoint translation, PaintStyle const& style, Optional<Filter> filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator)
 {
+    if (glyphs.is_empty() || font.is_invisible())
+        return;
+
+    auto sk_font = font.skia_font(1);
+    // NB: Preserve canvas text's fractional baseline and unhinted outline geometry.
+    sk_font.setHinting(SkFontHinting::kNone);
+    sk_font.setForceAutoHinting(false);
+    sk_font.setBaselineSnap(false);
+
+    Vector<SkGlyphID, 32> glyph_ids;
+    Vector<SkPoint, 32> glyph_positions;
+    glyph_ids.ensure_capacity(glyphs.size());
+    glyph_positions.ensure_capacity(glyphs.size());
+    auto font_ascent = font.pixel_metrics().ascent;
+    for (auto const& glyph : glyphs) {
+        glyph_ids.unchecked_append(static_cast<SkGlyphID>(glyph.glyph_id));
+        glyph_positions.unchecked_append({ glyph.position.x(), glyph.position.y() + font_ascent });
+    }
+
     auto paint = to_skia_paint(style, filter);
     paint.setAlphaf(paint.getAlphaf() * global_alpha);
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
-    m_painting_surface->canvas().drawTextBlob(&blob, translation.x(), translation.y(), paint);
+
+    // NB: Not drawTextBlob(). Skia caches a drawn SkTextBlob once per subpixel origin, and finds a cached entry by
+    //     scanning every entry of that blob. Canvas text is often redrawn at moving fractional positions, which
+    //     piles up thousands of entries per blob and makes each draw scan all of them.
+    m_painting_surface->canvas().drawGlyphs({ glyph_ids.data(), glyph_ids.size() }, { glyph_positions.data(), glyph_positions.size() }, to_skia_point(translation), sk_font, paint);
 }
 
 void PainterSkia::save()

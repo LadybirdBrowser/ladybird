@@ -19,7 +19,6 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <Compositor/DisplayListRasterCache.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -91,7 +90,6 @@ private:
     Compositing::CanvasSurfaceOwnerId m_canvas_surface_owner_id;
     HashMap<Compositing::CanvasId, Context> m_contexts;
     Compositing::DisplayListResourceStorage m_text_resources;
-    DisplayListRasterCache m_text_blobs;
 };
 
 }

@@ -14,10 +14,6 @@
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/Forward.h>
 
-class SkTextBlob;
-template<typename T>
-class sk_sp;
-
 namespace Gfx {
 
 class CanvasCommandPlayer {
@@ -27,10 +23,10 @@ class CanvasCommandPlayer {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    using TextBlobResolver = Function<sk_sp<SkTextBlob>(u64, ReadonlySpan<CanvasGlyph>)>;
+    using FontResolver = Function<Font const*(u64)>;
     using CanvasSurfaceResolver = Function<PaintingSurface const*(u64)>;
 
-    CanvasCommandPlayer(RefPtr<SkiaBackendContext>, IntSize, BitmapFormat, AlphaType, CanvasSurfaceResolver = {}, TextBlobResolver = {});
+    CanvasCommandPlayer(RefPtr<SkiaBackendContext>, IntSize, BitmapFormat, AlphaType, CanvasSurfaceResolver = {}, FontResolver = {});
     ~CanvasCommandPlayer();
 
     NonnullRefPtr<PaintingSurface> surface() const;
@@ -59,7 +55,7 @@ private:
     NonnullRefPtr<PaintingSurface> m_surface;
     NonnullOwnPtr<PainterSkia> m_painter;
     CanvasSurfaceResolver m_canvas_surface_resolver;
-    TextBlobResolver m_text_blob_resolver;
+    FontResolver m_font_resolver;
 };
 
 }
