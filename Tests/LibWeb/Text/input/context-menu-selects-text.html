@@ -7,6 +7,8 @@
     }
 </style>
 <div id="word">ordinary</div>
+<div id="words">two words</div>
+<div id="nbsp">two&nbsp;words</div>
 <div id="url">ladybird.org/path?x=1</div>
 <div id="prevented">prevented</div>
 <div id="existing">existing selection</div>
@@ -17,7 +19,18 @@
 <script>
     function rightClick(element) {
         const rect = element.getBoundingClientRect();
-        internals.click(rect.left + 8, rect.top + rect.height / 2, 1, internals.BUTTON_RIGHT);
+        rightClickAt(rect.left + 8, rect.top + rect.height / 2);
+    }
+
+    function rightClickAt(x, y) {
+        internals.click(x, y, 1, internals.BUTTON_RIGHT);
+    }
+
+    function textRect(node, start, end) {
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        return range.getBoundingClientRect();
     }
 
     function selectedText() {
@@ -27,6 +40,31 @@
     test(() => {
         rightClick(word);
         println(`plain word: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        const wordRect = textRect(word.firstChild, 0, 8);
+        rightClickAt(wordRect.right + 20, wordRect.top + wordRect.height / 2);
+        println(`next to word: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        const lastGlyphRect = textRect(words.firstChild, 2, 3);
+        rightClickAt(lastGlyphRect.right - 2, lastGlyphRect.top + lastGlyphRect.height / 2);
+        println(`end of word: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        const spaceRect = textRect(words.firstChild, 3, 4);
+        rightClickAt(spaceRect.left + spaceRect.width / 2, spaceRect.top + spaceRect.height / 2);
+        println(`between words: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        const nbspRect = textRect(nbsp.firstChild, 3, 4);
+        rightClickAt(nbspRect.left + nbspRect.width / 2, nbspRect.top + nbspRect.height / 2);
+        println(`between words with a non-breaking space: "${selectedText()}"`);
+
+        getSelection().removeAllRanges();
+        const lineRect = word.getBoundingClientRect();
+        rightClickAt(wordRect.left + 8, lineRect.top + 1);
+        println(`above glyphs within line box: "${selectedText()}"`);
 
         getSelection().removeAllRanges();
         rightClick(url);

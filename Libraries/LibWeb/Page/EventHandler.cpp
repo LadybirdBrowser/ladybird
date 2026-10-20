@@ -3116,9 +3116,7 @@ GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(Layout::BegunRead 
     return focus_dom_node;
 }
 
-#if defined(AK_OS_MACOS)
 static bool selection_contains_position(DOM::Document&, Painting::CaretPosition const&);
-#endif
 
 void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count)
 {
@@ -3281,6 +3279,7 @@ bool EventHandler::select_word_for_dictionary_lookup(CSSPixelPoint visual_viewpo
 
     return select_word_at_position(read, *document, visual_viewport_position);
 }
+#endif
 
 static bool form_control_selection_contains_position(InputEventsTarget& target, Painting::CaretPosition const& caret_position)
 {
@@ -3326,6 +3325,7 @@ static bool selection_contains_position(DOM::Document& document, Painting::Caret
     return contains_position.value();
 }
 
+#if defined(AK_OS_MACOS)
 bool EventHandler::select_word_at_position(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position)
 {
     auto caret_position = prepare_mouse_selection(document, visual_viewport_position);
@@ -3421,6 +3421,17 @@ void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned but
     }
 }
 
+static bool range_contains_viewport_position(DOM::Range& range, CSSPixelPoint viewport_position)
+{
+    auto rects = range.get_client_rects();
+    for (u32 index = 0; index < rects->length(); ++index) {
+        auto const* rect = rects->item(index);
+        if (Gfx::DoubleRect { rect->x(), rect->y(), rect->width(), rect->height() }.contains(viewport_position.to_type<double>()))
+            return true;
+    }
+    return false;
+}
+
 // https://w3c.github.io/uievents/#maybe-show-context-menu
 void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
 {
@@ -3486,26 +3497,16 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
         if (!range)
             return nullptr;
 
-        auto selection_rects = range->get_client_rects();
-        auto click_x = coordinates.viewport_position.x().to_double();
-        auto click_y = coordinates.viewport_position.y().to_double();
-        for (u32 index = 0; index < selection_rects->length(); ++index) {
-            auto const* rect = selection_rects->item(index);
-            if (click_x >= rect->left() && click_x < rect->right()
-                && click_y >= rect->top() && click_y < rect->bottom()) {
-                if (HTML::selection_is_eligible_for_text_fragment_generation(*document, *range))
-                    return range->clone_range();
-                return nullptr;
-            }
-        }
-
-        return nullptr;
+        if (!range_contains_viewport_position(*range, coordinates.viewport_position)
+            || !HTML::selection_is_eligible_for_text_fragment_generation(*document, *range))
+            return nullptr;
+        return range->clone_range();
     };
 
     if (auto const* link = node_under_pointer->enclosing_link_element()) {
         // Right-clicking link text without an existing selection first selects the word under the pointer, as the
         // ordinary page context menu does. A selected range is still only offered when the click lands within it.
-        (void)select_context_menu_text(read, document, coordinates.visual_viewport_position);
+        (void)select_context_menu_text(read, document, coordinates);
         auto href = link->href();
         auto url = document->encoding_parse_url(href);
         if (url.has_value()) {
@@ -3567,9 +3568,9 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element, .position = page_viewport_position, .media = menu });
             m_navigable->page().did_request_media_context_menu(media_element.unique_id(), local_root_id, page_viewport_position, "", modifiers, menu, move(navigation));
         } else {
-            auto misspelling = select_context_menu_misspelling(read, document, coordinates.visual_viewport_position);
+            auto misspelling = select_context_menu_misspelling(read, document, coordinates);
             if (!misspelling.has_value())
-                select_context_menu_text(read, document, coordinates.visual_viewport_position);
+                select_context_menu_text(read, document, coordinates);
             Optional<Utf16String> misspelled_word;
             if (misspelling.has_value())
                 misspelled_word = misspelling->word;
@@ -3819,24 +3820,24 @@ bool EventHandler::initiate_character_selection(DOM::Document& document, Paintin
 }
 
 // A right-click on a misspelled word selects exactly the misspelling, so the menu's guesses replace just that.
-Optional<Editing::ContextMenuMisspelling> EventHandler::select_context_menu_misspelling(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position)
+Optional<Editing::ContextMenuMisspelling> EventHandler::select_context_menu_misspelling(Layout::BegunRead const& read, DOM::Document& document, MouseEventCoordinates const& coordinates)
 {
     if (!document.has_spelling_markers())
         return {};
-    auto caret_position = document.caret_position_from_point_for_selection_start(read, visual_viewport_position);
+    auto caret_position = document.caret_position_from_point_for_selection_start(read, coordinates.visual_viewport_position);
     if (!caret_position.has_value())
         return {};
     auto* text = as_if<DOM::Text>(caret_position->boundary_node().ptr());
     if (!text)
         return {};
     auto marker = document.spelling_markers().marker_containing(*text, caret_position->boundary.offset);
-    if (!marker.has_value())
+    if (!marker.has_value() || !range_contains_viewport_position(DOM::Range::create(*text, marker->start, *text, marker->end), coordinates.viewport_position))
         return {};
 
     // A misspelling in a field the user has left gets the field focused first, so the guess the user picks can replace
     // it there.
     if (!document.active_input_events_target(text)) {
-        if (auto focus_candidate = focus_candidate_for_position(read, visual_viewport_position))
+        if (auto focus_candidate = focus_candidate_for_position(read, coordinates.visual_viewport_position))
             HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
         else if (auto editing_host = text->editing_host())
             HTML::run_focusing_steps(editing_host, nullptr, HTML::FocusTrigger::Click);
@@ -3928,60 +3929,50 @@ bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Paintin
     return true;
 }
 
-bool EventHandler::select_context_menu_text(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position)
+bool EventHandler::select_context_menu_text(Layout::BegunRead const& read, DOM::Document& document, MouseEventCoordinates const& coordinates)
 {
-    auto caret_position = document.caret_position_from_point_for_selection_start(read, visual_viewport_position);
-    if (!caret_position.has_value())
-        return false;
-
-    auto is_inside_current_selection = [](DOM::Document& document, Painting::CaretPosition const& caret_position) {
-        auto selection = document.get_selection();
-        if (!selection || selection->is_collapsed())
-            return false;
-
-        auto range = selection->range();
-        if (!range)
-            return false;
-
-        auto boundary_node = caret_position.boundary_node();
-        if (!boundary_node)
-            return false;
-
-        auto position = range->compare_point(*boundary_node, caret_position.boundary.offset);
-        if (position.is_error())
-            return false;
-
-        return position.value() == 0;
-    };
-
-    if (is_inside_current_selection(document, *caret_position))
+    auto caret_position = document.caret_position_from_point_for_selection_start(read, coordinates.visual_viewport_position);
+    if (!caret_position.has_value() || selection_contains_position(document, *caret_position))
         return false;
 
     auto user_select = user_select_used_value_for_caret_position(read, *caret_position);
-    if (user_select == CSS::UserSelect::None)
+    auto* hit_node = as_if<DOM::Text>(caret_position->boundary_node().ptr());
+    auto const* hit_layout_text_node = as_if<Layout::TextNode>(caret_position->boundary_layout_node(read));
+    if (user_select == CSS::UserSelect::None || !hit_node || !hit_layout_text_node)
         return false;
 
-    auto selected_text = select_context_menu_url_token(document, *caret_position, user_select)
-        || initiate_word_selection(read, document, *caret_position, user_select);
-    if (selected_text)
-        stop_updating_selection();
-    return selected_text;
+    // The caret position is merely the boundary closest to the pointer, so only select text if the pointer is on it,
+    // which can also be the word ending at that boundary.
+    auto range = context_menu_url_token_range(*hit_node, caret_position->boundary.offset);
+    if (!range) {
+        for (auto offset : { caret_position->boundary.offset, max(caret_position->boundary.offset, 1u) - 1 }) {
+            auto word_range = hit_layout_text_node->word_range_at(offset);
+            range = DOM::Range::create(*hit_node, word_range.start, *hit_node, word_range.start + word_range.length);
+            if (range_contains_viewport_position(*range, coordinates.viewport_position))
+                break;
+        }
+    }
+    if (all_of(range->to_string(), Unicode::code_point_has_white_space_property) || !range_contains_viewport_position(*range, coordinates.viewport_position))
+        return false;
+
+    if (auto* target = document.active_input_events_target(hit_node)) {
+        target->set_selection_anchor(*hit_node, range->start_offset());
+        target->set_selection_focus(*hit_node, range->end_offset());
+    } else if (auto selection = document.get_selection()) {
+        set_user_selection(hit_node, range->start_offset(), hit_node, range->end_offset(), selection, user_select);
+    }
+    stop_updating_selection();
+    return true;
 }
 
-bool EventHandler::select_context_menu_url_token(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)
+GC::Ptr<DOM::Range> EventHandler::context_menu_url_token_range(DOM::Text& hit_node, size_t offset)
 {
-    auto* hit_node = as_if<DOM::Text>(caret_position.boundary_node().ptr());
-    if (!hit_node)
-        return false;
+    if (hit_node.is_password_input())
+        return {};
 
-    if (hit_node->is_password_input())
-        return false;
-
-    auto const& text = hit_node->data();
+    auto const& text = hit_node.data();
     auto length = text.length_in_code_units();
-    auto hit_index = min(caret_position.boundary.offset, length);
-    if (length == 0)
-        return false;
+    auto hit_index = min(offset, length);
 
     auto is_url_code_unit = [](char16_t code_unit) {
         if (code_unit > 0x7f)
@@ -4013,21 +4004,13 @@ bool EventHandler::select_context_menu_url_token(DOM::Document& document, Painti
         --token_end;
 
     if (token_start == token_end)
-        return false;
+        return {};
 
     constexpr auto url_punctuation = Array<u32, 4> { '.', ':', '/', '@' };
     if (!text.substring_view(token_start, token_end - token_start).contains_any_of(url_punctuation))
-        return false;
+        return {};
 
-    if (auto* target = document.active_input_events_target(hit_node)) {
-        target->set_selection_anchor(*hit_node, token_start);
-        target->set_selection_focus(*hit_node, token_end);
-    } else if (auto selection = document.get_selection()) {
-        set_user_selection(hit_node, token_start, hit_node, token_end, selection, user_select);
-        document.set_needs_repaint(Badge<EventHandler> {}, InvalidateDisplayList::PaintCommands);
-    }
-
-    return true;
+    return DOM::Range::create(hit_node, token_start, hit_node, token_end);
 }
 
 void EventHandler::update_mouse_selection(Layout::BegunRead const& read, CSSPixelPoint visual_viewport_position)
