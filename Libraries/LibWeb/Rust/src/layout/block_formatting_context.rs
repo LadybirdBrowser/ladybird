@@ -28,20 +28,12 @@ struct FragmentationState {
     container_content_box_block_start_in_root: CssPixels,
     allows_unforced_breaks: bool,
     resume: Option<fragmentation::BlockResume>,
-    is_resumed: bool,
     fragmentainer_had_content_before_container: bool,
-    has_in_flow_content: bool,
     fragmentainer_had_content_before_child: bool,
     truncate_next_block_start_margin: bool,
     previous_in_flow_child_forces_break_after: bool,
-    previous_in_flow_child: Option<PreviousInFlowChild>,
-}
-
-#[derive(Clone, Copy)]
-struct PreviousInFlowChild {
-    node: Node,
-    can_break_before: bool,
-    avoids_break_after: bool,
+    previous_in_flow_child_avoids_break_after: Option<bool>,
+    last_child_allowing_break_before: Option<Node>,
 }
 
 impl FragmentationState {
@@ -64,13 +56,12 @@ impl FragmentationState {
             container_content_box_block_start_in_root,
             allows_unforced_breaks,
             resume: incoming.map(|token| token.resume.clone()),
-            is_resumed: incoming.is_some(),
             fragmentainer_had_content_before_container,
-            has_in_flow_content: false,
             fragmentainer_had_content_before_child: false,
             truncate_next_block_start_margin,
             previous_in_flow_child_forces_break_after: false,
-            previous_in_flow_child: None,
+            previous_in_flow_child_avoids_break_after: None,
+            last_child_allowing_break_before: None,
         }
     }
 }
@@ -2821,7 +2812,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 debug_assert_eq!(*resume_child, child);
                 self.pending_continuation_token.replace(Some(token.clone()));
                 state.resume = None;
-                state.fragmentainer_had_content_before_child = self.fragmentainer_has_content.get();
                 return FragmentationStep::LayOut;
             }
             None => {}
@@ -2831,6 +2821,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         if fragmentainer.early_break_before == Some(child) {
             if self.break_between_is_avoided(state, child) {
+                if let Some(node) = state.last_child_allowing_break_before
+                    && fragmentainer.request_early_break_before(node)
+                {
+                    return FragmentationStep::Stop;
+                }
                 fragmentainer.outcome_mut().violates_break_avoidance = true;
             }
             self.break_before_child(fragmentainer, state, block_container, child, false);
@@ -2882,6 +2877,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let Some(used) = self.run.records.used_values_if_owned(child) else {
             return FragmentationStep::LayOut;
         };
+        let break_before_is_avoided = self.break_between_is_avoided(state, child);
         let collapsed = used.uses_collapsing_borders_model.get();
         let border_box_block_size = used.border_box_block_size(collapsed);
         if state.allows_unforced_breaks {
@@ -2900,40 +2896,35 @@ impl<'pass> BlockFormattingContext<'pass> {
                     && (!is_breakable || fragmentainer.exceeds(content_block_end))
                 {
                     let earlier_break = state
-                        .previous_in_flow_child
-                        .filter(|previous| previous.can_break_before)
-                        .map(|previous| previous.node)
-                        .filter(|_| self.break_between_is_avoided(state, child));
+                        .last_child_allowing_break_before
+                        .filter(|_| break_before_is_avoided);
                     if fragmentainer.request_early_break_before(earlier_break.unwrap_or(child)) {
                         return FragmentationStep::Stop;
                     }
                 }
             }
         }
-        state.has_in_flow_content = true;
         let break_after = self.propagated_break_after(child);
         if fragmentation::is_forced_column_break(break_after) {
             state.previous_in_flow_child_forces_break_after = true;
         }
         if border_box_block_size > CssPixels::default() {
             self.fragmentainer_has_content.set(true);
-            let can_break_before =
-                state.fragmentainer_had_content_before_child && !self.break_between_is_avoided(state, child);
-            state.previous_in_flow_child_forces_break_after = fragmentation::is_forced_column_break(break_after);
-            state.previous_in_flow_child = Some(PreviousInFlowChild {
-                node: child,
-                can_break_before,
-                avoids_break_after: fragmentation::avoids_column_break_between(break_after),
-            });
+            if state.fragmentainer_had_content_before_child && !break_before_is_avoided {
+                state.last_child_allowing_break_before = Some(child);
+            }
+            state.previous_in_flow_child_avoids_break_after =
+                Some(fragmentation::avoids_column_break_between(break_after));
         }
         FragmentationStep::LayOut
     }
 
     fn break_between_is_avoided(&self, state: &FragmentationState, child: Node) -> bool {
-        state.previous_in_flow_child.is_some_and(|previous| {
-            previous.avoids_break_after
-                || fragmentation::avoids_column_break_between(self.propagated_break_before(child))
-        })
+        state
+            .previous_in_flow_child_avoids_break_after
+            .is_some_and(|avoids_break_after| {
+                avoids_break_after || fragmentation::avoids_column_break_between(self.propagated_break_before(child))
+            })
     }
 
     // https://drafts.csswg.org/css-break-3/#break-propagation
@@ -3173,8 +3164,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         after_forced_break: bool,
     ) {
         if block_container != self.run.box_
-            && !state.is_resumed
-            && !state.has_in_flow_content
+            && state.previous_in_flow_child_avoids_break_after.is_none()
             && !after_forced_break
             && state.fragmentainer_had_content_before_container
             && fragmentainer.request_early_break_before(block_container)
