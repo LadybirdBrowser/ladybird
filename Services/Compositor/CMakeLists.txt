@@ -78,8 +78,6 @@ if (APPLE)
 endif()
 
 if (WIN32)
-    target_include_directories(Compositor PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
-    target_include_directories(compositorservice PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
     ladybird_windows_bin(Compositor CONSOLE)
 endif()
 
