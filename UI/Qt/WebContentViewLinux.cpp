@@ -1026,9 +1026,9 @@ bool WebContentView::current_paintable_can_use_vulkan_window() const
 
 void WebContentView::schedule_vulkan_window_update()
 {
-    if (m_crash_overlay && !m_crash_overlay->isHidden()) {
+    if (is_page_covered_by_overlay()) {
         QTimer::singleShot(0, this, [this] {
-            if (m_crash_overlay->isHidden())
+            if (!is_page_covered_by_overlay())
                 return;
             set_vulkan_window_container_visible(false);
             update();

@@ -1210,8 +1210,8 @@ static void draw_crash_overlay_icon(QPainter& painter, QColor const& color)
     draw_path(page_details);
 }
 
-static constexpr int CRASH_SCREEN_MAXIMUM_WIDTH = 640;
-static constexpr int CRASH_SCREEN_MARGIN = 32;
+static constexpr int PAGE_OVERLAY_MAXIMUM_WIDTH = 640;
+static constexpr int PAGE_OVERLAY_MARGIN = 32;
 static constexpr int CRASH_SCREEN_ICON_SPACING = 16;
 
 static QString crash_screen_message()
@@ -1240,6 +1240,51 @@ protected:
 };
 
 }
+
+// Everything sits left-aligned in one centered column that scrolls over the page, in the colors of the window.
+class PageOverlay final : public QScrollArea {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit PageOverlay(QWidget* parent)
+        : QScrollArea(parent)
+    {
+        setFrameShape(QFrame::NoFrame);
+        setWidgetResizable(true);
+        setBackgroundRole(QPalette::Window);
+        viewport()->setBackgroundRole(QPalette::Window);
+
+        // Qt scrolls opaque content by moving the pixels it painted before, which leaves stale text behind the
+        // translucent fields of a review inside this native view. Transparent content is repainted instead, on top of
+        // the viewport's background.
+        m_content = new QWidget(this);
+        setWidget(m_content);
+        m_content->setAutoFillBackground(false);
+
+        m_column = new QWidget(m_content);
+        m_column->setMaximumWidth(PAGE_OVERLAY_MAXIMUM_WIDTH);
+
+        // Centering through stretches rather than alignment lets a review's wrapped text claim the height it needs at
+        // the width it is given.
+        auto* column_row = new QHBoxLayout;
+        column_row->addStretch();
+        column_row->addWidget(m_column, 1);
+        column_row->addStretch();
+
+        auto* layout = new QVBoxLayout(m_content);
+        layout->setContentsMargins(PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN, PAGE_OVERLAY_MARGIN);
+        layout->addStretch();
+        layout->addLayout(column_row);
+        layout->addStretch();
+    }
+
+    QWidget& content() { return *m_content; }
+    QWidget& column() { return *m_column; }
+
+private:
+    QWidget* m_content { nullptr };
+    QWidget* m_column { nullptr };
+};
 
 class CrashOverlayUrlLabel final : public QLabel {
 public:
@@ -1293,23 +1338,10 @@ void WebContentView::set_crash_overlay_visible(bool visible)
     }
 
     if (!m_crash_overlay) {
-        auto* scroll_area = new QScrollArea(this);
-        scroll_area->setFrameShape(QFrame::NoFrame);
-        scroll_area->setWidgetResizable(true);
-        scroll_area->setBackgroundRole(QPalette::Window);
-        scroll_area->viewport()->setBackgroundRole(QPalette::Window);
-        m_crash_overlay = scroll_area;
-
-        // Qt scrolls opaque content by moving the pixels it painted before, which leaves stale text behind the
-        // translucent fields of the review inside this native view. Transparent content is repainted instead, on top
-        // of the viewport's background.
-        auto* content = new QWidget(scroll_area);
-        scroll_area->setWidget(content);
-        content->setAutoFillBackground(false);
-
-        // Everything sits left-aligned in one centered column, so the review below reads as part of the message above.
-        auto* column = new QWidget(content);
-        column->setMaximumWidth(CRASH_SCREEN_MAXIMUM_WIDTH);
+        // The review below sits in the same column as the message above, so it reads as part of it.
+        m_crash_overlay = new PageOverlay(this);
+        auto* content = &m_crash_overlay->content();
+        auto* column = &m_crash_overlay->column();
 
         // The icon stands beside the heading, level with its title however far the message wraps.
         auto* header = new QWidget(column);
@@ -1360,19 +1392,6 @@ void WebContentView::set_crash_overlay_visible(bool visible)
             container_layout->setContentsMargins(0, 0, 0, 0);
             column_layout->addWidget(m_crash_report_container);
         }
-
-        // Centering through stretches rather than alignment lets the review's wrapped text claim the height it needs
-        // at the width it is given.
-        auto* column_row = new QHBoxLayout;
-        column_row->addStretch();
-        column_row->addWidget(column, 1);
-        column_row->addStretch();
-
-        auto* layout = new QVBoxLayout(content);
-        layout->setContentsMargins(CRASH_SCREEN_MARGIN, CRASH_SCREEN_MARGIN, CRASH_SCREEN_MARGIN, CRASH_SCREEN_MARGIN);
-        layout->addStretch();
-        layout->addLayout(column_row);
-        layout->addStretch();
     }
 
     // Each crash has a report of its own, so whatever was shown about an earlier one goes.
@@ -1404,6 +1423,12 @@ void WebContentView::review_hidden_crash_report(ByteString const& report_name)
     show_crash_report_review(report_name);
     if (!m_crash_report_review)
         set_crash_overlay_visible(false);
+}
+
+// Overlays are painted by Qt, underneath whatever presents the page on some platforms, which has to step aside for them.
+bool WebContentView::is_page_covered_by_overlay() const
+{
+    return m_crash_overlay && !m_crash_overlay->isHidden();
 }
 
 // A report of a crash with no crash screen of its own is reviewed in a blank tab opened for it.
