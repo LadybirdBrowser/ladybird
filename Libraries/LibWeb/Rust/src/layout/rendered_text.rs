@@ -744,6 +744,21 @@ mod tests {
     }
 
     #[test]
+    fn slice_ranges_are_clamped_to_text_that_changed_after_the_split() {
+        let mut arena = LayoutNodeArena::new();
+        let (first, remainder) = first_letter_slices(&mut arena, 1, 19);
+        assert_eq!(
+            arena.text_source_range(remainder, 5),
+            FfiTextSourceRange { start: 1, length: 4 }
+        );
+        let _ = arena.free_subtree(first);
+        assert_eq!(
+            arena.text_source_range(remainder, 0),
+            FfiTextSourceRange { start: 0, length: 0 }
+        );
+    }
+
+    #[test]
     fn selection_entries_expand_the_primary_text_node_to_both_slices() {
         use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_START_AND_END};
 
