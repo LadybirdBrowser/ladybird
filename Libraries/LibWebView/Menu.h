@@ -49,6 +49,7 @@ enum class ActionID {
 
     TakeVisibleScreenshot,
     TakeFullScreenshot,
+    ReportWebsiteIssue,
 
     ToggleVerticalTabsExpanded,
 

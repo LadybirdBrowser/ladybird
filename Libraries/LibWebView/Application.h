@@ -384,6 +384,9 @@ public:
     Menu& inspect_menu() { return *m_inspect_menu; }
     Action& view_source_action() { return *m_view_source_action; }
 
+    Action& report_website_issue_action() { return *m_report_website_issue_action; }
+    void update_report_website_issue_action();
+
     Menu& debug_menu() { return *m_debug_menu; }
 
     FileDownloader& file_downloader() { return m_file_downloader; }
@@ -711,6 +714,8 @@ private:
     RefPtr<Menu> m_inspect_menu;
     RefPtr<Action> m_view_source_action;
     RefPtr<Action> m_toggle_devtools_action;
+
+    RefPtr<Action> m_report_website_issue_action;
 
     RefPtr<Menu> m_debug_menu;
     RefPtr<Action> m_show_line_box_borders_action;

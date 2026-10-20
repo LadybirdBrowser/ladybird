@@ -394,6 +394,8 @@ public:
         m_debug_menu = create_application_menu(*m_application_widget, application.debug_menu());
 
         m_help_menu = new QMenu("Help", m_application_widget);
+        m_help_menu->addAction(create_application_action(*m_application_widget, application.report_website_issue_action(), IncludeActionIcon::No));
+        m_help_menu->addSeparator();
         m_help_menu->addAction(create_application_action(*m_application_widget, application.open_about_page_action(), IncludeActionIcon::No));
     }
 

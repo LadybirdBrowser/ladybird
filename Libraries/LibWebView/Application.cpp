@@ -2713,6 +2713,12 @@ void Application::initialize_actions()
     });
     m_inspect_menu->add_action(*m_toggle_devtools_action);
 
+    m_report_website_issue_action = Action::create("Report Website Issue..."sv, ActionID::ReportWebsiteIssue, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->report_website_issue();
+    });
+    m_report_website_issue_action->set_enabled(false);
+
     m_debug_menu = Menu::create("Debug"sv);
     m_debug_menu->set_visible(m_settings->config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu));
     m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
@@ -2963,6 +2969,7 @@ void Application::update_actions_for_active_web_view()
 {
     update_bookmark_action_for_current_web_view();
     update_editing_history_actions();
+    update_report_website_issue_action();
 }
 
 void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
@@ -3403,6 +3410,12 @@ void Application::inspect_indexed_database_objects(DevTools::TabDescription cons
     }
 
     view->inspect_indexed_database_objects(host, move(names), move(options), move(on_complete));
+}
+
+void Application::update_report_website_issue_action()
+{
+    auto view = active_web_view();
+    m_report_website_issue_action->set_enabled(view.has_value() && view->can_report_website_issue());
 }
 
 void Application::update_editing_history_actions()

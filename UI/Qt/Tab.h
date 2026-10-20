@@ -122,7 +122,7 @@ public:
     void update_window_control_icons();
     void update_hover_label();
 
-    void enter_report_review(Tab* tab_to_activate_on_close);
+    void enter_report_review(Tab* tab_to_activate_on_close, Optional<QString> title = {});
 
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
@@ -216,6 +216,7 @@ private:
     Optional<WakeLock::DisplaySleepInhibitor> m_screen_display_sleep_inhibitor;
     BrowserWindow* m_window { nullptr };
     QString m_title;
+    Optional<QString> m_fixed_title;
     Optional<u64> m_report_review_navigation_listener;
     bool m_has_loaded_report_review_page { false };
     HyperlinkLabel* m_hover_label { nullptr };
