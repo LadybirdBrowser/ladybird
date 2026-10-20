@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1285795">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div style="width:100px; height:100px; background:red;">
+    <div id="mc" style="columns:4; column-fill:auto; width:100px; height:25px;">
+      <div>
+        <div style="width:100px; height:100px; background:green;"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    requestAnimationFrame(()=> {
+      requestAnimationFrame(()=> {
+        mc.style.columns = 'auto';
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+  </script>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | inheritance</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body {
+	width: 75em;
+}
+body>div {
+	color: black;
+	background: yellow;
+	height: 2em;
+	position: relative;
+}
+div div {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+#two {left: 19em;}
+#three {left: 38em;}
+div div div {
+	font-family: Ahem;
+	font-size: 1em;
+	line-height: 1em;
+	width: 2em;
+	height: 2em;
+	color: black;
+	position: absolute;
+	left: 1em;
+}
+.a2 {left: 4em;}
+.a3 {left: 10.5em;}
+.a4 {left: 13.5em;}
+#two div {color: blue;}
+#three div {color: pink;}
+]]></style>
+</head>
+
+<body>
+
+<div>
+	<div>
+		<div>xx xx</div>
+		<div class="a2">xx xx</div>
+		<div class="a3">xx xx</div>
+		<div class="a4">xx xx</div>
+	</div>
+	<div id="two">
+		<div>xx xx</div>
+		<div class="a2">xx xx</div>
+		<div class="a3">xx xx</div>
+		<div class="a4">xx xx</div>
+	</div>
+	<div id="three">
+		<div>xx xx</div>
+		<div class="a2">xx xx</div>
+		<div class="a3">xx xx</div>
+		<div class="a4">xx xx</div>
+	</div>
+</div>
+
+</body>
+</html>

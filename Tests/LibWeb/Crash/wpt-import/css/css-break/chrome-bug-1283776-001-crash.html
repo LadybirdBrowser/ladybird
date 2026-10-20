@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1283776">
+<ruby style="columns:1;">
+  <div style="display:flex;"></div>
+  <div style="display:table-row-group;"></div>
+  <div id="wedge" style="display:none;"></div>
+  <div style="display:table-row-group;"></div>
+</ruby>
+<script>
+  document.body.offsetTop;
+  // Insert something non-tabley between the two table row groups,
+  // forcing us to split the anonymous table into two.
+  wedge.style.display = "block";
+</script>

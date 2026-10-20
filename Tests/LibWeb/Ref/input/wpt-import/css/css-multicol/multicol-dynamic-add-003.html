@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Append element to grid with pseudo-elements in multi-column context</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/">
+  <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1645714">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-dynamic-add-003-ref.html">
+  <meta name="assert" content="This test checks that dynamically appending an element to a grid container with ::before and ::after pseudo-elements in a multi-column context renders correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    var nav = document.createElement("nav");
+    nav.append("text");
+
+    var grid = document.getElementById("grid");
+    grid.append(nav);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  .columns {
+    columns: 2;
+    column-fill: auto;
+    width: 100px;
+    height: 10px;
+  }
+  #grid {
+    display: grid;
+    grid: 20px 20px / 40px 40px;
+  }
+  #grid::before, #grid::after {
+    content: "";
+    grid-row: 1 / 3;
+  }
+  nav {
+    grid-row: 1 / 3;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <div class="columns">
+      <div id="grid"></div>
+    </div>
+  </body>
+</html>

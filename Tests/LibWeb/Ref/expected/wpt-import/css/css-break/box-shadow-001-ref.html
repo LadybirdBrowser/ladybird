@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<p>There should be 6 identical cyan rectangles below, all with a box shadow.</p>
+<style>
+  #mc > div {
+      float: left;
+      margin-bottom: 50px;
+      margin-right: 50px;
+      width: 100px;
+      height: 50px;
+      box-shadow: 20px 20px 20px;
+      background: cyan;
+  }
+</style>
+<div id="mc" style="width:400px; height:150px; background:yellow;">
+  <div></div>
+  <div></div>
+  <div style="margin-right:0;"></div>
+  <div></div>
+  <div></div>
+  <div style="margin-right:0;"></div>
+</div>

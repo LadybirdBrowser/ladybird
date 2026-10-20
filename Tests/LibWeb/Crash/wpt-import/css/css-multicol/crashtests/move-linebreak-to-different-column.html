@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="test-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1322739">
+  <div id="container">
+    <div id="mc" style="height:100px; columns:2; column-fill:auto; line-height:20px; orphans:1; widows:1;">
+      <br><br><br><br><br><br>
+    </div>
+  </div>
+  <script>
+    requestAnimationFrame(()=> {
+      requestAnimationFrame(()=> {
+        mc.style.height = "80px";
+        container.setAttribute("ontouchstart", "nonValidFunctionName()");
+        document.documentElement.classList.remove("test-wait");
+      });
+    });
+  </script>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=1240384">
+<style>
+  #multicol {
+    column-count: 2;
+    column-fill: auto;
+    column-gap: 5px;
+    width: 200px;
+    height: 100px;
+  }
+  #container {
+    position: relative;
+    box-sizing: border-box;
+    width: 100px;
+    overflow: scroll;
+  }
+</style>
+<p>PASS if no crash.</p>
+<div id="multicol">
+  <div id="container">
+    <div style="width: 100px; height: 200px;"></div>
+    <div style="height: 100px;"></div>
+  </div>
+</div>

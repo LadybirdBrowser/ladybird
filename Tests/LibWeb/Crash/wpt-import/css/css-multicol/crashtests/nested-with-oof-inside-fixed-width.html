@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1303905">
+<div id="outer" style="columns:2; column-fill:auto; height:20px; width:100px;">
+  <div style="position:relative; columns:2; column-fill:auto;">
+    <div style="width:10px; position:relative;">
+      <div style="position:absolute; right:0; bottom:0;"></div>
+    </div>
+    <div style="position:absolute;"></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  outer.style.width = "101px";
+</script>

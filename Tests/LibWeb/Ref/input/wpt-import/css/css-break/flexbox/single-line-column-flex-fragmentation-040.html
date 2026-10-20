@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>
+  Single-line column flex fragmentation: column-reverse.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/flexbox/single-line-column-flex-fragmentation-040-ref.html">
+<div style="width: 100px; height: 100px; columns: 2; column-fill: auto; column-gap: 0;">
+  <div style="display: flex; flex-flow: column-reverse; height: 200px;">
+    <div style="height: 50px; width: 50px; background: orange;"></div>
+    <div style="height: 50px; width: 50px; background: blue;"></div>
+    <div style="height: 50px; width: 50px; background: purple;"></div>
+    <div style="height: 50px; width: 50px; background: yellow;"></div>
+  </div>
+</div>

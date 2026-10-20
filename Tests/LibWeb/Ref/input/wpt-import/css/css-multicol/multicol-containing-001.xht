@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: a column box can not act as containing block for elements with 'position: absolute'</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-07-27 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model" title="2. The multi-column model" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-containing-001-ref.xht"/>
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that a column box does not establish containing block for elements with 'position: absolute'." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: black;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  widows: 1;
+  width: 12em;
+
+  column-count: 3;
+  column-gap: 0;
+  }
+
+  span
+  {
+  color: red;
+  position: absolute;
+  top: -1em;
+  }
+
+  /*
+  In this test, the initial containing block establishes containing block
+  for such red span. Therefore, the 2 short red stripes should be
+  positioned out of view, just outside the top edge of viewport.
+  */
+
+  ]]></style>
+ </head>
+ <body>
+  <div>
+  bl ac
+  <span>re dd</span>
+  bl ac
+  bl ac
+  </div>
+ </body>
+</html>

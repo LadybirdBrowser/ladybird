@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>
+  Tests that the margin-bottom of the last flex item is taken into account
+  when fragmenting.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/flexbox/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="column-count: 2; height: 100px; width: 100px; column-gap: 0; column-fill: auto; background: red;">
+  <div style="display: flex; flex-direction: column; background: green;">
+    <div style="height: 50px; width: 50px; margin-bottom: 20px;">
+      <div style="height: 200px; width: 50px;"></div>
+    </div>
+  </div>
+  <div style="height: 130px; width: 50px; background: green;"></div>
+</div>

@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | column-span</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="help" href="http://www.w3.org/TR/css3-multicol/#spanning-columns"/>
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-margin-nested-firstchild-ref.xht"/>
+<meta name="flags" content="ahem"/>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body {
+	margin: 0;
+}
+body>div {
+	font-family: Ahem;
+	font-size: 1em;
+	line-height: 1em;
+	color: navy;
+	background: yellow;
+	margin: 1em;
+	border: 1em solid gray;
+	width: 8em;
+	float: left;
+	orphans: 1;
+	widows: 1;
+	overflow: hidden;
+
+	column-count: 4;
+	column-gap: 0;
+}
+span, h6 {
+	font-family: Ahem;
+	font-size: 1em;
+	font-weight: normal;
+	line-height: 1em;
+	color: black;
+	background: black;
+	padding: 0;
+	margin: 0;
+	display: block;
+}
+h6 {
+	margin: 1em 0;
+	width: 11em;
+	column-span: all;
+}
+span {
+	color: pink;
+	background: pink;
+	margin: 2em 0;
+}
+h6~h6 {
+	color: black;
+	background: black;
+	height: 1em;
+}
+h6~h6>span {
+	background: pink;
+	color: pink;
+	margin: -2em 0 0;
+}
+]]></style>
+</head>
+
+<body>
+
+<div>
+	xx xx xx xx
+	xx xx xx xx
+
+	<h6><span>xxxxx</span></h6>
+	<h6><span>xxxxx</span></h6>
+
+	xx xx xx xx
+	xx xx xx xx
+</div>
+
+</body>
+</html>

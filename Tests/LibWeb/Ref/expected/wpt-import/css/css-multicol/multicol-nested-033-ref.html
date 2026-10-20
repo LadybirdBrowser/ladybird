@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+
+<style>
+.multicol {
+  column-count: 2;
+  column-fill: auto;
+  column-gap: 0;
+}
+#outer {
+  width: 100px;
+  height: 100px;
+}
+#nested {
+  width: 100%;
+  height: 200px;
+  column-gap: 15px;
+}
+#abscb {
+  position: relative;
+  width: 100%;
+  height: 50px;
+}
+#abspos {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 400px;
+  background: green;
+}
+</style>
+
+<div id="outer" class="multicol">
+  <div id="nested" class="multicol">
+    <div id="abscb">
+      <div id="abspos"></div>
+    </div>
+  </div>
+</div>

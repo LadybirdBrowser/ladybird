@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test Reference: 'column-fill: auto' and height constrained of a multi-column container</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  article {
+    column-fill: auto;
+    column-count: 2;
+    width: 200px;
+    height: 200px;
+  }
+  div {
+    height: 400px;
+    background-color: lightgreen;
+  }
+  </style>
+
+  <p>This test passes if you see two green strips with equal height.</p>
+  <article>
+    <div></div>
+  </article>
+</html>

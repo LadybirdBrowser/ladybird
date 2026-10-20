@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-tables-3/#repeated-headers">
+<style>
+  body {
+    margin: 0;
+  }
+  .table {
+    display: table;
+    width: 100%;
+  }
+  .header {
+    display: table-header-group;
+    break-inside: avoid;
+  }
+  .filler {
+    display: table-row;
+    break-inside: avoid;
+    height: 2600px;
+  }
+  .header > * {
+    /* Don't make stuff too tall. We want everything (in the header) to be
+       within the viewport. */
+    height: 10px;
+  }
+</style>
+<div style="columns:3; column-fill:auto; width:600px; height:5000px;">
+  <div class="table">
+    <div class="header">
+      <input type="text" value="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      <input type="submit" value="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      <input type="radio">
+      <input type="checkbox">
+      <input type="date">
+      <input type="range">
+      <input type="number">
+      <input type="color">
+      <input type="password">
+      <canvas id="canvas" style="width:40px; height:40px;"></canvas>
+      <iframe src="data:text/html,<div style='position:absolute; height:200px;'>x</div>" style="width:100px; height:40px;"></iframe>
+      <div style="overflow:scroll; width:100px; height:30px;">
+        <div style="height:200px;"></div>
+      </div>
+      <select size="0"><option>xxx</option></select>
+      <select size="5"><option>xxx</option></select>
+      <svg style="width:100px; height:30px;">
+        <circle cx="20" cy="15" r="7" fill="hotpink"/>
+      </svg>
+      <textarea style="width:50px; height:30px;">
+        xxxxxxxxxx xxxxxxxxx xxxxxxxx xxxxxxxxx xxxxxxx xxxxxx
+      </textarea>
+      <video style="width:100px; height:50px;" controls></video>
+      <video style="width:100px; height:50px;"></video>
+      <meter></meter>
+      <button>xxxxxx</button>
+      <fieldset><legend>epic</legend></fieldset>
+      <!-- The image src is a 1x1 green pixel. -->
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjYGhg+A8AAoQBgNXA8F0AAAAASUVORK5CYII=">
+    </div>
+    <div class="filler"></div>
+    <div class="filler"></div>
+    <div class="filler"></div>
+  </div>
+</div>
+<script>
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = "hotpink";
+  ctx.fillRect(0, 0, 50, 50);
+
+  function paintDone() {
+    return new Promise(function(resolve) {
+      requestAnimationFrame(()=> {
+        requestAnimationFrame(()=> {
+          resolve();
+        });
+      });
+    });
+  }
+  async function toggleStyles(elements) {
+    for (const display of ['block', 'inline-block', 'inline']) {
+      for (const position of ['static', 'relative']) {
+        for (const cssfloat of ['none', 'left']) {
+          for (var elm of elements) {
+            elm.style.display = display;
+            elm.style.position = position;
+            elm.style.cssFloat = cssfloat;
+          }
+          await paintDone();
+          for (var elm of elements) {
+            var rect = elm.getClientRects()[0];
+            var x = rect.left;
+            var y = rect.top;
+            x += 2;
+            y += 2;
+            document.elementFromPoint(x, y);
+            document.elementFromPoint(x + 200, y);
+            document.elementFromPoint(x + 400, y);
+          }
+        }
+      }
+    }
+  }
+
+  toggleStyles(document.querySelectorAll(".header > *"));
+</script>

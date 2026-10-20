@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="help" href="https://github.com/w3c/csswg-drafts/issues/4689">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+  <meta name="assert" content="This test verifies columns are always balancing before column-spanning element in an unconstrained height and column-fill:auto column container.">
+
+  <style>
+  .columns {
+    column-fill: auto;
+    column-count: 2;
+    column-gap: 0;
+    width: 100px;
+    background: red;
+  }
+  .colspan {
+    column-span: all;
+  }
+  .content {
+    height: 200px;
+    background: green;
+  }
+  </style>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div class="columns">
+    <div class="content"></div>
+    <div class="colspan"></div>
+  </div>
+</html>

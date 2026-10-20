@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>Abspos after widows</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-break/#widows-orphans">
+<link rel="help" href="https://issues.chromium.org/issues/40752965">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:2; column-fill:auto; line-height:25px; width:100px; height:100px; gap:0; orphans:1; widows:3; background:red;">
+  <div style="background:green;">
+    <div style="height:50px;"></div>
+    <br>
+    <br>
+    <br>
+    <br>
+    <div style="position:absolute; width:50px; height:25px; background:green;"></div>
+  </div>
+</div>

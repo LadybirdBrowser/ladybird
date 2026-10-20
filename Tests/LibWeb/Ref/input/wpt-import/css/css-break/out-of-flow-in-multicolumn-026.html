@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>
+  Nested fixedpos in a multicol.
+</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#abspos-breaking">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<style>
+  .multicol {
+    column-count: 2;
+    column-fill: auto;
+    column-gap: 0px;
+    height: 100px;
+    width: 100px;
+    background: red;
+  }
+  .rel {
+    position: relative;
+  }
+  .abs {
+    position: absolute;
+  }
+  .fixed {
+    position: fixed;
+    height: 100px;
+    width: 100px;
+    background-color: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <div class="rel">
+    <div class="abs">
+      <div class="fixed"></div>
+    </div>
+  </div>
+</div>

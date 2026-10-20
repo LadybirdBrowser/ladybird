@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>
+  Grid-lanes container fragmentation with break-inside: avoid.
+</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#pagination">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-break/grid/grid-lanes/../../../reference/ref-filled-green-100px-square.xht">
+<style>
+  .multicol {
+    background: red;
+    column-count: 4;
+    column-gap: 0px;
+    height: 100px;
+    position: relative;
+    width: 100px;
+  }
+  .grid-lanes {
+    background: green;
+    break-inside: avoid;
+    display: grid-lanes;
+    width: 25px;
+  }
+  .abs {
+    background: green;
+    height: 50px;
+    position: absolute;
+    width: 25px;
+    top: 50px;
+    left: 50px;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <div class="grid-lanes" style="height: 250px;"></div>
+  <div class="grid-lanes" style="height: 100px;"></div>
+  <div class="abs"></div>
+</div>

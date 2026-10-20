@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>zero column-height</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#ch">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#cwr">
+
+<!-- zero row-gap -->
+<div style="columns:2; column-fill:auto; column-height:0px; row-gap:0px; column-wrap:wrap;">
+  <div style="height:10px;"></div>
+  <div style="height:10px;"></div>
+</div>
+
+<!-- non-zero row-gap -->
+<div style="columns:2; column-fill:auto; column-height:0px; row-gap:100px; column-wrap:wrap;">
+  <div style="height:10px;"></div>
+  <div style="height:10px;"></div>
+</div>
+
+<!-- zero row-gap with spanner -->
+<div style="columns:2; column-fill:auto; column-height:0px; row-gap:0px; column-wrap:wrap;">
+  <div style="height:10px;"></div>
+  <div style="column-span:all; height:10px;"></div>
+  <div style="height:10px;"></div>
+</div>

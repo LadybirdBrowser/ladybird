@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/434735271">
+<link rel="help" href="https://crbug.com/433011988">
+<style>
+  #flex {
+    display: flex;
+    flex-wrap: wrap;
+    height: 200px;
+    align-content: flex-end;
+    gap: 60px;
+  }
+</style>
+<div style="width: 100px; height: 100px; columns: 2; column-gap: 0;">
+  <div id="flex">
+    <div style="height: auto; width: 20px;"></div>
+    T
+  </div>
+</div>

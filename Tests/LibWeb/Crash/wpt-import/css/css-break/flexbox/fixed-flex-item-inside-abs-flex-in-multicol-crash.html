@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1269228">
+<div id="elm" style="contain:layout; width:200px;">
+  <div style="columns:2;">
+    <div style="display:flex; padding:10%; position:absolute;">
+      <div style="position:fixed;"></div>
+    </div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  elm.style.width = "199px";
+</script>

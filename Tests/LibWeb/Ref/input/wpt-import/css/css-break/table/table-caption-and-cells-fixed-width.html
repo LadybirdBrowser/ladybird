@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=329421">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/table/table-caption-and-cells-fixed-width-ref.html">
+<p>Check that a table caption at a column boundary is properly pushed to the next column.</p>
+<p>The word "PASS" should be seen below, fully visible and unbroken.</p>
+<div style="columns:2; column-gap:0; column-fill:auto; line-height:2em; width:30em; height:9em;">
+  <div style="height:8em;"></div>
+  <table style="height:2em; width:10em; background:black;" cellspacing="0" cellpadding="0">
+    <caption>PASS</caption>
+    <tr>
+      <td></td>
+    </tr>
+  </table>
+</div>

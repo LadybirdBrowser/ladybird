@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Detaching continuation in multi-column layout should not crash</title>
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=107189">
+<style>
+.class1 { column-span: all; }
+.class2 > .class3 { float: right; content: open-quote; }
+.class3:last-of-type { column-width: 1px; }
+.class3:nth-last-child(2n+10000000000000000) { column-span: all; }
+</style>
+<script>
+  window.addEventListener('load', function() {
+    var test1 = document.createElement('header');
+    var test2 = document.createElement('footer');
+    var test3 = document.createElement('address');
+    test3.setAttribute('class', 'class1');
+    test1.appendChild(test3);
+    var test4 = document.createElement('nav');
+    test4.setAttribute('class', 'class3');
+    document.documentElement.appendChild(test4);
+    var test5 = document.createElement('dt');
+    test5.setAttribute('class', 'class2');
+    var test6 = document.createElement('a');
+    document.documentElement.appendChild(test6);
+    var test7 = document.createElement('div');
+    test7.setAttribute('class', 'class3');
+    test5.appendChild(test7);
+    test5.appendChild(test1);
+    test4.appendChild(test5);
+    document.documentElement.offsetTop;
+    test5.setAttribute('class', 'class3');
+    document.documentElement.offsetTop;
+    test2.appendChild(test6);
+  });
+</script>

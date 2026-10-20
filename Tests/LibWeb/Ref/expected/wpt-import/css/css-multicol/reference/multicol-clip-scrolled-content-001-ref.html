@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>CSS Test: Multi-column element with scrolled content clipping (reference)</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org"/>
+<link rel="help" href="http://www.w3.org/TR/css3-multicol/#columns"/>
+<style>
+#columns {
+  column-width: 350px;
+}
+.spacer {
+  height: 200px;
+  width: 10px;
+}
+#outer {
+  border: 1px solid black;
+  overflow: scroll;
+  height: 300px;
+  width: 300px;
+}
+.inner {
+  overflow: scroll;
+  visibility: hidden;
+}
+.clipped_target {
+  width: 50px;
+  height: 50px;
+}
+</style>
+
+<div class=spacer></div>
+<div id=columns>
+<div class=spacer></div>
+<div id=outer>
+  <div class=inner>
+    <pre class=clipped_target>
+     scrollable
+     content
+     goes
+     here
+    </pre>
+  </div>
+  <div class=spacer></div>
+  <div class=spacer></div>
+</div>
+</div>
+
+<script>
+window.onload = () => { outer.scrollTop = 100; };
+</script>
+</html>
+

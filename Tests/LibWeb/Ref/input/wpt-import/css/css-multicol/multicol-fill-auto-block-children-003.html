@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: 'column-fill: auto' and height constrained of a multi-column container</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol/#cf">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-fill-auto-block-children-003-ref.html">
+  <meta name="assert" content="This test verifies that 'max-height' on multi-column container imposes constraint on column boxes' height.">
+
+  <style>
+  article {
+    column-fill: auto;
+    column-count: 2;
+    width: 200px;
+    /* Test max-height imposes constraint on column boxes' height. */
+    max-height: 200px;
+  }
+  div {
+    height: 400px;
+    background-color: lightgreen;
+  }
+  </style>
+
+  <p>This test passes if you see two green strips with equal height.</p>
+  <article>
+    <div></div>
+  </article>
+</html>

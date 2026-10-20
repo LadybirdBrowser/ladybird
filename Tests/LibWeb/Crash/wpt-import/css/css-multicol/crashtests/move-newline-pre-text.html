@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="test-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1386676">
+  <div id="container" style="columns:10; column-fill:auto; height:30px; line-height:20px; orphans:1; widows:1; white-space:pre;">
+  <span id="htmlvar00001"><br><br></span>
+
+</div>
+  <script>
+    requestAnimationFrame(()=> {
+      requestAnimationFrame(()=> {
+        document.body.style.color = "blue";
+        htmlvar00001.style.display = "none";
+        requestAnimationFrame(()=> {
+          requestAnimationFrame(()=> {
+            container.style.width = "88%";
+            document.documentElement.classList.remove("test-wait");
+          });
+        });
+      });
+    });
+  </script>
+</html>

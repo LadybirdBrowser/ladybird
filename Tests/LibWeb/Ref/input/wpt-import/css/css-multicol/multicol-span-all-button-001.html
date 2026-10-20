@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test a multi-column container on button works with a column-span:all child</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-span-all-button-001-ref.html">
+  <meta name="assert" content="This test checks the page is rendered correctly for a multi-column container on button with a column-span:all child.">
+
+  <style>
+  button {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+  }
+  h3 {
+    column-span: all;
+    outline: 1px solid blue;
+  }
+  </style>
+
+  <button>
+    <div>block1</div><div>block2</div>
+    <h3>spanner</h3>
+    <div>block3</div><div>block4</div>
+  </button>
+</html>

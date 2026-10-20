@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<link rel="help" href="https://crbug.com/965639">
+<style>
+#container {
+  columns: 2;
+  column-fill: auto;
+  background: orange;
+  height: 50px;
+}
+#target {
+  width: 100px;
+  height: 100px;
+  background: purple;
+  position: absolute;
+}
+.transform {
+  transform: translate(0, 50px);
+}
+</style>
+<body>
+  <div id="container">
+    <div style="position: relative">
+      <div id="target"></div>
+    </div>
+  </div>
+<script>
+document.body.offsetTop;
+target.classList.add('transform');
+</script>
+</body>

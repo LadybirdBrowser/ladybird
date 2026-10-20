@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact" />
+  <style type="text/css"><![CDATA[
+    html, body { height: 100%; }
+    * { margin: 0; }
+    div {
+      border: double blue 12px;
+      height: 150%;
+      padding: 0 12px;
+    }
+    div > p {
+      border-right: solid orange 12px;
+      border-left: solid orange 12px;
+      width: 50%;
+      margin: 0 auto;
+      height: 100%;
+    }
+    blockquote {
+      border: solid thick yellow;
+    }  ]]></style>
+ </head>
+ <body>
+  <p>Test passes if even when printed:</p>
+  <ul>
+    <li>Two vertical orange stripes stretch exactly
+    from the inner top edge to the inner bottom edge of the blue box below.</li>
+    <li>There is a yellow stripe immediately below the blue box.</li>
+  </ul>
+  <div>
+    <p></p>
+  </div>
+  <blockquote></blockquote>
+ </body>
+</html>

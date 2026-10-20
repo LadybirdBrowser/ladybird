@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>Reference for area elements in multicol</title>
+<style>
+  .multicol {
+    columns: 2;
+    column-fill: auto;
+    column-gap: 0;
+    width: 200px;
+    height: 100px;
+    margin-bottom: 20px;
+  }
+  .block {
+    height: 50px;
+    background: green;
+  }
+  .inline {
+    display: inline;
+    padding: 10px;
+    border: 10px solid blue;
+    background: blue;
+  }
+</style>
+
+<div class="multicol">
+  <div class="block"></div>
+  <div class="block"></div>
+  <div class="block"></div>
+  <div class="block"></div>
+</div>
+
+<div class="multicol">
+  <div class="block"></div>
+  <span class="inline"></span>
+  <div class="block"></div>
+  <div class="block"></div>
+  <div class="block"></div>
+</div>

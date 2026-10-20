@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1379473">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/table/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:2; column-fill:auto; height:500px;">
+  <div style="display:table-caption; overflow:hidden;">
+    <span>
+      <div style="display:inline-block; width:100px; height:100px; background:red;">
+        <div id="target" style="width:0px; height:100px; background:green;"></div>
+      </div>
+      &nbsp;
+    </span>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  target.style.width = "100px";
+</script>

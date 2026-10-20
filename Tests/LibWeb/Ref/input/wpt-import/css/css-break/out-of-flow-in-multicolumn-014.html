@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#abspos-breaking">
+<!-- This test requires a 300px tall multicolumn to reproduce the issue. -->
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/out-of-flow-in-multicolumn-014-ref.html">
+<!-- Fragmented OOF element with block-size percentage resolution and overflow. -->
+<style>
+  #multicol {
+    columns: 2;
+    width: 300px;
+    height: 300px;
+    column-fill: auto;
+    column-gap: 0px;
+    background-color: red;
+  }
+  .rel {
+    position: relative;
+  }
+  .abs {
+    position: absolute;
+    top: 0px;
+    width: 150px;
+    height: 150px;
+    background: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="multicol">
+  <div style="width: 150px; height: 450px; background-color: green;"></div>
+  <div class="rel">
+    <div class="abs"></div>
+  </div>
+</div>

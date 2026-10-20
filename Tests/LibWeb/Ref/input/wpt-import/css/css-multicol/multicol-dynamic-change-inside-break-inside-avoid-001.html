@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html class="tweak reftest-wait">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-break/#break-within">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1721262">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-dynamic-change-inside-break-inside-avoid-001-ref.html">
+<style>
+  input { -moz-appearance: none; -webkit-appearance: none; appearance: none; }
+
+  .tweak input {
+    border: 3px solid red;
+  }
+</style>
+<div style="column-count: 2">
+  a<br>
+  <input>
+
+  <div style="page-break-inside: avoid; break-inside: avoid;">
+    b
+    <div><input id="editme" value="."></div>
+  </div>
+</div>
+<script>
+function paint() {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+(async function() {
+  await paint();
+
+  document.documentElement.classList.remove("tweak");
+
+  await paint();
+
+  document.getElementById("editme").value = "Am I clipped?";
+  document.documentElement.classList.remove("reftest-wait");
+})();
+</script>

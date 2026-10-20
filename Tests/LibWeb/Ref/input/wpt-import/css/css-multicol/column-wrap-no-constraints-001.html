@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Auto height, column balancing, and column-wrap:wrap</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#cwr">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<!-- Rows are allowed to wrap, but the block-size of the multicol container is
+     unconstrained, and there is no column-height specified, so there should be
+     just one row. -->
+<div style="width:100px; height:100px; background:red;">
+  <div style="columns:2; gap:20px 0; column-wrap:wrap;">
+    <div style="height:200px; background:green;"></div>
+  </div>
+</div>

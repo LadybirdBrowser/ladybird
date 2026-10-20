@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#the-multi-column-model">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<style>
+  #multicol {
+    columns: 2;
+    width: 100px;
+    height: 100px;
+    column-fill: auto;
+    column-gap: 0px;
+  }
+  .rel {
+    position: relative;
+  }
+  .abs {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background: green;
+    top: 0;
+    left: 0;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="rel" id="multicol">
+  <div style="height:200px; width: 50px; background: red;"></div>
+  <div class="abs"></div>
+</div>

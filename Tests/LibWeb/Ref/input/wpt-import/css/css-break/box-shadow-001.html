@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=269061">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/box-shadow-001-ref.html">
+<p>There should be 6 identical cyan rectangles below, all with a box shadow.</p>
+<style>
+  #mc > div {
+      margin-bottom: 50px;
+      height: 50px;
+      box-shadow: 20px 20px 20px;
+      background: cyan;
+  }
+</style>
+<div id="mc" style="columns:3; column-gap:50px; column-fill:auto; width:400px; height:150px; background:yellow;">
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#widows-orphans">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1153517">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<style>
+  #mc > div { display:inline-block; width:100%; height:20px; }
+  #mc > div.green { height:100px; background:green; }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div id="mc" style="columns:4; orphans:3; widows:1; column-gap:0; line-height:0;">
+    <div class="green"></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div class="green"></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div class="green"></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div class="green"></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  mc.style.orphans = 5;
+</script>

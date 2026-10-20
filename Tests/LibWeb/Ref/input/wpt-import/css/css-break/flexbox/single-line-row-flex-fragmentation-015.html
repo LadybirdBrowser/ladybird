@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>
+  Single-line row flex fragmentation: break-before values on the first row
+  are propagated to the flex container.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/flexbox/../../reference/ref-filled-green-100px-square.xht">
+<style>
+  #flex {
+    display: flex;
+    background: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px; height: 100px; columns: 2; column-gap: 0; column-fill: auto; position: relative; background: red;">
+  <div style="height: 50px; width: 50px; background: green;"></div>
+  <div style="position: absolute; height: 50px; width: 50px; background: green;"></div>
+  <div id="flex">
+    <div>
+      <div style="height: 100px; width: 50px; break-before: column;"></div>
+    </div>
+  </div>
+</div>

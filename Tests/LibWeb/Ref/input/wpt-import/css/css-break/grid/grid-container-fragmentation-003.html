@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/grid/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px; height: 100px; columns: 2; column-gap: 0; background: red;">
+  <div style="height: 50px;">
+    <div style="height: 100px; background: green;"></div>
+  </div>
+  <div style="display: grid; background: green; height: 100px; break-inside: avoid;"></div>
+</div>

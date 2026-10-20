@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1457464">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<!-- There are no valid breakpoints in this test. Blink will still place a break
+     between the end of #monolith and the bottom padding of #container, to
+     prevent fragmentainer overflow, whereas Gecko won't insert any breaks at
+     all. All we want to test here, though, is that no break is inserted between
+     the top border of #outer and #container. -->
+<div style="columns:1; overflow:hidden; column-fill:auto; width:100px; height:100px; background:red;">
+  <div id="outer" style="width:100px; border-top:10px solid green;">
+    <span>
+      <div id="container" style="padding-bottom:50px;">
+        <div id="monolith" style="contain:size; height:90px; background:green;"></div>
+      </div>
+    </span>
+  </div>
+</div>

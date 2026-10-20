@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: overflowed content inside and outside multicol element</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-07-25 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#overflow-inside-multicol-elements" title="8.1. Overflow inside multicol elements" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-clip-002-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that content in the normal flow can extend into column gap before it reaches its middle. In this test, the 'l' and 'c' glyphs are painted into the left half of the column gap; the 'l' and 'e' glyphs extend outside the last column box at the edges of the multi-column and are therefore hidden thanks to the 'overflow: hidden' declaration." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background: white;
+  border: gray solid 1em;
+  color: blue;
+  font: 1.25em/1 Ahem;
+  orphans: 1;
+  overflow: hidden;
+  widows: 1;
+  width: 11em;
+
+  column-count: 3;
+  column-gap: 4em;
+  }
+
+  span {color: black;}
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+    <span>
+	bl ac
+	bl ac
+    </span>
+
+    <span>
+	bl ac
+    </span>
+	bl ue
+  </div>
+
+ </body>
+</html>

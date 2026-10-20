@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Spanner in replos in abspos multicol, inside another container that's also multicol but then ceases to be one</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/436110579">
+<div id="troublemaker" style="columns:7;">
+  <div style="position:absolute; columns:2;">
+    <div style="position:relative;">
+      <div style="column-span:all;"></div>
+    </div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  troublemaker.style.columns = "auto";
+</script>

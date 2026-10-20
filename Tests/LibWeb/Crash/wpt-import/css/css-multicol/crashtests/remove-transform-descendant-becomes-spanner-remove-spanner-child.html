@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>A transform inside multicol prevents descendants from becoming spanners. If the transform is removed, descendants may become spanners.</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/445210793">
+<!DOCTYPE html>
+<div style="columns:1;">
+  <div id="ancestor" style="transform:rotate(45deg);">
+    <div>
+      <div style="column-span:all; padding-bottom:100px;">
+        <div id="child"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+  document.body.offsetTop;
+  ancestor.style.transform = "none";
+  document.body.offsetTop;
+  child.style.display = "none";
+</script>

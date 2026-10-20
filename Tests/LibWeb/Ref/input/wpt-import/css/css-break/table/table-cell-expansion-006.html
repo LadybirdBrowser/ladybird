@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#fragmentation">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/table/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns: 2; gap: 0; column-fill: auto; height: 100px; width: 100px; background: red;">
+  <table style="border-spacing: 0;">
+    <td style="background: green; padding: 0; writing-mode: vertical-rl;">
+      <div style="min-width: 100px; width: 200%; height: 100px;"></div>
+    </td>
+  </table>
+</div>

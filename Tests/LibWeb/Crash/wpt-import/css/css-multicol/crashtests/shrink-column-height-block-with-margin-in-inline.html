@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Shrink multicol height so that a child block (inside an inline) with a top margin gets pushed to the next column and gets its margin truncated.</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/413385740">
+<div id="container" style="columns:1; column-fill:auto; height:200px;">
+  <span style="position:absolute;"></span>
+  <span>
+    <div style="margin-top:10px;">x</div>
+  </span>
+</div>
+<script>
+  document.body.offsetTop;
+  container.style.height = "2px";
+</script>

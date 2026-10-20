@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>
+  Nested fixedpos in a nested fragmentation context where the outer
+  multicol is the containing block.
+</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#abspos-breaking">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<style>
+  .multicol {
+    column-count: 2;
+    column-fill: auto;
+    column-gap: 0px;
+  }
+  #outer {
+    height: 100px;
+    width: 100px;
+    transform: translateX(0);
+  }
+  #inner {
+    width: 50px;
+  }
+  .rel {
+    position: relative;
+  }
+  .abs {
+    position: absolute;
+  }
+  .fixed {
+    position: fixed;
+    height: 100px;
+    width: 100px;
+    top: -100px;
+    background:green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="height: 100px; width: 100px; background: red;"></div>
+<div class="multicol" id="outer">
+  <div class="multicol" id="inner">
+    <div class="rel">
+      <div class="abs">
+        <div class="fixed"></div>
+      </div>
+    </div>
+  </div>
+</div>

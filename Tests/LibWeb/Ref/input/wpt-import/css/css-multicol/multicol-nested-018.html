@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-multi-column-model">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#unforced-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<style>
+  .mc {
+    columns: 2;
+    column-gap: 0;
+    column-fill: auto;
+  }
+  .ib {
+    display: inline-block;
+    vertical-align: top;
+    width: 200%;
+    height: 50px;
+    background: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div class="mc" style="height:190px; line-height:50px; orphans:2; widows:2;">
+    <div style="height:100px; background:green;"></div>
+    <div class="mc">
+      <div class="ib"></div><br>
+      <div class="ib"></div><br>
+    </div>
+  </div>
+</div>

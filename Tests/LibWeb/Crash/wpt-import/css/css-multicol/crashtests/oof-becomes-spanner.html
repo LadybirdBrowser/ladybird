@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1317656">
+<div style="columns:2;">
+  <div>
+    <div id="elm" style="position:absolute;"></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  elm.style.position = "static";
+  elm.style.columnSpan = "all";
+  document.body.offsetTop;
+  elm.style.display = "none";
+</script>

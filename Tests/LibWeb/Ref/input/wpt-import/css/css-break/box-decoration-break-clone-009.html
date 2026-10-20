@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-break/#break-decoration">
+<meta name="assert" content="Cloned box decorations, with outline and shadow.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/box-decoration-break-clone-009-ref.html">
+<p>There should be two squares below, with a hotpink outline and a cyan "shadow".</p>
+<div style="margin:20px; columns:2; gap:30px; column-fill:auto; width:230px; height:100px;">
+  <div style="box-decoration-break:clone; height:200px; box-shadow:0 0 0 10px cyan; outline: 5px solid hotpink;">
+  </div>
+</div>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#break-decoration">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="container" style="columns:5; width:100px; gap:0; column-fill:auto; height:100px; background:red;">
+  <div style="height:250px; background:linear-gradient(red 50%, green 50%);">
+    <div style="height:500px;">
+      <div style="height:125px; background:green;"></div>
+      <div style="height:125px;"></div>
+      <div style="height:250px; background:green;"></div>
+    </div>
+  </div>
+</div>

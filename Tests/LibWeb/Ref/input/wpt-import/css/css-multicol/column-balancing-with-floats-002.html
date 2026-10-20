@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Multicol Test: A float in a deep subtree in a multicol flex item is placed after column balancing</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#column-balancing">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2054166">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/column-balancing-with-floats-001-ref.html">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+
+<style>
+.flex {
+  display: flex;
+}
+.multicol {
+  width: 600px;
+  column-count: 2;
+  column-gap: 0;
+  font: 25px/1 Ahem;
+}
+.nav {
+  padding: 25px;
+}
+.float {
+  float: right;
+  width: 50px;
+  height: 25px;
+  background: green;
+}
+</style>
+
+<div class="flex">
+  <div class="multicol">
+    <div class="nav">First</div>
+    <div>
+      <div>
+        <div class="nav">
+          <div class="float"></div>
+          Second
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

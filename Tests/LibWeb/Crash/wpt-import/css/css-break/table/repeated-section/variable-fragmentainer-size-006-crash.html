@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1378294">
+<!-- Only the first fragmentainer actually has room for repeated headers and
+     footers. We should still fit 1px of unrepeated content in every
+     fragmentainer, because that should be a sensible way of interpretating
+     https://www.w3.org/TR/css-break-3/#breaking-rules ("fragmentainers are
+     assumed to have a minimum block size of 1px"). -->
+<div style="margin:100px; columns:4; column-fill:auto; height:10px; background:yellow;">
+  <div style="margin-bottom:-60px;"></div>
+  <div style="columns:1; column-fill:auto; background:lime;">
+    <div style="display:table;">
+      <div style="display:table-header-group; break-inside:avoid;">
+        <div style="width:20px; height:20px; background:blue;"></div>
+      </div>
+      <div style="display:table-footer-group; break-inside:avoid;">
+        <div style="width:20px; height:20px; background:hotpink;"></div>
+      </div>
+      <div style="height:100px; background:black;"></div>
+    </div>
+  </div>
+</div>

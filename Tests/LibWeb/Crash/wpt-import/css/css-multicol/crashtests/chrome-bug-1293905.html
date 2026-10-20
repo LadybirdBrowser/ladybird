@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1293905">
+<div style="columns:1;">
+  <div style="columns:1; position:absolute;">
+    <div style="position:absolute;">
+      <div style="position:fixed;"></div>
+      <div style="appearance:searchfield; columns:1; background-image:url(not-found); width:100px; height:100px;"></div>
+    </div>
+    <div id="boo" style="display:none;"></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  function boom() {
+    boo.style.display = "block";
+  }
+  window.addEventListener("load", boom);
+</script>

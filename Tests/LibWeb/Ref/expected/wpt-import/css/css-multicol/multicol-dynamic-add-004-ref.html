@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout Reference: Block with floating pseudo-elements in multi-column context</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+<style>
+.columns {
+  columns: 2;
+  column-fill: auto;
+  width: 100px;
+  height: 10px;
+}
+#container::before, #container::after {
+  float: left;
+  content: "";
+  width: 10px;
+  height: 20px;
+}
+nav {
+  float: left;
+}
+</style>
+
+<div class="columns">
+  <div id="container">
+    <nav>text</nav>
+  </div>
+</div>

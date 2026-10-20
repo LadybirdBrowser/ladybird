@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>
+  Multi-line row flex fragmentation: wrap-reverse and row-reverse.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/flexbox/multi-line-row-flex-fragmentation-049-ref.html">
+<div style="width: 100px; height: 100px; columns: 2; column-fill: auto; column-gap: 0;">
+  <div style="display: flex; flex-flow: row-reverse; flex-wrap: wrap-reverse; height: 200px;">
+    <div style="height: 100px; width: 25px; background: orange;"></div>
+    <div style="height: 100px; width: 25px; background: blue;"></div>
+    <div style="height: 100px; width: 25px; background: purple;"></div>
+    <div style="height: 100px; width: 25px; background: yellow;"></div>
+  </div>
+</div>

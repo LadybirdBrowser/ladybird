@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout Reference: Grid with pseudo-elements in multi-column context</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+<style>
+.columns {
+  columns: 2;
+  column-fill: auto;
+  width: 100px;
+  height: 10px;
+}
+#grid {
+  display: grid;
+  grid: 20px 20px / 40px 40px;
+}
+#grid::before, #grid::after {
+  content: "";
+  grid-row: 1 / 3;
+}
+nav {
+  grid-row: 1 / 3;
+}
+</style>
+
+<div class="columns">
+  <div id="grid">
+    <nav>text</nav>
+  </div>
+</div>

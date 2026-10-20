@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>Abspos element after a column spanner</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<style>
+  .multicol {
+    columns: 2;
+    column-fill: auto;
+    column-gap: 0px;
+    margin-top: -10px;
+  }
+  .abs {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background-color: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <div style="column-span: all; height: 10px;"></div>
+  <div class="abs"></div>
+  <div style="height: 30px; width: 30px; background-color: red;"></div>
+  <div style="height: 70px;"></div>
+</div>

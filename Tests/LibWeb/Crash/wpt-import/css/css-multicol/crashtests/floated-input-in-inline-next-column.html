@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="test-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1451185">
+  <div id="container" style="opacity:0.0;">
+    <div style="columns:3; orphans:1; widows:1;">
+      <br>
+      <span><input style="float:right;"></span>
+    </div>
+  </div>
+  <script>
+    requestAnimationFrame(()=> {
+      requestAnimationFrame(()=> {
+        container.style.opacity = "1";
+        document.documentElement.classList.remove("test-wait");
+      });
+    });
+  </script>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: a multi-column can act as containing block for elements with 'position: absolute'</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-multi-column-model" title="2. The multi-column model" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-containing-002-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that a multi-column element can establish containing block for elements with 'position: absolute'." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: white;
+  color: green;
+  font: 1.25em/1 Ahem;
+  position: relative;
+  width: 19em;
+
+  column-count: 4;
+  column-gap: 1em;
+  }
+
+  span {color: red;}
+
+  img#white-overlapping
+  {
+  left: 11em;
+  position: absolute;
+  top: 1em;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <div>4444 1&nbsp;&nbsp;1 1&nbsp;&nbsp;1 4444 1&nbsp;&nbsp; 1&nbsp;&nbsp; 1&nbsp;&nbsp; 4444 1&nbsp;&nbsp;1 1&nbsp;&nbsp;1 4444 1&nbsp;&nbsp;1  1&nbsp;&nbsp;1  1&nbsp;&nbsp;1 4444 1<span>RED</span> 1<span>RED</span> 4444 &nbsp;&nbsp;&nbsp;1  &nbsp;&nbsp;&nbsp;1 4444 4444 1&nbsp;&nbsp; 1&nbsp;&nbsp; 4444 &nbsp;&nbsp;&nbsp;1  &nbsp;&nbsp;&nbsp;1 4444 <img id="white-overlapping" src="support/swatch-white.png" width="60" height="40" alt="Image download support must be enabled" /></div>
+
+ </body>
+</html>

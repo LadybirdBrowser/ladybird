@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#transforms">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#abs-non-replaced-height">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="position:relative;">
+  <div style="position:absolute; top:50px; width:50px; height:50px; background:red;"></div>
+</div>
+<div id="multicol" style="columns:2; column-fill:auto; column-gap:0; width:101px; height:100px; background:green;">
+  <div style="position:relative; height:100px;">
+    <div style="position:absolute; bottom:0;">
+      <div style="position:absolute; bottom:0;">
+        <div style="width:50px; height:50px; background:green;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  document.getElementById("multicol").style.width = "100px";
+</script>

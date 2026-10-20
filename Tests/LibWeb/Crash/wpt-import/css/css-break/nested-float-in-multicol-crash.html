@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1336847">
+<style>
+  .float {
+    float: left;
+    clear: both;
+  }
+  div {
+    padding-bottom: 10px;
+    padding-top: 10000000000px;
+  }
+</style>
+<div style="column-count:15;">
+  <div>
+    text
+    <div></div>
+    <div class="float"></div>
+  </div>
+  <div class="float"></div>
+</div>

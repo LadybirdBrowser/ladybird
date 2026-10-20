@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout Test: multicol with overflow-clipped content</title>
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-overflow-clip-ref.html">
+<meta name="assert" content="Overflow clip should work under multicol.">
+<style>
+.multicol {
+  column-count: 3;
+}
+.parent {
+  background: green;
+  height: 50px;
+  overflow: hidden;
+}
+.child2 {
+  margin-top: 50px;
+  background: darkred;
+  color: red;
+  height: 100px;
+}
+</style>
+<div class="multicol">
+  <div class="parent">
+    <div class="child2">This should be hidden.</div>
+  </div>
+  <div class="parent">
+    <div class="child2">This should be hidden.</div>
+  </div>
+  <div class="parent">
+    <div class="child2">This should be hidden.</div>
+  </div>
+</div>
+

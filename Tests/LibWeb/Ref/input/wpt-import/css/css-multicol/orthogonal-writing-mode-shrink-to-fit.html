@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Orthogonal writing mode root inside shrink-to-fit multicol container</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<link rel="help" href="https://www.w3.org/TR/css-sizing-3/#intrinsic-sizes" title="4.1. Intrinsic Sizes">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div style="float:left; columns:1; column-gap:0; height:100px; background:green;">
+    <div style="writing-mode:vertical-rl;">
+      <div style="width:100px; height:100px;"></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1503298">
+<div style="columns:2;">
+  <span id="span">
+    <div style="column-span:all;"></div>
+    <div id="becomeinflow" style="position:absolute;"></div>
+  </span><!-- No whitespace here. --></div>
+<script>
+  document.documentElement.offsetTop;
+  span.style.position = "relative";
+  becomeinflow.style.position = "static";
+</script>

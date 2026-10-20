@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#widows-orphans">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#parallel-flows">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; orphans:2; widows:2; background:red;">
+  <div style="columns:2; column-fill:auto; column-gap:0; height:130px;">
+    <div style="height:100px; background:green;"></div>
+    <div style="height:100px; background:green;">
+      <div style="line-height:20px; height:10px;">
+        <br>
+        <br>
+      </div>
+      <div style="height:10px;"></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<ling rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-multi-column-model">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1287411">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:2; column-gap:0; column-fill:auto; width:100px; height:100px; background:red;">
+  <div style="height:150px; contain:size;">
+    <div style="height:100px; background:green;"></div>
+  </div>
+  <div style="columns:2; column-gap:0; column-fill:auto; border-top:5px solid green; height:95px;">
+    <div style="height:190px; background:green;"></div>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Test fragmentation for a nested multi-column container with column-span in paginated context</title>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/column-balancing-paged-001-print-ref.html">
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-span">
+  <link rel="help" href="https://drafts.csswg.org/css-break/#breaking-rules">
+
+  <style>
+  :root {
+    print-color-adjust: exact;
+  }
+  .outer {
+    column-count: 1;
+    column-rule: 6px solid black;
+  }
+  .inner {
+    column-count: 2;
+    column-rule: 3px solid green;
+    background-color: lightgreen;
+  }
+  .block1 {
+    background-color: yellow;
+    height: 3in;
+  }
+  .spanner {
+    column-span: all;
+    height: 2in;
+    background-color: lightblue;
+  }
+  .block2 {
+    background-color: pink;
+    height: 3in
+  }
+  </style>
+
+  <article class="outer">
+    <article class="inner">
+      <div class="block1">block1</div>
+      <div class="spanner">spanner</div>
+      <div class="block2">block2</div>
+    </article>
+  </article>
+</html>

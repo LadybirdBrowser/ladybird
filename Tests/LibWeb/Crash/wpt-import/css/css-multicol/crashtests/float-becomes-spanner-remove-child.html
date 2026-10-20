@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/422810439">
+<div style="columns:1; column-fill:auto; height:100px;">
+  <div id="sometimescontainer">
+    <div id="e3" style="float:left; column-span:all;">
+      <div id="child"></div>
+    </div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  e3.style.cssFloat = "none";
+  child.style.display = "none";
+</script>

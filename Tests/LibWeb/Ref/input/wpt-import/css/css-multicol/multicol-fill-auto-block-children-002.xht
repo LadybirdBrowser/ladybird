@@ -1,0 +1,73 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-fill: auto' and 'column-span: all' (complex)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-16 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-span" title="6.1. 'column-span'" />
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#pagination-and-overflow-outside-multicol" title="8.2. Pagination and overflow outside multicol elements" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-fill-auto-block-children-002-ref.xht" />
+
+  <meta name="assert" content="This test checks that if 'column-fill' is set to 'auto' and a multicolumn element content is solely made of block container boxes, then it should fill column boxes sequentially with such content and, in this test, it should overflow outside of it. This test relies on the idea that a 'column-span: all' element will occupy more space in a multi-column element than a 'column-span: none' element, therefore reducing available space for content in column boxes." />
+  <style type="text/css"><![CDATA[
+  html {background-color: white;}
+
+  body
+  {
+  background-color: blue;
+  height: 200px;
+  margin: 8px;
+  width: 60%;
+
+  column-count: 3;
+  column-fill: auto;
+  column-gap: 10px;
+  }
+
+  h1
+  {
+  color: white;
+  column-span: all;
+  font-size: 2em;
+  line-height: 1.25; /* or 1.21875 to achieve a 39px tall line box */
+  margin: 21px 0em;
+  /*
+   21px : margin-top of h1 element which must not collapse with body's margin-top
+   80px : content height: 2 line boxes required to render the "Test passes if ..." sentence
+   21px : margin-bottom of h1 element
+ ====================================
+  122px : margin box height of h1 element
+  */
+  }
+
+  h2
+  {
+  color: blue;
+  font-size: 1.5em;
+  line-height: 1;
+  margin: 0 0 2.25em;
+  /*
+    0px : margin-top of h2 element
+   24px : content height: 1 line box required to render all the nbsp; and PASS! word
+   54px : margin-bottom of h2 element
+ ====================================
+   78px : margin box height of h2 element
+  */
+  }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <h1>Test passes if "PASS!" is<br />on the right &#8600;</h1>
+
+  <h2>&nbsp;</h2>
+
+  <h2>&nbsp;</h2>
+
+  <h2>&nbsp;</h2>
+
+  <h2>PASS!</h2>
+
+ </body>
+</html>

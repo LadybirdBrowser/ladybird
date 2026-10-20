@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Append float element to block with floating pseudo-elements in multi-column context</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/">
+  <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1645714">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-dynamic-add-004-ref.html">
+  <meta name="assert" content="This test checks that dynamically appending a float element to a block container with floating ::before and ::after pseudo-elements in a multi-column context renders correctly.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    var nav = document.createElement("nav");
+    nav.append("text");
+
+    var container = document.getElementById("container");
+    container.append(nav);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  .columns {
+    columns: 2;
+    column-fill: auto;
+    width: 100px;
+    height: 10px;
+  }
+  #container::before, #container::after {
+    float: left;
+    content: "";
+    width: 10px;
+    height: 20px;
+  }
+  nav {
+    float: left;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <div class="columns">
+      <div id="container"></div>
+    </div>
+  </body>
+</html>

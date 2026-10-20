@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Append a block to an empty inline element</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-multicol-1/#cf">
+  <link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-dynamic-add-001-ref.html">
+  <meta name="assert" content="This test checks that the block appended into an inline element should perform correct block-in-inline splitting, and balance the block's height into three columns.">
+
+  <script>
+  function runTest() {
+    document.body.offsetHeight;
+
+    /* Append a block to the inline element. */
+    var block = document.createElement("div");
+    var text = document.createTextNode("block");
+    block.appendChild(text);
+
+    var span = document.getElementById("span");
+    span.appendChild(block);
+
+    document.documentElement.removeAttribute("class");
+  }
+  </script>
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  div {
+    height: 300px;
+    background-color: yellow;
+  }
+  </style>
+
+  <body onload="runTest();">
+    <article id="column">
+      <span id="span"><!-- block will be added here. --></span>
+    </article>
+  </body>
+</html>

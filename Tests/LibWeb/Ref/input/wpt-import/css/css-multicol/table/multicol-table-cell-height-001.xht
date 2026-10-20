@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-count and height of table-cell (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-23 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#the-number-and-width-of-columns" title="3. The number and width of columns" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-multicol/table/multicol-table-cell-height-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that 'column-count' applies to elements with 'display' set to 'table-cell' which can be constrained with a set height." />
+  <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  color: black;
+  display: table-cell;
+  font: 1.25em/1 Ahem;
+  height: 18em;
+  orphans: 1;
+  widows: 1;
+  width: 15em;
+
+  column-count: 2;
+  column-gap: 2em;
+
+  /*
+
+  N == 2;
+
+  W == 6.5em;
+
+  */
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <div>
+  111 222 333 444 555 666 777 888 999
+  111 222 333 444 555 666 777 888 999
+  111 222 333 444 555 666 777 888 999
+  111 222 333 444 555 666 777 888 999
+  </div>
+
+ </body>
+</html>

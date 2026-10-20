@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>
+  Multi-line column flex fragmentation: column-reverse.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/flexbox/multi-line-column-flex-fragmentation-041-ref.html">
+<div style="width: 100px; height: 100px; columns: 2; column-fill: auto; column-gap: 0;">
+  <div style="display: flex; flex-direction: column-reverse; flex-wrap: wrap; height: 200px;">
+    <div style="height: 50px; width: 25px; background: orange;"></div>
+    <div style="height: 50px; width: 25px; background: blue;"></div>
+    <div style="height: 50px; width: 25px; background: purple;"></div>
+    <div style="height: 50px; width: 25px; background: yellow;"></div>
+
+    <div style="height: 50px; width: 25px; background: pink;"></div>
+    <div style="height: 50px; width: 25px; background: maroon;"></div>
+    <div style="height: 50px; width: 25px; background: magenta;"></div>
+    <div style="height: 50px; width: 25px; background: mediumaquamarine;"></div>
+  </div>
+</div>

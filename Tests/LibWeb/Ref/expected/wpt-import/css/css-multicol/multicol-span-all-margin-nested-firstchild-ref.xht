@@ -1,0 +1,77 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | column-span</title>
+<link rel="author" title="Opera Software ASA" href="http://www.opera.com/"/>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body {
+	margin: 0;
+}
+body>div {
+	font-family: Ahem;
+	font-size: 1em;
+	line-height: 1em;
+	color: navy;
+	background: yellow;
+	margin: 1em;
+	border: 1em solid gray;
+	width: 8em;
+	height: 13em;
+	position: relative;
+	float: left;
+	overflow: hidden;
+}
+div div {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 8em;
+	height: 2em;
+	background: navy;
+}
+#s2 {
+	top: 11em;
+}
+#s3 {
+	background: black;
+	top: 3em;
+}
+#s4 {
+	background: pink;
+	top: 5em;
+	height: 1em;
+}
+#s5 {
+	background: black;
+	top: 6em;
+	height: 1em;
+}
+#s6 {
+	background: pink;
+	top: 7em;
+	height: 1em;
+}
+#s7 {
+	background: black;
+	top: 9em;
+	height: 1em;
+}
+]]></style>
+</head>
+
+<body>
+
+<div>
+	<div></div>
+	<div id="s2"></div>
+	<div id="s3"></div>
+	<div id="s4"></div>
+	<div id="s5"></div>
+	<div id="s6"></div>
+	<div id="s7"></div>
+</div>
+
+</body>
+</html>

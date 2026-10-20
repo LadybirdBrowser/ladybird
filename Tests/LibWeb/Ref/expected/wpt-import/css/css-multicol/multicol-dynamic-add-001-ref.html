@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <title>CSS Multi-column Layout Test: Append a block to an empty inline element</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+
+  <style>
+  #column {
+    column-count: 3;
+    column-rule: 6px solid;
+    width: 400px;
+    outline: 1px solid black;
+  }
+  div {
+    height: 300px;
+    background-color: yellow;
+  }
+  </style>
+  <body>
+    <article id="column">
+      <span id="span"><div>block</div></span>
+    </article>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#fragmentation-model">
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#overflow-properties">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="columns:2; width:100px; column-fill:auto; height:100px; column-gap:0; background:red;">
+  <div style="overflow-x:clip; height:150px;">
+    <div style="width:100px; background:red;">
+      <div style="width:50px; height:200px; background:green;"></div>
+    </div>
+  </div>
+</div>

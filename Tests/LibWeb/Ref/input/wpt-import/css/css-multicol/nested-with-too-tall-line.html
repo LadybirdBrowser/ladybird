@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-multi-column-model">
+<link rel="help" href="https://drafts.csswg.org/css-break/#unforced-breaks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/nested-with-too-tall-line-ref.html">
+<style>
+    .multicol { columns:2; column-fill:auto; }
+</style>
+<p>The word "PASS" should be seen below, and there should be no red.</p>
+<div class="multicol" style="width:100px; height:100px; line-height:200px;">
+    <div class="multicol" style="height:200px; column-rule:solid red;">
+        PASS
+    </div>
+</div>

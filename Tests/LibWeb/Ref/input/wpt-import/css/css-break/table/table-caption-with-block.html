@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=329421">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/table/table-caption-with-block-ref.html">
+<p>Check that a table caption with a block at a column boundary is properly pushed to the next column.</p>
+<p>The word "PASS" should be seen below, fully visible and unbroken.</p>
+<div style="columns:2; column-gap:0; column-fill:auto; line-height:2em; width:40em; height:3em;">
+  <div style="height:2em;"></div>
+  <table cellspacing="0" cellpadding="0">
+    <caption>
+      <div>PASS</div>
+    </caption>
+  </table>
+</div>

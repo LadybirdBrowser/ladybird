@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>
+  Multi-lane column grid-lanes fragmentation intrinsic block size.
+</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#pagination">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-break/grid/grid-lanes/../../../reference/ref-filled-green-100px-square.xht">
+<style>
+  .multicol {
+    background: red;
+    column-count: 5;
+    column-fill: auto;
+    column-gap: 0px;
+    height: 100px;
+    width: 100px;
+  }
+  .grid-lanes {
+    background: green;
+    display: grid-lanes;
+    grid-template-columns: repeat(2, 10px);
+    width: 20px;
+  }
+  .grid-lanes > div {
+    width: 10px;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <div class="grid-lanes">
+    <div style="grid-column: 1; height: 50px;"></div>
+    <div style="grid-column: 1; height: 150px;"></div>
+    <div style="grid-column: 1; height: 300px;"></div>
+  </div>
+</div>

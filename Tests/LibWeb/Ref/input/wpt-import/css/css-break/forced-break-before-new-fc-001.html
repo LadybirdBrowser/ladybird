@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Forced break before new formatting context root.</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/388290814">
+<link rel="help" href="https://drafts.csswg.org/css-break-3/#break-margins">
+<link rel="match" href="../../../../expected/wpt-import/css/css-break/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="position:relative; columns:2; column-fill:auto; gap:0; width:100px; height:100px; background:red;">
+  <div style="break-after:column; height:50px; background:green;"></div>
+  <div style="display:flow-root; margin-top:30px; height:70px; background:green;"></div>
+  <div style="position:absolute; top:50px; left:0; width:50px; height:50px; background:green;"></div>
+  <div style="position:absolute; top:0; left:50px; width:50px; height:30px; background:green;"></div>
+</div>

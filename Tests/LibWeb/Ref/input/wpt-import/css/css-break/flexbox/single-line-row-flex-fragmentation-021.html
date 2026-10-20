@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>
+  Single-line row flex fragmentation: If the fragmentainer is out of space
+  but the flexbox and flex row have zero block-size, not additional
+  fragmentainers should be created to hold this content.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#pagination">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-break/flexbox/../../reference/ref-filled-green-100px-square.xht">
+<style>
+  #flex {
+    display: flex;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px; height: 100px; columns: 1; column-rule: 20px solid red; column-fill: auto;">
+  <div style="height: 100px; width: 100px; background: green;"></div>
+  <div id="flex">
+    <div></div>
+  </div>
+</div>

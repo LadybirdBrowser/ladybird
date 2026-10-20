@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout Test: multicol with overflow-clipped positioned content</title>
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-overflow-clip-positioned-ref.html">
+<meta name="assert" content="Overflow clip for positioned content should work under multicol.">
+<div style="columns: 2">
+  <div style="height: 200px; overflow: hidden">
+    <div style="height: 800px; background: blue; position: relative"></div>
+  </div>
+  <div style="height: 200px"></div>
+</div>
+

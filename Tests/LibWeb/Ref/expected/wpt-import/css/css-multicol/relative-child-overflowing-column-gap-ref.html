@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Relative child can overflow onto the column gap area</title>
+<style>
+body {
+  margin: 0px;
+}
+
+.child {
+  width: 100px;
+  height: 50px;
+  background: green;
+}
+
+.child2 {
+  width: 100px;
+  height: 50px;
+  background: green;
+  position: absolute;
+  left: 125px;
+  top: 0px;
+}
+</style>
+<div class="child"></div>
+<div class="child2"></div>

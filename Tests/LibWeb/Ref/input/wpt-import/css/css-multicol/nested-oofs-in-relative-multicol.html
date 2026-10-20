@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/reference/nested-oofs-in-relative-multicol-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#propdef-column-count">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<style>
+.outer {
+  position: relative;
+  margin-left: 100px;
+  width: 400px;
+  height: 400px;
+  column-count: 2;
+  overflow: hidden;
+  background: yellow;
+}
+.cb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 400px;
+  height: 400px;
+  background: red;
+}
+.img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 400px;
+  height: 400px;
+  background: green;
+}
+</style>
+<body>
+  <div class="outer">
+    <div class="cb">
+      <div class="img"></div>
+    </div>
+  </div>
+</body>

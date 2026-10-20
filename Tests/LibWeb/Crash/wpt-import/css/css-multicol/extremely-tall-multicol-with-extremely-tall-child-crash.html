@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout Test: extremely tall multicolumn container with extremely tall inline-block inside</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-multi-column-model" title="CSS Multi-column Layout Module Level 1">
+<meta name="assert" content="This tests that we get no crash if we put an extremely tall inline-block inside an extremely tall multicol container. Engines typically have some maximum limit for how large values they can represent. If the value is large enough to become 'infinity', the engine should still not crash">
+<!-- Explanation for the CSS values specified below: This test was written for
+     the Chromium Blink engine, which uses a fixed-point 32 bit integer. In this
+     example, the value will be too large, so it will be clamped to the maximum
+     value (about 2^25 px). However, there's a a further complication in that
+     CSS length values in Blink are transported via a 32bit float, so precision
+     will be a few pixels off. So even if 1234567890px is way more than Blink
+     can handle, it will be truncated to a bit less than the maximum value
+     (about 2^25). We want the multicol container to be as tall as it can
+     possibly get, so we put it inside a 1234567890px tall container, and
+     specify the height of the child multicol container to be 200% to ensure
+     this. We also use a percentage to specify the height of the child inside
+     the multicol container, for the same reason. -->
+<div style="height:1234567890px;">
+  <div style="columns:2; column-fill:auto; height:200%;">
+    <div style="display:inline-block; height:100%;"></div><br>
+    hest
+</div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(() => { }, "No crash or assertion failure.");
+</script>

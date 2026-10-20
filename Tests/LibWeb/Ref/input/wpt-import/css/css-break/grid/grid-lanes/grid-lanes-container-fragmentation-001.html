@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>
+  Grid-lanes container fragmentation (with no items).
+</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#pagination">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-break/grid/grid-lanes/../../../reference/ref-filled-green-100px-square.xht">
+<style>
+  .multicol {
+    background: red;
+    column-count: 4;
+    column-gap: 0px;
+    height: 100px;
+    width: 100px;
+  }
+  .grid-lanes {
+    background: green;
+    border: 3px solid green;
+    display: grid-lanes;
+    padding: 5px;
+    width: 9px;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="multicol">
+  <div class="grid-lanes" style="height: 134px;"></div>
+  <div class="grid-lanes" style="height: 234px;"></div>
+</div>
