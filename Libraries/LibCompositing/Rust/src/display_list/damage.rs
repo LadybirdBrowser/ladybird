@@ -2754,6 +2754,7 @@ mod tests {
             effect_context(
                 &mut tree,
                 EffectNodeData::Effects(EffectsData {
+                    isolation: false,
                     opacity: 1.0,
                     blend_mode: CompositingAndBlendingOperator::Normal,
                     filter: Some(std::sync::Arc::new(drop_shadow_filter(20.0, 0.0))),

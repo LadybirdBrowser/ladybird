@@ -1158,6 +1158,7 @@ mod tests {
         let blur = effect_under(
             &mut tree,
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: Some(std::sync::Arc::new(
@@ -1222,6 +1223,7 @@ mod tests {
         let blur = effect_under(
             &mut tree,
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: Some(std::sync::Arc::new(

@@ -271,6 +271,7 @@ mod tests {
     ) -> EffectNodeIndex {
         tree.append_effect(
             EffectNodeData::Effects(EffectsData {
+                isolation: false,
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: filter.map(|filter| Arc::new(filter.serialize())),
