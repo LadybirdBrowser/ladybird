@@ -1,0 +1,4 @@
+edges: span 120,0 105x20, text 145,0
+pre-wrap: 80,0 160,0
+each-line: 260,0 40x20
+hanging: 220,0 40x20

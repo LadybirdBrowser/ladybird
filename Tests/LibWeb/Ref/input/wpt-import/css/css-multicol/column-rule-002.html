@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Column rule paint order test</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-1/#column-gaps-and-rules">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/column-rule-002-ref.html">
+<p>There should be four squares below, on a yellow background.</p>
+<div style="columns:3; column-gap:30px; column-rule:30px solid; column-fill:auto; width:180px; height:100px; background:yellow;">
+  <div style="height:250px;">
+    <div style="height:30px;"></div>
+    <div style="width:180px; height:40px; background:yellow;"></div>
+  </div>
+</div>

@@ -101,6 +101,13 @@ pub(crate) enum BlockResume {
     BeforeChild { child: Node, after_forced_break: bool },
     InsideChild { child: Node, token: Rc<BlockBreakToken> },
     AfterChildren,
+    AtLine(LinePosition),
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct LinePosition {
+    pub(crate) item_index: usize,
+    pub(crate) offset_in_node: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -115,9 +122,16 @@ impl BlockBreakToken {
         match &self.resume {
             BlockResume::BeforeChild { after_forced_break, .. } => *after_forced_break,
             BlockResume::InsideChild { token, .. } => token.ends_at_forced_break(),
-            BlockResume::AfterChildren => false,
+            BlockResume::AfterChildren | BlockResume::AtLine(_) => false,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LineRootFragmentation {
+    pub(crate) block_size: Option<CssPixels>,
+    pub(crate) resume: Option<LinePosition>,
+    pub(crate) fragmentainer_had_content: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -137,6 +151,7 @@ impl FragmentainerOutcome {
 pub(crate) struct FragmentainerContext {
     pub(crate) block_size: Option<CssPixels>,
     pub(crate) incoming: Option<Rc<BlockBreakToken>>,
+    pub(crate) inline_items: Rc<inline_level_iterator::InlineItemCache>,
     pub(crate) early_break_before: Option<Node>,
     outcome: RefCell<FragmentainerOutcome>,
 }
@@ -145,11 +160,13 @@ impl FragmentainerContext {
     pub(crate) fn new(
         block_size: Option<CssPixels>,
         incoming: Option<Rc<BlockBreakToken>>,
+        inline_items: Rc<inline_level_iterator::InlineItemCache>,
         early_break_before: Option<Node>,
     ) -> Self {
         Self {
             block_size,
             incoming,
+            inline_items,
             early_break_before,
             outcome: RefCell::new(FragmentainerOutcome::default()),
         }

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; }
+</style>
+<div style="columns: 2; column-fill: auto; height: 41px; width: 220px; font: 20px/20px Ahem"><p id="p" style="margin: 0"><span style="border: 1px solid">aaaa</span> bbbb cccc dddd</p></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await frame();
+        const p = document.getElementById("p");
+        p.lastChild.data = " bbbb cc";
+        await frame();
+        p.lastChild.data = " bbbb cccc dddd eeee ffff";
+        await frame();
+        const origin = p.parentElement.getBoundingClientRect();
+        const range = document.createRange();
+        range.setStart(p.lastChild, p.lastChild.data.length - 4);
+        range.setEnd(p.lastChild, p.lastChild.data.length);
+        const rect = range.getBoundingClientRect();
+        println(`last word: ${rect.x - origin.x},${rect.y - origin.y}`);
+        done();
+    });
+</script>

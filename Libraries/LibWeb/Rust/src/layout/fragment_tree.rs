@@ -1059,7 +1059,12 @@ impl RunFragmentBuilder {
         );
     }
 
-    pub(crate) fn adopt_fragmentainer_root(&self, root: UnplacedRootFragment, offset: FfiCssPixelPoint) {
+    pub(crate) fn adopt_fragmentainer_root(
+        &self,
+        root: UnplacedRootFragment,
+        offset: FfiCssPixelPoint,
+        root_line_index_offset: usize,
+    ) {
         debug_assert!(
             root.node == self.root_node,
             "a fragmentainer run's root is the box of the run that adopts it"
@@ -1068,6 +1073,11 @@ impl RunFragmentBuilder {
         inner.reused_subtree_roots.extend(root.reused_subtree_roots);
         for mut link in root.scoped_descendants {
             link.committed_offset = formatting_context::point_add(link.committed_offset, offset);
+            if link.containing_block == self.root_node
+                && let Some(line_index) = link.containing_line_box_index.as_mut()
+            {
+                *line_index += root_line_index_offset;
+            }
             inner.top_scope_links.push(link);
         }
         for mut entry in root.propagated_pending_abspos {

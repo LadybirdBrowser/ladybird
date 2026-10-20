@@ -63,6 +63,7 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     direction: u8,
     writing_mode: u8,
     last_line_needs_update: bool,
+    is_continuation: bool,
     should_advance_to_last_line_box_block_end: bool,
     current_line_committed_pending_margin: bool,
     pending_margin_follows_block_level_box: bool,
@@ -81,6 +82,24 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         builder
     }
 
+    pub(crate) fn new_for_continuation(
+        context: &'builder inline_formatting_context::InlineFormattingContext<'context>,
+        after_forced_break: bool,
+    ) -> Self {
+        let mut builder = Self::initialized(context);
+        builder.is_continuation = true;
+        builder.begin_new_line(
+            false,
+            true,
+            if after_forced_break {
+                ForcedBreak::Yes
+            } else {
+                ForcedBreak::No
+            },
+        );
+        builder
+    }
+
     fn initialized(context: &'builder inline_formatting_context::InlineFormattingContext<'context>) -> Self {
         let style = context.style(context.containing_block);
         let containing_inline_size = context.input.containing_block_constraints.inline_basis();
@@ -96,6 +115,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             direction: style.direction(),
             writing_mode: style.writing_mode(),
             last_line_needs_update: false,
+            is_continuation: false,
             should_advance_to_last_line_box_block_end: false,
             current_line_committed_pending_margin: false,
             pending_margin_follows_block_level_box: false,
@@ -113,10 +133,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let current_block_offset = context.line_data().line_boxes.last().unwrap().next_line_block_offset;
         let mut builder = Self::initialized(context);
         builder.current_block_offset = current_block_offset;
-        context
-            .line_data_mut()
-            .line_boxes
-            .push(line_box::LineBoxData::new(builder.direction, builder.writing_mode));
+        builder.push_line_box();
         builder.begin_new_line(false, true, ForcedBreak::No);
         builder.current_line_committed_pending_margin = true;
         builder
@@ -130,14 +147,20 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.context().line_data().line_boxes.len()
     }
 
+    fn push_line_box(&self) {
+        self.context()
+            .line_data_mut()
+            .line_boxes
+            .push(line_box::LineBoxData::new(
+                self.direction,
+                self.writing_mode,
+                self.context().current_line_start.get(),
+            ));
+    }
+
     fn ensure_last_line_index(&mut self) -> usize {
         if self.line_count() == 0 {
-            let direction = self.direction;
-            let writing_mode = self.writing_mode;
-            self.context()
-                .line_data_mut()
-                .line_boxes
-                .push(line_box::LineBoxData::new(direction, writing_mode));
+            self.push_line_box();
         }
         self.line_count() - 1
     }
@@ -227,7 +250,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = CssPixels::default();
         self.last_line_needs_update = true;
         self.should_advance_to_last_line_box_block_end = false;
-        let mut should_indent = self.line_count() <= 1 || (self.text_indent_each_line && forced == ForcedBreak::Yes);
+        let mut should_indent = (self.line_count() <= 1 && !self.is_continuation)
+            || (self.text_indent_each_line && forced == ForcedBreak::Yes);
         if self.text_indent_hanging {
             should_indent = !should_indent;
         }
@@ -258,10 +282,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
         let mut break_count = 0usize;
         loop {
-            self.context()
-                .line_data_mut()
-                .line_boxes
-                .push(line_box::LineBoxData::new(self.direction, self.writing_mode));
+            self.push_line_box();
             self.begin_new_line(true, break_count == 0, forced);
             break_count += 1;
             let line_height = self.containing_style().line_height();
@@ -498,10 +519,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.line_mut(line_index).has_forced_break = true;
         self.last_line_needs_update = true;
         self.update_last_line(false);
-        self.context()
-            .line_data_mut()
-            .line_boxes
-            .push(line_box::LineBoxData::new(self.direction, self.writing_mode));
+        self.push_line_box();
         self.begin_new_line(true, true, ForcedBreak::No);
     }
 
@@ -576,10 +594,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = CssPixels::default();
         self.last_line_needs_update = false;
         self.should_advance_to_last_line_box_block_end = false;
-        self.context()
-            .line_data_mut()
-            .line_boxes
-            .push(line_box::LineBoxData::new(self.direction, self.writing_mode));
+        self.push_line_box();
         self.begin_new_line(false, true, ForcedBreak::No);
     }
 

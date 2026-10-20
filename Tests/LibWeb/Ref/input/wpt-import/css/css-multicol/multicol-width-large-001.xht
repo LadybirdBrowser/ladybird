@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: large column-width</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-23 -->
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#cw" title="3.1. 'column-width'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-width-invalid-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that a set 'column-width' may be wider (to fill the available space). In this test, the actual column-width will be increased to 12em." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: yellow;
+  border: gray solid 1em;
+  color: black;
+  font: 1.25em/1 Ahem;
+  width: 12em;
+
+  column-gap: 0;
+  column-width: 9em;
+  }
+
+  span {color: blue;}
+  ]]></style>
+ </head>
+ <body>
+  <p>This test passes is it is idential to the reference.</p>
+  <div>
+  bl ac
+    <span>
+    bl ue
+    </span>
+    <span>
+    bl ue
+    </span>
+  bl ac
+  </div>
+ </body>
+</html>

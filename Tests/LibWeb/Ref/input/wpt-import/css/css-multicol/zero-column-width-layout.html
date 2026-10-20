@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>column-width:0</title>
+<meta name="assert" content="column-width:0 is valid as specified and computed value, but its used value may never be less than 1px">
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#cw" title="3.1. column-width">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="float:left; width:50px; height:100px; column-width:0; column-gap:0;">
+  <div style="height:5000px; background:green;"></div>
+</div>
+<div style="float:left; width:50px; height:100px; columns:0; column-gap:0;">
+  <div style="height:5000px; background:green;"></div>
+</div>

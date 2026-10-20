@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; }
+    .mc { column-fill: auto; height: 41px; width: 220px; column-gap: 20px; font: 20px/20px Ahem; }
+    p { margin: 0; }
+</style>
+<div class="mc" id="edges" style="columns: 2"><p>l1<br>aaa <span id="edges-span" style="padding-left: 20px; border-left: 5px solid"> bbbb</span> cc</p></div>
+<div class="mc" id="pre-wrap" style="columns: 3"><p style="white-space: pre-wrap">aaaa bbbb cccc dddd eeee ffff</p></div>
+<div class="mc" id="each-line" style="columns: 2; width: 420px; orphans: 1; widows: 1"><p style="text-indent: 40px each-line">aa<br>bb<br><span id="each-line-span">cc</span><br>dd</p></div>
+<div class="mc" id="hanging" style="columns: 2; width: 420px; orphans: 1; widows: 1"><p style="text-indent: 40px each-line hanging">aa<br>bb<br><span id="hanging-span">cc</span><br>dd</p></div>
+<script>
+    function textOffset(container, text) {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        const origin = container.getBoundingClientRect();
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const index = node.data.indexOf(text);
+            if (index < 0)
+                continue;
+            const range = document.createRange();
+            range.setStart(node, index);
+            range.setEnd(node, index + text.length);
+            const rect = range.getBoundingClientRect();
+            return `${rect.x - origin.x},${rect.y - origin.y}`;
+        }
+        return "missing";
+    }
+    function boxOffset(id) {
+        const element = document.getElementById(id);
+        const origin = element.closest(".mc").getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        return `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`;
+    }
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        println(`edges: span ${boxOffset("edges-span")}, text ${textOffset(document.getElementById("edges"), "bbbb")}`);
+        const preWrap = document.getElementById("pre-wrap");
+        println(`pre-wrap: ${textOffset(preWrap, "cccc")} ${textOffset(preWrap, "eeee")}`);
+        println(`each-line: ${boxOffset("each-line-span")}`);
+        println(`hanging: ${boxOffset("hanging-span")}`);
+        done();
+    });
+</script>

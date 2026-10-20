@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-count and height</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-06 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-gap" title="4.1. 'column-gap'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-height-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that length of column rules is equal to the length of the columns and if a nth column box overflows outside the available width of a multi-column element, then an (n-1)th column rule should be drawn. In this test, a 3rd column box is created outside the content edge of the multi-column element: therefore, a 2nd blue column rule should be drawn accordingly." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  color: white;
+  font: 1.25em/1 Ahem;
+  height: 8em;
+  width: 14em;
+
+  column-count: 2;
+  column-fill: auto;
+  column-gap: 2em;
+  column-rule: blue solid 10px;
+  }
+  ]]></style>
+ </head>
+ <body>
+  <p>Test passes if there are 2 blue vertical stripes of equal height.</p>
+
+  <div>
+  1st col 1st col 1st col
+  1st col 2nd col 2nd col
+  2nd col 2nd col 3rd col
+  3rd col 3rd col 3rd col
+  </div>
+ </body>
+</html>

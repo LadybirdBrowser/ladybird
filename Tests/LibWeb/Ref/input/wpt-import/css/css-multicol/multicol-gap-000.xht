@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-gap (basic)</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-25 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-gap" title="4.1 'column-gap'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-gap-000-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that column gap appears between two columns." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  font: 1.25em/1 Ahem;
+  margin: 1em 0;
+  width: 30em;
+  }
+
+  div#test
+  {
+  background-color: yellow;
+  orphans: 1;
+  widows: 1;
+
+  column-width: 10em;
+  column-gap: 10em;
+  }
+
+  span {color: yellow;}
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 2 horizontal bars are <strong>identical</strong>.</p>
+
+  <div id="test">1234567890<br />1234567890</div>
+
+  <div id="reference">1234567890<span>1234567890</span>1234567890</div>
+
+ </body>
+</html>

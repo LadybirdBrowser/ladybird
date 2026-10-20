@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .multicol { columns: 2; column-gap: 20px; column-fill: auto; height: 41px; width: 420px; position: relative; }
+    p { margin: 0; }
+</style>
+<div class="multicol"><p>aaa bbb ccc ddd <span id="nested">eee</span> fff</p></div>
+<div class="multicol" dir="rtl"><p>aaa bbb ccc ddd <span id="right-to-left">eee</span> fff</p></div>
+<div class="multicol">aaa bbb ccc ddd <span id="own-line-root">eee</span> fff</div>
+<div class="multicol"><p>aaa bbb ccc ddd <span id="relative" style="position: relative; left: 4px"><span id="inline-block" style="display: inline-block; width: 10px; height: 10px"></span></span> fff</p></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["nested", "right-to-left", "own-line-root"]) {
+            const element = document.getElementById(id);
+            const multicol = element.closest(".multicol").getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
+            println(`${id}: offset ${element.offsetLeft},${element.offsetTop} rect ${rect.x - multicol.x},${rect.y - multicol.y}`);
+        }
+        const inlineBlock = document.getElementById("inline-block");
+        const multicol = inlineBlock.closest(".multicol").getBoundingClientRect();
+        const rect = inlineBlock.getBoundingClientRect();
+        println(`inline-block in relative span: offset left ${inlineBlock.offsetLeft} rect ${rect.x - multicol.x},${rect.y - multicol.y}`);
+        done();
+    });
+</script>

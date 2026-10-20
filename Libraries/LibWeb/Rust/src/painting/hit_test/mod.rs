@@ -82,6 +82,7 @@ pub struct SpatialIndex {
 pub struct CaretLine {
     pub rect: CssPixelRect,
     pub block_container: NodeSlotId,
+    pub box_fragment: u32,
     pub context: ContextRef,
     pub first_caret_item_index: usize,
     pub last_caret_item_index: usize,
@@ -164,6 +165,24 @@ impl HitTestList {
             items.reserve(self.item_capacity_hint_from_previous_list.max(source.len()));
         }
         items.extend_from_slice(source);
+    }
+
+    fn box_fragment_of_caret_item(rows: &impl PaintRead, item: &HitTestItem) -> u32 {
+        let Some(line_index) = item.caret_line_index else {
+            return 0;
+        };
+        let line_root = match item.kind {
+            HitTestItemKind::TextFragment | HitTestItemKind::EmptyLine => item.paintable,
+            HitTestItemKind::Box => rows.paintable_data(item.paintable).containing_block,
+            HitTestItemKind::SvgPath | HitTestItemKind::EmptyEditable | HitTestItemKind::ChromeWidget => return 0,
+        };
+        if line_root.is_invalid() || !rows.paintable_row_is_populated(line_root) {
+            return 0;
+        }
+        rows.committed_side_data(line_root)
+            .lines()
+            .get(line_index)
+            .map_or(0, |line| line.box_fragment)
     }
 
     pub(crate) fn caret_line_rect_for_item(rows: &impl PaintRead, item: &HitTestItem) -> CssPixelRect {
@@ -310,6 +329,7 @@ impl HitTestList {
         self.caret_lines.push(CaretLine {
             rect: item_line_rect,
             block_container: item_block_container,
+            box_fragment: Self::box_fragment_of_caret_item(rows, item),
             context: item.context,
             first_caret_item_index: caret_item_index,
             last_caret_item_index: caret_item_index,

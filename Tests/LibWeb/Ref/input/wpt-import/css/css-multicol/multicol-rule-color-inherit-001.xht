@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-rule-color: inherit</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-09-02 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#crc" title="4.2. 'column-rule-color'" />
+  <link rel="help" href="http://www.w3.org/TR/css3-values/#common-keywords" title="3.1.1. CSS-wide keywords: 'initial' and 'inherit'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-color-inherit-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that, by default, column-rule-color is the current color applying to the element unless reserved keyword 'inherit' is used in which case column-rule-color will be inherited from the parent's column-rule-color value." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#parent
+  {
+  column-rule-color: green;
+  column-rule-style: none;
+  font: 1.25em/1 Ahem;
+  width: 17em;
+  }
+
+  /*
+
+  N == 3;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (17em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (17em - (2 * 1em)) / 3);
+  W == max(0, (17em - 2em) / 3);
+  W == max(0, 15em / 3);
+  W == max(0, 5em);
+  W == 5em;
+
+  The height of column rule depends on number of line boxes in
+  each outer column box which depends on number of line boxes
+  in each inner column box.
+
+  N == 3;
+
+  W == max(0, (available-width - ((N - 1) * column-gap)) / N);
+  W == max(0, (5em - ((3 - 1) * 1em)) / 3);
+  W == max(0, (5em - (2 * 1em)) / 3);
+  W == max(0, (5em - 2em) / 3);
+  W == max(0, 3em / 3);
+  W == max(0, 1em);
+  W == 1em;
+
+  */
+
+  div
+  {
+  color: red; /* both div#parent and div.child have and use 'color: red' */
+  orphans: 1;
+  widows: 1;
+
+  column-count: 3;
+  column-gap: 1em;
+  column-rule-width: 1em;
+  }
+
+  div.child
+  {
+  column-rule-color: inherit;
+  column-rule-style: solid;
+  font-size: 1em;
+  }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <p>Test passes if there are 6 vertical green stripes and <strong>no red</strong>.</p>
+
+  <div id="parent">
+	<div class="child">
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+	</div>
+	<div class="child">
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+	</div>
+	<div class="child">
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		&nbsp;
+	</div>
+  </div>
+
+ </body>
+</html>

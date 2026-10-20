@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .multicol {
+        columns: 2;
+        column-gap: 0;
+        column-fill: auto;
+        width: 200px;
+        height: 40px;
+    }
+    p {
+        margin: 0;
+        font-size: 0;
+    }
+    span {
+        display: inline-block;
+        width: 20px;
+        vertical-align: top;
+    }
+</style>
+<div class="multicol"><p id="paragraph"><span style="height: 30px"></span><br><span style="height: 10px"></span><br><span style="height: 20px"></span><br><span style="height: 20px"></span></p></div>
+<script>
+    test(() => {
+        const paragraph = document.getElementById("paragraph");
+        for (const [x, y] of [[150, 5], [150, 25]]) {
+            const position = document.caretPositionFromPoint(x, y);
+            const nodeName = position.offsetNode === paragraph ? "paragraph" : position.offsetNode.nodeName;
+            println(`caret at ${x},${y}: ${nodeName} ${position.offset}`);
+        }
+    });
+</script>

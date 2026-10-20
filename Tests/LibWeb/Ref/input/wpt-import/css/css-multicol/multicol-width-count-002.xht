@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-count and column-width (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-23 -->
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#cc" title="3.2 'column-count'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-count-002-ref.xht" />
+  <meta name="asset" content="Test that column-count acts as a max when combined with column-width."/>
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  html {background-color: white;}
+
+  body
+  {
+  background-color: black;
+  font: 1.25em/1 Ahem;
+  padding-right: 1em;
+  width: 20em;
+  }
+
+  div
+  {
+  background-color: yellow;
+  color: black;
+  column-count: 4;
+  column-gap: 0;
+  column-width: 4em; /* would create 5 columns if column-count was not acting as a max */
+  }
+  ]]></style>
+ </head>
+ <body>
+  <div>55555 1&nbsp;&nbsp;&nbsp; 1 22&nbsp; 1 22&nbsp; 1&nbsp;&nbsp;&nbsp; 1 333 1 333 1 333 55555 55555 1&nbsp;&nbsp;&nbsp; 1 22&nbsp; 1 22&nbsp; 1&nbsp;&nbsp;&nbsp; 1 22&nbsp; 1 22&nbsp; 1 22&nbsp; 55555 55555 1&nbsp;&nbsp;&nbsp; 1 333 1 333 1&nbsp;&nbsp;&nbsp; 4444 4444 1&nbsp;&nbsp;&nbsp; 55555 55555 1&nbsp;&nbsp;&nbsp; 1 333 1 333 1&nbsp;&nbsp;&nbsp; 4444 4444 1&nbsp;&nbsp;&nbsp; 55555
+  </div>
+ </body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-rule shorthand with 'inset' border style</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-27 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-rule" title="4.5 'column-rule'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-ridge-000-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="'border-style' values of column-rule are interpreted as in the collapsing border model in which case 'inset' value is drawn the same as 'ridge'." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: black;
+  color: black;
+  font: 3.125em/1 Ahem;
+  margin-bottom: 0.2em;
+  width: 8.2em;
+  }
+
+  div#test
+  {
+  columns: 2;
+  column-gap: 0.2em;
+  column-rule: lime inset 0.2em;
+
+  /*
+
+  N == 2;
+
+  W == 200px;
+
+  */
+
+  orphans: 1;
+  widows: 1;
+  }
+
+  span {border-left: lime ridge 0.2em;}
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 2 black stripes with vertical green bars are <strong>identical</strong>.</p>
+
+  <div id="test">1 <br />2 </div>
+
+  <div id="reference">1234<span>5678</span></div>
+
+ </body>
+</html>

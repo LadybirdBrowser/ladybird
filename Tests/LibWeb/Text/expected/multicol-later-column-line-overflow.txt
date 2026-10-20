@@ -1,0 +1,2 @@
+scroller: 820
+outer: 820

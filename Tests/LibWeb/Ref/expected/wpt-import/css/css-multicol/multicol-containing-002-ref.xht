@@ -1,0 +1,32 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#inline-block
+  {
+  color: green;
+  display: inline-block;
+  font: 1.25em/1 Ahem;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <div id="inline-block">
+
+      <div>4444 4444 4444 4444</div>
+      <div>1&nbsp;&nbsp;1 1&nbsp;&nbsp;1 1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp;</div>
+      <div>1&nbsp;&nbsp;1 1&nbsp;&nbsp;1 1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp;</div>
+      <div>4444 4444 4444 4444</div>
+      <div>1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;1 &nbsp;&nbsp;&nbsp;1 &nbsp;&nbsp;&nbsp;1</div>
+      <div>1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;1 &nbsp;&nbsp;&nbsp;1 &nbsp;&nbsp;&nbsp;1</div>
+      <div>1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;1 4444 4444</div>
+
+  </div>
+
+ </body>
+</html>

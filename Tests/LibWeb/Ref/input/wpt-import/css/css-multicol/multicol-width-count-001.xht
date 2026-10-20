@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-count and column-width (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-23 -->
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#the-number-and-width-of-columns" title="3. The number and width of columns" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-width-001-ref.xht" />
+  <meta name="asset" content="Test that column-count and column-width are valid in combination"/>
+  <meta name="flags" content="ahem" />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  font: 1.25em/1 Ahem;
+  width: 30em;
+  background-color: yellow;
+  color: black;
+  column-count: 5;
+  column-gap: 0;
+  column-width: 5em;
+  }
+  ]]></style>
+ </head>
+ <body>
+ <p>Test passes if it is identical to the reference.</p>
+  <div>
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+	x xx xxx xxxx xxxxx
+  </div>
+ </body>
+</html>

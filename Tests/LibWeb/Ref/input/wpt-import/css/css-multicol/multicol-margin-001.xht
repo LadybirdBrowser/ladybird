@@ -1,0 +1,71 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: multi-column and margin collapsing of first child (basic)</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-10 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#pseudo-algorithm" title="3.4 Pseudo-algorithm" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="This test checks that the margin-top of the first child of a multi-column element (with column-fill: auto) does not collapse with its parent." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#test-multi-column-red
+  {
+  background-color: red;
+  color: white;
+  font: 3.125em/1 Ahem; /* equivalent to 50px/50px Ahem */
+  height: 4em;
+  margin-top: 0em;
+  width: 4em;
+
+  column-count: 2;
+  column-fill: auto;
+  column-gap: 0em;
+  }
+
+  div#first-child {margin-top: 2em;}
+
+  div#reference-overlapping-green
+  {
+  background-color: green;
+  bottom: 200px;
+  height: 100px;
+  position: relative;
+  width: 100px;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="test-multi-column-red">
+    <div id="first-child">ab cd</div>
+	ef gh ij kl
+  </div>
+
+  <div id="reference-overlapping-green"></div>
+
+  <!--
+
+  Expected result (before the overlapping):
+
+  *********************
+  | margin- |   ef    |
+  | top red |         |
+  | back    |   gh    |
+  | ground  |         |
+  *********************
+  |   ab    |   ij    |
+  |         |         |
+  |   cd    |   kl    |
+  |         |         |
+  *********************
+
+  -->
+
+ </body>
+</html>

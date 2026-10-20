@@ -1,0 +1,2 @@
+line-clamp: height 84, scroll height 84, atomic 360,40
+webkit-line-clamp: height 84, scroll height 84, atomic 360,40

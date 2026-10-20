@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; }
+    .mc { columns: 2; column-gap: 20px; column-fill: auto; height: 41px; width: 420px; font: 20px/20px Ahem; }
+    p { margin: 0; }
+</style>
+<div class="mc" id="scroller" style="overflow: hidden"><p>aa<br>bb<br>cccccccccccccccccccccccccccccc</p></div>
+<div style="width: 420px; overflow: hidden" id="outer"><div class="mc"><p>aa<br>bb<br>cccccccccccccccccccccccccccccc</p></div></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        println(`scroller: ${document.getElementById("scroller").scrollWidth}`);
+        println(`outer: ${document.getElementById("outer").scrollWidth}`);
+        done();
+    });
+</script>

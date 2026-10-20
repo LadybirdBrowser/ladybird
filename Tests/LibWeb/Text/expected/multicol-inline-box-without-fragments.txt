@@ -1,0 +1,4 @@
+break-only: 12x26, padding-left 3px
+collapsed-whitespace: 12x26, padding-left 3px
+starts-after-break: 210 150
+starts-with-break: 220 70

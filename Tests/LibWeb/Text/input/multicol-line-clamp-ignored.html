@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    p { margin: 0; }
+    .atomic { display: inline-block; width: 20px; height: 20px; }
+</style>
+<div id="line-clamp" style="columns: 2; column-gap: 0; width: 400px; line-clamp: 2"><p>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn <span class="atomic"></span> ooo</p></div>
+<div id="webkit-line-clamp" style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; columns: 2; column-gap: 0; width: 400px"><p>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn <span class="atomic"></span> ooo</p></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["line-clamp", "webkit-line-clamp"]) {
+            const container = document.getElementById(id);
+            const atomic = container.querySelector(".atomic").getBoundingClientRect();
+            const origin = container.getBoundingClientRect();
+            println(`${id}: height ${container.offsetHeight}, scroll height ${container.scrollHeight}, atomic ${atomic.x - origin.x},${atomic.y - origin.y}`);
+        }
+        done();
+    });
+</script>

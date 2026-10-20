@@ -1,0 +1,73 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: 'column-rule-width' has same length as 'column-gap'</title>
+  <link rel="author" title="Opera Software ASA" href="http://www.opera.com/" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-15 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#crw" title="4.4. 'column-rule-width'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-samelength-001-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="Test that a gap of 5em and a column-rule-width of 5em both take up the same space." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body {margin: 8px;}
+
+  p
+  {
+  line-height: 1.25em;
+  margin: 1em 0em;
+  }
+
+  strong {line-height: 1;}
+
+  div#red-overlapped-reference
+  {
+  background-color: red;
+  height: 100px;
+  width: 100px;
+  }
+
+  div#test-overlapping-green
+  {
+  bottom: 100px;
+  color: transparent;
+  font: 1.25em/1 Ahem; /* equivalent to 20px/1 Ahem */
+  position: relative;
+  right: 40px;
+  width: 9em;
+
+  column-count: 2;
+  column-gap: 5em;
+  column-rule-color: green;
+  column-rule-style: solid;
+  column-rule-width: 5em;
+  }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="red-overlapped-reference"></div>
+
+  <div id="test-overlapping-green">Le ft Co lu mn Ri gh Co lu mn</div>
+
+  <!--
+
+  Expected results
+    column-gap
+    column-rule
+     v=====v
+  *************
+  |Le|     |Ri|
+  |ft|     |gh|
+  |Co|     |Co|
+  |lu|     |lu|
+  |mn|     |mn|
+  *************
+
+  -->
+
+ </body>
+</html>

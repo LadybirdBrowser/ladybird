@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; }
+    #multicol { columns: 2; column-gap: 20px; column-fill: auto; height: 81px; width: 420px; font: 20px/20px Ahem; }
+    p { margin: 0; }
+</style>
+<div id="multicol"><p id="paragraph" contenteditable>aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll</p></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const paragraph = document.getElementById("paragraph");
+        const text = paragraph.firstChild;
+
+        println(`below the text of column 2: ${document.caretPositionFromPoint(300, 70).offset}`);
+
+        const selection = getSelection();
+        paragraph.focus();
+        selection.collapse(text, 31);
+        const downOffsets = [selection.focusOffset];
+        for (let i = 0; i < 3; ++i) {
+            selection.modify("move", "forward", "line");
+            downOffsets.push(selection.focusOffset);
+        }
+        println(`moving down from column 1: ${downOffsets.join(" -> ")}`);
+        const upOffsets = [selection.focusOffset];
+        for (let i = 0; i < 3; ++i) {
+            selection.modify("move", "backward", "line");
+            upOffsets.push(selection.focusOffset);
+        }
+        println(`moving back up: ${upOffsets.join(" -> ")}`);
+        done();
+    });
+</script>

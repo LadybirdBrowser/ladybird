@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Multi-column Layout Test: column-rule shorthand with 'none' border style</title>
+  <link rel="author" title="Hakon Wium Lie" href="mailto:howcome@opera.com" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-08-27 -->
+  <link rel="help" href="http://www.w3.org/TR/css3-multicol/#column-rule" title="4.5 'column-rule'" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-rule-hidden-000-ref.xht" />
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="Test checks that a column-rule-width value of none results in no rule being drawn." />
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: black;
+  color: black;
+  font: 3.125em/1 Ahem;
+  margin-bottom: 0.2em;
+  width: 8.2em;
+  }
+
+  div#test
+  {
+  columns: 2;
+  column-gap: 0.2em;
+  column-rule: red none 0.2em;
+
+  /*
+
+  N == 2;
+
+  W == 200px;
+
+  */
+
+  orphans: 1;
+  widows: 1;
+  }
+  ]]></style>
+ </head>
+ <body>
+
+  <p>Test passes if the 2 black stripes are <strong>identical</strong>.</p>
+
+  <div id="test">1 <br />2 </div>
+
+  <div id="reference">A</div>
+
+ </body>
+</html>
