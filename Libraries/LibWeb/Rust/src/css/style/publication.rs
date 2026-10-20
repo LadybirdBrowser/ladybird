@@ -1214,9 +1214,16 @@ impl RetainedState {
     /// reaction C++ settled by refreshing the data alone publishes. The host installs it in the
     /// middle of a batch, so it is never a record the engine assigned for a row the host has yet to
     /// apply, which moves more than the environment. The new record's identity, or nothing when the
-    /// node holds no base record to move.
+    /// node holds no record to move.
     pub(crate) fn republish_record_environment(&mut self, node: StyleNodeID, environment: u64) -> Option<u64> {
         let held_style_record = computed::FinalStyleRecordID::from_raw(*self.held_style_records.get(&node)?)?;
+        // Only a base record moves to another environment by itself, so an environment move computes an element holding
+        // one that composes animated values again instead. Left unmoved, the record would not name the environment the
+        // host holds, and the host would refuse every record the engine computes for a child of the element.
+        assert!(
+            !held_style_record.is_animation_overlay(),
+            "a record composing animated values cannot move to another environment"
+        );
         self.computed_group_sets
             .republish_style_record_with_environment(node, held_style_record, environment)
             .map(|style_record| style_record.raw())

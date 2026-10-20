@@ -229,8 +229,13 @@ impl StyleEngine {
                 (held.identity, held.sampled_over.is_some(), held.declares)
             });
         // An animation overlay samples over what the element's style resolves to, which a
-        // computation moves.
-        if is_animation_overlay {
+        // computation moves. So does a record composing animated values: only a base record moves
+        // to another environment by itself, and the host would otherwise hold an environment its
+        // record does not name.
+        if is_animation_overlay
+            || computed::FinalStyleRecordID::from_raw(held_style_record)
+                .is_some_and(computed::FinalStyleRecordID::is_animation_overlay)
+        {
             act(EnvironmentMoveAction::Recompute(element));
             return None;
         }
