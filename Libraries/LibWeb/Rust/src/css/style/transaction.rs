@@ -502,6 +502,32 @@ const JOURNAL_ENTRY_BYTES: usize = size_of::<InputKey>() + 2 * size_of::<InputVa
 const JOURNAL_ENTRIES_PER_CONNECTED_ELEMENT: u64 = 4;
 const MIN_JOURNAL_CAPACITY_LIMIT: u64 = 4 * 1024 * 1024;
 const MAX_JOURNAL_CAPACITY_LIMIT: u64 = 32 * 1024 * 1024;
+/// Fold a newer value for a key into its pending `(old, new)` entry, and return whether the
+/// pending change now cancels out against the pre-transaction value. An element style input
+/// accumulates every reaction requested for it instead.
+fn fold_into_pending(entry: &mut (InputValue, InputValue), new: InputValue) -> bool {
+    if let (
+        InputValue::ElementStyleInput {
+            reaction: pending_reaction,
+            inherited_style_groups: pending_inherited_style_groups,
+        },
+        InputValue::ElementStyleInput {
+            reaction: new_reaction,
+            inherited_style_groups: new_inherited_style_groups,
+        },
+    ) = (&mut entry.1, new)
+    {
+        *pending_reaction |= new_reaction;
+        *pending_inherited_style_groups |= new_inherited_style_groups;
+        return false;
+    }
+    if entry.0 == new {
+        return true;
+    }
+    entry.1 = new;
+    false
+}
+
 impl NormalizationJournal {
     #[must_use]
     pub fn new() -> Self {
@@ -535,9 +561,11 @@ impl NormalizationJournal {
 
     /// Fold a newer journal into this one without counting its already-recorded inputs a second
     /// time. This retains the original value before either journal and the final value after both.
+    /// A complete-scope marker of either journal covers the entries of its kind from both.
     pub(super) fn absorb_newer(&mut self, newer: &mut Self, memory: &mut MemoryController, counters: &Counters) {
-        debug_assert!(self.markers.is_empty());
-        debug_assert!(newer.markers.is_empty());
+        for marker in std::mem::take(&mut newer.markers) {
+            self.install_marker(marker.kind, memory);
+        }
         let newer_entries = std::mem::take(&mut newer.entries);
         memory.release(MemoryCategory::NormalizationJournal, u64::from(newer.charged_bytes));
         newer.charged_bytes = 0;
@@ -548,11 +576,9 @@ impl NormalizationJournal {
                 continue;
             }
             if let Some(entry) = self.entries.get_mut(&key) {
-                if entry.0 == new {
+                if fold_into_pending(entry, new) {
                     self.entries.remove(&key);
                     counters.bump(Counter::JournalCancellations);
-                } else {
-                    entry.1 = new;
                 }
                 continue;
             }
@@ -643,27 +669,9 @@ impl NormalizationJournal {
         }
 
         if let Some(entry) = self.entries.get_mut(&key) {
-            if let (
-                InputValue::ElementStyleInput {
-                    reaction: pending_reaction,
-                    inherited_style_groups: pending_inherited_style_groups,
-                },
-                InputValue::ElementStyleInput {
-                    reaction: new_reaction,
-                    inherited_style_groups: new_inherited_style_groups,
-                },
-            ) = (&mut entry.1, new)
-            {
-                *pending_reaction |= new_reaction;
-                *pending_inherited_style_groups |= new_inherited_style_groups;
-                return;
-            }
-            if entry.0 == new {
-                // The pending change cancels out against the pre-transaction value.
+            if fold_into_pending(entry, new) {
                 self.entries.remove(&key);
                 counters.bump(Counter::JournalCancellations);
-            } else {
-                entry.1 = new;
             }
             return;
         }
@@ -987,6 +995,65 @@ mod tests {
                     reaction: STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE,
                     inherited_style_groups: 0b101,
                 },
+            }]
+        );
+        transaction.release(&mut fixture.memory);
+    }
+
+    #[test]
+    fn absorbing_a_newer_journal_keeps_its_complete_scope_markers() {
+        let mut fixture = JournalFixture::new();
+        fixture.class(1, 10, false, true);
+
+        let mut newer = NormalizationJournal::new();
+        newer.record_complete_scope_action(InputKind::LocalFeature, &mut fixture.memory, &fixture.counters);
+
+        fixture
+            .journal
+            .absorb_newer(&mut newer, &mut fixture.memory, &fixture.counters);
+        assert!(newer.is_empty());
+
+        let transaction = fixture.take();
+        assert!(transaction.inputs.is_empty());
+        assert_eq!(
+            transaction.markers,
+            [CompleteScopeMarker {
+                kind: InputKind::LocalFeature
+            }]
+        );
+        transaction.release(&mut fixture.memory);
+    }
+
+    #[test]
+    fn absorbing_a_newer_journal_keeps_the_reactions_of_both() {
+        let mut fixture = JournalFixture::new();
+        let key = InputKey::ElementStyleInput(StyleNodeID::element(1));
+        let value = |reaction| InputValue::ElementStyleInput {
+            reaction,
+            inherited_style_groups: 0,
+        };
+        fixture.record(key, value(0), value(STYLE_REACTION_RECOMPUTE_STYLE));
+
+        let mut newer = NormalizationJournal::new();
+        newer.record(
+            key,
+            value(0),
+            value(STYLE_REACTION_INHERITED_STYLE),
+            &mut fixture.memory,
+            &fixture.counters,
+        );
+
+        fixture
+            .journal
+            .absorb_newer(&mut newer, &mut fixture.memory, &fixture.counters);
+
+        let transaction = fixture.take();
+        assert_eq!(
+            transaction.inputs,
+            [NormalizedInput {
+                key,
+                old: value(0),
+                new: value(STYLE_REACTION_RECOMPUTE_STYLE | STYLE_REACTION_INHERITED_STYLE),
             }]
         );
         transaction.release(&mut fixture.memory);
