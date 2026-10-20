@@ -11,7 +11,7 @@
 //! subtree. Content is therefore mapped into each effect's space before that effect's filter
 //! spreads it, and an effect's output becomes part of its parent's content.
 
-use crate::display_list::commands::{DisplayListCommandRun, SpatialNodeIndex};
+use crate::display_list::commands::{DisplayListCommandRun, EffectNodeIndex, SpatialNodeIndex};
 use crate::filter_bytes;
 use crate::visual_context::{EffectNode, EffectNodeData, VisualContextTree};
 use libgfx_rust::{FloatMatrix4x4, FloatRect, multiply_affine};
@@ -87,6 +87,69 @@ pub fn effect_output_extent(node: &EffectNode, content: Extent) -> Extent {
         return content;
     }
     filter_bytes::output_bounds(filter, rect).map_or(Extent::Anywhere, Extent::Within)
+}
+
+// Where an effect's filter can show a change to its content, given that change in the effect's space.
+fn changed_output_extent(node: &EffectNode, change: Extent) -> Extent {
+    let Extent::Within(rect) = change else {
+        return change;
+    };
+    let EffectNodeData::Effects(effects) = &node.data else {
+        return change;
+    };
+    let Some(filter) = effects.filter.as_deref() else {
+        return change;
+    };
+    filter_bytes::changed_output_bounds(filter, rect).map_or(Extent::Anywhere, Extent::Within)
+}
+
+/// Per effect, the nearest effect at or above it whose filter can spread content outside its
+/// bounds, or `EffectNodeIndex::NONE`.
+pub fn nearest_spreading_effects(tree: &VisualContextTree) -> Vec<EffectNodeIndex> {
+    let mut nearest = vec![EffectNodeIndex::NONE; tree.effect_nodes.len()];
+    tree.visit_effect_nodes_parents_first(|index| {
+        let node = &tree.effect_nodes[index];
+        let spreads = matches!(&node.data, EffectNodeData::Effects(effects)
+            if effects.filter.as_deref().is_some_and(|filter| filter_bytes::may_affect_output_bounds(filter)));
+        nearest[index] = if spreads {
+            EffectNodeIndex(index as u32)
+        } else if node.parent.is_none() {
+            EffectNodeIndex::NONE
+        } else {
+            nearest[node.parent.0 as usize]
+        };
+    });
+    nearest
+}
+
+/// Where a change to content drawn within `rect` in `space` under `effect` can show once every
+/// filter above it has spread it, in the space of the outermost of those filters. Changes to
+/// separate parts of the content can be followed one at a time and united.
+pub fn changed_extent_through_filters(
+    tree: &VisualContextTree,
+    nearest_spreading_effects: &[EffectNodeIndex],
+    space: SpatialNodeIndex,
+    rect: FloatRect,
+    effect: EffectNodeIndex,
+    spaces: &mut impl SpaceMatrices,
+) -> (SpatialNodeIndex, Extent) {
+    let nearest_at_or_above = |effect: EffectNodeIndex| {
+        if effect.is_none() {
+            EffectNodeIndex::NONE
+        } else {
+            nearest_spreading_effects[effect.0 as usize]
+        }
+    };
+    let mut space = space;
+    let mut extent = Extent::Within(rect);
+    let mut effect = nearest_at_or_above(effect);
+    while !effect.is_none() && extent != Extent::Anywhere {
+        let node = &tree.effect_nodes[effect.0 as usize];
+        extent = changed_output_extent(node, extent.mapped_between_spaces(spaces, space, node.spatial));
+        space = node.spatial;
+        effect = nearest_at_or_above(node.parent);
+    }
+    (space, extent)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -315,6 +378,47 @@ mod tests {
                 content: within(0.0, 0.0, 40.0, 70.0),
                 output: within(0.0, 0.0, 40.0, 70.0),
             }
+        );
+    }
+
+    #[test]
+    fn content_is_spread_by_every_filter_above_it_and_skips_effects_without_one() {
+        let mut tree = identity_tree();
+        let scaled = tree.append_spatial(
+            SpatialData::Transform(transform(scale_matrix(2.0, 2.0, 1.0))),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let blur = effect(
+            &mut tree,
+            Some(Filter::blur(10.0, 10.0, None)),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let opacity = effect(&mut tree, None, blur, scaled);
+        let shadow = effect(
+            &mut tree,
+            Some(Filter::drop_shadow(
+                0.0,
+                10.0,
+                0.0,
+                Color::from_rgba(0, 0, 0, 0xff),
+                None,
+            )),
+            opacity,
+            scaled,
+        );
+        let plain = effect(&mut tree, None, EffectNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let nearest = nearest_spreading_effects(&tree);
+        assert_eq!(nearest[opacity.0 as usize], blur);
+        assert_eq!(nearest[plain.0 as usize], EffectNodeIndex::NONE);
+        let content = FloatRect::new(10.0, 20.0, 30.0, 40.0);
+        assert_eq!(
+            changed_extent_through_filters(&tree, &nearest, scaled, content, shadow, &mut TreeSpaces(&tree)),
+            (VISUAL_VIEWPORT_NODE_INDEX, within(-10.0, 10.0, 120.0, 160.0))
+        );
+        assert_eq!(
+            changed_extent_through_filters(&tree, &nearest, scaled, content, plain, &mut TreeSpaces(&tree)),
+            (scaled, Extent::Within(content))
         );
     }
 

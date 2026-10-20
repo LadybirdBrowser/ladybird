@@ -74,6 +74,12 @@ pub fn output_bounds(bytes: &[u8], source: FloatRect) -> Option<FloatRect> {
     Filter::serialized_output_bounds(bytes, source)
 }
 
+/// Where a serialized filter's output can change when what it is applied to changes only within
+/// `changed_source`, or `None` when it can change everywhere.
+pub fn changed_output_bounds(bytes: &[u8], changed_source: FloatRect) -> Option<FloatRect> {
+    Filter::serialized_changed_output_bounds(bytes, changed_source)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

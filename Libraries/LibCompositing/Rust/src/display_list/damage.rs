@@ -5,6 +5,7 @@
  */
 
 use super::effect_clip_plan::EffectClipPlan;
+use super::effect_geometry::{Extent, SpaceMatrices, changed_extent_through_filters, nearest_spreading_effects};
 use crate::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
@@ -20,7 +21,7 @@ use crate::visual_context::{
     ClipNodeData, EffectNodeData, IncludeVisualViewportTransform, SpatialData, VisualContextTree,
     device_offset_for_index,
 };
-use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
+use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::mem::offset_of;
 
@@ -467,6 +468,41 @@ struct ContextPairVerdict {
     filter_output_is_clipped_outside_viewport: bool,
 }
 
+// How one tree's filters spread the commands drawn under them, worked out on first use.
+#[derive(Default)]
+struct FilterSpreading {
+    nearest_spreading_effects: OnceCell<Vec<EffectNodeIndex>>,
+    to_root_matrices: RefCell<Vec<Option<FloatMatrix4x4>>>,
+}
+
+struct TreeSpaces<'a> {
+    tree: &'a VisualContextTree,
+    scroll_offsets: &'a [FloatPoint],
+    to_root_matrices: &'a mut Vec<Option<FloatMatrix4x4>>,
+}
+
+impl SpaceMatrices for TreeSpaces<'_> {
+    fn to_root_matrix(&mut self, space: SpatialNodeIndex) -> FloatMatrix4x4 {
+        if self.to_root_matrices.is_empty() {
+            self.to_root_matrices.resize(self.tree.spatial_nodes.len(), None);
+        }
+        *self.to_root_matrices[space.0 as usize].get_or_insert_with(|| {
+            self.tree
+                .accumulated_matrix(space, self.scroll_offsets, IncludeVisualViewportTransform::Yes)
+        })
+    }
+}
+
+// One side of the comparison, as command damage needs it.
+#[derive(Clone, Copy)]
+struct TreeSide<'b> {
+    tree: &'b VisualContextTree,
+    scroll_offsets: &'b [FloatPoint],
+    culling: &'b TreeCullingScratch,
+    effect_clips: &'b EffectClipPlan,
+    filter_spreading: &'b FilterSpreading,
+}
+
 struct TreeChainComparison<'a> {
     old_tape: Tape<'a>,
     new_tape: Tape<'a>,
@@ -491,9 +527,31 @@ struct TreeChainComparison<'a> {
     chain_walk_path: RefCell<Vec<(u32, u32)>>,
     filter_output_clipping: RefCell<FastMap<(ContextRef, ContextRef), bool>>,
     mask_comparisons: RefCell<FastMap<(u32, u32), bool>>,
+    old_filter_spreading: FilterSpreading,
+    new_filter_spreading: FilterSpreading,
 }
 
 impl<'a> TreeChainComparison<'a> {
+    fn old_side(&self) -> TreeSide<'_> {
+        TreeSide {
+            tree: self.old_tree,
+            scroll_offsets: self.old_scroll_offsets,
+            culling: &self.old_culling,
+            effect_clips: &self.old_effect_clips,
+            filter_spreading: &self.old_filter_spreading,
+        }
+    }
+
+    fn new_side(&self) -> TreeSide<'_> {
+        TreeSide {
+            tree: self.new_tree,
+            scroll_offsets: self.new_scroll_offsets,
+            culling: &self.new_culling,
+            effect_clips: &self.new_effect_clips,
+            filter_spreading: &self.new_filter_spreading,
+        }
+    }
+
     fn old_mask_contents(&self) -> &[Option<StaticMaskContent<'a>>] {
         self.old_mask_contents
             .get_or_init(|| static_mask_contents(self.old_tape, self.old_tree.effect_nodes.len()))
@@ -763,15 +821,15 @@ impl<'a> TreeChainComparison<'a> {
     }
 }
 
-fn filter_output_is_clipped_outside_viewport(
+// The viewport bounds that the clips outside every filter on a context's effect chain put on the
+// filtered output, or None when no rect clip bounds it. Replay can widen an effect's output clip
+// for escaping descendants, so the complete display list's layer plan says which clips are outside.
+fn filter_output_clip_bounds(
     context: ContextRef,
     tree: &VisualContextTree,
     effect_clips: &EffectClipPlan,
     scroll_offsets: &[FloatPoint],
-    viewport: IntRect,
-) -> bool {
-    // Only clips outside every filter bound the final output. Replay can widen an effect's
-    // output clip for escaping descendants, so use the complete display list's layer plan.
+) -> Option<FloatRect> {
     let mut clip = context.clip;
     let mut effect = context.effect;
     while !effect.is_none() {
@@ -783,6 +841,7 @@ fn filter_output_is_clipped_outside_viewport(
         }
         effect = node.parent;
     }
+    let mut output_bounds: Option<FloatRect> = None;
     while !clip.is_none() {
         let node = &tree.clip_nodes[clip.0 as usize];
         if let ClipNodeData::Rect(data) = &node.data
@@ -796,21 +855,30 @@ fn filter_output_is_clipped_outside_viewport(
                     IncludeVisualViewportTransform::Yes,
                 )
                 .inflated(1.0, 1.0);
-            if bounds.x.is_finite()
-                && bounds.y.is_finite()
-                && bounds.width.is_finite()
-                && bounds.height.is_finite()
-                && (bounds.right() < viewport.x as f32
-                    || bounds.x > viewport.right() as f32
-                    || bounds.bottom() < viewport.y as f32
-                    || bounds.y > viewport.bottom() as f32)
-            {
-                return true;
+            if bounds.x.is_finite() && bounds.y.is_finite() && bounds.width.is_finite() && bounds.height.is_finite() {
+                output_bounds =
+                    Some(output_bounds.map_or(bounds, |output_bounds| intersect_like_gfx_rect(output_bounds, bounds)));
             }
         }
         clip = node.parent;
     }
-    false
+    output_bounds
+}
+
+fn filter_output_is_clipped_outside_viewport(
+    context: ContextRef,
+    tree: &VisualContextTree,
+    effect_clips: &EffectClipPlan,
+    scroll_offsets: &[FloatPoint],
+    viewport: IntRect,
+) -> bool {
+    filter_output_clip_bounds(context, tree, effect_clips, scroll_offsets).is_some_and(|bounds| {
+        bounds.is_empty()
+            || bounds.right() < viewport.x as f32
+            || bounds.x > viewport.right() as f32
+            || bounds.bottom() < viewport.y as f32
+            || bounds.y > viewport.bottom() as f32
+    })
 }
 
 fn intersect_like_gfx_rect(rect: FloatRect, other: FloatRect) -> FloatRect {
@@ -850,33 +918,59 @@ impl DamageAccumulator {
                 .is_some_and(|damage_rect| damage_rect.contains_rect(self.viewport_rect))
     }
 
-    fn add_command_damage(
-        &mut self,
-        command: &CommandReference<'_>,
-        visual_context_tree: &VisualContextTree,
-        scroll_offsets: &[FloatPoint],
-        culling: &TreeCullingScratch,
-    ) {
+    fn add_command_damage(&mut self, command: &CommandReference<'_>, side: TreeSide<'_>) {
         let context = command.context;
-        if culling.context_culls_everything(context) {
+        if side.culling.context_culls_everything(context) {
             return;
         }
         // Only compositor metadata, which draws nothing, has no bounding rect.
         if !command.header.has_bounding_rect {
             return;
         }
-        let bounding_rect = command.header.bounding_rect;
-        let mut transformed_rect = visual_context_tree.transform_rect_to_viewport(
+        self.add_changed_content_damage(command.header.bounding_rect.to_float(), context, side);
+    }
+
+    // Damage for content drawn within `rect` in `context` that changed, wherever the filters above
+    // it spread the change.
+    fn add_changed_content_damage(&mut self, rect: FloatRect, context: ContextRef, side: TreeSide<'_>) {
+        let nearest_spreading_effects = side
+            .filter_spreading
+            .nearest_spreading_effects
+            .get_or_init(|| nearest_spreading_effects(side.tree));
+        let spread_by_filters =
+            !context.effect.is_none() && !nearest_spreading_effects[context.effect.0 as usize].is_none();
+        let (space, extent) = changed_extent_through_filters(
+            side.tree,
+            nearest_spreading_effects,
             context.spatial,
-            FloatRect::new(
-                bounding_rect.x as f32,
-                bounding_rect.y as f32,
-                bounding_rect.width as f32,
-                bounding_rect.height as f32,
-            ),
-            scroll_offsets,
-            IncludeVisualViewportTransform::Yes,
+            rect,
+            context.effect,
+            &mut TreeSpaces {
+                tree: side.tree,
+                scroll_offsets: side.scroll_offsets,
+                to_root_matrices: &mut side.filter_spreading.to_root_matrices.borrow_mut(),
+            },
         );
+        // Spread content can reach far past the clips it was drawn in, but not past those outside
+        // the filters.
+        let output_clip_bounds = if spread_by_filters {
+            filter_output_clip_bounds(context, side.tree, side.effect_clips, side.scroll_offsets)
+        } else {
+            None
+        };
+        let mut transformed_rect = match (extent, output_clip_bounds) {
+            (Extent::Within(rect), _) => side.tree.transform_rect_to_viewport(
+                space,
+                rect,
+                side.scroll_offsets,
+                IncludeVisualViewportTransform::Yes,
+            ),
+            (_, Some(output_clip_bounds)) => output_clip_bounds,
+            _ => {
+                self.changed_unbounded_command = true;
+                return;
+            }
+        };
         // Transform matrices with entries near float max can overflow the projection to non-finite values.
         // NaN survives both intersect() and is_empty(), so treat such rects as unbounded damage instead of
         // feeding them to enclosing_int_rect(), where the float-to-int conversion would be undefined.
@@ -887,6 +981,9 @@ impl DamageAccumulator {
         {
             self.changed_unbounded_command = true;
             return;
+        }
+        if let Some(output_clip_bounds) = output_clip_bounds {
+            transformed_rect = intersect_like_gfx_rect(transformed_rect, output_clip_bounds);
         }
         // Eye-plane clamping in the projection can produce coordinates beyond integer range, and converting
         // such a float to int is undefined.
@@ -911,11 +1008,89 @@ impl DamageAccumulator {
     }
 
     fn add_old_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
-        self.add_command_damage(command, chains.old_tree, chains.old_scroll_offsets, &chains.old_culling);
+        self.add_command_damage(command, chains.old_side());
     }
 
     fn add_new_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
-        self.add_command_damage(command, chains.new_tree, chains.new_scroll_offsets, &chains.new_culling);
+        self.add_command_damage(command, chains.new_side());
+    }
+
+    // A backdrop filter reads the pixels around its region, so damage beneath the region changes it
+    // wherever the filter carries that damage in. The whole region then changes as content of the
+    // backdrop's effect: that effect's own filter and the filters above it spread it further, and it
+    // can carry the damage on to the backdrop filters above it.
+    fn add_backdrop_filter_damage(&mut self, side: TreeSide<'_>, command_runs: &[DisplayListCommandRun]) {
+        let tree = side.tree;
+        let backdrop_of = |effect: EffectNodeIndex| match &tree.effect_nodes[effect.0 as usize].data {
+            EffectNodeData::Effects(effects) => effects.backdrop_filter.as_ref(),
+            _ => None,
+        };
+        if self.damage_rect.is_none()
+            || !(0..tree.effect_nodes.len()).any(|index| backdrop_of(EffectNodeIndex(index as u32)).is_some())
+        {
+            return;
+        }
+        let mut seen_effects = vec![false; tree.effect_nodes.len()];
+        let mut backdrop_effects = Vec::new();
+        for run in command_runs {
+            let mut effect = run.context.effect;
+            while !effect.is_none() && !seen_effects[effect.0 as usize] {
+                seen_effects[effect.0 as usize] = true;
+                if backdrop_of(effect).is_some() {
+                    backdrop_effects.push(effect);
+                }
+                effect = tree.effect_nodes[effect.0 as usize].parent;
+            }
+        }
+
+        let mut region_is_damaged = vec![false; backdrop_effects.len()];
+        loop {
+            if self.covers_viewport() {
+                return;
+            }
+            let Some(damage_rect) = self.damage_rect else {
+                return;
+            };
+            let damage = damage_rect.to_float();
+            let mut damage_grew = false;
+            for (index, &effect) in backdrop_effects.iter().enumerate() {
+                if region_is_damaged[index] {
+                    continue;
+                }
+                let node = &tree.effect_nodes[effect.0 as usize];
+                let backdrop = backdrop_of(effect).expect("only effects with a backdrop filter are collected");
+                let region = backdrop.region.to_float();
+                let to_root_matrix = TreeSpaces {
+                    tree,
+                    scroll_offsets: side.scroll_offsets,
+                    to_root_matrices: &mut side.filter_spreading.to_root_matrices.borrow_mut(),
+                }
+                .to_root_matrix(node.spatial);
+                let reads_damage = (|| {
+                    if !to_root_matrix.is_2d_affine() {
+                        return None;
+                    }
+                    let damage_in_effect_space = to_root_matrix.extract_2d_affine().inverse()?.map_rect(damage);
+                    let reached = crate::filter_bytes::changed_output_bounds(&backdrop.filter, damage_in_effect_space)?;
+                    Some(!intersect_like_gfx_rect(reached, region).is_empty())
+                })()
+                .unwrap_or(true);
+                if !reads_damage {
+                    continue;
+                }
+                region_is_damaged[index] = true;
+                damage_grew = true;
+                let backdrop_context = ContextRef {
+                    spatial: node.spatial,
+                    clip: side.effect_clips.output_clip(effect),
+                    effect,
+                };
+                self.add_changed_content_damage(region, backdrop_context, side);
+            }
+            if !damage_grew {
+                return;
+            }
+        }
     }
 
     // Damage for a command whose drawing is unchanged but whose chains moved or restyled it.
@@ -1359,6 +1534,8 @@ pub fn compute_display_list_damage(
         chain_walk_path: RefCell::new(Vec::new()),
         filter_output_clipping: RefCell::new(FastMap::default()),
         mask_comparisons: RefCell::new(FastMap::default()),
+        old_filter_spreading: FilterSpreading::default(),
+        new_filter_spreading: FilterSpreading::default(),
     };
     let scroll_offsets_differ = old_scroll_offsets != new_scroll_offsets;
 
@@ -1420,6 +1597,8 @@ pub fn compute_display_list_damage(
             damage.add_command_diff_damage(&chains, &old_commands, &new_commands, scroll_offsets_differ);
         }
     }
+
+    damage.add_backdrop_filter_damage(chains.new_side(), new_command_runs);
 
     if damage.changed_unbounded_command {
         return None;
@@ -2309,6 +2488,220 @@ mod tests {
         old_bytes.extend_from_slice(&escaped);
         new_bytes.extend_from_slice(&escaped);
         assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+    }
+
+    fn damage_for_fill_color_change_under(
+        context_of: impl Fn(&mut VisualContextTree) -> ContextRef,
+    ) -> Option<IntRect> {
+        let mut tree = identity_tree();
+        let context = context_of(&mut tree);
+        let rect = IntRect::new(10, 10, 20, 20);
+        let fill = |color| FillRect {
+            rect,
+            color,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        };
+        let old_bytes = command_bytes(&fill(RED), Some(rect), context);
+        let new_bytes = command_bytes(&fill(BLUE), Some(rect), context);
+        damage(&old_bytes, &tree, &new_bytes, &tree)
+    }
+
+    #[test]
+    fn a_changed_command_damages_where_the_filters_above_it_spread_it() {
+        let under_filter = |filter: Vec<u8>| {
+            move |tree: &mut VisualContextTree| {
+                context_in(
+                    VISUAL_VIEWPORT_NODE_INDEX,
+                    effect_context(tree, effects(filter.clone())),
+                )
+            }
+        };
+        assert_eq!(
+            damage_for_fill_color_change_under(under_filter(blur_filter(2.0))),
+            Some(IntRect::new(3, 3, 34, 34))
+        );
+        assert_eq!(
+            damage_for_fill_color_change_under(under_filter(drop_shadow_filter(30.0, 0.0))),
+            Some(IntRect::new(9, 9, 52, 52))
+        );
+        assert_eq!(
+            damage_for_fill_color_change_under(under_filter(color_filter(0.5))),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+        let flood = Filter::Flood {
+            color: RED,
+            opacity: 1.0,
+        }
+        .serialize();
+        assert_eq!(damage_for_fill_color_change_under(under_filter(flood.clone())), None);
+
+        // Spread content cannot show past the clips outside its filters.
+        let under_clipped_filter = |filter: Vec<u8>, clip_rect: FloatRect| {
+            move |tree: &mut VisualContextTree| {
+                let clip = tree.append_clip(
+                    ClipNodeData::rect_clip(clip_rect),
+                    ClipNodeIndex::NONE,
+                    VISUAL_VIEWPORT_NODE_INDEX,
+                );
+                let effect = tree.append_effect(
+                    effects(filter.clone()),
+                    EffectNodeIndex::NONE,
+                    VISUAL_VIEWPORT_NODE_INDEX,
+                    clip,
+                );
+                ContextRef {
+                    clip,
+                    effect,
+                    ..ContextRef::default()
+                }
+            }
+        };
+        assert_eq!(
+            damage_for_fill_color_change_under(under_clipped_filter(
+                blur_filter(200.0),
+                FloatRect::new(0.0, 0.0, 50.0, 50.0)
+            )),
+            Some(IntRect::new(0, 0, 52, 52))
+        );
+        assert_eq!(
+            damage_for_fill_color_change_under(under_clipped_filter(
+                flood.clone(),
+                FloatRect::new(20.0, 20.0, 30.0, 30.0)
+            )),
+            Some(IntRect::new(18, 18, 34, 34))
+        );
+        assert_eq!(
+            damage_for_fill_color_change_under(under_clipped_filter(flood, FloatRect::new(0.0, 200.0, 100.0, 100.0))),
+            Some(IntRect::default())
+        );
+    }
+
+    // A filter that keeps only where its source overlaps a shifted copy of itself shows a change to
+    // one part of the source wherever the copy of an unchanged part overlaps it.
+    #[test]
+    fn a_change_masked_by_a_shifted_copy_of_the_source_damages_both_copies() {
+        let mut tree = identity_tree();
+        let masked_by_shifted_copy = Filter::Blend {
+            background: Some(Box::new(Filter::Offset {
+                dx: 40.0,
+                dy: 0.0,
+                input: None,
+            })),
+            foreground: None,
+            mode: CompositingAndBlendingOperator::SourceIn,
+        }
+        .serialize();
+        let context = context_in(
+            VISUAL_VIEWPORT_NODE_INDEX,
+            effect_context(&mut tree, effects(masked_by_shifted_copy)),
+        );
+        let scene = |right_color| {
+            let fill = |x, color| {
+                let rect = IntRect::new(x, 10, 20, 20);
+                command_bytes(
+                    &FillRect {
+                        rect,
+                        color,
+                        compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                        background_color_animation_effect: EffectNodeIndex::NONE,
+                    },
+                    Some(rect),
+                    context,
+                )
+            };
+            let mut bytes = fill(10, RED);
+            bytes.extend_from_slice(&fill(50, right_color));
+            bytes
+        };
+        assert_eq!(
+            damage(&scene(RED), &tree, &scene(BLUE), &tree),
+            Some(IntRect::new(49, 9, 51, 22))
+        );
+    }
+
+    #[test]
+    fn damage_beneath_a_backdrop_filter_spreads_into_its_region() {
+        let region = IntRect::new(25, 0, 50, 50);
+        let mut tree = identity_tree();
+        let backdrop_context = context_in(
+            VISUAL_VIEWPORT_NODE_INDEX,
+            effect_context(&mut tree, backdrop_effects(blur_filter(4.0), region)),
+        );
+        let scene = |fill_rect, color| {
+            let mut bytes = command_bytes(
+                &FillRect {
+                    rect: fill_rect,
+                    color,
+                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                    background_color_animation_effect: EffectNodeIndex::NONE,
+                },
+                Some(fill_rect),
+                ContextRef::default(),
+            );
+            bytes.extend_from_slice(&command_bytes(
+                &BackdropFilterRegion { rect: region },
+                Some(region),
+                backdrop_context,
+            ));
+            bytes
+        };
+        let within_reach = IntRect::new(0, 10, 30, 20);
+        assert_eq!(
+            damage(&scene(within_reach, RED), &tree, &scene(within_reach, BLUE), &tree),
+            Some(IntRect::new(0, 0, 76, 51))
+        );
+        let out_of_reach = IntRect::new(0, 10, 10, 20);
+        assert_eq!(
+            damage(&scene(out_of_reach, RED), &tree, &scene(out_of_reach, BLUE), &tree),
+            Some(IntRect::new(0, 9, 11, 22))
+        );
+    }
+
+    #[test]
+    fn a_damaged_backdrop_region_is_spread_by_the_filters_of_its_effect() {
+        let region = IntRect::new(25, 0, 50, 50);
+        let mut tree = identity_tree();
+        let shadowed_backdrop_context = context_in(
+            VISUAL_VIEWPORT_NODE_INDEX,
+            effect_context(
+                &mut tree,
+                EffectNodeData::Effects(EffectsData {
+                    opacity: 1.0,
+                    blend_mode: CompositingAndBlendingOperator::Normal,
+                    filter: Some(std::sync::Arc::new(drop_shadow_filter(20.0, 0.0))),
+                    backdrop_filter: Some(BackdropFilterData {
+                        filter: std::sync::Arc::new(blur_filter(4.0)),
+                        region,
+                        corner_radii: CornerRadii::default(),
+                    }),
+                }),
+            ),
+        );
+        let fill_rect = IntRect::new(0, 10, 30, 20);
+        let scene = |color| {
+            let mut bytes = command_bytes(
+                &FillRect {
+                    rect: fill_rect,
+                    color,
+                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                    background_color_animation_effect: EffectNodeIndex::NONE,
+                },
+                Some(fill_rect),
+                ContextRef::default(),
+            );
+            bytes.extend_from_slice(&command_bytes(
+                &BackdropFilterRegion { rect: region },
+                Some(region),
+                shadowed_backdrop_context,
+            ));
+            bytes
+        };
+        // The region and its shadow, 20 pixels down and right.
+        assert_eq!(
+            damage(&scene(RED), &tree, &scene(BLUE), &tree),
+            Some(IntRect::new(0, 0, 96, 71))
+        );
     }
 
     #[test]
