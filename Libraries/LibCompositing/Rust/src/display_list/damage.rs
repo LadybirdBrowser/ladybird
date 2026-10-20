@@ -6,13 +6,16 @@
 
 use super::effect_clip_plan::EffectClipPlan;
 use super::effect_geometry::{Extent, SpaceMatrices, changed_extent_through_filters, nearest_spreading_effects};
-use crate::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
+use super::summary::{DisplayListSummary, LiveContent};
+use crate::display_list::builder::{
+    HEADER_SIZE, for_each_command, inline_transform_entry_offset, read_command, read_header,
+};
 use crate::display_list::commands::{
-    ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
+    CanvasId, ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
     DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
     DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect,
     INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow, PathPaintKind,
-    SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX,
+    SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkResourceId,
 };
 use crate::fast_hash::FastMap;
 use crate::host::FfiAnimatedContentViewportEffect;
@@ -1367,8 +1370,30 @@ pub fn animated_content_may_affect_viewport(
 pub struct DisplayListFrame<'a> {
     pub command_bytes: &'a [u8],
     pub command_runs: &'a [DisplayListCommandRun],
+    pub summary: &'a DisplayListSummary,
     pub visual_context_tree: &'a VisualContextTree,
     pub scroll_offsets: &'a [FloatPoint],
+}
+
+// The canvases and video sinks whose pixels changed since the old frame. The lists draw them with
+// commands that stay the same, so the diff cannot see the change.
+#[derive(Clone, Copy, Default)]
+pub struct LiveContentChanges<'a> {
+    pub canvases: &'a [CanvasId],
+    pub video_sinks: &'a [VideoSinkResourceId],
+}
+
+impl LiveContentChanges<'_> {
+    fn is_empty(&self) -> bool {
+        self.canvases.is_empty() && self.video_sinks.is_empty()
+    }
+
+    fn includes(&self, content: LiveContent) -> bool {
+        match content {
+            LiveContent::Canvas(canvas_id) => self.canvases.contains(&canvas_id),
+            LiveContent::VideoFrame(video_sink_id) => self.video_sinks.contains(&video_sink_id),
+        }
+    }
 }
 
 // The viewport-space damage between two frames, or None when a change without bounds needs a
@@ -1380,6 +1405,7 @@ pub fn compute_display_list_damage(
     old_frame: DisplayListFrame<'_>,
     new_frame: DisplayListFrame<'_>,
     viewport_rect: IntRect,
+    live_content_changes: LiveContentChanges<'_>,
 ) -> Option<IntRect> {
     let old_tape = Tape {
         bytes: old_frame.command_bytes,
@@ -1494,6 +1520,29 @@ pub fn compute_display_list_damage(
         }
     }
 
+    // A record that draws changed live content inside a group is damaged as the whole group.
+    if !live_content_changes.is_empty() {
+        for live_content_record in &new_frame.summary.live_content_records {
+            if damage.covers_viewport() {
+                break;
+            }
+            if !live_content_changes.includes(live_content_record.content) {
+                continue;
+            }
+            let offset = live_content_record.record.record_offset as usize;
+            let header = read_header(&new_frame.command_bytes[offset..]);
+            let payload_start = offset + HEADER_SIZE;
+            damage.add_new_command_damage(
+                &chains,
+                &CommandReference {
+                    header,
+                    payload: &new_frame.command_bytes[payload_start..payload_start + header.payload_size as usize],
+                    context: new_command_runs[live_content_record.record.run_index as usize].context,
+                },
+            );
+        }
+    }
+
     damage.add_backdrop_filter_damage(chains.new_side(), new_command_runs);
 
     if damage.changed_unbounded_command {
@@ -1511,6 +1560,7 @@ pub fn compute_display_list_damage(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::display_list::summary::summarize;
 
     // Values of the CSS font-smoothing enum, as the recorder writes them.
     const FONT_SMOOTHING_AUTO: u8 = 0;
@@ -1518,7 +1568,8 @@ mod tests {
     use crate::display_list::builder::{HEADER_SIZE, note_command};
     use crate::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
-        DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind, TextShadowLayer, UniqueNodeId,
+        DrawCanvas, DrawIsolatedGroup, DrawVideoFrame, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind,
+        TextShadowLayer, UniqueNodeId,
     };
     use crate::display_list::ffi_bytes::FfiBytes;
     use crate::node_slot_id::NodeSlotId;
@@ -1868,21 +1919,149 @@ mod tests {
             DisplayListFrame {
                 command_bytes: old_bytes,
                 command_runs: &old_bytes.runs,
+                summary: &summarize(old_bytes, &old_bytes.runs),
                 visual_context_tree: old_tree,
                 scroll_offsets: old_scroll_offsets,
             },
             DisplayListFrame {
                 command_bytes: new_bytes,
                 command_runs: &new_bytes.runs,
+                summary: &summarize(new_bytes, &new_bytes.runs),
                 visual_context_tree: new_tree,
                 scroll_offsets: new_scroll_offsets,
             },
             viewport_rect,
+            LiveContentChanges::default(),
         )
     }
 
     fn context_in(spatial: SpatialNodeIndex, context: ContextRef) -> ContextRef {
         ContextRef { spatial, ..context }
+    }
+
+    fn damage_for_live_content_changes(
+        bytes: &TestDisplayList,
+        tree: &VisualContextTree,
+        live_content_changes: LiveContentChanges<'_>,
+    ) -> Option<IntRect> {
+        let summary = summarize(bytes, &bytes.runs);
+        let frame = DisplayListFrame {
+            command_bytes: bytes,
+            command_runs: &bytes.runs,
+            summary: &summary,
+            visual_context_tree: tree,
+            scroll_offsets: &[],
+        };
+        compute_display_list_damage(frame, frame, IntRect::new(0, 0, 100, 100), live_content_changes)
+    }
+
+    #[test]
+    fn changed_live_content_damages_where_it_is_drawn() {
+        let tree = identity_tree();
+        let rect = IntRect::new(10, 10, 20, 20);
+        let canvas = canvas_command_bytes(rect, 0);
+        let changed_canvas = LiveContentChanges {
+            canvases: &[CanvasId(1)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&canvas, &tree, changed_canvas),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+        let other_canvas = LiveContentChanges {
+            canvases: &[CanvasId(2)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&canvas, &tree, other_canvas),
+            Some(IntRect::default())
+        );
+
+        let video = command_bytes(
+            &DrawVideoFrame {
+                dst_rect: rect,
+                video_sink_id: VideoSinkResourceId(1),
+                scaling_mode: ScalingMode::NearestNeighbor,
+            },
+            Some(rect),
+            ContextRef::default(),
+        );
+        let changed_video = LiveContentChanges {
+            video_sinks: &[VideoSinkResourceId(1)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&video, &tree, changed_video),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+        assert_eq!(
+            damage_for_live_content_changes(&video, &tree, changed_canvas),
+            Some(IntRect::default())
+        );
+    }
+
+    #[test]
+    fn changed_live_content_under_a_blur_damages_its_blurred_footprint() {
+        let mut tree = identity_tree();
+        let context = context_in(
+            VISUAL_VIEWPORT_NODE_INDEX,
+            effect_context(&mut tree, effects(blur_filter(2.0))),
+        );
+        let rect = IntRect::new(10, 10, 20, 20);
+        let canvas = command_bytes(
+            &DrawCanvas {
+                dst_rect: rect,
+                canvas_id: CanvasId(1),
+                content_generation: 0,
+                scaling_mode: ScalingMode::NearestNeighbor,
+            },
+            Some(rect),
+            context,
+        );
+        let changed_canvas = LiveContentChanges {
+            canvases: &[CanvasId(1)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&canvas, &tree, changed_canvas),
+            Some(IntRect::new(3, 3, 34, 34))
+        );
+    }
+
+    #[test]
+    fn changed_live_content_inside_a_group_damages_the_whole_group() {
+        let tree = identity_tree();
+        let group_rect = IntRect::new(5, 5, 40, 40);
+        let content = canvas_command_bytes(IntRect::new(10, 10, 20, 20), 0);
+        let no_data = DisplayListDataSpan { offset: 0, size: 0 };
+        let mut group = TestDisplayList::default();
+        append_record(
+            &mut group,
+            &DrawIsolatedGroup {
+                clip_rect: group_rect.to_float(),
+                content: DisplayListDataSpan {
+                    offset: std::mem::size_of::<DrawIsolatedGroup>() as u32,
+                    size: content.len() as u32,
+                },
+                mask: no_data,
+                filter: no_data,
+                opacity: 1.0,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                mask_kind: MaskKind::Alpha,
+            },
+            &content,
+            Some(group_rect),
+            ContextRef::default(),
+            &[],
+        );
+        let changed_canvas = LiveContentChanges {
+            canvases: &[CanvasId(1)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&group, &tree, changed_canvas),
+            Some(IntRect::new(4, 4, 42, 42))
+        );
     }
 
     #[test]

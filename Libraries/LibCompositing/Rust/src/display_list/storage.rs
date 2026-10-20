@@ -362,6 +362,8 @@ pub struct FfiReferencedResourceIds {
     pub video_sink_id_count: usize,
     pub display_list_ids: *const u64,
     pub display_list_id_count: usize,
+    pub canvas_ids: *const u64,
+    pub canvas_id_count: usize,
 }
 
 /// The ids of the resources the commands of the list reference, including the commands nested in
@@ -383,6 +385,8 @@ pub unsafe extern "C" fn display_list_storage_referenced_resource_ids(
         video_sink_id_count: summary.video_sink_ids.len(),
         display_list_ids: summary.display_list_ids.as_ptr(),
         display_list_id_count: summary.display_list_ids.len(),
+        canvas_ids: summary.canvas_ids.as_ptr(),
+        canvas_id_count: summary.canvas_ids.len(),
     }
 }
 
@@ -420,35 +424,22 @@ pub unsafe extern "C" fn display_list_storage_for_each_compositor_metadata(
     );
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiIndexedRecordKind {
-    DrawnCanvas,
-    Caret,
-}
-
-/// Calls `visit` with each top-level DrawCanvas or PaintCaret record of the list: its run's context,
-/// its bounding rect, and its payload.
+/// Calls `visit` with each top-level PaintCaret record of the list: its run's context, its bounding
+/// rect, and its payload.
 ///
 /// # Safety
 /// `storage` must be a live storage handle. `visit` runs synchronously.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_storage_for_each_indexed_record(
+pub unsafe extern "C" fn display_list_storage_for_each_caret(
     storage: *const c_void,
-    kind: FfiIndexedRecordKind,
     context: *mut c_void,
     visit: unsafe extern "C" fn(*mut c_void, ContextRef, libgfx_rust::IntRect, *const u8, usize),
 ) {
     let storage = unsafe { storage_from_handle(storage) };
-    let summary = storage.summary();
-    let records = match kind {
-        FfiIndexedRecordKind::DrawnCanvas => &summary.drawn_canvases,
-        FfiIndexedRecordKind::Caret => &summary.carets,
-    };
     for_each_indexed_record(
         storage.bytes(),
         storage.command_runs(),
-        records,
+        &storage.summary().carets,
         |run_context, header, payload| {
             // SAFETY: The caller reads the payload synchronously.
             unsafe {

@@ -42,10 +42,10 @@ pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
 
 /// # Safety
 ///
-/// Both storages must be live storage handles, both trees live retained tree handles, and both
-/// offset pointers must address the stated number of points for the call. Writes the damage rect
-/// through `out_damage_rect` and returns whether the damage is bounded; unbounded damage means the
-/// whole viewport must repaint.
+/// Both storages must be live storage handles, both trees live retained tree handles, and the
+/// offset and id pointers must address the stated number of items for the call. Writes the damage
+/// rect through `out_damage_rect` and returns whether the damage is bounded; unbounded damage means
+/// the whole viewport must repaint.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_compute_damage(
     old_storage: *const c_void,
@@ -57,6 +57,10 @@ pub unsafe extern "C" fn display_list_compute_damage(
     new_scroll_offsets: *const libgfx_rust::FloatPoint,
     new_scroll_offsets_len: usize,
     viewport_rect: libgfx_rust::IntRect,
+    canvases_with_new_content: *const crate::display_list::commands::CanvasId,
+    canvases_with_new_content_len: usize,
+    video_sinks_with_new_frames: *const crate::display_list::commands::VideoSinkResourceId,
+    video_sinks_with_new_frames_len: usize,
     out_damage_rect: *mut libgfx_rust::IntRect,
 ) -> bool {
     // SAFETY: The caller guarantees live handles and valid slices for the duration of the call.
@@ -70,20 +74,30 @@ pub unsafe extern "C" fn display_list_compute_damage(
             ak::slice_from_raw_parts(new_scroll_offsets, new_scroll_offsets_len),
         )
     };
+    // SAFETY: As above.
+    let live_content_changes = unsafe {
+        crate::display_list::damage::LiveContentChanges {
+            canvases: ak::slice_from_raw_parts(canvases_with_new_content, canvases_with_new_content_len),
+            video_sinks: ak::slice_from_raw_parts(video_sinks_with_new_frames, video_sinks_with_new_frames_len),
+        }
+    };
     let damage = crate::display_list::damage::compute_display_list_damage(
         crate::display_list::damage::DisplayListFrame {
             command_bytes: old_storage.bytes(),
             command_runs: old_storage.command_runs(),
+            summary: old_storage.summary(),
             visual_context_tree: old_tree,
             scroll_offsets: old_scroll_offsets,
         },
         crate::display_list::damage::DisplayListFrame {
             command_bytes: new_storage.bytes(),
             command_runs: new_storage.command_runs(),
+            summary: new_storage.summary(),
             visual_context_tree: new_tree,
             scroll_offsets: new_scroll_offsets,
         },
         viewport_rect,
+        live_content_changes,
     );
     match damage {
         Some(damage_rect) => {

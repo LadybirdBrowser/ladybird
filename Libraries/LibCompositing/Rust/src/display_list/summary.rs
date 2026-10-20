@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What C++ asks about a display list's tape: the resources its commands reference, whether reusing a raster of it
-//! can differ from replaying it, its compositor metadata, and where it draws canvases and carets.
+//! What C++ and damage ask about a display list's tape: the resources its commands reference, whether reusing a
+//! raster of it can differ from replaying it, its compositor metadata, its carets, and where it draws live content.
 
 use super::builder::{HEADER_SIZE, for_each_command, read_command};
 use super::commands::*;
@@ -22,14 +22,29 @@ pub struct IndexedRecord {
     pub record_offset: u32,
 }
 
+// Content that changes under the list's immutable commands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LiveContent {
+    Canvas(CanvasId),
+    VideoFrame(VideoSinkResourceId),
+}
+
+// A top-level record that draws live content, itself or in a record nested in it.
+#[derive(Clone, Copy, Debug)]
+pub struct LiveContentRecord {
+    pub record: IndexedRecord,
+    pub content: LiveContent,
+}
+
 #[derive(Default)]
 pub struct DisplayListSummary {
     pub font_ids: Vec<u64>,
     pub image_frame_ids: Vec<u64>,
     pub video_sink_ids: Vec<u64>,
     pub display_list_ids: Vec<u64>,
-    pub drawn_canvases: Vec<IndexedRecord>,
+    pub canvas_ids: Vec<u64>,
     pub carets: Vec<IndexedRecord>,
+    pub live_content_records: Vec<LiveContentRecord>,
 }
 
 #[derive(Default)]
@@ -38,6 +53,17 @@ struct ReferencedIds {
     image_frames: HashSet<u64>,
     video_sinks: HashSet<u64>,
     display_lists: HashSet<u64>,
+    canvases: HashSet<u64>,
+}
+
+fn live_content_of(command_type: DisplayListCommandType, payload: &[u8]) -> Option<LiveContent> {
+    match command_type {
+        DisplayListCommandType::DrawCanvas => Some(LiveContent::Canvas(read_command::<DrawCanvas>(payload).canvas_id)),
+        DisplayListCommandType::DrawVideoFrame => Some(LiveContent::VideoFrame(
+            read_command::<DrawVideoFrame>(payload).video_sink_id,
+        )),
+        _ => None,
+    }
 }
 
 fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids: &mut ReferencedIds) {
@@ -65,6 +91,9 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
             ids.video_sinks
                 .insert(read_command::<DrawVideoFrame>(payload).video_sink_id.0);
         }
+        T::DrawCanvas => {
+            ids.canvases.insert(read_command::<DrawCanvas>(payload).canvas_id.0);
+        }
         T::PaintNestedDisplayList => {
             ids.display_lists
                 .insert(read_command::<PaintNestedDisplayList>(payload).display_list_id.0);
@@ -83,7 +112,6 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         | T::PaintCaret
         | T::DrawRepeatedTile
         | T::DrawCompositedContext
-        | T::DrawCanvas
         | T::PaintLinearGradient
         | T::PaintRadialGradient
         | T::PaintConicGradient
@@ -139,15 +167,23 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
                 run_index: run_index as u32,
                 record_offset: (run_start + offset) as u32,
             };
-            match header.command_type {
-                DisplayListCommandType::DrawCanvas => summary.drawn_canvases.push(indexed),
-                DisplayListCommandType::PaintCaret => summary.carets.push(indexed),
-                _ => {}
+            if header.command_type == DisplayListCommandType::PaintCaret {
+                summary.carets.push(indexed);
             }
             note_referenced_ids(header.command_type, payload, &mut ids);
+            let mut note_live_content = |command_type, payload: &[u8]| {
+                if let Some(content) = live_content_of(command_type, payload) {
+                    summary.live_content_records.push(LiveContentRecord {
+                        record: indexed,
+                        content,
+                    });
+                }
+            };
+            note_live_content(header.command_type, payload);
             for_each_nested_record_span(header.command_type, payload, |_, span| {
                 for_each_record_including_nested(span_bytes(payload, span), &mut |command_type, payload| {
                     note_referenced_ids(command_type, payload, &mut ids);
+                    note_live_content(command_type, payload);
                 });
             });
         });
@@ -156,6 +192,7 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
     summary.image_frame_ids = sorted(ids.image_frames);
     summary.video_sink_ids = sorted(ids.video_sinks);
     summary.display_list_ids = sorted(ids.display_lists);
+    summary.canvas_ids = sorted(ids.canvases);
     summary
 }
 

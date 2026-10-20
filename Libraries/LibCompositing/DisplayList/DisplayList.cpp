@@ -84,6 +84,7 @@ DisplayList::ReferencedResourceIds DisplayList::referenced_resource_ids() const
         .image_frames = { ids.image_frame_ids, ids.image_frame_id_count },
         .video_sinks = { ids.video_sink_ids, ids.video_sink_id_count },
         .display_lists = { ids.display_list_ids, ids.display_list_id_count },
+        .canvases = { ids.canvas_ids, ids.canvas_id_count },
     };
 }
 
@@ -100,23 +101,12 @@ void DisplayList::for_each_compositor_metadata(Function<void(ContextRef, Display
     });
 }
 
-template<typename Command>
-static void for_each_indexed_record(void const* storage, RustFFI::FfiIndexedRecordKind kind, Function<void(ContextRef, Gfx::IntRect, Command const&)> const& callback)
-{
-    RustFFI::display_list_storage_for_each_indexed_record(storage, kind, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, Gfx::IntRect bounding_rect, u8 const* payload, size_t payload_size) {
-        auto command = read_display_list_object<Command>({ payload, payload_size });
-        (*static_cast<Function<void(ContextRef, Gfx::IntRect, Command const&)> const*>(context))(run_context, bounding_rect, command);
-    });
-}
-
-void DisplayList::for_each_drawn_canvas(Function<void(ContextRef, Gfx::IntRect, DrawCanvas const&)> const& callback) const
-{
-    for_each_indexed_record<DrawCanvas>(m_storage, RustFFI::FfiIndexedRecordKind::DrawnCanvas, callback);
-}
-
 void DisplayList::for_each_caret(Function<void(ContextRef, Gfx::IntRect, PaintCaret const&)> const& callback) const
 {
-    for_each_indexed_record<PaintCaret>(m_storage, RustFFI::FfiIndexedRecordKind::Caret, callback);
+    RustFFI::display_list_storage_for_each_caret(m_storage, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, Gfx::IntRect bounding_rect, u8 const* payload, size_t payload_size) {
+        auto command = read_display_list_object<PaintCaret>({ payload, payload_size });
+        (*static_cast<Function<void(ContextRef, Gfx::IntRect, PaintCaret const&)> const*>(context))(run_context, bounding_rect, command);
+    });
 }
 
 void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, ScrollStateSnapshot const& scroll_state, RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const

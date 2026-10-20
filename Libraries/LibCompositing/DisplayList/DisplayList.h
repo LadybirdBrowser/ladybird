@@ -98,6 +98,7 @@ public:
         ReadonlySpan<u64> image_frames;
         ReadonlySpan<u64> video_sinks;
         ReadonlySpan<u64> display_lists;
+        ReadonlySpan<u64> canvases;
     };
     ReferencedResourceIds referenced_resource_ids() const;
     // Whether reusing a raster of the list can produce different pixels than replaying it in place, leaving out the
@@ -105,9 +106,7 @@ public:
     bool requires_direct_replay_without_nested_lists(AccumulatedVisualContextTree const&) const;
     // Visits the compositor metadata commands with the context of their run and their payload, in tape order.
     void for_each_compositor_metadata(Function<void(ContextRef, DisplayListCommandType, ReadonlyBytes payload)> const&) const;
-    // Visits the canvases and carets the list draws outside of any group, with the context of their run and their
-    // bounding rect.
-    void for_each_drawn_canvas(Function<void(ContextRef, Gfx::IntRect, DrawCanvas const&)> const&) const;
+    // Visits the carets the list draws outside of any group, with the context of their run and their bounding rect.
     void for_each_caret(Function<void(ContextRef, Gfx::IntRect, PaintCaret const&)> const&) const;
 
     // Replays the list through a player's callbacks, against the visual context tree it was made for.
