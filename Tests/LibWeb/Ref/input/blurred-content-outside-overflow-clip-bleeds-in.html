@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/blurred-content-outside-overflow-clip-bleeds-in-ref.html">
+<style>
+    html { background: white; }
+    body { margin: 0; }
+    #clip { overflow: hidden; width: 100px; height: 100px; }
+    #blurred { margin-left: 102px; width: 50px; height: 100px; background: blue; filter: blur(4px); }
+</style>
+<!-- The box lies wholly outside the clip, but its blur spreads back inside it. -->
+<div id="clip"><div id="blurred"></div></div>
