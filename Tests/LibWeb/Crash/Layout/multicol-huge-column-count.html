@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    .huge-count {
+        column-count: 2000000000;
+    }
+    .huge-count > div {
+        height: 20px;
+    }
+    .break {
+        break-before: column;
+    }
+    .narrow-width {
+        width: 100000000px;
+        column-width: 1px;
+        column-gap: 0;
+    }
+</style>
+<div class="huge-count">
+    <div></div>
+    <div class="break"></div>
+    <div class="break"></div>
+    <div class="break"></div>
+</div>
+<div class="narrow-width">
+    <div style="height: 100px"></div>
+</div>

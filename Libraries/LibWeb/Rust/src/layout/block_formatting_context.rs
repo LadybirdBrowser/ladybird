@@ -8,6 +8,8 @@
 use super::*;
 use smallvec::{SmallVec, smallvec};
 
+const MAXIMUM_BALANCING_ROUNDS: usize = 16;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FragmentationStep {
     LayOut,
@@ -2657,13 +2659,18 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         };
 
-        let column_block_size = definite_block_size;
+        let column_block_size = self.column_block_size(input, column_input, geometry, definite_block_size);
         let mut incoming = None;
         let mut content_block_size = CssPixels::default();
         let mut column_index = 0;
         loop {
-            let (outcome, consumed_block_size) =
-                self.layout_column(column_input, column_block_size, incoming, column_origin(column_index));
+            let (outcome, consumed_block_size) = self.layout_column(
+                self.run.purpose,
+                column_input,
+                column_block_size,
+                incoming,
+                column_origin(column_index),
+            );
             content_block_size = content_block_size.max(consumed_block_size);
             let Some(outgoing) = outcome.outgoing else {
                 break;
@@ -2678,14 +2685,144 @@ impl<'pass> BlockFormattingContext<'pass> {
             .set(Some(column_block_size.unwrap_or(content_block_size)));
     }
 
+    fn column_block_size(
+        &self,
+        input: LayoutInput,
+        column_input: LayoutInput,
+        geometry: fragmentation::ColumnGeometry,
+        definite_block_size: Option<CssPixels>,
+    ) -> Option<CssPixels> {
+        let root = self.run.box_;
+        let style = self.style(root);
+        let sizing = self.sizing();
+        let constraints = input.containing_block_constraints;
+        let own_size_space = AvailableSpace {
+            block_size: constraints
+                .percentage_basis_block_size
+                .map_or(AvailableSize::Indefinite, AvailableSize::definite),
+            ..input.available_space
+        };
+        let minimum_block_size = (definite_block_size.is_none()
+            && !style.min_height().is_auto()
+            && !style.min_height().is_intrinsic_sizing_constraint())
+        .then(|| sizing.calculate_inner_block_size(root, own_size_space, style.min_height(), constraints));
+        let maximum_block_size = definite_block_size.or_else(|| {
+            (!sizing.should_treat_max_block_size_as_none(root, own_size_space.block_size, constraints)
+                && !style.max_height().is_intrinsic_sizing_constraint())
+            .then(|| {
+                let maximum = sizing.calculate_inner_block_size(root, own_size_space, style.max_height(), constraints);
+                minimum_block_size.map_or(maximum, |minimum| maximum.max(minimum))
+            })
+        });
+        // https://drafts.csswg.org/css-multicol-1/#cf
+        // auto: Fills columns sequentially.
+        if style.column_fill() == column_fill::AUTO {
+            return maximum_block_size;
+        }
+        Some(self.balanced_column_block_size(column_input, geometry, maximum_block_size))
+    }
+
+    fn balanced_column_block_size(
+        &self,
+        column_input: LayoutInput,
+        geometry: fragmentation::ColumnGeometry,
+        maximum_block_size: Option<CssPixels>,
+    ) -> CssPixels {
+        let clamp = |block_size: CssPixels| maximum_block_size.map_or(block_size, |maximum| block_size.min(maximum));
+
+        let mut runs = Vec::new();
+        let mut tallest_unbreakable_block_size = CssPixels::default();
+        let mut incoming = None;
+        loop {
+            let (outcome, consumed_block_size) = self.layout_column(
+                formatting_context::LayoutPurpose::Measurement,
+                column_input,
+                None,
+                incoming,
+                FfiCssPixelPoint::default(),
+            );
+            tallest_unbreakable_block_size = tallest_unbreakable_block_size.max(outcome.tallest_unbreakable_block_size);
+            runs.push(consumed_block_size);
+            incoming = outcome.outgoing;
+            if incoming.is_none() || runs.len() >= fragmentation::MAXIMUM_COLUMN_COUNT {
+                break;
+            }
+        }
+
+        let mut implicit_breaks = vec![0usize; runs.len()];
+        for _ in runs.len()..geometry.count {
+            let tallest_run = (0..runs.len())
+                .max_by_key(|&index| runs[index] / (implicit_breaks[index] + 1))
+                .expect("content has at least one run");
+            implicit_breaks[tallest_run] += 1;
+        }
+        let mut block_size = clamp(
+            runs.iter()
+                .zip(&implicit_breaks)
+                .map(|(&run, &breaks)| fragmentation::ceil_divide(run, breaks + 1))
+                .max()
+                .unwrap_or_default()
+                .max(tallest_unbreakable_block_size),
+        );
+        if runs.len() >= geometry.count {
+            return block_size;
+        }
+
+        for _ in 0..MAXIMUM_BALANCING_ROUNDS {
+            let mut incoming = None;
+            let mut column_count = 0;
+            let mut forced_break_count = 0;
+            let mut minimal_space_shortage: Option<CssPixels> = None;
+            loop {
+                let (outcome, _) = self.layout_column(
+                    formatting_context::LayoutPurpose::Measurement,
+                    column_input,
+                    Some(block_size),
+                    incoming,
+                    FfiCssPixelPoint::default(),
+                );
+                column_count += 1;
+                if outcome.ended_at_forced_break() {
+                    forced_break_count += 1;
+                }
+                if let Some(shortage) = outcome.minimal_space_shortage {
+                    minimal_space_shortage =
+                        Some(minimal_space_shortage.map_or(shortage, |minimal| minimal.min(shortage)));
+                }
+                incoming = outcome.outgoing;
+                if incoming.is_none() || column_count > geometry.count {
+                    break;
+                }
+            }
+            if incoming.is_none() && column_count <= geometry.count {
+                break;
+            }
+            if forced_break_count + 1 >= geometry.count {
+                break;
+            }
+            let Some(shortage) = minimal_space_shortage else {
+                break;
+            };
+            let next_block_size = clamp(block_size + shortage);
+            if next_block_size <= block_size {
+                break;
+            }
+            block_size = next_block_size;
+        }
+        block_size
+    }
+
     fn layout_column(
         &self,
+        purpose: formatting_context::LayoutPurpose,
         input: LayoutInput,
         block_size: Option<CssPixels>,
         incoming: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
         origin: FfiCssPixelPoint,
     ) -> (fragmentation::FragmentainerOutcome, CssPixels) {
         let mut early_break_before = None;
+        let mut minimal_space_shortage_of_discarded_attempts = None;
+        let mut tallest_unbreakable_block_size_of_discarded_attempts = CssPixels::default();
         loop {
             let fragmentainer = std::rc::Rc::new(fragmentation::FragmentainerContext::new(
                 block_size,
@@ -2697,21 +2834,35 @@ impl<'pass> BlockFormattingContext<'pass> {
             if journals_stored_entries {
                 fc_run_cache_store.begin_store_journal();
             }
-            let outputs = formatting_context::run_fragmentainer(&self.run, input, fragmentainer.clone());
-            let outcome = fragmentainer.take_outcome();
+            let outputs = formatting_context::run_fragmentainer(&self.run, purpose, input, fragmentainer.clone());
+            let mut outcome = fragmentainer.take_outcome();
             let retries = outcome
                 .needs_early_break_before
                 .is_some_and(|node| early_break_before != Some(node));
             if journals_stored_entries {
                 fc_run_cache_store.end_store_journal(!retries);
             }
+            outcome.minimal_space_shortage = match (
+                outcome.minimal_space_shortage,
+                minimal_space_shortage_of_discarded_attempts,
+            ) {
+                (Some(left), Some(right)) => Some(left.min(right)),
+                (left, right) => left.or(right),
+            };
+            outcome.tallest_unbreakable_block_size = outcome
+                .tallest_unbreakable_block_size
+                .max(tallest_unbreakable_block_size_of_discarded_attempts);
             if let Some(node) = outcome.needs_early_break_before
                 && early_break_before != Some(node)
             {
                 early_break_before = Some(node);
+                minimal_space_shortage_of_discarded_attempts = outcome.minimal_space_shortage;
+                tallest_unbreakable_block_size_of_discarded_attempts = outcome.tallest_unbreakable_block_size;
                 continue;
             }
-            if let (Some(fragments), Some(root)) = (self.run.fragments.as_deref(), outputs.root) {
+            if purpose == formatting_context::LayoutPurpose::Commit
+                && let (Some(fragments), Some(root)) = (self.run.fragments.as_deref(), outputs.root)
+            {
                 fragments.adopt_fragmentainer_root(root, origin);
             }
             return (outcome, outputs.result.automatic_content_block_size);

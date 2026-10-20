@@ -73,6 +73,11 @@ pub(crate) fn resolve_column_geometry(style: StyleValues<'_>, available_inline_s
     }
 }
 
+pub(crate) fn ceil_divide(value: CssPixels, divisor: usize) -> CssPixels {
+    let divisor = divisor.max(1) as i64;
+    CssPixels::from_raw(((value.raw_value() as i64 + divisor - 1).div_euclid(divisor)) as i32)
+}
+
 pub(crate) fn is_forced_column_break(value: u8) -> bool {
     value == break_between::COLUMN
 }
@@ -94,6 +99,14 @@ pub(crate) struct FragmentainerOutcome {
     pub(crate) needs_early_break_before: Option<Node>,
     pub(crate) minimal_space_shortage: Option<CssPixels>,
     pub(crate) tallest_unbreakable_block_size: CssPixels,
+}
+
+impl FragmentainerOutcome {
+    pub(crate) fn ended_at_forced_break(&self) -> bool {
+        self.outgoing.as_ref().is_some_and(|token| match token.resume {
+            BlockResume::BeforeChild { after_forced_break, .. } => after_forced_break,
+        })
+    }
 }
 
 pub(crate) struct FragmentainerContext {

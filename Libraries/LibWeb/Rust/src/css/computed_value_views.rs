@@ -424,6 +424,7 @@ scalar_accessors! {
     }
     misc_reset: {
         appearance: u8 => appearance,
+        column_fill: u8 => column_fill,
         break_before: u8 => break_before,
         break_after: u8 => break_after,
     }

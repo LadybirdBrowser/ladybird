@@ -188,6 +188,7 @@ impl<'pass> MeasurementState<'pass> {
 
 pub(crate) fn run_fragmentainer(
     outer: &FormattingContextRun,
+    purpose: LayoutPurpose,
     input: LayoutInput,
     fragmentainer: std::rc::Rc<fragmentation::FragmentainerContext>,
 ) -> RunOutputs {
@@ -197,7 +198,7 @@ pub(crate) fn run_fragmentainer(
         .callbacks
         .containing_block_for_child_run(box_, &input.participation);
     execute_formatting_context_run(
-        outer.purpose,
+        purpose,
         used_values::UsedValuesCellState::capture(outer.records.used_values(box_)),
         box_,
         root_containing_block,
