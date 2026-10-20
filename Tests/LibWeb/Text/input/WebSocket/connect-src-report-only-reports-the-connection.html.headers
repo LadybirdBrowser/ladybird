@@ -1,0 +1,2 @@
+Content-Type: text/html
+Content-Security-Policy-Report-Only: connect-src 'none'

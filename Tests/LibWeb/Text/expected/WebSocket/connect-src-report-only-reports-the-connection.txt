@@ -1,0 +1,3 @@
+violation: connect-src, report, http://localhost:PORT/
+open, readyState: 1
+close, wasClean: true

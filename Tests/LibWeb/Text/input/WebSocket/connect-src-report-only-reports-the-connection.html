@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const port = internals.getEchoServerPort();
+        document.addEventListener("securitypolicyviolation", event => {
+            println(`violation: ${event.effectiveDirective}, ${event.disposition}, ${event.blockedURI.replace(port, "PORT")}`);
+        });
+
+        const ws = new WebSocket(`ws://localhost:${port}/`);
+        ws.onopen = () => {
+            println(`open, readyState: ${ws.readyState}`);
+            ws.close();
+        };
+        ws.onerror = () => {
+            println(`error, readyState: ${ws.readyState}`);
+        };
+        ws.onclose = event => {
+            println(`close, wasClean: ${event.wasClean}`);
+            done();
+        };
+    });
+</script>
