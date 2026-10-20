@@ -388,8 +388,6 @@ struct ChainVerdict {
     compatible: bool,
     // Compatible, and every paired node holds equal values.
     equal: bool,
-    // Some paired effects differ in a filter that can push ink outside the command bounds.
-    filter_change_may_affect_output_bounds: bool,
 }
 
 impl ChainVerdict {
@@ -397,7 +395,6 @@ impl ChainVerdict {
         Self {
             compatible: both_ended,
             equal: both_ended,
-            filter_change_may_affect_output_bounds: false,
         }
     }
 }
@@ -417,7 +414,6 @@ impl ChainMemoEntry {
         verdict: ChainVerdict {
             compatible: false,
             equal: false,
-            filter_change_may_affect_output_bounds: false,
         },
     };
 }
@@ -462,10 +458,6 @@ struct ContextPairVerdict {
     compatible: bool,
     // Compatible chains whose node values are equal too, so replay draws the content in the same place.
     equal: bool,
-    // Compatible, unequal chains differ in a filter that can push ink outside the command bounds.
-    filter_change_may_affect_output_bounds: bool,
-    // Such a filter's output is clipped away outside the viewport on both sides, so it cannot show.
-    filter_output_is_clipped_outside_viewport: bool,
 }
 
 // How one tree's filters spread the commands drawn under them, worked out on first use.
@@ -518,14 +510,12 @@ struct TreeChainComparison<'a> {
     new_scroll_offsets: &'a [FloatPoint],
     new_spatial_depths: Vec<u32>,
     new_culling: TreeCullingScratch,
-    viewport_rect: IntRect,
     // Consecutive commands almost always share a context pair, so the last verdict comes first.
     last_context_pair_verdict: Cell<Option<(ContextRef, ContextRef, ContextPairVerdict)>>,
     spatial_chain_memo: RefCell<Vec<ChainMemoEntry>>,
     clip_chain_memo: RefCell<Vec<ChainMemoEntry>>,
     effect_chain_memo: RefCell<Vec<ChainMemoEntry>>,
     chain_walk_path: RefCell<Vec<(u32, u32)>>,
-    filter_output_clipping: RefCell<FastMap<(ContextRef, ContextRef), bool>>,
     mask_comparisons: RefCell<FastMap<(u32, u32), bool>>,
     old_filter_spreading: FilterSpreading,
     new_filter_spreading: FilterSpreading,
@@ -594,21 +584,9 @@ impl<'a> TreeChainComparison<'a> {
         if !effect.compatible {
             return ContextPairVerdict::default();
         }
-        if spatial.equal && clip.equal && effect.equal {
-            return ContextPairVerdict {
-                compatible: true,
-                equal: true,
-                ..ContextPairVerdict::default()
-            };
-        }
-        let filter_change_may_affect_output_bounds = effect.filter_change_may_affect_output_bounds;
-        let filter_output_is_clipped_outside_viewport = filter_change_may_affect_output_bounds
-            && self.filter_output_is_clipped_outside_viewport(old_context, new_context);
         ContextPairVerdict {
             compatible: true,
-            equal: false,
-            filter_change_may_affect_output_bounds,
-            filter_output_is_clipped_outside_viewport,
+            equal: spatial.equal && clip.equal && effect.equal,
         }
     }
 
@@ -651,11 +629,7 @@ impl<'a> TreeChainComparison<'a> {
                         &new_node.data,
                         self.new_scroll_offsets,
                     );
-                ChainVerdict {
-                    compatible,
-                    equal,
-                    filter_change_may_affect_output_bounds: false,
-                }
+                ChainVerdict { compatible, equal }
             },
         )
     }
@@ -675,11 +649,7 @@ impl<'a> TreeChainComparison<'a> {
                     && std::mem::discriminant(&old_node.data) == std::mem::discriminant(&new_node.data)
                     && self.same_spatial_depth(old_node.spatial, new_node.spatial);
                 let equal = compatible && above.equal && clip_data_is_equal(&old_node.data, &new_node.data);
-                ChainVerdict {
-                    compatible,
-                    equal,
-                    filter_change_may_affect_output_bounds: false,
-                }
+                ChainVerdict { compatible, equal }
             },
         )
     }
@@ -718,24 +688,7 @@ impl<'a> TreeChainComparison<'a> {
                                 .new_culling
                                 .clip_depth(self.new_effect_clips.output_clip(EffectNodeIndex(new)))
                 };
-                let filter_change_may_affect_output_bounds = above.filter_change_may_affect_output_bounds
-                    || (compatible
-                        && match (&old_node.data, &new_node.data) {
-                            (EffectNodeData::Effects(old_effects), EffectNodeData::Effects(new_effects)) => {
-                                old_effects.filter != new_effects.filter
-                                    && old_effects
-                                        .filter
-                                        .iter()
-                                        .chain(new_effects.filter.iter())
-                                        .any(|filter| crate::filter_bytes::may_affect_output_bounds(filter))
-                            }
-                            _ => false,
-                        });
-                ChainVerdict {
-                    compatible,
-                    equal,
-                    filter_change_may_affect_output_bounds,
-                }
+                ChainVerdict { compatible, equal }
             },
         )
     }
@@ -750,28 +703,6 @@ impl<'a> TreeChainComparison<'a> {
         );
         self.mask_comparisons.borrow_mut().insert(effect_pair, equal);
         equal
-    }
-
-    fn filter_output_is_clipped_outside_viewport(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
-        let key = (old_context, new_context);
-        if let Some(clipped) = self.filter_output_clipping.borrow().get(&key) {
-            return *clipped;
-        }
-        let clipped = filter_output_is_clipped_outside_viewport(
-            old_context,
-            self.old_tree,
-            &self.old_effect_clips,
-            self.old_scroll_offsets,
-            self.viewport_rect,
-        ) && filter_output_is_clipped_outside_viewport(
-            new_context,
-            self.new_tree,
-            &self.new_effect_clips,
-            self.new_scroll_offsets,
-            self.viewport_rect,
-        );
-        self.filter_output_clipping.borrow_mut().insert(key, clipped);
-        clipped
     }
 
     // Whether two commands with the given contexts match for diffing purposes: equal drawing, under
@@ -863,22 +794,6 @@ fn filter_output_clip_bounds(
         clip = node.parent;
     }
     output_bounds
-}
-
-fn filter_output_is_clipped_outside_viewport(
-    context: ContextRef,
-    tree: &VisualContextTree,
-    effect_clips: &EffectClipPlan,
-    scroll_offsets: &[FloatPoint],
-    viewport: IntRect,
-) -> bool {
-    filter_output_clip_bounds(context, tree, effect_clips, scroll_offsets).is_some_and(|bounds| {
-        bounds.is_empty()
-            || bounds.right() < viewport.x as f32
-            || bounds.x > viewport.right() as f32
-            || bounds.bottom() < viewport.y as f32
-            || bounds.y > viewport.bottom() as f32
-    })
 }
 
 fn intersect_like_gfx_rect(rect: FloatRect, other: FloatRect) -> FloatRect {
@@ -1119,14 +1034,7 @@ impl DamageAccumulator {
         old_command: &CommandReference<'_>,
         new_command: &CommandReference<'_>,
     ) {
-        let verdict = chains.verdict(old_command.context, new_command.context);
-        if verdict.equal {
-            return;
-        }
-        if verdict.filter_change_may_affect_output_bounds {
-            if !verdict.filter_output_is_clipped_outside_viewport {
-                self.changed_unbounded_command = true;
-            }
+        if chains.verdict(old_command.context, new_command.context).equal {
             return;
         }
         self.add_moved_command_damage(chains, old_command, new_command);
@@ -1172,16 +1080,7 @@ impl DamageAccumulator {
         verdict: ContextPairVerdict,
         scroll_offsets_differ: bool,
     ) {
-        let mut commands_moved = false;
-        if !verdict.equal {
-            if verdict.filter_change_may_affect_output_bounds {
-                if !verdict.filter_output_is_clipped_outside_viewport {
-                    self.changed_unbounded_command = true;
-                }
-            } else {
-                commands_moved = true;
-            }
-        }
+        let commands_moved = !verdict.equal;
         if !commands_moved && !scroll_offsets_differ {
             return;
         }
@@ -1520,7 +1419,6 @@ pub fn compute_display_list_damage(
         new_scroll_offsets,
         new_spatial_depths: spatial_depths(new_visual_context_tree),
         new_culling,
-        viewport_rect,
         last_context_pair_verdict: Cell::new(None),
         spatial_chain_memo: RefCell::new(vec![
             ChainMemoEntry::UNPAIRED;
@@ -1532,7 +1430,6 @@ pub fn compute_display_list_damage(
             old_visual_context_tree.effect_nodes.len()
         ]),
         chain_walk_path: RefCell::new(Vec::new()),
-        filter_output_clipping: RefCell::new(FastMap::default()),
         mask_comparisons: RefCell::new(FastMap::default()),
         old_filter_spreading: FilterSpreading::default(),
         new_filter_spreading: FilterSpreading::default(),
@@ -2390,12 +2287,21 @@ mod tests {
     }
 
     #[test]
-    fn changed_extent_affecting_filter_has_unbounded_damage() {
-        assert_eq!(damage_for_filter_change(blur_filter(1.0), blur_filter(10.0)), None);
+    fn changed_extent_affecting_filter_damages_its_old_and_new_output() {
+        assert_eq!(
+            damage_for_filter_change(blur_filter(1.0), blur_filter(10.0)),
+            Some(IntRect::new(0, 0, 61, 61))
+        );
         assert_eq!(
             damage_for_filter_change(drop_shadow_filter(1.0, 1.0), drop_shadow_filter(10.0, 10.0)),
-            None
+            Some(IntRect::new(0, 0, 71, 71))
         );
+        let flood = Filter::Flood {
+            color: RED,
+            opacity: 1.0,
+        }
+        .serialize();
+        assert_eq!(damage_for_filter_change(blur_filter(1.0), flood), None);
     }
 
     #[test]
@@ -2438,21 +2344,23 @@ mod tests {
             Some(IntRect::default())
         );
 
+        let whole_viewport = Some(IntRect::new(0, 0, 100, 100));
+
         // The filter can expand an inner clip's output back into view.
         let (old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, false);
         let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, false);
-        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), whole_viewport);
 
         // Difference clips exclude their rect rather than bounding the effect's output.
         let (old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Difference, true);
         let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Difference, true);
-        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), whole_viewport);
 
-        // Both the old and new output must be outside the viewport.
-        let (old_bytes, old_tree) = make_scene(1.0, 0.0, ClipMode::Intersect, true);
+        // Output inside the viewport on either side is damaged.
+        let (old_bytes, old_tree) = make_scene(100.0, 0.0, ClipMode::Intersect, true);
         let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, true);
-        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
-        assert_eq!(damage(&new_bytes, &new_tree, &old_bytes, &old_tree), None);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), whole_viewport);
+        assert_eq!(damage(&new_bytes, &new_tree, &old_bytes, &old_tree), whole_viewport);
 
         // An outer filter can expand the clipped inner filter back into the viewport.
         let (old_bytes, mut old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, true);
@@ -2466,7 +2374,7 @@ mod tests {
             );
             tree.effect_nodes[0].parent = parent;
         }
-        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), whole_viewport);
 
         // A descendant escaping the clip widens the effect's output clip in the replay plan.
         let (mut old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, true);
@@ -2487,7 +2395,7 @@ mod tests {
         );
         old_bytes.extend_from_slice(&escaped);
         new_bytes.extend_from_slice(&escaped);
-        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), whole_viewport);
     }
 
     fn damage_for_fill_color_change_under(
@@ -3097,35 +3005,52 @@ mod tests {
     #[test]
     fn damage_covering_the_viewport_ends_the_diff() {
         let viewport = IntRect::new(0, 0, 100, 100);
-        let scene = |cover_color, blur_radius| {
+        // The cover's run comes first, and moving it damages the whole viewport.
+        let scene = |cover_offset, filter| {
             let mut tree = identity_tree();
-            let context = context_in(
+            let cover_spatial = tree.append_spatial(
+                SpatialData::Transform(transform(translation_matrix(cover_offset, 0.0, 0.0))),
                 VISUAL_VIEWPORT_NODE_INDEX,
-                effect_context(&mut tree, effects(blur_filter(blur_radius))),
             );
-            let fill = |rect, color| FillRect {
+            let filtered_context = context_in(VISUAL_VIEWPORT_NODE_INDEX, effect_context(&mut tree, effects(filter)));
+            let fill = |rect| FillRect {
                 rect,
-                color,
+                color: BLUE,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             };
-            let blurred_rect = IntRect::new(10, 10, 20, 20);
-            let mut bytes = command_bytes(&fill(viewport, cover_color), Some(viewport), context);
-            bytes.extend_from_slice(&command_bytes(&fill(blurred_rect, BLUE), Some(blurred_rect), context));
+            let filtered_rect = IntRect::new(10, 10, 20, 20);
+            let mut bytes = command_bytes(
+                &fill(viewport),
+                Some(viewport),
+                context_in(cover_spatial, ContextRef::default()),
+            );
+            bytes.extend_from_slice(&command_bytes(
+                &fill(filtered_rect),
+                Some(filtered_rect),
+                filtered_context,
+            ));
             (bytes, tree)
         };
-        let (old_bytes, old_tree) = scene(RED, 1.0);
-        let (wider_blur_bytes, wider_blur_tree) = scene(RED, 10.0);
-        let (wider_blur_and_new_cover_bytes, wider_blur_and_new_cover_tree) = scene(GREEN, 10.0);
-        // The filter change alone requires a full repaint; a covering change reported first means
-        // the same thing.
-        assert_eq!(damage(&old_bytes, &old_tree, &wider_blur_bytes, &wider_blur_tree), None);
+        let flood = || {
+            Filter::Flood {
+                color: RED,
+                opacity: 1.0,
+            }
+            .serialize()
+        };
+        let (old_bytes, old_tree) = scene(0.0, blur_filter(1.0));
+        let (flood_bytes, flood_tree) = scene(0.0, flood());
+        let (flood_and_moved_cover_bytes, flood_and_moved_cover_tree) = scene(1.0, flood());
+        // A flood alone requires a full repaint; a covering change reported first means the same
+        // thing.
+        assert_eq!(damage(&old_bytes, &old_tree, &flood_bytes, &flood_tree), None);
         assert_eq!(
             damage(
                 &old_bytes,
                 &old_tree,
-                &wider_blur_and_new_cover_bytes,
-                &wider_blur_and_new_cover_tree
+                &flood_and_moved_cover_bytes,
+                &flood_and_moved_cover_tree
             ),
             Some(viewport)
         );
