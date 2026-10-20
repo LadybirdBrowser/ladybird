@@ -3294,8 +3294,10 @@ void outdent(GC::Ref<DOM::Node> node)
 
         // 5. Let preceding siblings be the precedings siblings of target, and let following siblings be the followings
         //    siblings of target.
+        // NB: Both lists are in tree order, like in the spec's reference implementation. Indenting a list relies on
+        //     this, since it looks for a new parent next to the first and last members of the list.
         Vector<GC::Ref<DOM::Node>> preceding_siblings;
-        for (auto* sibling = target->previous_sibling(); sibling; sibling = sibling->previous_sibling())
+        for (auto* sibling = current_ancestor->first_child(); sibling != target.ptr(); sibling = sibling->next_sibling())
             preceding_siblings.append(*sibling);
         Vector<GC::Ref<DOM::Node>> following_siblings;
         for (auto* sibling = target->next_sibling(); sibling; sibling = sibling->next_sibling())

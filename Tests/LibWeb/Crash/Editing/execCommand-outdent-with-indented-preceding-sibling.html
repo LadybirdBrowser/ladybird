@@ -1,0 +1,6 @@
+<div id="editor" contenteditable><blockquote><blockquote>x</blockquote><br><div id="target">b</div></blockquote></div>
+<script>
+    editor.focus();
+    getSelection().collapse(target.firstChild, 0);
+    document.execCommand("outdent");
+</script>
