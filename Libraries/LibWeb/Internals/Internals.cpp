@@ -2664,6 +2664,11 @@ Utf16String Internals::canvas_color_scheme()
     return CSS::preferred_color_scheme_to_utf16_fly_string(document.canvas_color_scheme(read)).to_utf16_string();
 }
 
+u64 Internals::image_request_count(DOM::Document const& document) const
+{
+    return document.shared_resource_requests().size();
+}
+
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> Internals::image_animation_state_for_url(Utf16String const& url)
 {
     auto& document = window().associated_document();

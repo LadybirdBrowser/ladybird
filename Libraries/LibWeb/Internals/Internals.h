@@ -300,6 +300,7 @@ public:
     WebIDL::UnsignedLongLong active_timer_count(JS::Object& window);
     WebIDL::UnsignedLongLong task_queue_length();
     Utf16String canvas_color_scheme();
+    u64 image_request_count(DOM::Document const&) const;
     WebIDL::ExceptionOr<GC::Ref<JS::Object>> image_animation_state_for_url(Utf16String const& url);
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);

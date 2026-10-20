@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const urls = await Promise.all(["inline", "stylesheet"].map(name => server.createEcho("GET", `/${name}.png`, {
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body_encoding: "base64",
+            body: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+        })));
+
+        const source = document.createElement("select");
+        source.style.backgroundImage = `url("${urls[0]}")`;
+        const option = document.createElement("option");
+        option.style.backgroundImage = `url("${urls[0]}")`;
+        source.append(option);
+
+        const inactiveDocument = document.implementation.createHTMLDocument("");
+        const copy = inactiveDocument.importNode(source, true);
+        println(`imported inline image requests: ${internals.imageRequestCount(inactiveDocument)}`);
+
+        const style = inactiveDocument.createElement("style");
+        style.textContent = `#target { background-image: url("${urls[1]}"); width: 10px; height: 10px; }`;
+        inactiveDocument.head.append(style);
+        const target = inactiveDocument.createElement("div");
+        target.id = "target";
+        inactiveDocument.body.append(copy, target);
+        println(`inactive stylesheet image requests: ${internals.imageRequestCount(inactiveDocument)}`);
+
+        const before = internals.imageRequestCount(document);
+        document.head.append(style);
+        document.body.append(copy, target);
+        internals.dumpLayoutTree(document);
+        println(`images requested after adoption: ${internals.imageRequestCount(document) - before}`);
+    });
+</script>
