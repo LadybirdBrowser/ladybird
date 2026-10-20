@@ -1,0 +1,4 @@
+Split at 2: error fired: false, video tracks: 1, audio tracks: 1
+Split at 42: error fired: false, video tracks: 1, audio tracks: 1
+Split at 627: error fired: false, video tracks: 1, audio tracks: 1
+Split at 1066: error fired: false, video tracks: 1, audio tracks: 1

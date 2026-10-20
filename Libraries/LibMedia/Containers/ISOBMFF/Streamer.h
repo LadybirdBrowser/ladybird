@@ -30,7 +30,7 @@ public:
         if (count != sizeof(T)) {
             auto size = m_stream_cursor->size();
             if (size.has_value() && (start > size.value() || sizeof(T) > size.value() - start))
-                return DecoderError::corrupted("Unexpected end of ISO BMFF stream"sv);
+                return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Unexpected end of ISO BMFF stream"sv);
             // Non-blocking cursors return short reads when a range has not arrived (or was evicted).
             return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "ISO BMFF data is not available yet"sv);
         }
