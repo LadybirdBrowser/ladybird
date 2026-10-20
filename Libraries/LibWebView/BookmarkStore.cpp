@@ -533,25 +533,27 @@ void BookmarkStore::notify_observers()
 
 void BookmarkStore::add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver& observer)
 {
-    Application::bookmark_store().m_observers.append(observer);
+    m_observers.append(observer);
 }
 
 void BookmarkStore::remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver& observer)
 {
-    auto was_removed = Application::bookmark_store().m_observers.remove_first_matching([&](auto const& candidate) {
+    auto was_removed = m_observers.remove_first_matching([&](auto const& candidate) {
         return &candidate == &observer;
     });
     VERIFY(was_removed);
 }
 
 BookmarkStoreObserver::BookmarkStoreObserver()
+    : m_bookmark_store(Application::bookmark_store())
 {
-    BookmarkStore::add_observer({}, *this);
+    m_bookmark_store->add_observer({}, *this);
 }
 
 BookmarkStoreObserver::~BookmarkStoreObserver()
 {
-    BookmarkStore::remove_observer({}, *this);
+    if (m_bookmark_store)
+        m_bookmark_store->remove_observer({}, *this);
 }
 
 }

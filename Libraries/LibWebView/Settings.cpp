@@ -1354,25 +1354,27 @@ void Settings::persist_settings()
 
 void Settings::add_observer(Badge<SettingsObserver>, SettingsObserver& observer)
 {
-    Application::settings().m_observers.append(observer);
+    m_observers.append(observer);
 }
 
 void Settings::remove_observer(Badge<SettingsObserver>, SettingsObserver& observer)
 {
-    auto was_removed = Application::settings().m_observers.remove_first_matching([&](auto const& candidate) {
+    auto was_removed = m_observers.remove_first_matching([&](auto const& candidate) {
         return &candidate == &observer;
     });
     VERIFY(was_removed);
 }
 
 SettingsObserver::SettingsObserver()
+    : m_settings(Application::settings())
 {
-    Settings::add_observer({}, *this);
+    m_settings->add_observer({}, *this);
 }
 
 SettingsObserver::~SettingsObserver()
 {
-    Settings::remove_observer({}, *this);
+    if (m_settings)
+        m_settings->remove_observer({}, *this);
 }
 
 }

@@ -17,6 +17,8 @@
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <AK/WeakPtr.h>
+#include <AK/Weakable.h>
 #include <LibHTTP/Forward.h>
 #include <LibRequests/CacheState.h>
 #include <LibRequests/Forward.h>
@@ -35,7 +37,7 @@ namespace WebView {
 
 class FileDownloaderObserver;
 
-class WEBVIEW_API FileDownloader {
+class WEBVIEW_API FileDownloader : public Weakable<FileDownloader> {
 public:
     enum class DownloadStatus : u8 {
         InProgress,
@@ -113,8 +115,8 @@ public:
 
     void adopt_download_store(Badge<Application>, DownloadStore&);
 
-    static void add_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver&);
-    static void remove_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver&);
+    void add_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver&);
+    void remove_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver&);
 
 private:
     struct ActiveDownload;
@@ -178,6 +180,9 @@ public:
     virtual void download_added(FileDownloader::Download const&) { }
     virtual void download_updated(FileDownloader::Download const&) { }
     virtual void download_removed(u64, IsPrivate) { }
+
+private:
+    WeakPtr<FileDownloader> m_file_downloader;
 };
 
 }
