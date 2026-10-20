@@ -8,6 +8,42 @@
 use super::*;
 use smallvec::{SmallVec, smallvec};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FragmentationStep {
+    LayOut,
+    Skip,
+    Stop,
+}
+
+struct FragmentationState {
+    resume_child: Option<Node>,
+    has_in_flow_content: bool,
+    truncate_next_block_start_margin: bool,
+    previous_in_flow_child_forces_break_after: bool,
+}
+
+impl FragmentationState {
+    fn new(fragmentainer: &fragmentation::FragmentainerContext) -> Self {
+        let (resume_child, after_forced_break) = match fragmentainer.incoming.as_deref() {
+            Some(fragmentation::BlockBreakToken {
+                resume:
+                    fragmentation::BlockResume::BeforeChild {
+                        child,
+                        after_forced_break,
+                    },
+                ..
+            }) => (Some(*child), *after_forced_break),
+            None => (None, false),
+        };
+        Self {
+            resume_child,
+            has_in_flow_content: false,
+            truncate_next_block_start_margin: resume_child.is_some() && !after_forced_break,
+            previous_in_flow_child_forces_break_after: false,
+        }
+    }
+}
+
 struct FloatAvoidanceProbe {
     opportunity: Option<CssPixels>,
     content_inline_size: Option<CssPixels>,
@@ -189,6 +225,8 @@ pub(crate) struct BlockFormattingContext<'pass> {
     automatic_line_clamp_max_lines: Cell<Option<usize>>,
     automatic_line_clamp_block_size_exceeded: Cell<bool>,
     laying_out_invisible_line_clamp_content: Cell<bool>,
+    multicol_automatic_content_block_size: Cell<Option<CssPixels>>,
+    discard_block_start_margin_of_next_child: Cell<bool>,
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
@@ -241,6 +279,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             automatic_line_clamp_max_lines: Cell::new(None),
             automatic_line_clamp_block_size_exceeded: Cell::new(false),
             laying_out_invisible_line_clamp_content: Cell::new(false),
+            multicol_automatic_content_block_size: Cell::new(None),
+            discard_block_start_margin_of_next_child: Cell::new(false),
         }
     }
 
@@ -1810,9 +1850,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             attempt => attempt,
         };
 
-        self.margin_state
-            .borrow_mut()
-            .add_margin(self.used(node).margin_top.get());
+        if !self.discard_block_start_margin_of_next_child.replace(false) {
+            self.margin_state
+                .borrow_mut()
+                .add_margin(self.used(node).margin_top.get());
+        }
         let introduced_clearance = self.clear_floating_boxes(node, None, containing_block_position_in_root);
         if introduced_clearance {
             self.margin_state.borrow_mut().reset();
@@ -2225,6 +2267,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.run.purpose == formatting_context::LayoutPurpose::Commit
             && self.run.layout_mode == LayoutMode::Normal
             && self.run.fragments.is_some()
+            && self.run.fragmentainer.is_none()
             && !self.run.should_collect_devtools_layout_data
             && containing_line_box_fragment.is_none()
             && self.floats.borrow().is_empty()
@@ -2447,7 +2490,20 @@ impl<'pass> BlockFormattingContext<'pass> {
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
+        let fragmentainer = self
+            .run
+            .fragmentainer
+            .clone()
+            .filter(|_| block_container == self.run.box_);
+        let mut fragmentation_state = fragmentainer.as_deref().map(FragmentationState::new);
         for child in self.children(block_container) {
+            if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_deref(), fragmentation_state.as_mut()) {
+                match self.fragmentation_step_before_child(fragmentainer, state, block_container, child) {
+                    FragmentationStep::Skip => continue,
+                    FragmentationStep::Stop => break,
+                    FragmentationStep::LayOut => {}
+                }
+            }
             let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
             let previous_bottom = bottom_of_lowest_margin_box;
             if invisible {
@@ -2465,9 +2521,201 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.laying_out_invisible_line_clamp_content.set(false);
                 bottom_of_lowest_margin_box = previous_bottom;
             }
+            if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_deref(), fragmentation_state.as_mut())
+                && self.fragmentation_step_after_child(fragmentainer, state, block_container, child)
+                    == FragmentationStep::Stop
+            {
+                break;
+            }
         }
         self.block_offset_of_current_block_container.set(saved);
         self.finish_block_level_children_layout(block_container, input, available_space, bottom_of_lowest_margin_box);
+    }
+
+    fn fragmentation_step_before_child(
+        &self,
+        fragmentainer: &fragmentation::FragmentainerContext,
+        state: &mut FragmentationState,
+        block_container: Node,
+        child: Node,
+    ) -> FragmentationStep {
+        if let Some(resume_child) = state.resume_child {
+            if resume_child != child {
+                return FragmentationStep::Skip;
+            }
+            state.resume_child = None;
+        }
+        let facts = self.facts(child);
+        if !facts.is_flow_layout_participant() || facts.is_floating() {
+            return FragmentationStep::LayOut;
+        }
+        if fragmentainer.early_break_before == Some(child) {
+            self.break_before_child(fragmentainer, block_container, child, false);
+            return FragmentationStep::Stop;
+        }
+        let forced = state.previous_in_flow_child_forces_break_after
+            || fragmentation::is_forced_column_break(self.style(child).break_before());
+        if forced && state.has_in_flow_content {
+            self.break_before_child(fragmentainer, block_container, child, true);
+            return FragmentationStep::Stop;
+        }
+        if state.truncate_next_block_start_margin {
+            self.margin_state.borrow_mut().reset();
+            self.discard_block_start_margin_of_next_child.set(true);
+        }
+        FragmentationStep::LayOut
+    }
+
+    fn fragmentation_step_after_child(
+        &self,
+        fragmentainer: &fragmentation::FragmentainerContext,
+        state: &mut FragmentationState,
+        _block_container: Node,
+        child: Node,
+    ) -> FragmentationStep {
+        self.discard_block_start_margin_of_next_child.set(false);
+        let facts = self.facts(child);
+        if !facts.is_flow_layout_participant() || facts.is_floating() {
+            return FragmentationStep::LayOut;
+        }
+        state.truncate_next_block_start_margin = false;
+        let used = self.used(child);
+        let collapsed = used.uses_collapsing_borders_model.get();
+        let border_box_block_end =
+            used.content_offset.get().y + used.content_block_size.get() + used.border_box_bottom(collapsed);
+        fragmentainer.note_unbreakable_block_size(used.border_box_block_size(collapsed));
+        if fragmentainer.exceeds(border_box_block_end) {
+            fragmentainer.note_space_shortage(border_box_block_end);
+            if state.has_in_flow_content {
+                fragmentainer.outcome_mut().needs_early_break_before = Some(child);
+                return FragmentationStep::Stop;
+            }
+        }
+        state.has_in_flow_content = true;
+        state.previous_in_flow_child_forces_break_after =
+            fragmentation::is_forced_column_break(self.style(child).break_after());
+        FragmentationStep::LayOut
+    }
+
+    fn break_before_child(
+        &self,
+        fragmentainer: &fragmentation::FragmentainerContext,
+        block_container: Node,
+        child: Node,
+        after_forced_break: bool,
+    ) {
+        fragmentainer.outcome_mut().outgoing = Some(std::rc::Rc::new(fragmentation::BlockBreakToken {
+            node: block_container,
+            resume: fragmentation::BlockResume::BeforeChild {
+                child,
+                after_forced_break,
+            },
+        }));
+    }
+
+    fn is_multicol_container(&self) -> bool {
+        self.facts(self.run.box_).lays_out_in_columns()
+    }
+
+    fn lays_out_multicol_container(&self) -> bool {
+        self.run.fragmentainer.is_none() && self.run.layout_mode == LayoutMode::Normal && self.is_multicol_container()
+    }
+
+    fn layout_multicol_container(&self, input: LayoutInput) {
+        let root = self.run.box_;
+        let root_used = self.used(root);
+        let style = self.style(root);
+        let content_inline_size = root_used.content_inline_size.get();
+        let geometry = fragmentation::resolve_column_geometry(style, content_inline_size);
+        let definite_block_size = root_used
+            .has_definite_block_size()
+            .then(|| root_used.content_block_size.get());
+        let column_input = LayoutInput {
+            available_space: AvailableSpace {
+                inline_size: AvailableSize::definite(geometry.inline_size),
+                block_size: definite_block_size.map_or(AvailableSize::Indefinite, AvailableSize::definite),
+            },
+            containing_block_constraints: input.containing_block_constraints,
+            content_box_position_in_bfc_root: None,
+            sizing: RootSizingDirectives {
+                forced_content_inline_size: Some(geometry.inline_size),
+                forced_content_block_size: definite_block_size,
+                ..RootSizingDirectives::default()
+            },
+            participation: ParticipationInParentFormattingContext::Root,
+        };
+        let is_right_to_left = style.direction() == direction::RTL;
+        let column_origin = |index: usize| {
+            let offset = geometry.pitch() * index;
+            FfiCssPixelPoint {
+                x: if is_right_to_left {
+                    content_inline_size - geometry.inline_size - offset
+                } else {
+                    offset
+                },
+                y: CssPixels::default(),
+            }
+        };
+
+        let column_block_size = definite_block_size;
+        let mut incoming = None;
+        let mut content_block_size = CssPixels::default();
+        let mut column_index = 0;
+        loop {
+            let (outcome, consumed_block_size) =
+                self.layout_column(column_input, column_block_size, incoming, column_origin(column_index));
+            content_block_size = content_block_size.max(consumed_block_size);
+            let Some(outgoing) = outcome.outgoing else {
+                break;
+            };
+            if column_index + 1 >= fragmentation::MAXIMUM_COLUMN_COUNT {
+                break;
+            }
+            incoming = Some(outgoing);
+            column_index += 1;
+        }
+        self.multicol_automatic_content_block_size
+            .set(Some(column_block_size.unwrap_or(content_block_size)));
+    }
+
+    fn layout_column(
+        &self,
+        input: LayoutInput,
+        block_size: Option<CssPixels>,
+        incoming: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
+        origin: FfiCssPixelPoint,
+    ) -> (fragmentation::FragmentainerOutcome, CssPixels) {
+        let mut early_break_before = None;
+        loop {
+            let fragmentainer = std::rc::Rc::new(fragmentation::FragmentainerContext::new(
+                block_size,
+                incoming.clone(),
+                early_break_before,
+            ));
+            let journals_stored_entries = self.run.fragments.is_some();
+            let fc_run_cache_store = self.run.callbacks.arena().fc_run_cache_store();
+            if journals_stored_entries {
+                fc_run_cache_store.begin_store_journal();
+            }
+            let outputs = formatting_context::run_fragmentainer(&self.run, input, fragmentainer.clone());
+            let outcome = fragmentainer.take_outcome();
+            let retries = outcome
+                .needs_early_break_before
+                .is_some_and(|node| early_break_before != Some(node));
+            if journals_stored_entries {
+                fc_run_cache_store.end_store_journal(!retries);
+            }
+            if let Some(node) = outcome.needs_early_break_before
+                && early_break_before != Some(node)
+            {
+                early_break_before = Some(node);
+                continue;
+            }
+            if let (Some(fragments), Some(root)) = (self.run.fragments.as_deref(), outputs.root) {
+                fragments.adopt_fragmentainer_root(root, origin);
+            }
+            return (outcome, outputs.result.automatic_content_block_size);
+        }
     }
 
     // Per https://www.w3.org/TR/CSS22/tables.html#model, caption boxes are block-level boxes laid
@@ -2734,7 +2982,18 @@ impl<'pass> BlockFormattingContext<'pass> {
                 }
             }
         }
-        // FIXME: Do multi-column layout.
+        if self.lays_out_multicol_container() {
+            self.layout_multicol_container(input);
+            if self.facts(self.run.box_).is_list_item_box() {
+                self.layout_list_item_marker(
+                    run,
+                    self.run.box_,
+                    input.sizing.outer_float_intrusion_before_list_item_children,
+                    self.derived_baselines_of_root_box().first,
+                );
+            }
+            return;
+        }
 
         let root_input = LayoutInput {
             content_box_position_in_bfc_root: Some(FfiCssPixelPoint::default()),
@@ -2774,6 +3033,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 if facts.is_absolutely_positioned() || facts.is_floating() {
                     continue;
                 }
+                if self.run.records.used_values_if_owned(child).is_none() {
+                    continue;
+                }
                 if self.margins_collapse_through(child) {
                     continue;
                 }
@@ -2782,7 +3044,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        if root_facts.is_list_item_box() {
+        if root_facts.is_list_item_box() && self.run.fragmentainer.is_none() {
             self.layout_list_item_marker(
                 run,
                 self.run.box_,
@@ -3525,8 +3787,11 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
+        if let Some(block_size) = self.multicol_automatic_content_block_size.get() {
+            return block_size;
+        }
         let line_clamp_reached = self.line_clamp_reached();
-        automatic_block_size_for_bfc_root(
+        let block_size = automatic_block_size_for_bfc_root(
             self.run.records,
             self.run.callbacks,
             self.run.box_,
@@ -3536,7 +3801,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             (!line_clamp_reached)
                 .then_some(self.trailing_collapsed_margin.get())
                 .flatten(),
-        )
+        );
+        if self.run.fragmentainer.is_some() {
+            return block_size;
+        }
+        floor_list_item_automatic_block_size_by_marker_line_height(self.run.callbacks, self.run.box_, block_size)
     }
 
     fn line_clamp_subtree_contains_line(&self, node: Node) -> bool {
@@ -3695,11 +3964,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     if let Some(lowest) = lowest_floating_descendant_bottom_margin_edge {
         bottom = Some(bottom.map_or(lowest, |value| value.max(lowest)));
     }
-    floor_list_item_automatic_block_size_by_marker_line_height(
-        callbacks,
-        root,
-        bottom.unwrap_or_default().max(CssPixels::default()),
-    )
+    bottom.unwrap_or_default().max(CssPixels::default())
 }
 
 pub(crate) fn floor_list_item_automatic_block_size_by_marker_line_height(

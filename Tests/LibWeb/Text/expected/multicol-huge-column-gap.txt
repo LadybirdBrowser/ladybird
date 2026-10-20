@@ -1,0 +1,3 @@
+one-column: 400x20
+column-width: 400x20
+two-columns: 0x20

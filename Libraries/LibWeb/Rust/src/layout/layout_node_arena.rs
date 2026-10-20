@@ -2655,7 +2655,12 @@ impl LayoutNodeArena {
                         });
                         return None;
                     }
-                    let derived = self.reinherit_anonymous_style_record(host_record(child), parent_record);
+                    let column_source = self
+                        .anonymous_box_column_source(child)
+                        .filter(|source| *source == row)
+                        .map(|_| sample.record);
+                    let derived =
+                        self.reinherit_anonymous_style_record(host_record(child), parent_record, column_source);
                     parents.push((child, derived.record));
                     samples.push((child, derived));
                 }
@@ -3545,12 +3550,39 @@ impl LayoutNodeArena {
         })
     }
 
-    pub(crate) fn reinherit_anonymous_style_record(&self, record: u64, parent: u64) -> DerivedStyleRecord {
+    pub(crate) fn reinherit_anonymous_style_record(
+        &self,
+        record: u64,
+        parent: u64,
+        column_source: Option<u64>,
+    ) -> DerivedStyleRecord {
         self.with_style_engine(|engine| {
             let mut style = LayoutStyle::from_record(engine, record);
             style.inherit_from(engine, parent);
+            if let Some(column_source) = column_source {
+                style.copy_column_properties(&LayoutStyle::from_record(engine, column_source));
+            }
             style.intern(engine)
         })
+    }
+
+    fn anonymous_box_column_source(&self, node: NodeSlotId) -> Option<NodeSlotId> {
+        let parent = self.data(node).parent.get();
+        if parent.is_invalid() {
+            return None;
+        }
+        if super::node_facts::has_ancestor_fact(self.data(node), AncestorFact::IsAnonymousButtonContentBox) {
+            let button = self.data(parent).parent.get();
+            return (!button.is_invalid()
+                && !super::node_facts::has_flag(self.data(button), NodeFlag::IsHtmlInputElement))
+            .then_some(button);
+        }
+        let is_fieldset_content_wrapper = self.data(parent).kind.get() == NodeKind::FieldSetBox
+            && super::node_facts::node_is_fieldset_content_wrapper(
+                self.data(node),
+                super::node_facts::node_style_view(self.data(node)),
+            );
+        is_fieldset_content_wrapper.then_some(parent)
     }
 
     pub(crate) fn update_layout_style(
@@ -3625,8 +3657,14 @@ impl LayoutNodeArena {
                     self.reinherit_anonymous_descendants(host_calls, child);
                     self.notify_shell_of_style_change(host_calls, child, true);
                 } else {
-                    let derived =
-                        self.reinherit_anonymous_style_record(self.node_style_record(child), parent_style_record);
+                    let column_source = self
+                        .anonymous_box_column_source(child)
+                        .map(|source| self.node_style_record(source));
+                    let derived = self.reinherit_anonymous_style_record(
+                        self.node_style_record(child),
+                        parent_style_record,
+                        column_source,
+                    );
                     self.apply_reinherited_style_record(host_calls, child, derived);
                     self.reinherit_anonymous_children(host_calls, child, derived.record);
                 }

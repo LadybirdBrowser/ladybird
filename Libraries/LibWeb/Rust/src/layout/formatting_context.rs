@@ -186,6 +186,34 @@ impl<'pass> MeasurementState<'pass> {
     }
 }
 
+pub(crate) fn run_fragmentainer(
+    outer: &FormattingContextRun,
+    input: LayoutInput,
+    fragmentainer: std::rc::Rc<fragmentation::FragmentainerContext>,
+) -> RunOutputs {
+    debug_assert_eq!(input.participation, ParticipationInParentFormattingContext::Root);
+    let box_ = outer.box_;
+    let root_containing_block = outer
+        .callbacks
+        .containing_block_for_child_run(box_, &input.participation);
+    execute_formatting_context_run(
+        outer.purpose,
+        used_values::UsedValuesCellState::capture(outer.records.used_values(box_)),
+        box_,
+        root_containing_block,
+        None,
+        FormattingContextType::Block,
+        LayoutMode::Normal,
+        outer.should_collect_devtools_layout_data,
+        outer.callbacks,
+        input,
+        None,
+        None,
+        None,
+        Some(fragmentainer),
+    )
+}
+
 pub(super) fn cache_key(
     measured_at_inline_size: Option<CssPixels>,
     measured_at_block_size: Option<CssPixels>,
@@ -1074,6 +1102,7 @@ pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     pub(crate) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
+    pub(crate) fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
 }
 
 impl<'pass> FormattingContextRun<'pass> {
@@ -1727,6 +1756,7 @@ pub(super) fn run_formatting_context(
         parent_block,
         previous_line_data,
         table_inline_layout,
+        None,
     );
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
@@ -1789,6 +1819,7 @@ fn execute_formatting_context_run(
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
+    fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
     let root_used = root_cells.materialize_record();
@@ -1816,6 +1847,7 @@ fn execute_formatting_context_run(
                     ))
                 }),
                 previous_line_data,
+                fragmentainer,
             };
             let run = &run;
             if let Some(table_inline_layout) = table_inline_layout {
@@ -2380,6 +2412,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         None,
         previous_line_data,
         None,
+        None,
     );
     cache_attempt.conclude_uncommitted(&run.callbacks, cell, cache_key, &outputs);
     Some(outputs.result)
@@ -2653,6 +2686,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             treat_block_axis_percentage_insets_as_auto_beyond_root: false,
             fragments: Some(entry_fragments.clone()),
             previous_line_data: None,
+            fragmentainer: None,
         };
 
         let mut root_for_layout = root;
@@ -2774,6 +2808,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
                 treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                 fragments: Some(entry_fragments.clone()),
                 previous_line_data: None,
+                fragmentainer: None,
             };
             if root_is_absolutely_positioned {
                 abspos_engine::AbsposEngine::for_run(&entry_run).replay(&entry_run, root);

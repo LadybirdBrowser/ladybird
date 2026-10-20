@@ -2469,6 +2469,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
         treat_block_axis_percentage_insets_as_auto_beyond_root: false,
         fragments: Some(entry_fragments.clone()),
         previous_line_data: None,
+        fragmentainer: None,
     };
     loop {
         let batch = entry_fragments.take_drainable_abspos(accumulator_root, records, &callbacks);
