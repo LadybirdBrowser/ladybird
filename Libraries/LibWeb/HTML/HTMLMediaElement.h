@@ -231,6 +231,11 @@ private:
     void load_remote_resource(ByteRange const&);
     void load_local_resource(MediaProvider const&, ESCAPING Function<void(Utf16String)> failure_callback);
     bool preload_attribute_is_in_none_state() const;
+    bool preload_attribute_is_in_automatic_state() const;
+    bool should_suspend_the_download() const;
+    void update_download_suspension();
+    void stop_suspending_the_download_after_first_frame();
+    void stop_suspending_the_download_after_a_track_change();
     bool should_wait_for_an_implementation_defined_event_before_fetching_the_resource() const;
     void wait_for_an_implementation_defined_event_before_fetching_the_resource(u32 fetch_generation);
     void continue_fetching_the_resource_after_an_implementation_defined_event();
