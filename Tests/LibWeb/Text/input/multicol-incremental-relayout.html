@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .pair { display: flex; gap: 40px; margin-bottom: 20px; }
+    .multicol { columns: 3; column-gap: 20px; width: 340px; }
+    .fixed { column-fill: auto; height: 100px; }
+    .block { height: 40px; }
+    .breakable { border: 2px solid black; }
+    .breakable > div { height: 30px; }
+    .cb { position: relative; height: 60px; }
+    .abspos { position: absolute; left: 10px; top: 5px; width: 50px; overflow: hidden; }
+    .abspos > div { height: 20px; }
+    svg { display: block; }
+    .split-cb { position: relative; height: 80px; }
+    .static-cb { position: relative; }
+    .static { position: absolute; width: 30px; overflow: hidden; }
+    .static > div { height: 15px; }
+</style>
+<div class="pair">
+    <div id="balanced-live" class="multicol">
+        <div class="block"></div>
+        <div id="balanced-live-grow" class="block"></div>
+        <div class="breakable"><div></div><div></div><div></div><div></div></div>
+        <div class="block"></div>
+    </div>
+    <div id="balanced-reference" class="multicol">
+        <div class="block"></div>
+        <div class="block" style="height: 80px"></div>
+        <div class="breakable"><div></div><div></div><div></div><div></div></div>
+        <div class="block"></div>
+    </div>
+</div>
+<div class="pair">
+    <div id="abspos-live" class="multicol fixed">
+        <div class="block" style="height: 100px"></div>
+        <div class="cb"><div class="abspos"><div id="abspos-live-grow"></div></div></div>
+    </div>
+    <div id="abspos-reference" class="multicol fixed">
+        <div class="block" style="height: 100px"></div>
+        <div class="cb"><div class="abspos"><div style="height: 45px"></div></div></div>
+    </div>
+</div>
+<div class="pair">
+    <div id="svg-live" class="multicol fixed">
+        <div class="block" style="height: 100px"></div>
+        <div class="block"></div>
+        <svg width="60" height="40"><rect id="svg-live-rect" width="20" height="10"/></svg>
+    </div>
+    <div id="svg-reference" class="multicol fixed">
+        <div class="block" style="height: 100px"></div>
+        <div class="block"></div>
+        <svg width="60" height="40"><rect width="50" height="10"/></svg>
+    </div>
+</div>
+<div class="pair">
+    <div id="split-live" class="multicol fixed">
+        <div class="block" style="height: 60px"></div>
+        <div class="split-cb"><div class="abspos"><div id="split-live-grow"></div></div></div>
+    </div>
+    <div id="split-reference" class="multicol fixed">
+        <div class="block" style="height: 60px"></div>
+        <div class="split-cb"><div class="abspos"><div style="height: 45px"></div></div></div>
+    </div>
+</div>
+<div class="pair static-cb">
+    <div id="static-live" class="multicol fixed">
+        <div class="block" style="height: 100px"></div>
+        <div class="block"></div>
+        <div class="static"><div id="static-live-grow"></div></div>
+    </div>
+    <div id="static-reference" class="multicol fixed">
+        <div class="block" style="height: 100px"></div>
+        <div class="block"></div>
+        <div class="static"><div style="height: 45px"></div></div>
+    </div>
+</div>
+<div class="pair">
+    <div id="svg-fragment-live" class="multicol fixed">
+        <div><div class="block" style="height: 120px"></div><svg width="60" height="40"><rect id="svg-fragment-live-rect" width="20" height="10"/></svg></div>
+    </div>
+    <div id="svg-fragment-reference" class="multicol fixed">
+        <div><div class="block" style="height: 120px"></div><svg width="60" height="40"><rect width="50" height="10"/></svg></div>
+    </div>
+</div>
+<div class="pair">
+    <div id="moved-live" class="multicol fixed">
+        <div>
+            <div id="moved-live-grow" class="block"></div>
+            <div class="block" style="break-before: column"></div>
+        </div>
+    </div>
+    <div id="moved-reference" class="multicol fixed">
+        <div>
+            <div class="block" style="height: 150px"></div>
+            <div class="block" style="break-before: column"></div>
+        </div>
+    </div>
+</div>
+<script>
+    function geometryOf(container) {
+        const origin = container.getBoundingClientRect();
+        const lines = [];
+        for (const element of container.querySelectorAll("*")) {
+            for (const rect of element.getClientRects())
+                lines.push(`${element.localName} ${rect.left - origin.left},${rect.top - origin.top},${rect.width},${rect.height}`);
+        }
+        return lines;
+    }
+
+    function check(name, live, reference, mutate) {
+        document.body.offsetHeight;
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        mutate();
+        document.body.offsetHeight;
+        const partialLayouts = internals.partialLayoutCount() - partialBefore;
+        const fullLayouts = internals.fullLayoutCount() - fullBefore;
+        const liveGeometry = geometryOf(document.getElementById(live));
+        const referenceGeometry = geometryOf(document.getElementById(reference));
+        const matches = liveGeometry.join("|") === referenceGeometry.join("|");
+        println(`${name}: partial-layouts=${partialLayouts} full-layouts=${fullLayouts} ${matches ? "PASS" : "FAIL"}`);
+        for (const line of liveGeometry)
+            println(`    ${line}`);
+        if (!matches) {
+            println("  reference:");
+            for (const line of referenceGeometry)
+                println(`    ${line}`);
+        }
+    }
+
+    test(() => {
+        check("balanced", "balanced-live", "balanced-reference", () => {
+            document.getElementById("balanced-live-grow").style.height = "80px";
+        });
+        check("abspos", "abspos-live", "abspos-reference", () => {
+            document.getElementById("abspos-live-grow").style.height = "45px";
+        });
+        check("svg", "svg-live", "svg-reference", () => {
+            document.getElementById("svg-live-rect").setAttribute("width", "50");
+        });
+        check("split containing block", "split-live", "split-reference", () => {
+            document.getElementById("split-live-grow").style.height = "45px";
+        });
+        check("static position", "static-live", "static-reference", () => {
+            document.getElementById("static-live-grow").style.height = "45px";
+        });
+        check("svg in a later fragment", "svg-fragment-live", "svg-fragment-reference", () => {
+            document.getElementById("svg-fragment-live-rect").setAttribute("width", "50");
+        });
+        check("moved to a later column", "moved-live", "moved-reference", () => {
+            document.getElementById("moved-live-grow").style.height = "150px";
+        });
+    });
+</script>

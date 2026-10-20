@@ -1,0 +1,47 @@
+balanced: partial-layouts=0 full-layouts=1 PASS
+    div 0,0,100,40
+    div 0,40,100,54.671875
+    div 120,0,100,25.328125
+    div 120,25.328125,100,69.34375
+    div 240,0,100,54.65625
+    div 122,27.328125,96,30
+    div 122,57.328125,96,30
+    div 122,87.328125,96,7.34375
+    div 242,0,96,22.65625
+    div 242,22.65625,96,30
+    div 240,54.65625,100,40
+abspos: partial-layouts=1 full-layouts=0 PASS
+    div 0,0,100,100
+    div 120,0,100,60
+    div 130,5,50,45
+    div 130,5,50,45
+svg: partial-layouts=1 full-layouts=0 PASS
+    div 0,0,100,100
+    div 120,0,100,40
+    svg 120,40,60,40
+    rect 120,40,50,10
+split containing block: partial-layouts=1 full-layouts=0 PASS
+    div 0,0,100,60
+    div 0,60,100,40
+    div 120,0,100,40
+    div 10,65,50,45
+    div 10,65,50,45
+static position: partial-layouts=1 full-layouts=0 PASS
+    div 0,0,100,100
+    div 120,0,100,40
+    div 120,40,30,45
+    div 120,40,30,45
+svg in a later fragment: partial-layouts=1 full-layouts=0 PASS
+    div 0,0,100,100
+    div 120,0,100,60
+    div 0,0,100,100
+    div 120,0,100,20
+    svg 120,20,60,40
+    rect 120,20,50,10
+moved to a later column: partial-layouts=0 full-layouts=1 PASS
+    div 0,0,100,100
+    div 120,0,100,100
+    div 240,0,100,40
+    div 0,0,100,100
+    div 120,0,100,50
+    div 240,0,100,40
