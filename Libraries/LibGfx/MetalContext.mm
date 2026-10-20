@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Function.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/MetalContext.h>
 
@@ -77,6 +78,20 @@ public:
         if (!texture)
             return {};
         return make<MetalTextureImpl>(texture);
+    }
+
+    void when_committed_work_is_scheduled(Function<void()>&& callback) override
+    {
+        // The queue schedules its command buffers in the order they were committed.
+        @autoreleasepool {
+            auto* callback_to_invoke = new Function<void()>(move(callback));
+            id<MTLCommandBuffer> command_buffer = [m_queue commandBuffer];
+            [command_buffer addScheduledHandler:^(id<MTLCommandBuffer>) {
+                (*callback_to_invoke)();
+                delete callback_to_invoke;
+            }];
+            [command_buffer commit];
+        }
     }
 
     virtual ~MetalContextImpl() override

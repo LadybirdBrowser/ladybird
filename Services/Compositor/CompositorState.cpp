@@ -987,6 +987,22 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Context
         });
     });
     context.presenter().did_submit_prepared_frame(pending_frame.viewport_rect);
+#ifdef AK_OS_MACOS
+    // The window server's reads of an IOSurface wait for GPU work that is already scheduled to write it. Handing the
+    // frame to the client before that work finishes keeps it ahead of the window server's deadline for the next refresh.
+    if (context.presents_to_client() && m_skia_backend_context) {
+        m_skia_backend_context->metal_context().when_committed_work_is_scheduled([self = NonnullRefPtr { *this }, &event_loop, pending_present]() mutable {
+            event_loop.deferred_invoke([self = move(self), pending_present] {
+                for (auto& entry : self->m_pending_async_presents) {
+                    if (&entry == pending_present) {
+                        self->deliver_rendered_frame(entry);
+                        return;
+                    }
+                }
+            });
+        });
+    }
+#endif
     schedule_gpu_completion_check();
 }
 
@@ -1195,26 +1211,27 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
     }
     VERIFY(pending_present_iterator != m_pending_async_presents.end());
 
-    auto context_id = pending_present.context_id;
-    auto viewport_rect = pending_present.viewport_rect;
-    auto damage_rect = pending_present.damage_rect;
-    auto bitmap_id = pending_present.bitmap_id;
-    auto device_pixel_ratio = pending_present.device_pixel_ratio;
-    auto was_cancelled = pending_present.was_cancelled;
+    auto finished_present = pending_present;
     (void)m_pending_async_presents.remove(pending_present_iterator);
     if (m_pending_async_presents.is_empty() && m_gpu_completion_timer)
         m_gpu_completion_timer->stop();
 
-    if (was_cancelled)
+    deliver_rendered_frame(finished_present);
+}
+
+void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_present)
+{
+    if (pending_present.was_cancelled || exchange(pending_present.was_delivered, true))
         return;
 
+    auto context_id = pending_present.context_id;
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    context->presenter().did_finish_gpu_present(bitmap_id);
+    context->presenter().did_finish_gpu_present(pending_present.bitmap_id);
     if (context->presents_to_client()) {
         VERIFY(m_client);
-        m_client->did_present_frame(context_id, viewport_rect, damage_rect, bitmap_id, device_pixel_ratio);
+        m_client->did_present_frame(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.bitmap_id, pending_present.device_pixel_ratio);
     }
     resize_backing_stores_if_needed(context_id, *context);
     if (auto parent_context_id = context->parent_context_id(); parent_context_id.has_value()) {
