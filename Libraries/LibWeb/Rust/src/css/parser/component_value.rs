@@ -12,16 +12,60 @@ use smallvec::SmallVec;
 
 const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
 
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct ComponentValueList<T = Vec<ComponentValue>> {
+    values: T,
+    pub(crate) token_count: usize,
+}
+
+impl<T: AsRef<[ComponentValue]>> ComponentValueList<T> {
+    pub(crate) fn new(values: T) -> Self {
+        let token_count = values.as_ref().iter().map(ComponentValue::token_count).sum();
+        Self { values, token_count }
+    }
+
+    pub(crate) fn with_token_count(values: T, token_count: usize) -> Self {
+        Self { values, token_count }
+    }
+}
+
+impl ComponentValueList {
+    pub(crate) fn into_vec(self) -> Vec<ComponentValue> {
+        self.values
+    }
+
+    pub(crate) fn into_boxed(self) -> ComponentValueList<Box<[ComponentValue]>> {
+        ComponentValueList {
+            values: self.values.into_boxed_slice(),
+            token_count: self.token_count,
+        }
+    }
+}
+
+impl<T: AsRef<[ComponentValue]>> std::ops::Deref for ComponentValueList<T> {
+    type Target = [ComponentValue];
+
+    fn deref(&self) -> &Self::Target {
+        self.values.as_ref()
+    }
+}
+
+impl<T: AsRef<[ComponentValue]>> From<T> for ComponentValueList<T> {
+    fn from(values: T) -> Self {
+        Self::new(values)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ComponentKind {
     Token(ParserTokenKind),
     Function {
         name: ParserString,
-        values: Box<[ComponentValue]>,
+        values: ComponentValueList<Box<[ComponentValue]>>,
     },
     SimpleBlock {
         opening: ParserTokenKind,
-        values: Box<[ComponentValue]>,
+        values: ComponentValueList<Box<[ComponentValue]>>,
     },
 }
 
@@ -44,11 +88,21 @@ impl ComponentValue {
             ComponentKind::Token(token) => token.detach(detacher),
             ComponentKind::Function { name, values } => {
                 name.detach(detacher);
-                values.iter_mut().for_each(|value| value.detach(detacher));
+                values.values.iter_mut().for_each(|value| value.detach(detacher));
             }
             ComponentKind::SimpleBlock { opening, values } => {
                 opening.detach(detacher);
-                values.iter_mut().for_each(|value| value.detach(detacher));
+                values.values.iter_mut().for_each(|value| value.detach(detacher));
+            }
+        }
+    }
+
+    pub(crate) fn token_count(&self) -> usize {
+        match &self.kind {
+            ComponentKind::Token(_) => 1,
+            // Include closing delimiters even when the component is closed at EOF.
+            ComponentKind::Function { values, .. } | ComponentKind::SimpleBlock { values, .. } => {
+                2 + values.token_count
             }
         }
     }
@@ -421,20 +475,23 @@ fn consume_component_values<T: ParserTokens + ?Sized>(
     ending: Option<&ParserTokenKind>,
     depth: usize,
     take_tokens: bool,
-) -> Result<Vec<ComponentValue>, ()> {
+) -> Result<ComponentValueList, ()> {
     if depth > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
         return Err(());
     }
 
     let mut values = Vec::with_capacity(4);
+    let mut token_count = 0;
     while let Some(token) = tokens.token(*position) {
         if ending.is_some_and(|ending| is_same_token_kind(&token.kind, ending)) {
             break;
         }
 
-        values.push(consume_a_component_value(tokens, position, depth, take_tokens)?);
+        let value = consume_a_component_value(tokens, position, depth, take_tokens)?;
+        token_count += value.token_count();
+        values.push(value);
     }
-    Ok(values)
+    Ok(ComponentValueList::with_token_count(values, token_count))
 }
 
 pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
@@ -499,7 +556,7 @@ pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
             });
             ComponentKind::Function {
                 name,
-                values: function_values.into_boxed_slice(),
+                values: function_values.into_boxed(),
             }
         }
         opening @ (ParserTokenKind::OpenSquare | ParserTokenKind::OpenParen | ParserTokenKind::OpenCurly) => {
@@ -534,7 +591,7 @@ pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
             });
             ComponentKind::SimpleBlock {
                 opening,
-                values: block_values.into_boxed_slice(),
+                values: block_values.into_boxed(),
             }
         }
         kind => {
@@ -570,6 +627,12 @@ impl ComponentValueTokens for &[ParserToken] {
 }
 
 pub(crate) fn consume_a_list_of_component_values(tokens: impl ComponentValueTokens) -> Result<Vec<ComponentValue>, ()> {
+    consume_a_counted_list_of_component_values(tokens).map(ComponentValueList::into_vec)
+}
+
+pub(crate) fn consume_a_counted_list_of_component_values(
+    tokens: impl ComponentValueTokens,
+) -> Result<ComponentValueList, ()> {
     let mut tokens = tokens.into_owned_tokens();
     let mut position = 0;
     consume_component_values(tokens.as_mut_slice(), &mut position, None, 0, true)
@@ -594,7 +657,8 @@ pub(crate) fn consume_a_small_list_of_component_values(
 #[cfg(test)]
 mod tests {
     use super::{
-        ComponentKind, ComponentSerializationMode, consume_a_list_of_component_values, serialize_component_values_into,
+        ComponentKind, ComponentSerializationMode, consume_a_counted_list_of_component_values,
+        consume_a_list_of_component_values, serialize_component_values_into,
     };
     use crate::css::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
     use crate::css::serialize::TextSink;
@@ -611,6 +675,21 @@ mod tests {
         let mut sink = TextSink::new();
         serialize_component_values_into(&mut sink, values, mode)
             .then(|| String::from_utf16(&sink.into_utf16()).unwrap())
+    }
+
+    #[test]
+    fn retains_underlying_token_counts() {
+        for (source, expected) in [
+            ("", 0),
+            ("a 1", 3),
+            ("f([a])", 5),
+            ("f([a", 5),
+            ("[{}]", 4),
+            (" f([a]) ", 7),
+        ] {
+            let values = consume_a_counted_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
+            assert_eq!(values.token_count, expected, "{source}");
+        }
     }
 
     #[test]

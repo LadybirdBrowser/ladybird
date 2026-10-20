@@ -5833,7 +5833,7 @@ fn parse_css_value_after_substitution_scan(
             nested_values = vec![ComponentValue {
                 kind: ComponentKind::Function {
                     name: function_name.into_boxed_slice().into(),
-                    values: nested_values.into_boxed_slice(),
+                    values: nested_values.into_boxed_slice().into(),
                 },
                 original_source_text: crate::css::css_tokenizer::ParserSource::empty(),
                 opening_source_length: 0,
