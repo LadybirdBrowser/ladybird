@@ -1,0 +1,56 @@
+A canvas:
+  two rectangles, nonzero: 1101000
+  two rectangles, evenodd: 1100000
+  a translated rectangle: 0111001
+  after a later scale: 0111001
+  under a singular transform: 1010000
+  a Path2D circle: 0101000
+  a Path2D circle under a rotation: 0000000
+  an empty Path2D: 0000000
+  isPointInPath(): TypeError: Overload resolution failed
+  isPointInPath(1): TypeError: Overload resolution failed
+  isPointInPath(1, 2, "bogus"): TypeError: Invalid value 'bogus' for enumeration type 'CanvasFillRule'
+  isPointInPath(path, 1): false
+  isPointInPath({}, 1, 2): TypeError: Invalid value '2' for enumeration type 'CanvasFillRule'
+  fill("bogus"): TypeError: Invalid value 'bogus' for enumeration type 'CanvasFillRule'
+  fill(null): TypeError: Invalid value 'null' for enumeration type 'CanvasFillRule'
+  clip(path, "bogus"): TypeError: Invalid value 'bogus' for enumeration type 'CanvasFillRule'
+  stroke(null): TypeError: Not an object of type Path2D
+  drawImage(null, 0, 0): TypeError: No union types matched
+  drawImage(canvas, 0): TypeError: Overload resolution failed
+  drawImage(canvas, 0, 0, 1): TypeError: Overload resolution failed
+  drawImage(canvas, 0, 0, 1, 1, 1, 1): TypeError: Overload resolution failed
+  setTransform(1, 2): TypeError: Overload resolution failed
+  putImageData(new ImageData(1, 1), 0, 0, 0): TypeError: Overload resolution failed
+  createImageData(): TypeError: Overload resolution failed
+  fillText("a", 1): TypeError: fillText() needs 3 arguments
+  fillStyle = {}: #000000
+  fillStyle = new Path2D(): #000000
+An OffscreenCanvas:
+  two rectangles, nonzero: 1101000
+  two rectangles, evenodd: 1100000
+  a translated rectangle: 0111001
+  after a later scale: 0111001
+  under a singular transform: 1010000
+  a Path2D circle: 0101000
+  a Path2D circle under a rotation: 0000000
+  an empty Path2D: 0000000
+  isPointInPath(): TypeError: Overload resolution failed
+  isPointInPath(1): TypeError: Overload resolution failed
+  isPointInPath(1, 2, "bogus"): TypeError: Invalid value 'bogus' for enumeration type 'CanvasFillRule'
+  isPointInPath(path, 1): false
+  isPointInPath({}, 1, 2): TypeError: Invalid value '2' for enumeration type 'CanvasFillRule'
+  fill("bogus"): TypeError: Invalid value 'bogus' for enumeration type 'CanvasFillRule'
+  fill(null): TypeError: Invalid value 'null' for enumeration type 'CanvasFillRule'
+  clip(path, "bogus"): TypeError: Invalid value 'bogus' for enumeration type 'CanvasFillRule'
+  stroke(null): TypeError: Not an object of type Path2D
+  drawImage(null, 0, 0): TypeError: No union types matched
+  drawImage(canvas, 0): TypeError: Overload resolution failed
+  drawImage(canvas, 0, 0, 1): TypeError: Overload resolution failed
+  drawImage(canvas, 0, 0, 1, 1, 1, 1): TypeError: Overload resolution failed
+  setTransform(1, 2): TypeError: Overload resolution failed
+  putImageData(new ImageData(1, 1), 0, 0, 0): TypeError: Overload resolution failed
+  createImageData(): TypeError: Overload resolution failed
+  fillText("a", 1): TypeError: fillText() needs 3 arguments
+  fillStyle = {}: #000000
+  fillStyle = new Path2D(): #000000

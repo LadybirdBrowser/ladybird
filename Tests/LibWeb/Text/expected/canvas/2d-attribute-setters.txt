@@ -1,0 +1,176 @@
+A canvas, the initial state:
+  globalAlpha: 1
+  globalCompositeOperation: source-over
+  imageSmoothingEnabled: true
+  imageSmoothingQuality: low
+  strokeStyle: #000000
+  fillStyle: #000000
+  shadowOffsetX: 0
+  shadowOffsetY: 0
+  shadowBlur: 0
+  shadowColor: rgba(0, 0, 0, 0)
+  filter: none
+  lineWidth: 1
+  lineCap: butt
+  lineJoin: miter
+  miterLimit: 10
+  lineDashOffset: 0
+  font: 10px sans-serif
+  textAlign: start
+  textBaseline: alphabetic
+  direction: inherit
+  letterSpacing: 0px
+  getLineDash(): []
+  getTransform(): 1,0,0,1,0,0
+imageSmoothingQuality: "high" -> high, "bogus" -> high, "LOW" -> high, "" -> high, "medium" -> medium
+lineCap: "round" -> round, "bogus" -> round, "SQUARE" -> round, null -> round, "square" -> square
+lineJoin: "bevel" -> bevel, "miter " -> bevel, undefined -> bevel, "round" -> round
+textAlign: "center" -> center, "middle" -> center, "End" -> center, "end" -> end
+textBaseline: "top" -> top, "baseline" -> top, "HANGING" -> top, "hanging" -> hanging
+direction: "rtl" -> rtl, "auto" -> rtl, "LTR" -> rtl, "ltr" -> ltr
+globalAlpha: 0.5 -> 0.5, -0.1 -> 0.5, 1.5 -> 0.5, NaN -> 0.5, Infinity -> 0.5, 0.3 -> 0.30000001192092896
+shadowOffsetX: 1.25 -> 1.25, NaN -> 1.25, -Infinity -> 1.25, -3.1 -> -3.0999999046325684
+shadowOffsetY: 2.5 -> 2.5, Infinity -> 2.5, 0.1 -> 0.10000000149011612
+shadowBlur: 4 -> 4, -1 -> 4, NaN -> 4, Infinity -> 4, 0.7 -> 0.699999988079071
+lineWidth: 3 -> 3, 0 -> 3, -2 -> 3, NaN -> 3, Infinity -> 3, 0.1 -> 0.10000000149011612
+miterLimit: 5 -> 5, 0 -> 5, -1 -> 5, NaN -> 5, 1.1 -> 1.100000023841858
+lineDashOffset: 7 -> 7, NaN -> 7, Infinity -> 7, -0.2 -> -0.20000000298023224
+globalCompositeOperation: "multiply" -> multiply, "bogus" -> multiply, "XOR" -> multiply, "plus-lighter" -> plus-lighter, "destination-atop" -> destination-atop
+shadowColor: "red" -> #ff0000, "bogus" -> #ff0000, "rgba(1, 2, 3, 0.5)" -> rgba(1, 2, 3, 0.5), "#abc" -> #aabbcc
+strokeStyle: "blue" -> #0000ff, "not a color" -> #0000ff, "hsl(120, 100%, 50%)" -> #00ff00
+fillStyle: "#123456" -> #123456, "rgb(1 2 3 / 50%)" -> rgba(1, 2, 3, 0.5), "nope" -> rgba(1, 2, 3, 0.5), "transparent" -> rgba(0, 0, 0, 0)
+filter: "blur(2px)" -> blur(2px), "bogus" -> blur(2px), "none" -> none, "brightness(50%) blur(1em)" -> brightness(50%) blur(1em), "inherit" -> brightness(50%) blur(1em)
+font: "20px serif" -> 20px serif, "bogus" -> 20px serif, "italic bold 12px/30px monospace" -> italic 700 12px monospace, "inherit" -> italic 700 12px monospace, "small-caps 1em sans-serif" -> small-caps 10px sans-serif
+letterSpacing: "2px" -> 2px, "bogus" -> 2px, "1em" -> 1em, "0" -> 0px, "3.5pt" -> 3.5pt
+imageSmoothingEnabled: false
+setLineDash([1,2]) -> [1,2]
+setLineDash([3]) -> [3,3]
+setLineDash([1,-1]) -> [3,3]
+setLineDash([1,NaN]) -> [3,3]
+setLineDash([]) -> []
+setLineDash([0.1,0.2,0.3]) -> [0.1,0.2,0.3,0.1,0.2,0.3]
+transforms: 1.2320507764816284,2.7990379333496094,-0.5669872760772705,2.973076105117798,11.196151733398438,34.892303466796875
+getTransform() is a new object: true
+setTransform(six numbers): 1.100000023841858,2.200000047683716,3.299999952316284,4.400000095367432,5.5,6.599999904632568
+setTransform(dictionary): 2,0,0,3,4,0
+setTransform(infinite member): 2,0,0,3,4,0
+setTransform(inconsistent members): TypeError: DOMMatrix2DInit.a and DOMMatrix2DInit.m11 must have the same value if they are both present
+setTransform(): 1,0,0,1,0,0
+after one restore(): lineWidth 11, lineCap square, font 30px monospace
+after two more restore(): lineWidth 9, font small-caps 10px sans-serif, e 0
+isContextLost(): false
+getContextAttributes(): {"alpha":true,"colorSpace":"srgb","colorType":"unorm8","desynchronized":false,"willReadFrequently":false}
+A canvas, after reset():
+  globalAlpha: 1
+  globalCompositeOperation: source-over
+  imageSmoothingEnabled: true
+  imageSmoothingQuality: low
+  strokeStyle: #000000
+  fillStyle: #000000
+  shadowOffsetX: 0
+  shadowOffsetY: 0
+  shadowBlur: 0
+  shadowColor: rgba(0, 0, 0, 0)
+  filter: none
+  lineWidth: 1
+  lineCap: butt
+  lineJoin: miter
+  miterLimit: 10
+  lineDashOffset: 0
+  font: 10px sans-serif
+  textAlign: start
+  textBaseline: alphabetic
+  direction: inherit
+  letterSpacing: 0px
+  getLineDash(): []
+  getTransform(): 1,0,0,1,0,0
+isPointInStroke: undefined, drawFocusIfNeeded: undefined
+canvas: true
+An OffscreenCanvas, the initial state:
+  globalAlpha: 1
+  globalCompositeOperation: source-over
+  imageSmoothingEnabled: true
+  imageSmoothingQuality: low
+  strokeStyle: #000000
+  fillStyle: #000000
+  shadowOffsetX: 0
+  shadowOffsetY: 0
+  shadowBlur: 0
+  shadowColor: rgba(0, 0, 0, 0)
+  filter: none
+  lineWidth: 1
+  lineCap: butt
+  lineJoin: miter
+  miterLimit: 10
+  lineDashOffset: 0
+  font: 10px sans-serif
+  textAlign: start
+  textBaseline: alphabetic
+  direction: inherit
+  letterSpacing: 0px
+  getLineDash(): []
+  getTransform(): 1,0,0,1,0,0
+imageSmoothingQuality: "high" -> high, "bogus" -> high, "LOW" -> high, "" -> high, "medium" -> medium
+lineCap: "round" -> round, "bogus" -> round, "SQUARE" -> round, null -> round, "square" -> square
+lineJoin: "bevel" -> bevel, "miter " -> bevel, undefined -> bevel, "round" -> round
+textAlign: "center" -> center, "middle" -> center, "End" -> center, "end" -> end
+textBaseline: "top" -> top, "baseline" -> top, "HANGING" -> top, "hanging" -> hanging
+direction: "rtl" -> rtl, "auto" -> rtl, "LTR" -> rtl, "ltr" -> ltr
+globalAlpha: 0.5 -> 0.5, -0.1 -> 0.5, 1.5 -> 0.5, NaN -> 0.5, Infinity -> 0.5, 0.3 -> 0.30000001192092896
+shadowOffsetX: 1.25 -> 1.25, NaN -> 1.25, -Infinity -> 1.25, -3.1 -> -3.0999999046325684
+shadowOffsetY: 2.5 -> 2.5, Infinity -> 2.5, 0.1 -> 0.10000000149011612
+shadowBlur: 4 -> 4, -1 -> 4, NaN -> 4, Infinity -> 4, 0.7 -> 0.699999988079071
+lineWidth: 3 -> 3, 0 -> 3, -2 -> 3, NaN -> 3, Infinity -> 3, 0.1 -> 0.10000000149011612
+miterLimit: 5 -> 5, 0 -> 5, -1 -> 5, NaN -> 5, 1.1 -> 1.100000023841858
+lineDashOffset: 7 -> 7, NaN -> 7, Infinity -> 7, -0.2 -> -0.20000000298023224
+globalCompositeOperation: "multiply" -> multiply, "bogus" -> multiply, "XOR" -> multiply, "plus-lighter" -> plus-lighter, "destination-atop" -> destination-atop
+shadowColor: "red" -> #ff0000, "bogus" -> #ff0000, "rgba(1, 2, 3, 0.5)" -> rgba(1, 2, 3, 0.5), "#abc" -> #aabbcc
+strokeStyle: "blue" -> #0000ff, "not a color" -> #0000ff, "hsl(120, 100%, 50%)" -> #00ff00
+fillStyle: "#123456" -> #123456, "rgb(1 2 3 / 50%)" -> rgba(1, 2, 3, 0.5), "nope" -> rgba(1, 2, 3, 0.5), "transparent" -> rgba(0, 0, 0, 0)
+filter: "blur(2px)" -> blur(2px), "bogus" -> blur(2px), "none" -> none, "brightness(50%) blur(1em)" -> brightness(50%) blur(1em), "inherit" -> brightness(50%) blur(1em)
+font: "20px serif" -> 20px serif, "bogus" -> 20px serif, "italic bold 12px/30px monospace" -> italic 700 12px monospace, "inherit" -> italic 700 12px monospace, "small-caps 1em sans-serif" -> small-caps 10px sans-serif
+letterSpacing: "2px" -> 2px, "bogus" -> 2px, "1em" -> 1em, "0" -> 0px, "3.5pt" -> 3.5pt
+imageSmoothingEnabled: false
+setLineDash([1,2]) -> [1,2]
+setLineDash([3]) -> [3,3]
+setLineDash([1,-1]) -> [3,3]
+setLineDash([1,NaN]) -> [3,3]
+setLineDash([]) -> []
+setLineDash([0.1,0.2,0.3]) -> [0.1,0.2,0.3,0.1,0.2,0.3]
+transforms: 1.2320507764816284,2.7990379333496094,-0.5669872760772705,2.973076105117798,11.196151733398438,34.892303466796875
+getTransform() is a new object: true
+setTransform(six numbers): 1.100000023841858,2.200000047683716,3.299999952316284,4.400000095367432,5.5,6.599999904632568
+setTransform(dictionary): 2,0,0,3,4,0
+setTransform(infinite member): 2,0,0,3,4,0
+setTransform(inconsistent members): TypeError: DOMMatrix2DInit.a and DOMMatrix2DInit.m11 must have the same value if they are both present
+setTransform(): 1,0,0,1,0,0
+after one restore(): lineWidth 11, lineCap square, font 30px monospace
+after two more restore(): lineWidth 9, font small-caps 10px sans-serif, e 0
+isContextLost(): false
+getContextAttributes(): {"alpha":false,"colorSpace":"srgb","colorType":"unorm8","desynchronized":false,"willReadFrequently":true}
+An OffscreenCanvas, after reset():
+  globalAlpha: 1
+  globalCompositeOperation: source-over
+  imageSmoothingEnabled: true
+  imageSmoothingQuality: low
+  strokeStyle: #000000
+  fillStyle: #000000
+  shadowOffsetX: 0
+  shadowOffsetY: 0
+  shadowBlur: 0
+  shadowColor: rgba(0, 0, 0, 0)
+  filter: none
+  lineWidth: 1
+  lineCap: butt
+  lineJoin: miter
+  miterLimit: 10
+  lineDashOffset: 0
+  font: 10px sans-serif
+  textAlign: start
+  textBaseline: alphabetic
+  direction: inherit
+  letterSpacing: 0px
+  getLineDash(): []
+  getTransform(): 1,0,0,1,0,0
+isPointInStroke: undefined, drawFocusIfNeeded: undefined
+canvas: true

@@ -1,0 +1,104 @@
+A canvas:
+getImageData(0, 0, 2, 1): ImageData 2x1 [10,20,30,255,10,20,30,255]
+getImageData(1.9, 0.5, 2.9, 1.2): ImageData 2x1 [10,20,30,255,0,0,0,0]
+getImageData(3, 2, -2, -2): ImageData 2x2 [10,20,30,255,0,0,0,0,10,20,30,255,199,100,50,128]
+getImageData(-1, -1, 2, 2): ImageData 2x2 [0,0,0,0,0,0,0,0,0,0,0,0,10,20,30,255]
+getImageData(10, 10, 1, 1): ImageData 1x1 [0,0,0,0]
+getImageData(0, 0, 0, 1): DOMException IndexSizeError: Width and height must not be zero
+getImageData(NaN, 0, 1, 1): TypeError: Number must not be NaN or Infinity
+getImageData(0, Infinity, 1, 1): TypeError: Number must not be NaN or Infinity
+getImageData(2 ** 31, 0, 1, 1): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
+getImageData(0, -(2 ** 31) - 1, 1, 1): TypeError: Number '-2147483649' is outside of allowed range of -2147483648 to 2147483647
+getImageData(-(2 ** 31), -(2 ** 31), 1, 1): ImageData 1x1 [0,0,0,0]
+getImageData(0, 0, 1, 1e300): TypeError: Number '1e+300' is outside of allowed range of -2147483648 to 2147483647
+getImageData(2 ** 31 - 1, 2 ** 31 - 1, 1, 1): ImageData 1x1 [0,0,0,0]
+getImageData(0, 0, "2", [1]): ImageData 2x1 [10,20,30,255,10,20,30,255]
+getImageData(0, 0, 1, 1, { colorSpace: "bogus" }): TypeError: Invalid value 'bogus' for enumeration type 'PredefinedColorSpace'
+getImageData(0, 0, 1, 1, { colorSpace: "display-p3" }).colorSpace: display-p3
+createImageData(2, 1): ImageData 2x1 [0,0,0,0,0,0,0,0]
+createImageData(-2, -1): ImageData 2x1 [0,0,0,0,0,0,0,0]
+createImageData(0, 1): DOMException IndexSizeError: Width and height must not be zero
+createImageData(1, NaN): TypeError: Number must not be NaN or Infinity
+createImageData(2 ** 31, 1): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
+createImageData(1.99, -1.99): ImageData 1x1 [0,0,0,0]
+createImageData(-(2 ** 31), 1): DOMException IndexSizeError: The specified image size could not created
+createImageData(new ImageData(3, 1)): ImageData 3x1 [0,0,0,0,0,0,0,0,0,0,0,0]
+createImageData(1, 1, { colorSpace: "srgb-linear" }).colorSpace: srgb-linear
+createImageData(null): TypeError: Not an object of type ImageData
+putImageData(source, Infinity, 0): TypeError: Number must not be NaN or Infinity
+putImageData(source, 0, 2 ** 31): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
+putImageData(source, 0, 0, 0, 0, NaN, 1): TypeError: Number must not be NaN or Infinity
+putImageData(source, 3, 2): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [10,20,30,255,10,20,30,255,0,0,0,0,0,0,0,0,10,20,30,255,10,20,30,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(source, 0, 0, 1, 1, -5, -5): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [255,0,0,255,10,20,30,255,0,0,0,0,0,0,0,0,10,20,30,255,10,20,30,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(source, 1, 0, -1, -1, 2, 3): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [255,0,0,255,255,0,0,255,0,0,0,0,0,0,0,0,10,20,30,255,0,0,255,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(source, -(2 ** 31), -(2 ** 31), 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1): no exception
+putImageData(source, 2 ** 31 - 1, 2 ** 31 - 1, -(2 ** 31), -(2 ** 31), -(2 ** 31), -(2 ** 31)): no exception
+putImageData(source, -1, -1, 0, 0, 2 ** 31 - 1, 2 ** 31 - 1): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [0,0,0,4,255,0,0,255,0,0,0,0,0,0,0,0,10,20,30,255,0,0,255,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(detached, 0, 0): DOMException InvalidStateError: ImageData's underlying buffer is detached
+createPattern(canvas, null) repeats: true
+createPattern(canvas, ""): true
+createPattern(canvas, "repeat-x"): true
+createPattern(canvas, "Repeat"): DOMException SyntaxError: Repetition value is not valid
+createPattern(canvas, undefined): DOMException SyntaxError: Repetition value is not valid
+createPattern(canvas without width, "repeat"): DOMException InvalidStateError: Canvas width or height is zero
+createPattern(new OffscreenCanvas(0, 1), "repeat"): DOMException InvalidStateError: OffscreenCanvas width or height is zero
+createPattern(new Image(), "repeat"): null
+createPattern({}, "repeat"): TypeError: No union types matched
+createPattern(canvas): TypeError: createPattern() needs 2 arguments
+An OffscreenCanvas:
+getImageData(0, 0, 2, 1): ImageData 2x1 [10,20,30,255,10,20,30,255]
+getImageData(1.9, 0.5, 2.9, 1.2): ImageData 2x1 [10,20,30,255,0,0,0,0]
+getImageData(3, 2, -2, -2): ImageData 2x2 [10,20,30,255,0,0,0,0,10,20,30,255,199,100,50,128]
+getImageData(-1, -1, 2, 2): ImageData 2x2 [0,0,0,0,0,0,0,0,0,0,0,0,10,20,30,255]
+getImageData(10, 10, 1, 1): ImageData 1x1 [0,0,0,0]
+getImageData(0, 0, 0, 1): DOMException IndexSizeError: Width and height must not be zero
+getImageData(NaN, 0, 1, 1): TypeError: Number must not be NaN or Infinity
+getImageData(0, Infinity, 1, 1): TypeError: Number must not be NaN or Infinity
+getImageData(2 ** 31, 0, 1, 1): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
+getImageData(0, -(2 ** 31) - 1, 1, 1): TypeError: Number '-2147483649' is outside of allowed range of -2147483648 to 2147483647
+getImageData(-(2 ** 31), -(2 ** 31), 1, 1): ImageData 1x1 [0,0,0,0]
+getImageData(0, 0, 1, 1e300): TypeError: Number '1e+300' is outside of allowed range of -2147483648 to 2147483647
+getImageData(2 ** 31 - 1, 2 ** 31 - 1, 1, 1): ImageData 1x1 [0,0,0,0]
+getImageData(0, 0, "2", [1]): ImageData 2x1 [10,20,30,255,10,20,30,255]
+getImageData(0, 0, 1, 1, { colorSpace: "bogus" }): TypeError: Invalid value 'bogus' for enumeration type 'PredefinedColorSpace'
+getImageData(0, 0, 1, 1, { colorSpace: "display-p3" }).colorSpace: display-p3
+createImageData(2, 1): ImageData 2x1 [0,0,0,0,0,0,0,0]
+createImageData(-2, -1): ImageData 2x1 [0,0,0,0,0,0,0,0]
+createImageData(0, 1): DOMException IndexSizeError: Width and height must not be zero
+createImageData(1, NaN): TypeError: Number must not be NaN or Infinity
+createImageData(2 ** 31, 1): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
+createImageData(1.99, -1.99): ImageData 1x1 [0,0,0,0]
+createImageData(-(2 ** 31), 1): DOMException IndexSizeError: The specified image size could not created
+createImageData(new ImageData(3, 1)): ImageData 3x1 [0,0,0,0,0,0,0,0,0,0,0,0]
+createImageData(1, 1, { colorSpace: "srgb-linear" }).colorSpace: srgb-linear
+createImageData(null): TypeError: Not an object of type ImageData
+putImageData(source, Infinity, 0): TypeError: Number must not be NaN or Infinity
+putImageData(source, 0, 2 ** 31): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
+putImageData(source, 0, 0, 0, 0, NaN, 1): TypeError: Number must not be NaN or Infinity
+putImageData(source, 3, 2): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [10,20,30,255,10,20,30,255,0,0,0,0,0,0,0,0,10,20,30,255,10,20,30,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(source, 0, 0, 1, 1, -5, -5): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [255,0,0,255,10,20,30,255,0,0,0,0,0,0,0,0,10,20,30,255,10,20,30,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(source, 1, 0, -1, -1, 2, 3): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [255,0,0,255,255,0,0,255,0,0,0,0,0,0,0,0,10,20,30,255,0,0,255,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(source, -(2 ** 31), -(2 ** 31), 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1): no exception
+putImageData(source, 2 ** 31 - 1, 2 ** 31 - 1, -(2 ** 31), -(2 ** 31), -(2 ** 31), -(2 ** 31)): no exception
+putImageData(source, -1, -1, 0, 0, 2 ** 31 - 1, 2 ** 31 - 1): no exception
+after it, getImageData(0, 0, 4, 3): ImageData 4x3 [0,0,0,4,255,0,0,255,0,0,0,0,0,0,0,0,10,20,30,255,0,0,255,255,199,100,50,128,199,100,50,128,0,0,0,0,0,0,0,0,199,100,50,128,255,0,0,255]
+putImageData(detached, 0, 0): DOMException InvalidStateError: ImageData's underlying buffer is detached
+createPattern(canvas, null) repeats: true
+createPattern(canvas, ""): true
+createPattern(canvas, "repeat-x"): true
+createPattern(canvas, "Repeat"): DOMException SyntaxError: Repetition value is not valid
+createPattern(canvas, undefined): DOMException SyntaxError: Repetition value is not valid
+createPattern(canvas without width, "repeat"): DOMException InvalidStateError: Canvas width or height is zero
+createPattern(new OffscreenCanvas(0, 1), "repeat"): DOMException InvalidStateError: OffscreenCanvas width or height is zero
+createPattern(new Image(), "repeat"): null
+createPattern({}, "repeat"): TypeError: No union types matched
+createPattern(canvas): TypeError: createPattern() needs 2 arguments
+createPattern(closed ImageBitmap, "repeat"): DOMException InvalidStateError: Image bitmap is detached
+drawImage(closed ImageBitmap, 0, 0): DOMException InvalidStateError: Image bitmap is detached
