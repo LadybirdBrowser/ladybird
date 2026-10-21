@@ -76,6 +76,10 @@ if (HAS_FONTCONFIG)
     list(APPEND SOURCES Font/GlobalFontConfig.cpp)
 endif()
 
+compile_ipc(Point.ipc PointCodecs.h)
+compile_ipc(Rect.ipc RectCodecs.h)
+compile_ipc(Size.ipc SizeCodecs.h)
+
 ladybird_lib(LibGfx gfx)
 
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibTextCodec LibIPC LibUnicode)

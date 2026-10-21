@@ -1,0 +1,15 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibGfx/Point.h>
+
+[ExistingCpp, Accessors]
+struct Gfx::IntPoint {
+    i32 x;
+    i32 y;
+}
+
+[ExistingCpp, Accessors]
+struct Gfx::FloatPoint {
+    float x;
+    float y;
+}

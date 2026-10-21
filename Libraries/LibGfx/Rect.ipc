@@ -1,0 +1,19 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibGfx/Rect.h>
+
+[ExistingCpp, Accessors]
+struct Gfx::IntRect {
+    i32 x;
+    i32 y;
+    i32 width;
+    i32 height;
+}
+
+[ExistingCpp, Accessors]
+struct Gfx::FloatRect {
+    float x;
+    float y;
+    float width;
+    float height;
+}

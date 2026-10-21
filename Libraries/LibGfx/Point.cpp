@@ -7,8 +7,6 @@
 #include <AK/ByteString.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 
 namespace Gfx {
 
@@ -45,42 +43,6 @@ template<>
 ByteString FloatPoint::to_byte_string() const
 {
     return ByteString::formatted("[{},{}]", x(), y());
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::IntPoint const& point)
-{
-    TRY(encoder.encode(point.x()));
-    TRY(encoder.encode(point.y()));
-    return {};
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::FloatPoint const& point)
-{
-    TRY(encoder.encode(point.x()));
-    TRY(encoder.encode(point.y()));
-    return {};
-}
-
-template<>
-ErrorOr<Gfx::IntPoint> decode(Decoder& decoder)
-{
-    auto x = TRY(decoder.decode<int>());
-    auto y = TRY(decoder.decode<int>());
-    return Gfx::IntPoint { x, y };
-}
-
-template<>
-ErrorOr<Gfx::FloatPoint> decode(Decoder& decoder)
-{
-    auto x = TRY(decoder.decode<float>());
-    auto y = TRY(decoder.decode<float>());
-    return Gfx::FloatPoint { x, y };
 }
 
 }

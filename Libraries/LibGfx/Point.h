@@ -11,7 +11,6 @@
 #include <AK/StdLibExtras.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Orientation.h>
-#include <LibIPC/Forward.h>
 #include <math.h>
 
 namespace Gfx {
@@ -292,19 +291,7 @@ struct Formatter<Gfx::Point<T>> : Formatter<FormatString> {
 
 }
 
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, Gfx::IntPoint const&);
-template<>
-ErrorOr<void> encode(Encoder&, Gfx::FloatPoint const&);
-
-template<>
-ErrorOr<Gfx::IntPoint> decode(Decoder&);
-template<>
-ErrorOr<Gfx::FloatPoint> decode(Decoder&);
-
-}
+#include <LibGfx/PointCodecs.h>
 
 template<typename T>
 struct AK::Traits<Gfx::Point<T>> : public AK::DefaultTraits<Gfx::Point<T>> {
