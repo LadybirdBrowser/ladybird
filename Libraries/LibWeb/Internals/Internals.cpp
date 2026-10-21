@@ -807,7 +807,8 @@ void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort click_count
 {
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mousedown(position, position, button_from_unsigned_short(button), 0, modifiers, click_count);
+    auto pressed_button = button_from_unsigned_short(button);
+    page.handle_mousedown(position, position, pressed_button, pressed_button, modifiers, click_count);
 }
 
 void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
