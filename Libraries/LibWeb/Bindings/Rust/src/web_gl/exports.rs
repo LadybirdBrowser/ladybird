@@ -8,6 +8,7 @@
 //! context of either kind.
 
 use core::ffi::c_void;
+use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use super::canvas::Canvas;
@@ -124,12 +125,19 @@ pub struct ContextCreationArguments {
     supported_extension_count: usize,
 }
 
-/// # Safety
-///
-/// `context` is the live cell of a WebGLRenderingContext or of a WebGL2RenderingContext.
-unsafe fn with_context<R>(context: *mut c_void, function: impl FnOnce(&ContextState) -> R) -> R {
-    let cell = NonNull::new(context).expect("C++ passes the cell of a context");
-    // SAFETY: The caller passes a live cell of one of the two classes, which the downcasts tell apart.
+/// The cell of a WebGLRenderingContext or of a WebGL2RenderingContext, which only C++ lends out, for as long as the
+/// context is live.
+#[repr(C)]
+pub struct ContextCell {
+    // NB: The cell is mutable behind a shared reference, and bigger than Rust sees, so a reference to one must not tell
+    //     the compiler that the memory behind it is read only or unaliased.
+    _opaque: core::cell::UnsafeCell<[u8; 0]>,
+    _not_send_sync_or_unpin: PhantomData<(*const (), core::marker::PhantomPinned)>,
+}
+
+fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -> R) -> R {
+    let cell = NonNull::from(context).cast();
+    // SAFETY: A ContextCell is the live cell of one of the two classes, which the downcasts tell apart.
     unsafe {
         if let Some(context) = RenderingContext::<WebGL1>::CELL_CLASS.downcast(cell) {
             return function(&context);
@@ -190,116 +198,112 @@ pub unsafe extern "C" fn web_webgl_context_create(
     }
 }
 
-// SAFETY (of every function below): The caller passes the live cell of a context, and live pointers to what a
-// function stores.
-
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_canvas_host(context: *mut c_void) -> *mut c_void {
-    unsafe { with_context(context, |context| context.canvas().host.as_ptr()) }
+pub extern "C" fn web_webgl_context_canvas_host(context: &ContextCell) -> *mut c_void {
+    with_context(context, |context| context.canvas().host.as_ptr())
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_realm(context: *mut c_void) -> *mut c_void {
-    unsafe { with_context(context, |context| context.realm().as_ptr().cast()) }
+pub extern "C" fn web_webgl_context_realm(context: &ContextCell) -> *mut c_void {
+    with_context(context, |context| context.realm().as_ptr().cast())
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_is_webgl2(context: *mut c_void) -> bool {
-    unsafe { with_context(context, ContextState::is_webgl2) }
+pub extern "C" fn web_webgl_context_is_webgl2(context: &ContextCell) -> bool {
+    with_context(context, ContextState::is_webgl2)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_is_lost(context: *mut c_void) -> bool {
-    unsafe { with_context(context, ContextState::is_context_lost) }
+pub extern "C" fn web_webgl_context_is_lost(context: &ContextCell) -> bool {
+    with_context(context, ContextState::is_context_lost)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_canvas_id(context: *mut c_void, out_canvas_id: *mut u64) -> bool {
-    let Some(canvas_id) = (unsafe { with_context(context, |context| context.proxy.canvas_id()) }) else {
+pub extern "C" fn web_webgl_context_canvas_id(context: &ContextCell, out_canvas_id: &mut u64) -> bool {
+    let Some(canvas_id) = with_context(context, |context| context.proxy.canvas_id()) else {
         return false;
     };
-    unsafe { out_canvas_id.write(canvas_id) };
+    *out_canvas_id = canvas_id;
     true
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_set_size(context: *mut c_void, width: i32, height: i32) {
-    unsafe {
-        with_context(context, |context| {
-            context.proxy.set_size(
-                width.clamp(1, MAX_WEBGL_DRAWING_BUFFER_DIMENSION),
-                height.clamp(1, MAX_WEBGL_DRAWING_BUFFER_DIMENSION),
-            );
-        });
-    }
+pub extern "C" fn web_webgl_context_set_size(context: &ContextCell, width: i32, height: i32) {
+    with_context(context, |context| {
+        context.proxy.set_size(
+            width.clamp(1, MAX_WEBGL_DRAWING_BUFFER_DIMENSION),
+            height.clamp(1, MAX_WEBGL_DRAWING_BUFFER_DIMENSION),
+        );
+    });
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_present_for_compositing(context: *mut c_void) {
-    unsafe {
-        with_context(context, |context| {
-            let preserve_drawing_buffer = context.context_creation_parameters.preserve_drawing_buffer;
-            context.proxy.present_canvas_for_compositing(preserve_drawing_buffer);
-        });
-    }
+pub extern "C" fn web_webgl_context_present_for_compositing(context: &ContextCell) {
+    with_context(context, |context| {
+        let preserve_drawing_buffer = context.context_creation_parameters.preserve_drawing_buffer;
+        context.proxy.present_canvas_for_compositing(preserve_drawing_buffer);
+    });
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_clear_drawing_buffer(context: *mut c_void) {
-    unsafe { with_context(context, |context| context.proxy.clear_drawing_buffer()) };
+pub extern "C" fn web_webgl_context_clear_drawing_buffer(context: &ContextCell) {
+    with_context(context, |context| context.proxy.clear_drawing_buffer());
 }
 
 /// A Gfx::Bitmap with a reference that the caller takes over, or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_read_back_drawing_buffer(
-    context: *mut c_void,
+pub extern "C" fn web_webgl_context_read_back_drawing_buffer(
+    context: &ContextCell,
     x: i32,
     y: i32,
     width: i32,
     height: i32,
 ) -> *mut c_void {
-    let bitmap = unsafe {
-        with_context(context, |context| {
-            context.proxy.read_back_drawing_buffer(x, y, width, height)
-        })
-    };
+    let bitmap = with_context(context, |context| {
+        context.proxy.read_back_drawing_buffer(x, y, width, height)
+    });
     bitmap.map_or(core::ptr::null_mut(), super::host::Bitmap::into_raw)
 }
 
 /// False when the context was lost already.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_mark_lost(context: *mut c_void) -> bool {
-    unsafe { with_context(context, ContextState::mark_lost) }
+pub extern "C" fn web_webgl_context_mark_lost(context: &ContextCell) -> bool {
+    with_context(context, ContextState::mark_lost)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_set_restore_requested(context: *mut c_void, requested: bool) {
-    unsafe { with_context(context, |context| context.set_context_restore_requested(requested)) };
+pub extern "C" fn web_webgl_context_set_restore_requested(context: &ContextCell, requested: bool) {
+    with_context(context, |context| context.set_context_restore_requested(requested));
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_wants_restoring(context: *mut c_void) -> bool {
-    unsafe { with_context(context, ContextState::wants_restoring) }
+pub extern "C" fn web_webgl_context_wants_restoring(context: &ContextCell) -> bool {
+    with_context(context, ContextState::wants_restoring)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_actual_context_parameters(
-    context: *mut c_void,
-    out_context_attributes: *mut ContextAttributes,
+pub extern "C" fn web_webgl_context_actual_context_parameters(
+    context: &ContextCell,
+    out_context_attributes: &mut ContextAttributes,
 ) {
-    let context_attributes = unsafe { with_context(context, |context| context.actual_context_parameters) };
-    unsafe { out_context_attributes.write(context_attributes.into()) };
+    let context_attributes = with_context(context, |context| context.actual_context_parameters);
+    *out_context_attributes = context_attributes.into();
 }
 
 /// The context takes over the reference to `transport`.
+///
+/// # Safety
+///
+/// `transport` is a RemoteWebGLTransport that has created its context, and the spans are live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_webgl_context_restore(
-    context: *mut c_void,
+    context: &ContextCell,
     transport: *mut c_void,
     supported_extensions: *const ByteSpan,
     supported_extension_count: usize,
 ) {
     let transport = NonNull::new(transport).expect("C++ passes the transport");
+    // SAFETY: The caller passes the transport with a reference, and live names.
     unsafe {
         let supported_opengl_extensions = extension_names(supported_extensions, supported_extension_count);
         with_context(context, |context| {
@@ -309,11 +313,11 @@ pub unsafe extern "C" fn web_webgl_context_restore(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_xr_compatible(context: *mut c_void) -> bool {
-    unsafe { with_context(context, ContextState::xr_compatible) }
+pub extern "C" fn web_webgl_context_xr_compatible(context: &ContextCell) -> bool {
+    with_context(context, ContextState::xr_compatible)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_set_xr_compatible(context: *mut c_void, xr_compatible: bool) {
-    unsafe { with_context(context, |context| context.set_xr_compatible(xr_compatible)) };
+pub extern "C" fn web_webgl_context_set_xr_compatible(context: &ContextCell, xr_compatible: bool) {
+    with_context(context, |context| context.set_xr_compatible(xr_compatible));
 }
