@@ -473,6 +473,7 @@ public:
     [[nodiscard]] i64 seconds_since_epoch() const { return m_offset.to_floored_seconds(); }
     [[nodiscard]] i64 milliseconds_since_epoch() const { return m_offset.to_floored_milliseconds(); }
     [[nodiscard]] i64 nanoseconds_since_epoch() const { return m_offset.to_nanoseconds(); }
+    [[nodiscard]] f64 to_seconds_f64() const { return m_offset.to_seconds_f64(); }
 
     enum class LocalTime {
         Yes,
@@ -569,6 +570,7 @@ public:
     [[nodiscard]] i64 milliseconds() const { return m_offset.to_floored_milliseconds(); }
     [[nodiscard]] i64 nanoseconds() const { return m_offset.to_nanoseconds(); }
     [[nodiscard]] i64 nanoseconds_within_second() const { return to_timespec().tv_nsec; }
+    [[nodiscard]] f64 to_seconds_f64() const { return m_offset.to_seconds_f64(); }
 
     constexpr bool operator==(MonotonicTime const& other) const { return this->m_offset == other.m_offset; }
     constexpr int operator<=>(MonotonicTime const& other) const { return this->m_offset <=> other.m_offset; }
