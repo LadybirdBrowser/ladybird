@@ -76,18 +76,16 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
     auto reference_basis = containing_block_padding_box_size(layout_node);
 
     if (reference_basis.has_value()) {
-        if (auto const& min_width = layout_node.min_width(); !min_width.is_auto()) {
-            css_width = max(css_width, min_width.to_px(reference_basis->width()));
-        }
-        if (auto const& max_width = layout_node.max_width(); !max_width.is_none()) {
-            css_width = min(css_width, max_width.to_px(reference_basis->width()));
-        }
-        if (auto const& min_height = layout_node.min_height(); !min_height.is_auto()) {
-            css_height = max(css_height, min_height.to_px(reference_basis->height()));
-        }
-        if (auto const& max_height = layout_node.max_height(); !max_height.is_none()) {
-            css_height = min(css_height, max_height.to_px(reference_basis->height()));
-        }
+        double width = css_width.to_double();
+        double height = css_height.to_double();
+        CSS::ComputedValuesFFI::rust_sizing_values_clamp_size(
+            &layout_node.style_group<CSS::ComputedValues::SizingValues>(),
+            reference_basis->width().to_double(),
+            reference_basis->height().to_double(),
+            &width,
+            &height);
+        css_width = CSSPixels::nearest_value_for(width);
+        css_height = CSSPixels::nearest_value_for(height);
     }
     if (layout_node.box_sizing() == CSS::BoxSizing::ContentBox) {
         auto const metrics = Painting::box_model(layout_node);
