@@ -19,16 +19,15 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagedata
-// The C++ side of an ImageData, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/html): what the 2D
-// contexts create, read and write the pixels of, and createImageBitmap() reads.
+// The C++ side of an ImageData, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/html): what
+// createImageBitmap() reads.
 class WEB_API ImageData final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(ImageData, image_data)
 
 public:
-    using Settings = Bindings::ImageDataSettings;
-
-    // A new ImageData of the size, with transparent black pixels, https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#initialize-an-imagedata-object
-    static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 width, u32 height, Optional<Settings> const& = {});
+    // A new ImageData of the size, with transparent black pixels and the sRGB color space,
+    // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#initialize-an-imagedata-object
+    static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 width, u32 height);
 
     u32 width() const;
     u32 height() const;

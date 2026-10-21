@@ -289,13 +289,6 @@ void ImageBitmap::close()
     web_image_bitmap_close(this);
 }
 
-Optional<Gfx::DecodedImageFrame> ImageBitmap::frame() const
-{
-    if (auto const* frame = web_image_bitmap_frame(this))
-        return *frame;
-    return {};
-}
-
 Gfx::Bitmap const* ImageBitmap::bitmap() const
 {
     if (auto const* frame = web_image_bitmap_frame(this))

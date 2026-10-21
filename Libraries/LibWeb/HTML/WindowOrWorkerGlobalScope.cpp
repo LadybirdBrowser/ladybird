@@ -39,6 +39,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>

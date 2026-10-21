@@ -5,14 +5,14 @@ enum CanvasFillRule { "nonzero", "evenodd" };
 interface mixin CanvasDrawPath {
     // path API (see also CanvasPath)
     undefined beginPath();
-    undefined fill(optional CanvasFillRule fillRule = "nonzero");
-    undefined fill(Path2D path, optional CanvasFillRule fillRule = "nonzero");
-    undefined stroke();
-    undefined stroke(Path2D path);
-    undefined clip(optional CanvasFillRule fillRule = "nonzero");
-    undefined clip(Path2D path, optional CanvasFillRule fillRule = "nonzero");
-    boolean isPointInPath(unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
-    boolean isPointInPath(Path2D path, unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
+    [ImplementedAs=fill] undefined fill(optional CanvasFillRule fillRule = "nonzero");
+    [ImplementedAs=fill_path2d] undefined fill(Path2D path, optional CanvasFillRule fillRule = "nonzero");
+    [ImplementedAs=stroke] undefined stroke();
+    [ImplementedAs=stroke_path2d] undefined stroke(Path2D path);
+    [ImplementedAs=clip] undefined clip(optional CanvasFillRule fillRule = "nonzero");
+    [ImplementedAs=clip_path2d] undefined clip(Path2D path, optional CanvasFillRule fillRule = "nonzero");
+    [ImplementedAs=is_point_in_path] boolean isPointInPath(unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
+    [ImplementedAs=is_point_in_path2d] boolean isPointInPath(Path2D path, unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
     [FIXME] boolean isPointInStroke(unrestricted double x, unrestricted double y);
     [FIXME] boolean isPointInStroke(Path2D path, unrestricted double x, unrestricted double y);
 };

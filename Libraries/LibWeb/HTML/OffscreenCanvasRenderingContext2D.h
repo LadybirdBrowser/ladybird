@@ -6,35 +6,19 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
-#include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
 
 namespace Web::HTML {
 
-class OffscreenCanvasRenderingContext2D
-    : public Canvas2DContextBase
-    , public CanvasTextDrawingStyles<OffscreenCanvas> {
-
-    WEB_WRAPPABLE(OffscreenCanvasRenderingContext2D, Canvas2DContextBase);
-    GC_DECLARE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
+// https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvasrenderingcontext2d
+class WEB_API OffscreenCanvasRenderingContext2D final : public Canvas2DContextBase {
+    WEB_RUST_INTERFACE(OffscreenCanvasRenderingContext2D, offscreen_canvas_rendering_context2d)
 
 public:
-    [[nodiscard]] static GC::Ref<OffscreenCanvasRenderingContext2D> create(OffscreenCanvas&, HTML::CanvasRenderingContext2DSettings);
-    virtual ~OffscreenCanvasRenderingContext2D() override;
-
-    GC::Ref<OffscreenCanvas> canvas();
+    static GC::Ref<OffscreenCanvasRenderingContext2D> create(OffscreenCanvas&, CanvasRenderingContext2DSettings const&);
 
     void replace_bitmap_with_cleared_bitmap();
-
-protected:
-    virtual CanvasHost& canvas_host() const override;
-
-private:
-    OffscreenCanvasRenderingContext2D(JS::Realm&, OffscreenCanvas&, HTML::CanvasRenderingContext2DSettings);
-
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    GC::Ref<OffscreenCanvas> m_canvas;
 };
 
 }

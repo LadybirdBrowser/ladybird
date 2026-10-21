@@ -10,9 +10,9 @@ enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic
 enum CanvasDirection { "ltr", "rtl", "inherit" };
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2d
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CanvasRenderingContext2D {
-    [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
+    readonly attribute HTMLCanvasElement canvas;
 };
 
 CanvasRenderingContext2D includes CanvasSettings;

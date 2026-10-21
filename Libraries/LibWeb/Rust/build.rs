@@ -2509,7 +2509,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     value_parser_config.export.include = vec![
         "NativeCompilationPurpose".to_string(),
         "FfiParseStatus".to_string(),
-        "FfiSimpleColor".to_string(),
         "FontFeatureValuesRuleKind".to_string(),
         "FfiValueParsingContext".to_string(),
         "FfiValueParsingContextKind".to_string(),

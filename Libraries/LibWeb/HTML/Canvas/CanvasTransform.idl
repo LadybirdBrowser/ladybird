@@ -6,7 +6,7 @@ interface mixin CanvasTransform {
     undefined transform(unrestricted double a, unrestricted double b, unrestricted double c, unrestricted double d, unrestricted double e, unrestricted double f);
 
     [NewObject] DOMMatrix getTransform();
-    undefined setTransform(unrestricted double a, unrestricted double b, unrestricted double c, unrestricted double d, unrestricted double e, unrestricted double f);
-    undefined setTransform(optional DOMMatrix2DInit transform = {});
+    [ImplementedAs=set_transform] undefined setTransform(unrestricted double a, unrestricted double b, unrestricted double c, unrestricted double d, unrestricted double e, unrestricted double f);
+    [ImplementedAs=set_transform_to_matrix] undefined setTransform(optional DOMMatrix2DInit transform = {});
     undefined resetTransform();
 };

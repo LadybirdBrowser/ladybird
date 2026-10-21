@@ -10,7 +10,7 @@ typedef (HTMLImageElement or
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawimage
 interface mixin CanvasDrawImage {
-    undefined drawImage(CanvasImageSource image, unrestricted double dx, unrestricted double dy);
-    undefined drawImage(CanvasImageSource image, unrestricted double dx, unrestricted double dy, unrestricted double dw, unrestricted double dh);
-    undefined drawImage(CanvasImageSource image, unrestricted double sx, unrestricted double sy, unrestricted double sw, unrestricted double sh, unrestricted double dx, unrestricted double dy, unrestricted double dw, unrestricted double dh);
+    [ImplementedAs=draw_image] undefined drawImage(CanvasImageSource image, unrestricted double dx, unrestricted double dy);
+    [ImplementedAs=draw_image_with_size] undefined drawImage(CanvasImageSource image, unrestricted double dx, unrestricted double dy, unrestricted double dw, unrestricted double dh);
+    [ImplementedAs=draw_image_with_source_rectangle] undefined drawImage(CanvasImageSource image, unrestricted double sx, unrestricted double sy, unrestricted double sw, unrestricted double sh, unrestricted double dx, unrestricted double dy, unrestricted double dw, unrestricted double dh);
 };

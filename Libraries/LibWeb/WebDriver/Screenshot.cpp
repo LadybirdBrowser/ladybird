@@ -72,7 +72,7 @@ void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_cont
         HTML::TemporaryExecutionContext execution_context { element->document().relevant_settings_object() };
 
         auto image_bitmap = HTML::ImageBitmap::create(bitmap);
-        if (canvas->canvas_rendering_context_2d()->draw_image(image_bitmap, 0, 0).is_exception()) {
+        if (!canvas->canvas_rendering_context_2d()->draw_image(*image_bitmap, 0, 0)) {
             callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to draw the screenshot to the canvas"sv));
             return;
         }

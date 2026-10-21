@@ -8,34 +8,17 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
-#include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
 
 namespace Web::HTML {
 
-class CanvasRenderingContext2D
-    : public Canvas2DContextBase
-    , public CanvasTextDrawingStyles<HTMLCanvasElement> {
-
-    WEB_WRAPPABLE(CanvasRenderingContext2D, Canvas2DContextBase);
-    GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2d
+class WEB_API CanvasRenderingContext2D final : public Canvas2DContextBase {
+    WEB_RUST_INTERFACE(CanvasRenderingContext2D, canvas_rendering_context2d)
 
 public:
-    static GC::Ref<CanvasRenderingContext2D> create(HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
-
-    virtual ~CanvasRenderingContext2D() override;
-
-    GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
-
-protected:
-    virtual CanvasHost& canvas_host() const override { return *m_element; }
-
-private:
-    CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
-
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    GC::Ref<HTMLCanvasElement> m_element;
+    static GC::Ref<CanvasRenderingContext2D> create(HTMLCanvasElement&, CanvasRenderingContext2DSettings const&);
 };
 
 }

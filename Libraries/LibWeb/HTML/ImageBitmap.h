@@ -38,8 +38,9 @@ struct ImageBitmapSharedPixels {
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmap
 // The C++ side of an ImageBitmap, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/html): what
-// createImageBitmap(), OffscreenCanvas and WebDriver create, and the 2D contexts draw. ImageBitmap.cpp encodes and
-// decodes the bitmap data for the serialization and transfer steps of the Rust implementation.
+// createImageBitmap(), OffscreenCanvas and WebDriver create, and createImageBitmap() and StructuredSerialize read.
+// ImageBitmap.cpp encodes and decodes the bitmap data for the serialization and transfer steps of the Rust
+// implementation.
 class WEB_API ImageBitmap final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(ImageBitmap, image_bitmap)
 
@@ -56,8 +57,7 @@ public:
     // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-close
     void close();
 
-    // The bitmap data, which the ImageBitmap keeps until it is closed or transferred.
-    Optional<Gfx::DecodedImageFrame> frame() const;
+    // The bitmap of the bitmap data, which the ImageBitmap keeps until it is closed or transferred.
     Gfx::Bitmap const* bitmap() const;
 
     static size_t shared_pixels_size(Gfx::Bitmap const&);

@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvasrenderingcontext2d
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface OffscreenCanvasRenderingContext2D {
     readonly attribute OffscreenCanvas canvas;
 };

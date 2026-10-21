@@ -7,9 +7,6 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/Size.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -24,22 +21,12 @@ namespace Web::HTML {
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using CanvasImageSource = Variant<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>, GC::Ref<HTMLCanvasElement>, GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>, GC::Ref<HTMLVideoElement>>;
 
-Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const&);
-Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const&);
-
-// https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawimage
-class CanvasDrawImage {
-public:
-    virtual ~CanvasDrawImage() = default;
-
-    WebIDL::ExceptionOr<void> draw_image(CanvasImageSource const&, float destination_x, float destination_y);
-    WebIDL::ExceptionOr<void> draw_image(CanvasImageSource const&, float destination_x, float destination_y, float destination_width, float destination_height);
-    WebIDL::ExceptionOr<void> draw_image(CanvasImageSource const&, float source_x, float source_y, float source_width, float source_height, float destination_x, float destination_y, float destination_width, float destination_height);
-
-    virtual WebIDL::ExceptionOr<void> draw_image_internal(CanvasImageSource const&, float source_x, float source_y, float source_width, float source_height, float destination_x, float destination_y, float destination_width, float destination_height) = 0;
-
-protected:
-    CanvasDrawImage() = default;
+enum class CanvasImageSourceUsability {
+    Bad,
+    Good,
 };
+
+// https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
+WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
 
 }

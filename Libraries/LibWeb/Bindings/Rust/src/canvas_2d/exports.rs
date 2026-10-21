@@ -4,260 +4,208 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The C ABI through which the 2D canvas contexts of LibWeb record, which Libraries/LibWeb/HTML/Canvas/Canvas2DRecorder.cpp
-//! declares. A recorder owns the transport it records through. The structs in which C++ lends a paint, a stroke and how
-//! a draw composites are those of display_list/canvas_2d_recorder.rs, which LibCompositing/RustFFI.h declares to C++.
+//! The C ABI that Libraries/LibWeb/HTML/Canvas/Canvas2DContextBase.cpp declares, and calls with the cell of a context
+//! of either kind.
 
 use core::ffi::c_void;
+use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use libcompositing_rust::display_list::canvas_2d::Paint;
-use libcompositing_rust::display_list::canvas_2d_recorder::{
-    AlphaType, FfiCanvas2DCompositing, FfiCanvas2DPaint, FfiCanvas2DStroke, Recorder,
-};
-use libcompositing_rust::display_list::commands::{Canvas2DPaintKind, CanvasId, DisplayListGlyph};
-use libgfx_rust::{AffineTransform, Color, FloatPoint, FloatRect, IntRect, IntSize, ScalingMode, WindingRule};
+use libcompositing_rust::display_list::canvas_2d_recorder::AlphaType;
+use libgfx_rust::{IntRect, IntSize};
 
-use super::host::{CppTransport, LentFont, LentImageFrame, LentVideoFrameHold};
+use super::canvas::Canvas;
+use super::context::{ContextParameters, ContextState, Offscreen, OnScreen, RenderingContext2D};
+use crate::bindings::interface::{Interface, allocate, cell_from_abi, cell_into_abi};
+use crate::html::canvas_draw_image::CanvasImageSource;
+use crate::html::canvas_rendering_context2d_settings::{CanvasColorType, CanvasRenderingContext2DSettings};
+use crate::html::image_bitmap::ImageBitmap;
+use crate::html::predefined_color_space::PredefinedColorSpace;
 
-pub(crate) type CanvasRecorder = Recorder<CppTransport>;
-
-/// The paint, with the image of a pattern added to the stream.
-fn paint_of<'a>(recorder: &CanvasRecorder, paint: &FfiCanvas2DPaint<'a>) -> Paint<'a> {
-    let pattern_image = match paint.kind {
-        Canvas2DPaintKind::Pattern => {
-            NonNull::new(paint.pattern_image.cast_mut()).map(|frame| recorder.add_image_frame(&LentImageFrame(frame)))
-        }
-        _ => None,
-    };
-    paint.to_paint(pattern_image)
-}
-
-/// # Safety
-///
-/// `transport` is a RemoteCanvas2DTransport, one reference to which the recorder takes over.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_canvas_2d_recorder_create(transport: *mut c_void) -> *mut CanvasRecorder {
-    let transport = NonNull::new(transport).expect("C++ passes the transport");
-    // SAFETY: The caller hands over a reference to the transport.
-    let transport = unsafe { CppTransport::from_raw(transport) };
-    Box::into_raw(Box::new(Recorder::new(transport)))
-}
-
-/// # Safety
-///
-/// `recorder` comes from web_canvas_2d_recorder_create(), and nothing uses it after this.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_canvas_2d_recorder_destroy(recorder: *mut CanvasRecorder) {
-    assert!(!recorder.is_null());
-    // SAFETY: The caller passes a recorder that web_canvas_2d_recorder_create() leaked.
-    drop(unsafe { Box::from_raw(recorder) });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_create_context(
-    recorder: &CanvasRecorder,
+/// Mirrors `Web::HTML::ContextCreationArguments`.
+#[repr(C)]
+pub struct ContextCreationArguments {
+    canvas: *mut c_void,
+    canvas_host: *mut c_void,
+    canvas_is_offscreen: bool,
     width: i32,
     height: i32,
     alpha: bool,
-) -> bool {
-    recorder.create_context(IntSize { width, height }, alpha)
+    desynchronized: bool,
+    /// The underlying value of a Web::Bindings::PredefinedColorSpace.
+    color_space: u8,
+    /// The underlying value of a Web::Bindings::CanvasColorType.
+    color_type: u8,
+    will_read_frequently: bool,
+}
+
+/// The cell of a CanvasRenderingContext2D or of an OffscreenCanvasRenderingContext2D, which only C++ lends out, for as
+/// long as the context is live.
+#[repr(C)]
+pub struct ContextCell {
+    // NB: The cell is mutable behind a shared reference, and bigger than Rust sees, so a reference to one must not tell
+    //     the compiler that the memory behind it is read only or unaliased.
+    _opaque: core::cell::UnsafeCell<[u8; 0]>,
+    _not_send_sync_or_unpin: PhantomData<(*const (), core::marker::PhantomPinned)>,
+}
+
+fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -> R) -> R {
+    let cell = NonNull::from(context).cast();
+    // SAFETY: A ContextCell is the live cell of one of the two classes, which the downcasts tell apart.
+    unsafe {
+        if let Some(context) = RenderingContext2D::<OnScreen>::CELL_CLASS.downcast(cell) {
+            return function(&context);
+        }
+        let context = RenderingContext2D::<Offscreen>::CELL_CLASS
+            .downcast(cell)
+            .expect("the cell is a 2D context");
+        function(&context)
+    }
+}
+
+/// # Safety
+///
+/// `vm` is the live VM, and the pointers of the arguments are what [`ContextCreationArguments`] describes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_2d_context_create(
+    vm: *mut c_void,
+    arguments: &ContextCreationArguments,
+) -> *mut c_void {
+    assert!(!vm.is_null(), "C++ passes the VM");
+    // SAFETY: The caller passes the live VM.
+    let vm = unsafe { &*vm.cast::<libjs_rust::api::Vm>() };
+    let canvas = Canvas {
+        cell: NonNull::new(arguments.canvas).expect("C++ passes the canvas"),
+        host: NonNull::new(arguments.canvas_host).expect("C++ passes the canvas"),
+        is_offscreen: arguments.canvas_is_offscreen,
+    };
+    let state = ContextState::new(ContextParameters {
+        canvas,
+        context_attributes: CanvasRenderingContext2DSettings {
+            alpha: arguments.alpha,
+            desynchronized: arguments.desynchronized,
+            color_space: PredefinedColorSpace::from_u8(arguments.color_space).expect("C++ passes a color space"),
+            color_type: CanvasColorType::from_u8(arguments.color_type).expect("C++ passes a color type"),
+            will_read_frequently: arguments.will_read_frequently,
+        },
+        size: IntSize {
+            width: arguments.width,
+            height: arguments.height,
+        },
+    });
+    if arguments.canvas_is_offscreen {
+        cell_into_abi(allocate(vm, RenderingContext2D::<Offscreen>::new(state)))
+    } else {
+        cell_into_abi(allocate(vm, RenderingContext2D::<OnScreen>::new(state)))
+    }
+}
+
+/// The Web::HTML::CanvasHost of the canvas of the context.
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_canvas_host(context: &ContextCell) -> *mut c_void {
+    with_context(context, |context| context.canvas_handle().host.as_ptr())
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_canvas_id(recorder: &CanvasRecorder, out_canvas_id: &mut u64) -> bool {
-    let Some(canvas_id) = recorder.canvas_id() else {
+pub extern "C" fn web_canvas_2d_context_origin_clean(context: &ContextCell) -> bool {
+    with_context(context, ContextState::origin_clean)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_set_size(context: &ContextCell, width: i32, height: i32) {
+    with_context(context, |context| context.set_size(IntSize { width, height }));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_reset_to_default_state(context: &ContextCell) {
+    with_context(context, ContextState::reset_to_default_state);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_ensure_backing_storage(context: &ContextCell) {
+    with_context(context, ContextState::ensure_backing_storage);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_discard_backing_storage(context: &ContextCell) {
+    with_context(context, ContextState::discard_backing_storage);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_has_backing_storage(context: &ContextCell) -> bool {
+    with_context(context, ContextState::has_backing_storage)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_drop_cached_readback(context: &ContextCell) {
+    with_context(context, ContextState::drop_cached_readback);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_is_lost(context: &ContextCell) -> bool {
+    with_context(context, ContextState::context_is_lost)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_set_lost(context: &ContextCell, lost: bool) {
+    with_context(context, |context| context.set_context_lost(lost));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_prepare_for_compositing(context: &ContextCell) {
+    with_context(context, ContextState::prepare_for_compositing);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_canvas_id(context: &ContextCell, out_canvas_id: &mut u64) -> bool {
+    let Some(canvas_id) = with_context(context, ContextState::canvas_id) else {
         return false;
     };
     *out_canvas_id = canvas_id.0;
     true
 }
 
+/// A Gfx::Bitmap with a reference that the caller takes over, or null. Unpremultiplied pixels come back as RGBA8888,
+/// and premultiplied pixels as BGRA8888.
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_destroy_context(recorder: &CanvasRecorder) {
-    recorder.destroy_context();
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_flush(recorder: &CanvasRecorder) {
-    recorder.flush();
-}
-
-/// Returns a Gfx::Bitmap with one reference, which the caller takes over, or null.
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_read_back_pixels(
-    recorder: &CanvasRecorder,
+pub extern "C" fn web_canvas_2d_context_read_pixels(
+    context: &ContextCell,
     rect: IntRect,
     alpha_type: AlphaType,
 ) -> *mut c_void {
-    recorder
-        .read_back_pixels(rect, alpha_type)
-        .map_or(core::ptr::null_mut(), |bitmap| bitmap.into_raw())
+    with_context(context, |context| context.read_pixels(rect, alpha_type))
+        .map_or(core::ptr::null_mut(), super::host::Bitmap::into_raw)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_present(recorder: &CanvasRecorder) {
-    recorder.present();
+pub extern "C" fn web_canvas_2d_context_replace_bitmap_with_cleared_bitmap(context: &ContextCell) {
+    with_context(context, ContextState::replace_bitmap_with_cleared_bitmap);
 }
 
+/// Draws the ImageBitmap at the point as drawImage() does, and returns whether that threw nothing.
+///
+/// # Safety
+///
+/// `image_bitmap` must be a live cell of an ImageBitmap.
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_prepare_to_record(recorder: &CanvasRecorder) {
-    recorder.prepare_to_record();
-}
-
-/// `path` is a serialized Gfx::Path.
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_fill_path(
-    recorder: &mut CanvasRecorder,
-    path: ak::Span<'_, u8>,
-    paint: &FfiCanvas2DPaint<'_>,
-    winding_rule: WindingRule,
-    blur_radius: f32,
-    compositing: &FfiCanvas2DCompositing<'_>,
-) {
-    let paint = paint_of(recorder, paint);
-    recorder.fill_path(
-        path.as_slice(),
-        &paint,
-        winding_rule,
-        blur_radius,
-        &compositing.to_compositing(),
-    );
-}
-
-/// `path` is a serialized Gfx::Path.
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_stroke_path(
-    recorder: &mut CanvasRecorder,
-    path: ak::Span<'_, u8>,
-    paint: &FfiCanvas2DPaint<'_>,
-    stroke: &FfiCanvas2DStroke<'_>,
-    blur_radius: f32,
-    compositing: &FfiCanvas2DCompositing<'_>,
-) {
-    let paint = paint_of(recorder, paint);
-    recorder.stroke_path(
-        path.as_slice(),
-        &paint,
-        &stroke.to_stroke(),
-        blur_radius,
-        &compositing.to_compositing(),
-    );
-}
-
-/// `font` is a Gfx::Font that the caller lends for the call.
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_draw_glyph_run(
-    recorder: &mut CanvasRecorder,
-    font: *const c_void,
-    glyphs: ak::Span<'_, DisplayListGlyph>,
-    translation: FloatPoint,
-    paint: &FfiCanvas2DPaint<'_>,
-    compositing: &FfiCanvas2DCompositing<'_>,
-) {
-    let font = LentFont(NonNull::new(font.cast_mut()).expect("C++ passes the font"));
-    let paint = paint_of(recorder, paint);
-    recorder.draw_glyph_run(
-        &font,
-        glyphs.as_slice(),
-        translation,
-        &paint,
-        &compositing.to_compositing(),
-    );
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_clear_rect(recorder: &mut CanvasRecorder, rect: FloatRect, color: Color) {
-    recorder.clear_rect(rect, color);
-}
-
-/// `frame` is a Gfx::DecodedImageFrame that the caller lends for the call.
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_draw_image_frame(
-    recorder: &mut CanvasRecorder,
-    frame: *const c_void,
-    dst_rect: FloatRect,
-    src_rect: IntRect,
-    scaling_mode: ScalingMode,
-    compositing: &FfiCanvas2DCompositing<'_>,
-) {
-    let frame = LentImageFrame(NonNull::new(frame.cast_mut()).expect("C++ passes the frame"));
-    recorder.draw_image_frame(&frame, dst_rect, src_rect, scaling_mode, &compositing.to_compositing());
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_draw_canvas(
-    recorder: &mut CanvasRecorder,
-    source_canvas_id: u64,
-    dst_rect: FloatRect,
-    src_rect: IntRect,
-    scaling_mode: ScalingMode,
-    compositing: &FfiCanvas2DCompositing<'_>,
-) {
-    recorder.draw_canvas(
-        CanvasId(source_canvas_id),
-        dst_rect,
-        src_rect,
-        scaling_mode,
-        &compositing.to_compositing(),
-    );
-}
-
-/// `hold` is a Compositing::VideoFrameHold that the caller lends for the call.
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_draw_video_frame(
-    recorder: &mut CanvasRecorder,
-    hold: *mut c_void,
-    video_sink_handle: u64,
-    generation: u64,
-    dst_rect: FloatRect,
-    src_rect: IntRect,
-    scaling_mode: ScalingMode,
-    compositing: &FfiCanvas2DCompositing<'_>,
-) {
-    let hold = LentVideoFrameHold(NonNull::new(hold).expect("C++ passes the hold"));
-    recorder.draw_video_frame(
-        &hold,
-        video_sink_handle,
-        generation,
-        dst_rect,
-        src_rect,
-        scaling_mode,
-        &compositing.to_compositing(),
-    );
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_set_transform(recorder: &mut CanvasRecorder, transform: &AffineTransform) {
-    recorder.set_transform(*transform);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_save(recorder: &mut CanvasRecorder) {
-    recorder.save();
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_restore(recorder: &mut CanvasRecorder) {
-    recorder.restore();
-}
-
-/// `path` is a serialized Gfx::Path.
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_clip_path(
-    recorder: &mut CanvasRecorder,
-    path: ak::Span<'_, u8>,
-    winding_rule: WindingRule,
-) {
-    recorder.clip_path(path.as_slice(), winding_rule);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_reset(recorder: &mut CanvasRecorder) {
-    recorder.reset();
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_recorder_clear_canvas(recorder: &mut CanvasRecorder, color: Color) {
-    recorder.clear_canvas(color);
+pub unsafe extern "C" fn web_canvas_2d_context_draw_image_bitmap(
+    context: &ContextCell,
+    image_bitmap: *mut c_void,
+    x: f32,
+    y: f32,
+) -> bool {
+    // SAFETY: The caller passes a live cell of an ImageBitmap.
+    let image_bitmap = unsafe { cell_from_abi::<ImageBitmap>(image_bitmap) };
+    let image = CanvasImageSource::ImageBitmap(image_bitmap);
+    let (width, height) = image.size();
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "a size of an image becomes a float, as the C++ had it"
+    )]
+    let (width, height) = (width as f32, height as f32);
+    with_context(context, |context| {
+        context
+            .draw_image_internal(image, 0.0, 0.0, width, height, x, y, width, height)
+            .is_ok()
+    })
 }

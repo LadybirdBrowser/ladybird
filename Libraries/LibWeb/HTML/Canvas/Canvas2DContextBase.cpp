@@ -2,6 +2,8 @@
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
+ * Copyright (c) 2023-2026, Callum Law <callumlaw1709@outlook.com>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
@@ -9,389 +11,280 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Checked.h>
-#include <AK/NumericLimits.h>
-#include <AK/OwnPtr.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibCompositing/RustFFI.h>
+#include <LibCompositing/Video/VideoFrameHold.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/Rect.h>
-#include <LibGfx/TextAlignment.h>
-#include <LibJS/Runtime/ExternalMemory.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/DOMRectReadOnly.h>
+#include <LibGfx/FontCascadeList.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
+#include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
+#include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
+#include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
-#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
-#include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
-#include <LibWeb/HTML/Path2D.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/TextMetrics.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGImageElement.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
 namespace Web::HTML {
 
-Canvas2DContextBase::Canvas2DContextBase(JS::Realm& realm, Gfx::IntSize initial_size, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : CanvasPath(static_cast<CanvasState const&>(*this))
-    , m_size(initial_size)
-    , m_context_attributes(move(context_attributes))
-    , m_realm(realm)
-{
+namespace {
+
+// `ContextCreationArguments` of Bindings/Rust/src/canvas_2d/exports.rs.
+struct ContextCreationArguments {
+    void* canvas { nullptr };
+    void* canvas_host { nullptr };
+    bool canvas_is_offscreen { false };
+    i32 width { 0 };
+    i32 height { 0 };
+    bool alpha { true };
+    bool desynchronized { false };
+    Bindings::PredefinedColorSpace color_space { Bindings::PredefinedColorSpace::Srgb };
+    Bindings::CanvasColorType color_type { Bindings::CanvasColorType::Unorm8 };
+    bool will_read_frequently { false };
+};
+
+// `FontMetricsSource` of Bindings/Rust/src/canvas_2d/canvas.rs: the font of the context, if it has one yet.
+struct FontMetricsSource {
+    Gfx::FontCascadeList const* cascade { nullptr };
+    // The size of the font, as the raw value of a CSSPixels.
+    i32 font_size { 0 };
+};
+
+// `ResolvedFontAbi` of Bindings/Rust/src/canvas_2d/canvas.rs.
+struct ResolvedFont {
+    // A Gfx::FontCascadeList with a reference that Rust takes over.
+    Gfx::FontCascadeList const* cascade { nullptr };
+    u64 environment_generation { 0 };
+    i32 font_size { 0 };
+    // An AK::Utf16String that Rust takes over.
+    FlatPtr serialized { 0 };
+};
+
+// `CanvasImageSourceKind` of Bindings/Rust/src/canvas_2d/canvas.rs: the sources of images that are implemented in C++.
+enum class CanvasImageSourceKind : u8 {
+    HTMLImageElement,
+    SVGImageElement,
+    HTMLVideoElement,
+    HTMLCanvasElement,
+    OffscreenCanvas,
+};
+
+// `CapturedVideoFrameAbi` of Bindings/Rust/src/canvas_2d/canvas.rs.
+struct CapturedVideoFrame {
+    // A Compositing::VideoFrameHold with a reference that Rust takes over.
+    Compositing::VideoFrameHold* hold { nullptr };
+    u64 sink_handle { 0 };
+    u64 generation { 0 };
+};
+
 }
 
-Canvas2DContextBase::~Canvas2DContextBase() = default;
+// NB: The color space and the color type cross the bridge as their underlying values, which canvas_2d/exports.rs
+//     reads in this order.
+static_assert(sizeof(Bindings::PredefinedColorSpace) == sizeof(u8));
+static_assert(to_underlying(Bindings::PredefinedColorSpace::Srgb) == 0);
+static_assert(to_underlying(Bindings::PredefinedColorSpace::DisplayP3Linear) == 3);
+static_assert(sizeof(Bindings::CanvasColorType) == sizeof(u8));
+static_assert(to_underlying(Bindings::CanvasColorType::Unorm8) == 0);
+static_assert(to_underlying(Bindings::CanvasColorType::Float16) == 1);
+static_assert(sizeof(Gfx::AffineTransform) == 6 * sizeof(float));
+static_assert(sizeof(Gfx::IntRect) == 4 * sizeof(int));
 
-void Canvas2DContextBase::finalize()
-{
-    discard_backing_storage();
-    Base::finalize();
+extern "C" {
+
+// Defined in Bindings/Rust/src/canvas_2d/exports.rs. A context is the cell of a context of either kind.
+void* web_canvas_2d_context_create(JSVM*, ContextCreationArguments const*);
+void* web_canvas_2d_context_canvas_host(void const* context);
+bool web_canvas_2d_context_origin_clean(void const* context);
+void web_canvas_2d_context_set_size(void* context, i32 width, i32 height);
+void web_canvas_2d_context_reset_to_default_state(void* context);
+void web_canvas_2d_context_ensure_backing_storage(void* context);
+void web_canvas_2d_context_discard_backing_storage(void* context);
+bool web_canvas_2d_context_has_backing_storage(void const* context);
+void web_canvas_2d_context_drop_cached_readback(void* context);
+bool web_canvas_2d_context_is_lost(void const* context);
+void web_canvas_2d_context_set_lost(void* context, bool lost);
+void web_canvas_2d_context_prepare_for_compositing(void* context);
+bool web_canvas_2d_context_canvas_id(void const* context, u64* out_canvas_id);
+void* web_canvas_2d_context_read_pixels(void* context, Gfx::IntRect rect, u8 alpha_type);
+bool web_canvas_2d_context_draw_image_bitmap(void* context, void* image_bitmap, float x, float y);
+
+// What the Rust implementation asks of LibWeb, declared in Bindings/Rust/src/canvas_2d/canvas.rs.
+void web_canvas_2d_canvas_did_change_content(void* canvas_host);
+void web_canvas_2d_canvas_did_create_backing_storage(void* canvas_host);
+void* web_canvas_2d_canvas_create_transport(void* canvas_host);
+void* web_canvas_2d_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* realm);
+void* web_canvas_2d_canvas_relevant_realm(void* canvas_host);
+u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host);
+bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, ResolvedFont* out_font);
+void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource, Gfx::Color* out_color);
+float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource);
+bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*));
+CSS::StyleValue const* web_canvas_2d_parse_color(FlatPtr color);
+CSS::StyleValue const* web_canvas_2d_parse_length(FlatPtr length, FlatPtr* out_serialized);
+void web_canvas_2d_style_value_ref(CSS::StyleValue const*);
+void web_canvas_2d_style_value_unref(CSS::StyleValue const*);
+void* web_canvas_2d_create_dom_matrix(void* realm, Gfx::AffineTransform const*);
+Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height);
+u8 web_canvas_2d_check_usability_of_image(void* source_wrapper, CanvasImageSourceKind, FlatPtr* out_message);
+void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind, i32* out_width, i32* out_height);
+bool web_canvas_2d_image_is_not_origin_clean(void* source_wrapper, CanvasImageSourceKind);
+bool web_canvas_2d_image_source_canvas_id(void* source_wrapper, CanvasImageSourceKind, u64* out_canvas_id, bool* out_source_is_2d);
+Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind);
+bool web_canvas_2d_capture_video_frame(void* source_wrapper, CapturedVideoFrame* out_frame);
+void* web_canvas_2d_video_transport(void* source_wrapper);
+void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold*);
+
+// What Bindings/Rust/src/html/canvas_gradient.rs asks of LibWeb.
+bool web_canvas_gradient_parse_color(FlatPtr color, Gfx::Color* out_color);
 }
 
-void Canvas2DContextBase::visit_edges(Cell::Visitor& visitor)
+static void* cell_of(Canvas2DContextBase const& context)
 {
-    Base::visit_edges(visitor);
-    CanvasState::visit_edges(visitor);
-    visitor.visit(m_realm);
+    return const_cast<Canvas2DContextBase*>(&context);
 }
 
-GC::Ptr<Bindings::Wrappable> Canvas2DContextBase::relevant_global_impl() const
+Canvas2DContextBase& Canvas2DContextBase::create(CanvasHost& canvas_host, GC::Cell& canvas, bool canvas_is_offscreen, CanvasRenderingContext2DSettings const& context_attributes)
 {
-    return canvas_host().canvas_relevant_global_impl();
-}
-
-size_t Canvas2DContextBase::external_memory_size() const
-{
-    auto size = Base::external_memory_size();
-    if (m_cached_readback)
-        size = JS::saturating_add_external_memory_size(size, m_cached_readback->size_in_bytes());
-    if (!has_backing_storage())
-        return size;
-
-    auto surface_size = m_size;
-    if (surface_size.is_empty())
-        return size;
-
-    Checked<size_t> pixel_size = static_cast<size_t>(surface_size.width());
-    pixel_size *= static_cast<size_t>(surface_size.height());
-    pixel_size *= sizeof(u32);
-    if (pixel_size.has_overflow())
-        return NumericLimits<size_t>::max();
-    return JS::saturating_add_external_memory_size(size, pixel_size.value());
-}
-
-Gfx::Path Canvas2DContextBase::rect_path(float x, float y, float width, float height)
-{
-    auto top_left = Gfx::FloatPoint(x, y);
-    auto top_right = Gfx::FloatPoint(x + width, y);
-    auto bottom_left = Gfx::FloatPoint(x, y + height);
-    auto bottom_right = Gfx::FloatPoint(x + width, y + height);
-
-    Gfx::Path path;
-    path.move_to(top_left);
-    path.line_to(top_right);
-    path.line_to(bottom_right);
-    path.line_to(bottom_left);
-    path.line_to(top_left);
-    return path;
-}
-
-void Canvas2DContextBase::fill_rect(float x, float y, float width, float height)
-{
-    fill_internal(rect_path(x, y, width, height), Gfx::WindingRule::EvenOdd);
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clearrect
-void Canvas2DContextBase::clear_rect(float x, float y, float width, float height)
-{
-    // 1. If any of the arguments are infinite or NaN, then return.
-    if (!isfinite(x) || !isfinite(y) || !isfinite(width) || !isfinite(height))
-        return;
-
-    if (auto* recorder = canvas_recorder()) {
-        auto rect = Gfx::FloatRect(x, y, width, height);
-        recorder->clear_rect(rect, clear_color());
-        did_draw(rect);
-    }
-}
-
-void Canvas2DContextBase::stroke_rect(float x, float y, float width, float height)
-{
-    stroke_internal(rect_path(x, y, width, height));
-}
-
-// 4.12.5.1.14 Drawing images, https://html.spec.whatwg.org/multipage/canvas.html#drawing-images
-WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSource const& image, float source_x, float source_y, float source_width, float source_height, float destination_x, float destination_y, float destination_width, float destination_height)
-{
-    // 1. If any of the arguments are infinite or NaN, then return.
-    if (!isfinite(source_x) || !isfinite(source_y) || !isfinite(source_width) || !isfinite(source_height) || !isfinite(destination_x) || !isfinite(destination_y) || !isfinite(destination_width) || !isfinite(destination_height))
-        return {};
-
-    // 2. Let usability be the result of checking the usability of image.
-    auto usability = TRY(check_usability_of_image(image));
-
-    // 3. If usability is bad, then return (without drawing anything).
-    if (usability == CanvasImageSourceUsability::Bad)
-        return {};
-
-    auto source_bitmap_rect = Gfx::IntRect { {}, canvas_image_source_dimensions(image) };
-
-    // 4. Establish the source and destination rectangles as follows:
-    //    If not specified, the dw and dh arguments must default to the values of sw and sh, interpreted such that one CSS pixel in the image is treated as one unit in the output bitmap's coordinate space.
-    //    If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's intrinsic width in image pixels, and the image's intrinsic height in image pixels, respectively.
-    //    If the image has no intrinsic dimensions, then the concrete object size must be used instead, as determined using the CSS "Concrete Object Size Resolution" algorithm, with the specified size having
-    //    neither a definite width nor height, nor any additional constraints, the object's intrinsic properties being those of the image argument, and the default object size being the size of the output bitmap.
-    //    The source rectangle is the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
-    //    The destination rectangle is the rectangle whose corners are the four points (dx, dy), (dx+dw, dy), (dx+dw, dy+dh), (dx, dy+dh).
-    // NOTE: Implemented in drawImage() overloads
-    if (source_width < 0) {
-        source_x += source_width;
-        source_width = abs(source_width);
-    }
-    if (source_height < 0) {
-        source_y += source_height;
-        source_height = abs(source_height);
-    }
-    if (destination_width < 0) {
-        destination_x += destination_width;
-        destination_width = abs(destination_width);
-    }
-    if (destination_height < 0) {
-        destination_y += destination_height;
-        destination_height = abs(destination_height);
-    }
-
-    //    The source rectangle is the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
-    auto source_rect = Gfx::FloatRect { source_x, source_y, source_width, source_height };
-    //    The destination rectangle is the rectangle whose corners are the four points (dx, dy), (dx+dw, dy), (dx+dw, dy+dh), (dx, dy+dh).
-    auto destination_rect = Gfx::FloatRect { destination_x, destination_y, destination_width, destination_height };
-    //    When the source rectangle is outside the source image, the source rectangle must be clipped
-    //    to the source image and the destination rectangle must be clipped in the same proportion.
-    auto clipped_source = source_rect.intersected(source_bitmap_rect.to_type<float>());
-    auto clipped_destination = destination_rect;
-    if (clipped_source != source_rect) {
-        clipped_destination.set_width(clipped_destination.width() * (clipped_source.width() / source_rect.width()));
-        clipped_destination.set_height(clipped_destination.height() * (clipped_source.height() / source_rect.height()));
-    }
-
-    // 5. If one of the sw or sh arguments is zero, then return. Nothing is painted.
-    if (source_width == 0 || source_height == 0)
-        return {};
-
-    // 6. Paint the region of the image argument specified by the source rectangle on the region of the rendering context's output bitmap specified by the destination rectangle, after applying the current transformation matrix to the destination rectangle.
-    auto scaling_mode = Gfx::ScalingMode::NearestNeighbor;
-    if (drawing_state().image_smoothing_enabled) {
-        // FIXME: Honor drawing_state().image_smoothing_quality
-        scaling_mode = Gfx::ScalingMode::BilinearMipmap;
-    }
-
-    auto draw_canvas_by_id = [&](Compositing::CanvasId source_canvas_id, bool source_is_2d) {
-        if (auto* recorder = canvas_recorder()) {
-            recorder->draw_canvas(source_canvas_id, destination_rect, source_rect.to_rounded<int>(), scaling_mode, compositing_for_drawing_state());
-            did_draw(destination_rect);
-            if (!source_is_2d)
-                recorder->flush();
-        }
-
-        // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
-        if (image_is_not_origin_clean(image))
-            m_origin_clean = false;
+    auto size = canvas_host.bitmap_size_for_canvas();
+    ContextCreationArguments arguments {
+        .canvas = &canvas,
+        .canvas_host = &canvas_host,
+        .canvas_is_offscreen = canvas_is_offscreen,
+        .width = size.width(),
+        .height = size.height(),
+        .alpha = context_attributes.alpha,
+        .desynchronized = context_attributes.desynchronized,
+        .color_space = context_attributes.color_space,
+        .color_type = context_attributes.color_type,
+        .will_read_frequently = context_attributes.will_read_frequently,
     };
-
-    if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>(); source_canvas && !(*source_canvas)->is_placeholder()) {
-        // A 2D source needs no eager synchronization: its recorded commands
-        // precede this DrawCanvas in the shared ordered stream, so the replay
-        // sees them by construction. WebGL frames are presented by a separate
-        // message and the source's registry surface is its live drawing buffer,
-        // so present the source now and flush the DrawCanvas right after it,
-        // before a later WebGL frame can overtake the reference.
-        bool const source_is_2d = (*source_canvas)->canvas_rendering_context_2d() != nullptr;
-        (*source_canvas)->ensure_backing_storage();
-        if (!source_is_2d)
-            (*source_canvas)->prepare_for_compositing();
-        if (auto source_canvas_id = (*source_canvas)->canvas_id(); source_canvas_id.has_value()) {
-            draw_canvas_by_id(*source_canvas_id, source_is_2d);
-            return {};
-        }
-    }
-
-    if (auto const* source_canvas = image.get_pointer<GC::Ref<OffscreenCanvas>>()) {
-        if (auto const* source_context = (*source_canvas)->context().get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>()) {
-            (*source_context)->ensure_backing_storage();
-            if (auto source_canvas_id = (*source_context)->canvas_id(); source_canvas_id.has_value()) {
-                draw_canvas_by_id(*source_canvas_id, true);
-                return {};
-            }
-        }
-    }
-
-    if (auto const* source_video = image.get_pointer<GC::Ref<HTMLVideoElement>>()) {
-        auto captured_frame = (*source_video)->capture_current_video_frame();
-        if (!captured_frame.has_value())
-            return {};
-        if (auto* recorder = canvas_recorder()) {
-            recorder->draw_video_frame(*captured_frame, destination_rect, source_rect.to_rounded<int>(), scaling_mode, compositing_for_drawing_state());
-            did_draw(destination_rect);
-        }
-        if (image_is_not_origin_clean(image))
-            m_origin_clean = false;
-        return {};
-    }
-
-    auto frame = canvas_image_source_frame(image);
-    if (!frame.has_value())
-        return {};
-
-    // NOTE: The readback fallback inside canvas_image_source_frame() may flush the
-    //       shared command stream, so the recorder is readied only afterwards.
-    if (auto* recorder = canvas_recorder()) {
-        recorder->draw_image_frame(*frame, destination_rect, source_rect.to_rounded<int>(), scaling_mode, compositing_for_drawing_state());
-        did_draw(destination_rect);
-    }
-
-    // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
-    if (image_is_not_origin_clean(image))
-        m_origin_clean = false;
-
-    return {};
+    return *static_cast<Canvas2DContextBase*>(web_canvas_2d_context_create(JS::HostABI::vm_to_abi(JS::VM::the()), &arguments));
 }
 
-void Canvas2DContextBase::did_draw(Gfx::FloatRect const&)
+CanvasHost& Canvas2DContextBase::canvas_host() const
 {
-    m_cached_readback = nullptr;
-    // FIXME: Make use of the rect to reduce the invalidated area when possible.
-    canvas_host().did_change_canvas_content();
+    return *static_cast<CanvasHost*>(web_canvas_2d_context_canvas_host(cell_of(*this)));
 }
 
-Canvas2DRecorder* Canvas2DContextBase::canvas_recorder()
+bool Canvas2DContextBase::origin_clean() const
 {
-    if (is_context_lost())
-        return nullptr;
-    ensure_backing_storage();
-    if (!has_backing_storage())
-        return nullptr;
-    m_recorder->prepare_to_record();
-    return m_recorder.ptr();
-}
-
-bool Canvas2DContextBase::ensure_remote_canvas_context()
-{
-    if (m_recorder)
-        return true;
-
-    auto& page = canvas_host().canvas_page();
-    if (!page.has_compositor_host())
-        return false;
-    auto transport = page.compositor_host().create_canvas_2d_transport();
-    if (!transport)
-        return false;
-
-    // FIXME: implement context attribute .color_space
-    // FIXME: implement context attribute .color_type
-    // FIXME: implement context attribute .desynchronized
-    // FIXME: implement context attribute .will_read_frequently
-    auto recorder = Canvas2DRecorder::create(transport.release_nonnull());
-    if (!recorder->create_context(m_size, m_context_attributes.alpha))
-        return false;
-    m_recorder = move(recorder);
-    return true;
-}
-
-RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type)
-{
-    if (!has_backing_storage())
-        return nullptr;
-
-    // OPTIMIZATION: A remote readback requires a synchronous compositor IPC.
-    // Reuse the snapshot while no drawing command has changed its pixels.
-    if (m_cached_readback && m_cached_readback_rect == rect && m_cached_readback->alpha_type() == alpha_type)
-        return m_cached_readback;
-
-    m_recorder->flush();
-    auto pixels = m_recorder->read_back_pixels(rect, alpha_type);
-    if (pixels) {
-        m_cached_readback = pixels;
-        m_cached_readback_rect = rect;
-    }
-    return pixels;
+    return web_canvas_2d_context_origin_clean(cell_of(*this));
 }
 
 void Canvas2DContextBase::set_size(Gfx::IntSize const& size)
 {
-    if (m_size == size)
-        return;
-    m_size = size;
-    discard_backing_storage();
+    web_canvas_2d_context_set_size(this, size.width(), size.height());
+}
+
+void Canvas2DContextBase::reset_to_default_state()
+{
+    web_canvas_2d_context_reset_to_default_state(this);
 }
 
 void Canvas2DContextBase::prepare_for_compositing()
 {
-    if (!has_backing_storage())
-        return;
-    m_recorder->present();
+    web_canvas_2d_context_prepare_for_compositing(this);
+}
+
+void Canvas2DContextBase::ensure_backing_storage()
+{
+    web_canvas_2d_context_ensure_backing_storage(this);
+}
+
+void Canvas2DContextBase::discard_backing_storage()
+{
+    web_canvas_2d_context_discard_backing_storage(this);
 }
 
 Optional<Compositing::CanvasId> Canvas2DContextBase::canvas_id() const
 {
-    if (!m_recorder)
+    u64 canvas_id = 0;
+    if (!web_canvas_2d_context_canvas_id(cell_of(*this), &canvas_id))
         return {};
-    return m_recorder->canvas_id();
+    return Compositing::CanvasId { canvas_id };
 }
 
-// https://html.spec.whatwg.org/multipage/canvas.html#context-loss
+RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type)
+{
+    auto* bitmap = static_cast<Gfx::Bitmap*>(web_canvas_2d_context_read_pixels(this, rect, to_underlying(alpha_type)));
+    if (!bitmap)
+        return nullptr;
+    return adopt_ref(*bitmap);
+}
+
+bool Canvas2DContextBase::draw_image(ImageBitmap& image_bitmap, float x, float y)
+{
+    return web_canvas_2d_context_draw_image_bitmap(this, &image_bitmap, x, y);
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-context-lost
 void Canvas2DContextBase::notify_backing_storage_lost()
 {
-    if (!has_backing_storage())
+    if (!web_canvas_2d_context_has_backing_storage(this))
         return;
-    m_cached_readback = nullptr;
+    web_canvas_2d_context_drop_cached_readback(this);
 
     // When the user agent detects that the backing storage associated with a canvas context has been lost, then it
     // must queue a global task on the DOM manipulation task source given canvas's relevant global object to run
     // these steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, realm().global_object(), GC::create_function(heap(), [this] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, canvas_host().canvas_relevant_global_object(), GC::create_function(GC::Heap::the(), [context = GC::Ref { *this }] {
         // 1. Let canvas be context's canvas element.
+        auto& canvas = context->canvas_host();
+
         // 2. If context's context lost is true, then abort these steps.
-        if (is_context_lost())
+        if (web_canvas_2d_context_is_lost(context.ptr()))
             return;
 
         // 3. Set context's context lost to true.
-        set_context_lost(true);
+        web_canvas_2d_context_set_lost(context.ptr(), true);
 
         // AD-HOC: Release the remote context backing the lost storage.
-        discard_backing_storage();
+        context->discard_backing_storage();
 
         // 4. Reset the rendering context to its default state given context.
-        reset_to_default_state();
+        context->reset_to_default_state();
 
         // 5. Let shouldRestore be the result of firing an event named contextlost at canvas, with the cancelable
         //    attribute initialized to true.
         DOM::EventInit context_lost_event_init;
         context_lost_event_init.cancelable = true;
-        bool should_restore = canvas_host().canvas_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextlost, context_lost_event_init));
+        bool should_restore = canvas.canvas_event_target().dispatch_event(DOM::Event::create(canvas.canvas_relevant_global_object(), HTML::EventNames::contextlost, context_lost_event_init));
 
         // 6. If shouldRestore is false, then abort these steps.
         if (!should_restore)
@@ -399,831 +292,436 @@ void Canvas2DContextBase::notify_backing_storage_lost()
 
         // 7. Attempt to restore context by creating a backing storage using context's attributes and associating
         //    them with context. If this fails, then abort these steps.
-        ensure_backing_storage();
-        if (!has_backing_storage())
+        context->ensure_backing_storage();
+        if (!web_canvas_2d_context_has_backing_storage(context.ptr()))
             return;
 
         // 8. Set context's context lost to false.
-        set_context_lost(false);
+        web_canvas_2d_context_set_lost(context.ptr(), false);
 
         // 9. Fire an event named contextrestored at canvas.
-        canvas_host().canvas_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextrestored));
+        canvas.canvas_event_target().dispatch_event(DOM::Event::create(canvas.canvas_relevant_global_object(), HTML::EventNames::contextrestored));
     }));
 }
 
-void Canvas2DContextBase::ensure_backing_storage()
+static CanvasHost& host_from(void* canvas_host)
 {
-    if (has_backing_storage() || m_size.is_empty())
-        return;
-    if (!ensure_remote_canvas_context())
-        return;
-
-    canvas_host().did_create_canvas_backing_storage();
+    return *static_cast<CanvasHost*>(canvas_host);
 }
 
-void Canvas2DContextBase::discard_backing_storage()
+void web_canvas_2d_canvas_did_change_content(void* canvas_host)
 {
-    m_cached_readback = nullptr;
-    if (m_recorder) {
-        // Flush the shared stream before destroying the context: it may still
-        // hold commands targeting this canvas, and DrawCanvas commands from
-        // other canvases referencing it, which must replay while it is alive.
-        m_recorder->flush();
-        m_recorder->destroy_context();
-        m_recorder = nullptr;
-    }
+    host_from(canvas_host).did_change_canvas_content();
 }
 
-Gfx::Path Canvas2DContextBase::text_path(Utf16View text, float x, float y, Optional<double> max_width)
+void web_canvas_2d_canvas_did_create_backing_storage(void* canvas_host)
 {
-    if (max_width.has_value() && max_width.value() <= 0)
-        return {};
-
-    auto const& font_cascade_list = this->font_cascade_list();
-    auto glyph_runs = Gfx::shape_text({ x, y }, text, *font_cascade_list, resolved_letter_spacing());
-    Gfx::Path path;
-    float text_width = 0;
-    for (auto const& glyph_run : glyph_runs) {
-        path.glyph_run(glyph_run);
-        text_width += glyph_run->width();
-    }
-    return path.copy_transformed(text_transform(text_width, max_width));
+    host_from(canvas_host).did_create_canvas_backing_storage();
 }
 
-Gfx::AffineTransform Canvas2DContextBase::text_transform(float text_width, Optional<double> max_width)
+static void* transport_for(Page& page)
 {
-    auto const& drawing_state = this->drawing_state();
-    auto const& font = font_cascade_list()->first();
-    Gfx::AffineTransform transform = {};
+    if (!page.has_compositor_host())
+        return nullptr;
+    auto transport = page.compositor_host().create_canvas_2d_transport();
+    if (!transport)
+        return nullptr;
+    return &transport.release_nonnull().leak_ref();
+}
 
-    // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm:
-    // 9. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box
-    // is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is
-    // available or if a reasonably readable one can be synthesized by applying a horizontal scale
-    // factor to the font) or a smaller font, and return to the previous step.
-    if (max_width.has_value() && text_width > float(*max_width)) {
-        auto horizontal_scale = float(*max_width) / text_width;
-        transform = Gfx::AffineTransform {}.scale({ horizontal_scale, 1 });
-        text_width *= horizontal_scale;
-    }
+void* web_canvas_2d_canvas_create_transport(void* canvas_host)
+{
+    return transport_for(host_from(canvas_host).canvas_page());
+}
 
-    // Apply text align
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textalign
-    // The direction property affects how "start" and "end" are interpreted:
-    // - "ltr" or "inherit" (default): start=left, end=right
-    // - "rtl": start=right, end=left
+void* web_canvas_2d_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* realm_pointer)
+{
+    auto& realm = *static_cast<JS::Realm*>(realm_pointer);
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto* cell = static_cast<GC::Cell*>(canvas);
+    if (canvas_is_offscreen)
+        return Bindings::wrap(wrapper_world, realm, GC::Ref { *static_cast<OffscreenCanvas*>(cell) }).ptr();
+    return Bindings::wrap(wrapper_world, realm, GC::Ref { *static_cast<HTMLCanvasElement*>(cell) }).ptr();
+}
 
-    // Determine if we're in RTL mode
-    bool is_rtl = drawing_state.direction == Bindings::CanvasDirection::Rtl;
+void* web_canvas_2d_canvas_relevant_realm(void* canvas_host)
+{
+    return &host_from(canvas_host).canvas_relevant_global_object().shape().realm();
+}
 
-    // Center alignment is the same regardless of direction
-    if (drawing_state.text_align == Bindings::CanvasTextAlign::Center) {
-        transform = Gfx::AffineTransform {}.set_translation({ -text_width / 2, 0 }).multiply(transform);
-    }
-    // Handle "start" alignment
-    else if (drawing_state.text_align == Bindings::CanvasTextAlign::Start) {
-        // In RTL, "start" means right-aligned (translate by full width)
-        if (is_rtl) {
-            transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
-        }
-        // In LTR, "start" means left-aligned (no translation needed - default)
-    }
-    // Handle "end" alignment
-    else if (drawing_state.text_align == Bindings::CanvasTextAlign::End) {
-        // In RTL, "end" means left-aligned (no translation needed)
-        if (!is_rtl) {
-            // In LTR, "end" means right-aligned (translate by full width)
-            transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
-        }
-    }
-    // Explicit "left" and "right" alignments ignore direction
-    else if (drawing_state.text_align == Bindings::CanvasTextAlign::Right) {
-        transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
-    }
-    // Left is the default - no translation needed
+u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host)
+{
+    return host_from(canvas_host).canvas_font_computer().environment_generation();
+}
 
-    // Apply text baseline
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textbaseline
-    auto const& font_pixel_metrics = font.pixel_metrics();
-    auto baseline_y_offset = [&] {
-        switch (drawing_state.text_baseline) {
-        case Bindings::CanvasTextBaseline::Top:
-            return font_pixel_metrics.ascent;
-        case Bindings::CanvasTextBaseline::Hanging:
-            return font_pixel_metrics.ascent * 0.8f;
-        case Bindings::CanvasTextBaseline::Middle:
-            return (font_pixel_metrics.ascent - font_pixel_metrics.descent) / 2.0f;
-        case Bindings::CanvasTextBaseline::Alphabetic:
-            return 0.0f;
-        case Bindings::CanvasTextBaseline::Ideographic:
-        case Bindings::CanvasTextBaseline::Bottom:
-            return -font_pixel_metrics.descent;
-        }
-        VERIFY_NOT_REACHED();
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-font
+template<typename CanvasType>
+static bool resolve_font(CanvasType& canvas_element, Utf16View font, ResolvedFont& out_font)
+{
+    // The font IDL attribute, on setting, must be parsed as a CSS <'font'> value (but without supporting property-independent style sheet syntax like 'inherit'),
+    // and the resulting font must be assigned to the context, with the 'line-height' component forced to 'normal', with the 'font-size' component converted to CSS pixels,
+    // and with system fonts being computed to explicit values.
+
+    auto const parsing_context = [&]() {
+        if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>)
+            return CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::OnScreenCanvasContextFontValue };
+        return CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue };
     }();
 
-    if (baseline_y_offset != 0.f)
-        transform = Gfx::AffineTransform {}.set_translation({ 0, baseline_y_offset }).multiply(transform);
-
-    return transform;
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filltext
-void Canvas2DContextBase::fill_text(Utf16View text, float x, float y, Optional<double> max_width)
-{
-    if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
-        return;
-
-    auto& state = drawing_state();
-    // Complex text effects continue to use the combined outline so they are applied
-    // once to the entire text, including runs that use different fallback fonts.
-    if (max_width.has_value() || state.shadow_blur != 0 || state.shadow_offset_x != 0 || state.shadow_offset_y != 0) {
-        fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
-        return;
-    }
-
-    auto font_cascade = font_cascade_list();
-    auto glyph_runs = Gfx::shape_text({}, text, *font_cascade, resolved_letter_spacing());
-    if (glyph_runs.size() != 1 || glyph_runs.first()->font().is_invisible()) {
-        fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
-        return;
-    }
-
-    auto* recorder = canvas_recorder();
-    if (!recorder)
-        return;
-    if (!state.fill_style.is_visible() && state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::SourceOver)
-        return;
-    auto const& glyph_run = glyph_runs.first();
-    Vector<Compositing::DisplayListGlyph> glyphs;
-    glyphs.ensure_capacity(glyph_run->glyphs().size());
-    for (auto const& glyph : glyph_run->glyphs()) {
-        if (glyph.should_paint)
-            glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
-    }
-    auto translation = text_transform(glyph_run->width(), {}).map(Gfx::FloatPoint { x, y });
-    recorder->draw_glyph_run(glyph_run->font(), glyphs, translation, state.fill_style, compositing_for_drawing_state());
-    did_draw({});
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroketext
-void Canvas2DContextBase::stroke_text(Utf16View text, float x, float y, Optional<double> max_width)
-{
-    if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
-        return;
-
-    stroke_internal(text_path(text, x, y, max_width));
-}
-
-void Canvas2DContextBase::begin_path()
-{
-    path().clear();
-}
-
-static Gfx::Path::CapStyle to_gfx_cap(Bindings::CanvasLineCap const& cap_style)
-{
-    switch (cap_style) {
-    case Bindings::CanvasLineCap::Butt:
-        return Gfx::Path::CapStyle::Butt;
-    case Bindings::CanvasLineCap::Round:
-        return Gfx::Path::CapStyle::Round;
-    case Bindings::CanvasLineCap::Square:
-        return Gfx::Path::CapStyle::Square;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Gfx::Path::JoinStyle to_gfx_join(Bindings::CanvasLineJoin const& join_style)
-{
-    switch (join_style) {
-    case Bindings::CanvasLineJoin::Round:
-        return Gfx::Path::JoinStyle::Round;
-    case Bindings::CanvasLineJoin::Bevel:
-        return Gfx::Path::JoinStyle::Bevel;
-    case Bindings::CanvasLineJoin::Miter:
-        return Gfx::Path::JoinStyle::Miter;
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
-static bool transparent_source_paint_can_be_ignored(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
-{
-    // https://html.spec.whatwg.org/multipage/canvas.html#drawing-model
-    // Composite B within the clipping region over the current output bitmap using the current compositing and blending operator.
-    return compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::SourceOver;
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
-Gfx::Color Canvas2DContextBase::clear_color() const
-{
-    return m_context_attributes.alpha ? Gfx::Color::Transparent : Gfx::Color::Black;
-}
-
-Canvas2DCompositing Canvas2DContextBase::compositing_for_drawing_state() const
-{
-    auto const& state = drawing_state();
-    return {
-        .filter = state.filter.has_value() ? &state.filter.value() : nullptr,
-        .global_alpha = state.global_alpha,
-        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
-    };
-}
-
-void Canvas2DContextBase::stroke_internal(Gfx::Path path)
-{
-    auto* recorder = canvas_recorder();
-    if (!recorder)
-        return;
-
-    auto& state = drawing_state();
-    if (!state.stroke_style.is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
-        return;
-
-    auto line_cap = to_gfx_cap(state.line_cap);
-    auto line_join = to_gfx_join(state.line_join);
-    // FIXME: Need a Vector<float> for rendering dash_array, but state.dash_list is Vector<double>.
-    // Maybe possible to avoid creating copies?
-    auto dash_array = Vector<float> {};
-    dash_array.ensure_capacity(state.dash_list.size());
-    for (auto const& dash : state.dash_list) {
-        dash_array.append(static_cast<float>(dash));
-    }
-    paint_shadow_for_stroke_internal(path, line_cap, line_join, dash_array);
-    auto bounding_box = path.bounding_box();
-    recorder->stroke_path(path, state.stroke_style,
-        {
-            .thickness = state.line_width,
-            .cap_style = line_cap,
-            .join_style = line_join,
-            .miter_limit = state.miter_limit,
-            .dash_array = dash_array,
-            .dash_offset = state.line_dash_offset,
-        },
-        compositing_for_drawing_state());
-
-    did_draw(bounding_box);
-}
-
-void Canvas2DContextBase::stroke()
-{
-    stroke_internal(path().clone());
-}
-
-void Canvas2DContextBase::stroke(Path2D const& path)
-{
-    stroke_internal(path.path().clone());
-}
-
-static constexpr Gfx::WindingRule bindings_to_gfx_fill_rule(Bindings::CanvasFillRule fill_rule)
-{
-    switch (fill_rule) {
-    case Bindings::CanvasFillRule::Nonzero:
-        return Gfx::WindingRule::Nonzero;
-    case Bindings::CanvasFillRule::Evenodd:
-        return Gfx::WindingRule::EvenOdd;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-void Canvas2DContextBase::fill_internal(Gfx::Path path, Gfx::WindingRule winding_rule)
-{
-    auto* recorder = canvas_recorder();
-    if (!recorder)
-        return;
-
-    auto& state = this->drawing_state();
-    if (!state.fill_style.is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
-        return;
-
-    paint_shadow_for_fill_internal(path, winding_rule);
-
-    auto bounding_box = path.bounding_box();
-    recorder->fill_path(path, state.fill_style, winding_rule, compositing_for_drawing_state());
-
-    did_draw(bounding_box);
-}
-
-void Canvas2DContextBase::fill(Bindings::CanvasFillRule fill_rule)
-{
-    fill_internal(path().clone(), bindings_to_gfx_fill_rule(fill_rule));
-}
-
-void Canvas2DContextBase::fill(Path2D& path, Bindings::CanvasFillRule fill_rule)
-{
-    fill_internal(path.path().clone(), bindings_to_gfx_fill_rule(fill_rule));
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> Canvas2DContextBase::create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings) const
-{
-    // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
-    if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_utf16);
-
-    int abs_width = width == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(width);
-    int abs_height = height == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(height);
-
-    // 2. Let newImageData be a new ImageData object.
-    // 3. Initialize newImageData given the absolute magnitude of sw, the absolute magnitude of sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
-
-    // 4. Initialize the image data of newImageData to transparent black.
-    // ... this is handled by ImageData::create()
-
-    // 5. Return newImageData.
-    return image_data;
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata-imagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> Canvas2DContextBase::create_image_data(ImageData const& image_data) const
-{
-    // 1. Let newImageData be a new ImageData object.
-    // 2. Initialize newImageData given the value of imageData's width attribute, the value of imageData's height attribute, and defaultColorSpace set to the value of imageData's colorSpace attribute.
-    // FIXME: Set defaultColorSpace to the value of image_data's colorSpace attribute
-    // 3. Initialize the image data of newImageData to transparent black.
-    // NOTE: No-op, already done during creation.
-    // 4. Return newImageData.
-    return TRY(ImageData::create(realm(), image_data.width(), image_data.height()));
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
-WebIDL::ExceptionOr<GC::Ptr<ImageData>> Canvas2DContextBase::get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings)
-{
-    // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
-    if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_utf16);
-
-    // 2. If the CanvasRenderingContext2D's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
-    if (!m_origin_clean)
-        return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_utf16);
-
-    // ImageData initialization requires positive width and height
-    // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
-    int abs_width = width == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(width);
-    int abs_height = height == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(height);
-
-    // 3. Let imageData be a new ImageData object.
-    // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
-
-    // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
-    auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };
-
-    // NOTE: The spec doesn't seem to define this behavior, but MDN does and the WPT tests
-    // assume it works this way.
-    // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/getImageData#sw
-    if (width < 0 || height < 0) {
-        source_rect = source_rect.translated(min(width, 0), min(height, 0));
-    }
-    auto source_rect_intersected = source_rect.intersected(Gfx::IntRect { {}, m_size });
-    if (source_rect_intersected.is_empty())
-        return image_data;
-
-    // NOTE: If reading back from the Compositor fails (no backing storage or no connection),
-    //       it's like copying only transparent black pixels (which is a no-op).
-    // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
-    //       might result in a loss of precision, but is according to spec.
-    //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-    auto pixels = read_pixels(source_rect_intersected, Gfx::AlphaType::Unpremultiplied);
-    if (!pixels)
-        return image_data;
-
-    // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
-    // NB: The pixels of imageData are RGBA8888 and unpremultiplied.
-    auto* image_data_pixels = image_data->pixels();
-    VERIFY(image_data_pixels);
-    if (pixels->format() != Gfx::BitmapFormat::RGBA8888 || pixels->alpha_type() != Gfx::AlphaType::Unpremultiplied || pixels->size() != source_rect_intersected.size())
-        return image_data;
-
-    // The readback only covers the part of the source rectangle that is inside the output bitmap.
-    auto destination_location = source_rect_intersected.location() - source_rect.location();
-    auto destination_pitch = static_cast<size_t>(image_data->width()) * sizeof(u32);
-    auto row_size = static_cast<size_t>(pixels->width()) * sizeof(u32);
-    for (int y = 0; y < pixels->height(); ++y) {
-        auto* destination_row = image_data_pixels + (destination_location.y() + y) * destination_pitch + destination_location.x() * sizeof(u32);
-        memcpy(destination_row, pixels->scanline_u8(y), row_size);
-    }
-
-    // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
-    // NOTE: No-op, already done during creation.
-
-    // 8. Return imageData.
-    return image_data;
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata-short
-WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_data, int dx, int dy)
-{
-    // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
-    // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
-    if (auto* recorder = canvas_recorder())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *recorder, dx, dy, 0, 0, image_data.width(), image_data.height()));
-
-    return {};
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata
-WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_data, int x, int y, int dirty_x, int dirty_y, int dirty_width, int dirty_height)
-{
-    // The putImageData(imageData, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight) method steps are to put pixels
-    // from an ImageData onto a bitmap, given imageData, this's output bitmap, dx, dy, dirtyX, dirtyY, dirtyWidth, and
-    // dirtyHeight.
-    if (auto* recorder = canvas_recorder())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *recorder, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
-
-    return {};
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
-WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Canvas2DRecorder& recorder, int dx, int dy, int dirty_x_argument, int dirty_y_argument, int dirty_width_argument, int dirty_height_argument)
-{
-    // 1. Let buffer be imageData's data attribute value's [[ViewedArrayBuffer]] internal slot.
-    // 2. If IsDetachedBuffer(buffer) is true, then throw an "InvalidStateError" DOMException
-    if (image_data.is_detached())
-        return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached"_utf16);
-
-    // NB: The arguments are IDL longs. Do the arithmetic below in 64 bits, so that it neither overflows nor loses
-    //     precision.
-    i64 dirty_x = dirty_x_argument;
-    i64 dirty_y = dirty_y_argument;
-    i64 dirty_width = dirty_width_argument;
-    i64 dirty_height = dirty_height_argument;
-
-    // 3. If dirtyWidth is negative, then let dirtyX be dirtyX+dirtyWidth, and let dirtyWidth be equal to the
-    //    absolute magnitude of dirtyWidth.
-    if (dirty_width < 0) {
-        dirty_x += dirty_width;
-        dirty_width = -dirty_width;
-    }
-    // If dirtyHeight is negative, then let dirtyY be dirtyY+dirtyHeight, and let dirtyHeight be equal to the absolute
-    // magnitude of dirtyHeight.
-    if (dirty_height < 0) {
-        dirty_y += dirty_height;
-        dirty_height = -dirty_height;
-    }
-
-    // 4. If dirtyX is negative, then let dirtyWidth be dirtyWidth+dirtyX, and let dirtyX be 0.
-    if (dirty_x < 0) {
-        dirty_width += dirty_x;
-        dirty_x = 0;
-    }
-
-    // If dirtyY is negative, then let dirtyHeight be dirtyHeight+dirtyY, and let dirtyY be 0.
-    if (dirty_y < 0) {
-        dirty_height += dirty_y;
-        dirty_y = 0;
-    }
-
-    // 5. If dirtyX+dirtyWidth is greater than the width attribute of the imageData argument, then let dirtyWidth be
-    //    the value of that width attribute, minus the value of dirtyX.
-    if (dirty_x + dirty_width > image_data.width()) {
-        dirty_width = image_data.width() - dirty_x;
-    }
-    // If dirtyY+dirtyHeight is greater than the height attribute of the imageData argument, then let dirtyHeight be
-    // the value of that height attribute, minus the value of dirtyY.
-    if (dirty_y + dirty_height > image_data.height()) {
-        dirty_height = image_data.height() - dirty_y;
-    }
-
-    // 6. If, after those changes, either dirtyWidth or dirtyHeight are negative or zero, then return without affecting
-    //    any bitmaps.
-    if (dirty_width <= 0 || dirty_height <= 0)
-        return {};
-
-    // 7. For all integer values of x and y where dirtyX ≤ x < dirtyX+dirtyWidth and dirtyY ≤ y < dirtyY+dirtyHeight,
-    //    set the pixel with coordinate (dx+x, dy+y) in bitmap to the color of the pixel at coordinate (x, y) in the
-    //    imageData data structure's bitmap, converted from imageData's colorSpace to the color space of bitmap using
-    //    'relative-colorimetric' rendering intent.
-    auto* source_pixels = image_data.pixels();
-    if (!source_pixels)
-        return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached or out-of-bounds"_utf16);
-    // NB: Only the pixels that land inside the output bitmap are set, so only copy those. Also keep the source
-    //     rectangle inside imageData here, whatever the steps above computed, before reading its pixels.
-    i64 source_left = max(max(dirty_x, -static_cast<i64>(dx)), static_cast<i64>(0));
-    i64 source_top = max(max(dirty_y, -static_cast<i64>(dy)), static_cast<i64>(0));
-    i64 source_right = min(min(dirty_x + dirty_width, static_cast<i64>(m_size.width()) - dx), static_cast<i64>(image_data.width()));
-    i64 source_bottom = min(min(dirty_y + dirty_height, static_cast<i64>(m_size.height()) - dy), static_cast<i64>(image_data.height()));
-    if (source_left >= source_right || source_top >= source_bottom)
-        return {};
-    // NB: The destination rectangle is inside the output bitmap, so its coordinates fit in an int.
-    auto destination_rect = Gfx::IntRect {
-        static_cast<int>(source_left + dx),
-        static_cast<int>(source_top + dy),
-        static_cast<int>(source_right - source_left),
-        static_cast<int>(source_bottom - source_top),
-    };
-
-    // NOTE: The ImageData buffer is mutable from script and the recorded draw is only
-    //       serialized at flush time, so snapshot the dirty pixels at call time. The
-    //       snapshot is shareable so that flushing to the Compositor passes the pixels
-    //       by file descriptor instead of copying them again.
-    auto source_pitch = static_cast<size_t>(image_data.width()) * sizeof(u32);
-    auto bitmap_snapshot = TRY_OR_THROW_OOM(realm().vm(), Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, destination_rect.size()));
-    for (int y = 0; y < destination_rect.height(); ++y)
-        __builtin_memcpy(bitmap_snapshot->scanline(y), source_pixels + static_cast<size_t>(source_top + y) * source_pitch + static_cast<size_t>(source_left) * sizeof(u32), static_cast<size_t>(destination_rect.width()) * sizeof(Gfx::RawPixel));
-    auto dst_rect = destination_rect.to_type<float>();
-    recorder.save();
-    recorder.set_transform({});
-    // NB: Step 7 sets each destination pixel to the source pixel: putImageData replaces the pixels (including their
-    //     alpha), rather than compositing them. Use the Copy operator — so a transparent source pixel overwrites an
-    //     opaque destination pixel, rather than leaving it unchanged.
-    recorder.draw_image_frame(Gfx::DecodedImageFrame { *bitmap_snapshot, Gfx::AlphaType::Unpremultiplied }, dst_rect, bitmap_snapshot->rect(), Gfx::ScalingMode::NearestNeighbor,
-        { .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Copy });
-    recorder.restore();
-
-    did_draw(dst_rect);
-
-    return {};
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state
-void Canvas2DContextBase::reset_to_default_state()
-{
-    auto* recorder = has_backing_storage() ? canvas_recorder() : nullptr;
-
-    // 1. Clear canvas's bitmap to transparent black.
-    if (recorder)
-        recorder->clear_rect(Gfx::FloatRect { {}, m_size.to_type<float>() }, clear_color());
-
-    // 2. Empty the list of subpaths in context's current default path.
-    path().clear();
-
-    // 3. Clear the context's drawing state stack.
-    clear_drawing_state_stack();
-
-    // 4. Reset everything that drawing state consists of to their initial values.
-    reset_drawing_state();
-
-    if (recorder) {
-        recorder->reset();
-        did_draw(Gfx::FloatRect { {}, m_size.to_type<float>() });
-    }
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-measuretext
-GC::Ref<TextMetrics> Canvas2DContextBase::measure_text(Utf16View text)
-{
-    // The measureText(text) method steps are to run the text preparation
-    // algorithm, passing it text and the object implementing the CanvasText
-    // interface, and then using the returned inline box return a new
-    // TextMetrics object with members behaving as described in the following
-    // list:
-    auto prepared_text = prepare_text(text);
-    TextMeasurements metrics;
-    // FIXME: Use the font that was used to create the glyphs in prepared_text.
-    auto const& font = font_cascade_list()->first();
-    auto const& font_pixel_metrics = font.pixel_metrics();
-    auto const ascent = font_pixel_metrics.ascent;
-    auto const descent = font_pixel_metrics.descent;
-    auto const hanging_baseline = ascent * 0.8f;
-
-    float baseline_offset = 0;
-    switch (drawing_state().text_baseline) {
-    case Bindings::CanvasTextBaseline::Top:
-        baseline_offset = ascent;
-        break;
-    case Bindings::CanvasTextBaseline::Hanging:
-        baseline_offset = hanging_baseline;
-        break;
-    case Bindings::CanvasTextBaseline::Middle:
-        baseline_offset = (ascent - descent) / 2.0f;
-        break;
-    case Bindings::CanvasTextBaseline::Alphabetic:
-        baseline_offset = 0;
-        break;
-    case Bindings::CanvasTextBaseline::Ideographic:
-    case Bindings::CanvasTextBaseline::Bottom:
-        baseline_offset = -descent;
-        break;
-    }
-
-    // width attribute: The width of that inline box, in CSS pixels. (The text's advance width.)
-    metrics.width = prepared_text.bounding_box.width();
-    // actualBoundingBoxLeft attribute: The distance parallel to the baseline from the alignment point given by the textAlign attribute to the left side of the bounding rectangle of the given text, in CSS pixels; positive numbers indicating a distance going left from the given alignment point.
-    metrics.actual_bounding_box_left = -prepared_text.bounding_box.left();
-    // actualBoundingBoxRight attribute: The distance parallel to the baseline from the alignment point given by the textAlign attribute to the right side of the bounding rectangle of the given text, in CSS pixels; positive numbers indicating a distance going right from the given alignment point.
-    metrics.actual_bounding_box_right = prepared_text.bounding_box.right();
-    // fontBoundingBoxAscent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the ascent metric of the first available font, in CSS pixels; positive numbers indicating a distance going up from the given baseline.
-    metrics.font_bounding_box_ascent = ascent - baseline_offset;
-    // fontBoundingBoxDescent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the descent metric of the first available font, in CSS pixels; positive numbers indicating a distance going down from the given baseline.
-    metrics.font_bounding_box_descent = descent + baseline_offset;
-    // actualBoundingBoxAscent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the top of the bounding rectangle of the given text, in CSS pixels; positive numbers indicating a distance going up from the given baseline.
-    metrics.actual_bounding_box_ascent = ascent - baseline_offset;
-    // actualBoundingBoxDescent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the bottom of the bounding rectangle of the given text, in CSS pixels; positive numbers indicating a distance going down from the given baseline.
-    metrics.actual_bounding_box_descent = descent + baseline_offset;
-    // emHeightAscent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the highest top of the em squares in the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the top of that em square (so this value will usually be positive). Zero if the given baseline is the top of that em square; half the font size if the given baseline is the middle of that em square.
-    metrics.em_height_ascent = ascent - baseline_offset;
-    // emHeightDescent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the lowest bottom of the em squares in the inline box, in CSS pixels; positive numbers indicating that the given baseline is above the bottom of that em square. (Zero if the given baseline is the bottom of that em square.)
-    metrics.em_height_descent = descent + baseline_offset;
-    // hangingBaseline attribute: The distance from the horizontal line indicated by the textBaseline attribute to the hanging baseline of the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the hanging baseline. (Zero if the given baseline is the hanging baseline.)
-    metrics.hanging_baseline = hanging_baseline - baseline_offset;
-    // alphabeticBaseline attribute: The distance from the horizontal line indicated by the textBaseline attribute to the alphabetic baseline of the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the alphabetic baseline. (Zero if the given baseline is the alphabetic baseline.)
-    metrics.alphabetic_baseline = -baseline_offset;
-    // ideographicBaseline attribute: The distance from the horizontal line indicated by the textBaseline attribute to the ideographic-under baseline of the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the ideographic-under baseline. (Zero if the given baseline is the ideographic-under baseline.)
-    metrics.ideographic_baseline = -descent - baseline_offset;
-
-    return TextMetrics::create(metrics);
-}
-
-RefPtr<Gfx::FontCascadeList const> Canvas2DContextBase::font_cascade_list()
-{
-    // When font style value is empty load default font
-    if (!drawing_state().font_style_value) {
-        set_font(u"10px sans-serif"sv);
-    }
-
-    // NB: Drawing states, including saved states, retain their cascades across font loads and font-display
-    //     transitions. Refresh them lazily so cached invisible fallback glyphs and metrics cannot outlive
-    //     the font environment that selected them.
-    if (drawing_state().font_environment_generation != canvas_host().canvas_font_computer().environment_generation()) {
-        auto font = drawing_state().font_style_value->to_utf16_string(CSS::SerializationMode::ResolvedValue);
-        set_font(font);
-    }
-    return drawing_state().current_font_cascade_list;
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
-Canvas2DContextBase::PreparedText Canvas2DContextBase::prepare_text(Utf16View text, float max_width)
-{
-    // 1. If maxWidth was provided but is less than or equal to zero or equal to NaN, then return an empty array.
-    if (max_width <= 0 || max_width != max_width) {
-        return {};
-    }
-
-    // 2. Replace all ASCII whitespace in text with U+0020 SPACE characters.
-    Utf16StringBuilder builder { text.length_in_code_units() };
-    for (auto c : text) {
-        builder.append_code_point(Infra::is_ascii_whitespace(c) ? ' ' : c);
-    }
-    auto replaced_text = builder.to_string();
-
-    // 3. Let font be the current font of target, as given by that object's font attribute.
-    auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list(), resolved_letter_spacing());
-
-    // FIXME: 4. Let language be the target's language.
-    // FIXME: 5. If language is "inherit":
-    //           ...
-    // FIXME: 6. If language is the empty string, then set language to explicitly unknown.
-
-    // FIXME: 7. Apply the appropriate step from the following list to determine the value of direction:
-    //           ...
-
-    // 8. Form a hypothetical infinitely-wide CSS line box containing a single inline box containing the text text,
-    //    with the CSS content language set to language, and with its CSS properties set as follows:
-    //   'direction'         -> direction
-    //   'font'              -> font
-    //   'font-kerning'      -> target's fontKerning
-    //   'font-stretch'      -> target's fontStretch
-    //   'font-variant-caps' -> target's fontVariantCaps
-    //   'letter-spacing'    -> target's letterSpacing
-    //   SVG text-rendering  -> target's textRendering
-    //   'white-space'       -> 'pre'
-    //   'word-spacing'      -> target's wordSpacing
-    // ...and with all other properties set to their initial values.
-    // FIXME: Actually use a LineBox here instead of, you know, using the default font and measuring its size (which is not the spec at all).
-    // FIXME: Once we have CanvasTextDrawingStyles, add the CSS attributes.
-    float height = 0;
-    float width = 0;
-    for (auto const& glyph_run : glyph_runs) {
-        height = max(height, glyph_run->font().pixel_size());
-        width += glyph_run->width();
-    }
-
-    // 9. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is available or if a reasonably readable one can be synthesized by applying a horizontal scale factor to the font) or a smaller font, and return to the previous step.
-    // FIXME: Record the font size used for this piece of text, and actually retry with a smaller size if needed.
-
-    // FIXME: 10. The anchor point is a point on the inline box, and the physical alignment is one of the values left, right,
-    //            and center. These variables are determined by the textAlign and textBaseline values as follows:
-    //            ...
-
-    // 11. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if
-    //     any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on
-    //     a coordinate space using CSS pixels with its origin is at the anchor point.
-    PreparedText prepared_text { move(glyph_runs), Gfx::TextAlignment::CenterLeft, { 0, 0, width, height } };
-
-    // 12. Return result, physical alignment, and the inline box.
-    return prepared_text;
-}
-
-void Canvas2DContextBase::clip_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
-{
-    auto* recorder = canvas_recorder();
-    if (!recorder)
-        return;
-
-    recorder->clip_path(path, winding_rule);
-}
-
-void Canvas2DContextBase::clip(Bindings::CanvasFillRule fill_rule)
-{
-    clip_internal(path(), bindings_to_gfx_fill_rule(fill_rule));
-}
-
-void Canvas2DContextBase::clip(Path2D& path, Bindings::CanvasFillRule fill_rule)
-{
-    clip_internal(path.path(), bindings_to_gfx_fill_rule(fill_rule));
-}
-
-static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const& transform, double x, double y, Bindings::CanvasFillRule fill_rule)
-{
-    auto point = Gfx::FloatPoint(x, y);
-    if (auto inverse_transform = transform.inverse(); inverse_transform.has_value())
-        point = inverse_transform->map(point);
-    return path.contains(point, bindings_to_gfx_fill_rule(fill_rule));
-}
-
-static bool image_provider_is_usable_for_canvas(Layout::ImageProvider const& image_provider)
-{
-    if (!image_provider.is_image_available())
+    auto font_style_value_result = parse_css_value(parsing_context, font, CSS::PropertyID::Font);
+
+    // If the new value is syntactically incorrect (including using property-independent style sheet syntax like 'inherit' or 'initial'), then it must be ignored, without assigning a new font value.
+    // NOTE: ShorthandStyleValue should be the only valid option here. We implicitly VERIFY this below.
+    if (!font_style_value_result || !font_style_value_result->is_shorthand())
         return false;
 
-    auto intrinsic_width = image_provider.intrinsic_width();
-    auto intrinsic_height = image_provider.intrinsic_height();
-    return intrinsic_width.has_value() && intrinsic_height.has_value()
-        && *intrinsic_width > 0 && *intrinsic_height > 0;
+    // Load font with font style value properties
+    auto const& font_style_value = font_style_value_result->as_shorthand();
+
+    auto computed_math_depth = CSS::InitialValues::math_depth();
+
+    // FIXME: We will need to absolutize this once we support ident() functions
+    auto font_family = font_style_value.longhand(CSS::PropertyID::FontFamily);
+
+    Optional<DOM::AbstractElement> inheritance_parent;
+
+    if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
+        // NB: Once pending style work is settled, the canvas's installed style is current, unless it is below
+        //     display:none, where style updates leave it stale. Only then is its style computed again.
+        auto& document = canvas_element.document();
+        Layout::ForcedReadScope read { document };
+        document.update_style_for_element(DOM::AbstractElement { canvas_element }, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
+        auto style_record = canvas_element.style_record_identity();
+        if (!style_record || has_flag(document.style_computer().style_engine().style_record_dependency_flags(read, style_record), CSS::StyleRecordDependencyFlag::InDisplayNoneSubtree))
+            document.update_style_for_element(DOM::AbstractElement { canvas_element });
+
+        if (canvas_element.navigable() && canvas_element.is_connected()) {
+            // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
+            computed_math_depth = canvas_element.template style_group<CSS::ComputedValues::FontValues>()->math_depth;
+
+            // NOTE: The canvas itself is considered the inheritance parent
+            inheritance_parent = canvas_element;
+        }
+    }
+
+    auto computation_context = canvas_element.canvas_font_computation_context();
+
+    auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_style_value.longhand(CSS::PropertyID::FontSize)->absolutized(computation_context), computed_math_depth, inheritance_parent, CSSPixels { 10 });
+    auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style_value.longhand(CSS::PropertyID::FontStyle)->absolutized(computation_context));
+    auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_style_value.longhand(CSS::PropertyID::FontWeight)->absolutized(computation_context), inheritance_parent);
+    auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_style_value.longhand(CSS::PropertyID::FontWidth)->absolutized(computation_context));
+    // NB: This doesn't require absolutization since only the font-variant-caps longhand can be set and that can only be
+    //     a keyword value
+    auto const& computed_font_variant = font_style_value.longhand(CSS::PropertyID::FontVariant).release_nonnull();
+
+    auto resolved_font_style_value = CSS::ShorthandStyleValue::create(
+        CSS::PropertyID::Font,
+        {
+            // Set explicitly https://drafts.csswg.org/css-fonts/#font-prop
+            CSS::PropertyID::FontFamily,
+            CSS::PropertyID::FontSize,
+            CSS::PropertyID::FontWidth,
+            CSS::PropertyID::FontStyle,
+            CSS::PropertyID::FontVariant,
+            CSS::PropertyID::FontWeight,
+            CSS::PropertyID::LineHeight,
+
+            // Reset implicitly https://drafts.csswg.org/css-fonts/#font-prop
+            CSS::PropertyID::FontFeatureSettings,
+            CSS::PropertyID::FontKerning,
+            CSS::PropertyID::FontLanguageOverride,
+            CSS::PropertyID::FontOpticalSizing,
+            // FIXME: PropertyID::FontSizeAdjust,
+            CSS::PropertyID::FontVariationSettings,
+        },
+        {
+            // Set explicitly
+            *font_family,
+            computed_font_size,
+            computed_font_width,
+            computed_font_style,
+            computed_font_variant,
+            computed_font_weight,
+            property_initial_value(CSS::PropertyID::LineHeight), // NB: line-height is forced to normal (i.e. the initial value)
+
+            // Reset implicitly
+            property_initial_value(CSS::PropertyID::FontFeatureSettings),   // font-feature-settings
+            property_initial_value(CSS::PropertyID::FontKerning),           // font-kerning,
+            property_initial_value(CSS::PropertyID::FontLanguageOverride),  // font-language-override
+            property_initial_value(CSS::PropertyID::FontOpticalSizing),     // font-optical-sizing,
+                                                                            // FIXME: font-size-adjust,
+            property_initial_value(CSS::PropertyID::FontVariationSettings), // font-variation-settings
+        });
+
+    CSS::FontResolutionFeatureValues feature_values;
+    if (auto caps = computed_font_variant->as_shorthand().longhand(CSS::PropertyID::FontVariantCaps); caps->to_keyword() == CSS::Keyword::SmallCaps)
+        feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontVariantCaps)] = caps;
+
+    // https://drafts.csswg.org/css-font-loading/#font-source
+    auto& font_computer = canvas_element.canvas_font_computer();
+
+    auto font_size = computed_font_size->as_length().length().absolute_length_to_px();
+    auto cascade = CSS::resolve_font_for_style_values(font_computer,
+        {
+            .font_families = CSS::computed_font_families_from_style_value(*font_family),
+            .font_optical_sizing = CSS::FontOpticalSizing::Auto,
+            .font_size = font_size,
+            .font_slope = computed_font_style->as_font_style().to_font_slope(),
+            .font_weight = computed_font_weight->as_number().number(),
+            .font_width = computed_font_width->as_percentage().percentage(),
+            .feature_values = move(feature_values),
+            .font_feature_values_scope = {},
+        });
+
+    out_font = {
+        .cascade = &cascade.leak_ref(),
+        .environment_generation = font_computer.environment_generation(),
+        .font_size = font_size.raw_value(),
+        // On getting, the font attribute must return the serialized form of the current font of the context (with no 'line-height' component).
+        .serialized = resolved_font_style_value->to_utf16_string(CSS::SerializationMode::ResolvedValue).into_raw(),
+    };
+    return true;
 }
 
-bool Canvas2DContextBase::is_point_in_path(double x, double y, Bindings::CanvasFillRule fill_rule)
+bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, ResolvedFont* out_font)
 {
-    return is_point_in_path_internal(path(), drawing_state().transform, x, y, fill_rule);
+    auto font_string = Utf16String::from_raw(font);
+    auto* cell = static_cast<GC::Cell*>(canvas);
+    if (canvas_is_offscreen)
+        return resolve_font(*static_cast<OffscreenCanvas*>(cell), font_string.utf16_view(), *out_font);
+    return resolve_font(*static_cast<HTMLCanvasElement*>(cell), font_string.utf16_view(), *out_font);
 }
 
-bool Canvas2DContextBase::is_point_in_path(Path2D const& path, double x, double y, Bindings::CanvasFillRule fill_rule)
+// What the CSS values of a context are resolved with: the viewport of the canvas, and the font of the context.
+static CSS::ComputationContext computation_context_for(CanvasHost& canvas_host, FontMetricsSource font)
 {
-    return is_point_in_path_internal(path.path(), drawing_state().transform, x, y, fill_rule);
+    auto font_metrics = [&]() {
+        // https://html.spec.whatwg.org/multipage/canvas.html#text-styles
+        // NB: We lazily initialize the font, so if it hasn't been set yet we generate the font metrics based on the default font
+        if (!font.cascade) {
+            // When the object implementing the CanvasTextDrawingStyles interface is created, the font of the context must be set to 10px sans-serif.
+            return CSS::Length::FontMetrics { 10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height() };
+        }
+
+        auto const& first_font = font.cascade->first_available_font();
+        return CSS::Length::FontMetrics { CSSPixels::from_raw(font.font_size), first_font.pixel_metrics(), CSS::InitialValues::line_height() };
+    }();
+
+    return {
+        .length_resolution_context = {
+            .viewport_rect = canvas_host.canvas_viewport_rect(),
+            .font_metrics = font_metrics,
+            .root_font_metrics = font_metrics },
+
+        // NB: We don't require an abstract element because tree counting and random() functions aren't allowed in
+        //     non-font canvas context values
+        .abstract_element = {},
+
+        // FIXME: The spec doesn't specify what color scheme should be used here but other browsers always use light so
+        //        we do too for compatibility. See https://github.com/whatwg/html/issues/12505
+        .color_scheme = CSS::PreferredColorScheme::Light
+    };
 }
 
-// https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
-WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const& image)
+void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource font, Gfx::Color* out_color)
 {
-    // 1. Switch on image:
-    auto usability = TRY(image.visit(
-        // HTMLOrSVGImageElement
-        [](GC::Ref<HTMLImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
-            // If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
-            if (image_element->current_request().state() == HTML::ImageRequest::State::Broken)
-                return WebIDL::InvalidStateError::create("Image element state is broken"_utf16);
+    auto& host = host_from(canvas_host);
+    auto computation_context = computation_context_for(host, font);
+    *out_color = color->absolutized(computation_context)->to_color(host.canvas_color_resolution_style()).value();
+}
 
-            // If image is not fully decodable, or has an intrinsic width or intrinsic height
-            // (or both) equal to zero, then return bad.
-            if (!image_provider_is_usable_for_canvas(*image_element))
-                return { CanvasImageSourceUsability::Bad };
-            return Optional<CanvasImageSourceUsability> {};
-        },
-        // FIXME: Don't duplicate this for HTMLImageElement and SVGImageElement.
-        [](GC::Ref<SVG::SVGImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
-            // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
+float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource font)
+{
+    auto absolutized_length = CSS::Length::from_style_value(length->absolutized(computation_context_for(host_from(canvas_host), font)), {});
+    return static_cast<float>(absolutized_length.absolute_length_to_px().to_double());
+}
 
-            // If image is not fully decodable, or has an intrinsic width or intrinsic height
-            // (or both) equal to zero, then return bad.
-            if (!image_provider_is_usable_for_canvas(*image_element))
-                return { CanvasImageSourceUsability::Bad };
-            return Optional<CanvasImageSourceUsability> {};
-        },
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
+bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource font, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*))
+{
+    auto& host = host_from(canvas_host);
+    auto filter_string = Utf16String::from_raw(filter);
+    CSS::Parser::Parser parser { CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue } };
 
-        [](GC::Ref<HTML::HTMLVideoElement> video_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
-            // If image's readyState attribute is either HAVE_NOTHING or HAVE_METADATA, then return bad.
-            if (video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing || video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveMetadata) {
-                return { CanvasImageSourceUsability::Bad };
-            }
-            return Optional<CanvasImageSourceUsability> {};
-        },
+    // 2. Let parsedValue be the result of parsing the given values as a <filter-value-list>.
+    //    If any property-independent style sheet syntax like 'inherit' or 'initial' is present,
+    //    then this parsing must return failure.
+    auto style_value = parser.parse_as_css_value(filter_string.utf16_view(), CSS::PropertyID::Filter);
+    if (!style_value || !style_value->is_value_list())
+        return false;
 
-        // OffscreenCanvas
-        [](GC::Ref<OffscreenCanvas> offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
-            // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
-            if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
-                return WebIDL::InvalidStateError::create("OffscreenCanvas width or height is zero"_utf16);
-            return Optional<CanvasImageSourceUsability> {};
-        },
-        // HTMLCanvasElement
-        [](GC::Ref<HTMLCanvasElement> canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
-            // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
-            if (canvas_element->width() == 0 || canvas_element->height() == 0)
-                return WebIDL::InvalidStateError::create("Canvas width or height is zero"_utf16);
-            return Optional<CanvasImageSourceUsability> {};
-        },
+    auto absolutized_style_value = style_value->absolutized(computation_context_for(host, font));
+    for (auto& item : absolutized_style_value->as_value_list().values()) {
+        if (item->is_url()) {
+            // FIXME: Resolve the SVG filter
+            dbgln("FIXME: SVG filters are not implemented for Canvas2D");
+            continue;
+        }
 
-        // ImageBitmap
-        // FIXME: VideoFrame
-        [](GC::Ref<ImageBitmap> image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
-            if (image_bitmap->is_detached())
-                return WebIDL::InvalidStateError::create("Image bitmap is detached"_utf16);
-            return Optional<CanvasImageSourceUsability> {};
-        }));
-    if (usability.has_value())
-        return usability.release_value();
+        auto const& filter_value = item->as_filter();
+        Compositing::RustFFI::FfiFilterFunction function {};
+        switch (filter_value.kind()) {
+        case CSS::FilterStyleValue::Kind::Blur: {
+            auto const& blur_filter = static_cast<CSS::BlurFilterStyleValue const&>(filter_value);
+            function.kind = Compositing::RustFFI::FfiFilterFunctionKind::Blur;
+            function.amount = blur_filter.resolved_radius();
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::Color: {
+            auto const& color = static_cast<CSS::ColorFilterStyleValue const&>(filter_value);
+            function.kind = Compositing::RustFFI::FfiFilterFunctionKind::Color;
+            function.color_operation = color.operation();
+            function.amount = color.resolved_amount();
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::HueRotate: {
+            auto const& hue_rotate = static_cast<CSS::HueRotateFilterStyleValue const&>(filter_value);
+            function.kind = Compositing::RustFFI::FfiFilterFunctionKind::HueRotate;
+            function.amount = hue_rotate.angle_degrees();
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::DropShadow: {
+            auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
+            function.kind = Compositing::RustFFI::FfiFilterFunctionKind::DropShadow;
+            function.offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x(), {}).absolute_length_to_px());
+            function.offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
+            if (drop_shadow.radius())
+                function.amount = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius(), {}).absolute_length_to_px());
+            function.color = drop_shadow.color() ? drop_shadow.color()->to_color(host.canvas_color_resolution_style()).value_or(Gfx::Color::Black) : Gfx::Color::Black;
+            break;
+        }
+        }
+        append_function(functions, &function);
+    }
+    return true;
+}
 
-    // 2. Return good.
-    return { CanvasImageSourceUsability::Good };
+CSS::StyleValue const* web_canvas_2d_parse_color(FlatPtr color)
+{
+    auto color_string = Utf16String::from_raw(color);
+    auto parsed_color = parse_css_type(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, color_string.utf16_view(), CSS::ValueType::Color);
+    if (!parsed_color)
+        return nullptr;
+    return &parsed_color.release_nonnull().leak_ref();
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing
+CSS::StyleValue const* web_canvas_2d_parse_length(FlatPtr length, FlatPtr* out_serialized)
+{
+    auto length_string = Utf16String::from_raw(length);
+    auto parsed = parse_css_type(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, length_string.utf16_view(), CSS::ValueType::Length);
+    if (!parsed)
+        return nullptr;
+    Utf16StringBuilder builder;
+    parsed->serialize(builder, CSS::SerializationMode::Normal);
+    *out_serialized = builder.to_string().into_raw();
+    return &parsed.release_nonnull().leak_ref();
+}
+
+void web_canvas_2d_style_value_ref(CSS::StyleValue const* style_value)
+{
+    style_value->ref();
+}
+
+void web_canvas_2d_style_value_unref(CSS::StyleValue const* style_value)
+{
+    style_value->unref();
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-gettransform
+void* web_canvas_2d_create_dom_matrix(void* realm_pointer, Gfx::AffineTransform const* transform)
+{
+    auto& realm = *static_cast<JS::Realm*>(realm_pointer);
+    Geometry::DOMMatrix2DInit init = { transform->a(), transform->b(), transform->c(), transform->d(), transform->e(), transform->f() };
+    auto matrix = Geometry::DOMMatrix::create_from_dom_matrix_2d_init(init);
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, matrix).ptr();
+}
+
+Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height)
+{
+    // NB: The bitmap is shareable, so that flushing to the Compositor passes the pixels by file descriptor instead of
+    //     copying them again.
+    auto bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, { width, height });
+    if (bitmap.is_error())
+        return nullptr;
+    auto row_size = static_cast<size_t>(width) * sizeof(Gfx::RawPixel);
+    for (int y = 0; y < height; ++y)
+        __builtin_memcpy(bitmap.value()->scanline(y), first_row + static_cast<size_t>(y) * pitch, row_size);
+    return new Gfx::DecodedImageFrame { *bitmap.release_value(), Gfx::AlphaType::Unpremultiplied };
+}
+
+static CanvasImageSource image_source_from(void* source_wrapper, CanvasImageSourceKind kind)
+{
+    auto& wrapper = *static_cast<JS::Object*>(source_wrapper);
+    switch (kind) {
+    case CanvasImageSourceKind::HTMLImageElement:
+        return GC::Ref { Bindings::impl_from<HTMLImageElement>(wrapper) };
+    case CanvasImageSourceKind::SVGImageElement:
+        return GC::Ref { Bindings::impl_from<SVG::SVGImageElement>(wrapper) };
+    case CanvasImageSourceKind::HTMLVideoElement:
+        return GC::Ref { Bindings::impl_from<HTMLVideoElement>(wrapper) };
+    case CanvasImageSourceKind::HTMLCanvasElement:
+        return GC::Ref { Bindings::impl_from<HTMLCanvasElement>(wrapper) };
+    case CanvasImageSourceKind::OffscreenCanvas:
+        return GC::Ref { Bindings::impl_from<OffscreenCanvas>(wrapper) };
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// The values of `Usability` of Bindings/Rust/src/canvas_2d/canvas.rs.
+static constexpr u8 usability_good = 0;
+static constexpr u8 usability_bad = 1;
+static constexpr u8 usability_invalid_state = 2;
+
+u8 web_canvas_2d_check_usability_of_image(void* source_wrapper, CanvasImageSourceKind kind, FlatPtr* out_message)
+{
+    auto usability = check_usability_of_image(image_source_from(source_wrapper, kind));
+    if (usability.is_exception()) {
+        auto exception = usability.release_error();
+        auto& dom_exception = exception.get<GC::Ref<WebIDL::DOMException>>();
+        VERIFY(dom_exception->name() == "InvalidStateError"_utf16_fly_string);
+        *out_message = Utf16String { dom_exception->message() }.into_raw();
+        return usability_invalid_state;
+    }
+    return usability.value() == CanvasImageSourceUsability::Good ? usability_good : usability_bad;
+}
+
+void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind kind, i32* out_width, i32* out_height)
+{
+    auto image_provider_intrinsic_size = [](Layout::ImageProvider const& image_provider) -> Optional<Gfx::IntSize> {
+        auto intrinsic_width = image_provider.intrinsic_width();
+        auto intrinsic_height = image_provider.intrinsic_height();
+        if (!intrinsic_width.has_value() || !intrinsic_height.has_value())
+            return {};
+        return Gfx::IntSize { intrinsic_width->to_int(), intrinsic_height->to_int() };
+    };
+
+    auto size = image_source_from(source_wrapper, kind).visit([&](GC::Ref<HTMLImageElement> source) -> Gfx::IntSize {
+            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
+                return *intrinsic_size;
+
+            // FIXME: This is very janky and not correct.
+            return { source->width(), source->height() }; }, [&](GC::Ref<SVG::SVGImageElement> source) -> Gfx::IntSize {
+            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
+                return *intrinsic_size;
+
+            // FIXME: This is very janky and not correct.
+            auto maybe_width = source->width()->anim_val()->value();
+            auto maybe_height = source->height()->anim_val()->value();
+
+            auto width = maybe_width.is_exception() ? 0 : maybe_width.release_value();
+            auto height = maybe_height.is_exception() ? 0 : maybe_height.release_value();
+
+            return { width, height }; }, [](GC::Ref<HTMLCanvasElement> source) -> Gfx::IntSize { return { source->width(), source->height() }; }, [](GC::Ref<OffscreenCanvas> source) -> Gfx::IntSize { return source->bitmap_size_for_canvas(); }, [](GC::Ref<HTMLVideoElement> source) -> Gfx::IntSize { return { source->video_width(), source->video_height() }; }, [](GC::Ref<ImageBitmap>) -> Gfx::IntSize { VERIFY_NOT_REACHED(); });
+    *out_width = size.width();
+    *out_height = size.height();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#the-image-argument-is-not-origin-clean
-bool image_is_not_origin_clean(CanvasImageSource const& image)
+bool web_canvas_2d_image_is_not_origin_clean(void* source_wrapper, CanvasImageSourceKind kind)
 {
     // An object image is not origin-clean if, switching on image's type:
-    return image.visit(
+    return image_source_from(source_wrapper, kind).visit(
         // HTMLOrSVGImageElement
         [](GC::Ref<HTMLImageElement> image) {
             // image's current request's image data is CORS-cross-origin.
@@ -1242,343 +740,104 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             // image's bitmap's origin-clean flag is false.
             return !canvas->is_origin_clean();
         },
-        // ImageBitmap
-        [](GC::Ref<ImageBitmap> const&) {
-            // FIXME: image's bitmap's origin-clean flag is false.
-            return false;
+        [](GC::Ref<ImageBitmap> const&) -> bool {
+            VERIFY_NOT_REACHED();
         });
 }
 
-bool Canvas2DContextBase::image_smoothing_enabled() const
+// The id of the canvas that a canvas or an OffscreenCanvas draws into, readied to be drawn, if it is drawn by its id.
+bool web_canvas_2d_image_source_canvas_id(void* source_wrapper, CanvasImageSourceKind kind, u64* out_canvas_id, bool* out_source_is_2d)
 {
-    return drawing_state().image_smoothing_enabled;
-}
-
-void Canvas2DContextBase::set_image_smoothing_enabled(bool enabled)
-{
-    drawing_state().image_smoothing_enabled = enabled;
-}
-
-Bindings::ImageSmoothingQuality Canvas2DContextBase::image_smoothing_quality() const
-{
-    return drawing_state().image_smoothing_quality;
-}
-
-void Canvas2DContextBase::set_image_smoothing_quality(Bindings::ImageSmoothingQuality quality)
-{
-    drawing_state().image_smoothing_quality = quality;
-}
-
-float Canvas2DContextBase::global_alpha() const
-{
-    return drawing_state().global_alpha;
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-globalalpha
-void Canvas2DContextBase::set_global_alpha(float alpha)
-{
-    // 1. If the given value is either infinite, NaN, or not in the range 0.0 to 1.0, then return.
-    if (!isfinite(alpha) || alpha < 0.0f || alpha > 1.0f) {
-        return;
+    auto& wrapper = *static_cast<JS::Object*>(source_wrapper);
+    Optional<Compositing::CanvasId> source_canvas_id;
+    if (kind == CanvasImageSourceKind::HTMLCanvasElement) {
+        auto& source_canvas = Bindings::impl_from<HTMLCanvasElement>(wrapper);
+        if (source_canvas.is_placeholder())
+            return false;
+        bool const source_is_2d = source_canvas.canvas_rendering_context_2d() != nullptr;
+        source_canvas.ensure_backing_storage();
+        if (!source_is_2d)
+            source_canvas.prepare_for_compositing();
+        source_canvas_id = source_canvas.canvas_id();
+        *out_source_is_2d = source_is_2d;
+    } else if (kind == CanvasImageSourceKind::OffscreenCanvas) {
+        auto& source_canvas = Bindings::impl_from<OffscreenCanvas>(wrapper);
+        auto const* source_context = source_canvas.context().get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>();
+        if (!source_context)
+            return false;
+        (*source_context)->ensure_backing_storage();
+        source_canvas_id = (*source_context)->canvas_id();
+        *out_source_is_2d = true;
     }
-    // 2. Otherwise, set this's global alpha to the given value.
-    drawing_state().global_alpha = alpha;
+    if (!source_canvas_id.has_value())
+        return false;
+    *out_canvas_id = source_canvas_id->value();
+    return true;
 }
 
-#define ENUMERATE_COMPOSITE_OPERATIONS(E)                               \
-    E("normal"_utf16, u"normal"sv, Normal)                              \
-    E("multiply"_utf16, u"multiply"sv, Multiply)                        \
-    E("screen"_utf16, u"screen"sv, Screen)                              \
-    E("overlay"_utf16, u"overlay"sv, Overlay)                           \
-    E("darken"_utf16, u"darken"sv, Darken)                              \
-    E("lighten"_utf16, u"lighten"sv, Lighten)                           \
-    E("color-dodge"_utf16, u"color-dodge"sv, ColorDodge)                \
-    E("color-burn"_utf16, u"color-burn"sv, ColorBurn)                   \
-    E("hard-light"_utf16, u"hard-light"sv, HardLight)                   \
-    E("soft-light"_utf16, u"soft-light"sv, SoftLight)                   \
-    E("difference"_utf16, u"difference"sv, Difference)                  \
-    E("exclusion"_utf16, u"exclusion"sv, Exclusion)                     \
-    E("hue"_utf16, u"hue"sv, Hue)                                       \
-    E("saturation"_utf16, u"saturation"sv, Saturation)                  \
-    E("color"_utf16, u"color"sv, Color)                                 \
-    E("luminosity"_utf16, u"luminosity"sv, Luminosity)                  \
-    E("clear"_utf16, u"clear"sv, Clear)                                 \
-    E("copy"_utf16, u"copy"sv, Copy)                                    \
-    E("source-over"_utf16, u"source-over"sv, SourceOver)                \
-    E("destination-over"_utf16, u"destination-over"sv, DestinationOver) \
-    E("source-in"_utf16, u"source-in"sv, SourceIn)                      \
-    E("destination-in"_utf16, u"destination-in"sv, DestinationIn)       \
-    E("source-out"_utf16, u"source-out"sv, SourceOut)                   \
-    E("destination-out"_utf16, u"destination-out"sv, DestinationOut)    \
-    E("source-atop"_utf16, u"source-atop"sv, SourceATop)                \
-    E("destination-atop"_utf16, u"destination-atop"sv, DestinationATop) \
-    E("xor"_utf16, u"xor"sv, Xor)                                       \
-    E("lighter"_utf16, u"lighter"sv, Lighter)                           \
-    E("plus-darker"_utf16, u"plus-darker"sv, PlusDarker)                \
-    E("plus-lighter"_utf16, u"plus-lighter"sv, PlusLighter)
-
-Utf16String Canvas2DContextBase::global_composite_operation() const
+Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind kind)
 {
-    auto current_compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator;
-    switch (current_compositing_and_blending_operator) {
-#undef __ENUMERATE
-#define __ENUMERATE(operation_string, operation_view, compositing_and_blending_operator) \
-    case Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator:         \
-        return operation_string;
-        ENUMERATE_COMPOSITE_OPERATIONS(__ENUMERATE)
-#undef __ENUMERATE
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    auto frame = image_source_from(source_wrapper, kind).visit([](OneOf<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>> auto const& element) -> Optional<Gfx::DecodedImageFrame> {
+            auto image_data = element->decoded_image_data();
+            if (!image_data)
+                return {};
+
+            Gfx::IntSize size;
+            auto intrinsic_width = element->intrinsic_width();
+            auto intrinsic_height = element->intrinsic_height();
+            if (intrinsic_width.has_value() && intrinsic_height.has_value())
+                size = { intrinsic_width->to_int(), intrinsic_height->to_int() };
+
+            return image_data->default_frame(size); }, [](GC::Ref<HTMLCanvasElement> const& canvas) -> Optional<Gfx::DecodedImageFrame> {
+            canvas->prepare_for_compositing();
+            auto bitmap = canvas->get_bitmap_from_surface();
+            if (!bitmap)
+                return {};
+            return Gfx::DecodedImageFrame { *bitmap }; }, [](GC::Ref<OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> {
+            auto bitmap = source->get_bitmap_from_surface();
+            if (!bitmap)
+                return {};
+            return Gfx::DecodedImageFrame { *bitmap }; }, [](OneOf<GC::Ref<HTMLVideoElement>, GC::Ref<ImageBitmap>> auto const&) -> Optional<Gfx::DecodedImageFrame> { VERIFY_NOT_REACHED(); });
+    if (!frame.has_value())
+        return nullptr;
+    return new Gfx::DecodedImageFrame { frame.release_value() };
 }
 
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-globalcompositeoperation
-void Canvas2DContextBase::set_global_composite_operation(Utf16View global_composite_operation)
+bool web_canvas_2d_capture_video_frame(void* source_wrapper, CapturedVideoFrame* out_frame)
 {
-    // 1. If the given value is not identical to any of the values that the <blend-mode> or the <composite-mode> properties are defined to take, then return.
-    // 2. Otherwise, set this's current compositing and blending operator to the given value.
-#undef __ENUMERATE
-#define __ENUMERATE(operation_string, operation_view, compositing_and_blending_operator)                                                    \
-    if (global_composite_operation == operation_view) {                                                                                     \
-        drawing_state().current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator; \
-        return;                                                                                                                             \
-    }
-    ENUMERATE_COMPOSITE_OPERATIONS(__ENUMERATE)
-#undef __ENUMERATE
-}
-
-float Canvas2DContextBase::shadow_offset_x() const
-{
-    return drawing_state().shadow_offset_x;
-}
-
-void Canvas2DContextBase::set_shadow_offset_x(float offset_x)
-{
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsetx
-    if (!isfinite(offset_x))
-        return;
-
-    drawing_state().shadow_offset_x = offset_x;
-}
-
-float Canvas2DContextBase::shadow_offset_y() const
-{
-    return drawing_state().shadow_offset_y;
-}
-
-void Canvas2DContextBase::set_shadow_offset_y(float offset_y)
-{
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsety
-    if (!isfinite(offset_y))
-        return;
-
-    drawing_state().shadow_offset_y = offset_y;
-}
-
-float Canvas2DContextBase::shadow_blur() const
-{
-    return drawing_state().shadow_blur;
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowblur
-void Canvas2DContextBase::set_shadow_blur(float blur_radius)
-{
-    // On setting, the attribute must be set to the new value,
-    // except if the value is negative, infinite or NaN, in which case the new value must be ignored.
-    if (blur_radius < 0 || isinf(blur_radius) || isnan(blur_radius))
-        return;
-
-    drawing_state().shadow_blur = blur_radius;
-}
-
-Utf16String Canvas2DContextBase::shadow_color() const
-{
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowcolor
-    auto serialized_color = drawing_state().shadow_color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
-    return Utf16String::from_ascii_without_validation(serialized_color.bytes());
-}
-
-void Canvas2DContextBase::set_shadow_color(Utf16View color)
-{
-    // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-
-    // 2. Let parsedValue be the result of parsing the given value with context if non-null.
-    auto parsed_value = parse_a_css_color_value(color);
-
-    // 3. If parsedValue is failure, then return.
-    if (!parsed_value.has_value())
-        return;
-
-    // 4. Set this's shadow color to parsedValue.
-    drawing_state().shadow_color = parsed_value.value();
-}
-// A shadow is drawn through the filter with its operator, but without the global alpha, which its color holds.
-static Canvas2DCompositing shadow_compositing(DrawingState const& state)
-{
-    return {
-        .filter = state.filter.has_value() ? &state.filter.value() : nullptr,
-        .global_alpha = 1,
-        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    auto& video = Bindings::impl_from<HTMLVideoElement>(*static_cast<JS::Object*>(source_wrapper));
+    auto captured_frame = video.capture_current_video_frame();
+    if (!captured_frame.has_value())
+        return false;
+    VERIFY(captured_frame->hold);
+    *out_frame = {
+        .hold = &captured_frame->hold.release_nonnull().leak_ref(),
+        .sink_handle = captured_frame->sink_handle.value(),
+        .generation = captured_frame->generation,
     };
+    return true;
 }
 
-void Canvas2DContextBase::paint_shadow_for_fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+void* web_canvas_2d_video_transport(void* source_wrapper)
 {
-    auto* recorder = canvas_recorder();
-    if (!recorder)
-        return;
-
-    auto& state = this->drawing_state();
-    if (state.shadow_blur == 0.0f && state.shadow_offset_x == 0.0f && state.shadow_offset_y == 0.0f)
-        return;
-
-    if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
-        return;
-
-    auto alpha = state.global_alpha * (state.shadow_color.alpha() / 255.0f);
-    auto fill_style_color = state.fill_style.as_color();
-    if (fill_style_color.has_value() && fill_style_color->alpha() > 0)
-        alpha = (fill_style_color->alpha() / 255.0f) * state.global_alpha;
-    if (alpha == 0.0f)
-        return;
-
-    recorder->save();
-
-    Gfx::AffineTransform transform;
-    transform.translate(state.shadow_offset_x, state.shadow_offset_y);
-    transform.multiply(state.transform);
-    recorder->set_transform(transform);
-    recorder->fill_path_shadow(path, state.shadow_color.with_opacity(alpha), winding_rule, state.shadow_blur, shadow_compositing(state));
-
-    recorder->restore();
-
-    did_draw(path.bounding_box());
+    auto& video = Bindings::impl_from<HTMLVideoElement>(*static_cast<JS::Object*>(source_wrapper));
+    return transport_for(video.document().page());
 }
 
-void Canvas2DContextBase::paint_shadow_for_stroke_internal(Gfx::Path const& path, Gfx::Path::CapStyle line_cap, Gfx::Path::JoinStyle line_join, Vector<float> const& dash_array)
+void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold* hold)
 {
-    auto* recorder = canvas_recorder();
-    if (!recorder)
-        return;
-
-    auto& state = drawing_state();
-
-    if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
-        return;
-
-    if (state.shadow_blur == 0.0f && state.shadow_offset_x == 0.0f && state.shadow_offset_y == 0.0f)
-        return;
-
-    auto alpha = state.global_alpha * (state.shadow_color.alpha() / 255.0f);
-    auto fill_style_color = state.fill_style.as_color();
-    if (fill_style_color.has_value() && fill_style_color->alpha() > 0)
-        alpha = (fill_style_color->alpha() / 255.0f) * state.global_alpha;
-    if (alpha == 0.0f)
-        return;
-
-    recorder->save();
-
-    Gfx::AffineTransform transform;
-    transform.translate(state.shadow_offset_x, state.shadow_offset_y);
-    transform.multiply(state.transform);
-    recorder->set_transform(transform);
-    recorder->stroke_path_shadow(path, state.shadow_color.with_opacity(alpha),
-        {
-            .thickness = state.line_width,
-            .cap_style = line_cap,
-            .join_style = line_join,
-            .miter_limit = state.miter_limit,
-            .dash_array = dash_array,
-            .dash_offset = state.line_dash_offset,
-        },
-        state.shadow_blur, shadow_compositing(state));
-
-    recorder->restore();
-
-    did_draw(path.bounding_box());
+    hold->unref();
 }
 
-Utf16String Canvas2DContextBase::filter() const
+// https://drafts.csswg.org/css-color/#parse-a-css-color-value
+bool web_canvas_gradient_parse_color(FlatPtr color, Gfx::Color* out_color)
 {
-    if (!drawing_state().filter_string.has_value()) {
-        return "none"_utf16;
-    }
-
-    return drawing_state().filter_string.value();
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
-void Canvas2DContextBase::set_filter(Utf16View filter)
-{
-    drawing_state().filter.clear();
-
-    // 1. If the given value is "none", then set this's current filter to "none" and return.
-    if (filter == u"none"sv) {
-        drawing_state().filter_string.clear();
-        return;
-    }
-
-    CSS::Parser::Parser parser { CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue } };
-
-    // 2. Let parsedValue be the result of parsing the given values as a <filter-value-list>.
-    //    If any property-independent style sheet syntax like 'inherit' or 'initial' is present,
-    //    then this parsing must return failure.
-    auto style_value = parser.parse_as_css_value(filter, CSS::PropertyID::Filter);
-
-    if (style_value && style_value->is_value_list()) {
-        auto absolutized_style_value = style_value->absolutized(computation_context_for_drawing_state());
-        auto filter_value_list = absolutized_style_value->as_value_list().values();
-
-        // 4. Set this's current filter to the given value.
-        Vector<Compositing::RustFFI::FfiFilterFunction> functions;
-        for (auto& item : filter_value_list) {
-            if (item->is_url()) {
-                // FIXME: Resolve the SVG filter
-                dbgln("FIXME: SVG filters are not implemented for Canvas2D");
-                continue;
-            }
-
-            auto const& filter_value = item->as_filter();
-            Compositing::RustFFI::FfiFilterFunction function {};
-            switch (filter_value.kind()) {
-            case CSS::FilterStyleValue::Kind::Blur: {
-                auto const& blur_filter = static_cast<CSS::BlurFilterStyleValue const&>(filter_value);
-                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::Blur;
-                function.amount = blur_filter.resolved_radius();
-                break;
-            }
-            case CSS::FilterStyleValue::Kind::Color: {
-                auto const& color = static_cast<CSS::ColorFilterStyleValue const&>(filter_value);
-                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::Color;
-                function.color_operation = color.operation();
-                function.amount = color.resolved_amount();
-                break;
-            }
-            case CSS::FilterStyleValue::Kind::HueRotate: {
-                auto const& hue_rotate = static_cast<CSS::HueRotateFilterStyleValue const&>(filter_value);
-                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::HueRotate;
-                function.amount = hue_rotate.angle_degrees();
-                break;
-            }
-            case CSS::FilterStyleValue::Kind::DropShadow: {
-                auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
-                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::DropShadow;
-                function.offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x(), {}).absolute_length_to_px());
-                function.offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
-                if (drop_shadow.radius())
-                    function.amount = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius(), {}).absolute_length_to_px());
-                function.color = drop_shadow.color() ? drop_shadow.color()->to_color(canvas_host().canvas_color_resolution_style()).value_or(Gfx::Color::Black) : Gfx::Color::Black;
-                break;
-            }
-            }
-            functions.append(function);
-        }
-        drawing_state().filter = Painting::filter_from_functions(functions);
-
-        drawing_state().filter_string = Utf16String::from_utf16(filter);
-    }
-
-    // 3. If parsedValue is failure, then return.
+    auto color_string = Utf16String::from_raw(color);
+    auto const maybe_color = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, color_string.utf16_view(), CSS::PropertyID::Color);
+    if (maybe_color.is_null() || !maybe_color->has_color())
+        return false;
+    *out_color = maybe_color->to_color({}).value();
+    return true;
 }
 
 }

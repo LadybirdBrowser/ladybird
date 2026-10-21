@@ -5,121 +5,88 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
-#include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
-#include <LibWeb/SVG/SVGAnimatedLength.h>
+#include <LibWeb/HTML/ImageRequest.h>
+#include <LibWeb/Layout/ImageProvider.h>
 
 namespace Web::HTML {
 
-Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
+static bool image_provider_is_usable_for_canvas(Layout::ImageProvider const& image_provider)
 {
-    auto image_provider_intrinsic_size = [](Layout::ImageProvider const& image_provider) -> Optional<Gfx::IntSize> {
-        auto intrinsic_width = image_provider.intrinsic_width();
-        auto intrinsic_height = image_provider.intrinsic_height();
-        if (!intrinsic_width.has_value() || !intrinsic_height.has_value())
-            return {};
-        return Gfx::IntSize { intrinsic_width->to_int(), intrinsic_height->to_int() };
-    };
+    if (!image_provider.is_image_available())
+        return false;
 
-    return image.visit(
-        [&](GC::Ref<HTMLImageElement> source) -> Gfx::IntSize {
-            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
-                return *intrinsic_size;
-
-            // FIXME: This is very janky and not correct.
-            return { source->width(), source->height() };
-        },
-        [&](GC::Ref<SVG::SVGImageElement> source) -> Gfx::IntSize {
-            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
-                return *intrinsic_size;
-
-            // FIXME: This is very janky and not correct.
-            auto maybe_width = source->width()->anim_val()->value();
-            auto maybe_height = source->height()->anim_val()->value();
-
-            auto width = maybe_width.is_exception() ? 0 : maybe_width.release_value();
-            auto height = maybe_height.is_exception() ? 0 : maybe_height.release_value();
-
-            return { width, height };
-        },
-        [](GC::Ref<HTMLCanvasElement> source) -> Gfx::IntSize {
-            return { source->width(), source->height() };
-        },
-        [](GC::Ref<ImageBitmap> source) -> Gfx::IntSize {
-            if (auto* bitmap = source->bitmap())
-                return bitmap->size();
-            return { source->width(), source->height() };
-        },
-        [](GC::Ref<OffscreenCanvas> source) -> Gfx::IntSize {
-            return source->bitmap_size_for_canvas();
-        },
-        [](GC::Ref<HTMLVideoElement> source) -> Gfx::IntSize {
-            return { source->video_width(), source->video_height() };
-        });
+    auto intrinsic_width = image_provider.intrinsic_width();
+    auto intrinsic_height = image_provider.intrinsic_height();
+    return intrinsic_width.has_value() && intrinsic_height.has_value()
+        && *intrinsic_width > 0 && *intrinsic_height > 0;
 }
 
-Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const& image)
+// https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
+WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const& image)
 {
-    return image.visit(
-        [](OneOf<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>> auto const& element) -> Optional<Gfx::DecodedImageFrame> {
-            auto image_data = element->decoded_image_data();
-            if (!image_data)
-                return {};
+    // 1. Switch on image:
+    auto usability = TRY(image.visit(
+        // HTMLOrSVGImageElement
+        [](GC::Ref<HTMLImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
+            if (image_element->current_request().state() == HTML::ImageRequest::State::Broken)
+                return WebIDL::InvalidStateError::create("Image element state is broken"_utf16);
 
-            Gfx::IntSize size;
-            auto intrinsic_width = element->intrinsic_width();
-            auto intrinsic_height = element->intrinsic_height();
-            if (intrinsic_width.has_value() && intrinsic_height.has_value())
-                size = { intrinsic_width->to_int(), intrinsic_height->to_int() };
-
-            return image_data->default_frame(size);
+            // If image is not fully decodable, then return bad.
+            // If image has a natural width or natural height (or both) equal to zero, then return bad.
+            if (!image_provider_is_usable_for_canvas(*image_element))
+                return { CanvasImageSourceUsability::Bad };
+            return Optional<CanvasImageSourceUsability> {};
         },
-        [](GC::Ref<HTMLCanvasElement> const& canvas) -> Optional<Gfx::DecodedImageFrame> {
-            canvas->prepare_for_compositing();
-            auto bitmap = canvas->get_bitmap_from_surface();
-            if (!bitmap)
-                return {};
-            return Gfx::DecodedImageFrame { *bitmap };
-        },
-        [](GC::Ref<ImageBitmap> const& source) -> Optional<Gfx::DecodedImageFrame> {
-            return source->frame();
-        },
-        [](GC::Ref<OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> {
-            auto bitmap = source->get_bitmap_from_surface();
-            if (!bitmap)
-                return {};
-            return Gfx::DecodedImageFrame { *bitmap };
-        },
-        [](GC::Ref<HTMLVideoElement> const&) -> Optional<Gfx::DecodedImageFrame> {
-            VERIFY_NOT_REACHED();
-        });
-}
+        // FIXME: Don't duplicate this for HTMLImageElement and SVGImageElement.
+        [](GC::Ref<SVG::SVGImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
-WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(CanvasImageSource const& image, float destination_x, float destination_y)
-{
-    // If not specified, the dw and dh arguments must default to the values of sw and sh, interpreted such that one CSS pixel in the image is treated as one unit in the output bitmap's coordinate space.
-    // If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's intrinsic width in image pixels, and the image's intrinsic height in image pixels, respectively.
-    // If the image has no intrinsic dimensions, then the concrete object size must be used instead, as determined using the CSS "Concrete Object Size Resolution" algorithm, with the specified size having
-    // neither a definite width nor height, nor any additional constraints, the object's intrinsic properties being those of the image argument, and the default object size being the size of the output bitmap.
-    auto size = canvas_image_source_dimensions(image);
-    return draw_image_internal(image, 0, 0, size.width(), size.height(), destination_x, destination_y, size.width(), size.height());
-}
+            // If image is not fully decodable, then return bad.
+            // If image has a natural width or natural height (or both) equal to zero, then return bad.
+            if (!image_provider_is_usable_for_canvas(*image_element))
+                return { CanvasImageSourceUsability::Bad };
+            return Optional<CanvasImageSourceUsability> {};
+        },
 
-WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(CanvasImageSource const& image, float destination_x, float destination_y, float destination_width, float destination_height)
-{
-    // If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's intrinsic width in image pixels, and the image's intrinsic height in image pixels, respectively.
-    // If the image has no intrinsic dimensions, then the concrete object size must be used instead, as determined using the CSS "Concrete Object Size Resolution" algorithm, with the specified size having
-    // neither a definite width nor height, nor any additional constraints, the object's intrinsic properties being those of the image argument, and the default object size being the size of the output bitmap.
-    auto size = canvas_image_source_dimensions(image);
-    return draw_image_internal(image, 0, 0, size.width(), size.height(), destination_x, destination_y, destination_width, destination_height);
-}
+        [](GC::Ref<HTML::HTMLVideoElement> video_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // If image's readyState attribute is either HAVE_NOTHING or HAVE_METADATA, then return bad.
+            if (video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing || video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveMetadata) {
+                return { CanvasImageSourceUsability::Bad };
+            }
+            return Optional<CanvasImageSourceUsability> {};
+        },
 
-WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(CanvasImageSource const& image, float source_x, float source_y, float source_width, float source_height, float destination_x, float destination_y, float destination_width, float destination_height)
-{
-    return draw_image_internal(image, source_x, source_y, source_width, source_height, destination_x, destination_y, destination_width, destination_height);
+        // OffscreenCanvas
+        [](GC::Ref<OffscreenCanvas> offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
+            if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
+                return WebIDL::InvalidStateError::create("OffscreenCanvas width or height is zero"_utf16);
+            return Optional<CanvasImageSourceUsability> {};
+        },
+        // HTMLCanvasElement
+        [](GC::Ref<HTMLCanvasElement> canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
+            if (canvas_element->width() == 0 || canvas_element->height() == 0)
+                return WebIDL::InvalidStateError::create("Canvas width or height is zero"_utf16);
+            return Optional<CanvasImageSourceUsability> {};
+        },
+
+        // ImageBitmap
+        // FIXME: VideoFrame
+        [](GC::Ref<ImageBitmap> image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            if (image_bitmap->is_detached())
+                return WebIDL::InvalidStateError::create("Image bitmap is detached"_utf16);
+            return Optional<CanvasImageSourceUsability> {};
+        }));
+    if (usability.has_value())
+        return usability.release_value();
+
+    // 2. Return good.
+    return { CanvasImageSourceUsability::Good };
 }
 
 }

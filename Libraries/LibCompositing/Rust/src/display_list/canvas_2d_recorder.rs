@@ -7,13 +7,9 @@
 //! The recorder of a 2D canvas, which writes a record for each command of the canvas and hands it, with the fonts, the
 //! image frames and the video frames that it names, to the stream that WebContent shares between its canvases.
 
-use super::canvas_2d::{ColorStops, Compositing, Paint, Stroke, TapeWriter};
+use super::canvas_2d::{Compositing, Paint, Stroke, TapeWriter};
 use super::commands::*;
-use libgfx_rust::{
-    AffineTransform, CapStyle, Color, CompositingAndBlendingOperator, FloatPoint, FloatRect, IntRect, IntSize,
-    JoinStyle, ScalingMode, WindingRule,
-};
-use std::ffi::c_void;
+use libgfx_rust::{AffineTransform, Color, FloatPoint, FloatRect, IntRect, IntSize, ScalingMode, WindingRule};
 
 /// The number of commands that the shared stream carries to the Compositor at most in one batch. A batch holds the
 /// image frames of its commands, each a bitmap that an IPC attachment carries, so it has to stay small.
@@ -231,103 +227,6 @@ impl<T: Transport> Recorder<T> {
     }
 }
 
-/// The fill or stroke style of a draw as C++ lends it to the recorder: the fields that `Canvas2DPaint` has for the kind,
-/// with the color stops and the image of a pattern lent, the image as a Gfx::DecodedImageFrame or null.
-#[repr(C)]
-pub struct FfiCanvas2DPaint<'a> {
-    pub kind: Canvas2DPaintKind,
-    pub pattern_repetition: Canvas2DPatternRepetition,
-    pub has_pattern_transform: bool,
-    pub color: Color,
-    pub start_point: FloatPoint,
-    pub end_point: FloatPoint,
-    pub start_radius: f32,
-    pub end_radius: f32,
-    pub start_angle: f32,
-    pub color_stop_colors: ak::Span<'a, Color>,
-    pub color_stop_positions: ak::Span<'a, f32>,
-    pub pattern_image: *const c_void,
-    pub pattern_transform: AffineTransform,
-}
-
-impl<'a> FfiCanvas2DPaint<'a> {
-    /// The paint, with the image of a pattern named by the id it travels with.
-    pub fn to_paint(&self, pattern_image: Option<ImageFrameResourceId>) -> Paint<'a> {
-        let color_stops = ColorStops {
-            colors: self.color_stop_colors.as_slice(),
-            positions: self.color_stop_positions.as_slice(),
-        };
-        match self.kind {
-            Canvas2DPaintKind::Color => Paint::Color(self.color),
-            Canvas2DPaintKind::LinearGradient => Paint::LinearGradient {
-                start_point: self.start_point,
-                end_point: self.end_point,
-                color_stops,
-            },
-            Canvas2DPaintKind::RadialGradient => Paint::RadialGradient {
-                start_center: self.start_point,
-                start_radius: self.start_radius,
-                end_center: self.end_point,
-                end_radius: self.end_radius,
-                color_stops,
-            },
-            Canvas2DPaintKind::ConicGradient => Paint::ConicGradient {
-                center: self.start_point,
-                start_angle: self.start_angle,
-                color_stops,
-            },
-            Canvas2DPaintKind::Pattern => Paint::Pattern {
-                image: pattern_image,
-                repetition: self.pattern_repetition,
-                transform: self.has_pattern_transform.then_some(self.pattern_transform),
-            },
-        }
-    }
-}
-
-/// How a draw composites, as C++ lends it to the recorder.
-#[repr(C)]
-pub struct FfiCanvas2DCompositing<'a> {
-    pub filter: ak::Span<'a, u8>,
-    pub has_filter: bool,
-    pub global_alpha: f32,
-    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
-}
-
-impl<'a> FfiCanvas2DCompositing<'a> {
-    pub fn to_compositing(&self) -> Compositing<'a> {
-        Compositing {
-            filter: self.has_filter.then(|| self.filter.as_slice()),
-            global_alpha: self.global_alpha,
-            compositing_and_blending_operator: self.compositing_and_blending_operator,
-        }
-    }
-}
-
-/// The line styles of a stroke, as C++ lends them to the recorder.
-#[repr(C)]
-pub struct FfiCanvas2DStroke<'a> {
-    pub thickness: f32,
-    pub cap_style: CapStyle,
-    pub join_style: JoinStyle,
-    pub miter_limit: f32,
-    pub dash_array: ak::Span<'a, f32>,
-    pub dash_offset: f32,
-}
-
-impl<'a> FfiCanvas2DStroke<'a> {
-    pub fn to_stroke(&self) -> Stroke<'a> {
-        Stroke {
-            thickness: self.thickness,
-            cap_style: self.cap_style,
-            join_style: self.join_style,
-            miter_limit: self.miter_limit,
-            dash_array: self.dash_array.as_slice(),
-            dash_offset: self.dash_offset,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -507,46 +406,5 @@ mod tests {
         assert_eq!(recorder.read_back_pixels(rect, AlphaType::Premultiplied), Some(rect));
         recorder.destroy_context();
         assert_eq!(*recorder.transport.events.borrow(), [Event::Present, Event::Flush]);
-    }
-
-    #[test]
-    fn a_lent_paint_names_the_image_of_its_pattern_by_the_id_it_travels_with() {
-        let colors = [Color(1), Color(2)];
-        let positions = [0.25, 0.75];
-        let lent = FfiCanvas2DPaint {
-            kind: Canvas2DPaintKind::RadialGradient,
-            pattern_repetition: Canvas2DPatternRepetition::Repeat,
-            has_pattern_transform: false,
-            color: Color(0),
-            start_point: FloatPoint { x: 1.0, y: 1.0 },
-            end_point: FloatPoint { x: 2.0, y: 2.0 },
-            start_radius: 3.0,
-            end_radius: 4.0,
-            start_angle: 0.0,
-            color_stop_colors: ak::Span::new(&colors),
-            color_stop_positions: ak::Span::new(&positions),
-            pattern_image: std::ptr::null(),
-            pattern_transform: AffineTransform::default(),
-        };
-        let Paint::RadialGradient {
-            end_radius,
-            color_stops,
-            ..
-        } = lent.to_paint(None)
-        else {
-            panic!("a radial gradient stays one");
-        };
-        assert_eq!(end_radius, 4.0);
-        assert_eq!(color_stops.positions, positions);
-        let pattern = FfiCanvas2DPaint {
-            kind: Canvas2DPaintKind::Pattern,
-            has_pattern_transform: true,
-            ..lent
-        };
-        let Paint::Pattern { image, transform, .. } = pattern.to_paint(Some(ImageFrameResourceId(6))) else {
-            panic!("a pattern stays one");
-        };
-        assert_eq!(image, Some(ImageFrameResourceId(6)));
-        assert_eq!(transform, Some(AffineTransform::default()));
     }
 }

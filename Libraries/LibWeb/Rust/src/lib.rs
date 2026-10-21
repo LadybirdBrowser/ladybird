@@ -33,6 +33,18 @@ pub(crate) mod svg;
 // What libweb_bindings_rust, whose interfaces are implemented in Rust, uses of this crate.
 pub use svg::gfx_path_from_path_data;
 
+/// The red, green, blue and alpha of a CSS <color> in ASCII that needs nothing to be resolved against, or None for any
+/// other value, as the color cache of the 2D canvas contexts parses it.
+pub fn parse_simple_color_ascii(source: &[u8]) -> Option<[u8; 4]> {
+    css::parser::color_parser::parse_simple_color(source.into())
+}
+
+/// The red, green, blue and alpha of a CSS <color> in UTF-16 that needs nothing to be resolved against, or None for any
+/// other value, as the color cache of the 2D canvas contexts parses it.
+pub fn parse_simple_color_utf16(source: &[u16]) -> Option<[u8; 4]> {
+    css::parser::color_parser::parse_simple_color(source.into())
+}
+
 // NB: Only C++ calls into the HTML tokenizer and parser, so nothing in this crate names them. Linking the crate keeps
 //     their extern "C" functions in the static library.
 extern crate libweb_html_tokenizer;

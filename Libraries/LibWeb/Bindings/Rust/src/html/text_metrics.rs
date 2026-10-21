@@ -11,9 +11,8 @@ use libjs_rust::api::{Trace, Vm};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
-/// The measurements of a text, in CSS pixels, which measureText() takes, as the members of TextMetrics describe them.
+/// The measurements of a text, in CSS pixels, as the members of TextMetrics describe them.
 #[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
 pub(crate) struct TextMeasurements {
     // x-direction
     pub(crate) width: f64,
