@@ -70,7 +70,7 @@ use super::web_gl_shader::WebGLShader;
 use super::web_gl_uniform_location::WebGLUniformLocation;
 
 unsafe extern "C" {
-    fn web_navigator_compatibility_mode() -> u8;
+    safe fn web_navigator_compatibility_mode() -> u8;
 }
 
 /// The navigator compatibility mode, numbered as Web::NavigatorCompatibilityMode is.
@@ -79,8 +79,7 @@ const MODE_GECKO: u8 = 1;
 const MODE_WEBKIT: u8 = 2;
 
 fn navigator_compatibility_mode() -> u8 {
-    // SAFETY: The function reads a process-wide setting and takes nothing.
-    unsafe { web_navigator_compatibility_mode() }
+    web_navigator_compatibility_mode()
 }
 
 /// VENDOR, RENDERER, VERSION, and SHADING_LANGUAGE_VERSION name the browser's WebGL implementation rather than the

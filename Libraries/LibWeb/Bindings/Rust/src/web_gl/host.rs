@@ -68,8 +68,8 @@ unsafe extern "C" {
         width: i32,
         height: i32,
     ) -> *mut c_void;
-    fn web_webgl_max_frames_per_message() -> usize;
-    fn web_webgl_anonymous_buffer_create(size: usize, out_data: *mut *mut u8) -> *mut c_void;
+    safe fn web_webgl_max_frames_per_message() -> usize;
+    safe fn web_webgl_anonymous_buffer_create(size: usize, out_data: &mut *mut u8) -> *mut c_void;
     fn web_webgl_anonymous_buffer_destroy(anonymous_buffer: *mut c_void);
     fn web_webgl_frame_destroy(frame: *mut c_void);
     fn web_webgl_bitmap_unref(bitmap: *mut c_void);
@@ -84,8 +84,7 @@ pub(crate) struct AnonymousBuffer {
 impl AnonymousBuffer {
     fn create(size: usize) -> Option<Self> {
         let mut data = ptr::null_mut();
-        // SAFETY: The function has no preconditions, and stores where the memory is mapped when it returns a buffer.
-        let buffer = NonNull::new(unsafe { web_webgl_anonymous_buffer_create(size, &raw mut data) })?;
+        let buffer = NonNull::new(web_webgl_anonymous_buffer_create(size, &mut data))?;
         Some(Self { buffer, data, size })
     }
 }
@@ -184,7 +183,7 @@ impl Transport for CppTransport {
     type Bitmap = Bitmap;
 
     fn max_frames_per_message(&self) -> usize {
-        unsafe { web_webgl_max_frames_per_message() }
+        web_webgl_max_frames_per_message()
     }
 
     fn create_shared_memory(&self, size: usize) -> Option<AnonymousBuffer> {

@@ -31,15 +31,14 @@ struct ConstantsRestatedInRust {
 
 unsafe extern "C" {
     fn compositing_webgl_wire_struct_layouts(out_word_count: *mut usize) -> *const u32;
-    fn web_webgl_constants_restated_in_rust(out_constants: *mut ConstantsRestatedInRust);
+    safe fn web_webgl_constants_restated_in_rust(out_constants: &mut ConstantsRestatedInRust);
 }
 
 pub(crate) fn verify_that_rust_and_cpp_agree_on_layouts_and_constants() {
     static VERIFIED: Once = Once::new();
     VERIFIED.call_once(|| {
         let mut constants_of_the_cpp_side = ConstantsRestatedInRust::default();
-        // SAFETY: The function fills in the struct, which has the layout of its C++ counterpart.
-        unsafe { web_webgl_constants_restated_in_rust(&raw mut constants_of_the_cpp_side) };
+        web_webgl_constants_restated_in_rust(&mut constants_of_the_cpp_side);
         let constants_of_the_rust_side = ConstantsRestatedInRust {
             record_alignment: RECORD_ALIGNMENT,
             header_size: HEADER_SIZE,

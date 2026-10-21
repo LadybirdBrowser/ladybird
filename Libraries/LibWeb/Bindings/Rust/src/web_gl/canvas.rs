@@ -39,15 +39,15 @@ unsafe extern "C" {
     fn web_webgl_canvas_bitmap_size(canvas_host: *mut c_void, out_width: *mut i32, out_height: *mut i32);
     fn web_webgl_canvas_wrapper(canvas: *mut c_void, canvas_is_offscreen: bool, realm: *mut c_void) -> *mut c_void;
     fn web_webgl_canvas_relevant_realm(canvas_host: *mut c_void) -> *mut c_void;
-    fn web_webgl_expose_experimental_interfaces() -> bool;
-    fn web_webgl_is_valid_2d_pixel_unpack_state(width: i32, unpack_state: *const PixelUnpackState) -> bool;
-    fn web_webgl_required_2d_texture_data_size(
+    safe fn web_webgl_expose_experimental_interfaces() -> bool;
+    safe fn web_webgl_is_valid_2d_pixel_unpack_state(width: i32, unpack_state: &PixelUnpackState) -> bool;
+    safe fn web_webgl_required_2d_texture_data_size(
         width: i32,
         height: i32,
         format: u32,
         r#type: u32,
-        unpack_state: *const PixelUnpackState,
-        out_size: *mut usize,
+        unpack_state: &PixelUnpackState,
+        out_size: &mut usize,
     ) -> bool;
     fn web_webgl_read_tex_image_source(
         source_wrapper: *mut c_void,
@@ -96,13 +96,11 @@ impl Canvas {
 }
 
 pub(crate) fn expose_experimental_interfaces() -> bool {
-    // SAFETY: The function has no preconditions.
-    unsafe { web_webgl_expose_experimental_interfaces() }
+    web_webgl_expose_experimental_interfaces()
 }
 
 pub(crate) fn is_valid_2d_pixel_unpack_state(width: i32, unpack_state: &PixelUnpackState) -> bool {
-    // SAFETY: The state is live for the call.
-    unsafe { web_webgl_is_valid_2d_pixel_unpack_state(width, unpack_state) }
+    web_webgl_is_valid_2d_pixel_unpack_state(width, unpack_state)
 }
 
 pub(crate) fn required_2d_texture_data_size(
@@ -113,9 +111,7 @@ pub(crate) fn required_2d_texture_data_size(
     unpack_state: &PixelUnpackState,
 ) -> Option<usize> {
     let mut size = 0;
-    // SAFETY: The state is live for the call, and the size is stored when the function returns true.
-    unsafe { web_webgl_required_2d_texture_data_size(width, height, format, r#type, unpack_state, &raw mut size) }
-        .then_some(size)
+    web_webgl_required_2d_texture_data_size(width, height, format, r#type, unpack_state, &mut size).then_some(size)
 }
 
 pub(crate) enum TexImageSourceFrame {
