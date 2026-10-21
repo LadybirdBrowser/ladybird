@@ -509,18 +509,24 @@ impl<'pass> BlockFormattingContext<'pass> {
             width: available_inline_size,
             height: self.used(node).content_block_size.get(),
         };
-        let intrusion = self.intrusions_for_band_into_rect(self.band_at(box_in_root_rect.y), box_in_root_rect);
-        let mut remaining_inline_size = available_inline_size - intrusion.left - intrusion.right;
-        if intrusion.left > CssPixels::default() || intrusion.right > CssPixels::default() {
-            // Negative margins do not create additional space next to a float. Reduce the space available for
-            // resolving an automatic inline size by any negative margins, so that the resulting border box is no
-            // larger than the space next to the float in the inline axis.
-            let margin_left = style.margin_left().to_px(available_inline_size);
-            let margin_right = style.margin_right().to_px(available_inline_size);
-            let negative_margin_sum = margin_left.min(CssPixels::default()) + margin_right.min(CssPixels::default());
-            remaining_inline_size = (remaining_inline_size + negative_margin_sum).max(CssPixels::default());
+        // NB: The box avoids every float beside it, so this takes the deepest intrusions over its block size.
+        let band = self.merged_band(box_in_root_rect.y, box_in_root_rect.bottom());
+        let intrusion = self.intrusions_for_band_into_rect(band, box_in_root_rect);
+        if intrusion.left <= CssPixels::default() && intrusion.right <= CssPixels::default() {
+            return Some(available_inline_size);
         }
-        Some(remaining_inline_size)
+        // INTEROP: Like Chrome, the margins of the box may overlap the floats, so only the part of a positive margin
+        //          that reaches past a float narrows the space next to it. Negative margins do not create additional
+        //          space next to a float. The space for resolving an automatic inline size is the space next to the
+        //          floats plus the margins, so that the resulting border box fills the space next to the floats.
+        let zero = CssPixels::default();
+        let margin_left = style.margin_left().to_px(available_inline_size);
+        let margin_right = style.margin_right().to_px(available_inline_size);
+        let opportunity = (available_inline_size
+            - intrusion.left.max(margin_left.max(zero))
+            - intrusion.right.max(margin_right.max(zero)))
+        .max(zero);
+        Some((opportunity + margin_left + margin_right).max(zero))
     }
 
     fn compute_inline_size(
@@ -1267,7 +1273,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                 height: used.border_box_block_size(false),
                 ..containing_block_rect_in_root
             };
-            let space = self.intrusions_for_band_into_rect(self.band_at(border_box_block_offset_in_root), band_rect);
+            let space = self.intrusions_for_band_into_rect(
+                self.merged_band(border_box_block_offset_in_root, band_rect.bottom()),
+                band_rect,
+            );
             let constrained = space.left > CssPixels::default() || space.right > CssPixels::default();
             let border_box_left = self.border_box_left_of_box_avoiding_floats(node, used, space);
             let mut must_clear = constrained
@@ -1482,7 +1491,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 }
                 .into(),
                 CssPixels::default(),
-                CssPixels::default(),
+                used.content_block_size.get(),
             );
             available_inline_size_within_containing_block -= space.left + space.right;
             // Subtracting the left margin here because it is applied again when the margin box offset is added below.

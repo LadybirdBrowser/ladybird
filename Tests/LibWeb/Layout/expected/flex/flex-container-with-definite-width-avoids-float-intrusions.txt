@@ -35,7 +35,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <hr> at [9,769] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,778] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-      Box <div.e> at [148,778] flex-container(row) [50+0+40 150 0+0+60] [0+0+0 100 0+0+0] [FFC] children: not-inline
+      Box <div.e> at [148,778] flex-container(row) [50+0+40 150 0+0+110] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [148,778] flex-item [0+0+0 150 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 15, rect: [148,778 123.125x16] baseline: 12.796875
               "This should sit"
